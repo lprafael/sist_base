@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+fastapi-mail
+pyshp
+requests
+geopy
+overpass
+geoalchemy2
+shapely
+geopandas
