@@ -88,7 +88,7 @@ from schemas import (
 from security import check_permission, check_database_permission, get_current_user
 
 # Utilidades de auditoría
-from audit_utils import log_audit_action, get_client_ip, get_user_agent
+from audit_utils import log_audit_action, log_activity, get_client_ip, get_user_agent
 
 # ============================================
 # 4. CONFIGURACIÓN INICIAL
@@ -100,7 +100,7 @@ load_dotenv()
 PORT = int(os.getenv("PORT", "8001"))
 
 # Importar configuración de base de datos desde el nuevo módulo
-from database import engine, SessionLocal, get_session
+from database import engine, SessionLocal, get_session, get_monitoreo_session
 
 # ============================================
 # 5. INICIALIZACIÓN DE FASTAPI
@@ -183,17 +183,9 @@ async def crear_gremio(
     await session.refresh(nuevo)
     
     # Registrar log de auditoría
-    await log_audit_action(
-        session=session,
-        username=current_user["sub"],
-        user_id=current_user["user_id"],
-        action="create",
-        table="gremios",
-        record_id=nuevo.gre_id,
-        new_data=gremio,
-        ip_address=get_client_ip(request),
-        user_agent=get_user_agent(request),
-        details=f"Gremio creado: {gremio.get('gre_nombre', 'N/A')}"
+    await log_activity(
+        session, request, current_user, "create", "gremios", nuevo.gre_id,
+        new_data=gremio, detalles=f"Gremio creado: {gremio.get('gre_nombre', 'N/A')}"
     )
     
     return nuevo
@@ -243,17 +235,9 @@ async def actualizar_gremio(
     await session.refresh(gremio_existente)
     
     # Registrar log de auditoría
-    await log_audit_action(
-        session=session,
-        username=current_user["sub"],
-        user_id=current_user["user_id"],
-        action="update",
-        table="gremios",
-        record_id=gre_id,
-        previous_data=datos_anteriores,
-        new_data=gremio,
-        ip_address=get_client_ip(request),
-        user_agent=get_user_agent(request),
+    await log_activity(
+        session, request, current_user, "update", "gremios", gre_id,
+        previous_data=datos_anteriores, new_data=gremio,
         details=f"Gremio actualizado: {gremio.get('gre_nombre', 'N/A')}"
     )
     
@@ -282,16 +266,9 @@ async def eliminar_gremio(
     await session.commit()
     
     # Registrar log de auditoría
-    await log_audit_action(
-        session=session,
-        username=current_user["sub"],
-        user_id=current_user["user_id"],
-        action="delete",
-        table="gremios",
-        record_id=gre_id,
-        previous_data=datos_eliminados,
-        ip_address=get_client_ip(request),
-        user_agent=get_user_agent(request),
+    await log_activity(
+        session, request, current_user, "delete", "gremios", gre_id,
+        previous_data=datos_eliminados, 
         details=f"Gremio eliminado: {datos_eliminados.get('gre_nombre', 'N/A')}"
     )
     
@@ -2476,6 +2453,108 @@ def write_shapefile_pyshp(base_path_no_ext, features):
         print(f"write_shapefile_pyshp fallo: {e}")
         return []
 
+@app.get("/itinerarios/eot/{id_eot}", summary="Listar todos los itinerarios de una EOT")
+async def listar_itinerarios_por_eot(id_eot: int, session: AsyncSession = Depends(get_session), current_user: dict = Depends(check_permission("read"))):
+    try:
+        # Detectar el esquema de historico_itinerario
+        schemas = ['geometria', 'public']
+        found_schema = 'public'
+        for schema in schemas:
+            table_check = await session.execute(
+                text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = '{schema}' AND table_name = 'historico_itinerario')")
+            )
+            if table_check.scalar():
+                found_schema = schema
+                break
+
+        query = text(f"""
+            SELECT 
+                h.id_itinerario, h.ruta_hex, h.fecha_inicio_vigencia, h.fecha_fin_vigencia, 
+                h.vigente, ST_AsGeoJSON(h.geom)::jsonb as geom,
+                r.linea, r.ramal, r.sentido
+            FROM {found_schema}.historico_itinerario h
+            JOIN public.catalogo_rutas r ON h.ruta_hex = r.ruta_hex
+            WHERE r.id_eot_catalogo = :id_eot
+            ORDER BY h.vigente DESC, h.fecha_inicio_vigencia DESC
+        """)
+        
+        result = await session.execute(query, {"id_eot": id_eot})
+        rows = result.mappings().all()
+        
+        itinerarios = []
+        for row in rows:
+            item = dict(row)
+            if item.get('geom'):
+                item['geom'] = {
+                    'type': 'Feature',
+                    'geometry': item['geom'],
+                    'properties': {
+                        'linea': item['linea'],
+                        'ramal': item['ramal'],
+                        'sentido': item['sentido'],
+                        'ruta_hex': item['ruta_hex'],
+                        'vigente': item['vigente']
+                    }
+                }
+            itinerarios.append(item)
+            
+        return itinerarios
+    except Exception as e:
+        print(f"Error en listar_itinerarios_por_eot: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/geocercas/eot/{id_eot}", summary="Listar geocercas de inicio y fin para una EOT")
+async def listar_geocercas_por_eot(id_eot: int, session: AsyncSession = Depends(get_session), current_user: dict = Depends(check_permission("read"))):
+    try:
+        # Detectar el esquema de geocercas e itinerario
+        schemas = ['geometria', 'public']
+        found_schema = 'public'
+        for schema in schemas:
+            table_check = await session.execute(
+                text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = '{schema}' AND table_name = 'geocercas')")
+            )
+            if table_check.scalar():
+                found_schema = schema
+                break
+
+        query = text(f"""
+            SELECT 
+                g.id_geocerca, g.id_itinerario, g.id_tipo, g.orden, 
+                ST_AsGeoJSON(g.geom)::jsonb as geom,
+                h.ruta_hex, h.vigente as itinerario_vigente,
+                r.linea, r.ramal
+            FROM {found_schema}.geocercas g
+            JOIN {found_schema}.historico_itinerario h ON g.id_itinerario = h.id_itinerario
+            JOIN public.catalogo_rutas r ON h.ruta_hex = r.ruta_hex
+            WHERE r.id_eot_catalogo = :id_eot AND g.id_tipo IN (1, 2)
+        """)
+        
+        result = await session.execute(query, {"id_eot": id_eot})
+        rows = result.mappings().all()
+        
+        geocercas = []
+        for row in rows:
+            it = dict(row)
+            if it.get('geom'):
+                it['geom'] = {
+                    'type': 'Feature',
+                    'geometry': it['geom'],
+                    'properties': {
+                        'id_geocerca': it['id_geocerca'],
+                        'id_tipo': it['id_tipo'],
+                        'ruta_hex': it['ruta_hex'],
+                        'linea': it['linea'],
+                        'ramal': it['ramal'],
+                        'vigente': it['itinerario_vigente']
+                    }
+                }
+            geocercas.append(it)
+            
+        return geocercas
+    except Exception as e:
+        print(f"Error en listar_geocercas_por_eot: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/historico_itinerario", response_model=List[Dict])
 async def listar_itinerarios(ruta_hex: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(check_permission("read"))):
     try:
@@ -3717,6 +3796,13 @@ async def crear_geocerca(
     session.add(nueva)
     await session.commit()
     await session.refresh(nueva)
+    
+    # Auditoría
+    await log_activity(
+        session, request, current_user, "create", "geocercas", nueva.id_geocerca, 
+        new_data=geocerca.dict(), details=f"Geocerca creada para itinerario {nueva.id_itinerario}"
+    )
+    
     return nueva
 
 @app.put("/geocercas/{id_geocerca}", summary="Actualizar geocerca")
@@ -3749,6 +3835,13 @@ async def actualizar_geocerca(
             raise HTTPException(status_code=400, detail=f"Error en geometría: {str(e)}")
             
     await session.commit()
+    
+    # Auditoría
+    await log_activity(
+        session, request, current_user, "update", "geocercas", existente.id_geocerca,
+        new_data=geocerca.dict(exclude_unset=True), details=f"Geocerca actualizada: {existente.id_geocerca}"
+    )
+    
     return existente
 
 @app.delete("/geocercas/{id_geocerca}", summary="Eliminar geocerca")
@@ -3765,7 +3858,47 @@ async def eliminar_geocerca(
         
     await session.delete(geocerca)
     await session.commit()
+
+    # Auditoría
+    await log_activity(
+        session, request, current_user, "delete", "geocercas", id_geocerca,
+        details=f"Geocerca eliminada: {id_geocerca}"
+    )
+
     return {"message": "Geocerca eliminada"}
+
+@app.get("/puntos_terminales", summary="Listar todos los puntos terminales")
+async def listar_todos_puntos_terminales(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(check_permission("read"))
+):
+    result = await session.execute(select(PuntoTerminal))
+    puntos = result.scalars().all()
+    
+    response = []
+    for p in puntos:
+        geom_punto_json = None
+        if p.geom_punto is not None:
+            geom_punto_json = mapping(to_shape(p.geom_punto))
+            
+        geom_geocerca_json = None
+        if p.geom_geocerca is not None:
+            geom_geocerca_json = mapping(to_shape(p.geom_geocerca))
+            
+        response.append({
+            "id_punto": p.id_punto,
+            "id_tipo_geocerca": p.id_tipo_geocerca,
+            "id_eot_vmt_hex": p.id_eot_vmt_hex,
+            "numero_terminal": p.numero_terminal,
+            "latitude": p.latitude,
+            "longitude": p.longitude,
+            "radio_geocerca_m": p.radio_geocerca_m,
+            "geom_punto": geom_punto_json,
+            "geom_geocerca": geom_geocerca_json,
+            "fecha_creacion": p.fecha_creacion,
+            "fecha_actualizacion": p.fecha_actualizacion
+        })
+    return response
 
 @app.get("/puntos_terminales/{id_eot_vmt_hex}", summary="Listar puntos terminales por EOT")
 async def listar_puntos_terminales(
@@ -3802,6 +3935,80 @@ async def listar_puntos_terminales(
             "fecha_actualizacion": p.fecha_actualizacion
         })
     return response
+
+@app.get("/detectar_posibles_terminales/{agency_id}", summary="Detectar posibles terminales mediante análisis GPS")
+async def detectar_posibles_terminales(
+    agency_id: str,
+    request: Request,
+    session_monitoreo: AsyncSession = Depends(get_monitoreo_session),
+    current_user: dict = Depends(check_permission("read"))
+):
+    """
+    Analiza datos históricos de GPS para identificar puntos recurrentes que
+    podrían ser terminales o puntos de parada importantes.
+    """
+    try:
+        # Agency ID indexado en app_monitoreo_mensajeoperativo
+        # Heurística: Clusters de puntos de inicio/fin de jornada y detenciones.
+        query = text("""
+            WITH extremes AS (
+                SELECT 
+                    mean_id,
+                    MIN(fecha_hora) as t_min,
+                    MAX(fecha_hora) as t_max
+                FROM app_monitoreo_mensajeoperativo
+                WHERE agency_id = :agency_id
+                AND fecha_hora >= CURRENT_DATE - INTERVAL '1 day'
+                GROUP BY mean_id
+            ),
+            candidate_points AS (
+                -- Puntos de inicio/fin
+                SELECT latitude, longitude, 'Inicio/Fin' as tipo
+                FROM app_monitoreo_mensajeoperativo m
+                JOIN extremes e ON m.mean_id = e.mean_id AND (m.fecha_hora = e.t_min OR m.fecha_hora = e.t_max)
+                WHERE m.agency_id = :agency_id
+                
+                UNION ALL
+                
+                -- Puntos con velocidad cero (muestreo)
+                SELECT latitude, longitude, 'Detención' as tipo
+                FROM app_monitoreo_mensajeoperativo
+                WHERE agency_id = :agency_id
+                AND velocidad = 0
+                AND fecha_hora >= CURRENT_DATE - INTERVAL '1 day'
+                LIMIT 3000
+            )
+            SELECT 
+                ROUND(latitude::numeric, 3) as lat, 
+                ROUND(longitude::numeric, 3) as lon, 
+                COUNT(*) as frecuencia,
+                STRING_AGG(DISTINCT tipo, ', ') as tipos
+            FROM candidate_points
+            GROUP BY 1, 2
+            HAVING COUNT(*) > 2
+            ORDER BY frecuencia DESC
+            LIMIT 25
+        """)
+        
+        result = await session_monitoreo.execute(query, {"agency_id": agency_id})
+        rows = result.mappings().all()
+        
+        posibles = []
+        for r in rows:
+            posibles.append({
+                "latitude": float(r["lat"]),
+                "longitude": float(r["lon"]),
+                "frecuencia": r["frecuencia"],
+                "labels": r["tipos"],
+                "probabilidad": "Alta" if r["frecuencia"] > 10 else "Media"
+            })
+            
+        return posibles
+        
+    except Exception as e:
+        print(f"Error detectando terminales: {e}")
+        # Retornar error descriptivo o lista vacía si la tabla no existe o falla la conexión
+        return []
 
 @app.post("/puntos_terminales", summary="Crear punto terminal")
 async def crear_punto_terminal(
@@ -3844,6 +4051,13 @@ async def crear_punto_terminal(
     session.add(nuevo)
     await session.commit()
     await session.refresh(nuevo)
+
+    # Auditoría
+    await log_activity(
+        session, request, current_user, "create", "puntos_terminales", nuevo.id_punto,
+        new_data=punto.dict(), details=f"Terminal {nuevo.numero_terminal} creada para EOT {nuevo.id_eot_vmt_hex}"
+    )
+
     return nuevo
 
 @app.put("/puntos_terminales/{id_punto}", summary="Actualizar punto terminal")
@@ -3894,6 +4108,13 @@ async def actualizar_punto_terminal(
             raise HTTPException(status_code=400, detail=f"Error en geom_geocerca: {str(e)}")
             
     await session.commit()
+    
+    # Auditoría
+    await log_activity(
+        session, request, current_user, "update", "puntos_terminales", existente.id_punto,
+        new_data=punto.dict(exclude_unset=True), details=f"Terminal {existente.numero_terminal} actualizada"
+    )
+    
     return existente
 
 @app.delete("/puntos_terminales/{id_punto}", summary="Eliminar punto terminal")
@@ -3910,57 +4131,12 @@ async def eliminar_punto_terminal(
         
     await session.delete(punto)
     await session.commit()
+
+    # Auditoría
+    await log_activity(
+        session, request, current_user, "delete", "puntos_terminales", id_punto,
+        details=f"Terminal eliminada: {id_punto}"
+    )
+
     return {"message": "Punto terminal eliminado"}
 
-@app.post("/geocercas", summary="Crear geocerca")
-async def crear_geocerca(
-    geo: GeocercaCreate,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(check_permission("write"))
-):
-    data = geo.dict()
-    geom_data = data.pop("geom", None)
-    nueva = Geocerca(**data)
-    if geom_data:
-        s = shapely_shape(geom_data) if isinstance(geom_data, dict) else wkt.loads(geom_data)
-        nueva.geom = from_shape(s, srid=4326)
-    session.add(nueva)
-    await session.commit()
-    await session.refresh(nueva)
-    return nueva
-
-@app.put("/geocercas/{id_geocerca}", summary="Actualizar geocerca")
-async def actualizar_geocerca(
-    id_geocerca: int,
-    geo: GeocercaUpdate,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(check_permission("write"))
-):
-    result = await session.execute(select(Geocerca).where(Geocerca.id_geocerca == id_geocerca))
-    existente = result.scalar_one_or_none()
-    if not existente:
-        raise HTTPException(status_code=404, detail="Geocerca no encontrada")
-    
-    data = geo.dict(exclude_unset=True)
-    geom_data = data.pop("geom", None)
-    for key, value in data.items():
-        setattr(existente, key, value)
-    if geom_data:
-        s = shapely_shape(geom_data) if isinstance(geom_data, dict) else wkt.loads(geom_data)
-        existente.geom = from_shape(s, srid=4326)
-    await session.commit()
-    return existente
-
-@app.delete("/geocercas/{id_geocerca}", summary="Eliminar geocerca")
-async def eliminar_geocerca(
-    id_geocerca: int,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(check_permission("delete"))
-):
-    result = await session.execute(select(Geocerca).where(Geocerca.id_geocerca == id_geocerca))
-    existente = result.scalar_one_or_none()
-    if not existente:
-        raise HTTPException(status_code=404, detail="Geocerca no encontrada")
-    await session.delete(existente)
-    await session.commit()
-    return {"message": "Geocerca eliminada"}

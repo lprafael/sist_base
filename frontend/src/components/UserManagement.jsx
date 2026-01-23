@@ -28,15 +28,17 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await authFetch(`/api/auth/users`);
+      const endpoint = isAdmin ? `/api/auth/users` : `/api/auth/me`;
+      const response = await authFetch(endpoint);
       if (response.ok) {
         const data = await response.json();
-        setUsers(data);
+        // /auth/me retorna un objeto simple, /auth/users retorna un array
+        setUsers(isAdmin ? data : [data]);
       } else {
-        setError('No tienes permisos para ver usuarios');
+        setError(isAdmin ? 'No tienes permisos para ver usuarios' : 'No se pudo cargar tu perfil');
       }
     } catch (err) {
-      setError('Error al cargar usuarios');
+      setError('Error al cargar datos');
     } finally {
       setLoading(false);
     }
@@ -113,6 +115,30 @@ const UserManagement = () => {
     finally { setLoading(false); }
   };
 
+  const handleResendPassword = async () => {
+    if (!window.confirm(`¿Seguro que deseas generar y enviar una nueva contraseña temporal a ${editUser.username}?`)) return;
+
+    setLoading(true);
+    try {
+      const response = await authFetch(`/api/notify/resend-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: editUser.username })
+      });
+
+      if (response.ok) {
+        alert('Se ha enviado una nueva contraseña temporal al usuario por email.');
+      } else {
+        const data = await response.json();
+        alert(data.detail || 'Error al reenviar contraseña');
+      }
+    } catch (err) {
+      alert('Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleStatusChange = async (user, action) => {
     const url = action === 'reactivate'
       ? `/api/auth/users/${user.id}/reactivate`
@@ -131,10 +157,14 @@ const UserManagement = () => {
   return (
     <div className="fade-in">
       <div className="user-management-header">
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Gestión de Usuarios</h1>
-        <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
-          ➕ Crear Usuario
-        </button>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+          {isAdmin ? 'Gestión de Usuarios' : 'Mi Perfil'}
+        </h1>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
+            ➕ Crear Usuario
+          </button>
+        )}
       </div>
 
       <div className="table-container">
@@ -159,11 +189,11 @@ const UserManagement = () => {
                 <td><span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="actions-cell">
-                    <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)}>✏️</button>
-                    {user.username !== 'admin' && (
+                    <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
+                    {isAdmin && user.username !== 'admin' && (
                       user.activo ?
-                        <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')}>🚫</button> :
-                        <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')}>✅</button>
+                        <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button> :
+                        <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
                     )}
                   </div>
                 </td>
@@ -197,7 +227,12 @@ const UserManagement = () => {
               </div>
               <div className="form-group">
                 <label className="form-label">Rol</label>
-                <select name="rol" value={showCreateForm ? newUser.rol : editUser.rol} onChange={(e) => handleChange(e, showCreateForm ? setNewUser : setEditUser)}>
+                <select
+                  name="rol"
+                  value={showCreateForm ? newUser.rol : editUser.rol}
+                  onChange={(e) => handleChange(e, showCreateForm ? setNewUser : setEditUser)}
+                  disabled={!isAdmin}
+                >
                   {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
@@ -207,6 +242,23 @@ const UserManagement = () => {
                   <div className="form-group"><input type="password" name="current_password" placeholder="Actual" onChange={(e) => handleChange(e, setPasswordFields)} /></div>
                   <div className="form-group"><input type="password" name="new_password" placeholder="Nueva" onChange={(e) => handleChange(e, setPasswordFields)} /></div>
                   <div className="form-group"><input type="password" name="confirm_password" placeholder="Confirmar" onChange={(e) => handleChange(e, setPasswordFields)} /></div>
+                </div>
+              )}
+              {!showCreateForm && isAdmin && currentUser.id !== editUser?.id && (
+                <div style={{ marginTop: '20px', padding: '16px', background: '#fff7ed', borderRadius: '12px', border: '1px solid #ffedd5' }}>
+                  <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '8px', color: '#9a3412' }}>Seguridad</p>
+                  <p style={{ fontSize: '0.8125rem', color: '#c2410c', marginBottom: '12px' }}>
+                    Si el usuario olvidó su contraseña, puedes enviarle una nueva temporal por correo electrónico.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ width: '100%', background: '#ffedd5', color: '#9a3412', borderColor: '#fed7aa' }}
+                    onClick={handleResendPassword}
+                    disabled={loading}
+                  >
+                    📧 Reenviar Contraseña Temporal
+                  </button>
                 </div>
               )}
               <div className="modal-actions">

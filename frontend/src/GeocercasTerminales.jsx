@@ -4,7 +4,7 @@ import {
     getCoreRowModel,
     flexRender
 } from "@tanstack/react-table";
-import { MapContainer, TileLayer, Marker, Circle, useMap, LayersControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Circle, useMap, LayersControl, GeoJSON, Popup } from "react-leaflet";
 import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import GeomMiniMap from "./GeomMiniMap";
@@ -19,6 +19,56 @@ function MapController({ center }) {
             map.panTo(center);
         }
     }, [center, map]);
+    return null;
+}
+
+// Componente para ajustar los límites del mapa global según los ítems
+function MapBoundsController({ type, items, extraItems, extraGeomItems }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if ((!items || items.length === 0) && (!extraItems || extraItems.length === 0) && (!extraGeomItems || extraGeomItems.length === 0)) return;
+
+        const bounds = L.latLngBounds([]);
+
+        if (type === 'terminales') {
+            items?.forEach(p => {
+                if (p.latitude && p.longitude) {
+                    bounds.extend([p.latitude, p.longitude]);
+                }
+            });
+            extraItems?.forEach(it => {
+                if (it.geom) {
+                    try {
+                        const layer = L.geoJSON(it.geom);
+                        bounds.extend(layer.getBounds());
+                    } catch (e) { }
+                }
+            });
+            extraGeomItems?.forEach(g => {
+                if (g.geom) {
+                    try {
+                        const layer = L.geoJSON(g.geom);
+                        bounds.extend(layer.getBounds());
+                    } catch (e) { }
+                }
+            });
+        } else if (type === 'geocercas') {
+            items?.forEach(g => {
+                if (g.geom) {
+                    try {
+                        const layer = L.geoJSON(g.geom);
+                        bounds.extend(layer.getBounds());
+                    } catch (e) { }
+                }
+            });
+        }
+
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+        }
+    }, [items, type, map, extraItems, extraGeomItems]);
+
     return null;
 }
 
@@ -111,6 +161,17 @@ export default function GeocercasTerminales() {
     const [geocercas, setGeocercas] = useState([]);
     const [tiposGeocerca, setTiposGeocerca] = useState([]);
     const [activeTab, setActiveTab] = useState("terminales");
+    const [posiblesTerminales, setPosiblesTerminales] = useState([]);
+    const [isDetecting, setIsDetecting] = useState(false);
+    const [isPosiblesModalOpen, setIsPosiblesModalOpen] = useState(false);
+
+    // Global Map states
+    const [isFullMapOpen, setIsFullMapOpen] = useState(false);
+    const [fullMapType, setFullMapType] = useState('terminales'); // 'terminales' | 'geocercas'
+    const [itinerariosEot, setItinerariosEot] = useState([]);
+    const [geocercasEot, setGeocercasEot] = useState([]);
+    const [includeInactive, setIncludeInactive] = useState(false);
+    const [includeGeocercas, setIncludeGeocercas] = useState(false);
 
     // Modal UI States
     const [isTerminalModalOpen, setIsTerminalModalOpen] = useState(false);
@@ -143,7 +204,8 @@ export default function GeocercasTerminales() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            setEots(data);
+            const sorted = data.sort((a, b) => a.eot_nombre.localeCompare(b.eot_nombre));
+            setEots(sorted);
         } catch (err) {
             console.error("Error al cargar EOTs:", err);
         }
@@ -194,10 +256,57 @@ export default function GeocercasTerminales() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            const filtered = data.filter(r => r.id_eot_catalogo === cod_catalogo);
+            const filtered = data
+                .filter(r => r.id_eot_catalogo === cod_catalogo)
+                .sort((a, b) => a.ruta_hex.localeCompare(b.ruta_hex));
             setRutas(filtered);
         } catch (err) {
             console.error("Error al cargar rutas:", err);
+        }
+    };
+
+    const fetchItinerariosEot = async (id_eot) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/itinerarios/eot/${id_eot}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setItinerariosEot(data);
+        } catch (err) {
+            console.error("Error al cargar itinerarios de la EOT:", err);
+        }
+    };
+
+    const fetchGeocercasEot = async (id_eot) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/geocercas/eot/${id_eot}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setGeocercasEot(data);
+        } catch (err) {
+            console.error("Error al cargar geocercas de la EOT:", err);
+        }
+    };
+
+    const fetchPosiblesTerminales = async () => {
+        if (!selectedEot) return;
+        setIsDetecting(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/detectar_posibles_terminales/${selectedEot.id_eot_vmt_hex}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setPosiblesTerminales(data);
+            setIsPosiblesModalOpen(true);
+        } catch (err) {
+            console.error("Error al detectar terminales:", err);
+            alert("Error al conectar con la base de datos de monitoreo.");
+        } finally {
+            setIsDetecting(false);
         }
     };
 
@@ -291,7 +400,8 @@ export default function GeocercasTerminales() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            setItinerarios(data);
+            const sorted = data.sort((a, b) => b.fecha_inicio_vigencia.localeCompare(a.fecha_inicio_vigencia));
+            setItinerarios(sorted);
         } catch (err) {
             console.error("Error al cargar itinerarios:", err);
         }
@@ -477,8 +587,33 @@ export default function GeocercasTerminales() {
                     {activeTab === "terminales" && (
                         <div className="fade-in card">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                <h3 style={{ margin: 0 }}>Puntos Terminales</h3>
-                                <button className="btn btn-primary" onClick={openNewTerminalModal}>+ Nuevo Terminal</button>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <h3 style={{ margin: 0 }}>Puntos Terminales</h3>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={fetchPosiblesTerminales}
+                                        disabled={isDetecting}
+                                        style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                                    >
+                                        {isDetecting ? "⌛ Analizando..." : "🔍 Detectar posibles terminales (GPS)"}
+                                    </button>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={async () => {
+                                            await Promise.all([
+                                                fetchItinerariosEot(selectedEot.cod_catalogo),
+                                                fetchGeocercasEot(selectedEot.cod_catalogo)
+                                            ]);
+                                            setFullMapType('terminales');
+                                            setIsFullMapOpen(true);
+                                        }}
+                                    >
+                                        🗺️ Ver Todos
+                                    </button>
+                                    <button className="btn btn-primary" onClick={openNewTerminalModal}>+ Nuevo Terminal</button>
+                                </div>
                             </div>
                             <div className="table-container">
                                 <table>
@@ -528,7 +663,18 @@ export default function GeocercasTerminales() {
                                 <div className="card">
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                                         <h3 style={{ margin: 0 }}>Geocercas del Itinerario</h3>
-                                        <button className="btn btn-primary" onClick={openNewGeocercaModal}>+ Nueva Geocerca</button>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                                className="btn btn-secondary"
+                                                onClick={() => {
+                                                    setFullMapType('geocercas');
+                                                    setIsFullMapOpen(true);
+                                                }}
+                                            >
+                                                🗺️ Ver Todas
+                                            </button>
+                                            <button className="btn btn-primary" onClick={openNewGeocercaModal}>+ Nueva Geocerca</button>
+                                        </div>
                                     </div>
                                     <div className="table-container">
                                         <table>
@@ -647,6 +793,249 @@ export default function GeocercasTerminales() {
                                 <button type="submit" className="btn btn-primary">Guardar</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Posibles Terminales */}
+            {isPosiblesModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content card" style={{ width: '700px', maxHeight: '80vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0 }}>Sugerencias de Terminales (Análisis GPS)</h3>
+                            <button className="btn-icon" onClick={() => setIsPosiblesModalOpen(false)}>✕</button>
+                        </div>
+
+                        <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '15px' }}>
+                            Basado en los puntos de inicio/fin de jornada y detenciones prolongadas de la flota en las últimas 48 horas.
+                        </p>
+
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Ubicación</th>
+                                        <th>Frecuencia</th>
+                                        <th>Causa</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {posiblesTerminales.length === 0 ? (
+                                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No se detectaron puntos patrones claros.</td></tr>
+                                    ) : (
+                                        posiblesTerminales.map((p, idx) => (
+                                            <tr key={idx}>
+                                                <td>{p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}</td>
+                                                <td>
+                                                    <span style={{
+                                                        background: p.probabilidad === 'Alta' ? '#dcfce7' : '#fef9c3',
+                                                        color: p.probabilidad === 'Alta' ? '#166534' : '#854d0e',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '12px',
+                                                        fontSize: '0.8rem'
+                                                    }}>
+                                                        {p.frecuencia} hits ({p.probabilidad})
+                                                    </span>
+                                                </td>
+                                                <td style={{ fontSize: '0.85rem' }}>{p.labels}</td>
+                                                <td>
+                                                    <button
+                                                        className="btn btn-primary"
+                                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                                        onClick={() => {
+                                                            setTerminalFormData({
+                                                                numero_terminal: `Sugerido ${idx + 1}`,
+                                                                id_tipo_geocerca: 1,
+                                                                latitude: p.latitude,
+                                                                longitude: p.longitude,
+                                                                radio_geocerca_m: 500
+                                                            });
+                                                            setIsPosiblesModalOpen(false);
+                                                            setIsTerminalModalOpen(true);
+                                                        }}
+                                                    >
+                                                        Utilizar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="modal-actions" style={{ marginTop: '20px' }}>
+                            <button className="btn btn-secondary" onClick={() => setIsPosiblesModalOpen(false)}>Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Mapa Full (Ver Todos) */}
+            {isFullMapOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content card" style={{ width: '90%', height: '90%', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                            <h3 style={{ margin: 0 }}>
+                                {fullMapType === 'terminales' ? 'Mapa Global de Terminales' : 'Mapa de Geocercas del Itinerario'}
+                            </h3>
+                            <button className="btn-icon" onClick={() => setIsFullMapOpen(false)}>✕</button>
+                        </div>
+
+                        <div style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                            <MapContainer
+                                center={[-25.3, -57.5]}
+                                zoom={12}
+                                style={{ height: '100%', width: '100%' }}
+                            >
+                                <LayersControl position="topright">
+                                    <BaseLayer checked name="Calles">
+                                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                    </BaseLayer>
+                                    <BaseLayer name="Satélite">
+                                        <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" />
+                                    </BaseLayer>
+                                </LayersControl>
+
+                                <MapBoundsController
+                                    type={fullMapType}
+                                    items={fullMapType === 'terminales' ? puntosTerminales : geocercas}
+                                    extraItems={fullMapType === 'terminales' ? itinerariosEot.filter(it => includeInactive || it.itinerario_vigente || it.vigente) : null}
+                                    extraGeomItems={fullMapType === 'terminales' && includeGeocercas ? geocercasEot.filter(g => includeInactive || g.itinerario_vigente) : null}
+                                />
+
+                                {fullMapType === 'terminales' && puntosTerminales.map(p => (
+                                    <React.Fragment key={p.id_punto}>
+                                        <Marker position={[p.latitude, p.longitude]}>
+                                            <Popup>
+                                                <strong>Terminal {p.numero_terminal}</strong><br />
+                                                EOT: {p.id_eot_vmt_hex}<br />
+                                                Radio: {p.radio_geocerca_m}m
+                                            </Popup>
+                                        </Marker>
+                                        {p.geom_geocerca && (
+                                            <GeoJSON
+                                                data={p.geom_geocerca}
+                                                style={{ color: '#3b82f6', weight: 2, fillOpacity: 0.2 }}
+                                            />
+                                        )}
+                                    </React.Fragment>
+                                ))}
+
+                                {fullMapType === 'terminales' && (() => {
+                                    const activeColors = ['#e11d48', '#d946ef', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#84cc16'];
+                                    return itinerariosEot
+                                        .filter(it => includeInactive || it.itinerario_vigente || it.vigente)
+                                        .map((it, idx) => (
+                                            <React.Fragment key={it.id_itinerario}>
+                                                {it.geom && (
+                                                    <GeoJSON
+                                                        data={it.geom}
+                                                        style={{
+                                                            color: it.itinerario_vigente || it.vigente ? activeColors[idx % activeColors.length] : '#94a3b8',
+                                                            weight: it.itinerario_vigente || it.vigente ? 3 : 1,
+                                                            opacity: it.itinerario_vigente || it.vigente ? 0.8 : 0.4,
+                                                            dashArray: it.itinerario_vigente || it.vigente ? null : '5, 10'
+                                                        }}
+                                                    >
+                                                        <Popup>
+                                                            <div style={{ minWidth: '150px' }}>
+                                                                <strong style={{ color: it.itinerario_vigente || it.vigente ? activeColors[idx % activeColors.length] : '#64748b' }}>
+                                                                    {it.linea} - {it.ramal}
+                                                                </strong><br />
+                                                                <span style={{ fontSize: '0.85rem' }}>
+                                                                    <strong>Sentido:</strong> {it.sentido}<br />
+                                                                    <strong>Ruta HEX:</strong> {it.ruta_hex}<br />
+                                                                    <strong>Estado:</strong> {(it.itinerario_vigente || it.vigente) ? '✅ Vigente' : '⚪ Inactivo'}
+                                                                </span>
+                                                            </div>
+                                                        </Popup>
+                                                    </GeoJSON>
+                                                )}
+                                            </React.Fragment>
+                                        ));
+                                })()}
+
+                                {fullMapType === 'terminales' && includeGeocercas && geocercasEot
+                                    .filter(g => includeInactive || g.itinerario_vigente)
+                                    .map(g => (
+                                        <React.Fragment key={g.id_geocerca}>
+                                            {g.geom && (
+                                                <GeoJSON
+                                                    data={g.geom}
+                                                    style={{
+                                                        color: g.id_tipo === 1 ? '#ef4444' : '#10b981',
+                                                        weight: 2,
+                                                        fillOpacity: 0.3,
+                                                        dashArray: g.itinerario_vigente ? null : '3, 6'
+                                                    }}
+                                                >
+                                                    <Popup>
+                                                        <div style={{ minWidth: '140px' }}>
+                                                            <strong>Geocerca {g.id_tipo === 1 ? 'Inicio' : 'Fin'}</strong><br />
+                                                            Ruta: {g.linea} - {g.ramal}<br />
+                                                            ID: {g.id_geocerca}<br />
+                                                            Estado Itin.: {g.itinerario_vigente ? '✅ Vigente' : '⚪ Inactivo'}
+                                                        </div>
+                                                    </Popup>
+                                                </GeoJSON>
+                                            )}
+                                        </React.Fragment>
+                                    ))
+                                }
+
+                                {fullMapType === 'geocercas' && geocercas.map(g => (
+                                    <React.Fragment key={g.id_geocerca}>
+                                        {g.geom && (
+                                            <GeoJSON
+                                                data={g.geom}
+                                                style={{
+                                                    color: g.id_tipo === 1 ? '#ef4444' : '#10b981',
+                                                    weight: 3,
+                                                    fillOpacity: 0.4
+                                                }}
+                                            >
+                                                <Popup>
+                                                    <strong>Geocerca {g.id_geocerca}</strong><br />
+                                                    Tipo: {tiposGeocerca.find(t => t.id_tipo === g.id_tipo)?.nombre || g.id_tipo}<br />
+                                                    Orden: {g.orden}
+                                                </Popup>
+                                            </GeoJSON>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </MapContainer>
+                        </div>
+
+                        <div className="modal-actions" style={{ marginTop: '15px' }}>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                                    Mostrando {fullMapType === 'terminales' ? puntosTerminales.length : geocercas.length} registros.
+                                </span>
+                                {fullMapType === 'terminales' && (
+                                    <div style={{ display: 'flex', gap: '20px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={includeInactive}
+                                                onChange={e => setIncludeInactive(e.target.checked)}
+                                            />
+                                            Incluir itinerarios inactivos
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={includeGeocercas}
+                                                onChange={e => setIncludeGeocercas(e.target.checked)}
+                                            />
+                                            Incluir Geocercas de Inicio/Fin
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+                            <button className="btn btn-secondary" onClick={() => setIsFullMapOpen(false)}>Cerrar</button>
+                        </div>
                     </div>
                 </div>
             )}

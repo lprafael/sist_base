@@ -108,7 +108,7 @@ export default function App() {
     { id: 'feriados', label: '📅 Feriados', roles: ['admin', 'manager', 'user', 'viewer'] },
     { id: 'rutas', label: '🗺️ Catálogo de Rutas', roles: ['admin', 'manager', 'user', 'viewer'] },
     { id: 'geocercas', label: '📍 Terminales y Geocercas', roles: ['admin', 'manager', 'user', 'viewer'] },
-    { id: 'usuarios', label: '👥 Gestión de Usuarios', roles: ['admin'] },
+    { id: 'usuarios', label: user.rol === 'admin' ? '👥 Gestión de Usuarios' : '👤 Mi Perfil', roles: ['admin', 'manager', 'user', 'viewer'] },
     { id: 'backup', label: '🔄 Sistema de Backup', roles: ['admin'] },
   ];
 
@@ -151,7 +151,7 @@ export default function App() {
             {tab === "feriados" && <FeriadosCRUD />}
             {tab === "rutas" && <RutasCRUD />}
             {tab === "geocercas" && <GeocercasTerminales />}
-            {tab === "usuarios" && user.rol === 'admin' && <UserManagement />}
+            {tab === "usuarios" && <UserManagement />}
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
           </div>
         </main>
