@@ -67,6 +67,35 @@ async def log_audit_action(
         await session.rollback()
         return {"status": "error", "error": str(e), "details": error_details}
 
+async def log_activity(
+    session: AsyncSession,
+    request: Any,
+    current_user: Dict[str, Any],
+    action: str,
+    table: str,
+    record_id: Optional[int] = None,
+    previous_data: Optional[Dict[str, Any]] = None,
+    new_data: Optional[Dict[str, Any]] = None,
+    details: Optional[str] = None
+):
+    """
+    Versión simplificada de log_audit_action que extrae automáticamente
+    IP, User-Agent y datos del usuario de los objetos request y current_user.
+    """
+    return await log_audit_action(
+        session=session,
+        username=current_user.get("sub", "unknown"),
+        user_id=current_user.get("user_id"),
+        action=action,
+        table=table,
+        record_id=record_id,
+        previous_data=previous_data,
+        new_data=new_data,
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+        details=details
+    )
+
 def get_client_ip(request) -> Optional[str]:
     """
     Obtiene la dirección IP del cliente desde la request
