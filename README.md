@@ -27,3 +27,5 @@ Consulte la [Guía de Iniciación](GUIA_INICIACION.md) para obtener instruccione
 - [Estructura de la Base de Datos](DATABASE_STRUCTURE.md)
 - [Ficha Técnica](FICHA_TECNICA.md)
 - [Resumen Ejecutivo](RESUMEN_EJECUTIVO.md)
+- [Instrucciones de Despliegue](INSTRUCCIONES_DESPLIEGUE.md)
+- [Análisis de Puertos](ANALISIS_PUERTOS.md)
