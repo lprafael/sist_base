@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sist-catalogos-backend
+    ports:
+      - "8002:8001"  # Host:Container - Puerto 8002 en el servidor, 8001 en el container
+    environment:
+      - PORT=8001
+      # Las demás variables de entorno deben estar en un archivo .env
+      # o definirse aquí directamente
+    env_file:
+      - ./backend/.env
+    volumes:
+      # Montar el código para desarrollo (opcional, comentar en producción)
+      # - ./backend:/app
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - sist-catalogos-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sist-catalogos-frontend
+    ports:
+      - "3002:80"  # Host:Container - Puerto 3002 en el servidor, 80 en el container (nginx)
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - sist-catalogos-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  sist-catalogos-network:
+    driver: bridge
