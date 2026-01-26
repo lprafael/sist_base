@@ -1,5 +1,23 @@
 # 🚀 Despliegue en el Servidor 172.16.222.222
 
+## ⚠️ Nota Importante: Docker Compose
+
+Las versiones nuevas de Docker usan `docker compose` (sin guión) en lugar de `docker-compose`.
+
+**Si obtienes error "docker-compose: orden no encontrada"**, prueba:
+
+```bash
+# Versión nueva (plugin)
+docker compose build
+docker compose up -d
+
+# Versión antigua (standalone)
+docker-compose build
+docker-compose up -d
+```
+
+Si ninguna funciona, consulta `SOLUCION_DOCKER_COMPOSE.md` para instalar Docker Compose.
+
 ## 📋 Pasos para Desplegar desde GitHub
 
 ### 1. Conectarse al Servidor
@@ -66,7 +84,12 @@ PORT=8001
 
 ```bash
 cd /opt/sist_catalogos  # o la ruta donde clonaste
-docker-compose build
+
+# Probar primero con la versión nueva (sin guión)
+docker compose build
+
+# Si no funciona, usar la versión antigua (con guión)
+# docker-compose build
 ```
 
 Este proceso puede tardar varios minutos la primera vez.
@@ -74,7 +97,11 @@ Este proceso puede tardar varios minutos la primera vez.
 ### 6. Iniciar los Contenedores
 
 ```bash
-docker-compose up -d
+# Versión nueva
+docker compose up -d
+
+# Si no funciona, usar:
+# docker-compose up -d
 ```
 
 El flag `-d` ejecuta los contenedores en modo detached (en segundo plano).
@@ -82,8 +109,12 @@ El flag `-d` ejecuta los contenedores en modo detached (en segundo plano).
 ### 7. Verificar que los Contenedores Estén Corriendo
 
 ```bash
-docker-compose ps
-# o
+# Versión nueva
+docker compose ps
+# o versión antigua
+# docker-compose ps
+
+# Alternativa
 docker container ls | grep sist-catalogos
 ```
 
@@ -94,14 +125,15 @@ Deberías ver:
 ### 8. Ver los Logs (Opcional)
 
 ```bash
-# Ver logs de todos los servicios
-docker-compose logs -f
+# Versión nueva
+docker compose logs -f
+docker compose logs -f backend
+docker compose logs -f frontend
 
-# Ver logs solo del backend
-docker-compose logs -f backend
-
-# Ver logs solo del frontend
-docker-compose logs -f frontend
+# Versión antigua
+# docker-compose logs -f
+# docker-compose logs -f backend
+# docker-compose logs -f frontend
 ```
 
 ### 9. Inicializar la Base de Datos (Primera Vez)
@@ -110,7 +142,8 @@ Si es la primera vez que despliegas el sistema:
 
 ```bash
 # Acceder al contenedor del backend
-docker-compose exec backend bash
+docker compose exec backend bash
+# o: docker-compose exec backend bash
 
 # Dentro del contenedor, ejecutar:
 python init_database.py
@@ -144,35 +177,41 @@ Cuando haya cambios en GitHub:
 ```bash
 cd /opt/sist_catalogos  # o la ruta donde clonaste
 git pull origin main
-docker-compose build
-docker-compose up -d
+docker compose build
+docker compose up -d
+# o usar docker-compose si la versión nueva no funciona
 ```
 
 ## 🛠️ Comandos Útiles
 
 ### Detener los contenedores
 ```bash
-docker-compose down
+docker compose down
+# o: docker-compose down
 ```
 
 ### Reiniciar los contenedores
 ```bash
-docker-compose restart
+docker compose restart
+# o: docker-compose restart
 ```
 
 ### Ver el estado
 ```bash
-docker-compose ps
+docker compose ps
+# o: docker-compose ps
 ```
 
 ### Acceder al contenedor del backend
 ```bash
-docker-compose exec backend bash
+docker compose exec backend bash
+# o: docker-compose exec backend bash
 ```
 
 ### Ver logs en tiempo real
 ```bash
-docker-compose logs -f
+docker compose logs -f
+# o: docker-compose logs -f
 ```
 
 ## 🔐 Credenciales por Defecto
@@ -197,7 +236,8 @@ Después de ejecutar `create_admin.py`:
 
 ```bash
 # Ver logs detallados
-docker-compose logs
+docker compose logs
+# o: docker-compose logs
 
 # Verificar que los puertos no estén ocupados
 netstat -tuln | grep -E ':(8002|3002)'
@@ -211,8 +251,8 @@ netstat -tuln | grep -E ':(8002|3002)'
 
 ### El frontend no se conecta al backend
 
-- Verificar que ambos contenedores estén corriendo: `docker-compose ps`
-- Verificar los logs: `docker-compose logs frontend`
+- Verificar que ambos contenedores estén corriendo: `docker compose ps` o `docker-compose ps`
+- Verificar los logs: `docker compose logs frontend` o `docker-compose logs frontend`
 - Verificar que el backend responda: `curl http://localhost:8002/health`
 
 ---
