@@ -119,7 +119,8 @@ app.add_middleware(
         "http://127.0.0.1:3001", 
         "http://localhost:3001", 
         "http://localhost:5173",  # Vite default
-        "http://192.168.100.84:3001"
+        "http://192.168.100.84:3001",
+        "http://172.16.222.222:3002"
     ],
     allow_credentials=True,
     allow_methods=["*"],
