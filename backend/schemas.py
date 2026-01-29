@@ -443,7 +443,7 @@ class HistoricoItinerarioResponse(HistoricoItinerarioBase):
     fecha_creacion: Optional[datetime] = None
     fecha_actualizacion: Optional[datetime] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ===== HISTORICO EOT POR RUTA =====
@@ -465,11 +465,11 @@ class HistoricoEotRutaResponse(HistoricoEotRutaBase):
     id_hist_eot: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CatalogoRutaResponse(CatalogoRutaBase):
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # ===== GEOCERCAS Y TERMINALES =====
 
@@ -479,7 +479,7 @@ class TipoGeocercaResponse(BaseModel):
     descripcion: Optional[str] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class GeocercaBase(BaseModel):
     id_itinerario: int
@@ -502,7 +502,7 @@ class GeocercaResponse(GeocercaBase):
     fecha_actualizacion: Optional[datetime] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PuntoTerminalBase(BaseModel):
     id_tipo_geocerca: int
@@ -532,4 +532,4 @@ class PuntoTerminalResponse(PuntoTerminalBase):
     fecha_actualizacion: Optional[datetime] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
