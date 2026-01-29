@@ -7,10 +7,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 fastapi-mail
-pyshp
+email-validator
+google-auth
 requests
-geopy
-overpass
-geoalchemy2
-shapely
-geopandas
+

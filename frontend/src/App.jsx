@@ -1,21 +1,16 @@
 // App.js
-// Frontend principal para el CRUD de gremios, eots y feriados
+// Frontend principal del Sistema Base
 // Sistema de autenticación integrado
 import React, { useState, useEffect } from "react";
-import GremiosCRUD from "./GremiosCRUD.jsx";
-import EotsCRUD from "./EotsCRUD.jsx";
-import FeriadosCRUD from "./FeriadosCRUD.jsx";
-import RutasCRUD from "./RutasCRUD.jsx";
 import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
-import GeocercasTerminales from "./GeocercasTerminales.jsx";
 
 function CabeceradePagina({ user, onLogout }) {
   return (
     <header className="main-header">
       <div className="header-title">
-        <h1>Sistema de Gestión de Catálogos - VMT-CID</h1>
+        <h1>Sistema Base - Poliverso</h1>
       </div>
       <div className="header-user-info">
         {user && (
@@ -46,7 +41,7 @@ function CabeceradePagina({ user, onLogout }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("gremios");
+  const [tab, setTab] = useState("usuarios");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -103,11 +98,6 @@ export default function App() {
   }
 
   const menuItems = [
-    { id: 'gremios', label: '📊 Gremios', roles: ['admin', 'manager', 'user', 'viewer'] },
-    { id: 'eots', label: '🚌 EOTs', roles: ['admin', 'manager', 'user', 'viewer'] },
-    { id: 'feriados', label: '📅 Feriados', roles: ['admin', 'manager', 'user', 'viewer'] },
-    { id: 'rutas', label: '🗺️ Catálogo de Rutas', roles: ['admin', 'manager', 'user', 'viewer'] },
-    { id: 'geocercas', label: '📍 Terminales y Geocercas', roles: ['admin', 'manager', 'user', 'viewer'] },
     { id: 'usuarios', label: user.rol === 'admin' ? '👥 Gestión de Usuarios' : '👤 Mi Perfil', roles: ['admin', 'manager', 'user', 'viewer'] },
     { id: 'backup', label: '🔄 Sistema de Backup', roles: ['admin'] },
   ];
@@ -146,11 +136,6 @@ export default function App() {
 
         <main className="main-content">
           <div className="fade-in">
-            {tab === "gremios" && <GremiosCRUD />}
-            {tab === "eots" && <EotsCRUD />}
-            {tab === "feriados" && <FeriadosCRUD />}
-            {tab === "rutas" && <RutasCRUD />}
-            {tab === "geocercas" && <GeocercasTerminales />}
             {tab === "usuarios" && <UserManagement />}
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
           </div>

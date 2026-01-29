@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import './Login.css';
 
 
@@ -56,11 +57,42 @@ const Login = ({ onLogin }) => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/google-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh_token);
+        }
+        localStorage.setItem('user', JSON.stringify(data.user));
+        onLogin(data);
+      } else {
+        setError(data.detail || 'Error en la autenticación con Google');
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h2>Sistema de Catálogos VMT-CID</h2>
+          <h2>Sistema Base - Poliverso</h2>
           <p>Inicia sesión para continuar</p>
         </div>
 
@@ -124,6 +156,23 @@ const Login = ({ onLogin }) => {
           >
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
+
+          <div className="google-login-separator">
+            <span>O</span>
+          </div>
+
+          <div className="google-login-container">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Error al iniciar sesión con Google')}
+              useOneTap
+              theme="outline"
+              size="large"
+              width="100%"
+              text="signin_with"
+              locale="es"
+            />
+          </div>
         </form>
 
         <div className="login-footer">

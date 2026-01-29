@@ -164,3 +164,34 @@
     transform: translateY(0);
   }
 }
+
+.google-login-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 10px 0;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.google-login-separator::before,
+.google-login-separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.google-login-separator::before {
+  margin-right: 12px;
+}
+
+.google-login-separator::after {
+  margin-left: 12px;
+}
+
+.google-login-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
