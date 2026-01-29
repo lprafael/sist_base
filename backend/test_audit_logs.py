@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
-from models import LogAuditoria, Gremio, EOT, Feriado
+from models import LogAuditoria, Usuario, Rol, Permiso
 from audit_utils import log_audit_action
 
 # Cargar variables de entorno
@@ -70,7 +70,7 @@ async def test_audit_logs():
             
             # 4. Verificar logs por tabla
             print("\n--- Verificando logs por tabla ---")
-            for tabla in ["gremios", "eots", "feriados"]:
+            for tabla in ["usuarios", "roles", "permisos"]:
                 result = await session.execute(
                     select(LogAuditoria).where(LogAuditoria.tabla == tabla)
                 )
@@ -79,7 +79,7 @@ async def test_audit_logs():
             
             # 5. Verificar logs por acción
             print("\n--- Verificando logs por acción ---")
-            for accion in ["create", "update", "delete"]:
+            for accion in ["create", "update", "delete", "login"]:
                 result = await session.execute(
                     select(LogAuditoria).where(LogAuditoria.accion == accion)
                 )

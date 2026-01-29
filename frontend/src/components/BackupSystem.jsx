@@ -45,11 +45,11 @@ export default function BackupSystem() {
   };
 
   const tables = [
-    { name: "gremios", label: "Gremios" },
-    { name: "eots", label: "EOTs" },
-    { name: "feriados", label: "Feriados" },
     { name: "usuarios", label: "Usuarios" },
-    { name: "catalogo_rutas", label: "Rutas" },
+    { name: "roles", label: "Roles" },
+    { name: "permisos", label: "Permisos" },
+    { name: "logs_auditoria", label: "Logs de Auditoría" },
+    { name: "parametros_sistema", label: "Parámetros del Sistema" },
   ];
 
   return (

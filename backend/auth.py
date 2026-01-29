@@ -3,6 +3,7 @@
 
 import secrets
 import string
+import os
 from datetime import datetime, timedelta
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -16,8 +17,10 @@ from models import Usuario, PasswordReset, LogAcceso
 from schemas import (
     UserLogin, UserCreate, UserUpdate, UserResponse, Token, 
     PasswordChange, PasswordResetRequest, PasswordResetConfirm,
-    LogAccesoCreate, LogAccesoResponse, RoleInfo
+    LogAccesoCreate, LogAccesoResponse, RoleInfo, GoogleLogin
 )
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from security import (
     verify_password, get_password_hash, create_access_token, 
     verify_token, get_current_user, check_permission, ROLES
@@ -91,6 +94,110 @@ async def login(
         token_type="bearer",
         user=UserResponse.from_orm(user)
     )
+
+@router.post("/google-login", response_model=Token)
+async def google_login(
+    data: GoogleLogin,
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+):
+    """Inicio de sesión con Google OAuth2"""
+    try:
+        # Verificar el token de Google
+        id_info = id_token.verify_oauth2_token(
+            data.credential, 
+            google_requests.Request(), 
+            os.getenv("GOOGLE_CLIENT_ID")
+        )
+        
+        email = id_info['email']
+        full_name = id_info.get('name', '')
+        
+        # Buscar usuario por email
+        result = await session.execute(
+            select(Usuario).where(Usuario.email == email)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            # Si el usuario no existe, lo creamos automáticamente
+            # Generamos un username basado en el email
+            username = email.split('@')[0]
+            
+            # Verificar si el username ya existe
+            username_check = await session.execute(
+                select(Usuario).where(Usuario.username == username)
+            )
+            if username_check.scalar_one_or_none():
+                username = f"{username}_{secrets.token_hex(2)}"
+            
+            new_user = Usuario(
+                username=username,
+                email=email,
+                hashed_password=get_password_hash(secrets.token_urlsafe(16)), # Password random inutilizable
+                nombre_completo=full_name,
+                rol="user",
+                activo=True
+            )
+            session.add(new_user)
+            await session.commit()
+            await session.refresh(new_user)
+            user = new_user
+            
+            # Registrar auditoría de creación
+            await log_audit_action(
+                session=session,
+                username="SYSTEM",
+                user_id=None,
+                action="create",
+                table="usuarios",
+                record_id=user.id,
+                new_data={"username": user.username, "email": user.email, "metodo": "google"},
+                details=f"Usuario creado vía Google Login: {user.username}"
+            )
+
+        if not user.activo:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuario inactivo"
+            )
+        
+        # Actualizar último acceso
+        user.ultimo_acceso = datetime.utcnow()
+        await session.commit()
+        
+        # Crear token del sistema
+        access_token = create_access_token(
+            data={"sub": user.username, "role": user.rol, "user_id": user.id}
+        )
+        
+        # Registrar log de acceso
+        await log_access(session, LogAccesoCreate(
+            usuario_id=user.id,
+            username=user.username,
+            accion="login_google",
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent")
+        ))
+        
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            user=UserResponse.from_orm(user)
+        )
+        
+    except ValueError as e:
+        # Token inválido
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token de Google inválido: {str(e)}"
+        )
+    except Exception as e:
+        print(f"Error en google_login: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error procesando autenticación de Google"
+        )
 
 @router.post("/logout")
 async def logout(

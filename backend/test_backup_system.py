@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
-from models import Gremio, EOT, Feriado, Usuario, LogAuditoria, ParametroSistema, Rol, Permiso
+from models import Usuario, LogAuditoria, ParametroSistema, Rol, Permiso
 
 # Cargar variables de entorno
 load_dotenv()
@@ -35,21 +35,6 @@ async def test_backup_system():
             
             # 1. Verificar datos en las tablas
             print("\n--- Verificando datos en las tablas ---")
-            
-            # Gremios
-            result = await session.execute(select(Gremio))
-            gremios = result.scalars().all()
-            print(f"Gremios en la base de datos: {len(gremios)}")
-            
-            # EOTs
-            result = await session.execute(select(EOT))
-            eots = result.scalars().all()
-            print(f"EOTs en la base de datos: {len(eots)}")
-            
-            # Feriados
-            result = await session.execute(select(Feriado))
-            feriados = result.scalars().all()
-            print(f"Feriados en la base de datos: {len(feriados)}")
             
             # Usuarios
             result = await session.execute(select(Usuario))
@@ -80,23 +65,11 @@ async def test_backup_system():
             print("\n--- Simulando estructura de backup ---")
             
             backup_data = {
-                "fecha_backup": "2024-01-01T00:00:00Z",
+                "fecha_backup": "2026-01-29T00:00:00Z",
                 "usuario_backup": "admin",
-                "sistema": "Sistema de Catálogos VMT-CID",
+                "sistema": "Sistema Base - Poliverso",
                 "version": "1.0.0",
                 "tablas": {
-                    "gremios": {
-                        "total_registros": len(gremios),
-                        "datos": [{"gre_id": g.gre_id, "gre_nombre": g.gre_nombre, "gre_estado": g.gre_estado} for g in gremios]
-                    },
-                    "eots": {
-                        "total_registros": len(eots),
-                        "datos": [{"eot_id": e.eot_id, "eot_nombre": e.eot_nombre} for e in eots]
-                    },
-                    "feriados": {
-                        "total_registros": len(feriados),
-                        "datos": [{"fecha": str(f.fecha), "descripcion": f.descripcion} for f in feriados]
-                    },
                     "usuarios": {
                         "total_registros": len(usuarios),
                         "datos": [{"id": u.id, "username": u.username, "rol": u.rol} for u in usuarios]

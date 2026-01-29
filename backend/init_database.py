@@ -47,24 +47,6 @@ async def init_database():
             # ===== CREAR PERMISOS POR DEFECTO =====
             print("Creando permisos...")
             permisos = [
-                # Permisos para Gremios
-                Permiso(nombre="gremios_read", descripcion="Leer gremios", modulo="gremios", accion="read"),
-                Permiso(nombre="gremios_write", descripcion="Crear/editar gremios", modulo="gremios", accion="write"),
-                Permiso(nombre="gremios_delete", descripcion="Eliminar gremios", modulo="gremios", accion="delete"),
-                Permiso(nombre="gremios_export", descripcion="Exportar gremios", modulo="gremios", accion="export"),
-                
-                # Permisos para EOTs
-                Permiso(nombre="eots_read", descripcion="Leer EOTs", modulo="eots", accion="read"),
-                Permiso(nombre="eots_write", descripcion="Crear/editar EOTs", modulo="eots", accion="write"),
-                Permiso(nombre="eots_delete", descripcion="Eliminar EOTs", modulo="eots", accion="delete"),
-                Permiso(nombre="eots_export", descripcion="Exportar EOTs", modulo="eots", accion="export"),
-                
-                # Permisos para Feriados
-                Permiso(nombre="feriados_read", descripcion="Leer feriados", modulo="feriados", accion="read"),
-                Permiso(nombre="feriados_write", descripcion="Crear/editar feriados", modulo="feriados", accion="write"),
-                Permiso(nombre="feriados_delete", descripcion="Eliminar feriados", modulo="feriados", accion="delete"),
-                Permiso(nombre="feriados_export", descripcion="Exportar feriados", modulo="feriados", accion="export"),
-                
                 # Permisos para Usuarios
                 Permiso(nombre="usuarios_read", descripcion="Leer usuarios", modulo="usuarios", accion="read"),
                 Permiso(nombre="usuarios_write", descripcion="Crear/editar usuarios", modulo="usuarios", accion="write"),
@@ -125,9 +107,6 @@ async def init_database():
             
             # Permisos para manager
             permisos_manager = [
-                "gremios_read", "gremios_write", "gremios_export",
-                "eots_read", "eots_write", "eots_export",
-                "feriados_read", "feriados_write", "feriados_export",
                 "usuarios_read", "auditoria_read"
             ]
             
@@ -146,11 +125,8 @@ async def init_database():
             session.add(rol_user)
             await session.commit()
             
-            # Permisos para user
+            # Permisos para user (actualmente sin permisos específicos en base limpia)
             permisos_user = [
-                "gremios_read", "gremios_write",
-                "eots_read", "eots_write",
-                "feriados_read", "feriados_write"
             ]
             
             for permiso_nombre in permisos_user:
@@ -170,7 +146,6 @@ async def init_database():
             
             # Permisos para viewer
             permisos_viewer = [
-                "gremios_read", "eots_read", "feriados_read"
             ]
             
             for permiso_nombre in permisos_viewer:
@@ -188,9 +163,9 @@ async def init_database():
             admin_password = "Admin123!"
             admin_user = Usuario(
                 username="admin",
-                email="admin@vmt-cid.com",
+                email="rafadevstack@gmail.com",
                 hashed_password=get_password_hash(admin_password),
-                nombre_completo="Administrador del Sistema",
+                nombre_completo="Administrador de Poliverso",
                 rol="admin",
                 activo=True,
                 fecha_creacion=datetime.utcnow()
@@ -250,7 +225,7 @@ async def init_database():
                 ParametroSistema(
                     codigo="EMAIL_FROM_NAME",
                     nombre="Nombre del remitente",
-                    valor="Sistema VMT-CID",
+                    valor="Sistema Base - Poliverso",
                     tipo="string",
                     descripcion="Nombre que aparece como remitente en los emails",
                     categoria="email",
@@ -261,7 +236,7 @@ async def init_database():
                 ParametroSistema(
                     codigo="SYSTEM_NAME",
                     nombre="Nombre del sistema",
-                    valor="Sistema de Catálogos VMT-CID",
+                    valor="Sistema Base - Poliverso",
                     tipo="string",
                     descripcion="Nombre del sistema",
                     categoria="sistema",
@@ -292,11 +267,26 @@ async def init_database():
             
             await session.commit()
             
+            # ===== CREAR CONFIGURACIÓN DE EMAIL POR DEFECTO =====
+            print("Creando configuración de email por defecto...")
+            config_email = ConfiguracionEmail(
+                nombre="Configuración Principal",
+                host="smtp.example.com",
+                puerto=587,
+                username="user@example.com",
+                password="password",
+                use_tls=True,
+                from_email="no-reply@example.com",
+                activo=False
+            )
+            session.add(config_email)
+            await session.commit()
+            
             print("Base de datos inicializada correctamente!")
             print(f"Usuario administrador creado:")
             print(f"   Usuario: admin")
             print(f"   Contraseña: {admin_password}")
-            print(f"   Email: admin@vmt-cid.com")
+            print(f"   Email: admin@sistema.com")
             print(f"   Rol: admin")
             print()
             print("Roles creados:")
@@ -307,6 +297,7 @@ async def init_database():
             print()
             print("Permisos configurados para cada rol")
             print("Parámetros del sistema configurados")
+            print("Configuración de email por defecto creada")
             
         except Exception as e:
             await session.rollback()
