@@ -1,6 +1,7 @@
 """
 Ejecutar el comando:
 uvicorn main:app --reload
+uvicorn main:app --reload --port 8001
 
 main.py - Backend principal del Sistema de Catálogos VMT-CID
 
