@@ -294,9 +294,9 @@ async def crear_backup_tabla(
         # Verificar si el usuario tiene el permiso sistema_backup
         result = await session.execute(
             text("""
-                SELECT COUNT(*) FROM usuario_rol ur
-                JOIN rol_permiso rp ON ur.rol_id = rp.rol_id
-                JOIN permisos p ON rp.permiso_id = p.id
+                SELECT COUNT(*) FROM sistema.usuario_rol ur
+                JOIN sistema.rol_permiso rp ON ur.rol_id = rp.rol_id
+                JOIN sistema.permisos p ON rp.permiso_id = p.id
                 WHERE ur.usuario_id = :usuario_id AND p.nombre = :permiso
             """),
             {"usuario_id": user.id, "permiso": "sistema_backup"}
@@ -420,9 +420,9 @@ async def test_backup(
         print("Verificando permisos...")
         result = await session.execute(
             text("""
-                SELECT COUNT(*) FROM usuario_rol ur
-                JOIN rol_permiso rp ON ur.rol_id = rp.rol_id
-                JOIN permisos p ON rp.permiso_id = p.id
+                SELECT COUNT(*) FROM sistema.usuario_rol ur
+                JOIN sistema.rol_permiso rp ON ur.rol_id = rp.rol_id
+                JOIN sistema.permisos p ON rp.permiso_id = p.id
                 WHERE ur.usuario_id = :usuario_id AND p.nombre = :permiso
             """),
             {"usuario_id": user.id, "permiso": "sistema_backup"}
@@ -611,9 +611,9 @@ async def crear_backup_completo(
         print("Verificando permisos...")
         result = await session.execute(
             text("""
-                SELECT COUNT(*) FROM usuario_rol ur
-                JOIN rol_permiso rp ON ur.rol_id = rp.rol_id
-                JOIN permisos p ON rp.permiso_id = p.id
+                SELECT COUNT(*) FROM sistema.usuario_rol ur
+                JOIN sistema.rol_permiso rp ON ur.rol_id = rp.rol_id
+                JOIN sistema.permisos p ON rp.permiso_id = p.id
                 WHERE ur.usuario_id = :usuario_id AND p.nombre = :permiso
             """),
             {"usuario_id": user.id, "permiso": "sistema_backup"}
@@ -646,79 +646,64 @@ async def crear_backup_completo(
     
     try:
         print("Creando directorio temporal...")
-        # Crear directorio temporal
         temp_dir = tempfile.mkdtemp()
         print(f"Directorio temporal creado: {temp_dir}")
         
         try:
-            # Lista de todas las tablas incluyendo las geométricas
-            tablas = [
-                "usuarios", "logs_auditoria", "parametros_sistema", "roles", "permisos"
-            ]
+            # Obtener todas las tablas de los esquemas 'public' y 'sistema'
+            print("Descubriendo tablas en schemas 'public' y 'sistema'...")
+            tables_query = text("""
+                SELECT table_schema, table_name 
+                FROM information_schema.tables 
+                WHERE table_schema IN ('public', 'sistema') 
+                AND table_type = 'BASE TABLE'
+                ORDER BY table_schema, table_name;
+            """)
+            result = await session.execute(tables_query)
+            all_tables = result.fetchall()
+            print(f"Se encontraron {len(all_tables)} tablas para respaldar")
             
-            # Procesar cada tabla usando SQL directo
-            for tabla in tablas:
+            tablas_procesadas = []
+            
+            for schema, tabla in all_tables:
                 try:
-                    print(f"Procesando tabla: {tabla}")
+                    print(f"Procesando tabla: {schema}.{tabla}")
                     
-                    # Tablas normales - usar SQL directo
-                    if tabla == "usuarios":
-                        query = """
-                            SELECT id, username, email, nombre_completo, rol, 
-                                   activo, fecha_creacion, ultimo_acceso 
-                            FROM usuarios
-                        """
-                    elif tabla == "logs_auditoria":
-                        query = """
-                            SELECT id, usuario_id, username, accion, tabla, 
-                                   registro_id, datos_anteriores, datos_nuevos, 
-                                   ip_address, user_agent, fecha, detalles 
-                            FROM logs_auditoria
-                        """
-                    elif tabla == "parametros_sistema":
-                        query = """
-                            SELECT id, codigo, nombre, valor, tipo, descripcion, 
-                                   categoria, editable, fecha_creacion 
-                            FROM parametros_sistema
-                        """
-                    elif tabla == "roles":
-                        query = "SELECT id, nombre, descripcion, activo, fecha_creacion FROM roles"
-                    elif tabla == "permisos":
-                        query = """
-                            SELECT id, nombre, descripcion, modulo, accion, 
-                                   activo, fecha_creacion 
-                            FROM permisos
-                        """
-
-                    
-                    # Ejecutar consulta SQL
-                    print(f"  Ejecutando query para {tabla}...")
-                    result = await session.execute(text(query))
+                    # Ejecutar consulta SQL para obtener todos los datos
+                    query = text(f'SELECT * FROM "{schema}"."{tabla}"')
+                    result = await session.execute(query)
                     rows = result.fetchall()
-                    print(f"  {len(rows)} registros obtenidos")
+                    keys = result.keys()
                     
                     # Convertir a lista de diccionarios
                     data = []
                     for row in rows:
                         row_dict = {}
-                        for i, column in enumerate(result.keys()):
+                        for i, column in enumerate(keys):
                             value = row[i]
+                            # Manejo de tipos especiales para JSON
                             if value is not None:
-                                row_dict[column] = str(value) if isinstance(value, (datetime, date)) else value
+                                if isinstance(value, (datetime, date)):
+                                    row_dict[column] = value.isoformat()
+                                elif hasattr(value, '__str__') and not isinstance(value, (int, float, bool, str, list, dict)):
+                                    row_dict[column] = str(value)
+                                else:
+                                    row_dict[column] = value
                             else:
                                 row_dict[column] = None
                         data.append(row_dict)
                     
-                    # Guardar datos en archivo JSON
-                    tabla_file = os.path.join(temp_dir, f"{tabla}.json")
+                    # Guardar datos en archivo JSON (un archivo por schema_tabla)
+                    filename = f"{schema}_{tabla}.json"
+                    tabla_file = os.path.join(temp_dir, filename)
                     with open(tabla_file, 'w', encoding='utf-8') as f:
                         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
                     
-                    print(f"✅ Tabla {tabla} procesada: {len(data)} registros")
+                    tablas_procesadas.append(f"{schema}.{tabla}")
+                    print(f"✅ Tabla {schema}.{tabla} procesada: {len(data)} registros")
                         
                 except Exception as e:
-                    print(f"❌ Error procesando tabla {tabla}: {e}")
-                    # Continuar con la siguiente tabla
+                    print(f"❌ Error procesando tabla {schema}.{tabla}: {e}")
                     continue
             
             # Crear archivo de metadatos
@@ -728,9 +713,9 @@ async def crear_backup_completo(
                 "usuario_backup": current_user["sub"],
                 "sistema": "Sistema de Gestión de Información",
                 "version": "1.0.0",
-                "tablas_incluidas": tablas,
-                "total_tablas": len(tablas),
-                "notas": "Backup básico del sistema (tablas principales)"
+                "tablas_incluidas": tablas_procesadas,
+                "total_tablas": len(tablas_procesadas),
+                "notas": "Backup completo de esquemas public y sistema"
             }
             
             metadata_file = os.path.join(temp_dir, "metadata.json")
@@ -739,7 +724,8 @@ async def crear_backup_completo(
             
             # Crear archivo ZIP
             print("Creando archivo ZIP...")
-            zip_path = os.path.join(temp_dir, f"backup_completo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
+            zip_filename = f"backup_completo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            zip_path = os.path.join(temp_dir, zip_filename)
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for filename in os.listdir(temp_dir):
                     if filename.endswith('.json'):
@@ -755,8 +741,8 @@ async def crear_backup_completo(
                 user_id=current_user["user_id"],
                 action="export",
                 table="backup",
-                new_data={"tipo_backup": "completo", "tablas_incluidas": tablas},
-                details=f"Backup completo del sistema realizado con {len(tablas)} tablas"
+                new_data={"tipo_backup": "completo", "total_tablas": len(tablas_procesadas)},
+                details=f"Backup completo realizado ({len(tablas_procesadas)} tablas de public y sistema)"
             )
             
             # Leer el archivo ZIP y retornarlo
@@ -768,21 +754,22 @@ async def crear_backup_completo(
             
             # Limpiar archivos temporales
             print("Limpiando archivos temporales...")
-            shutil.rmtree(temp_dir)
+            shutil.rmtree(temp_dir, ignore_errors=True)
             
             print("✅ BACKUP COMPLETADO EXITOSAMENTE")
             return Response(
                 content=zip_content,
                 media_type="application/zip",
                 headers={
-                    "Content-Disposition": f"attachment; filename=backup_completo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+                    "Content-Disposition": f"attachment; filename={zip_filename}"
                 }
             )
             
         except Exception as e:
             print(f"❌ Error durante el procesamiento: {e}")
             # Limpiar en caso de error
-            shutil.rmtree(temp_dir)
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
             raise e
             
     except Exception as e:

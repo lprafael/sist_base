@@ -90,7 +90,7 @@ ROLES = {
     },
     "manager": {
         "description": "Gerente con acceso completo a datos",
-        "permissions": ["read", "write", "delete", "usuarios_read", "auditoria_read"]
+        "permissions": ["read", "write", "delete", "usuarios_read", "auditoria_read", "sistema_backup"]
     },
     "user": {
         "description": "Usuario básico",

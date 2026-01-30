@@ -109,7 +109,7 @@ async def init_database():
             
             # Permisos para manager
             permisos_manager = [
-                "usuarios_read", "auditoria_read"
+                "usuarios_read", "auditoria_read", "sistema_backup"
             ]
             
             for permiso_nombre in permisos_manager:
@@ -134,7 +134,7 @@ async def init_database():
             for permiso_nombre in permisos_user:
                 if permiso_nombre in permisos_dict:
                     await session.execute(
-                        text("INSERT INTO rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
+                        text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
                         {"rol_id": rol_user.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
             
@@ -153,7 +153,7 @@ async def init_database():
             for permiso_nombre in permisos_viewer:
                 if permiso_nombre in permisos_dict:
                     await session.execute(
-                        text("INSERT INTO rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
+                        text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
                         {"rol_id": rol_viewer.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
             
@@ -177,7 +177,7 @@ async def init_database():
             
             # Asignar rol admin al usuario admin
             await session.execute(
-                text("INSERT INTO usuario_rol (usuario_id, rol_id) VALUES (:usuario_id, :rol_id)"),
+                text("INSERT INTO sistema.usuario_rol (usuario_id, rol_id) VALUES (:usuario_id, :rol_id)"),
                 {"usuario_id": admin_user.id, "rol_id": rol_admin.id}
             )
             

@@ -122,7 +122,7 @@ export default function App() {
       items: [
         { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Perfil', icon: '👤', roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
-        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin'] },
+        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
       ]
     }
   ];
@@ -197,7 +197,7 @@ export default function App() {
           <div className="fade-in">
             {tab === "usuarios" && <UserManagement />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
-            {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
+            {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
           </div>
         </main>
       </div>
