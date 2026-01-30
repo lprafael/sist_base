@@ -44,12 +44,12 @@ class EmailService:
 
     def send_welcome_email(self, to_email: str, username: str, password: str, role: str) -> bool:
         """Envía email de bienvenida con credenciales"""
-        subject = "Bienvenido al Sistema de Catálogos VMT-CID"
+        subject = "Bienvenido al Sistema"
         
         html_body = f"""
         <html>
         <body>
-            <h2>Bienvenido al Sistema de Catálogos VMT-CID</h2>
+            <h2>Bienvenido al Sistema</h2>
             <p>Hola <strong>{username}</strong>,</p>
             <p>Tu cuenta ha sido creada exitosamente con los siguientes datos:</p>
             <ul>
@@ -58,7 +58,7 @@ class EmailService:
                 <li><strong>Rol:</strong> {role}</li>
             </ul>
             <p>Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.</p>
-            <p>Saludos,<br>Equipo VMT-CID</p>
+            <p>Saludos,<br>Equipo de Desarrollo</p>
         </body>
         </html>
         """
@@ -67,7 +67,7 @@ class EmailService:
 
     def send_password_reset_email(self, to_email: str, username: str, reset_token: str) -> bool:
         """Envía email para restablecer contraseña"""
-        subject = "Restablecimiento de Contraseña - Sistema VMT-CID"
+        subject = "Restablecimiento de Contraseña - Sistema"
         
         html_body = f"""
         <html>
@@ -78,7 +78,7 @@ class EmailService:
             <h3>{reset_token}</h3>
             <p>Este token expira en 1 hora.</p>
             <p>Si no solicitaste este cambio, ignora este email.</p>
-            <p>Saludos,<br>Equipo VMT-CID</p>
+            <p>Saludos,<br>Equipo de Desarrollo</p>
         </body>
         </html>
         """

@@ -13,22 +13,25 @@ Base = declarative_base()
 rol_permiso = Table(
     'rol_permiso',
     Base.metadata,
-    Column('rol_id', Integer, ForeignKey('roles.id'), primary_key=True),
-    Column('permiso_id', Integer, ForeignKey('permisos.id'), primary_key=True)
+    Column('rol_id', Integer, ForeignKey('sistema.roles.id'), primary_key=True),
+    Column('permiso_id', Integer, ForeignKey('sistema.permisos.id'), primary_key=True),
+    schema='sistema'
 )
 
 # Tabla de asociación para usuarios y roles (many-to-many)
 usuario_rol = Table(
     'usuario_rol',
     Base.metadata,
-    Column('usuario_id', Integer, ForeignKey('usuarios.id'), primary_key=True),
-    Column('rol_id', Integer, ForeignKey('roles.id'), primary_key=True)
+    Column('usuario_id', Integer, ForeignKey('sistema.usuarios.id'), primary_key=True),
+    Column('rol_id', Integer, ForeignKey('sistema.roles.id'), primary_key=True),
+    schema='sistema'
 )
 
 # ===== SISTEMA DE SEGURIDAD Y AUDITORÍA =====
 
 class Usuario(Base):
     __tablename__ = "usuarios"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
@@ -39,7 +42,7 @@ class Usuario(Base):
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     ultimo_acceso = Column(DateTime)
-    creado_por = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     
     # Relaciones
     roles = relationship("Rol", secondary=usuario_rol, back_populates="usuarios")
@@ -50,13 +53,14 @@ class Usuario(Base):
 
 class Rol(Base):
     __tablename__ = "roles"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(50), unique=True, index=True, nullable=False)
     descripcion = Column(String(200))
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
-    creado_por = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     
     # Relaciones
     usuarios = relationship("Usuario", secondary=usuario_rol, back_populates="roles")
@@ -64,6 +68,7 @@ class Rol(Base):
 
 class Permiso(Base):
     __tablename__ = "permisos"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(50), unique=True, index=True, nullable=False)
@@ -78,9 +83,10 @@ class Permiso(Base):
 
 class SesionUsuario(Base):
     __tablename__ = "sesiones_usuarios"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id'), nullable=False)
+    usuario_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=False)
     token = Column(String(500), unique=True, index=True, nullable=False)
     ip_address = Column(String(45))
     user_agent = Column(Text)
@@ -94,6 +100,7 @@ class SesionUsuario(Base):
 
 class PasswordReset(Base):
     __tablename__ = "password_resets"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(100), nullable=False)
@@ -104,9 +111,10 @@ class PasswordReset(Base):
 
 class LogAcceso(Base):
     __tablename__ = "logs_acceso"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    usuario_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     username = Column(String(50), nullable=False)
     accion = Column(String(50), nullable=False)  # login, logout, failed_login
     ip_address = Column(String(45))
@@ -120,9 +128,10 @@ class LogAcceso(Base):
 
 class LogAuditoria(Base):
     __tablename__ = "logs_auditoria"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    usuario_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     username = Column(String(50), nullable=False)
     accion = Column(String(50), nullable=False)  # create, update, delete, export
     tabla = Column(String(50), nullable=False)   # gremios, eots, feriados, usuarios
@@ -141,6 +150,7 @@ class LogAuditoria(Base):
 
 class ParametroSistema(Base):
     __tablename__ = "parametros_sistema"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(50), unique=True, index=True, nullable=False)
@@ -153,10 +163,11 @@ class ParametroSistema(Base):
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     fecha_modificacion = Column(DateTime, onupdate=func.now())
-    modificado_por = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    modificado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
 
 class ConfiguracionEmail(Base):
     __tablename__ = "configuracion_email"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
@@ -169,15 +180,16 @@ class ConfiguracionEmail(Base):
     use_ssl = Column(Boolean, default=False)
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
-    creado_por = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
 
 # ===== SISTEMA DE NOTIFICACIONES =====
 
 class Notificacion(Base):
     __tablename__ = "notificaciones"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id'), nullable=False)
+    usuario_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=False)
     titulo = Column(String(100), nullable=False)
     mensaje = Column(Text, nullable=False)
     tipo = Column(String(20), default='info')  # info, warning, error, success
@@ -190,6 +202,7 @@ class Notificacion(Base):
 
 class BackupSistema(Base):
     __tablename__ = "backups_sistema"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
@@ -200,13 +213,14 @@ class BackupSistema(Base):
     estado = Column(String(20), default='en_proceso')  # en_proceso, completado, fallido
     fecha_inicio = Column(DateTime, default=func.now())
     fecha_fin = Column(DateTime)
-    creado_por = Column(Integer, ForeignKey('usuarios.id'), nullable=True)
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     detalles = Column(JSON)
 
 # ===== SISTEMA DE REPORTES =====
 
 class Reporte(Base):
     __tablename__ = "reportes"
+    __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
@@ -217,5 +231,5 @@ class Reporte(Base):
     fecha_ejecucion = Column(DateTime)
     estado = Column(String(20), default='pendiente')  # pendiente, ejecutando, completado, fallido
     ruta_archivo = Column(String(500))
-    creado_por = Column(Integer, ForeignKey('usuarios.id'), nullable=False)
-    detalles = Column(JSON) 
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=False)
+    detalles = Column(JSON)

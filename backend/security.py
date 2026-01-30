@@ -76,15 +76,21 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     payload = verify_token(token)
     return payload
 
-# Roles y permisos
+# Roles y permisos (Hardcoded para validación rápida, idealmente usar base de datos)
 ROLES = {
     "admin": {
         "description": "Administrador del sistema",
-        "permissions": ["read", "write", "delete", "manage_users", "manage_roles"]
+        "permissions": [
+            "read", "write", "delete", "manage_users", "manage_roles",
+            "usuarios_read", "usuarios_write", "usuarios_delete", "usuarios_manage",
+            "roles_read", "roles_write", "roles_delete", "roles_manage",
+            "auditoria_read", "auditoria_export",
+            "sistema_config", "sistema_backup", "sistema_reportes"
+        ]
     },
     "manager": {
         "description": "Gerente con acceso completo a datos",
-        "permissions": ["read", "write", "delete"]
+        "permissions": ["read", "write", "delete", "usuarios_read", "auditoria_read"]
     },
     "user": {
         "description": "Usuario básico",
@@ -99,8 +105,12 @@ ROLES = {
 def check_permission(required_permission: str):
     """Decorador para verificar permisos"""
     def permission_checker(current_user: dict = Depends(get_current_user)):
-        user_permissions = ROLES.get(current_user.get("role", "viewer"), {}).get("permissions", [])
+        role = current_user.get("role", "viewer")
+        user_permissions = ROLES.get(role, {}).get("permissions", [])
+        print(f"DEBUG: Checking permission '{required_permission}' for role '{role}'")
+        print(f"DEBUG: User permissions: {user_permissions}")
         if required_permission not in user_permissions:
+            print(f"DEBUG: Permission denied!")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes permisos para realizar esta acción"

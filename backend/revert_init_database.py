@@ -23,15 +23,24 @@ if not DATABASE_URL:
 TABLAS_PROTEGIDAS = []
 
 async def revert_database():
-    """Elimina todas las tablas de la base de datos."""
+    """Elimina todas las tablas y el schema sistema de la base de datos."""
     engine = create_async_engine(DATABASE_URL, echo=True)
     async with engine.begin() as conn:
-        # Obtener todas las tablas
-        inspector = await conn.run_sync(lambda c: Base.metadata.tables.keys())
-        tablas_a_eliminar = [t for t in inspector]
-        for tabla in tablas_a_eliminar:
-            print(f"Eliminando tabla: {tabla}")
-            await conn.execute(text(f'DROP TABLE IF EXISTS "{tabla}" CASCADE'))
+        # 1. Eliminar schema sistema
+        print("Eliminando schema sistema...")
+        await conn.execute(text('DROP SCHEMA IF EXISTS sistema CASCADE'))
+        
+        # 2. Consultar y eliminar todas las tablas en el schema public
+        print("Buscando tablas residuales en el schema public...")
+        result = await conn.execute(text(
+            "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'"
+        ))
+        tablas_public = result.scalars().all()
+        
+        for tabla in tablas_public:
+            print(f"Eliminando tabla residual en public: {tabla}")
+            await conn.execute(text(f'DROP TABLE IF EXISTS "public"."{tabla}" CASCADE'))
+                
     print("Reversión completada.")
 
 if __name__ == "__main__":

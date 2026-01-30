@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy import text, select
 from models import Base, Usuario, Rol, Permiso, ParametroSistema, ConfiguracionEmail
 from security import get_password_hash
 from datetime import datetime, timedelta
@@ -27,8 +27,9 @@ async def init_database():
     # Crear engine
     engine = create_async_engine(DATABASE_URL, echo=True)
     
-    # Crear todas las tablas
+    # Crear schema y todas las tablas
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS sistema"))
         await conn.run_sync(Base.metadata.create_all)
     
     # Crear sesión
@@ -36,8 +37,9 @@ async def init_database():
     
     async with async_session() as session:
         try:
-            # Verificar si ya existen datos
-            existing_admin = await session.get(Usuario, 1)
+            # Verificar si ya existen datos (usando el modelo que ya tiene el schema)
+            result = await session.execute(select(Usuario).where(Usuario.id == 1))
+            existing_admin = result.scalar_one_or_none()
             if existing_admin:
                 print("La base de datos ya está inicializada.")
                 return
@@ -75,7 +77,7 @@ async def init_database():
             
             # Obtener los permisos creados
             permisos_creados = await session.execute(
-                text("SELECT id, nombre FROM permisos")
+                text("SELECT id, nombre FROM sistema.permisos")
             )
             permisos_dict = {nombre: id_ for id_, nombre in permisos_creados.all()}
             
@@ -93,7 +95,7 @@ async def init_database():
             # Asignar todos los permisos al admin
             for permiso_id in permisos_dict.values():
                 await session.execute(
-                    text("INSERT INTO rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
+                    text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
                     {"rol_id": rol_admin.id, "permiso_id": permiso_id}
                 )
             
@@ -113,7 +115,7 @@ async def init_database():
             for permiso_nombre in permisos_manager:
                 if permiso_nombre in permisos_dict:
                     await session.execute(
-                        text("INSERT INTO rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
+                        text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
                         {"rol_id": rol_manager.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
             

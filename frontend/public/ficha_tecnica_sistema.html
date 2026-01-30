@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <title>Ficha Técnica del Sistema Base - Poliverso</title>
@@ -11,6 +12,7 @@
       margin: 0;
       padding: 0;
     }
+
     .header {
       display: flex;
       align-items: center;
@@ -19,15 +21,18 @@
       padding: 24px 32px 18px 32px;
       border-bottom: 6px solid #1565c0;
     }
+
     .header img {
       height: 80px;
       margin-right: 32px;
     }
+
     .header .title {
       font-size: 2.1rem;
       font-weight: bold;
       line-height: 1.2;
     }
+
     .section {
       margin: 32px 48px 0 48px;
       padding: 24px 32px;
@@ -35,38 +40,48 @@
       border-radius: 12px;
       box-shadow: 0 2px 12px #0001;
     }
+
     h2 {
       color: #1976d2;
       border-bottom: 2px solid #e3f2fd;
       padding-bottom: 6px;
       margin-top: 0;
     }
-    ul, ol {
+
+    ul,
+    ol {
       margin-top: 0;
     }
+
     .tech-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 18px;
     }
-    .tech-table th, .tech-table td {
+
+    .tech-table th,
+    .tech-table td {
       border: 1px solid #e3f2fd;
       padding: 8px 14px;
       text-align: left;
     }
+
     .tech-table th {
       background: #e3f2fd;
       color: #1976d2;
     }
+
     .arch {
       margin-top: 18px;
       text-align: center;
     }
+
     .arch img {
       height: 32px;
       vertical-align: middle;
       margin: 0 8px;
     }
+
     .footer {
       text-align: right;
       color: #888;
@@ -75,41 +90,62 @@
     }
   </style>
 </head>
+
 <body>
   <div class="header">
-    <img src="imágenes/Logo_CIDSA2.jpg" alt="Logo CIDSA" />
-    <span class="title">Sistema Base - Poliverso</span>
+    <img src="imágenes/Logo_chico.PNG" alt="Logo RDS" />
+    <span class="title">Sistema Base - RDS</span>
   </div>
   <div class="section">
     <h2>Resumen Ejecutivo</h2>
-    <p>El Sistema Base - Poliverso es una solución estructural integral para el inicio de proyectos web, proporcionando gestión de usuarios avanzada, roles, seguridad reactiva, auditoría completa y herramientas de administración del sistema.</p>
+    <p>El Sistema Base - Poliverso es una solución estructural integral para el inicio de proyectos web, proporcionando
+      gestión de usuarios avanzada, roles, seguridad reactiva, auditoría completa y herramientas de administración del
+      sistema.</p>
   </div>
   <div class="section">
     <h2>Arquitectura y Tecnologías</h2>
     <table class="tech-table">
-      <tr><th>Componente</th><th>Tecnología</th></tr>
-      <tr><td>Frontend</td><td>React 18, Vite, CSS Custom, JWT</td></tr>
-      <tr><td>Backend</td><td>FastAPI (Python 3.11+), SQLAlchemy Async, PostgreSQL</td></tr>
-      <tr><td>Base de Datos</td><td>PostgreSQL 14+, SQLAlchemy ORM</td></tr>
-      <tr><td>Email</td><td>SMTP seguro (notificaciones y contraseñas)</td></tr>
+      <tr>
+        <th>Componente</th>
+        <th>Tecnología</th>
+      </tr>
+      <tr>
+        <td>Frontend</td>
+        <td>React 18, Vite, CSS Custom, JWT</td>
+      </tr>
+      <tr>
+        <td>Backend</td>
+        <td>FastAPI (Python 3.11+), SQLAlchemy Async, PostgreSQL</td>
+      </tr>
+      <tr>
+        <td>Base de Datos</td>
+        <td>PostgreSQL 14+, SQLAlchemy ORM</td>
+      </tr>
+      <tr>
+        <td>Email</td>
+        <td>SMTP seguro (notificaciones y contraseñas)</td>
+      </tr>
     </table>
     <div class="arch">
       <span>Frontend</span>
-      <img src="https://img.icons8.com/color/48/1976d2/react-native.png" alt="React"/>
+      <img src="https://img.icons8.com/color/48/1976d2/react-native.png" alt="React" />
       <span>→ Backend</span>
-      <img src="https://img.icons8.com/ios-filled/50/1976d2/api-settings.png" alt="FastAPI"/>
+      <img src="https://img.icons8.com/ios-filled/50/1976d2/api-settings.png" alt="FastAPI" />
       <span>→ DB</span>
-      <img src="https://img.icons8.com/ios-filled/50/1976d2/database.png" alt="PostgreSQL"/>
+      <img src="https://img.icons8.com/ios-filled/50/1976d2/database.png" alt="PostgreSQL" />
     </div>
   </div>
   <div class="section">
     <h2>Funcionalidades Core</h2>
     <ul>
-      <li>Gestión Completa de Usuarios: Alta, Edición, Activación, Desactivación, Reactivación y Borrado Físico/Lógico.</li>
+      <li>Gestión Completa de Usuarios: Alta, Edición, Activación, Desactivación, Reactivación y Borrado Físico/Lógico.
+      </li>
       <li>Sistema de Roles y Permisos (RBAC): Control granular de acceso a nivel de API e interfaz.</li>
-      <li>Seguridad de Acceso: Autenticación via JWT con flujos de recuperación y generación de contraseñas temporales por el administrador.</li>
+      <li>Seguridad de Acceso: Autenticación via JWT con flujos de recuperación y generación de contraseñas temporales
+        por el administrador.</li>
       <li>Auditoría Integrada: Registro detallado de cada acción del usuario, IP, dispositivo y cambios realizados.</li>
-      <li>Administración del Sistema: Configuración de parámetros dinámicos y sistema de backup automático de tablas core.</li>
+      <li>Administración del Sistema: Configuración de parámetros dinámicos y sistema de backup automático de tablas
+        core.</li>
       <li>Notificaciones: Sistema de notificaciones por email para eventos críticos de seguridad.</li>
     </ul>
   </div>
@@ -117,8 +153,10 @@
     <h2>Gestión de Contraseñas</h2>
     <ol>
       <li><strong>Recuperación</strong>: El usuario puede solicitar la recuperación de su cuenta ante un olvido.</li>
-      <li><strong>Generación por Admin</strong>: El administrador tiene la potestad de generar una nueva contraseña temporal segura y enviarla directamente al usuario desde la interfaz.</li>
-      <li><strong>Cambio de Password</strong>: El usuario puede actualizar su contraseña en cualquier momento desde su perfil una vez autenticado.</li>
+      <li><strong>Generación por Admin</strong>: El administrador tiene la potestad de generar una nueva contraseña
+        temporal segura y enviarla directamente al usuario desde la interfaz.</li>
+      <li><strong>Cambio de Password</strong>: El usuario puede actualizar su contraseña en cualquier momento desde su
+        perfil una vez autenticado.</li>
     </ol>
   </div>
   <div class="section">
@@ -131,8 +169,9 @@
     </ul>
   </div>
   <div class="footer">
-    Última actualización: 2026-01-29<br/>
+    Última actualización: 2026-01-29<br />
     Poliverso - Coordinación de Innovación
   </div>
 </body>
+
 </html>

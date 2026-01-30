@@ -47,12 +47,12 @@ from dotenv import load_dotenv
 # ============================================
 # Modelos de base de datos
 from models import (
-    Base, Usuario
+    Base, Usuario, Rol, Permiso, LogAuditoria, LogAcceso, SesionUsuario
 )
 
 # Esquemas Pydantic
 from schemas import (
-    LogAuditoriaResponse
+    LogAuditoriaResponse, LogAccesoResponse, SesionUsuarioResponse
 )
 
 # Utilidades de seguridad
@@ -181,7 +181,7 @@ async def obtener_logs_auditoria(
     
     return logs
 
-@app.get("/auditoria/logs/{log_id}", summary="Obtener log de auditoría específico")
+@app.get("/auditoria/logs/{log_id}", summary="Obtener log de auditoría específico", response_model=LogAuditoriaResponse)
 async def obtener_log_auditoria(
     log_id: int,
     session: AsyncSession = Depends(get_session),
@@ -191,8 +191,7 @@ async def obtener_log_auditoria(
     Obtiene un log de auditoría específico por ID.
     Solo usuarios con permiso 'auditoria_read' pueden acceder.
     """
-    from models import LogAuditoria
-    
+    # La importación ya está arriba ahora
     result = await session.execute(select(LogAuditoria).where(LogAuditoria.id == log_id))
     log = result.scalar_one_or_none()
     
@@ -200,6 +199,65 @@ async def obtener_log_auditoria(
         raise HTTPException(status_code=404, detail="Log de auditoría no encontrado")
     
     return log
+
+@app.get("/auditoria/accesos", summary="Obtener logs de acceso", response_model=List[LogAccesoResponse])
+async def obtener_logs_acceso(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(check_permission("auditoria_read")),
+    limit: int = 100,
+    offset: int = 0,
+    username: Optional[str] = None,
+    accion: Optional[str] = None,
+    exitoso: Optional[bool] = None
+):
+    """
+    Obtiene los logs de acceso con filtros opcionales.
+    Solo usuarios con permiso 'auditoria_read' pueden acceder.
+    """
+    query = select(LogAcceso)
+    
+    if username:
+        query = query.where(LogAcceso.username.ilike(f"%{username}%"))
+    if accion:
+        query = query.where(LogAcceso.accion == accion)
+    if exitoso is not None:
+        query = query.where(LogAcceso.exitoso == exitoso)
+        
+    query = query.order_by(desc(LogAcceso.fecha)).offset(offset).limit(limit)
+    
+    result = await session.execute(query)
+    logs = result.scalars().all()
+    return logs
+
+@app.get("/auditoria/sesiones", summary="Obtener sesiones de usuarios", response_model=List[SesionUsuarioResponse])
+async def obtener_sesiones_usuarios(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(check_permission("auditoria_read")),
+    limit: int = 100,
+    offset: int = 0,
+    activa: Optional[bool] = None
+):
+    """
+    Obtiene el listado de sesiones de usuarios.
+    Solo usuarios con permiso 'auditoria_read' pueden acceder.
+    """
+    # Usar query simple y cargar la relación o hacer join
+    query = select(SesionUsuario, Usuario.username).join(Usuario)
+    
+    if activa is not None:
+        query = query.where(SesionUsuario.activa == activa)
+        
+    query = query.order_by(desc(SesionUsuario.fecha_inicio)).offset(offset).limit(limit)
+    
+    result = await session.execute(query)
+    # Re-mapear el resultado para que coincida con el esquema
+    sesiones = []
+    for s_obj, username in result.all():
+        s_dict = {c.name: getattr(s_obj, c.name) for c in s_obj.__table__.columns}
+        s_dict['username'] = username
+        sesiones.append(s_dict)
+        
+    return sesiones
 
 # ============================================
 # 12. ENDPOINTS DE BACKUP
@@ -668,7 +726,7 @@ async def crear_backup_completo(
             metadata = {
                 "fecha_backup": datetime.utcnow().isoformat(),
                 "usuario_backup": current_user["sub"],
-                "sistema": "Sistema de Catálogos VMT-CID",
+                "sistema": "Sistema de Gestión de Información",
                 "version": "1.0.0",
                 "tablas_incluidas": tablas,
                 "total_tablas": len(tablas),
