@@ -85,5 +85,27 @@ class EmailService:
         
         return self.send_email(to_email, subject, html_body, is_html=True)
 
+    def send_admin_notification_email(self, admin_email: str, new_user_email: str, new_user_name: str) -> bool:
+        """Notifica al administrador de una nueva solicitud de acceso"""
+        subject = "Nueva Solicitud de Acceso - Sistema"
+        
+        html_body = f"""
+        <html>
+        <body>
+            <h2>Nueva Solicitud de Acceso</h2>
+            <p>Hola Administrador,</p>
+            <p>Se ha registrado un nuevo usuario a través de Google y está pendiente de aprobación:</p>
+            <ul>
+                <li><strong>Nombre:</strong> {new_user_name}</li>
+                <li><strong>Email:</strong> {new_user_email}</li>
+            </ul>
+            <p>Para activar este usuario, ingresa al panel de administración del sistema.</p>
+            <p>Saludos,<br>Equipo de Desarrollo</p>
+        </body>
+        </html>
+        """
+        
+        return self.send_email(admin_email, subject, html_body, is_html=True)
+
 # Instancia global del servicio de email
 email_service = EmailService() 
