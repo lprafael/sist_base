@@ -40,7 +40,7 @@ async def create_admin_user():
         
         admin_user = Usuario(
             username="admin",
-            email="admin@vmt-cid.com",
+            email="[EMAIL_ADDRESS]",
             hashed_password=hashed_password,
             nombre_completo="Administrador del Sistema",
             rol="admin",

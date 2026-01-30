@@ -1,4 +1,4 @@
-# Estructura Completa de la Base de Datos - Sistema VMT-CID
+# Estructura Completa de la Base de Datos - Sistema
 
 ## Resumen
 

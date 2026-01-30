@@ -69,6 +69,21 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class SesionUsuarioResponse(BaseModel):
+    id: int
+    usuario_id: int
+    username: Optional[str] = None
+    token: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    fecha_inicio: datetime
+    fecha_expiracion: datetime
+    activa: bool
+    fecha_cierre: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

@@ -5,11 +5,21 @@ import React, { useState, useEffect } from "react";
 import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
+import AuditSystem from "./components/AuditSystem.jsx";
 
-function CabeceradePagina({ user, onLogout }) {
+function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
     <header className="main-header">
       <div className="header-title">
+        {user && (
+          <button
+            className="menu-toggle"
+            onClick={onToggleSidebar}
+            title={isSidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}
+          >
+            {isSidebarCollapsed ? "➡️" : "⬅️"}
+          </button>
+        )}
         <h1>Sistema Base - Poliverso</h1>
       </div>
       <div className="header-user-info">
@@ -25,8 +35,8 @@ function CabeceradePagina({ user, onLogout }) {
         )}
         <div className="logo-container" style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
           <img
-            src="/imágenes/Logo_CIDSA2.jpg"
-            alt="Logo CIDSA"
+            src="/imágenes/Logo_chico.PNG"
+            alt="Logo RDS"
             style={{ height: 40 }}
           />
         </div>
@@ -44,6 +54,8 @@ export default function App() {
   const [tab, setTab] = useState("usuarios");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState({});
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -57,6 +69,13 @@ export default function App() {
 
   const handleLogin = (loginData) => {
     setUser(loginData.user);
+  };
+
+  const toggleCategory = (categoryTitle) => {
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [categoryTitle]: !prev[categoryTitle]
+    }));
   };
 
   const handleLogout = async () => {
@@ -97,39 +116,79 @@ export default function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  const menuItems = [
-    { id: 'usuarios', label: user.rol === 'admin' ? '👥 Gestión de Usuarios' : '👤 Mi Perfil', roles: ['admin', 'manager', 'user', 'viewer'] },
-    { id: 'backup', label: '🔄 Sistema de Backup', roles: ['admin'] },
+  const menuGroups = [
+    {
+      title: "Administración",
+      items: [
+        { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Perfil', icon: '👤', roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
+        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin'] },
+      ]
+    }
   ];
 
   return (
     <div className="app-container">
-      <CabeceradePagina user={user} onLogout={handleLogout} />
+      <CabeceradePagina
+        user={user}
+        onLogout={handleLogout}
+        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isSidebarCollapsed={sidebarCollapsed}
+      />
 
       <div className="content-wrapper">
-        <aside className="sidebar">
-          <h2>Menú Principal</h2>
+        <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+          <h2 style={{ display: sidebarCollapsed ? 'none' : 'block' }}>Menú Principal</h2>
+
           <nav className="sidebar-nav">
-            {menuItems.map(item => (
-              item.roles.includes(user.rol) && (
-                <button
-                  key={item.id}
-                  className={`sidebar-tab${tab === item.id ? " active" : ""}`}
-                  onClick={() => setTab(item.id)}
-                >
-                  {item.label}
-                </button>
-              )
-            ))}
+            {menuGroups.map((group, gIdx) => {
+              const visibleItems = group.items.filter(item => item.roles.includes(user.rol));
+              if (visibleItems.length === 0) return null;
+
+              const isCollapsed = collapsedCategories[group.title];
+
+              return (
+                <div key={gIdx} className="sidebar-category">
+                  <div
+                    className="category-title"
+                    onClick={() => toggleCategory(group.title)}
+                  >
+                    <span>{group.title}</span>
+                    <span className={`category-arrow ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
+                  </div>
+
+                  <div className={`category-items ${isCollapsed ? 'collapsed' : ''}`}>
+                    {visibleItems.map(item => (
+                      <button
+                        key={item.id}
+                        className={`sidebar-tab${tab === item.id ? " active" : ""}`}
+                        onClick={() => setTab(item.id)}
+                        title={sidebarCollapsed ? item.label : ""}
+                      >
+                        <span className="icon">{item.icon}</span>
+                        {!sidebarCollapsed && <span className="label">{item.label}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </nav>
 
-          <div style={{ marginTop: 'auto', padding: '0 12px' }}>
+          <div style={{ marginTop: 'auto', padding: '0 12px', marginBottom: '12px' }}>
             <button
               className="sidebar-tab"
-              style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-color)', marginTop: '20px' }}
+              style={{
+                width: '100%',
+                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                border: '1px solid var(--border-color)',
+                padding: sidebarCollapsed ? '10px' : '10px 16px'
+              }}
               onClick={() => window.open('/ficha_tecnica_sistema.html', '_blank')}
+              title={sidebarCollapsed ? "Ficha del Sistema" : ""}
             >
-              📄 Ficha del Sistema
+              <span className="icon">📄</span>
+              {!sidebarCollapsed && <span className="label">Ficha del Sistema</span>}
             </button>
           </div>
         </aside>
@@ -137,6 +196,7 @@ export default function App() {
         <main className="main-content">
           <div className="fade-in">
             {tab === "usuarios" && <UserManagement />}
+            {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
           </div>
         </main>
