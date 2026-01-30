@@ -65,6 +65,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState({
+    "Playa de Vehículos": true,
+    "Negocios": true,
     "Parámetros": true,
     "Administración": true
   });
@@ -139,10 +141,16 @@ export default function App() {
         { id: "dashboard_playa", label: "Dashboard", icon: "📊", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "inventario", label: "Inventario", icon: "🚙", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "clientes_playa", label: "Clientes", icon: "👥", roles: ['admin', 'manager', 'user', 'viewer'] },
-        { id: "ventas_playa", label: "Ventas", icon: "💰", roles: ['admin', 'manager', 'user', 'viewer'] },
-        { id: "cobros_playa", label: "Cobros", icon: "💵", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "gastos_playa", label: "Gastos de Vehículos", icon: "🔧", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "gastos_empresa_playa", label: "Gastos Empresa", icon: "🏢", roles: ['admin', 'manager', 'user', 'viewer'] }
+      ]
+    },
+    {
+      title: "Negocios",
+      icon: "🤝",
+      items: [
+        { id: "ventas_playa", label: "Ventas", icon: "🤝", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "cobros_playa", label: "Cobros", icon: "💵", roles: ['admin', 'manager', 'user', 'viewer'] },
       ]
     },
     {
@@ -160,7 +168,7 @@ export default function App() {
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
       ]
     }
-    
+
   ];
 
   return (
