@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './VehiculosPlaya.css';
 
-const VehiculosPlaya = () => {
+const VehiculosPlaya = ({ setTab, setPreselectedVehicleId }) => {
     const [vehiculos, setVehiculos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [selectedVehiculo, setSelectedVehiculo] = useState(null);
     const [categorias, setCategorias] = useState([]);
     const [newVehiculo, setNewVehiculo] = useState({
         id_categoria: '',
@@ -76,20 +78,30 @@ const VehiculosPlaya = () => {
         }
     };
 
-    const filteredVehiculos = vehiculos.filter(v => 
-        v.marca.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const filteredVehiculos = vehiculos.filter(v =>
+        v.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.chasis.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleVerDetalles = (v) => {
+        setSelectedVehiculo(v);
+        setShowDetailsModal(true);
+    };
+
+    const handleVenderClick = (v) => {
+        setPreselectedVehicleId(v.id_producto);
+        setTab('ventas_playa');
+    };
 
     return (
         <div className="playa-container">
             <div className="header-actions">
                 <h2>Inventario de Vehículos</h2>
                 <div className="search-bar">
-                    <input 
-                        type="text" 
-                        placeholder="Buscar por marca, modelo o chasis..." 
+                    <input
+                        type="text"
+                        placeholder="Buscar por marca, modelo o chasis..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -113,15 +125,15 @@ const VehiculosPlaya = () => {
                                 <p className="year">{v.año}</p>
                             </div>
                             <div className="card-body">
-                                <p><strong>Chasis:</strong> {v.chasis}</p>
-                                <p><strong>Precio Sugerido:</strong> 
-                                    <span className="price"> ${parseFloat(v.precio_venta_sugerido).toLocaleString()}</span>
+                                <p><strong>Precio Sugerido:</strong>
+                                    <span className="price"> Gs. {Math.round(parseFloat(v.precio_venta_sugerido)).toLocaleString('es-PY')}</span>
                                 </p>
                             </div>
                             <div className="card-footer">
-                                <button className="btn-outline">Ver Detalles</button>
-                                <button className="btn-sell">Vender</button>
+                                <button className="btn-outline" onClick={() => handleVerDetalles(v)}>Ver Detalles</button>
+                                <button className="btn-sell" onClick={() => handleVenderClick(v)}>Vender</button>
                             </div>
+
                         </div>
                     ))}
                 </div>
@@ -134,9 +146,9 @@ const VehiculosPlaya = () => {
                         <form onSubmit={handleCreate}>
                             <div className="form-group">
                                 <label>Categoría</label>
-                                <select 
-                                    value={newVehiculo.id_categoria} 
-                                    onChange={(e) => setNewVehiculo({...newVehiculo, id_categoria: e.target.value})}
+                                <select
+                                    value={newVehiculo.id_categoria}
+                                    onChange={(e) => setNewVehiculo({ ...newVehiculo, id_categoria: e.target.value })}
                                     required
                                 >
                                     <option value="">Seleccione categoría</option>
@@ -148,31 +160,31 @@ const VehiculosPlaya = () => {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Marca</label>
-                                    <input type="text" required value={newVehiculo.marca} onChange={(e) => setNewVehiculo({...newVehiculo, marca: e.target.value})} />
+                                    <input type="text" required value={newVehiculo.marca} onChange={(e) => setNewVehiculo({ ...newVehiculo, marca: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Modelo</label>
-                                    <input type="text" required value={newVehiculo.modelo} onChange={(e) => setNewVehiculo({...newVehiculo, modelo: e.target.value})} />
+                                    <input type="text" required value={newVehiculo.modelo} onChange={(e) => setNewVehiculo({ ...newVehiculo, modelo: e.target.value })} />
                                 </div>
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Año</label>
-                                    <input type="number" required value={newVehiculo.año} onChange={(e) => setNewVehiculo({...newVehiculo, año: e.target.value})} />
+                                    <input type="number" required value={newVehiculo.año} onChange={(e) => setNewVehiculo({ ...newVehiculo, año: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Chasis</label>
-                                    <input type="text" required value={newVehiculo.chasis} onChange={(e) => setNewVehiculo({...newVehiculo, chasis: e.target.value})} />
+                                    <input type="text" required value={newVehiculo.chasis} onChange={(e) => setNewVehiculo({ ...newVehiculo, chasis: e.target.value })} />
                                 </div>
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Costo Base ($)</label>
-                                    <input type="number" step="0.01" required value={newVehiculo.costo_base} onChange={(e) => setNewVehiculo({...newVehiculo, costo_base: e.target.value})} />
+                                    <label>Costo Base (Gs.)</label>
+                                    <input type="number" required value={newVehiculo.costo_base} onChange={(e) => setNewVehiculo({ ...newVehiculo, costo_base: e.target.value })} />
                                 </div>
                                 <div className="form-group">
-                                    <label>Precio Sugerido ($)</label>
-                                    <input type="number" step="0.01" required value={newVehiculo.precio_venta_sugerido} onChange={(e) => setNewVehiculo({...newVehiculo, precio_venta_sugerido: e.target.value})} />
+                                    <label>Precio Sugerido (Gs.)</label>
+                                    <input type="number" required value={newVehiculo.precio_venta_sugerido} onChange={(e) => setNewVehiculo({ ...newVehiculo, precio_venta_sugerido: e.target.value })} />
                                 </div>
                             </div>
                             <div className="modal-actions">
@@ -180,6 +192,26 @@ const VehiculosPlaya = () => {
                                 <button type="submit" className="btn-save">Guardar Vehículo</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Modal de Detalles Técnicos */}
+            {showDetailsModal && selectedVehiculo && (
+                <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
+                    <div className="modal-content details-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header-detail">
+                            <h3 style={{ margin: 0 }}>Ficha Técnica: {selectedVehiculo.marca} {selectedVehiculo.modelo}</h3>
+                            <button className="close-btn" style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }} onClick={() => setShowDetailsModal(false)}>&times;</button>
+                        </div>
+                        <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', margin: '20px 0' }}>
+                            <div className="detail-item"><strong>Año:</strong> {selectedVehiculo.año}</div>
+                            <div className="detail-item"><strong>Chasis:</strong> {selectedVehiculo.chasis}</div>
+                            <div className="detail-item"><strong>Precio Sugerido:</strong> Gs. {Math.round(parseFloat(selectedVehiculo.precio_venta_sugerido)).toLocaleString('es-PY')}</div>
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn-primary" onClick={() => handleVenderClick(selectedVehiculo)}>Ir a Vender</button>
+                            <button className="btn-cancel" onClick={() => setShowDetailsModal(false)}>Cerrar</button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,0 +1,185 @@
+.gastos-empresa-container {
+    padding: 30px;
+    background: #f8fafc;
+    min-height: calc(100vh - 64px);
+}
+
+.gastos-empresa-container .header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+
+.gastos-empresa-container h2 {
+    margin: 0;
+    color: #1e293b;
+    font-weight: 800;
+}
+
+.gastos-empresa-container .subtitle {
+    color: #64748b;
+    margin-top: 5px;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.summary-banner {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    padding: 25px;
+    border-radius: 20px;
+    color: white;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.2);
+}
+
+.summary-item span {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.summary-item h3 {
+    margin: 10px 0 0 0;
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.gastos-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.gastos-table th {
+    background: #f1f5f9;
+    padding: 15px;
+    text-align: left;
+    font-size: 0.85rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.gastos-table td {
+    padding: 15px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.prov-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.prov-info span {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.monto-cell {
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.type-list-mini {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.type-list-mini h4 {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: #64748b;
+}
+
+.badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Modales y otros estilos replicados de VehiculosPlaya.css para consistencia */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    width: 500px;
+    max-width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #2563eb;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.type-badge {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}

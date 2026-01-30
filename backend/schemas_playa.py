@@ -117,9 +117,109 @@ class VentaBase(BaseModel):
 class VentaCreate(VentaBase):
     pass
 
+class PagareResponse(BaseModel):
+    id_pagare: int
+    numero_cuota: int
+    monto_cuota: Decimal
+    fecha_vencimiento: date
+    tipo_pagare: str
+    estado: str
+    class Config:
+        from_attributes = True
+
 class VentaResponse(VentaBase):
     id_venta: int
     estado_venta: str
     fecha_registro: datetime
+    pagares: Optional[List[PagareResponse]] = []
+    class Config:
+        from_attributes = True
+
+# ===== PAGOS =====
+class PagoBase(BaseModel):
+    id_pagare: int
+    id_venta: int
+    numero_recibo: str
+    fecha_pago: date
+    monto_pagado: Decimal
+    forma_pago: str
+    numero_referencia: Optional[str] = None
+    observaciones: Optional[str] = None
+
+class PagoCreate(PagoBase):
+    pass
+
+class PagoResponse(PagoBase):
+    id_pago: int
+    dias_atraso: int
+    mora_aplicada: Decimal
+    fecha_registro: datetime
+    class Config:
+        from_attributes = True
+
+# ===== GASTOS DE VEHÍCULOS =====
+class TipoGastoProductoResponse(BaseModel):
+    id_tipo_gasto: int
+    nombre: str
+    descripcion: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+class TipoGastoProductoCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+
+class GastoProductoBase(BaseModel):
+    id_producto: int
+    id_tipo_gasto: int
+    descripcion: Optional[str] = None
+    monto: Decimal
+    fecha_gasto: date
+    proveedor: Optional[str] = None
+    numero_factura: Optional[str] = None
+    observaciones: Optional[str] = None
+
+class GastoProductoCreate(GastoProductoBase):
+    pass
+
+class GastoProductoResponse(GastoProductoBase):
+    id_gasto_producto: int
+    fecha_registro: datetime
+    tipo_gasto: Optional[TipoGastoProductoResponse] = None
+    class Config:
+        from_attributes = True
+
+# ===== GASTOS DE EMPRESA =====
+class TipoGastoEmpresaBase(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    es_fijo: Optional[bool] = False
+
+class TipoGastoEmpresaCreate(TipoGastoEmpresaBase):
+    pass
+
+class TipoGastoEmpresaResponse(TipoGastoEmpresaBase):
+    id_tipo_gasto_empresa: int
+    activo: bool
+    class Config:
+        from_attributes = True
+
+class GastoEmpresaBase(BaseModel):
+    id_tipo_gasto_empresa: int
+    descripcion: Optional[str] = None
+    monto: Decimal
+    fecha_gasto: date
+    periodo: Optional[str] = None
+    proveedor: Optional[str] = None
+    numero_factura: Optional[str] = None
+    observaciones: Optional[str] = None
+
+class GastoEmpresaCreate(GastoEmpresaBase):
+    pass
+
+class GastoEmpresaResponse(GastoEmpresaBase):
+    id_gasto_empresa: int
+    fecha_registro: datetime
+    tipo_gasto: Optional[TipoGastoEmpresaResponse] = None
     class Config:
         from_attributes = True

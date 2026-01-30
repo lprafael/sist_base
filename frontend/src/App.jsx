@@ -8,6 +8,11 @@ import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
 import VehiculosPlaya from "./components/playa/VehiculosPlaya.jsx";
 import ClientesPlaya from "./components/playa/ClientesPlaya.jsx";
+import VentasPlaya from "./components/playa/VentasPlaya.jsx";
+import CobrosPlaya from "./components/playa/CobrosPlaya.jsx";
+import GastosVehiculo from "./components/playa/GastosVehiculo.jsx";
+import DashboardPlaya from "./components/playa/DashboardPlaya.jsx";
+import GastosEmpresa from "./components/playa/GastosEmpresa.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -58,6 +63,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState({});
+  const [preselectedVehicleId, setPreselectedVehicleId] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -130,9 +136,15 @@ export default function App() {
     {
       title: "Playa de Vehículos",
       items: [
+        { id: 'dashboard_playa', label: 'Resumen Financiero', icon: '📊', roles: ['admin', 'manager', 'user'] },
         { id: 'inventario', label: 'Inventario', icon: '🚗', roles: ['admin', 'manager', 'user'] },
         { id: 'clientes_playa', label: 'Clientes', icon: '👥', roles: ['admin', 'manager', 'user'] },
+        { id: 'ventas_playa', label: 'Ventas y Pagarés', icon: '📝', roles: ['admin', 'manager', 'user'] },
+        { id: 'cobros_playa', label: 'Cobranzas', icon: '💰', roles: ['admin', 'manager', 'user'] },
+        { id: 'gastos_playa', label: 'Gastos de Vehículo', icon: '🛠️', roles: ['admin', 'manager', 'user'] },
+        { id: 'gastos_empresa_playa', label: 'Gastos Administrativos', icon: '🏢', roles: ['admin', 'manager', 'user'] },
       ]
+
     }
   ];
 
@@ -207,9 +219,15 @@ export default function App() {
             {tab === "usuarios" && <UserManagement />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
-            {tab === "inventario" && <VehiculosPlaya />}
+            {tab === "dashboard_playa" && <DashboardPlaya />}
+            {tab === "inventario" && <VehiculosPlaya setTab={setTab} setPreselectedVehicleId={setPreselectedVehicleId} />}
             {tab === "clientes_playa" && <ClientesPlaya />}
+            {tab === "ventas_playa" && <VentasPlaya preselectedVehicleId={preselectedVehicleId} setPreselectedVehicleId={setPreselectedVehicleId} />}
+            {tab === "cobros_playa" && <CobrosPlaya />}
+            {tab === "gastos_playa" && <GastosVehiculo />}
+            {tab === "gastos_empresa_playa" && <GastosEmpresa />}
           </div>
+
         </main>
       </div>
     </div>
