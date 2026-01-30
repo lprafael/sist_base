@@ -6,6 +6,8 @@ import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
+import VehiculosPlaya from "./components/playa/VehiculosPlaya.jsx";
+import ClientesPlaya from "./components/playa/ClientesPlaya.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -124,6 +126,13 @@ export default function App() {
         { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
       ]
+    },
+    {
+      title: "Playa de Vehículos",
+      items: [
+        { id: 'inventario', label: 'Inventario', icon: '🚗', roles: ['admin', 'manager', 'user'] },
+        { id: 'clientes_playa', label: 'Clientes', icon: '👥', roles: ['admin', 'manager', 'user'] },
+      ]
     }
   ];
 
@@ -198,6 +207,8 @@ export default function App() {
             {tab === "usuarios" && <UserManagement />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
+            {tab === "inventario" && <VehiculosPlaya />}
+            {tab === "clientes_playa" && <ClientesPlaya />}
           </div>
         </main>
       </div>

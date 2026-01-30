@@ -115,6 +115,7 @@ from reactivate_user import router as reactivate_user_router
 from delete_user_physical import router as delete_user_physical_router
 from notify_admin_password_reset import router as notify_admin_password_reset_router
 from resend_user_password import router as resend_user_password_router
+from routers_playa import router as playa_router
 
 # Montar los routers en la aplicación
 app.include_router(auth_router)
@@ -122,6 +123,7 @@ app.include_router(reactivate_user_router)
 app.include_router(delete_user_physical_router)
 app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
+app.include_router(playa_router)
 
 
 

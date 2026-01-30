@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text, select
 from models import Base, Usuario, Rol, Permiso, ParametroSistema, ConfiguracionEmail
+from models_playa import CategoriaVehiculo, TipoGastoProducto, TipoGastoEmpresa, ConfigCalificacion
 from security import get_password_hash
 from datetime import datetime, timedelta
 
@@ -28,9 +29,10 @@ async def init_database():
     # Crear engine
     engine = create_async_engine(DATABASE_URL, echo=True)
     
-    # Crear schema y todas las tablas
+    # Crear schemas y todas las tablas
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS sistema"))
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS playa"))
         await conn.run_sync(Base.metadata.create_all)
     
     # Crear sesión
@@ -301,6 +303,49 @@ async def init_database():
             print("Permisos configurados para cada rol")
             print("Parámetros del sistema configurados")
             print("Configuración de email por defecto creada")
+            
+            # ===== DATOS INICIALES PARA PLAYA DE VEHÍCULOS =====
+            print("Inicializando datos para Playa de Vehículos...")
+            
+            # Categorías
+            categorias = [
+                CategoriaVehiculo(nombre='Automóviles', descripcion='Vehículos de pasajeros tipo sedán'),
+                CategoriaVehiculo(nombre='Camionetas', descripcion='Camionetas y pick-ups'),
+                CategoriaVehiculo(nombre='SUV', descripcion='Vehículos utilitarios deportivos'),
+                CategoriaVehiculo(nombre='Motos', descripcion='Motocicletas'),
+                CategoriaVehiculo(nombre='Utilitarios', descripcion='Vehículos utilitarios y comerciales'),
+                CategoriaVehiculo(nombre='Deportivos', descripcion='Vehículos deportivos')
+            ]
+            for cat in categorias:
+                session.add(cat)
+            
+            # Tipos de Gastos Producto
+            tipos_gastos_p = [
+                TipoGastoProducto(nombre='Costo Vehículo', descripcion='Costo de compra del vehículo'),
+                TipoGastoProducto(nombre='Flete', descripcion='Costo de transporte del vehículo'),
+                TipoGastoProducto(nombre='Chapería', descripcion='Trabajos de chapería y pintura'),
+                TipoGastoProducto(nombre='Cambio de Volante', descripcion='Cambio de volante (izquierda/derecha)'),
+                TipoGastoProducto(nombre='Cubiertas', descripcion='Compra e instalación de neumáticos'),
+                TipoGastoProducto(nombre='Baterías', descripcion='Compra e instalación de batería'),
+                TipoGastoProducto(nombre='Mecánica General', descripcion='Reparaciones mecánicas'),
+                TipoGastoProducto(nombre='Documentación', descripcion='Gastos de documentación y transferencia')
+            ]
+            for tg in tipos_gastos_p:
+                session.add(tg)
+                
+            # Configuraciones de Calificación
+            configs_calif = [
+                ConfigCalificacion(nombre='Pago Anticipado', dias_atraso_desde=-999, dias_atraso_hasta=-1, calificacion='EXCELENTE', descripcion='Cliente paga antes del vencimiento'),
+                ConfigCalificacion(nombre='Pago Puntual', dias_atraso_desde=0, dias_atraso_hasta=0, calificacion='EXCELENTE', descripcion='Cliente paga en fecha exacta'),
+                ConfigCalificacion(nombre='Atraso Leve', dias_atraso_desde=1, dias_atraso_hasta=30, calificacion='BUENO', descripcion='Cliente paga con hasta 30 días de atraso'),
+                ConfigCalificacion(nombre='Atraso Moderado', dias_atraso_desde=31, dias_atraso_hasta=60, calificacion='REGULAR', descripcion='Cliente paga con 31 a 60 días de atraso'),
+                ConfigCalificacion(nombre='Atraso Grave', dias_atraso_desde=61, dias_atraso_hasta=999, calificacion='MALO', descripcion='Cliente paga con más de 60 días de atraso')
+            ]
+            for conf in configs_calif:
+                session.add(conf)
+                
+            await session.commit()
+            print("Datos de Playa de Vehículos inicializados correctamente!")
             
         except Exception as e:
             await session.rollback()
