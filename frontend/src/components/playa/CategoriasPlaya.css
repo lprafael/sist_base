@@ -1,0 +1,146 @@
+.categorias-container {
+    padding: 20px;
+    background: #f8fafc;
+    min-height: 100vh;
+}
+
+.search-bar input {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    min-width: 320px;
+}
+
+.categorias-table-wrapper {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.categorias-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.categorias-table th,
+.categorias-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+}
+
+.categorias-table th {
+    background: #f8fafc;
+    font-weight: 700;
+    color: #334155;
+}
+
+.categorias-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.categorias-table th.sortable:hover {
+    background: #f1f5f9;
+}
+
+.sort-indicator {
+    display: inline-block;
+    width: 16px;
+    margin-left: 6px;
+    color: #64748b;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-edit,
+.btn-delete {
+    border: none;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-inventario {
+    border: none;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #dcfce7;
+    color: #166534;
+}
+
+.btn-edit {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.btn-delete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    z-index: 1000;
+    padding-top: 50px;
+    overflow-y: auto;
+}
+
+.modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 18px;
+    width: 600px;
+    max-width: 95%;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-cancel {
+    background: #f1f5f9;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-save {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+}

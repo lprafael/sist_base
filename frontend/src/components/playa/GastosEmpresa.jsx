@@ -18,6 +18,8 @@ const GastosEmpresa = () => {
         numero_factura: ''
     });
 
+    const [editingGasto, setEditingGasto] = useState(null);
+
     const [newType, setNewType] = useState({
         nombre: '',
         descripcion: '',
@@ -50,10 +52,17 @@ const GastosEmpresa = () => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`${API_URL}/playa/gastos-empresa`, newGasto, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            if (editingGasto) {
+                await axios.put(`${API_URL}/playa/gastos-empresa/${editingGasto.id_gasto_empresa}`, newGasto, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${API_URL}/playa/gastos-empresa`, newGasto, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
             setShowModal(false);
+            setEditingGasto(null);
             fetchData();
             setNewGasto({
                 id_tipo_gasto_empresa: '',
@@ -66,6 +75,45 @@ const GastosEmpresa = () => {
         } catch (error) {
             alert('Error: ' + (error.response?.data?.detail || error.message));
         }
+    };
+
+    const handleEditGasto = (gasto) => {
+        setEditingGasto(gasto);
+        setNewGasto({
+            id_tipo_gasto_empresa: gasto.id_tipo_gasto_empresa,
+            descripcion: gasto.descripcion,
+            monto: gasto.monto,
+            fecha_gasto: gasto.fecha_gasto,
+            proveedor: gasto.proveedor || '',
+            numero_factura: gasto.numero_factura || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleDeleteGasto = async (id) => {
+        if (!confirm('¿Está seguro de eliminar este gasto?')) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API_URL}/playa/gastos-empresa/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchData();
+        } catch (error) {
+            alert('Error: ' + (error.response?.data?.detail || error.message));
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setEditingGasto(null);
+        setNewGasto({
+            id_tipo_gasto_empresa: '',
+            descripcion: '',
+            monto: '',
+            fecha_gasto: new Date().toISOString().split('T')[0],
+            proveedor: '',
+            numero_factura: ''
+        });
     };
 
     const handleSaveType = async (e) => {
@@ -115,11 +163,12 @@ const GastosEmpresa = () => {
                                 <th>Descripción</th>
                                 <th>Proveedor / Detalle</th>
                                 <th>Monto</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {gastos.length === 0 ? (
-                                <tr><td colSpan="5" className="text-center">No hay gastos registrados.</td></tr>
+                                <tr><td colSpan="6" className="text-center">No hay gastos registrados.</td></tr>
                             ) : gastos.map(g => (
                                 <tr key={g.id_gasto_empresa}>
                                     <td>{g.fecha_gasto}</td>
@@ -132,6 +181,14 @@ const GastosEmpresa = () => {
                                         </div>
                                     </td>
                                     <td className="monto-cell">Gs. {Math.round(parseFloat(g.monto)).toLocaleString('es-PY')}</td>
+                                    <td className="actions-cell">
+                                        <button className="btn-edit" onClick={() => handleEditGasto(g)} title="Editar">
+                                            ✏️
+                                        </button>
+                                        <button className="btn-delete" onClick={() => handleDeleteGasto(g.id_gasto_empresa)} title="Eliminar">
+                                            🗑️
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -143,7 +200,7 @@ const GastosEmpresa = () => {
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>Registrar Nuevo Gasto Administrativo</h3>
+                        <h3>{editingGasto ? 'Editar Gasto Administrativo' : 'Registrar Nuevo Gasto Administrativo'}</h3>
                         <form onSubmit={handleSaveGasto}>
                             <div className="form-group">
                                 <label>Concepto de Gasto</label>
@@ -181,8 +238,8 @@ const GastosEmpresa = () => {
                                 </div>
                             </div>
                             <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
-                                <button type="submit" className="btn-save">Guardar Gasto</button>
+                                <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
+                                <button type="submit" className="btn-save">{editingGasto ? 'Actualizar Gasto' : 'Guardar Gasto'}</button>
                             </div>
                         </form>
                     </div>

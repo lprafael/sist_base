@@ -13,6 +13,8 @@ import CobrosPlaya from "./components/playa/CobrosPlaya.jsx";
 import GastosVehiculo from "./components/playa/GastosVehiculo.jsx";
 import DashboardPlaya from "./components/playa/DashboardPlaya.jsx";
 import GastosEmpresa from "./components/playa/GastosEmpresa.jsx";
+import CategoriasPlaya from "./components/playa/CategoriasPlaya.jsx";
+import ConfigCalificacionesPlaya from "./components/playa/ConfigCalificacionesPlaya.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -58,12 +60,17 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
 }
 
 export default function App() {
-  const [tab, setTab] = useState("usuarios");
+  const [tab, setTab] = useState("dashboard_playa");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [collapsedCategories, setCollapsedCategories] = useState({});
+  const [collapsedCategories, setCollapsedCategories] = useState({
+    "Parámetros": true,
+    "Administración": true
+  });
   const [preselectedVehicleId, setPreselectedVehicleId] = useState(null);
+  const [preselectedCategoryId, setPreselectedCategoryId] = useState(null);
+  const [preselectedCalificacion, setPreselectedCalificacion] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -126,26 +133,34 @@ export default function App() {
 
   const menuGroups = [
     {
+      title: "Playa de Vehículos",
+      icon: "🚗",
+      items: [
+        { id: "dashboard_playa", label: "Dashboard", icon: "📊", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "inventario", label: "Inventario", icon: "🚙", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "clientes_playa", label: "Clientes", icon: "👥", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "ventas_playa", label: "Ventas", icon: "💰", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "cobros_playa", label: "Cobros", icon: "💵", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "gastos_playa", label: "Gastos de Vehículos", icon: "🔧", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "gastos_empresa_playa", label: "Gastos Empresa", icon: "🏢", roles: ['admin', 'manager', 'user', 'viewer'] }
+      ]
+    },
+    {
+      title: "Parámetros",
+      items: [
+        { id: "categorias_playa", label: "Categorías(Veh.)", icon: "🏷️", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "config_calificaciones_playa", label: "Calif.(clientes)", icon: "⭐", roles: ['admin', 'manager', 'user', 'viewer'] },
+      ]
+    },
+    {
       title: "Administración",
       items: [
         { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Perfil', icon: '👤', roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
       ]
-    },
-    {
-      title: "Playa de Vehículos",
-      items: [
-        { id: 'dashboard_playa', label: 'Resumen Financiero', icon: '📊', roles: ['admin', 'manager', 'user'] },
-        { id: 'inventario', label: 'Inventario', icon: '🚗', roles: ['admin', 'manager', 'user'] },
-        { id: 'clientes_playa', label: 'Clientes', icon: '👥', roles: ['admin', 'manager', 'user'] },
-        { id: 'ventas_playa', label: 'Ventas y Pagarés', icon: '📝', roles: ['admin', 'manager', 'user'] },
-        { id: 'cobros_playa', label: 'Cobranzas', icon: '💰', roles: ['admin', 'manager', 'user'] },
-        { id: 'gastos_playa', label: 'Gastos de Vehículo', icon: '🛠️', roles: ['admin', 'manager', 'user'] },
-        { id: 'gastos_empresa_playa', label: 'Gastos Administrativos', icon: '🏢', roles: ['admin', 'manager', 'user'] },
-      ]
-
     }
+    
   ];
 
   return (
@@ -220,8 +235,17 @@ export default function App() {
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
             {tab === "dashboard_playa" && <DashboardPlaya />}
-            {tab === "inventario" && <VehiculosPlaya setTab={setTab} setPreselectedVehicleId={setPreselectedVehicleId} />}
-            {tab === "clientes_playa" && <ClientesPlaya />}
+            {tab === "categorias_playa" && <CategoriasPlaya setTab={setTab} setPreselectedCategoryId={setPreselectedCategoryId} />}
+            {tab === "config_calificaciones_playa" && <ConfigCalificacionesPlaya setTab={setTab} setPreselectedCalificacion={setPreselectedCalificacion} />}
+            {tab === "inventario" && (
+              <VehiculosPlaya
+                setTab={setTab}
+                setPreselectedVehicleId={setPreselectedVehicleId}
+                preselectedCategoryId={preselectedCategoryId}
+                setPreselectedCategoryId={setPreselectedCategoryId}
+              />
+            )}
+            {tab === "clientes_playa" && <ClientesPlaya preselectedCalificacion={preselectedCalificacion} setPreselectedCalificacion={setPreselectedCalificacion} />}
             {tab === "ventas_playa" && <VentasPlaya preselectedVehicleId={preselectedVehicleId} setPreselectedVehicleId={setPreselectedVehicleId} />}
             {tab === "cobros_playa" && <CobrosPlaya />}
             {tab === "gastos_playa" && <GastosVehiculo />}

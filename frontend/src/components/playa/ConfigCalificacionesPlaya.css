@@ -1,0 +1,167 @@
+.config-calificaciones-container {
+    padding: 20px;
+    background: #f8fafc;
+    min-height: 100vh;
+}
+
+.search-bar input {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    min-width: 320px;
+}
+
+.config-calificaciones-table-wrapper {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.config-calificaciones-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.config-calificaciones-table th,
+.config-calificaciones-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+}
+
+.config-calificaciones-table th {
+    background: #f8fafc;
+    font-weight: 700;
+    color: #334155;
+}
+
+.config-calificaciones-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.config-calificaciones-table th.sortable:hover {
+    background: #f1f5f9;
+}
+
+.sort-indicator {
+    display: inline-block;
+    width: 16px;
+    margin-left: 6px;
+    color: #64748b;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-clientes,
+.btn-edit,
+.btn-delete {
+    border: none;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-clientes {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.btn-edit {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.btn-delete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 24px;
+    width: 600px;
+    max-width: 95%;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.form-group input,
+.form-group textarea {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #374151;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.btn-cancel {
+    background: #f1f5f9;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-save {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.loading,
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #64748b;
+    font-size: 1.1rem;
+}

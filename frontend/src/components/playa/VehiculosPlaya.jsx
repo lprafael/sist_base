@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './VehiculosPlaya.css';
 
-const VehiculosPlaya = ({ setTab, setPreselectedVehicleId }) => {
+const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId, setPreselectedCategoryId }) => {
     const [vehiculos, setVehiculos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategoriaId, setSelectedCategoriaId] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [selectedVehiculo, setSelectedVehiculo] = useState(null);
@@ -27,6 +28,15 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId }) => {
         fetchVehiculos();
         fetchCategorias();
     }, []);
+
+    useEffect(() => {
+        if (preselectedCategoryId) {
+            setSelectedCategoriaId(String(preselectedCategoryId));
+            if (setPreselectedCategoryId) {
+                setPreselectedCategoryId(null);
+            }
+        }
+    }, [preselectedCategoryId]);
 
     const fetchVehiculos = async () => {
         try {
@@ -78,11 +88,19 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId }) => {
         }
     };
 
-    const filteredVehiculos = vehiculos.filter(v =>
-        v.marca.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.chasis.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredVehiculos = vehiculos.filter(v => {
+        const term = searchTerm.toLowerCase();
+        const matchText =
+            (v.marca || '').toLowerCase().includes(term) ||
+            (v.modelo || '').toLowerCase().includes(term) ||
+            (v.chasis || '').toLowerCase().includes(term);
+
+        const matchCategoria = selectedCategoriaId
+            ? (v.id_categoria === parseInt(selectedCategoriaId))
+            : true;
+
+        return matchText && matchCategoria;
+    });
 
     const handleVerDetalles = (v) => {
         setSelectedVehiculo(v);
@@ -105,6 +123,14 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId }) => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                </div>
+                <div className="category-filter">
+                    <select value={selectedCategoriaId} onChange={(e) => setSelectedCategoriaId(e.target.value)}>
+                        <option value="">Todas las categorías</option>
+                        {categorias.map(c => (
+                            <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                        ))}
+                    </select>
                 </div>
                 <button className="btn-primary" onClick={() => setShowModal(true)}>
                     + Nuevo Vehículo

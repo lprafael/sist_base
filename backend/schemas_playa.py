@@ -1,7 +1,7 @@
 # schemas_playa.py
 # Schemas de validación Pydantic para el sistema de Playa de Vehículos
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
@@ -83,11 +83,18 @@ class ClienteBase(BaseModel):
     fecha_nacimiento: Optional[date] = None
     telefono: Optional[str] = None
     celular: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     direccion: Optional[str] = None
     ciudad: Optional[str] = None
     departamento: Optional[str] = None
-    calificacion_actual: Optional[str] = "NUEVO"
+    codigo_postal: Optional[str] = None
+    estado_civil: Optional[str] = None
+    profesion: Optional[str] = None
+    lugar_trabajo: Optional[str] = None
+    telefono_trabajo: Optional[str] = None
+    ingreso_mensual: Optional[Decimal] = None
+    observaciones: Optional[str] = None
+    activo: Optional[bool] = True
 
 class ClienteCreate(ClienteBase):
     pass
@@ -221,5 +228,22 @@ class GastoEmpresaResponse(GastoEmpresaBase):
     id_gasto_empresa: int
     fecha_registro: datetime
     tipo_gasto: Optional[TipoGastoEmpresaResponse] = None
+    class Config:
+        from_attributes = True
+
+# ===== CONFIGURACIÓN DE CALIFICACIONES =====
+class ConfigCalificacionBase(BaseModel):
+    nombre: str
+    dias_atraso_desde: int
+    dias_atraso_hasta: Optional[int] = None
+    calificacion: str
+    descripcion: Optional[str] = None
+    activo: Optional[bool] = True
+
+class ConfigCalificacionCreate(ConfigCalificacionBase):
+    pass
+
+class ConfigCalificacionResponse(ConfigCalificacionBase):
+    id_config: int
     class Config:
         from_attributes = True

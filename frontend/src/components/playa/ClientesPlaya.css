@@ -18,10 +18,12 @@
 }
 
 .clientes-table th {
-    text-align: left;
+    background: #f1f5f9;
     padding: 15px;
-    border-bottom: 2px solid #f1f5f9;
+    text-align: left;
+    font-size: 0.85rem;
     color: #64748b;
+    text-transform: uppercase;
     font-weight: 600;
 }
 
@@ -70,6 +72,71 @@
 .calif-badge.malo {
     background: #fee2e2;
     color: #991b1b;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-edit,
+.btn-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: all 0.3s;
+    font-size: 16px;
+}
+
+.btn-edit:hover {
+    background: #eff6ff;
+    transform: scale(1.1);
+}
+
+.btn-delete:hover {
+    background: #fef2f2;
+    transform: scale(1.1);
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.calificacion-filter select {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    background: white;
+}
+
+/* Colores de filas según calificación */
+.row-red {
+    background-color: #fee2e2 !important; /* Rojo */
+}
+
+.row-light-red {
+    background-color: #fecaca !important; /* Rojo claro */
+}
+
+.row-orange {
+    background-color: #fed7aa !important; /* Naranja */
+}
+
+.row-yellow {
+    background-color: #fef3c7 !important; /* Amarillo */
+}
+
+.row-green {
+    background-color: #dcfce7 !important; /* Verde */
 }
 
 .btn-action {
