@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Para ejecutar este script: python init_database.py
 """
 Script para inicializar la base de datos con todas las tablas y datos por defecto
 """

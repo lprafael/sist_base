@@ -137,12 +137,22 @@ async def google_login(
                 hashed_password=get_password_hash(secrets.token_urlsafe(16)), # Password random inutilizable
                 nombre_completo=full_name,
                 rol="user",
-                activo=True
+                activo=False # El usuario se crea inactivo por defecto
             )
             session.add(new_user)
             await session.commit()
             await session.refresh(new_user)
             user = new_user
+
+            # Enviar notificación al administrador
+            # Usaremos el email configurado en el .env como remitente para recibir también la notificación
+            admin_email = os.getenv("EMAIL_FROM")
+            if admin_email:
+                email_service.send_admin_notification_email(
+                    admin_email=admin_email,
+                    new_user_email=email,
+                    new_user_name=full_name
+                )
             
             # Registrar auditoría de creación
             await log_audit_action(
@@ -159,7 +169,7 @@ async def google_login(
         if not user.activo:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Usuario inactivo"
+                detail="Su cuenta está pendiente de aprobación por un administrador"
             )
         
         # Actualizar último acceso
@@ -192,6 +202,9 @@ async def google_login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token de Google inválido: {str(e)}"
         )
+    except HTTPException:
+        # Re-lanzar excepciones de FastAPI para que lleguen al frontend
+        raise
     except Exception as e:
         print(f"Error en google_login: {str(e)}")
         raise HTTPException(
