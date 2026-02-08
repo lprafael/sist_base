@@ -7,7 +7,7 @@ const ReportesPlaya = () => {
     const [datos, setDatos] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
         if (reporteSeleccionado === 'clientes_mora') {
@@ -170,18 +170,18 @@ const ReportesPlaya = () => {
                                         <td>{row.ubicacion_actual || 'Playa Principal'}</td>
                                         <td style={{ textAlign: 'center' }}>{row.dias_en_stock ?? '-'}</td>
                                         <td style={{ textAlign: 'right' }}>
-                                            {row.precio_contado_sugerido && !isNaN(row.precio_contado_sugerido) 
-                                                ? `Gs. ${Math.round(parseFloat(row.precio_contado_sugerido)).toLocaleString('es-PY')}` 
+                                            {row.precio_contado_sugerido && !isNaN(row.precio_contado_sugerido)
+                                                ? `Gs. ${Math.round(parseFloat(row.precio_contado_sugerido)).toLocaleString('es-PY')}`
                                                 : '-'}
                                         </td>
                                         <td style={{ textAlign: 'right', color: '#2563eb' }}>
-                                            {row.precio_financiado_sugerido && !isNaN(row.precio_financiado_sugerido) 
-                                                ? `Gs. ${Math.round(parseFloat(row.precio_financiado_sugerido)).toLocaleString('es-PY')}` 
+                                            {row.precio_financiado_sugerido && !isNaN(row.precio_financiado_sugerido)
+                                                ? `Gs. ${Math.round(parseFloat(row.precio_financiado_sugerido)).toLocaleString('es-PY')}`
                                                 : '-'}
                                         </td>
                                         <td style={{ textAlign: 'right', fontWeight: 'bold', background: '#fffbeb' }}>
-                                            {row.entrega_inicial_sugerida && !isNaN(row.entrega_inicial_sugerida) 
-                                                ? `Gs. ${Math.round(parseFloat(row.entrega_inicial_sugerida)).toLocaleString('es-PY')}` 
+                                            {row.entrega_inicial_sugerida && !isNaN(row.entrega_inicial_sugerida)
+                                                ? `Gs. ${Math.round(parseFloat(row.entrega_inicial_sugerida)).toLocaleString('es-PY')}`
                                                 : '-'}
                                         </td>
                                     </tr>

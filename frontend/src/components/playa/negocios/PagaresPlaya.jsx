@@ -20,7 +20,7 @@ const PagaresPlaya = () => {
         observaciones: ''
     });
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
         fetchPagares();
@@ -33,11 +33,11 @@ const PagaresPlaya = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPagares(res.data);
-            
+
             // Obtener información de clientes para las ventas
             const ventaIds = [...new Set(res.data.map(p => p.id_venta))];
             await fetchClientesInfo(ventaIds);
-            
+
             setLoading(false);
         } catch (error) {
             console.error('Error fetching pagares:', error);
@@ -47,18 +47,18 @@ const PagaresPlaya = () => {
 
     const fetchClientesInfo = async (ventaIds) => {
         if (ventaIds.length === 0) return;
-        
+
         try {
             const token = localStorage.getItem('token');
             const clientesMap = {};
-            
+
             // Obtener todas las ventas de una vez (más eficiente)
             try {
                 const ventasRes = await axios.get(`${API_URL}/playa/ventas`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const ventas = ventasRes.data;
-                
+
                 // Crear un mapa de id_venta -> cliente
                 ventas.forEach(venta => {
                     if (ventaIds.includes(venta.id_venta) && venta.cliente) {
@@ -94,7 +94,7 @@ const PagaresPlaya = () => {
                     }
                 }
             }
-            
+
             setClientesInfo(clientesMap);
         } catch (error) {
             console.error('Error fetching clientes info:', error);
@@ -142,22 +142,22 @@ const PagaresPlaya = () => {
     const filteredAndSortedPagares = pagares
         .filter(p => {
             // Filtro por búsqueda de texto
-            const matchesSearch = 
+            const matchesSearch =
                 p.numero_pagare.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 p.id_venta.toString().includes(searchTerm);
-            
+
             if (!matchesSearch) return false;
 
             // Filtro por rango de fechas
             if (fechaDesde || fechaHasta) {
                 const fechaVencimiento = new Date(p.fecha_vencimiento);
-                
+
                 if (fechaDesde) {
                     const desde = new Date(fechaDesde);
                     desde.setHours(0, 0, 0, 0);
                     if (fechaVencimiento < desde) return false;
                 }
-                
+
                 if (fechaHasta) {
                     const hasta = new Date(fechaHasta);
                     hasta.setHours(23, 59, 59, 999);
@@ -213,7 +213,7 @@ const PagaresPlaya = () => {
     const handlePrint = () => {
         // Crear una ventana nueva para imprimir
         const printWindow = window.open('', '_blank');
-        
+
         // Obtener la fecha actual para el encabezado
         const fechaActual = new Date().toLocaleDateString('es-PY', {
             year: 'numeric',
@@ -347,9 +347,9 @@ const PagaresPlaya = () => {
                     </thead>
                     <tbody>
                         ${filteredAndSortedPagares.map(p => {
-                            const clienteInfo = clientesInfo[p.id_venta];
-                            const nombreCliente = clienteInfo ? clienteInfo.nombre_completo : 'N/A';
-                            return `
+            const clienteInfo = clientesInfo[p.id_venta];
+            const nombreCliente = clienteInfo ? clienteInfo.nombre_completo : 'N/A';
+            return `
                             <tr>
                                 <td>${p.numero_pagare}</td>
                                 <td>ID: ${p.id_venta}</td>
@@ -362,7 +362,7 @@ const PagaresPlaya = () => {
                                 </td>
                             </tr>
                         `;
-                        }).join('')}
+        }).join('')}
                     </tbody>
                 </table>
                 
@@ -376,7 +376,7 @@ const PagaresPlaya = () => {
 
         printWindow.document.write(printContent);
         printWindow.document.close();
-        
+
         // Esperar a que se cargue el contenido y luego imprimir
         printWindow.onload = () => {
             setTimeout(() => {
@@ -394,9 +394,9 @@ const PagaresPlaya = () => {
                 <div className="header-controls">
                     <div className="filters-container">
                         <div className="search-box">
-                            <input 
-                                type="text" 
-                                placeholder="Buscar por número o venta..." 
+                            <input
+                                type="text"
+                                placeholder="Buscar por número o venta..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -404,16 +404,16 @@ const PagaresPlaya = () => {
                         <div className="date-filters">
                             <div className="date-filter-group">
                                 <label>Desde:</label>
-                                <input 
-                                    type="date" 
+                                <input
+                                    type="date"
                                     value={fechaDesde}
                                     onChange={(e) => setFechaDesde(e.target.value)}
                                 />
                             </div>
                             <div className="date-filter-group">
                                 <label>Hasta:</label>
-                                <input 
-                                    type="date" 
+                                <input
+                                    type="date"
                                     value={fechaHasta}
                                     onChange={(e) => setFechaHasta(e.target.value)}
                                 />
@@ -427,8 +427,8 @@ const PagaresPlaya = () => {
                     </div>
                     <div className="print-controls">
                         <label className="checkbox-label">
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 checked={includeClientNames}
                                 onChange={(e) => setIncludeClientNames(e.target.checked)}
                             />
@@ -448,37 +448,37 @@ const PagaresPlaya = () => {
                     <table className="custom-table">
                         <thead>
                             <tr>
-                                <th 
-                                    className="sortable" 
+                                <th
+                                    className="sortable"
                                     onClick={() => handleSort('numero_pagare')}
                                     title="Ordenar por número"
                                 >
                                     Número Pagaré {getSortIcon('numero_pagare')}
                                 </th>
-                                <th 
-                                    className="sortable" 
+                                <th
+                                    className="sortable"
                                     onClick={() => handleSort('id_venta')}
                                     title="Ordenar por venta"
                                 >
                                     Venta {getSortIcon('id_venta')}
                                 </th>
                                 <th>Cuota</th>
-                                <th 
-                                    className="sortable" 
+                                <th
+                                    className="sortable"
                                     onClick={() => handleSort('monto_cuota')}
                                     title="Ordenar por monto"
                                 >
                                     Monto {getSortIcon('monto_cuota')}
                                 </th>
-                                <th 
-                                    className="sortable" 
+                                <th
+                                    className="sortable"
                                     onClick={() => handleSort('fecha_vencimiento')}
                                     title="Ordenar por fecha de vencimiento"
                                 >
                                     Vencimiento {getSortIcon('fecha_vencimiento')}
                                 </th>
-                                <th 
-                                    className="sortable" 
+                                <th
+                                    className="sortable"
                                     onClick={() => handleSort('estado')}
                                     title="Ordenar por estado"
                                 >
@@ -496,24 +496,24 @@ const PagaresPlaya = () => {
                                 </tr>
                             ) : (
                                 filteredAndSortedPagares.map(p => (
-                                <tr key={p.id_pagare}>
-                                    <td>{p.numero_pagare}</td>
-                                    <td>ID: {p.id_venta}</td>
-                                    <td>{p.numero_cuota} ({p.tipo_pagare})</td>
-                                    <td>Gs. {Math.round(p.monto_cuota).toLocaleString('es-PY')}</td>
-                                    <td>{p.fecha_vencimiento}</td>
-                                    <td>
-                                        <span className={`status-badge ${p.estado.toLowerCase()}`}>
-                                            {p.estado}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button className="btn-edit-small" onClick={() => handleEdit(p)}>
-                                            ✏️ Editar
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                                    <tr key={p.id_pagare}>
+                                        <td>{p.numero_pagare}</td>
+                                        <td>ID: {p.id_venta}</td>
+                                        <td>{p.numero_cuota} ({p.tipo_pagare})</td>
+                                        <td>Gs. {Math.round(p.monto_cuota).toLocaleString('es-PY')}</td>
+                                        <td>{p.fecha_vencimiento}</td>
+                                        <td>
+                                            <span className={`status-badge ${p.estado.toLowerCase()}`}>
+                                                {p.estado}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button className="btn-edit-small" onClick={() => handleEdit(p)}>
+                                                ✏️ Editar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
                             )}
                         </tbody>
                     </table>
@@ -527,33 +527,33 @@ const PagaresPlaya = () => {
                         <form onSubmit={handleSave}>
                             <div className="form-group">
                                 <label>Número de Pagaré</label>
-                                <input 
-                                    type="text" 
-                                    value={editingData.numero_pagare} 
-                                    onChange={(e) => setEditingData({...editingData, numero_pagare: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={editingData.numero_pagare}
+                                    onChange={(e) => setEditingData({ ...editingData, numero_pagare: e.target.value })}
                                 />
                             </div>
                             <div className="form-group">
                                 <label>Monto (Gs.)</label>
-                                <input 
-                                    type="number" 
-                                    value={editingData.monto_cuota} 
-                                    onChange={(e) => setEditingData({...editingData, monto_cuota: e.target.value})}
+                                <input
+                                    type="number"
+                                    value={editingData.monto_cuota}
+                                    onChange={(e) => setEditingData({ ...editingData, monto_cuota: e.target.value })}
                                 />
                             </div>
                             <div className="form-group">
                                 <label>Fecha de Vencimiento</label>
-                                <input 
-                                    type="date" 
-                                    value={editingData.fecha_vencimiento} 
-                                    onChange={(e) => setEditingData({...editingData, fecha_vencimiento: e.target.value})}
+                                <input
+                                    type="date"
+                                    value={editingData.fecha_vencimiento}
+                                    onChange={(e) => setEditingData({ ...editingData, fecha_vencimiento: e.target.value })}
                                 />
                             </div>
                             <div className="form-group">
                                 <label>Observaciones</label>
-                                <textarea 
+                                <textarea
                                     value={editingData.observaciones}
-                                    onChange={(e) => setEditingData({...editingData, observaciones: e.target.value})}
+                                    onChange={(e) => setEditingData({ ...editingData, observaciones: e.target.value })}
                                 ></textarea>
                             </div>
                             <div className="modal-actions">

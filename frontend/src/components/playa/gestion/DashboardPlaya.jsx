@@ -9,14 +9,14 @@ const DashboardPlaya = () => {
     const [gastosFiltrados, setGastosFiltrados] = useState(null);
     const [loadingGastos, setLoadingGastos] = useState(false);
     const [ventasFiltradas, setVentasFiltradas] = useState(null);
-    
+
     // Filtros para gastos
     const [tipoGasto, setTipoGasto] = useState('ambos'); // 'empresa', 'vehiculo', 'ambos'
     const [fechaDesde, setFechaDesde] = useState('');
     const [fechaHasta, setFechaHasta] = useState('');
     const [mesSeleccionado, setMesSeleccionado] = useState(''); // Formato: 'YYYY-MM'
-    
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+
+    const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -69,7 +69,7 @@ const DashboardPlaya = () => {
             if (tipoGasto) params.append('tipo_gasto', tipoGasto);
             if (fechaDesde) params.append('fecha_desde', fechaDesde);
             if (fechaHasta) params.append('fecha_hasta', fechaHasta);
-            
+
             const response = await axios.get(`${API_URL}/playa/dashboard/gastos-filtrados?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -87,7 +87,7 @@ const DashboardPlaya = () => {
             const params = new URLSearchParams();
             if (fechaDesde) params.append('fecha_desde', fechaDesde);
             if (fechaHasta) params.append('fecha_hasta', fechaHasta);
-            
+
             const response = await axios.get(`${API_URL}/playa/dashboard/ventas-filtradas?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -113,8 +113,8 @@ const DashboardPlaya = () => {
         // Información de filtros
         const filtrosTexto = [];
         if (tipoGastoFilter) {
-            const tipoTexto = tipoGastoFilter === 'empresa' ? 'Solo Empresa' : 
-                            tipoGastoFilter === 'vehiculo' ? 'Solo Vehículo' : 'Ambos (Empresa + Vehículo)';
+            const tipoTexto = tipoGastoFilter === 'empresa' ? 'Solo Empresa' :
+                tipoGastoFilter === 'vehiculo' ? 'Solo Vehículo' : 'Ambos (Empresa + Vehículo)';
             filtrosTexto.push(`Tipo: ${tipoTexto}`);
         }
         if (fechaDesdeFilter) filtrosTexto.push(`Desde: ${new Date(fechaDesdeFilter).toLocaleDateString('es-PY')}`);
@@ -371,8 +371,8 @@ const DashboardPlaya = () => {
         <div class="section">
             <div class="section-title">GASTOS DE EMPRESA</div>
             ${gastosEmpresa.map((gasto, index) => {
-                const porcentaje = (gasto.total / (gastosData.total_empresa || 1)) * 100;
-                return `
+            const porcentaje = (gasto.total / (gastosData.total_empresa || 1)) * 100;
+            return `
                 <div class="gasto-item">
                     <div class="gasto-header">
                         <div class="gasto-nombre">${index + 1}. ${gasto.nombre}</div>
@@ -381,7 +381,7 @@ const DashboardPlaya = () => {
                     <div class="gasto-porcentaje">${porcentaje.toFixed(2)}% del total de gastos de empresa</div>
                 </div>
                 `;
-            }).join('')}
+        }).join('')}
 
             ${detallesEmpresa.length > 0 ? `
             <div style="margin-top: 30px;">
@@ -390,10 +390,10 @@ const DashboardPlaya = () => {
                     <div class="detalle-tipo">
                         <div class="detalle-tipo-title">Tipo: ${tipoNombre}</div>
                         ${detallesEmpresaPorTipo[tipoNombre].map((detalle, idx) => {
-                            const fechaFormateada = detalle.fecha_gasto 
-                                ? new Date(detalle.fecha_gasto).toLocaleDateString('es-PY')
-                                : 'Sin fecha';
-                            return `
+            const fechaFormateada = detalle.fecha_gasto
+                ? new Date(detalle.fecha_gasto).toLocaleDateString('es-PY')
+                : 'Sin fecha';
+            return `
                             <div class="detalle-item">
                                 <div class="detalle-item-row">
                                     <span class="detalle-label">${idx + 1}. Fecha:</span>
@@ -410,7 +410,7 @@ const DashboardPlaya = () => {
                                 ` : ''}
                             </div>
                             `;
-                        }).join('')}
+        }).join('')}
                     </div>
                 `).join('')}
             </div>
@@ -422,8 +422,8 @@ const DashboardPlaya = () => {
         <div class="section">
             <div class="section-title">GASTOS DE VEHÍCULO</div>
             ${gastosVehiculo.map((gasto, index) => {
-                const porcentaje = (gasto.total / (gastosData.total_vehiculo || 1)) * 100;
-                return `
+            const porcentaje = (gasto.total / (gastosData.total_vehiculo || 1)) * 100;
+            return `
                 <div class="gasto-item vehiculo">
                     <div class="gasto-header">
                         <div class="gasto-nombre">${index + 1}. ${gasto.nombre}</div>
@@ -432,7 +432,7 @@ const DashboardPlaya = () => {
                     <div class="gasto-porcentaje">${porcentaje.toFixed(2)}% del total de gastos de vehículo</div>
                 </div>
                 `;
-            }).join('')}
+        }).join('')}
 
             ${detallesVehiculo.length > 0 ? `
             <div style="margin-top: 30px;">
@@ -441,10 +441,10 @@ const DashboardPlaya = () => {
                     <div class="detalle-tipo">
                         <div class="detalle-tipo-title">Tipo: ${tipoNombre}</div>
                         ${detallesVehiculoPorTipo[tipoNombre].map((detalle, idx) => {
-                            const fechaFormateada = detalle.fecha_gasto 
-                                ? new Date(detalle.fecha_gasto).toLocaleDateString('es-PY')
-                                : 'Sin fecha';
-                            return `
+            const fechaFormateada = detalle.fecha_gasto
+                ? new Date(detalle.fecha_gasto).toLocaleDateString('es-PY')
+                : 'Sin fecha';
+            return `
                             <div class="detalle-item">
                                 <div class="detalle-item-row">
                                     <span class="detalle-label">${idx + 1}. Fecha:</span>
@@ -461,7 +461,7 @@ const DashboardPlaya = () => {
                                 ` : ''}
                             </div>
                             `;
-                        }).join('')}
+        }).join('')}
                     </div>
                 `).join('')}
             </div>
@@ -660,18 +660,18 @@ const DashboardPlaya = () => {
         const totalGeneral = gastosFiltrados?.total_general || 0;
         const totalEmpresa = gastosFiltrados?.total_empresa || 0;
         const totalVehiculo = gastosFiltrados?.total_vehiculo || 0;
-        
+
         // Usar ingresos filtrados si hay filtros de fecha, sino usar el total acumulado
         // Los ingresos incluyen: ventas + cobros de pagarés
-        const totalIngresosParaBalance = (fechaDesde || fechaHasta) && ventasFiltradas 
+        const totalIngresosParaBalance = (fechaDesde || fechaHasta) && ventasFiltradas
             ? ventasFiltradas.total_ingresos || (ventasFiltradas.total_ventas + ventasFiltradas.total_cobros_pagares)
             : stats.total_ventas_acumuladas;
-        
+
         // Para mostrar el desglose cuando hay filtros
-        const totalVentasPeriodo = (fechaDesde || fechaHasta) && ventasFiltradas 
-            ? ventasFiltradas.total_ventas 
+        const totalVentasPeriodo = (fechaDesde || fechaHasta) && ventasFiltradas
+            ? ventasFiltradas.total_ventas
             : null;
-        const totalCobrosPeriodo = (fechaDesde || fechaHasta) && ventasFiltradas 
+        const totalCobrosPeriodo = (fechaDesde || fechaHasta) && ventasFiltradas
             ? ventasFiltradas.total_cobros_pagares || 0
             : null;
 
@@ -681,8 +681,8 @@ const DashboardPlaya = () => {
                 <div className="gastos-filters-container">
                     <div className="filter-group">
                         <label>Tipo de Gasto:</label>
-                        <select 
-                            value={tipoGasto} 
+                        <select
+                            value={tipoGasto}
                             onChange={(e) => setTipoGasto(e.target.value)}
                             className="filter-select"
                         >
@@ -729,7 +729,7 @@ const DashboardPlaya = () => {
                         />
                     </div>
                     <div className="filter-group">
-                        <button 
+                        <button
                             onClick={() => {
                                 setFechaDesde('');
                                 setFechaHasta('');
@@ -771,7 +771,7 @@ const DashboardPlaya = () => {
                         <div className="report-card">
                             <div className="report-card-header">
                                 <h4>Distribución de Gastos</h4>
-                                <button 
+                                <button
                                     onClick={() => generateGastosPDF(gastosFiltrados, tipoGasto, fechaDesde, fechaHasta)}
                                     className="btn-generar-detalle"
                                     disabled={!gastosFiltrados || gastos.length === 0}
@@ -814,9 +814,9 @@ const DashboardPlaya = () => {
                             <h4>Balance Operativo</h4>
                             {(fechaDesde || fechaHasta) && (
                                 <div style={{ marginBottom: '10px', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
-                                    {fechaDesde && fechaHasta 
+                                    {fechaDesde && fechaHasta
                                         ? `Período: ${new Date(fechaDesde).toLocaleDateString('es-PY')} - ${new Date(fechaHasta).toLocaleDateString('es-PY')}`
-                                        : fechaDesde 
+                                        : fechaDesde
                                             ? `Desde: ${new Date(fechaDesde).toLocaleDateString('es-PY')}`
                                             : `Hasta: ${new Date(fechaHasta).toLocaleDateString('es-PY')}`
                                     }
@@ -827,7 +827,7 @@ const DashboardPlaya = () => {
                                     <label>Ingresos {totalCobrosPeriodo !== null ? '(Ventas + Cobros)' : '(Ventas)'}</label>
                                     {totalCobrosPeriodo !== null && totalCobrosPeriodo > 0 && (
                                         <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '5px' }}>
-                                            Ventas: Gs. {Math.round(totalVentasPeriodo || 0).toLocaleString('es-PY')} | 
+                                            Ventas: Gs. {Math.round(totalVentasPeriodo || 0).toLocaleString('es-PY')} |
                                             Cobros: Gs. {Math.round(totalCobrosPeriodo).toLocaleString('es-PY')}
                                         </div>
                                     )}

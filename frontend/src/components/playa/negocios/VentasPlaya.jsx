@@ -32,7 +32,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         monto_int_mora: 0
     });
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
         fetchData();
@@ -157,8 +157,8 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         const v = vehiculos.find(veh => veh.id_producto === parseInt(id));
         if (v) {
             // Usar precio_financiado_sugerido si es venta financiada, sino precio_contado_sugerido
-            const precio = newVenta.tipo_venta === 'FINANCIADO' && v.precio_financiado_sugerido 
-                ? parseFloat(v.precio_financiado_sugerido) 
+            const precio = newVenta.tipo_venta === 'FINANCIADO' && v.precio_financiado_sugerido
+                ? parseFloat(v.precio_financiado_sugerido)
                 : parseFloat(v.precio_contado_sugerido);
             setNewVenta({
                 ...newVenta,
@@ -404,8 +404,8 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                                     if (newVenta.id_producto) {
                                                         const v = vehiculos.find(veh => veh.id_producto === parseInt(newVenta.id_producto));
                                                         if (v) {
-                                                            const precio = val === 'FINANCIADO' && v.precio_financiado_sugerido 
-                                                                ? parseFloat(v.precio_financiado_sugerido) 
+                                                            const precio = val === 'FINANCIADO' && v.precio_financiado_sugerido
+                                                                ? parseFloat(v.precio_financiado_sugerido)
                                                                 : parseFloat(v.precio_contado_sugerido);
                                                             updatedVenta.precio_venta = precio;
                                                             updatedVenta.precio_final = precio - updatedVenta.descuento;
