@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
-  <title>Ficha Técnica del Sistema</title>
+  <title>Ficha Técnica del Sistema de Gestión de Vehículos</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -11,6 +12,7 @@
       margin: 0;
       padding: 0;
     }
+
     .header {
       display: flex;
       align-items: center;
@@ -19,15 +21,18 @@
       padding: 24px 32px 18px 32px;
       border-bottom: 6px solid #1565c0;
     }
+
     .header img {
       height: 80px;
       margin-right: 32px;
     }
+
     .header .title {
       font-size: 2.1rem;
       font-weight: bold;
       line-height: 1.2;
     }
+
     .section {
       margin: 32px 48px 0 48px;
       padding: 24px 32px;
@@ -35,38 +40,48 @@
       border-radius: 12px;
       box-shadow: 0 2px 12px #0001;
     }
+
     h2 {
       color: #1976d2;
       border-bottom: 2px solid #e3f2fd;
       padding-bottom: 6px;
       margin-top: 0;
     }
-    ul, ol {
+
+    ul,
+    ol {
       margin-top: 0;
     }
+
     .tech-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 18px;
     }
-    .tech-table th, .tech-table td {
+
+    .tech-table th,
+    .tech-table td {
       border: 1px solid #e3f2fd;
       padding: 8px 14px;
       text-align: left;
     }
+
     .tech-table th {
       background: #e3f2fd;
       color: #1976d2;
     }
+
     .arch {
       margin-top: 18px;
       text-align: center;
     }
+
     .arch img {
       height: 32px;
       vertical-align: middle;
       margin: 0 8px;
     }
+
     .footer {
       text-align: right;
       color: #888;
@@ -75,126 +90,89 @@
     }
   </style>
 </head>
+
 <body>
   <div class="header">
-    <img src="imágenes/Logo_CIDSA2.jpg" alt="Logo CIDSA" />
-    <span class="title">Sistema de Catálogos VMT-CID</span>
+    <img src="imágenes/Logo_chico.PNG" alt="Logo RDS" />
+    <span class="title">Sistema de Gestión de Vehículos</span>
   </div>
   <div class="section">
     <h2>Resumen Ejecutivo</h2>
-    <p>El Sistema de Catálogos VMT-CID es una solución web integral para la gestión de catálogos empresariales (gremios, EOTs, feriados), con seguridad avanzada, auditoría y flujos modernos de usuario.</p>
+    <p>El Sistema de Gestión de Vehículos es una solución estructural integral para el inicio de proyectos web,
+      proporcionando
+      gestión de usuarios avanzada, roles, seguridad reactiva, auditoría completa y herramientas de administración del
+      sistema.</p>
   </div>
   <div class="section">
     <h2>Arquitectura y Tecnologías</h2>
     <table class="tech-table">
-      <tr><th>Componente</th><th>Tecnología</th></tr>
-      <tr><td>Frontend</td><td>React 18, Vite, CSS Custom, JWT</td></tr>
-      <tr><td>Backend</td><td>FastAPI (Python 3.11+), SQLAlchemy Async, PostgreSQL</td></tr>
-      <tr><td>Base de Datos</td><td>PostgreSQL 14+, SQLAlchemy ORM</td></tr>
-      <tr><td>Email</td><td>SMTP seguro (notificaciones y contraseñas)</td></tr>
+      <tr>
+        <th>Componente</th>
+        <th>Tecnología</th>
+      </tr>
+      <tr>
+        <td>Frontend</td>
+        <td>React 18, Vite, CSS Custom, JWT</td>
+      </tr>
+      <tr>
+        <td>Backend</td>
+        <td>FastAPI (Python 3.11+), SQLAlchemy Async, PostgreSQL</td>
+      </tr>
+      <tr>
+        <td>Base de Datos</td>
+        <td>PostgreSQL 14+, SQLAlchemy ORM</td>
+      </tr>
+      <tr>
+        <td>Email</td>
+        <td>SMTP seguro (notificaciones y contraseñas)</td>
+      </tr>
     </table>
     <div class="arch">
-      <img src="imágenes/arch_frontend.png" alt="Frontend" />
-      <img src="imágenes/arrow_right.svg" alt="→" />
-      <img src="imágenes/arch_backend.png" alt="Backend" />
-      <img src="imágenes/arrow_right.svg" alt="→" />
-      <img src="imágenes/arch_db.png" alt="Base de Datos" />
+      <span>Frontend</span>
+      <img src="https://img.icons8.com/color/48/1976d2/react-native.png" alt="React" />
+      <span>→ Backend</span>
+      <img src="https://img.icons8.com/ios-filled/50/1976d2/api-settings.png" alt="FastAPI" />
+      <span>→ DB</span>
+      <img src="https://img.icons8.com/ios-filled/50/1976d2/database.png" alt="PostgreSQL" />
     </div>
   </div>
   <div class="section">
-    <h2>Funcionalidades Principales</h2>
+    <h2>Funcionalidades Core</h2>
     <ul>
-      <li>Gestión de usuarios y roles (alta, edición, activación, borrado, reactivación)</li>
-      <li>Recuperación de contraseña (notifica al admin)</li>
-      <li>Reenvío de contraseña temporal (admin genera y envía nueva contraseña)</li>
-      <li>Control de acceso por roles y permisos (RBAC)</li>
-      <li>Auditoría de accesos y acciones</li>
-      <li>Notificaciones internas y por email</li>
-      <li>CRUD de gremios, EOTs y feriados</li>
-      <li>CRUD de Rutas, con minimapas y también CRUD de itinerarios históricos de las rutas</li>
-      <li>Exportación de datos</li>
+      <li>Gestión Completa de Usuarios: Alta, Edición, Activación, Desactivación, Reactivación y Borrado Físico/Lógico.
+      </li>
+      <li>Sistema de Roles y Permisos (RBAC): Control granular de acceso a nivel de API e interfaz.</li>
+      <li>Seguridad de Acceso: Autenticación via JWT con flujos de recuperación y generación de contraseñas temporales
+        por el administrador.</li>
+      <li>Auditoría Integrada: Registro detallado de cada acción del usuario, IP, dispositivo y cambios realizados.</li>
+      <li>Administración del Sistema: Configuración de parámetros dinámicos y sistema de backup automático de tablas
+        core.</li>
+      <li>Notificaciones: Sistema de notificaciones por email para eventos críticos de seguridad.</li>
     </ul>
   </div>
   <div class="section">
-    <h2>Flujos de Contraseña</h2>
+    <h2>Gestión de Contraseñas</h2>
     <ol>
-      <li><strong>¿Olvidaste tu contraseña?</strong>: El usuario solicita recuperación y el admin es notificado por email.</li>
-      <li><strong>Reenviar contraseña (admin)</strong>: El admin puede generar y enviar una nueva contraseña temporal al usuario editado. El hash se actualiza y el usuario debe cambiarla tras ingresar.</li>
-      <li><strong>Cambiar contraseña</strong>: El usuario recibe la contraseña por mail y una vez logeado solo puede cambiar su propia contraseña, no la de otro usuario.</li>
+      <li><strong>Recuperación</strong>: El usuario puede solicitar la recuperación de su cuenta ante un olvido.</li>
+      <li><strong>Generación por Admin</strong>: El administrador tiene la potestad de generar una nueva contraseña
+        temporal segura y enviarla directamente al usuario desde la interfaz.</li>
+      <li><strong>Cambio de Password</strong>: El usuario puede actualizar su contraseña en cualquier momento desde su
+        perfil una vez autenticado.</li>
     </ol>
   </div>
   <div class="section">
-    <h2>Seguridad</h2>
+    <h2>Seguridad y Buenas Prácticas</h2>
     <ul>
-      <li>Contraseñas solo como hash bcrypt</li>
-      <li>JWT tokens y CORS</li>
-      <li>Roles/permisos granulares</li>
-      <li>Logs de acceso y auditoría</li>
-      <li>Protección de endpoints y buenas prácticas</li>
+      <li>Hash de contraseñas mediante algoritmo Bcrypt.</li>
+      <li>Implementación de CORS y Token Bearer para comunicación segura entre capas.</li>
+      <li>Auditoría inmutable de transacciones.</li>
+      <li>Despliegue modular compatible con Docker para alta escalabilidad.</li>
     </ul>
   </div>
   <div class="footer">
-    Última actualización: 2025-08-07<br/>
-    Contacto: soporte@vmt-cid.com
-  </div>
-
-    <img src="imágenes/Logo_CIDSA2.jpg" alt="Logo CIDSA" />
-    <div class="title">
-      Sistema de Gestión de Catálogos<br/>
-      <span style="font-size:1.1rem;font-weight:normal;">Coordinación de Innovación y Desarrollo - Viceministerio de Transporte</span>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Tecnologías y Lenguajes Utilizados</h2>
-    <table class="tech-table">
-      <tr><th>Frontend</th><th>Backend</th></tr>
-      <tr>
-        <td>
-          JavaScript (React, Vite)<br/>
-          @tanstack/react-table, XLSX<br/>
-          CSS
-        </td>
-        <td>
-          Python 3 (FastAPI)<br/>
-          SQLAlchemy<br/>
-          Uvicorn
-        </td>
-      </tr>
-    </table>
-  </div>
-
-  <div class="section">
-    <h2>¿Cómo Funciona?</h2>
-    <ul>
-      <li><b>Frontend:</b> Interfaz web para gestionar EOTs, Gremios y Feriados. Filtros avanzados, exportación a Excel, edición y eliminación.</li>
-      <li><b>Backend:</b> API RESTful para operaciones CRUD. Persistencia en base de datos relacional.</li>
-    </ul>
-  </div>
-
-  <div class="section">
-    <h2>¿Qué Hace el Sistema?</h2>
-    <ul>
-      <li>Administra catálogos de EOTs, gremios y feriados</li>
-      <li>Permite filtros avanzados y exportación</li>
-      <li>Interfaz moderna y API abierta</li>
-    </ul>
-  </div>
-
-  <div class="section arch">
-    <h2>Arquitectura</h2>
-    <span>Usuario</span>
-    <img src="https://img.icons8.com/ios-filled/50/1976d2/user.png" alt="Usuario"/>
-    <span>→ Frontend React</span>
-    <img src="https://img.icons8.com/color/48/1976d2/react-native.png" alt="React"/>
-    <span>→ Backend FastAPI</span>
-    <img src="https://img.icons8.com/ios-filled/50/1976d2/api-settings.png" alt="API"/>
-    <span>→ Base de Datos</span>
-    <img src="https://img.icons8.com/ios-filled/50/1976d2/database.png" alt="DB"/>
-  </div>
-
-  <div class="footer">
-    Ficha generada automáticamente - {new Date().toLocaleDateString('es-ES')}
+    Última actualización: 2026-01-29<br />
+    Poliverso - Coordinación de Innovación
   </div>
 </body>
+
 </html>

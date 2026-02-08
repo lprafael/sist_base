@@ -1,4 +1,3 @@
-# Etapa 1: Build
 FROM node:18-alpine AS builder
 
 WORKDIR /app
@@ -7,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependencias
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 # Copiar el código fuente
 COPY . .
