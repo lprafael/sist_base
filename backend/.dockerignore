@@ -1,0 +1,41 @@
+# No enviar esto al build (contexto más pequeño = build más rápido)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.eggs/
+*.egg
+
+# Secretos y config local (no van en la imagen)
+.env
+.env.local
+.env.*.local
+
+# Logs (se montan por volumen)
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Opcional: excluir scripts que no usa el contenedor (reduce contexto)
+# Descomenta si no necesitas migraciones/debug en la imagen
+# debug_*.py
+# diag_*.py
+# check_service.ps1
+# install_service_nssm.ps1
+# uninstall_service_nssm.ps1
+# start_api.bat
+# start_api.ps1

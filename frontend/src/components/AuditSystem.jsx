@@ -12,7 +12,10 @@ const AuditSystem = () => {
     // Filtros
     const [filters, setFilters] = useState({
         username: '',
-        limit: 100
+        limit: 100,
+        tabla: '',
+        fecha_desde: '',
+        fecha_hasta: ''
     });
 
     const fetchData = async () => {
@@ -27,6 +30,13 @@ const AuditSystem = () => {
             const params = new URLSearchParams();
             if (filters.username) params.append('username', filters.username);
             params.append('limit', filters.limit);
+            
+            // Filtros específicos para Logs de Auditoría
+            if (activeTab === 'audit') {
+                if (filters.tabla) params.append('tabla', filters.tabla);
+                if (filters.fecha_desde) params.append('fecha_desde', filters.fecha_desde);
+                if (filters.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta);
+            }
 
             const response = await authFetch(`${endpoint}?${params.toString()}`);
             if (response.ok) {
@@ -194,13 +204,58 @@ const AuditSystem = () => {
             </div>
 
             <div className="audit-filters">
-                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                         name="username"
                         placeholder="Usuario..."
                         value={filters.username}
                         onChange={handleFilterChange}
+                        style={{ minWidth: '150px' }}
                     />
+                    {activeTab === 'audit' && (
+                        <>
+                            <select 
+                                name="tabla" 
+                                value={filters.tabla} 
+                                onChange={handleFilterChange}
+                                style={{ minWidth: '180px' }}
+                            >
+                                <option value="">Todas las tablas</option>
+                                <option value="pagos">Pagos</option>
+                                <option value="pagares">Pagarés</option>
+                                <option value="ventas">Ventas</option>
+                                <option value="clientes">Clientes</option>
+                                <option value="productos">Productos</option>
+                                <option value="gastos_empresa">Gastos Empresa</option>
+                                <option value="gastos_productos">Gastos Productos</option>
+                                <option value="tipos_gastos_empresa">Tipos Gastos Empresa</option>
+                                <option value="tipos_gastos_productos">Tipos Gastos Productos</option>
+                                <option value="garantes">Garantes</option>
+                                <option value="referencias">Referencias</option>
+                                <option value="ubicaciones_cliente">Ubicaciones Cliente</option>
+                                <option value="categorias_vehiculos">Categorías Vehículos</option>
+                                <option value="config_calificaciones">Config Calificaciones</option>
+                                <option value="usuarios">Usuarios</option>
+                                <option value="backup">Backup</option>
+                            </select>
+                            <input
+                                type="date"
+                                name="fecha_desde"
+                                placeholder="Fecha desde..."
+                                value={filters.fecha_desde}
+                                onChange={handleFilterChange}
+                                style={{ minWidth: '150px' }}
+                            />
+                            <input
+                                type="date"
+                                name="fecha_hasta"
+                                placeholder="Fecha hasta..."
+                                value={filters.fecha_hasta}
+                                onChange={handleFilterChange}
+                                style={{ minWidth: '150px' }}
+                            />
+                        </>
+                    )}
                     <select name="limit" value={filters.limit} onChange={handleFilterChange}>
                         <option value="50">50 registros</option>
                         <option value="100">100 registros</option>

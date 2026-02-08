@@ -44,8 +44,8 @@ async def log_audit_action(
             accion=action,
             tabla=table,
             registro_id=record_id,
-            datos_anteriores=previous_data,
-            datos_nuevos=new_data,
+            datos_anteriores=json_serializable(previous_data),
+            datos_nuevos=json_serializable(new_data),
             ip_address=ip_address,
             user_agent=user_agent,
             detalles=details
@@ -109,3 +109,20 @@ def get_user_agent(request) -> Optional[str]:
     Obtiene el user agent desde la request
     """
     return request.headers.get("user-agent")
+
+def json_serializable(obj: Any) -> Any:
+    """
+    Convierte objetos no serializables (Decimal, date, datetime) a tipos básicos
+    """
+    from decimal import Decimal
+    from datetime import date, datetime
+    
+    if isinstance(obj, dict):
+        return {k: json_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [json_serializable(v) for v in obj]
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    return obj

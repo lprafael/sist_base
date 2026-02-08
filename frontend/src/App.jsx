@@ -6,30 +6,51 @@ import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
-import VehiculosPlaya from "./components/playa/VehiculosPlaya.jsx";
-import ClientesPlaya from "./components/playa/ClientesPlaya.jsx";
-import VentasPlaya from "./components/playa/VentasPlaya.jsx";
-import CobrosPlaya from "./components/playa/CobrosPlaya.jsx";
-import GastosVehiculo from "./components/playa/GastosVehiculo.jsx";
-import DashboardPlaya from "./components/playa/DashboardPlaya.jsx";
-import GastosEmpresa from "./components/playa/GastosEmpresa.jsx";
-import CategoriasPlaya from "./components/playa/CategoriasPlaya.jsx";
-import ConfigCalificacionesPlaya from "./components/playa/ConfigCalificacionesPlaya.jsx";
+import VehiculosPlaya from "./components/playa/gestion/VehiculosPlaya.jsx";
+import ClientesPlaya from "./components/playa/gestion/ClientesPlaya.jsx";
+import VentasPlaya from "./components/playa/negocios/VentasPlaya.jsx";
+import CobrosPlaya from "./components/playa/negocios/CobrosPlaya.jsx";
+import PagaresPlaya from "./components/playa/negocios/PagaresPlaya.jsx";
+import GastosVehiculo from "./components/playa/gestion/GastosVehiculo.jsx";
+import DashboardPlaya from "./components/playa/gestion/DashboardPlaya.jsx";
+import GastosEmpresa from "./components/playa/gestion/GastosEmpresa.jsx";
+import CategoriasPlaya from "./components/playa/parametros/CategoriasPlaya.jsx";
+import ConfigCalificacionesPlaya from "./components/playa/parametros/ConfigCalificacionesPlaya.jsx";
+import TiposGastosEmpresa from "./components/playa/parametros/TiposGastosEmpresa.jsx";
+import TiposGastosProductos from "./components/playa/parametros/TiposGastosProductos.jsx";
+import ReportesPlaya from "./components/playa/reportes/ReportesPlaya.jsx";
+import VendedoresPlaya from "./components/playa/parametros/VendedoresPlaya.jsx";
 
-function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
+function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed, isMobileOpen, onMobileToggle }) {
+  const handleToggle = () => {
+    // En móviles, toggle del sidebar móvil
+    if (window.innerWidth <= 768) {
+      onMobileToggle();
+    } else {
+      // En desktop, toggle del colapso
+      onToggleSidebar();
+    }
+  };
+
   return (
     <header className="main-header">
       <div className="header-title">
         {user && (
           <button
             className="menu-toggle"
-            onClick={onToggleSidebar}
-            title={isSidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}
+            onClick={handleToggle}
+            title={isMobileOpen || !isSidebarCollapsed ? "Ocultar menú" : "Mostrar menú"}
+            aria-label="Toggle menu"
           >
-            {isSidebarCollapsed ? "➡️" : "⬅️"}
+            {isMobileOpen || !isSidebarCollapsed ? "⬅️" : "➡️"}
           </button>
         )}
-        <h1>Sistema Base - Poliverso</h1>
+        <img 
+          src="/imágenes/Logo_actualizado2.png" 
+          alt="Peralta Automotores" 
+          className="header-logo"
+        />
+        <h1>Gestión de Playa de Vehículos</h1>
       </div>
       <div className="header-user-info">
         {user && (
@@ -64,9 +85,11 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState({
     "Playa de Vehículos": true,
     "Negocios": true,
+    "Reportes": true,
     "Parámetros": true,
     "Administración": true
   });
@@ -146,10 +169,18 @@ export default function App() {
       ]
     },
     {
+      title: "Reportes",
+      icon: "📋",
+      items: [
+        { id: "reportes_mora", label: "Reportes", icon: "📋", roles: ['admin', 'manager', 'user'] },
+      ]
+    },
+    {
       title: "Negocios",
       icon: "🤝",
       items: [
         { id: "ventas_playa", label: "Ventas", icon: "🤝", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "pagares_playa", label: "Pagarés", icon: "📝", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "cobros_playa", label: "Cobros", icon: "💵", roles: ['admin', 'manager', 'user', 'viewer'] },
       ]
     },
@@ -158,6 +189,9 @@ export default function App() {
       items: [
         { id: "categorias_playa", label: "Categorías(Veh.)", icon: "🏷️", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "config_calificaciones_playa", label: "Calif.(clientes)", icon: "⭐", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "tipos_gastos_empresa_playa", label: "Tipos Gastos Empresa", icon: "🏢", roles: ['admin', 'manager'] },
+        { id: "tipos_gastos_productos_playa", label: "Tipos Gastos Productos", icon: "🛠️", roles: ['admin', 'manager'] },
+        { id: "vendedores_playa", label: "Vendedores", icon: "👨‍💼", roles: ['admin', 'manager'] },
       ]
     },
     {
@@ -171,6 +205,22 @@ export default function App() {
 
   ];
 
+  const handleTabChange = (newTab) => {
+    setTab(newTab);
+    // Cerrar sidebar móvil al cambiar de tab
+    if (window.innerWidth <= 768) {
+      setMobileSidebarOpen(false);
+    }
+  };
+
+  const handleMobileSidebarToggle = () => {
+    setMobileSidebarOpen(!mobileSidebarOpen);
+  };
+
+  const handleOverlayClick = () => {
+    setMobileSidebarOpen(false);
+  };
+
   return (
     <div className="app-container">
       <CabeceradePagina
@@ -178,10 +228,19 @@ export default function App() {
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         isSidebarCollapsed={sidebarCollapsed}
+        isMobileOpen={mobileSidebarOpen}
+        onMobileToggle={handleMobileSidebarToggle}
+      />
+
+      {/* Overlay para móviles */}
+      <div 
+        className={`sidebar-overlay ${mobileSidebarOpen ? 'active' : ''}`}
+        onClick={handleOverlayClick}
+        aria-hidden="true"
       />
 
       <div className="content-wrapper">
-        <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
           <h2 style={{ display: sidebarCollapsed ? 'none' : 'block' }}>Menú Principal</h2>
 
           <nav className="sidebar-nav">
@@ -206,7 +265,7 @@ export default function App() {
                       <button
                         key={item.id}
                         className={`sidebar-tab${tab === item.id ? " active" : ""}`}
-                        onClick={() => setTab(item.id)}
+                        onClick={() => handleTabChange(item.id)}
                         title={sidebarCollapsed ? item.label : ""}
                       >
                         <span className="icon">{item.icon}</span>
@@ -245,6 +304,9 @@ export default function App() {
             {tab === "dashboard_playa" && <DashboardPlaya />}
             {tab === "categorias_playa" && <CategoriasPlaya setTab={setTab} setPreselectedCategoryId={setPreselectedCategoryId} />}
             {tab === "config_calificaciones_playa" && <ConfigCalificacionesPlaya setTab={setTab} setPreselectedCalificacion={setPreselectedCalificacion} />}
+            {tab === "tipos_gastos_empresa_playa" && <TiposGastosEmpresa />}
+            {tab === "tipos_gastos_productos_playa" && <TiposGastosProductos />}
+            {tab === "vendedores_playa" && <VendedoresPlaya />}
             {tab === "inventario" && (
               <VehiculosPlaya
                 setTab={setTab}
@@ -254,10 +316,12 @@ export default function App() {
               />
             )}
             {tab === "clientes_playa" && <ClientesPlaya preselectedCalificacion={preselectedCalificacion} setPreselectedCalificacion={setPreselectedCalificacion} />}
-            {tab === "ventas_playa" && <VentasPlaya preselectedVehicleId={preselectedVehicleId} setPreselectedVehicleId={setPreselectedVehicleId} />}
+            {tab === "ventas_playa" && <VentasPlaya setTab={setTab} preselectedVehicleId={preselectedVehicleId} setPreselectedVehicleId={setPreselectedVehicleId} />}
+            {tab === "pagares_playa" && <PagaresPlaya />}
             {tab === "cobros_playa" && <CobrosPlaya />}
             {tab === "gastos_playa" && <GastosVehiculo />}
             {tab === "gastos_empresa_playa" && <GastosEmpresa />}
+            {tab === "reportes_mora" && <ReportesPlaya />}
           </div>
 
         </main>

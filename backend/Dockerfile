@@ -2,14 +2,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias para geoalchemy2 y geopandas
-RUN apt-get update && apt-get install -y \
+# Dependencias del sistema: geoalchemy2/geopandas + unixODBC + ODBC Driver 18 (run_migration.py)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libpq-dev \
     libgdal-dev \
     gdal-bin \
     python3-gdal \
+    curl \
+    gnupg2 \
+    unixodbc-dev \
+    unixodbc \
+    && curl -sSL -o /tmp/packages-microsoft-prod.deb https://packages.microsoft.com/config/debian/$(grep VERSION_ID /etc/os-release | cut -d'"' -f 2 | cut -d'.' -f 1)/packages-microsoft-prod.deb \
+    && dpkg -i /tmp/packages-microsoft-prod.deb \
+    && rm /tmp/packages-microsoft-prod.deb \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements y instalar dependencias Python

@@ -77,7 +77,7 @@ from database import engine, SessionLocal, get_session
 # 5. INICIALIZACIÓN DE FASTAPI
 # ============================================
 app = FastAPI(
-    title="API Sistema Base - Poliverso",
+    title="API Sistema de Gestión de Vehículos",
     description="API para la gestión base de usuarios, roles y auditoría",
     version="1.0.0"
 )
@@ -116,6 +116,7 @@ from delete_user_physical import router as delete_user_physical_router
 from notify_admin_password_reset import router as notify_admin_password_reset_router
 from resend_user_password import router as resend_user_password_router
 from routers_playa import router as playa_router
+from report_routers import router as reports_router
 
 # Montar los routers en la aplicación
 app.include_router(auth_router)
@@ -124,6 +125,7 @@ app.include_router(delete_user_physical_router)
 app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
 app.include_router(playa_router)
+app.include_router(reports_router)
 
 
 

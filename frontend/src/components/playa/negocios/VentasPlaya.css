@@ -1,0 +1,290 @@
+.ventas-container {
+    padding: 20px;
+    background: #f8fafc;
+    position: relative;
+    min-height: 100vh;
+}
+
+.ventas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.venta-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.venta-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.btn-edit-venta {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-edit-venta:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-anular {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-anular:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.vnt-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.vnt-status.activa {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.vnt-status.anulada {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 10px;
+}
+
+.vnt-number {
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.vnt-type {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 12px;
+}
+
+.financing-section {
+    background: #f1f5f9;
+    padding: 15px;
+    border-radius: 12px;
+    margin: 15px 0;
+}
+
+.financing-section h4 {
+    margin-top: 0;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.pagares-summary {
+    margin-top: 15px;
+    font-size: 0.85rem;
+}
+
+.pagares-summary ul {
+    list-style: none;
+    padding: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.pagares-summary li {
+    padding: 4px 0;
+    border-bottom: 1px dotted #e2e8f0;
+}
+
+.pagares-summary li.pendiente {
+    color: #854d0e;
+}
+
+.pagares-summary li.pagado {
+    color: #166534;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+    padding-top: 50px;
+    overflow-y: auto;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 24px;
+    width: 600px;
+    max-width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    margin: 20px;
+}
+
+.modal-content.large {
+    width: 900px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group input,
+.form-group select {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.btn-cancel {
+    background: #f1f5f9;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-primary,
+.btn-save {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.3s;
+}
+
+/* Estilos para las Pestañas del Modal */
+.modal-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    background: #f1f5f9;
+}
+
+.tab-btn.active {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.info-resumen {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.info-resumen p {
+    color: #1e293b;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Common Table Styles for Modals */
+.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.custom-table th {
+    background: #f8fafc;
+    color: #475569;
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.custom-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.custom-table input {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    outline: none;
+}
+
+.custom-table input:focus {
+    border-color: #3b82f6;
+}

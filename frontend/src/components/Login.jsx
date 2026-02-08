@@ -11,6 +11,7 @@ const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [googleError, setGoogleError] = useState(false);
 
   const handleChange = (e) => {
     setCredentials({
@@ -82,9 +83,42 @@ const Login = ({ onLogin }) => {
         setError(data.detail || 'Error en la autenticación con Google');
       }
     } catch (err) {
+      console.error('Error en Google Login:', err);
       setError('Error de conexión con el servidor');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (error) => {
+    // No mostrar errores de configuración en consola para evitar spam
+    // Solo registrar si es un error crítico
+    if (error?.type !== 'popup_closed_by_user') {
+      console.warn('Google Sign-In error:', error?.type || 'Configuration issue');
+    }
+    
+    setGoogleError(true);
+    
+    // Mensajes de error más específicos
+    let errorMessage = '';
+    
+    if (error?.type === 'popup_closed_by_user') {
+      // No mostrar error si el usuario cerró el popup
+      return;
+    } else if (error?.type === 'popup_failed_to_open') {
+      errorMessage = 'No se pudo abrir la ventana de Google. Verifica que los pop-ups no estén bloqueados.';
+    } else {
+      // Error de configuración - mostrar mensaje útil
+      errorMessage = 'Google Sign-In no está configurado correctamente. Usa el login con usuario y contraseña.';
+    }
+    
+    if (errorMessage) {
+      setError(errorMessage);
+      // Limpiar el error después de 5 segundos
+      setTimeout(() => {
+        setError('');
+        setGoogleError(false);
+      }, 5000);
     }
   };
 
@@ -92,7 +126,14 @@ const Login = ({ onLogin }) => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h2>Sistema Base - Poliverso</h2>
+          <div className="login-logo-container">
+            <img 
+              src="/imágenes/Logo_actualizado2.png" 
+              alt="Peralta Automotores" 
+              className="login-logo"
+            />
+          </div>
+          <h2>Gestión de Vehículos</h2>
           <p>Inicia sesión para continuar</p>
         </div>
 
@@ -157,22 +198,40 @@ const Login = ({ onLogin }) => {
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
 
-          <div className="google-login-separator">
-            <span>O</span>
-          </div>
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && !googleError && (
+            <>
+              <div className="google-login-separator">
+                <span>O</span>
+              </div>
 
-          <div className="google-login-container">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError('Error al iniciar sesión con Google')}
-              useOneTap
-              theme="outline"
-              size="large"
-              width="100%"
-              text="signin_with"
-              locale="es"
-            />
-          </div>
+              <div className="google-login-container">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap={false}
+                  theme="outline"
+                  size="large"
+                  text="signin_with"
+                  locale="es"
+                />
+              </div>
+            </>
+          )}
+          
+          {googleError && (
+            <div style={{ 
+              marginTop: '16px', 
+              padding: '12px', 
+              background: '#fef3c7', 
+              border: '1px solid #fbbf24',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              color: '#92400e',
+              textAlign: 'center'
+            }}>
+              ⚠️ El login con Google no está disponible. Usa usuario y contraseña.
+            </div>
+          )}
         </form>
 
         <div className="login-footer">

@@ -1,0 +1,654 @@
+.clientes-container {
+    padding: 20px;
+    background: #f8fafc;
+    min-height: calc(100vh - 100px);
+}
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    gap: 20px;
+}
+
+.header-actions h2 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 1.5rem;
+    white-space: nowrap;
+}
+
+.search-bar {
+    flex: 1;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.category-filter select {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    background: white;
+    min-width: 200px;
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.3s;
+    white-space: nowrap;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.1);
+}
+
+.table-responsive {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+}
+
+.clientes-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.clientes-table th {
+    background: #f1f5f9;
+    padding: 15px;
+    text-align: left;
+    font-size: 0.85rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.clientes-table td {
+    padding: 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.client-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.client-name {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.client-email {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.calif-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.calif-badge.excelente {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.calif-badge.bueno {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.calif-badge.nuevo {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.calif-badge.malo {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.calif-badge.regular {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-edit,
+.btn-delete,
+.btn-print-report {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: all 0.3s;
+    font-size: 16px;
+}
+
+.btn-print-report {
+    color: #2563eb;
+}
+
+.btn-print-report:hover {
+    background: #eff6ff;
+    transform: scale(1.1);
+}
+
+.btn-edit:hover {
+    background: #eff6ff;
+    transform: scale(1.1);
+}
+
+.btn-delete:hover {
+    background: #fef2f2;
+    transform: scale(1.1);
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.calificacion-filter select {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+    background: white;
+}
+
+/* Colores de filas según calificación */
+.row-red {
+    background-color: #fee2e2 !important;
+}
+
+.row-light-red {
+    background-color: #fecaca !important;
+}
+
+.row-orange {
+    background-color: #fed7aa !important;
+}
+
+.row-yellow {
+    background-color: #fef3c7 !important;
+}
+
+.row-green {
+    background-color: #dcfce7 !important;
+}
+
+.btn-action {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    margin-right: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.btn-action:hover {
+    background: #f8fafc;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+/* Tabs en Modal */
+.modal-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 5px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    color: #3b82f6;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.tab-content {
+    margin-top: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* Estilos para gestión de Garantes y Referencias */
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.mini-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mini-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-info h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #1e293b;
+}
+
+.card-info p {
+    margin: 5px 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-mini {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.btn-mini:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.btn-mini.btn-add {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.btn-mini.btn-add:hover {
+    background: #2563eb;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 30px;
+    color: #64748b;
+    font-style: italic;
+    background: #f1f5f9;
+    border-radius: 12px;
+}
+
+/* Sub-modales */
+.sub-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 1100;
+    padding-top: 5vh;
+    overflow-y: auto;
+}
+
+.sub-modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    margin: 0 auto;
+    position: relative;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.sub-modal-content h4 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+
+/* Modal más grande para clientes */
+.modal-content.large {
+    max-width: 900px;
+    width: 90%;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #1e293b;
+}
+
+.btn-close-modal {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #64748b;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+/* --- ESTILOS DE UBICACIONES Y MAPA --- */
+.ubicaciones-section {
+    padding-bottom: 20px;
+}
+
+.sub-modal-content.large-map-modal {
+    max-width: 900px;
+    width: 95%;
+}
+
+.ubi-modal-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 25px;
+    margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+    .ubi-modal-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ubi-form .form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.coords-info {
+    display: flex;
+    gap: 15px;
+    background: #f1f5f9;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: #475569;
+    margin-bottom: 20px;
+}
+
+.ubi-map-container label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.map-wrapper {
+    border: 1px solid #e2e8f0;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1; /* Para que el mapa no tape el modal si hay superposición */
+}
+
+/* Fix para Leaflet en pantallas de alta densidad */
+.leaflet-container {
+    border-radius: 12px;
+}
+
+.text-muted {
+    color: #94a3b8 !important;
+}
+
+.mini-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .clientes-container {
+        padding: 16px;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    .header-actions h2 {
+        font-size: 1.25rem;
+    }
+
+    .search-bar {
+        width: 100%;
+    }
+
+    .category-filter,
+    .calificacion-filter {
+        width: 100%;
+    }
+
+    .category-filter select,
+    .calificacion-filter select {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .table-responsive {
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    .clientes-table {
+        font-size: 0.85rem;
+    }
+
+    .clientes-table th,
+    .clientes-table td {
+        padding: 10px 8px;
+    }
+
+    .modal-content.large {
+        max-width: 95%;
+        padding: 16px;
+    }
+
+    .sub-modal-overlay {
+        padding: 16px;
+        align-items: flex-start;
+        padding-top: 3vh;
+    }
+
+    .sub-modal-content {
+        width: 95%;
+        padding: 16px;
+        max-height: 85vh;
+        margin: 0 auto;
+    }
+
+    .mini-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .card-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .clientes-container {
+        padding: 12px;
+    }
+
+    .header-actions h2 {
+        font-size: 1.1rem;
+    }
+
+    .table-responsive {
+        padding: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .clientes-table {
+        min-width: 600px;
+        font-size: 0.8rem;
+    }
+
+    .clientes-table th,
+    .clientes-table td {
+        padding: 8px 6px;
+    }
+
+    .client-name {
+        font-size: 0.9rem;
+    }
+
+    .client-email {
+        font-size: 0.75rem;
+    }
+
+    .calif-badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+    }
+
+    .actions-cell {
+        gap: 4px;
+    }
+
+    .btn-edit,
+    .btn-delete {
+        padding: 4px;
+        font-size: 14px;
+    }
+
+    .modal-content.large {
+        max-width: 98%;
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    .modal-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .modal-tabs {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    .btn-mini {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    .sub-modal-overlay {
+        padding: 12px;
+        padding-top: 2vh;
+    }
+
+    .sub-modal-content {
+        width: 98%;
+        padding: 12px;
+        max-height: 90vh;
+        border-radius: 12px;
+        margin: 0 auto;
+    }
+}

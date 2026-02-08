@@ -33,11 +33,24 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica si la contraseña coincide con el hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verifica si la contraseña coincide con el hash. Bcrypt acepta máx 72 bytes."""
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        pwd_bytes = plain_password.encode("utf-8")
+        if len(pwd_bytes) > 72:
+            plain_password = pwd_bytes[:72].decode("utf-8", errors="replace")
+        return pwd_context.verify(plain_password, hashed_password)
+    except (ValueError, TypeError):
+        return False
 
 def get_password_hash(password: str) -> str:
-    """Genera el hash de una contraseña"""
+    """Genera el hash de una contraseña. Bcrypt acepta máx 72 bytes."""
+    if not password:
+        return pwd_context.hash("")
+    pwd_bytes = password.encode("utf-8")
+    if len(pwd_bytes) > 72:
+        password = pwd_bytes[:72].decode("utf-8", errors="replace")
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

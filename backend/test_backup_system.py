@@ -67,7 +67,7 @@ async def test_backup_system():
             backup_data = {
                 "fecha_backup": "2026-01-29T00:00:00Z",
                 "usuario_backup": "admin",
-                "sistema": "Sistema Base - Poliverso",
+                "sistema": "Sistema de Gestión de Vehículos",
                 "version": "1.0.0",
                 "tablas": {
                     "usuarios": {

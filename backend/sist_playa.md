@@ -106,7 +106,8 @@ CREATE TABLE productos (
     procedencia VARCHAR(100), -- Nacional, Importado
     ubicacion_actual VARCHAR(200),
     costo_base DECIMAL(15,2) NOT NULL,
-    precio_venta_sugerido DECIMAL(15,2),
+    precio_contado_sugerido DECIMAL(15,2),
+    precio_financiado_sugerido DECIMAL(15,2),
     precio_venta_minimo DECIMAL(15,2),
     estado_disponibilidad VARCHAR(50) DEFAULT 'DISPONIBLE', -- DISPONIBLE, RESERVADO, VENDIDO, EN_REPARACION
     observaciones TEXT,
@@ -422,8 +423,8 @@ SELECT
     p.costo_base,
     COALESCE(SUM(gp.monto), 0) as total_gastos,
     p.costo_base + COALESCE(SUM(gp.monto), 0) as costo_total,
-    p.precio_venta_sugerido,
-    p.precio_venta_sugerido - (p.costo_base + COALESCE(SUM(gp.monto), 0)) as utilidad_estimada
+    p.precio_contado_sugerido,
+    p.precio_contado_sugerido - (p.costo_base + COALESCE(SUM(gp.monto), 0)) as utilidad_estimada
 FROM productos p
 LEFT JOIN gastos_productos gp ON p.id_producto = gp.id_producto
 GROUP BY p.id_producto;

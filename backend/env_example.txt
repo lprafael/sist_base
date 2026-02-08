@@ -1,5 +1,12 @@
-# Configuración de la base de datos
+# Configuración de la base de datos (PostgreSQL)
 DATABASE_URL=postgresql+asyncpg://usuario:password@192.168.100.112:5432/nombre_db
+
+# Migración desde SQL Server (run_migration.py) - opcional
+# SQL_SERVER=DELL_RL\SQLEXPRESS
+# SQL_DATABASE=Automotores
+# SQL_TRUSTED_CONNECTION=yes
+# SQL_USER=
+# SQL_PASSWORD=
 
 # Configuración de seguridad
 SECRET_KEY=tu_clave_secreta_muy_segura_aqui_cambiala_en_produccion

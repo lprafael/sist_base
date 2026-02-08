@@ -12,6 +12,7 @@ const GastosVehiculo = () => {
     const [showTypesModal, setShowTypesModal] = useState(false);
     const [costoResumen, setCostoResumen] = useState(null);
     const [newType, setNewType] = useState({ nombre: '', descripcion: '' });
+    const [editingGasto, setEditingGasto] = useState(null);
 
     const [newGasto, setNewGasto] = useState({
         id_producto: '',
@@ -68,10 +69,19 @@ const GastosVehiculo = () => {
         try {
             const token = localStorage.getItem('token');
             const payload = { ...newGasto, id_producto: selectedVehiculo.id_producto };
-            await axios.post(`${API_URL}/playa/gastos`, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+
+            if (editingGasto) {
+                await axios.put(`${API_URL}/playa/gastos/${editingGasto.id_gasto_producto}`, payload, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${API_URL}/playa/gastos`, payload, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+
             setShowModal(false);
+            setEditingGasto(null);
             handleSelectVehiculo(selectedVehiculo); // Refresh
             setNewGasto({
                 id_producto: '',
@@ -83,8 +93,49 @@ const GastosVehiculo = () => {
                 numero_factura: ''
             });
         } catch (error) {
-            alert('Error al registrar gasto: ' + (error.response?.data?.detail || error.message));
+            alert('Error al guardar gasto: ' + (error.response?.data?.detail || error.message));
         }
+    };
+
+    const handleEditGasto = (gasto) => {
+        setEditingGasto(gasto);
+        setNewGasto({
+            id_producto: gasto.id_producto,
+            id_tipo_gasto: gasto.id_tipo_gasto,
+            descripcion: gasto.descripcion || '',
+            monto: gasto.monto,
+            fecha_gasto: gasto.fecha_gasto,
+            proveedor: gasto.proveedor || '',
+            numero_factura: gasto.numero_factura || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleDeleteGasto = async (id) => {
+        if (!confirm('¿Está seguro de eliminar este gasto?')) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API_URL}/playa/gastos/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            handleSelectVehiculo(selectedVehiculo); // Refresh
+        } catch (error) {
+            alert('Error: ' + (error.response?.data?.detail || error.message));
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setEditingGasto(null);
+        setNewGasto({
+            id_producto: '',
+            id_tipo_gasto: '',
+            descripcion: '',
+            monto: '',
+            fecha_gasto: new Date().toISOString().split('T')[0],
+            proveedor: '',
+            numero_factura: ''
+        });
     };
 
     const handleCreateType = async (e) => {
@@ -169,6 +220,7 @@ const GastosVehiculo = () => {
                                             <th>Descripción</th>
                                             <th>Proveedor</th>
                                             <th>Monto</th>
+                                            <th>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -181,6 +233,10 @@ const GastosVehiculo = () => {
                                                 <td>{g.descripcion}</td>
                                                 <td>{g.proveedor}</td>
                                                 <td className="monto-cell">Gs. {Math.round(parseFloat(g.monto)).toLocaleString('es-PY')}</td>
+                                                <td className="actions-cell">
+                                                    <button className="btn-edit" onClick={() => handleEditGasto(g)} title="Editar">✏️</button>
+                                                    <button className="btn-delete" onClick={() => handleDeleteGasto(g.id_gasto_producto)} title="Eliminar">🗑️</button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -194,7 +250,7 @@ const GastosVehiculo = () => {
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>Registrar Gasto del Vehículo</h3>
+                        <h3>{editingGasto ? 'Editar Gasto del Vehículo' : 'Registrar Gasto del Vehículo'}</h3>
                         <form onSubmit={handleSaveGasto}>
                             <div className="form-group">
                                 <label style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -235,8 +291,8 @@ const GastosVehiculo = () => {
                                 </div>
                             </div>
                             <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
-                                <button type="submit" className="btn-save">Registrar Gasto</button>
+                                <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
+                                <button type="submit" className="btn-save">{editingGasto ? 'Actualizar Gasto' : 'Registrar Gasto'}</button>
                             </div>
                         </form>
                     </div>

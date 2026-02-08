@@ -61,6 +61,12 @@ body {
   gap: 16px;
 }
 
+.header-logo {
+  height: 45px;
+  width: auto;
+  object-fit: contain;
+}
+
 .header-title h1 {
   font-size: 1.25rem;
   font-weight: 700;
@@ -478,4 +484,212 @@ tr:hover {
 
 .fade-in {
   animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - MEDIA QUERIES
+   ============================================ */
+
+/* Tablet y pantallas medianas (hasta 1024px) */
+@media (max-width: 1024px) {
+  .main-content {
+    padding: 24px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  th, td {
+    padding: 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Tablets (hasta 768px) */
+@media (max-width: 768px) {
+  :root {
+    --header-height: 60px;
+    --sidebar-width: 260px;
+  }
+
+  .main-header {
+    padding: 0 16px;
+    height: var(--header-height);
+  }
+
+  .header-logo {
+    height: 35px;
+  }
+
+  .header-title h1 {
+    font-size: 1rem;
+  }
+
+  .header-user-info {
+    gap: 12px;
+  }
+
+  .user-details {
+    display: none;
+  }
+
+  .logout-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .main-content {
+    padding: 16px;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    z-index: 99;
+    transform: translateX(-100%);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+
+  .content-wrapper {
+    position: relative;
+  }
+
+  .main-content {
+    width: 100%;
+  }
+
+  .card {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  table {
+    font-size: 0.85rem;
+  }
+
+  th, td {
+    padding: 10px 8px;
+    font-size: 0.8rem;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Móviles (hasta 480px) */
+@media (max-width: 480px) {
+  :root {
+    --header-height: 56px;
+  }
+
+  .main-header {
+    padding: 0 12px;
+  }
+
+  .header-logo {
+    height: 28px;
+  }
+
+  .header-title h1 {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  .menu-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  .logo-container img {
+    height: 32px !important;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+
+  .card {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  /* Tablas responsive en móviles */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  th, td {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .actions-cell {
+    gap: 4px;
+  }
+
+  .action-btn {
+    padding: 4px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Overlay para móviles cuando el sidebar está abierto */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 98;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+}
+
+@media (min-width: 769px) {
+  .sidebar-overlay {
+    display: none !important;
+  }
 }

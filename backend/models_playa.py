@@ -2,13 +2,28 @@
 # Modelos de base de datos para el sistema de Playa de Vehículos
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, DECIMAL
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, foreign # Added foreign
 from sqlalchemy.sql import func
 from datetime import datetime
 from models import Base
 
 # Schema para la playa
 PLAYA_SCHEMA = 'playa'
+
+class Vendedor(Base):
+    __tablename__ = "vendedores"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+
+    id_vendedor = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), nullable=False)
+    apellido = Column(String(100), nullable=False)
+    telefono = Column(String(50))
+    email = Column(String(100))
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+
+    # Relaciones
+    ventas = relationship("Venta", back_populates="vendedor_rel")
 
 class CategoriaVehiculo(Base):
     __tablename__ = "categorias_vehiculos"
@@ -44,8 +59,10 @@ class Producto(Base):
     procedencia = Column(String(100))
     ubicacion_actual = Column(String(200))
     costo_base = Column(DECIMAL(15, 2), nullable=False)
-    precio_venta_sugerido = Column(DECIMAL(15, 2))
+    precio_contado_sugerido = Column(DECIMAL(15, 2))
+    precio_financiado_sugerido = Column(DECIMAL(15, 2))
     precio_venta_minimo = Column(DECIMAL(15, 2))
+    entrega_inicial_sugerida = Column(DECIMAL(15, 2))
     estado_disponibilidad = Column(String(50), default='DISPONIBLE')
     observaciones = Column(Text)
     fecha_ingreso = Column(Date, default=func.current_date())
@@ -79,8 +96,12 @@ class Cliente(Base):
     profesion = Column(String(100))
     lugar_trabajo = Column(String(200))
     telefono_trabajo = Column(String(50))
+    antiguedad_laboral = Column(String(20))
+    direccion_laboral = Column(Text)
     ingreso_mensual = Column(DECIMAL(15, 2))
     calificacion_actual = Column(String(20), default='NUEVO')
+    fecha_calificacion = Column(Date)
+    mora_acumulada = Column(DECIMAL(15, 2), default=0)
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
     activo = Column(Boolean, default=True)
@@ -90,6 +111,29 @@ class Cliente(Base):
     documentos_inforconf = relationship("DocumentoInforconf", back_populates="cliente")
     ventas = relationship("Venta", back_populates="cliente")
     historial_calificaciones = relationship("HistorialCalificacion", back_populates="cliente")
+    ubicaciones = relationship("UbicacionCliente", back_populates="cliente")
+    # Referencias propias del cliente
+    referencias = relationship("Referencia", 
+        primaryjoin="and_(Cliente.id_cliente==foreign(Referencia.id_cliente), Referencia.tipo_entidad=='CLIENTE')",
+        viewonly=True,
+        overlaps="cliente")
+
+class UbicacionCliente(Base):
+    __tablename__ = "ubicaciones_cliente"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_ubicacion = Column(Integer, primary_key=True, index=True)
+    id_cliente = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.clientes.id_cliente'))
+    nombre_lugar = Column(String(100), nullable=False) # Casa, Trabajo, Referencia, etc.
+    tipo_ubicacion = Column(String(20)) # CASA, TRABAJO, OTRO
+    latitud = Column(DECIMAL(10, 8))
+    longitud = Column(DECIMAL(11, 8))
+    direccion_texto = Column(Text)
+    referencia = Column(Text)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    cliente = relationship("Cliente", back_populates="ubicaciones")
 
 class Gante(Base):
     __tablename__ = "garantes"
@@ -107,9 +151,12 @@ class Gante(Base):
     email = Column(String(100))
     direccion = Column(Text)
     ciudad = Column(String(100))
+    estado_civil = Column(String(50))
     relacion_cliente = Column(String(100))
     lugar_trabajo = Column(String(200))
     telefono_trabajo = Column(String(50))
+    antiguedad_laboral = Column(String(20))
+    direccion_laboral = Column(Text)
     ingreso_mensual = Column(DECIMAL(15, 2))
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
@@ -117,6 +164,10 @@ class Gante(Base):
     
     # Relaciones
     cliente = relationship("Cliente", back_populates="garantes")
+    # Referencias propias del garante
+    referencias = relationship("Referencia", 
+        primaryjoin="and_(Gante.id_garante==foreign(Referencia.id_cliente), Referencia.tipo_entidad=='GARANTE')",
+        viewonly=True)
 
 class DocumentoInforconf(Base):
     __tablename__ = "documentos_inforconf"
@@ -220,9 +271,16 @@ class Venta(Base):
     tiene_refuerzos = Column(Boolean, default=False)
     periodicidad_refuerzos = Column(String(50))
     monto_refuerzo = Column(DECIMAL(15, 2))
+    cantidad_refuerzos = Column(Integer, default=0)
+    
+    # Configuración de Mora
+    periodo_int_mora = Column(String(1)) # D, S, M, A (Diario, Semanal, Mensual, Anual)
+    monto_int_mora = Column(DECIMAL(15, 2), default=0)
+    dias_gracia = Column(Integer, default=0)
     
     estado_venta = Column(String(50), default='ACTIVA')
-    vendedor = Column(String(200))
+    vendedor = Column(String(200)) # Legacy / String representation
+    id_vendedor = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.vendedores.id_vendedor'), nullable=True) # New Relation
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
     
@@ -234,6 +292,23 @@ class Venta(Base):
     pagos = relationship("Pago", back_populates="venta")
     historial_calificaciones = relationship("HistorialCalificacion", back_populates="venta")
     refuerzos = relationship("Refuerzo", back_populates="venta")
+    detalles = relationship("DetalleVenta", back_populates="venta", cascade="all, delete-orphan")
+    vendedor_rel = relationship("Vendedor", back_populates="ventas")
+
+class DetalleVenta(Base):
+    __tablename__ = "detalle_venta"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_detalle_venta = Column(Integer, primary_key=True, index=True)
+    id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta', ondelete='CASCADE'))
+    concepto = Column(String(100), nullable=False) # 'Entrega Inicial', 'Cuotas', 'Refuerzos'
+    monto_unitario = Column(DECIMAL(15, 2), nullable=False)
+    cantidad = Column(Integer, default=1)
+    subtotal = Column(DECIMAL(15, 2), nullable=False)
+    observaciones = Column(Text)
+    
+    # Relaciones
+    venta = relationship("Venta", back_populates="detalles")
 
 class ContratoVenta(Base):
     __tablename__ = "contratos_venta"
@@ -314,6 +389,25 @@ class HistorialCalificacion(Base):
     cliente = relationship("Cliente", back_populates="historial_calificaciones")
     venta = relationship("Venta", back_populates="historial_calificaciones")
     pago = relationship("Pago", back_populates="historial_calificaciones")
+
+class Referencia(Base):
+    __tablename__ = "referencias"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_referencia = Column(Integer, primary_key=True, index=True)
+    id_cliente = Column(Integer) # Ya no es un ForeignKey formal a nivel de modelo para permitir polimorfismo
+    tipo_entidad = Column(String(20), nullable=False) # CLIENTE, GARANTE
+    tipo_referencia = Column(String(20), nullable=False) # PERSONAL, LABORAL
+    nombre = Column(String(150), nullable=False)
+    telefono = Column(String(100))
+    parentesco_cargo = Column(String(150))
+    observaciones = Column(Text)
+    fecha_registro = Column(DateTime, default=func.now())
+    activo = Column(Boolean, default=True)
+    
+    cliente = relationship("Cliente", 
+        primaryjoin="and_(foreign(Referencia.id_cliente)==Cliente.id_cliente, Referencia.tipo_entidad=='CLIENTE')",
+        back_populates="referencias")
 
 class ConfigCalificacion(Base):
     __tablename__ = "config_calificaciones"
