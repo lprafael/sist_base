@@ -217,19 +217,24 @@
     .mora-summary-badges {
         margin-bottom: 15px;
     }
+
     .summary-badge {
         padding: 10px;
         border: 1px solid #e2e8f0;
         background: white !important;
         color: black !important;
     }
-    .summary-badge .label, .summary-badge .value {
+
+    .summary-badge .label,
+    .summary-badge .value {
         color: black !important;
     }
+
     .reporte-table.compact th,
     .reporte-table.compact td {
         padding: 5px 8px;
     }
+
     .mora-section {
         page-break-inside: avoid;
     }
@@ -276,10 +281,76 @@
     .content-wrapper,
     .main-content,
     .app-container {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        position: static !important;
+    }
+
+    /* Asegurar que el contenedor no limite el flujo */
+    #root,
+    .app-layout {
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        display: block !important;
+    }
+}
+
+.date-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    padding: 5px 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.date-filter label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.date-input {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    outline: none;
+}
+
+.date-input:focus {
+    border-color: #4f46e5;
+    ring: 2px solid rgba(79, 70, 229, 0.2);
+}
+
+.only-print {
+    display: none;
+}
+
+@media print {
+    .only-print {
         display: block;
-        padding: 0;
-        margin: 0;
-        height: auto;
-        overflow: visible;
+    }
+
+    .reporte-table {
+        page-break-inside: auto;
+    }
+
+    .reporte-table tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    .mora-section {
+        page-break-before: auto;
+        page-break-after: auto;
+        page-break-inside: avoid;
     }
 }

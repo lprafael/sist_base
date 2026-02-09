@@ -6,6 +6,7 @@ const ReportesPlaya = () => {
     const [reporteSeleccionado, setReporteSeleccionado] = useState('clientes_mora');
     const [datos, setDatos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [fechaEmision, setFechaEmision] = useState(new Date().toISOString().split('T')[0]);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
@@ -88,9 +89,18 @@ const ReportesPlaya = () => {
                 </div>
                 <div className="reportes-actions">
                     {reporteSeleccionado === 'clientes_mora' && (
-                        <button className="btn-refresh" onClick={handleRecalculate} disabled={loading}>
-                            🔄 Actualizar datos
-                        </button>
+                        <div className="date-filter">
+                            <label>Fecha de Análisis:</label>
+                            <input
+                                type="date"
+                                value={fechaEmision}
+                                onChange={(e) => setFechaEmision(e.target.value)}
+                                className="date-input"
+                            />
+                            <button className="btn-refresh" onClick={handleRecalculate} disabled={loading}>
+                                🔄 Actualizar
+                            </button>
+                        </div>
                     )}
                     <button className="btn-print" onClick={handlePrint} disabled={loading}>
                         🖨️ Imprimir Reporte
@@ -102,7 +112,8 @@ const ReportesPlaya = () => {
                 <div className="print-header">
                     <h1>Peralta Automotores</h1>
                     <h2>{reporteSeleccionado === 'clientes_mora' ? 'Reporte de Clientes en Mora' : 'Reporte de Stock Disponible'}</h2>
-                    <p>Fecha de emisión: {new Date().toLocaleDateString('es-PY')}</p>
+                    <p>Fecha de referencia: {new Date(fechaEmision + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                    <p className="only-print" style={{ fontSize: '10px', marginTop: '5px' }}>Generado el: {new Date().toLocaleString('es-PY')}</p>
                 </div>
 
                 {loading ? (
