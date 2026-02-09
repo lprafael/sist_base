@@ -15,8 +15,8 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      # Montar el código para desarrollo (opcional, comentar en producción)
-      # - ./backend:/app
+      # Montar el código para desarrollo (Hot-Reload de backend)
+      - ./backend:/app
       - ./backend/logs:/app/logs
     restart: unless-stopped
     networks:
