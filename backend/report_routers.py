@@ -38,10 +38,11 @@ class CuotaMoraDetalle(BaseModel):
     cliente_telefono: Optional[str] = None
     id_venta: int
     numero_cuota: int
+    cantidad_cuotas_total: int # Para el formato 12/24
     fecha_vencimiento: date
     monto_cuota: float
     saldo_pendiente: float
-    saldo_total_venta: float # Saldo acumulado de la venta (para el formato solicitado)
+    saldo_total_venta: float # Saldo dinámico descendente
     dias_mora: int
     interes_mora: float
     total_pago: float
@@ -143,65 +144,96 @@ async def get_cuotas_mora_detalle(
     date_from = desde or date(2020, 1, 1)
     date_to = hasta or date.today()
     
-    # Query para todas las cuotas vencidas
-    query = (
+    # 1. Obtener los IDs de las ventas que tienen mora en este rango
+    ventas_con_mora_res = await session.execute(
+        select(Pagare.id_venta)
+        .where(Pagare.estado != 'PAGADO')
+        .where(Pagare.fecha_vencimiento >= date_from)
+        .where(Pagare.fecha_vencimiento <= date_to)
+        .distinct()
+    )
+    ventas_ids = [v[0] for v in ventas_con_mora_res.all()]
+    
+    if not ventas_ids:
+        return []
+
+    # 2. Traer TODAS las cuotas pendientes de esas ventas para calcular el saldo real
+    # Join con Venta para obtener cantidad_cuotas total
+    query_all_pending = (
         select(
+            Pagare.id_venta,
+            Pagare.numero_cuota,
+            Pagare.monto_cuota,
+            Pagare.saldo_pendiente,
+            Pagare.fecha_vencimiento,
+            Pagare.estado,
+            Venta.cantidad_cuotas.label('total_cuotas'),
+            Venta.monto_int_mora.label('tasa_config'),
             Cliente.id_cliente,
             Cliente.nombre,
             Cliente.apellido,
             Cliente.numero_documento.label('ruc'),
-            Cliente.telefono,
-            Pagare.id_venta,
-            Pagare.numero_cuota,
-            Pagare.fecha_vencimiento,
-            Pagare.monto_cuota,
-            Pagare.saldo_pendiente,
-            Venta.monto_int_mora.label('tasa_config') # Usar columna existente
+            Cliente.telefono
         )
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
+        .where(Pagare.id_venta.in_(ventas_ids))
         .where(Pagare.estado != 'PAGADO')
-        .where(Pagare.fecha_vencimiento >= date_from)
-        .where(Pagare.fecha_vencimiento <= date_to)
         .order_by(Cliente.nombre, Cliente.apellido, Pagare.id_venta, Pagare.numero_cuota)
     )
     
-    result = await session.execute(query)
-    rows = result.all()
+    result = await session.execute(query_all_pending)
+    all_pending_rows = result.all()
     
-    # Calcular saldos acumulados por venta
-    reporte = []
-    ventas_saldos = {}
-    
-    for row in rows:
+    # Organizar por venta
+    ventas_data = {}
+    for row in all_pending_rows:
         vid = row.id_venta
-        if vid not in ventas_saldos:
-            ventas_saldos[vid] = 0
-        ventas_saldos[vid] += float(row.saldo_pendiente)
-
-    for row in rows:
-        dias_mora = (date_to - row.fecha_vencimiento).days
-        # Lógica de interés basada en el monto_int_mora configurado o cálculo base
-        # Usamos una tasa base si el monto_int_mora es 0
-        tasa_uso = float(row.tasa_config) if row.tasa_config and float(row.tasa_config) > 0 else 0.0005 # 0.05% diario default
-        interes = float(row.saldo_pendiente) * (dias_mora * tasa_uso)
+        if vid not in ventas_data:
+            ventas_data[vid] = []
+        ventas_data[vid].append(row)
+    
+    reporte = []
+    for vid in ventas_data:
+        rows_venta = ventas_data[vid]
+        # Calcular el saldo total inicial de la venta (suma de todos los pendientes)
+        saldo_total_inicial = sum(float(r.saldo_pendiente) for r in rows_venta)
         
-        reporte.append({
-            "cliente_id": row.id_cliente,
-            "cliente_nombre": f"{row.nombre} {row.apellido}",
-            "cliente_ruc": row.ruc,
-            "cliente_telefono": row.telefono,
-            "id_venta": row.id_venta,
-            "numero_cuota": row.numero_cuota,
-            "fecha_vencimiento": row.fecha_vencimiento,
-            "monto_cuota": float(row.monto_cuota),
-            "saldo_pendiente": float(row.saldo_pendiente),
-            "saldo_total_venta": float(ventas_saldos[row.id_venta]),
-            "dias_mora": dias_mora,
-            "interes_mora": interes,
-            "total_pago": float(row.saldo_pendiente) + interes
-        })
+        running_balance = saldo_total_inicial
         
+        for row in rows_venta:
+            # Solo incluimos en el reporte las que están en mora según el rango
+            is_in_mora = (row.fecha_vencimiento >= date_from and row.fecha_vencimiento <= date_to)
+            
+            # El saldo actual para esta fila es el balance antes de pagar esta cuota
+            current_row_balance = running_balance
+            
+            # Restamos el saldo de esta cuota para la siguiente fila
+            running_balance -= float(row.saldo_pendiente)
+            
+            if is_in_mora:
+                dias_mora = (date_to - row.fecha_vencimiento).days
+                tasa_uso = float(row.tasa_config) if row.tasa_config and float(row.tasa_config) > 0 else 0.0005
+                interes = float(row.saldo_pendiente) * (dias_mora * tasa_uso)
+                
+                reporte.append({
+                    "cliente_id": row.id_cliente,
+                    "cliente_nombre": f"{row.nombre} {row.apellido}",
+                    "cliente_ruc": row.ruc,
+                    "cliente_telefono": row.telefono,
+                    "id_venta": row.id_venta,
+                    "numero_cuota": row.numero_cuota,
+                    "cantidad_cuotas_total": row.total_cuotas,
+                    "fecha_vencimiento": row.fecha_vencimiento,
+                    "monto_cuota": float(row.monto_cuota),
+                    "saldo_pendiente": float(row.saldo_pendiente),
+                    "saldo_total_venta": current_row_balance,
+                    "dias_mora": dias_mora,
+                    "interes_mora": interes,
+                    "total_pago": float(row.saldo_pendiente) + interes
+                })
+        
+    # Reordenar el reporte final si es necesario (ya viene medio ordenado por el loop)
     return reporte
 @router.post("/playa/reportes/recalcular-mora")
 async def recalcular_mora_clientes(

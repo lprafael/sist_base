@@ -214,7 +214,7 @@ const ReportesPlaya = () => {
                                         <tr key={index}>
                                             <td>{row.cliente_nombre}</td>
                                             <td>{row.cliente_ruc}</td>
-                                            <td style={{ textAlign: 'center' }}>{row.numero_cuota}</td>
+                                            <td style={{ textAlign: 'center' }}>{row.numero_cuota}/{row.cantidad_cuotas_total}</td>
                                             <td style={{ textAlign: 'center' }}>{new Date(row.fecha_vencimiento).toLocaleDateString('es-PY')}</td>
                                             <td style={{ textAlign: 'right' }}>{Math.round(row.saldo_total_venta).toLocaleString('es-PY')}</td>
                                             <td style={{ textAlign: 'right' }}>{Math.round(row.monto_cuota).toLocaleString('es-PY')}</td>
