@@ -10,6 +10,7 @@ const ReportesPlaya = () => {
     const [loading, setLoading] = useState(false);
     const [fechaDesde, setFechaDesde] = useState('2020-01-01');
     const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
+    const [ordenMora, setOrdenMora] = useState('cliente'); // 'cliente' o 'dias_mora'
     const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -29,7 +30,7 @@ const ReportesPlaya = () => {
         } else if (reporteSeleccionado === 'ventas') {
             fetchVentas();
         }
-    }, [reporteSeleccionado]);
+    }, [reporteSeleccionado, ordenMora]);
 
     const fetchVentas = async () => {
         setLoading(true);
@@ -72,7 +73,7 @@ const ReportesPlaya = () => {
             setDatos(resSummary.data);
 
             // Fetch detailed for Print/Detailed View
-            const resDetail = await axios.get(`${API_URL}/playa/reportes/cuotas-mora-detalle?desde=${fechaDesde}&hasta=${fechaHasta}`, {
+            const resDetail = await axios.get(`${API_URL}/playa/reportes/cuotas-mora-detalle?desde=${fechaDesde}&hasta=${fechaHasta}&orden=${ordenMora}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setDatosDetallados(resDetail.data);
@@ -152,6 +153,34 @@ const ReportesPlaya = () => {
                             <button className="btn-refresh" onClick={handleRecalculate} disabled={loading}>
                                 🔄 Actualizar
                             </button>
+                        </div>
+                    )}
+
+                    {reporteSeleccionado === 'clientes_mora' && (
+                        <div className="order-filter no-print">
+                            <span className="order-label">Ordenar por:</span>
+                            <div className="radio-group">
+                                <label className={`radio-btn ${ordenMora === 'cliente' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="ordenMora"
+                                        value="cliente"
+                                        checked={ordenMora === 'cliente'}
+                                        onChange={(e) => setOrdenMora(e.target.value)}
+                                    />
+                                    Cliente
+                                </label>
+                                <label className={`radio-btn ${ordenMora === 'dias_mora' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="ordenMora"
+                                        value="dias_mora"
+                                        checked={ordenMora === 'dias_mora'}
+                                        onChange={(e) => setOrdenMora(e.target.value)}
+                                    />
+                                    Días atraso
+                                </label>
+                            </div>
                         </div>
                     )}
                     <button className="btn-print" onClick={handlePrint} disabled={loading}>
@@ -269,7 +298,7 @@ const ReportesPlaya = () => {
                     <table className="reporte-table formal-table">
                         <thead>
                             <tr>
-                                <th>Nº. Pago</th>
+                                <th>Método de venta</th>
                                 <th>Fecha</th>
                                 <th>Código</th>
                                 <th>Descripción</th>

@@ -210,6 +210,7 @@ async def get_clientes_en_mora(
 async def get_cuotas_mora_detalle(
     desde: Optional[date] = Query(None),
     hasta: Optional[date] = Query(None),
+    orden: str = Query('cliente'), # 'cliente' o 'dias_mora'
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
@@ -232,8 +233,15 @@ async def get_cuotas_mora_detalle(
     if not ventas_ids:
         return []
 
-    # 2. Traer TODAS las cuotas pendientes de esas ventas para calcular el saldo real
-    # Join con Venta para obtener cantidad_cuotas total
+    # 2. Traer TODAS las cuotas pendientes de esas ventas
+    order_criteria = []
+    if orden == 'dias_mora':
+        # Ordenar por fecha de vencimiento más antigua (más días de mora)
+        order_criteria = [Pagare.fecha_vencimiento.asc(), Cliente.nombre.asc(), Pagare.numero_cuota.asc()]
+    else:
+        # Por defecto: Cliente (Alfabético)
+        order_criteria = [Cliente.nombre.asc(), Cliente.apellido.asc(), Pagare.id_venta.asc(), Pagare.numero_cuota.asc()]
+
     query_all_pending = (
         select(
             Pagare.id_venta,
@@ -254,7 +262,7 @@ async def get_cuotas_mora_detalle(
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .where(Pagare.id_venta.in_(ventas_ids))
         .where(Pagare.estado != 'PAGADO')
-        .order_by(Cliente.nombre, Cliente.apellido, Pagare.id_venta, Pagare.numero_cuota)
+        .order_by(*order_criteria)
     )
     
     result = await session.execute(query_all_pending)

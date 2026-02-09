@@ -489,3 +489,61 @@
         page-break-inside: avoid;
     }
 }
+
+/* Estilos para el Ordenador de Mora */
+.order-filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 10px;
+    padding-left: 15px;
+    border-left: 1px solid #e2e8f0;
+}
+
+.order-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.radio-group {
+    display: flex;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 6px;
+}
+
+.radio-btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+.radio-btn input {
+    display: none;
+}
+
+.radio-btn:hover {
+    color: #475569;
+    background: #e2e8f0;
+}
+
+.radio-btn.selected {
+    background: white;
+    color: #4f46e5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+@media print {
+    .order-filter {
+        display: none !important;
+    }
+}
