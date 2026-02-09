@@ -13,7 +13,8 @@ from models_playa import (
     Cliente,
     Producto,
     Pagare,
-    ConfigCalificacion
+    ConfigCalificacion,
+    Vendedor
 )
 from security import get_current_user
 
@@ -47,14 +48,27 @@ class CuotaMoraDetalle(BaseModel):
     interes_mora: float
     total_pago: float
 
+class VentaReporteResponse(BaseModel):
+    id_venta: int
+    numero_venta: str
+    fecha_venta: date
+    tipo_venta: str
+    vehiculo_descripcion: str
+    chasis: Optional[str] = None
+    cliente_nombre: str
+    precio_final: float
+    entrega_inicial: float
+    vendedor_nombre: Optional[str] = None
+    comision: float = 0
+
 class StockDisponibleResponse(BaseModel):
-    # (Existing StockDisponibleResponse schema remains same)
     id_producto: int
-    marca: Optional[str] = None
-    modelo: Optional[str] = None
+    marca: str
+    modelo: str
     año: Optional[int] = None
     color: Optional[str] = None
     chasis: Optional[str] = None
+    motor: Optional[str] = None
     precio_contado_sugerido: Optional[float] = None
     precio_financiado_sugerido: Optional[float] = None
     entrega_inicial_sugerida: Optional[float] = None
@@ -62,6 +76,67 @@ class StockDisponibleResponse(BaseModel):
     dias_en_stock: int
 
 # --- Endpoints ---
+
+@router.get("/playa/reportes/ventas", response_model=List[VentaReporteResponse])
+async def get_reporte_ventas(
+    desde: Optional[date] = Query(None),
+    hasta: Optional[date] = Query(None),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Obtiene el listado de ventas realizadas en un rango determinado.
+    """
+    date_from = desde or date(2020, 1, 1)
+    date_to = hasta or date.today()
+    
+    query = (
+        select(
+            Venta.id_venta,
+            Venta.numero_venta,
+            Venta.fecha_venta,
+            Venta.tipo_venta,
+            Venta.precio_final,
+            Venta.entrega_inicial,
+            Producto.marca,
+            Producto.modelo,
+            Producto.año,
+            Producto.chasis,
+            Producto.color,
+            Producto.motor,
+            Cliente.nombre,
+            Cliente.apellido,
+            Vendedor.nombre.label('vend_nom'),
+            Vendedor.apellido.label('vend_ape')
+        )
+        .join(Producto, Venta.id_producto == Producto.id_producto)
+        .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
+        .outerjoin(Vendedor, Venta.id_vendedor == Vendedor.id_vendedor)
+        .where(Venta.fecha_venta >= date_from)
+        .where(Venta.fecha_venta <= date_to)
+        .order_by(Venta.fecha_venta.desc())
+    )
+    
+    result = await session.execute(query)
+    rows = result.all()
+    
+    reporte = []
+    for r in rows:
+        reporte.append({
+            "id_venta": r.id_venta,
+            "numero_venta": r.numero_venta,
+            "fecha_venta": r.fecha_venta,
+            "tipo_venta": r.tipo_venta,
+            "vehiculo_descripcion": f"{r.marca} {r.modelo} Color: {r.color or ''} Año: {r.año or ''} Motor: {r.motor or ''}",
+            "chasis": r.chasis,
+            "cliente_nombre": f"{r.nombre} {r.apellido}",
+            "precio_final": float(r.precio_final),
+            "entrega_inicial": float(r.entrega_inicial or 0),
+            "vendedor_nombre": f"{r.vend_nom} {r.vend_ape}" if r.vend_nom else "Sin asignar",
+            "comision": 0 # TODO: Implementar lógica de comisión si existe
+        })
+        
+    return reporte
 
 @router.get("/playa/reportes/clientes-mora", response_model=List[ClienteMoraResponse])
 async def get_clientes_en_mora(

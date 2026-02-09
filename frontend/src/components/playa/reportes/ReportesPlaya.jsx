@@ -6,6 +6,7 @@ const ReportesPlaya = () => {
     const [reporteSeleccionado, setReporteSeleccionado] = useState('clientes_mora');
     const [datos, setDatos] = useState([]);
     const [datosDetallados, setDatosDetallados] = useState([]);
+    const [datosVentas, setDatosVentas] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fechaDesde, setFechaDesde] = useState('2020-01-01');
     const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
@@ -25,8 +26,25 @@ const ReportesPlaya = () => {
             fetchClientesEnMora();
         } else if (reporteSeleccionado === 'stock_disponible') {
             fetchStockDisponible();
+        } else if (reporteSeleccionado === 'ventas') {
+            fetchVentas();
         }
     }, [reporteSeleccionado]);
+
+    const fetchVentas = async () => {
+        setLoading(true);
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/reportes/ventas?desde=${fechaDesde}&hasta=${fechaHasta}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDatosVentas(res.data);
+        } catch (error) {
+            console.error('Error fetching sales report:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchStockDisponible = async () => {
         setLoading(true);
@@ -103,9 +121,15 @@ const ReportesPlaya = () => {
                     >
                         🚗 Stock Disponible
                     </button>
+                    <button
+                        className={`tab-btn ${reporteSeleccionado === 'ventas' ? 'active' : ''}`}
+                        onClick={() => setReporteSeleccionado('ventas')}
+                    >
+                        💰 Listado Ventas
+                    </button>
                 </div>
                 <div className="reportes-actions">
-                    {reporteSeleccionado === 'clientes_mora' && (
+                    {(reporteSeleccionado === 'clientes_mora' || reporteSeleccionado === 'ventas') && (
                         <div className="date-filter">
                             <div className="filter-group">
                                 <label>Desde:</label>
@@ -158,6 +182,10 @@ const ReportesPlaya = () => {
                         {reporteSeleccionado === 'clientes_mora' ? (
                             <>
                                 Listado Cuotas a Cobrar desde Fecha: <span className="date-field">{new Date(fechaDesde + 'T12:00:00').toLocaleDateString('es-PY')}</span> hasta: <span className="date-field">{new Date(fechaHasta + 'T12:00:00').toLocaleDateString('es-PY')}</span>
+                            </>
+                        ) : reporteSeleccionado === 'ventas' ? (
+                            <>
+                                Listado Ventas {new Date(fechaDesde + 'T12:00:00').toLocaleDateString('es-PY')} al {new Date(fechaHasta + 'T12:00:00').toLocaleDateString('es-PY')}
                             </>
                         ) : (
                             'Listado de Vehículos Disponibles en Stock'
@@ -237,18 +265,55 @@ const ReportesPlaya = () => {
                             </tbody>
                         </table>
                     </div>
-                ) : (
-                    <table className="reporte-table">
+                ) : reporteSeleccionado === 'ventas' ? (
+                    <table className="reporte-table formal-table">
                         <thead>
                             <tr>
-                                <th>Vehículo</th>
-                                <th>Chasis</th>
-                                <th>Color</th>
-                                <th>Ubicación</th>
-                                <th>Días en Stock</th>
-                                <th>Precio Contado</th>
-                                <th>Precio Financiado</th>
-                                <th style={{ background: '#fef3c7' }}>Entrega Inicial</th>
+                                <th>Nº. Pago</th>
+                                <th>Fecha</th>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th>Cliente</th>
+                                <th style={{ textAlign: 'right' }}>Gs. Entrega</th>
+                                <th style={{ textAlign: 'right' }}>Total Venta</th>
+                                <th style={{ textAlign: 'right' }}>Comision</th>
+                                <th>Vendedor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {datosVentas.length > 0 ? (
+                                datosVentas.map((row, index) => (
+                                    <tr key={index}>
+                                        <td>{row.tipo_venta}</td>
+                                        <td>{new Date(row.fecha_venta + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
+                                        <td>{row.numero_venta}</td>
+                                        <td style={{ fontSize: '0.8em' }}>{row.vehiculo_descripcion}</td>
+                                        <td>{row.cliente_nombre}</td>
+                                        <td style={{ textAlign: 'right' }}>{Math.round(row.entrega_inicial).toLocaleString('es-PY')}</td>
+                                        <td style={{ textAlign: 'right' }}>{Math.round(row.precio_final).toLocaleString('es-PY')}</td>
+                                        <td style={{ textAlign: 'right' }}>{Math.round(row.comision).toLocaleString('es-PY')}</td>
+                                        <td>{row.vendedor_nombre}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No hay ventas en este rango.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                ) : (
+                    <table className="reporte-table formal-table">
+                        <thead>
+                            <tr>
+                                <th>VEHÍCULO</th>
+                                <th>CHASIS</th>
+                                <th>COLOR</th>
+                                <th>UBICACIÓN</th>
+                                <th style={{ textAlign: 'center' }}>DÍAS EN STOCK</th>
+                                <th style={{ textAlign: 'right' }}>PRECIO CONTADO</th>
+                                <th style={{ textAlign: 'right' }}>PRECIO FINANCIADO</th>
+                                <th style={{ background: '#fef3c7', textAlign: 'right' }}>ENTREGA INICIAL</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -257,7 +322,7 @@ const ReportesPlaya = () => {
                                     <tr key={index}>
                                         <td>
                                             <strong>{row.marca} {row.modelo}</strong><br />
-                                            <span style={{ fontSize: '0.85em', color: '#666' }}>Año: {row.año}</span>
+                                            <span style={{ fontSize: '0.80em', color: '#000' }}>Año: {row.año} {row.motor ? `Motor: ${row.motor}` : ''}</span>
                                         </td>
                                         <td style={{ fontFamily: 'monospace' }}>{row.chasis || '-'}</td>
                                         <td>{row.color || '-'}</td>
@@ -265,17 +330,17 @@ const ReportesPlaya = () => {
                                         <td style={{ textAlign: 'center' }}>{row.dias_en_stock ?? '-'}</td>
                                         <td style={{ textAlign: 'right' }}>
                                             {row.precio_contado_sugerido && !isNaN(row.precio_contado_sugerido)
-                                                ? `Gs. ${Math.round(parseFloat(row.precio_contado_sugerido)).toLocaleString('es-PY')}`
+                                                ? Math.round(parseFloat(row.precio_contado_sugerido)).toLocaleString('es-PY')
                                                 : '-'}
                                         </td>
-                                        <td style={{ textAlign: 'right', color: '#2563eb' }}>
+                                        <td style={{ textAlign: 'right' }}>
                                             {row.precio_financiado_sugerido && !isNaN(row.precio_financiado_sugerido)
-                                                ? `Gs. ${Math.round(parseFloat(row.precio_financiado_sugerido)).toLocaleString('es-PY')}`
+                                                ? Math.round(parseFloat(row.precio_financiado_sugerido)).toLocaleString('es-PY')
                                                 : '-'}
                                         </td>
-                                        <td style={{ textAlign: 'right', fontWeight: 'bold', background: '#fffbeb' }}>
+                                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                                             {row.entrega_inicial_sugerida && !isNaN(row.entrega_inicial_sugerida)
-                                                ? `Gs. ${Math.round(parseFloat(row.entrega_inicial_sugerida)).toLocaleString('es-PY')}`
+                                                ? Math.round(parseFloat(row.entrega_inicial_sugerida)).toLocaleString('es-PY')
                                                 : '-'}
                                         </td>
                                     </tr>
