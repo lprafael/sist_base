@@ -185,7 +185,9 @@ const CobrosPlaya = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowModal(false);
-            fetchPagares();
+            // Actualizar ambos estados antes de avisar al usuario
+            // allPagares es el que suele usarse para el Plan de Pago completo
+            await Promise.all([fetchPagares(), fetchAllPagares()]);
             alert('Cobro registrado exitosamente');
         } catch (error) {
             alert('Error al registrar cobro: ' + (error.response?.data?.detail || error.message));
