@@ -5,10 +5,19 @@ import './ReportesPlaya.css';
 const ReportesPlaya = () => {
     const [reporteSeleccionado, setReporteSeleccionado] = useState('clientes_mora');
     const [datos, setDatos] = useState([]);
+    const [datosDetallados, setDatosDetallados] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fechaEmision, setFechaEmision] = useState(new Date().toISOString().split('T')[0]);
+    const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setHoraEmision(new Date().toLocaleTimeString('es-PY'));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         if (reporteSeleccionado === 'clientes_mora') {
@@ -37,10 +46,17 @@ const ReportesPlaya = () => {
         setLoading(true);
         try {
             const token = sessionStorage.getItem('token');
-            const res = await axios.get(`${API_URL}/playa/reportes/clientes-mora`, {
+            // Fetch summary for UI
+            const resSummary = await axios.get(`${API_URL}/playa/reportes/clientes-mora?fecha=${fechaEmision}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setDatos(res.data);
+            setDatos(resSummary.data);
+
+            // Fetch detailed for Print/Detailed View
+            const resDetail = await axios.get(`${API_URL}/playa/reportes/cuotas-mora-detalle?fecha=${fechaEmision}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDatosDetallados(resDetail.data);
         } catch (error) {
             console.error('Error fetching report:', error);
         } finally {
@@ -109,77 +125,40 @@ const ReportesPlaya = () => {
             </div>
 
             <div className="reporte-content printable-area">
-                <div className="print-header">
-                    <h1>Peralta Automotores</h1>
-                    <h2>{reporteSeleccionado === 'clientes_mora' ? 'Reporte de Clientes en Mora' : 'Reporte de Stock Disponible'}</h2>
-                    <p>Fecha de referencia: {new Date(fechaEmision + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                    <p className="only-print" style={{ fontSize: '10px', marginTop: '5px' }}>Generado el: {new Date().toLocaleString('es-PY')}</p>
+                <div className="report-header-formal">
+                    <div className="header-left">
+                        <img src="/imágenes/Logo_oficial2.jpg" alt="Logo" className="report-logo" />
+                        <div className="company-info">
+                            <h2 className="company-name">PERALTA AUTOMOTORES</h2>
+                            <p>Ingavi, Fernando de la Mora</p>
+                            <p>RUC: 2349334-8</p>
+                            <p>Correo: peraltaautomotores@gmail.com</p>
+                        </div>
+                    </div>
+                    <div className="header-right">
+                        <p>{new Date().toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: '2-digit' })}</p>
+                        <p>{horaEmision}</p>
+                    </div>
+                </div>
+
+                <div className="report-title-section">
+                    <h1 className="report-title">
+                        Listado Cuotas a Cobrar desde Fecha: <span className="date-field">01/01/2020</span> hasta: <span className="date-field">{new Date(fechaEmision + 'T12:00:00').toLocaleDateString('es-PY')}</span>
+                    </h1>
                 </div>
 
                 {loading ? (
                     <div className="loading">Generando reporte...</div>
                 ) : reporteSeleccionado === 'clientes_mora' ? (
                     <div className="reporte-mora-sections">
-                        {(() => {
-                            const mora30 = datos.filter(d => d.dias_atraso <= 30);
-                            const mora60 = datos.filter(d => d.dias_atraso > 30 && d.dias_atraso <= 60);
-                            const mora60Plus = datos.filter(d => d.dias_atraso > 60);
+                        {/* Vista Resumen (UI) */}
+                        <div className="no-print">
+                            {(() => {
+                                const mora30 = datos.filter(d => d.dias_atraso <= 30);
+                                const mora60 = datos.filter(d => d.dias_atraso > 30 && d.dias_atraso <= 60);
+                                const mora60Plus = datos.filter(d => d.dias_atraso > 60);
 
-                            const renderMoraTable = (titulo, items, color) => (
-                                <div className="mora-section">
-                                    <h3 style={{ borderLeft: `5px solid ${color}`, paddingLeft: '10px', margin: '20px 0 10px 0', fontSize: '1.2rem' }}>
-                                        {titulo} ({items.length})
-                                    </h3>
-                                    <table className="reporte-table compact">
-                                        <thead>
-                                            <tr>
-                                                <th>Cliente / RUC / Teléfono</th>
-                                                <th>Vehículo</th>
-                                                <th style={{ textAlign: 'center' }}>Cuotas</th>
-                                                <th style={{ textAlign: 'center' }}>Atraso</th>
-                                                <th style={{ textAlign: 'right' }}>Deuda Vencida</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {items.length > 0 ? (
-                                                items.map((row, index) => (
-                                                    <tr key={index}>
-                                                        <td>
-                                                            <div className="client-info">
-                                                                <strong>{row.cliente_nombre}</strong>
-                                                                <span className="subtext">{row.cliente_ruc} | {row.cliente_telefono}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="subtext">{row.vehiculo_info}</td>
-                                                        <td style={{ textAlign: 'center' }}>{row.cantidad_cuotas}</td>
-                                                        <td style={{ textAlign: 'center', color: color, fontWeight: 'bold' }}>{row.dias_atraso}d</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                                            Gs. {Math.round(row.total_deuda).toLocaleString('es-PY')}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '10px', color: '#666' }}>No hay registros en esta categoría.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                        {items.length > 0 && (
-                                            <tfoot>
-                                                <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
-                                                    <td colSpan="4" style={{ textAlign: 'right' }}>SUBTOTAL {titulo}:</td>
-                                                    <td style={{ textAlign: 'right' }}>
-                                                        Gs. {Math.round(items.reduce((acc, curr) => acc + curr.total_deuda, 0)).toLocaleString('es-PY')}
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        )}
-                                    </table>
-                                </div>
-                            );
-
-                            return (
-                                <>
+                                return (
                                     <div className="mora-summary-badges">
                                         <div className="summary-badge">
                                             <span className="label">Mora 30</span>
@@ -198,13 +177,47 @@ const ReportesPlaya = () => {
                                             <span className="value">Gs. {Math.round(datos.reduce((acc, curr) => acc + curr.total_deuda, 0)).toLocaleString('es-PY')}</span>
                                         </div>
                                     </div>
+                                );
+                            })()}
+                        </div>
 
-                                    {renderMoraTable('MORA 30 DÍAS', mora30, '#10b981')}
-                                    {renderMoraTable('MORA 60 DÍAS', mora60, '#f59e0b')}
-                                    {renderMoraTable('MORA 60+ DÍAS', mora60Plus, '#ef4444')}
-                                </>
-                            );
-                        })()}
+                        {/* Vista Detallada (Print & Detailed) */}
+                        <table className="reporte-table formal-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre Cliente</th>
+                                    <th>C.I.Nro.</th>
+                                    <th style={{ textAlign: 'center' }}>Nro. Cuota</th>
+                                    <th style={{ textAlign: 'center' }}>Fecha Vencimiento</th>
+                                    <th style={{ textAlign: 'right' }}>Saldo cuota</th>
+                                    <th style={{ textAlign: 'right' }}>Cuota Mensual</th>
+                                    <th style={{ textAlign: 'center' }}>Dias Mora</th>
+                                    <th style={{ textAlign: 'right' }}>Total Mora</th>
+                                    <th style={{ textAlign: 'right' }}>Total Pago Cuota</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {datosDetallados.length > 0 ? (
+                                    datosDetallados.map((row, index) => (
+                                        <tr key={index}>
+                                            <td>{row.cliente_nombre}</td>
+                                            <td>{row.cliente_ruc}</td>
+                                            <td style={{ textAlign: 'center' }}>{row.numero_cuota}</td>
+                                            <td style={{ textAlign: 'center' }}>{new Date(row.fecha_vencimiento).toLocaleDateString('es-PY')}</td>
+                                            <td style={{ textAlign: 'right' }}>{Math.round(row.saldo_total_venta).toLocaleString('es-PY')}</td>
+                                            <td style={{ textAlign: 'right' }}>{Math.round(row.monto_cuota).toLocaleString('es-PY')}</td>
+                                            <td style={{ textAlign: 'center' }}>{row.dias_mora}</td>
+                                            <td style={{ textAlign: 'right' }}>{Math.round(row.interes_mora).toLocaleString('es-PY')}</td>
+                                            <td style={{ textAlign: 'right' }}>{Math.round(row.total_pago).toLocaleString('es-PY')}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>No hay registros que coincidan con la fecha seleccionada.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 ) : (
                     <table className="reporte-table">

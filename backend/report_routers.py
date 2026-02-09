@@ -26,12 +26,28 @@ class ClienteMoraResponse(BaseModel):
     cliente_nombre: str
     cliente_ruc: str
     cliente_telefono: Optional[str] = None
-    vehiculo_info: str  # Marca Modelo (Año) - Chasis
+    vehiculo_info: str
     cantidad_cuotas: int
     dias_atraso: int
     total_deuda: float
 
+class CuotaMoraDetalle(BaseModel):
+    cliente_id: int
+    cliente_nombre: str
+    cliente_ruc: str
+    cliente_telefono: Optional[str] = None
+    id_venta: int
+    numero_cuota: int
+    fecha_vencimiento: date
+    monto_cuota: float
+    saldo_pendiente: float
+    saldo_total_venta: float # Saldo acumulado de la venta (para el formato solicitado)
+    dias_mora: int
+    interes_mora: float
+    total_pago: float
+
 class StockDisponibleResponse(BaseModel):
+    # (Existing StockDisponibleResponse schema remains same)
     id_producto: int
     marca: Optional[str] = None
     modelo: Optional[str] = None
@@ -48,18 +64,14 @@ class StockDisponibleResponse(BaseModel):
 
 @router.get("/playa/reportes/clientes-mora", response_model=List[ClienteMoraResponse])
 async def get_clientes_en_mora(
+    fecha: Optional[date] = Query(None),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Obtiene el listado de clientes que tienen cuotas vencidas y pendientes de pago.
+    Obtiene el listado de clientes que tienen cuotas vencidas a una fecha determinada.
     """
-    today = date.today()
-
-    # Query logic:
-    # 1. Select clients with unpaid installments (estado != 'PAGADO')
-    # 2. Where due date (fecha_vencimiento) < today
-    # 3. Join with Sale, Vehicle, Client to get details
+    analysis_date = fecha or date.today()
     
     query = (
         select(
@@ -80,7 +92,7 @@ async def get_clientes_en_mora(
         .join(Producto, Venta.id_producto == Producto.id_producto)
         .join(Pagare, Venta.id_venta == Pagare.id_venta)
         .where(Pagare.estado != 'PAGADO')
-        .where(Pagare.fecha_vencimiento < today)
+        .where(Pagare.fecha_vencimiento < analysis_date)
         .group_by(
             Cliente.id_cliente,
             Cliente.nombre,
@@ -100,19 +112,91 @@ async def get_clientes_en_mora(
 
     reporte = []
     for row in rows:
-        dias_atraso = (today - row.fecha_mas_antigua).days
+        dias_atraso = (analysis_date - row.fecha_mas_antigua).days
         
         reporte.append({
             "cliente_id": row.id_cliente,
             "cliente_nombre": f"{row.nombre} {row.apellido}",
             "cliente_ruc": row.ruc,
             "cliente_telefono": row.telefono,
-            "vehiculo_info": f"{row.marca} {row.modelo} ({row.año}) - {row.chasis}",
+            "vehiculo_info": f"{row.marca} {row.modelo} ({row.año})",
             "cantidad_cuotas": row.cantidad_cuotas,
             "dias_atraso": dias_atraso,
             "total_deuda": float(row.total_deuda)
         })
 
+    return reporte
+
+@router.get("/playa/reportes/cuotas-mora-detalle", response_model=List[CuotaMoraDetalle])
+async def get_cuotas_mora_detalle(
+    fecha: Optional[date] = Query(None),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Obtiene el listado detallado de cuotas vencidas (formato para impresión).
+    """
+    analysis_date = fecha or date.today()
+    
+    # Query para todas las cuotas vencidas
+    query = (
+        select(
+            Cliente.id_cliente,
+            Cliente.nombre,
+            Cliente.apellido,
+            Cliente.numero_documento.label('ruc'),
+            Cliente.telefono,
+            Pagare.id_venta,
+            Pagare.numero_cuota,
+            Pagare.fecha_vencimiento,
+            Pagare.monto_cuota,
+            Pagare.saldo_pendiente,
+            Venta.interes_mora.label('tasa_interes') # Asumiendo campo o lógica de interés
+        )
+        .join(Venta, Pagare.id_venta == Venta.id_venta)
+        .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
+        .where(Pagare.estado != 'PAGADO')
+        .where(Pagare.fecha_vencimiento < analysis_date)
+        .order_by(Cliente.nombre, Cliente.apellido, Pagare.id_venta, Pagare.numero_cuota)
+    )
+    
+    result = await session.execute(query)
+    rows = result.all()
+    
+    # Calcular saldos acumulados por venta (como se ve en la imagen de referencia)
+    reporte = []
+    ventas_saldos = {} # Para rastrear el saldo total pendiente de la venta
+    
+    # Primero calculamos los saldos totales por venta
+    for row in rows:
+        vid = row.id_venta
+        if vid not in ventas_saldos:
+            # Podríamos hacer otra query o sumarlos aquí si sabemos que están todos
+            ventas_saldos[vid] = 0
+        ventas_saldos[vid] += float(row.saldo_pendiente)
+
+    for row in rows:
+        dias_mora = (analysis_date - row.fecha_vencimiento).days
+        # Lógica simple de interés (ejemplo: 0.1% diario o lo que defina el sistema)
+        # En la imagen dice "Total Mora", parece ser un cargo fijo o porcentual
+        interes = float(row.saldo_pendiente) * (dias_mora * 0.0005) # Ejemplo: 0.05% diario
+        
+        reporte.append({
+            "cliente_id": row.id_cliente,
+            "cliente_nombre": f"{row.nombre} {row.apellido}",
+            "cliente_ruc": row.ruc,
+            "cliente_telefono": row.telefono,
+            "id_venta": row.id_venta,
+            "numero_cuota": row.numero_cuota,
+            "fecha_vencimiento": row.fecha_vencimiento,
+            "monto_cuota": float(row.monto_cuota),
+            "saldo_pendiente": float(row.saldo_pendiente),
+            "saldo_total_venta": float(ventas_saldos[row.id_venta]),
+            "dias_mora": dias_mora,
+            "interes_mora": interes,
+            "total_pago": float(row.saldo_pendiente) + interes
+        })
+        
     return reporte
 @router.post("/playa/reportes/recalcular-mora")
 async def recalcular_mora_clientes(
