@@ -155,7 +155,13 @@ const ReportesPlaya = () => {
 
                 <div className="report-title-section">
                     <h1 className="report-title">
-                        Listado Cuotas a Cobrar desde Fecha: <span className="date-field">{new Date(fechaDesde + 'T12:00:00').toLocaleDateString('es-PY')}</span> hasta: <span className="date-field">{new Date(fechaHasta + 'T12:00:00').toLocaleDateString('es-PY')}</span>
+                        {reporteSeleccionado === 'clientes_mora' ? (
+                            <>
+                                Listado Cuotas a Cobrar desde Fecha: <span className="date-field">{new Date(fechaDesde + 'T12:00:00').toLocaleDateString('es-PY')}</span> hasta: <span className="date-field">{new Date(fechaHasta + 'T12:00:00').toLocaleDateString('es-PY')}</span>
+                            </>
+                        ) : (
+                            'Listado de Vehículos Disponibles en Stock'
+                        )}
                     </h1>
                 </div>
 
