@@ -116,17 +116,17 @@ async def get_clientes_en_mora(
 
     reporte = []
     for row in rows:
-        dias_atraso = (date_to - row.fecha_mas_antigua).days
+        dias_atraso = (date_to - (row.fecha_mas_antigua or date_to)).days
         
         reporte.append({
             "cliente_id": row.id_cliente,
             "cliente_nombre": f"{row.nombre} {row.apellido}",
             "cliente_ruc": row.ruc,
             "cliente_telefono": row.telefono,
-            "vehiculo_info": f"{row.marca} {row.modelo} ({row.año})",
-            "cantidad_cuotas": row.cantidad_cuotas,
-            "dias_atraso": dias_atraso,
-            "total_deuda": float(row.total_deuda)
+            "vehiculo_info": f"{row.marca or ''} {row.modelo or ''} ({row.año or ''})",
+            "cantidad_cuotas": row.cantidad_cuotas or 0,
+            "dias_atraso": max(0, dias_atraso),
+            "total_deuda": float(row.total_deuda or 0)
         })
 
     return reporte
@@ -152,7 +152,7 @@ async def get_cuotas_mora_detalle(
         .where(Pagare.fecha_vencimiento <= date_to)
         .distinct()
     )
-    ventas_ids = [v[0] for v in ventas_con_mora_res.all()]
+    ventas_ids = [v[0] for v in ventas_con_mora_res.all() if v[0] is not None]
     
     if not ventas_ids:
         return []
@@ -197,7 +197,7 @@ async def get_cuotas_mora_detalle(
     for vid in ventas_data:
         rows_venta = ventas_data[vid]
         # Calcular el saldo total inicial de la venta (suma de todos los pendientes)
-        saldo_total_inicial = sum(float(r.saldo_pendiente) for r in rows_venta)
+        saldo_total_inicial = sum(float(r.saldo_pendiente or 0) for r in rows_venta)
         
         running_balance = saldo_total_inicial
         
@@ -209,12 +209,13 @@ async def get_cuotas_mora_detalle(
             current_row_balance = running_balance
             
             # Restamos el saldo de esta cuota para la siguiente fila
-            running_balance -= float(row.saldo_pendiente)
+            running_balance -= float(row.saldo_pendiente or 0)
             
             if is_in_mora:
                 dias_mora = (date_to - row.fecha_vencimiento).days
                 tasa_uso = float(row.tasa_config) if row.tasa_config and float(row.tasa_config) > 0 else 0.0005
-                interes = float(row.saldo_pendiente) * (dias_mora * tasa_uso)
+                monto_s = float(row.saldo_pendiente or 0)
+                interes = monto_s * (max(0, dias_mora) * tasa_uso)
                 
                 reporte.append({
                     "cliente_id": row.id_cliente,
@@ -222,15 +223,15 @@ async def get_cuotas_mora_detalle(
                     "cliente_ruc": row.ruc,
                     "cliente_telefono": row.telefono,
                     "id_venta": row.id_venta,
-                    "numero_cuota": row.numero_cuota,
-                    "cantidad_cuotas_total": row.total_cuotas,
+                    "numero_cuota": row.numero_cuota or 0,
+                    "cantidad_cuotas_total": row.total_cuotas or 0,
                     "fecha_vencimiento": row.fecha_vencimiento,
-                    "monto_cuota": float(row.monto_cuota),
-                    "saldo_pendiente": float(row.saldo_pendiente),
+                    "monto_cuota": float(row.monto_cuota or 0),
+                    "saldo_pendiente": monto_s,
                     "saldo_total_venta": current_row_balance,
-                    "dias_mora": dias_mora,
+                    "dias_mora": max(0, dias_mora),
                     "interes_mora": interes,
-                    "total_pago": float(row.saldo_pendiente) + interes
+                    "total_pago": monto_s + interes
                 })
         
     # Reordenar el reporte final si es necesario (ya viene medio ordenado por el loop)
