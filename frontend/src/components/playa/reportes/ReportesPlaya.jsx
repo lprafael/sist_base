@@ -108,41 +108,93 @@ const ReportesPlaya = () => {
                 {loading ? (
                     <div className="loading">Generando reporte...</div>
                 ) : reporteSeleccionado === 'clientes_mora' ? (
-                    <table className="reporte-table">
-                        <thead>
-                            <tr>
-                                <th>Cliente / RUC</th>
-                                <th>Teléfono</th>
-                                <th>Vehículo</th>
-                                <th>Cuotas Vencidas</th>
-                                <th>Días Atraso (Máx)</th>
-                                <th>Total Deuda Vencida</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {datos.length > 0 ? (
-                                datos.map((row, index) => (
-                                    <tr key={index}>
-                                        <td>
-                                            <strong>{row.cliente_nombre}</strong><br />
-                                            <span style={{ fontSize: '0.85em', color: '#666' }}>{row.cliente_ruc}</span>
-                                        </td>
-                                        <td>{row.cliente_telefono}</td>
-                                        <td>{row.vehiculo_info}</td>
-                                        <td style={{ textAlign: 'center' }}>{row.cantidad_cuotas}</td>
-                                        <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 'bold' }}>{row.dias_atraso}</td>
-                                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                            Gs. {Math.round(row.total_deuda).toLocaleString('es-PY')}
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No hay clientes en mora actualmente.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                    <div className="reporte-mora-sections">
+                        {(() => {
+                            const mora30 = datos.filter(d => d.dias_atraso <= 30);
+                            const mora60 = datos.filter(d => d.dias_atraso > 30 && d.dias_atraso <= 60);
+                            const mora60Plus = datos.filter(d => d.dias_atraso > 60);
+
+                            const renderMoraTable = (titulo, items, color) => (
+                                <div className="mora-section">
+                                    <h3 style={{ borderLeft: `5px solid ${color}`, paddingLeft: '10px', margin: '20px 0 10px 0', fontSize: '1.2rem' }}>
+                                        {titulo} ({items.length})
+                                    </h3>
+                                    <table className="reporte-table compact">
+                                        <thead>
+                                            <tr>
+                                                <th>Cliente / RUC / Teléfono</th>
+                                                <th>Vehículo</th>
+                                                <th style={{ textAlign: 'center' }}>Cuotas</th>
+                                                <th style={{ textAlign: 'center' }}>Atraso</th>
+                                                <th style={{ textAlign: 'right' }}>Deuda Vencida</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {items.length > 0 ? (
+                                                items.map((row, index) => (
+                                                    <tr key={index}>
+                                                        <td>
+                                                            <div className="client-info">
+                                                                <strong>{row.cliente_nombre}</strong>
+                                                                <span className="subtext">{row.cliente_ruc} | {row.cliente_telefono}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="subtext">{row.vehiculo_info}</td>
+                                                        <td style={{ textAlign: 'center' }}>{row.cantidad_cuotas}</td>
+                                                        <td style={{ textAlign: 'center', color: color, fontWeight: 'bold' }}>{row.dias_atraso}d</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                                            Gs. {Math.round(row.total_deuda).toLocaleString('es-PY')}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '10px', color: '#666' }}>No hay registros en esta categoría.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                        {items.length > 0 && (
+                                            <tfoot>
+                                                <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                                                    <td colSpan="4" style={{ textAlign: 'right' }}>SUBTOTAL {titulo}:</td>
+                                                    <td style={{ textAlign: 'right' }}>
+                                                        Gs. {Math.round(items.reduce((acc, curr) => acc + curr.total_deuda, 0)).toLocaleString('es-PY')}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
+                                    </table>
+                                </div>
+                            );
+
+                            return (
+                                <>
+                                    <div className="mora-summary-badges">
+                                        <div className="summary-badge">
+                                            <span className="label">Mora 30</span>
+                                            <span className="value">{mora30.length}</span>
+                                        </div>
+                                        <div className="summary-badge">
+                                            <span className="label">Mora 60</span>
+                                            <span className="value">{mora60.length}</span>
+                                        </div>
+                                        <div className="summary-badge">
+                                            <span className="label">Mora 60+</span>
+                                            <span className="value">{mora60Plus.length}</span>
+                                        </div>
+                                        <div className="summary-badge total">
+                                            <span className="label">Deuda Total</span>
+                                            <span className="value">Gs. {Math.round(datos.reduce((acc, curr) => acc + curr.total_deuda, 0)).toLocaleString('es-PY')}</span>
+                                        </div>
+                                    </div>
+
+                                    {renderMoraTable('MORA 30 DÍAS', mora30, '#10b981')}
+                                    {renderMoraTable('MORA 60 DÍAS', mora60, '#f59e0b')}
+                                    {renderMoraTable('MORA 60+ DÍAS', mora60Plus, '#ef4444')}
+                                </>
+                            );
+                        })()}
+                    </div>
                 ) : (
                     <table className="reporte-table">
                         <thead>

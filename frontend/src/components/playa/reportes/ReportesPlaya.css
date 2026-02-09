@@ -145,6 +145,96 @@
     border-bottom: none;
 }
 
+/* Estilos para Reporte de Mora Discriminado */
+.mora-summary-badges {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.summary-badge {
+    flex: 1;
+    min-width: 140px;
+    background: #f1f5f9;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 3px solid #cbd5e1;
+}
+
+.summary-badge .label {
+    font-size: 0.8rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.summary-badge .value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.summary-badge.total {
+    background: #4f46e5;
+    border-bottom-color: #312e81;
+}
+
+.summary-badge.total .label,
+.summary-badge.total .value {
+    color: white;
+}
+
+.reporte-table.compact th,
+.reporte-table.compact td {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.client-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.subtext {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: normal;
+}
+
+.mora-section h3 {
+    color: #1e293b;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+@media print {
+    .mora-summary-badges {
+        margin-bottom: 15px;
+    }
+    .summary-badge {
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        background: white !important;
+        color: black !important;
+    }
+    .summary-badge .label, .summary-badge .value {
+        color: black !important;
+    }
+    .reporte-table.compact th,
+    .reporte-table.compact td {
+        padding: 5px 8px;
+    }
+    .mora-section {
+        page-break-inside: avoid;
+    }
+}
+
 .print-footer {
     text-align: center;
     margin-top: 40px;
