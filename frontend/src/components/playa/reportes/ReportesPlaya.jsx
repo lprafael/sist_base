@@ -7,7 +7,8 @@ const ReportesPlaya = () => {
     const [datos, setDatos] = useState([]);
     const [datosDetallados, setDatosDetallados] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [fechaEmision, setFechaEmision] = useState(new Date().toISOString().split('T')[0]);
+    const [fechaDesde, setFechaDesde] = useState('2020-01-01');
+    const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
     const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -47,13 +48,13 @@ const ReportesPlaya = () => {
         try {
             const token = sessionStorage.getItem('token');
             // Fetch summary for UI
-            const resSummary = await axios.get(`${API_URL}/playa/reportes/clientes-mora?fecha=${fechaEmision}`, {
+            const resSummary = await axios.get(`${API_URL}/playa/reportes/clientes-mora?desde=${fechaDesde}&hasta=${fechaHasta}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setDatos(resSummary.data);
 
             // Fetch detailed for Print/Detailed View
-            const resDetail = await axios.get(`${API_URL}/playa/reportes/cuotas-mora-detalle?fecha=${fechaEmision}`, {
+            const resDetail = await axios.get(`${API_URL}/playa/reportes/cuotas-mora-detalle?desde=${fechaDesde}&hasta=${fechaHasta}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setDatosDetallados(resDetail.data);
@@ -106,13 +107,24 @@ const ReportesPlaya = () => {
                 <div className="reportes-actions">
                     {reporteSeleccionado === 'clientes_mora' && (
                         <div className="date-filter">
-                            <label>Fecha de Análisis:</label>
-                            <input
-                                type="date"
-                                value={fechaEmision}
-                                onChange={(e) => setFechaEmision(e.target.value)}
-                                className="date-input"
-                            />
+                            <div className="filter-group">
+                                <label>Desde:</label>
+                                <input
+                                    type="date"
+                                    value={fechaDesde}
+                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                    className="date-input"
+                                />
+                            </div>
+                            <div className="filter-group">
+                                <label>Hasta:</label>
+                                <input
+                                    type="date"
+                                    value={fechaHasta}
+                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                    className="date-input"
+                                />
+                            </div>
                             <button className="btn-refresh" onClick={handleRecalculate} disabled={loading}>
                                 🔄 Actualizar
                             </button>
@@ -143,7 +155,7 @@ const ReportesPlaya = () => {
 
                 <div className="report-title-section">
                     <h1 className="report-title">
-                        Listado Cuotas a Cobrar desde Fecha: <span className="date-field">01/01/2020</span> hasta: <span className="date-field">{new Date(fechaEmision + 'T12:00:00').toLocaleDateString('es-PY')}</span>
+                        Listado Cuotas a Cobrar desde Fecha: <span className="date-field">{new Date(fechaDesde + 'T12:00:00').toLocaleDateString('es-PY')}</span> hasta: <span className="date-field">{new Date(fechaHasta + 'T12:00:00').toLocaleDateString('es-PY')}</span>
                     </h1>
                 </div>
 

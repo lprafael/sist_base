@@ -432,11 +432,17 @@
 .date-filter {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
     background: white;
     padding: 5px 15px;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .date-filter label {

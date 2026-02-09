@@ -64,14 +64,16 @@ class StockDisponibleResponse(BaseModel):
 
 @router.get("/playa/reportes/clientes-mora", response_model=List[ClienteMoraResponse])
 async def get_clientes_en_mora(
-    fecha: Optional[date] = Query(None),
+    desde: Optional[date] = Query(None),
+    hasta: Optional[date] = Query(None),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Obtiene el listado de clientes que tienen cuotas vencidas a una fecha determinada.
+    Obtiene el listado de clientes que tienen cuotas vencidas en un rango determinado.
     """
-    analysis_date = fecha or date.today()
+    date_from = desde or date(2020, 1, 1)
+    date_to = hasta or date.today()
     
     query = (
         select(
@@ -92,7 +94,8 @@ async def get_clientes_en_mora(
         .join(Producto, Venta.id_producto == Producto.id_producto)
         .join(Pagare, Venta.id_venta == Pagare.id_venta)
         .where(Pagare.estado != 'PAGADO')
-        .where(Pagare.fecha_vencimiento < analysis_date)
+        .where(Pagare.fecha_vencimiento >= date_from)
+        .where(Pagare.fecha_vencimiento <= date_to)
         .group_by(
             Cliente.id_cliente,
             Cliente.nombre,
@@ -112,7 +115,7 @@ async def get_clientes_en_mora(
 
     reporte = []
     for row in rows:
-        dias_atraso = (analysis_date - row.fecha_mas_antigua).days
+        dias_atraso = (date_to - row.fecha_mas_antigua).days
         
         reporte.append({
             "cliente_id": row.id_cliente,
@@ -129,14 +132,16 @@ async def get_clientes_en_mora(
 
 @router.get("/playa/reportes/cuotas-mora-detalle", response_model=List[CuotaMoraDetalle])
 async def get_cuotas_mora_detalle(
-    fecha: Optional[date] = Query(None),
+    desde: Optional[date] = Query(None),
+    hasta: Optional[date] = Query(None),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Obtiene el listado detallado de cuotas vencidas (formato para impresión).
+    Obtiene el listado detallado de cuotas vencidas en un rango (formato para impresión).
     """
-    analysis_date = fecha or date.today()
+    date_from = desde or date(2020, 1, 1)
+    date_to = hasta or date.today()
     
     # Query para todas las cuotas vencidas
     query = (
@@ -156,7 +161,8 @@ async def get_cuotas_mora_detalle(
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .where(Pagare.estado != 'PAGADO')
-        .where(Pagare.fecha_vencimiento < analysis_date)
+        .where(Pagare.fecha_vencimiento >= date_from)
+        .where(Pagare.fecha_vencimiento <= date_to)
         .order_by(Cliente.nombre, Cliente.apellido, Pagare.id_venta, Pagare.numero_cuota)
     )
     
@@ -174,7 +180,7 @@ async def get_cuotas_mora_detalle(
         ventas_saldos[vid] += float(row.saldo_pendiente)
 
     for row in rows:
-        dias_mora = (analysis_date - row.fecha_vencimiento).days
+        dias_mora = (date_to - row.fecha_vencimiento).days
         # Lógica de interés basada en el monto_int_mora configurado o cálculo base
         # Usamos una tasa base si el monto_int_mora es 0
         tasa_uso = float(row.tasa_config) if row.tasa_config and float(row.tasa_config) > 0 else 0.0005 # 0.05% diario default
