@@ -40,7 +40,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
 
     const fetchData = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const [vRes, cRes, vntRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos?available_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/clientes`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -78,7 +78,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const handleAnularVenta = async (ventaId) => {
         if (!confirm('¿Desea anular esta venta? Se eliminarán los pagarés asociados si no existen pagos.')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.put(`${API_URL}/playa/ventas/${ventaId}/anular`, null, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -94,7 +94,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         const vehiculoId = parseInt(venta.id_producto);
         if (!vehiculos.find(v => v.id_producto === vehiculoId)) {
             try {
-                const token = localStorage.getItem('token');
+                const token = sessionStorage.getItem('token');
                 const vRes = await axios.get(`${API_URL}/playa/vehiculos/${vehiculoId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -197,7 +197,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const handleSaveVenta = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
 
             // Construir detalles
             const detalles = [];
@@ -259,7 +259,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
 
     const handleUpdateJustCreatedPagare = async (id, updatedData) => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.put(`${API_URL}/playa/pagares/${id}`, updatedData, {
                 headers: { Authorization: `Bearer ${token}` }
             });

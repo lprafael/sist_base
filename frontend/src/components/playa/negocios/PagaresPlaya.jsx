@@ -28,7 +28,7 @@ const PagaresPlaya = () => {
 
     const fetchPagares = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.get(`${API_URL}/playa/pagares`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -49,7 +49,7 @@ const PagaresPlaya = () => {
         if (ventaIds.length === 0) return;
 
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const clientesMap = {};
 
             // Obtener todas las ventas de una vez (más eficiente)
@@ -114,7 +114,7 @@ const PagaresPlaya = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.put(`${API_URL}/playa/pagares/${selectedPagare.id_pagare}`, editingData, {
                 headers: { Authorization: `Bearer ${token}` }
             });

@@ -23,7 +23,7 @@ const VendedoresPlaya = () => {
 
     const fetchVendedores = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.get(`${API_URL}/playa/vendedores`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -38,7 +38,7 @@ const VendedoresPlaya = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (editingVendedor) {
                 await axios.put(`${API_URL}/playa/vendedores/${editingVendedor.id_vendedor}`, formData, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -59,7 +59,7 @@ const VendedoresPlaya = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('¿Está seguro de eliminar este vendedor?')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/vendedores/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });

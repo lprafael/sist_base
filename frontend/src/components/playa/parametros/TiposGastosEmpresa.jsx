@@ -25,7 +25,7 @@ const TiposGastosEmpresa = () => {
 
     const fetchTipos = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.get(`${API_URL}/playa/tipos-gastos-empresa?todo=true`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -63,7 +63,7 @@ const TiposGastosEmpresa = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (editingTipo) {
                 await axios.put(`${API_URL}/playa/tipos-gastos-empresa/${editingTipo.id_tipo_gasto_empresa}`, formData, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -83,7 +83,7 @@ const TiposGastosEmpresa = () => {
     const handleDelete = async (tipo) => {
         if (!confirm(`¿Eliminar el concepto "${tipo.nombre}"?`)) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/tipos-gastos-empresa/${tipo.id_tipo_gasto_empresa}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });

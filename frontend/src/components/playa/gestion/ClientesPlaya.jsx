@@ -132,7 +132,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
         const initializeData = async () => {
             setLoading(true);
             try {
-                const token = localStorage.getItem('token');
+                const token = sessionStorage.getItem('token');
                 await axios.post(`${API_URL}/playa/reportes/recalcular-mora`, {}, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -168,7 +168,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
 
     const fetchCalificaciones = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/config-calificaciones`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -180,7 +180,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
 
     const fetchClientes = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/clientes`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -194,7 +194,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
 
     const fetchFullClienteData = async (id) => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/clientes/${id}/full`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -211,7 +211,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleSaveCliente = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const dataToSave = { ...newCliente };
             delete dataToSave.garantes;
             delete dataToSave.referencias;
@@ -246,7 +246,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleDeleteCliente = async (id) => {
         if (!window.confirm('¿Está seguro de eliminar este cliente?')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/clientes/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -318,7 +318,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleSaveGante = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (currentGarante.id_garante) {
                 await axios.put(`${API_URL}/playa/garantes/${currentGarante.id_garante}`, currentGarante, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -338,7 +338,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleDeleteGante = async (id) => {
         if (!window.confirm('¿Está seguro de eliminar este garante? Sus referencias también se borrarán.')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/garantes/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -365,7 +365,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleSaveRef = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (currentRef.id_referencia) {
                 await axios.put(`${API_URL}/playa/referencias/${currentRef.id_referencia}`, currentRef, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -385,7 +385,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleDeleteRef = async (id) => {
         if (!window.confirm('¿Eliminar referencia?')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/referencias/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -412,7 +412,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleSaveUbi = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (currentUbi.id_ubicacion) {
                 await axios.put(`${API_URL}/playa/ubicaciones-cliente/${currentUbi.id_ubicacion}`, currentUbi, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -432,7 +432,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handleDeleteUbi = async (id) => {
         if (!window.confirm('¿Eliminar ubicación?')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/ubicaciones-cliente/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -445,7 +445,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const handlePrintReport = async (cliente) => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             
             // Obtener datos completos del cliente
             const response = await axios.get(`${API_URL}/playa/clientes/${cliente.id_cliente}/full`, {

@@ -27,7 +27,7 @@ const ConfigCalificacionesPlaya = ({ setTab, setPreselectedCalificacion }) => {
 
     const fetchConfigs = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/config-calificaciones`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -81,7 +81,7 @@ const ConfigCalificacionesPlaya = ({ setTab, setPreselectedCalificacion }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const payload = {
                 ...formData,
                 dias_atraso_desde: parseInt(formData.dias_atraso_desde),
@@ -107,7 +107,7 @@ const ConfigCalificacionesPlaya = ({ setTab, setPreselectedCalificacion }) => {
     const handleDelete = async (config) => {
         if (!confirm(`¿Eliminar la configuración "${config.nombre}"?`)) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/config-calificaciones/${config.id_config}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });

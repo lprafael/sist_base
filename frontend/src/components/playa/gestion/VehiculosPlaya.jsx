@@ -61,7 +61,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
 
     const fetchVehiculos = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/vehiculos`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -75,7 +75,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
 
     const fetchCategorias = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/categorias`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -120,7 +120,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const cleanedData = cleanVehiculoData(newVehiculo);
             await axios.post(`${API_URL}/playa/vehiculos`, cleanedData, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -204,7 +204,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const cleanedData = cleanVehiculoData(selectedVehiculo);
             await axios.put(`${API_URL}/playa/vehiculos/${selectedVehiculo.id_producto}`, cleanedData, {
                 headers: { Authorization: `Bearer ${token}` }

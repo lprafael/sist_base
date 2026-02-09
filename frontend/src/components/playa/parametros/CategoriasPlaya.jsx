@@ -23,7 +23,7 @@ const CategoriasPlaya = ({ setTab, setPreselectedCategoryId }) => {
 
     const fetchCategorias = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.get(`${API_URL}/playa/categorias`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -59,7 +59,7 @@ const CategoriasPlaya = ({ setTab, setPreselectedCategoryId }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (editingCategoria) {
                 await axios.put(`${API_URL}/playa/categorias/${editingCategoria.id_categoria}`, formData, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -79,7 +79,7 @@ const CategoriasPlaya = ({ setTab, setPreselectedCategoryId }) => {
     const handleDelete = async (cat) => {
         if (!confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/categorias/${cat.id_categoria}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });

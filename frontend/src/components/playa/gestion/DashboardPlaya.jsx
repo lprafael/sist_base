@@ -21,7 +21,7 @@ const DashboardPlaya = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const token = localStorage.getItem('token');
+                const token = sessionStorage.getItem('token');
                 const response = await axios.get(`${API_URL}/playa/dashboard/stats`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -64,7 +64,7 @@ const DashboardPlaya = () => {
     const fetchGastosFiltrados = async () => {
         setLoadingGastos(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams();
             if (tipoGasto) params.append('tipo_gasto', tipoGasto);
             if (fechaDesde) params.append('fecha_desde', fechaDesde);
@@ -83,7 +83,7 @@ const DashboardPlaya = () => {
 
     const fetchVentasFiltradas = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams();
             if (fechaDesde) params.append('fecha_desde', fechaDesde);
             if (fechaHasta) params.append('fecha_hasta', fechaHasta);

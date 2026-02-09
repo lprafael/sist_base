@@ -41,12 +41,12 @@ const Login = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Guardar token, refresh token y datos del usuario
-        localStorage.setItem('token', data.access_token);
+        // Guardar token, refresh token y datos del usuario en sessionStorage para que se borren al cerrar la ventana
+        sessionStorage.setItem('token', data.access_token);
         if (data.refresh_token) {
-          localStorage.setItem('refreshToken', data.refresh_token);
+          sessionStorage.setItem('refreshToken', data.refresh_token);
         }
-        localStorage.setItem('user', JSON.stringify(data.user));
+        sessionStorage.setItem('user', JSON.stringify(data.user));
         onLogin(data);
       } else {
         setError(data.detail || 'Error en el inicio de sesión');
@@ -73,11 +73,11 @@ const Login = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.access_token);
+        sessionStorage.setItem('token', data.access_token);
         if (data.refresh_token) {
-          localStorage.setItem('refreshToken', data.refresh_token);
+          sessionStorage.setItem('refreshToken', data.refresh_token);
         }
-        localStorage.setItem('user', JSON.stringify(data.user));
+        sessionStorage.setItem('user', JSON.stringify(data.user));
         onLogin(data);
       } else {
         setError(data.detail || 'Error en la autenticación con Google');
@@ -96,12 +96,12 @@ const Login = ({ onLogin }) => {
     if (error?.type !== 'popup_closed_by_user') {
       console.warn('Google Sign-In error:', error?.type || 'Configuration issue');
     }
-    
+
     setGoogleError(true);
-    
+
     // Mensajes de error más específicos
     let errorMessage = '';
-    
+
     if (error?.type === 'popup_closed_by_user') {
       // No mostrar error si el usuario cerró el popup
       return;
@@ -111,7 +111,7 @@ const Login = ({ onLogin }) => {
       // Error de configuración - mostrar mensaje útil
       errorMessage = 'Google Sign-In no está configurado correctamente. Usa el login con usuario y contraseña.';
     }
-    
+
     if (errorMessage) {
       setError(errorMessage);
       // Limpiar el error después de 5 segundos
@@ -127,9 +127,9 @@ const Login = ({ onLogin }) => {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo-container">
-            <img 
-              src="/imágenes/Logo_actualizado2.png" 
-              alt="Peralta Automotores" 
+            <img
+              src="/imágenes/Logo_actualizado2.png"
+              alt="Peralta Automotores"
               className="login-logo"
             />
           </div>
@@ -217,12 +217,12 @@ const Login = ({ onLogin }) => {
               </div>
             </>
           )}
-          
+
           {googleError && (
-            <div style={{ 
-              marginTop: '16px', 
-              padding: '12px', 
-              background: '#fef3c7', 
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              background: '#fef3c7',
               border: '1px solid #fbbf24',
               borderRadius: '8px',
               fontSize: '0.875rem',

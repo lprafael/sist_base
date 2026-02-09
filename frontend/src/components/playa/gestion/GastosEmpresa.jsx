@@ -34,7 +34,7 @@ const GastosEmpresa = () => {
 
     const fetchData = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const [gRes, tRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/gastos-empresa`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/tipos-gastos-empresa`, { headers: { Authorization: `Bearer ${token}` } })
@@ -51,7 +51,7 @@ const GastosEmpresa = () => {
     const handleSaveGasto = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             if (editingGasto) {
                 await axios.put(`${API_URL}/playa/gastos-empresa/${editingGasto.id_gasto_empresa}`, newGasto, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -93,7 +93,7 @@ const GastosEmpresa = () => {
     const handleDeleteGasto = async (id) => {
         if (!confirm('¿Está seguro de eliminar este gasto?')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/gastos-empresa/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -119,7 +119,7 @@ const GastosEmpresa = () => {
     const handleSaveType = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.post(`${API_URL}/playa/tipos-gastos-empresa`, newType, {
                 headers: { Authorization: `Bearer ${token}` }
             });

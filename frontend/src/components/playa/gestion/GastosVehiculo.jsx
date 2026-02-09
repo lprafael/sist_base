@@ -32,7 +32,7 @@ const GastosVehiculo = () => {
 
     const fetchInitialData = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const [vRes, tRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/tipos-gastos`, { headers: { Authorization: `Bearer ${token}` } })
@@ -50,7 +50,7 @@ const GastosVehiculo = () => {
         setSelectedVehiculo(vehiculo);
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const [gRes, cRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos/${vehiculo.id_producto}/gastos`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/vehiculos/${vehiculo.id_producto}/costo-total`, { headers: { Authorization: `Bearer ${token}` } })
@@ -67,7 +67,7 @@ const GastosVehiculo = () => {
     const handleSaveGasto = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const payload = { ...newGasto, id_producto: selectedVehiculo.id_producto };
 
             if (editingGasto) {
@@ -114,7 +114,7 @@ const GastosVehiculo = () => {
     const handleDeleteGasto = async (id) => {
         if (!confirm('¿Está seguro de eliminar este gasto?')) return;
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.delete(`${API_URL}/playa/gastos/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -141,7 +141,7 @@ const GastosVehiculo = () => {
     const handleCreateType = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.post(`${API_URL}/playa/tipos-gastos`, newType, {
                 headers: { Authorization: `Bearer ${token}` }
             });

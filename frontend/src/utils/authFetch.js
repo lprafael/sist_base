@@ -3,7 +3,7 @@
 
 export async function authFetch(url, options = {}) {
   // Obtener el token actual
-  let token = localStorage.getItem('token');
+  let token = sessionStorage.getItem('token');
   
   // Configurar headers iniciales
   const headers = {
@@ -23,7 +23,7 @@ export async function authFetch(url, options = {}) {
   if (response.status === 401) {
     try {
       // Intentar refrescar el token
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = sessionStorage.getItem('refreshToken');
       if (refreshToken) {
         // Usar ruta relativa para el proxy
         const refreshResponse = await fetch(`/api/auth/refresh`, {
@@ -38,9 +38,9 @@ export async function authFetch(url, options = {}) {
           const { access_token, refresh_token } = await refreshResponse.json();
           
           // Actualizar tokens
-          localStorage.setItem('token', access_token);
+          sessionStorage.setItem('token', access_token);
           if (refresh_token) {
-            localStorage.setItem('refreshToken', refresh_token);
+            sessionStorage.setItem('refreshToken', refresh_token);
           }
           
           // Reintentar la petición original con el nuevo token
@@ -48,24 +48,24 @@ export async function authFetch(url, options = {}) {
           response = await fetch(url, { ...options, headers });
         } else {
           // Si el refresh falla, limpiar y redirigir a login
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('refreshToken');
+          sessionStorage.removeItem('user');
           window.location.href = '/login';
           return Promise.reject(new Error('Sesión expirada. Por favor inicia sesión nuevamente.'));
         }
       } else {
         // No hay refresh token disponible
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(new Error('Sesión expirada. Por favor inicia sesión nuevamente.'));
       }
     } catch (error) {
       console.error('Error al refrescar el token:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('user');
       window.location.href = '/login';
       return Promise.reject(new Error('Error de autenticación. Por favor inicia sesión nuevamente.'));
     }

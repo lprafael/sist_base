@@ -20,7 +20,7 @@ const ReportesPlaya = () => {
     const fetchStockDisponible = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.get(`${API_URL}/playa/reportes/stock-disponible`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -35,7 +35,7 @@ const ReportesPlaya = () => {
     const fetchClientesEnMora = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const res = await axios.get(`${API_URL}/playa/reportes/clientes-mora`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -50,7 +50,7 @@ const ReportesPlaya = () => {
     const handleRecalculate = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.post(`${API_URL}/playa/reportes/recalcular-mora`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });

@@ -23,7 +23,7 @@ const UserManagement = () => {
     { value: 'viewer', label: 'Visualizador' }
   ];
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUser = JSON.parse(sessionStorage.getItem('user') || '{}');
   const isAdmin = currentUser && currentUser.rol === 'admin';
 
   const fetchUsers = async () => {

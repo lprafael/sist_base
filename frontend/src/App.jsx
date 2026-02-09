@@ -45,9 +45,9 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed,
             {isMobileOpen || !isSidebarCollapsed ? "⬅️" : "➡️"}
           </button>
         )}
-        <img 
-          src="/imágenes/Logo_actualizado2.png" 
-          alt="Peralta Automotores" 
+        <img
+          src="/imágenes/Logo_actualizado2.png"
+          alt="Peralta Automotores"
           className="header-logo"
         />
         <h1>Gestión de Playa de Vehículos</h1>
@@ -97,30 +97,9 @@ export default function App() {
   const [preselectedCategoryId, setPreselectedCategoryId] = useState(null);
   const [preselectedCalificacion, setPreselectedCalificacion] = useState(null);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-    setLoading(false);
-  }, []);
-
-  const handleLogin = (loginData) => {
-    setUser(loginData.user);
-  };
-
-  const toggleCategory = (categoryTitle) => {
-    setCollapsedCategories(prev => ({
-      ...prev,
-      [categoryTitle]: !prev[categoryTitle]
-    }));
-  };
-
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (token) {
         await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/logout`, {
           method: 'POST',
@@ -132,10 +111,89 @@ export default function App() {
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('loginTimestamp');
+      sessionStorage.removeItem('lastActivity');
       setUser(null);
     }
+  };
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    const userData = sessionStorage.getItem('user');
+
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+    }
+    setLoading(false);
+  }, []);
+
+  // Lógica de expiración de sesión (Inactividad y Tiempo Absoluto)
+  useEffect(() => {
+    if (!user) return;
+
+    const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20 minutos
+    const ABSOLUTE_LIMIT = 60 * 60 * 1000;   // 60 minutos
+    const CHECK_INTERVAL = 10000;           // Revisar cada 10 segundos
+
+    // Al iniciar sesión, guardamos el tiempo de inicio si no existe
+    if (!sessionStorage.getItem('loginTimestamp')) {
+      sessionStorage.setItem('loginTimestamp', Date.now().toString());
+    }
+
+    // Inicializar último tiempo de actividad
+    sessionStorage.setItem('lastActivity', Date.now().toString());
+
+    const updateActivity = () => {
+      sessionStorage.setItem('lastActivity', Date.now().toString());
+    };
+
+    // Listeners para detectar actividad del usuario (mouse, teclado, clics)
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const lastActivity = parseInt(sessionStorage.getItem('lastActivity') || '0');
+      const loginTime = parseInt(sessionStorage.getItem('loginTimestamp') || '0');
+
+      // 1. Verificar inactividad
+      if (now - lastActivity > INACTIVITY_LIMIT) {
+        console.log("Cerrando sesión por inactividad");
+        handleLogout();
+        alert("Tu sesión ha expirado por inactividad.");
+      }
+      // 2. Verificar tiempo absoluto
+      else if (now - loginTime > ABSOLUTE_LIMIT) {
+        console.log("Cerrando sesión por tiempo máximo alcanzado");
+        handleLogout();
+        alert("Tu sesión ha expirado (límite de 60 minutos alcanzado).");
+      }
+    }, CHECK_INTERVAL);
+
+    return () => {
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  const handleLogin = (loginData) => {
+    sessionStorage.setItem('loginTimestamp', Date.now().toString());
+    sessionStorage.setItem('lastActivity', Date.now().toString());
+    setUser(loginData.user);
+  };
+
+  const toggleCategory = (categoryTitle) => {
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [categoryTitle]: !prev[categoryTitle]
+    }));
   };
 
   if (loading) {
@@ -233,7 +291,7 @@ export default function App() {
       />
 
       {/* Overlay para móviles */}
-      <div 
+      <div
         className={`sidebar-overlay ${mobileSidebarOpen ? 'active' : ''}`}
         onClick={handleOverlayClick}
         aria-hidden="true"

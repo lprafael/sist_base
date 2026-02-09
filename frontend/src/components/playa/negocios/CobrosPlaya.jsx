@@ -31,7 +31,7 @@ const CobrosPlaya = () => {
 
     const fetchPagares = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             const response = await axios.get(`${API_URL}/playa/pagares/pendientes`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -45,7 +45,7 @@ const CobrosPlaya = () => {
 
     const fetchAllPagares = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
 
             // Obtener todos los pagarés y todas las ventas en paralelo
             const [pagaresResponse, ventasResponse] = await Promise.all([
@@ -180,7 +180,7 @@ const CobrosPlaya = () => {
     const handleConfirmPago = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
+            const token = sessionStorage.getItem('token');
             await axios.post(`${API_URL}/playa/pagos`, newPago, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -206,7 +206,7 @@ const CobrosPlaya = () => {
             // Si allPagares está vacío, cargar primero
             if (!allPagares || allPagares.length === 0) {
                 try {
-                    const token = localStorage.getItem('token');
+                    const token = sessionStorage.getItem('token');
                     const response = await axios.get(`${API_URL}/playa/pagares`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
@@ -343,7 +343,7 @@ const CobrosPlaya = () => {
                         // Si aún está vacío, cargar dinámicamente
                         console.log('allPagares sigue vacío, cargando dinámicamente...');
                         // Reutilizar la lógica de carga dinámica
-                        const token = localStorage.getItem('token');
+                        const token = sessionStorage.getItem('token');
                         const [pagaresResponse, ventasResponse] = await Promise.all([
                             axios.get(`${API_URL}/playa/pagares`, {
                                 headers: { Authorization: `Bearer ${token}` }
