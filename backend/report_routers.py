@@ -151,7 +151,7 @@ async def get_cuotas_mora_detalle(
             Pagare.fecha_vencimiento,
             Pagare.monto_cuota,
             Pagare.saldo_pendiente,
-            Venta.interes_mora.label('tasa_interes') # Asumiendo campo o lógica de interés
+            Venta.monto_int_mora.label('tasa_config') # Usar columna existente
         )
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
@@ -163,23 +163,22 @@ async def get_cuotas_mora_detalle(
     result = await session.execute(query)
     rows = result.all()
     
-    # Calcular saldos acumulados por venta (como se ve en la imagen de referencia)
+    # Calcular saldos acumulados por venta
     reporte = []
-    ventas_saldos = {} # Para rastrear el saldo total pendiente de la venta
+    ventas_saldos = {}
     
-    # Primero calculamos los saldos totales por venta
     for row in rows:
         vid = row.id_venta
         if vid not in ventas_saldos:
-            # Podríamos hacer otra query o sumarlos aquí si sabemos que están todos
             ventas_saldos[vid] = 0
         ventas_saldos[vid] += float(row.saldo_pendiente)
 
     for row in rows:
         dias_mora = (analysis_date - row.fecha_vencimiento).days
-        # Lógica simple de interés (ejemplo: 0.1% diario o lo que defina el sistema)
-        # En la imagen dice "Total Mora", parece ser un cargo fijo o porcentual
-        interes = float(row.saldo_pendiente) * (dias_mora * 0.0005) # Ejemplo: 0.05% diario
+        # Lógica de interés basada en el monto_int_mora configurado o cálculo base
+        # Usamos una tasa base si el monto_int_mora es 0
+        tasa_uso = float(row.tasa_config) if row.tasa_config and float(row.tasa_config) > 0 else 0.0005 # 0.05% diario default
+        interes = float(row.saldo_pendiente) * (dias_mora * tasa_uso)
         
         reporte.append({
             "cliente_id": row.id_cliente,
