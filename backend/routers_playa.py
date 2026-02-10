@@ -1259,7 +1259,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .join(Producto, Venta.id_producto == Producto.id_producto)
-        .where(Pagare.estado.in_(['PENDIENTE', 'PARCIAL']))
+        .where(Pagare.estado.in_(['PENDIENTE', 'PARCIAL', 'VENCIDO']))
         .where(Pagare.saldo_pendiente > 0)
         .order_by(Pagare.fecha_vencimiento)
     )

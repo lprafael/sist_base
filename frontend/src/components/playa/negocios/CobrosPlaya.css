@@ -83,12 +83,12 @@
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .print-controls {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .btn-print {
         width: 100%;
         justify-content: center;
@@ -143,7 +143,28 @@
 .status-label {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #854d0e;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.status-label.pendiente {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-label.parcial {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status-label.vencido {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-label.pagado {
+    background: #dcfce7;
+    color: #166534;
 }
 
 .btn-cobrar {
