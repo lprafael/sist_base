@@ -14,7 +14,8 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const [justCreatedPagares, setJustCreatedPagares] = useState([]);
     const [searchTerms, setSearchTerms] = useState({
         text: '',
-        date: ''
+        startDate: '',
+        endDate: ''
     });
 
     const [newVenta, setNewVenta] = useState({
@@ -278,13 +279,23 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             <div className="header-actions">
                 <h2>Ventas y Pagarés</h2>
                 <div className="search-controls">
-                    <input
-                        type="date"
-                        className="search-date"
-                        value={searchTerms.date}
-                        onChange={(e) => setSearchTerms({ ...searchTerms, date: e.target.value })}
-                        title="Filtrar por fecha de venta"
-                    />
+                    <div className="range-controls">
+                        <input
+                            type="date"
+                            className="search-date"
+                            value={searchTerms.startDate}
+                            onChange={(e) => setSearchTerms({ ...searchTerms, startDate: e.target.value })}
+                            title="Fecha desde"
+                        />
+                        <span className="range-separator">al</span>
+                        <input
+                            type="date"
+                            className="search-date"
+                            value={searchTerms.endDate}
+                            onChange={(e) => setSearchTerms({ ...searchTerms, endDate: e.target.value })}
+                            title="Fecha hasta"
+                        />
+                    </div>
                     <input
                         type="text"
                         placeholder="Buscar por cliente, auto o contrato..."
@@ -304,7 +315,9 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
 
             <div className="ventas-grid">
                 {ventas.filter(v => {
-                    const matchesDate = !searchTerms.date || v.fecha_venta === searchTerms.date;
+                    const ventaFecha = v.fecha_venta;
+                    const matchesDate = (!searchTerms.startDate || ventaFecha >= searchTerms.startDate) &&
+                        (!searchTerms.endDate || ventaFecha <= searchTerms.endDate);
 
                     const textSearch = searchTerms.text.toLowerCase();
                     const clientName = v.cliente ? `${v.cliente.nombre} ${v.cliente.apellido}`.toLowerCase() : '';
