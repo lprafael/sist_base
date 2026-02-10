@@ -339,11 +339,13 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                             <span className="vnt-type">{v.tipo_venta}</span>
                         </div>
                         <div className="card-body">
+                            <p><strong>Cliente:</strong> {v.cliente ? `${v.cliente.nombre} ${v.cliente.apellido}` : 'N/A'}</p>
+                            <p><strong>Vehículo:</strong> {v.producto ? `${v.producto.marca} ${v.producto.modelo} (${v.producto.año || ''})` : 'N/A'}</p>
                             <p><strong>Estado:</strong> <span className={`vnt-status ${(v.estado_venta || 'ACTIVA').toLowerCase()}`}>{v.estado_venta || 'ACTIVA'}</span></p>
-                            <p><strong>Precio Final:</strong> Gs. {Math.round(parseFloat(v.precio_final)).toLocaleString('es-PY')}</p>
+                            <p><strong>Precio Final:</strong> Gs. {Math.round(parseFloat(v.precio_final || 0)).toLocaleString('es-PY')}</p>
                             {v.tipo_venta === 'FINANCIADO' && (
                                 <>
-                                    <p><strong>Cuotas:</strong> {v.cantidad_cuotas} de Gs. {Math.round(parseFloat(v.monto_cuota)).toLocaleString('es-PY')}</p>
+                                    <p><strong>Cuotas:</strong> {v.cantidad_cuotas || 0} de Gs. {Math.round(parseFloat(v.monto_cuota || 0)).toLocaleString('es-PY')}</p>
                                     <div className="pagares-summary">
                                         <strong>Pagarés Generados:</strong>
                                         <ul>
