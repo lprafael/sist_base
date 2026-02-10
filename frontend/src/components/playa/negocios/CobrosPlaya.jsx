@@ -651,49 +651,78 @@ const CobrosPlaya = () => {
             font-family: Arial, sans-serif;
             padding: 20px;
             background: white;
+            color: #000;
         }
-        .print-header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 15px;
+        .report-header-formal {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 10px;
         }
-        .print-header h1 {
+        .header-left {
+            display: flex;
+            gap: 20px;
+        }
+        .report-logo {
+            width: 150px;
+            height: auto;
+            object-fit: contain;
+        }
+        .company-info h2 {
             margin: 0;
-            font-size: 24pt;
+            font-size: 14pt;
             color: #1e293b;
         }
-        .print-header .subtitle {
-            margin-top: 10px;
-            font-size: 12pt;
-            color: #64748b;
+        .company-info p {
+            margin: 2px 0;
+            font-size: 9pt;
+            color: #475569;
+        }
+        .header-right {
+            text-align: right;
+            font-size: 9pt;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .report-title-section {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .report-title {
+            font-size: 18pt;
+            margin: 0;
+            color: #000;
+            font-weight: bold;
+            text-decoration: underline;
         }
         .print-filters {
             margin-bottom: 20px;
             font-size: 10pt;
             color: #475569;
-            padding: 10px;
+            padding: 8px;
             background: #f8fafc;
-            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
         }
         .venta-group {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             page-break-inside: avoid;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            border: 1px solid #000;
             padding: 15px;
-            background: #f8fafc;
         }
         .venta-header {
-            background: #2563eb;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
+            background: #f1f5f9;
+            color: #000;
+            padding: 10px;
+            border-bottom: 1px solid #000;
             margin-bottom: 15px;
         }
         .venta-header h3 {
             margin: 0;
-            font-size: 14pt;
+            font-size: 12pt;
+            font-weight: bold;
         }
         .venta-info {
             display: grid;
@@ -715,23 +744,25 @@ const CobrosPlaya = () => {
             border-collapse: collapse;
             margin-top: 10px;
             background: white;
+            border: 1px solid #000;
         }
         th {
-            background-color: #1e293b;
-            color: white;
-            border: 1px solid #334155;
-            padding: 10px;
+            background-color: #eee;
+            color: #000;
+            border: 1px solid #000;
+            padding: 6px;
             text-align: left;
             font-weight: bold;
             font-size: 9pt;
+            text-transform: uppercase;
         }
         td {
-            border: 1px solid #e2e8f0;
-            padding: 8px;
+            border: 1px solid #000;
+            padding: 6px;
             font-size: 9pt;
         }
         tr:nth-child(even) {
-            background-color: #f8fafc;
+            background-color: #f9f9f9;
         }
         .status-badge {
             padding: 4px 8px;
@@ -793,10 +824,24 @@ const CobrosPlaya = () => {
 <body>
     <button class="print-button no-print" onclick="window.print()">🖨️ Imprimir</button>
     
-    <div class="print-header">
-        <h1>Plan de Pago</h1>
-        <div class="subtitle">Sistema de Gestión de Vehículos - Peralta Automotores</div>
-        <div class="subtitle">Fecha de impresión: ${fechaActual}</div>
+    <div class="report-header-formal">
+        <div class="header-left">
+            <img src="/imágenes/Logo_oficial2.jpg" alt="Logo" class="report-logo" />
+            <div class="company-info">
+                <h2 class="company-name">PERALTA AUTOMOTORES</h2>
+                <p>Ingavi, Fernando de la Mora</p>
+                <p>RUC: 2349334-8</p>
+                <p>Correo: peraltaautomotores@gmail.com</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <p>${new Date().toLocaleDateString('es-PY')}</p>
+            <p>${new Date().toLocaleTimeString('es-PY')}</p>
+        </div>
+    </div>
+    
+    <div class="report-title-section">
+        <h1 class="report-title">Plan de Pago</h1>
     </div>
     
     ${searchTerm ? `
