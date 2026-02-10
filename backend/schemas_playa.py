@@ -220,6 +220,7 @@ class PagareResponse(BaseModel):
     tipo_pagare: Optional[str] = None
     estado: Optional[str] = None
     saldo_pendiente: Optional[Decimal] = None
+    fecha_pago: Optional[date] = None
     observaciones: Optional[str] = None
     class Config:
         from_attributes = True

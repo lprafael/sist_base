@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import join, and_, or_, func, case, text, delete
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from typing import List, Optional
 from datetime import date, timedelta, datetime
 from decimal import Decimal
@@ -1255,6 +1255,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     # Traer pagarés con saldo pendiente (PENDIENTE o PARCIAL)
     query = (
         select(Pagare, Venta, Cliente, Producto)
+        .options(selectinload(Pagare.pagos))
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .join(Producto, Venta.id_producto == Producto.id_producto)
@@ -1285,6 +1286,13 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     for p, v, c, prod in pagares_list:
         total_cuotas = ventas_cuotas.get(v.id_venta, 0)
         
+        # Obtener fecha de pago si existe (para pagos parciales)
+        fecha_pago_val = None
+        if p.pagos:
+            p_pagos = sorted(p.pagos, key=lambda x: x.fecha_pago, reverse=True)
+            if p_pagos:
+                fecha_pago_val = p_pagos[0].fecha_pago.isoformat() if hasattr(p_pagos[0].fecha_pago, 'isoformat') else str(p_pagos[0].fecha_pago)
+
         data.append({
             "id_pagare": p.id_pagare,
             "id_venta": v.id_venta,
@@ -1293,6 +1301,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             "monto_cuota": float(p.monto_cuota),
             "saldo_pendiente": float(p.saldo_pendiente) if p.saldo_pendiente is not None else float(p.monto_cuota),
             "fecha_vencimiento": p.fecha_vencimiento.isoformat() if hasattr(p.fecha_vencimiento, 'isoformat') else str(p.fecha_vencimiento),
+            "fecha_pago": fecha_pago_val,
             "cliente": f"{c.nombre} {c.apellido}",
             "vehiculo": f"{prod.marca} {prod.modelo}",
             "numero_documento": c.numero_documento,
@@ -1306,7 +1315,7 @@ async def list_pagares(
     estado: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
-    query = select(Pagare)
+    query = select(Pagare).options(selectinload(Pagare.pagos))
     if id_venta:
         query = query.where(Pagare.id_venta == id_venta)
     if estado:
@@ -1314,7 +1323,19 @@ async def list_pagares(
     
     query = query.order_by(Pagare.fecha_vencimiento.asc())
     result = await session.execute(query)
-    return result.scalars().all()
+    pagares = result.scalars().all()
+    
+    # Poblar fecha_pago con la fecha del último pago si existe
+    for p in pagares:
+        if p.pagos:
+            # Ordenar por fecha_pago descendente y tomar la última
+            pagos_ordenados = sorted(p.pagos, key=lambda x: x.fecha_pago, reverse=True)
+            if pagos_ordenados:
+                p.fecha_pago = pagos_ordenados[0].fecha_pago
+        else:
+            p.fecha_pago = None
+            
+    return pagares
 
 @router.put("/pagares/{id_pagare}", response_model=PagareResponse)
 async def update_pagare(

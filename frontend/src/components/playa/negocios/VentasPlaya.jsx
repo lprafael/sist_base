@@ -12,6 +12,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const [activeTab, setActiveTab] = useState('datos'); // 'datos' o 'financiamiento'
     const [showAfterSalePagares, setShowAfterSalePagares] = useState(false);
     const [justCreatedPagares, setJustCreatedPagares] = useState([]);
+    const [searchTerms, setSearchTerms] = useState({
+        text: '',
+        date: ''
+    });
 
     const [newVenta, setNewVenta] = useState({
         numero_venta: `VNT-${Date.now()}`,
@@ -273,6 +277,22 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         <div className="ventas-container">
             <div className="header-actions">
                 <h2>Ventas y Pagarés</h2>
+                <div className="search-controls">
+                    <input
+                        type="date"
+                        className="search-date"
+                        value={searchTerms.date}
+                        onChange={(e) => setSearchTerms({ ...searchTerms, date: e.target.value })}
+                        title="Filtrar por fecha de venta"
+                    />
+                    <input
+                        type="text"
+                        placeholder="Buscar por cliente, auto o contrato..."
+                        className="search-input"
+                        value={searchTerms.text}
+                        onChange={(e) => setSearchTerms({ ...searchTerms, text: e.target.value })}
+                    />
+                </div>
                 <button className="btn-primary" onClick={() => setShowModal(true)}>
                     Nueva Venta / Contrato
                 </button>
@@ -283,7 +303,23 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             )}
 
             <div className="ventas-grid">
-                {ventas.map(v => (
+                {ventas.filter(v => {
+                    const matchesDate = !searchTerms.date || v.fecha_venta === searchTerms.date;
+
+                    const textSearch = searchTerms.text.toLowerCase();
+                    const clientName = v.cliente ? `${v.cliente.nombre} ${v.cliente.apellido}`.toLowerCase() : '';
+                    const clientDoc = v.cliente?.numero_documento?.toLowerCase() || '';
+                    const vehicleInfo = v.producto ? `${v.producto.marca} ${v.producto.modelo} ${v.producto.chasis}`.toLowerCase() : '';
+                    const ventaNum = v.numero_venta.toLowerCase();
+
+                    const matchesText = !searchTerms.text ||
+                        clientName.includes(textSearch) ||
+                        clientDoc.includes(textSearch) ||
+                        vehicleInfo.includes(textSearch) ||
+                        ventaNum.includes(textSearch);
+
+                    return matchesDate && matchesText;
+                }).map(v => (
                     <div key={v.id_venta} className="venta-card">
                         <div className="card-header">
                             <span className="vnt-number">{v.numero_venta}</span>

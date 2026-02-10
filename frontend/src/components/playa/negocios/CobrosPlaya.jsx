@@ -127,6 +127,7 @@ const CobrosPlaya = () => {
                     saldo_pendiente: saldo_pendiente,
                     fecha_vencimiento: fecha_vencimiento,
                     estado: p.estado || 'PENDIENTE',
+                    fecha_pago: p.fecha_pago || null,
                     cliente: cliente,
                     numero_documento: numero_documento,
                     vehiculo: vehiculo,
@@ -279,6 +280,7 @@ const CobrosPlaya = () => {
                             saldo_pendiente: saldo_pendiente,
                             fecha_vencimiento: fecha_vencimiento,
                             estado: p.estado || 'PENDIENTE',
+                            fecha_pago: p.fecha_pago || null,
                             cliente: ventasInfo[p.id_venta]?.cliente || 'N/A',
                             numero_documento: ventasInfo[p.id_venta]?.numero_documento || '',
                             vehiculo: ventasInfo[p.id_venta]?.vehiculo || 'N/A',
@@ -415,6 +417,7 @@ const CobrosPlaya = () => {
                                 saldo_pendiente: saldo_pendiente,
                                 fecha_vencimiento: fecha_vencimiento,
                                 estado: p.estado || 'PENDIENTE',
+                                fecha_pago: p.fecha_pago || null,
                                 cliente: cliente,
                                 numero_documento: numero_documento,
                                 vehiculo: vehiculo,
@@ -800,11 +803,13 @@ const CobrosPlaya = () => {
                         <th>Saldo Pendiente</th>
                         <th>Vencimiento</th>
                         <th>Estado</th>
+                        ${includeCancelados ? '<th>Fecha de Pago</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
                     ${ventaData.pagares.map(p => {
                 const isOverdue = new Date(p.fecha_vencimiento) < new Date() && (p.estado === 'PENDIENTE' || p.estado === 'PARCIAL');
+                const fechaPagoFormat = p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString('es-PY') : '-';
                 return `
                         <tr class="${isOverdue ? 'overdue' : ''}">
                             <td>${p.numero_cuota}/${p.total_cuotas || p.numero_cuota}</td>
@@ -814,6 +819,7 @@ const CobrosPlaya = () => {
                             <td>
                                 <span class="status-badge ${p.estado.toLowerCase()}">${p.estado}</span>
                             </td>
+                            ${includeCancelados ? `<td>${fechaPagoFormat}</td>` : ''}
                         </tr>
                         `;
             }).join('')}
@@ -822,7 +828,7 @@ const CobrosPlaya = () => {
                     <tr style="background-color: #f1f5f9; font-weight: bold;">
                         <td colspan="2">TOTAL</td>
                         <td>Gs. ${Math.round(totalMonto).toLocaleString('es-PY')}</td>
-                        <td colspan="2">Saldo Pendiente: Gs. ${Math.round(totalSaldo).toLocaleString('es-PY')}</td>
+                        <td colspan="${includeCancelados ? '3' : '2'}">Saldo Pendiente: Gs. ${Math.round(totalSaldo).toLocaleString('es-PY')}</td>
                     </tr>
                 </tfoot>
             </table>
