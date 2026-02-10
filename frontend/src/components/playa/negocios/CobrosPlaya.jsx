@@ -10,6 +10,7 @@ const CobrosPlaya = () => {
     const [showModal, setShowModal] = useState(false);
     const [includeCancelados, setIncludeCancelados] = useState(false);
     const [selectedPagare, setSelectedPagare] = useState(null);
+    const [sortConfig, setSortConfig] = useState({ key: 'fecha_vencimiento', direction: 'asc' });
     const [newPago, setNewPago] = useState({
         id_pagare: '',
         id_venta: '',
@@ -195,11 +196,47 @@ const CobrosPlaya = () => {
         }
     };
 
-    const filteredPagares = pagares.filter(p =>
-        p.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.numero_documento.includes(searchTerm) ||
-        p.vehiculo.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const requestSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedPagares = () => {
+        const filtered = pagares.filter(p =>
+            p.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.numero_documento.includes(searchTerm) ||
+            p.vehiculo.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return filtered.sort((a, b) => {
+            let aValue = a[sortConfig.key];
+            let bValue = b[sortConfig.key];
+
+            if (sortConfig.key === 'fecha_vencimiento') {
+                aValue = new Date(aValue);
+                bValue = new Date(bValue);
+            } else if (typeof aValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = bValue.toLowerCase();
+            }
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    };
+
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'asc' ? '🔼' : '🔽';
+    };
 
     const handlePrintPlanPago = async () => {
         let pagaresToPrint;
@@ -892,18 +929,24 @@ const CobrosPlaya = () => {
                     <table className="cobros-table">
                         <thead>
                             <tr>
-                                <th>Vencimiento</th>
-                                <th>Cliente</th>
+                                <th onClick={() => requestSort('fecha_vencimiento')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                    Vencimiento {getSortIcon('fecha_vencimiento')}
+                                </th>
+                                <th onClick={() => requestSort('cliente')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                    Cliente {getSortIcon('cliente')}
+                                </th>
                                 <th>Vehículo</th>
                                 <th>Cuota N°</th>
                                 <th>Total</th>
                                 <th>Saldo</th>
-                                <th>Estado</th>
+                                <th onClick={() => requestSort('estado')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                    Estado {getSortIcon('estado')}
+                                </th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredPagares.map(p => {
+                            {sortedPagares().map(p => {
                                 const isOverdue = new Date(p.fecha_vencimiento) < new Date();
                                 return (
                                     <tr key={p.id_pagare} className={isOverdue ? 'overdue-row' : ''}>
