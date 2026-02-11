@@ -195,13 +195,28 @@
     font-size: 0.95rem;
 }
 
-.readonly-highlight {
+.readonly-highlight, .total-highlight {
     background: #f1f5f9;
     border: 1px solid #cbd5e1 !important;
     font-weight: 700;
     color: #1e293b;
     font-size: 1.1rem;
     cursor: not-allowed;
+    text-align: right;
+}
+
+.total-highlight {
+    background: #ecfdf5;
+    border-color: #10b981 !important;
+    color: #065f46;
+}
+
+.calculation-box {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 12px;
+    margin: 20px 0;
+    border: 1px dashed #cbd5e1;
 }
 
 .form-row {
@@ -209,6 +224,7 @@
     gap: 15px;
     margin-bottom: 15px;
 }
+
 
 .form-group {
     flex: 1;
@@ -223,7 +239,9 @@
     color: #475569;
 }
 
-.form-group input, .form-group select, .form-group textarea {
+.form-group input,
+.form-group select,
+.form-group textarea {
     padding: 10px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;

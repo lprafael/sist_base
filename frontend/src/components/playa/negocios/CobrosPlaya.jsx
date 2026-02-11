@@ -186,7 +186,7 @@ const CobrosPlaya = () => {
             mora_aplicada: 0,
             numero_recibo: `REC-${Date.now()}`
         };
-        
+
         // Calcular mora inicial
         const mora = calcularMora(pagare, initialPago.fecha_pago);
         setNewPago({
@@ -198,38 +198,53 @@ const CobrosPlaya = () => {
 
     const calcularMora = (pagare, fechaPagoStr) => {
         if (!pagare || !pagare.fecha_vencimiento) return 0;
+
+        // Parsear fechas manualmente para evitar problemas de zona horaria (YYYY-MM-DD)
+        const [yV, mV, dV] = pagare.fecha_vencimiento.split('-').map(Number);
+        const [yP, mP, dP] = fechaPagoStr.split('-').map(Number);
         
-        const fechaVenc = new Date(pagare.fecha_vencimiento);
-        const fechaPago = new Date(fechaPagoStr);
+        const fecVenc = new Date(yV, mV - 1, dV);
+        const fecPago = new Date(yP, mP - 1, dP);
+
+        if (fecPago <= fecVenc) return 0;
+
+        const diffTime = fecPago.getTime() - fecVenc.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        const diasGracia = parseInt(pagare.dias_gracia || 0);
         
-        // Resetear horas para comparar solo fechas
-        fechaVenc.setHours(0, 0, 0, 0);
-        fechaPago.setHours(0, 0, 0, 0);
-        
-        if (fechaPago <= fechaVenc) return 0;
-        
-        const diffTime = Math.abs(fechaPago - fechaVenc);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        const diasGracia = pagare.dias_gracia || 0;
-        const diasAfectivos = diffDays - diasGracia;
-        
-        if (diasAfectivos <= 0) return 0;
-        
+        // Si el atraso no supera los días de gracia, no se cobra mora
+        if (diffDays <= diasGracia) return 0;
+
         const periodo = pagare.periodo_int_mora || 'D';
-        let diasPorPeriodo = 1;
-        if (periodo === 'S') diasPorPeriodo = 7;
-        else if (periodo === 'M') diasPorPeriodo = 30;
-        else if (periodo === 'A') diasPorPeriodo = 365;
+        const montoIntMora = parseFloat(pagare.monto_int_mora || 0);
+        const tasaIntMora = parseFloat(pagare.tasa_interes || 0);
+        const saldoPendiente = parseFloat(pagare.saldo_pendiente || 0);
+
+        let interesCalculado = 0;
+
+        if (periodo === 'D') {
+            // Cálculo Diario: Días de atraso * monto_int_mora
+            interesCalculado = diffDays * montoIntMora;
+        } else {
+            // Otros periodos (Semanal, Mensual, Anual) - Proporcional
+            let diasPorPeriodo = 1;
+            if (periodo === 'S') diasPorPeriodo = 7;
+            else if (periodo === 'M') diasPorPeriodo = 30;
+            else if (periodo === 'A') diasPorPeriodo = 365;
+            
+            const numPeriodos = diffDays / diasPorPeriodo;
+            interesCalculado = numPeriodos * montoIntMora;
+        }
+
+        // Si hay una tasa de interés configurada, sumarla al proporcional (opcional según el usuario, pero lo mantenemos si existe)
+        if (tasaIntMora > 0) {
+            interesCalculado += (saldoPendiente * (tasaIntMora / 100));
+        }
+
+        console.log(`Cálculo de mora: Días atraso: ${diffDays}, Periodo: ${periodo}, Monto Mora: ${montoIntMora}, Interés: ${interesCalculado}`);
         
-        const numPeriodos = diasAfectivos / diasPorPeriodo;
-        const tasaPorc = parseFloat(pagare.tasa_interes || 0);
-        const cargoFijo = parseFloat(pagare.monto_int_mora || 0);
-        
-        const interesAlSaldo = (parseFloat(pagare.saldo_pendiente) || 0) * (tasaPorc / 100);
-        const multaPeriodica = numPeriodos * cargoFijo;
-        
-        return Math.round(interesAlSaldo + multaPeriodica);
+        return Math.round(interesCalculado);
     };
 
     const handleFechaPagoChange = (e) => {
@@ -1107,30 +1122,45 @@ const CobrosPlaya = () => {
                                     <input type="text" required value={newPago.numero_recibo} onChange={(e) => setNewPago({ ...newPago, numero_recibo: e.target.value })} />
                                 </div>
                                 <div className="form-group">
-                                    <label>Fecha Cobro</label>
+                                    <label>Fecha de Cobro</label>
                                     <input type="date" required value={newPago.fecha_pago} onChange={handleFechaPagoChange} />
                                 </div>
                             </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Monto Cuota (Capital)</label>
-                                    <input type="number" step="0.01" required value={newPago.monto_pagado} onChange={(e) => setNewPago({ ...newPago, monto_pagado: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Interés / Mora (Editable)</label>
-                                    <input type="number" step="0.01" value={newPago.mora_aplicada} onChange={(e) => setNewPago({ ...newPago, mora_aplicada: e.target.value })} />
+                            
+                            <div className="calculation-box">
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Monto de la Cuota (Gs.)</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            required 
+                                            value={newPago.monto_pagado} 
+                                            onChange={(e) => setNewPago({ ...newPago, monto_pagado: e.target.value })} 
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Interés / Mora (Gs. - Editable)</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            value={newPago.mora_aplicada} 
+                                            onChange={(e) => setNewPago({ ...newPago, mora_aplicada: e.target.value })} 
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Total a Cobrar (Capital + Int.)</label>
+                                        <input 
+                                            type="text" 
+                                            readOnly 
+                                            className="total-highlight"
+                                            value={`Gs. ${Math.round(parseFloat(newPago.monto_pagado || 0) + parseFloat(newPago.mora_aplicada || 0)).toLocaleString('es-PY')}`} 
+                                        />
+                                    </div>
                                 </div>
                             </div>
+
                             <div className="form-row">
-                                <div className="form-group">
-                                    <label>Total a Cobrar (No editable)</label>
-                                    <input 
-                                        type="text" 
-                                        readOnly 
-                                        className="readonly-highlight"
-                                        value={`Gs. ${Math.round(parseFloat(newPago.monto_pagado || 0) + parseFloat(newPago.mora_aplicada || 0)).toLocaleString('es-PY')}`} 
-                                    />
-                                </div>
                                 <div className="form-group">
                                     <label>Forma de Pago</label>
                                     <select value={newPago.forma_pago} onChange={(e) => setNewPago({ ...newPago, forma_pago: e.target.value })}>
@@ -1140,17 +1170,19 @@ const CobrosPlaya = () => {
                                         <option value="DEPOSITO">Depósito Bancario</option>
                                     </select>
                                 </div>
+                                {newPago.forma_pago !== 'EFECTIVO' && (
+                                    <div className="form-group">
+                                        <label>N° Referencia / Operación</label>
+                                        <input type="text" value={newPago.numero_referencia} onChange={(e) => setNewPago({ ...newPago, numero_referencia: e.target.value })} placeholder="Ej: N° Transacción o Cheque" />
+                                    </div>
+                                )}
                             </div>
-                            {newPago.forma_pago !== 'EFECTIVO' && (
-                                <div className="form-group">
-                                    <label>N° Referencia / Operación</label>
-                                    <input type="text" value={newPago.numero_referencia} onChange={(e) => setNewPago({ ...newPago, numero_referencia: e.target.value })} placeholder="Ej: N° Transacción o Cheque" />
-                                </div>
-                            )}
+
                             <div className="form-group">
                                 <label>Observaciones</label>
-                                <textarea rows="2" value={newPago.observaciones} onChange={(e) => setNewPago({ ...newPago, observaciones: e.target.value })}></textarea>
+                                <textarea rows="2" value={newPago.observaciones} onChange={(e) => setNewPago({ ...newPago, observaciones: e.target.value })} placeholder="Escribe aquí cualquier observación relevante..."></textarea>
                             </div>
+
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
                                 <button type="submit" className="btn-save">Confirmar Cobro e Imprimir</button>
