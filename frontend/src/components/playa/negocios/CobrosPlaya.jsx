@@ -17,6 +17,7 @@ const CobrosPlaya = () => {
         numero_recibo: '',
         fecha_pago: new Date().toISOString().split('T')[0],
         monto_pagado: 0,
+        mora_aplicada: 0,
         forma_pago: 'EFECTIVO',
         numero_referencia: '',
         observaciones: ''
@@ -80,7 +81,11 @@ const CobrosPlaya = () => {
                         ventasMap[venta.id_venta] = {
                             cliente: clienteNombre || 'N/A',
                             numero_documento: clienteDoc,
-                            vehiculo: vehiculoInfo || 'N/A'
+                            vehiculo: vehiculoInfo || 'N/A',
+                            periodo_int_mora: venta.periodo_int_mora,
+                            monto_int_mora: venta.monto_int_mora,
+                            tasa_interes: venta.tasa_interes,
+                            dias_gracia: venta.dias_gracia
                         };
                     }
                 });
@@ -132,7 +137,11 @@ const CobrosPlaya = () => {
                     cliente: cliente,
                     numero_documento: numero_documento,
                     vehiculo: vehiculo,
-                    total_cuotas: 0 // Se calculará después
+                    total_cuotas: 0, // Se calculará después
+                    periodo_int_mora: ventaInfo?.periodo_int_mora,
+                    monto_int_mora: ventaInfo?.monto_int_mora,
+                    tasa_interes: ventaInfo?.tasa_interes,
+                    dias_gracia: ventaInfo?.dias_gracia
                 };
             }).filter(p => p.id_venta); // Filtrar pagarés sin id_venta
 
@@ -169,14 +178,68 @@ const CobrosPlaya = () => {
 
     const handleOpenCobro = (pagare) => {
         setSelectedPagare(pagare);
-        setNewPago({
+        const initialPago = {
             ...newPago,
             id_pagare: pagare.id_pagare,
             id_venta: pagare.id_venta,
             monto_pagado: pagare.saldo_pendiente,
+            mora_aplicada: 0,
             numero_recibo: `REC-${Date.now()}`
+        };
+        
+        // Calcular mora inicial
+        const mora = calcularMora(pagare, initialPago.fecha_pago);
+        setNewPago({
+            ...initialPago,
+            mora_aplicada: mora
         });
         setShowModal(true);
+    };
+
+    const calcularMora = (pagare, fechaPagoStr) => {
+        if (!pagare || !pagare.fecha_vencimiento) return 0;
+        
+        const fechaVenc = new Date(pagare.fecha_vencimiento);
+        const fechaPago = new Date(fechaPagoStr);
+        
+        // Resetear horas para comparar solo fechas
+        fechaVenc.setHours(0, 0, 0, 0);
+        fechaPago.setHours(0, 0, 0, 0);
+        
+        if (fechaPago <= fechaVenc) return 0;
+        
+        const diffTime = Math.abs(fechaPago - fechaVenc);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        const diasGracia = pagare.dias_gracia || 0;
+        const diasAfectivos = diffDays - diasGracia;
+        
+        if (diasAfectivos <= 0) return 0;
+        
+        const periodo = pagare.periodo_int_mora || 'D';
+        let diasPorPeriodo = 1;
+        if (periodo === 'S') diasPorPeriodo = 7;
+        else if (periodo === 'M') diasPorPeriodo = 30;
+        else if (periodo === 'A') diasPorPeriodo = 365;
+        
+        const numPeriodos = diasAfectivos / diasPorPeriodo;
+        const tasaPorc = parseFloat(pagare.tasa_interes || 0);
+        const cargoFijo = parseFloat(pagare.monto_int_mora || 0);
+        
+        const interesAlSaldo = (parseFloat(pagare.saldo_pendiente) || 0) * (tasaPorc / 100);
+        const multaPeriodica = numPeriodos * cargoFijo;
+        
+        return Math.round(interesAlSaldo + multaPeriodica);
+    };
+
+    const handleFechaPagoChange = (e) => {
+        const nuevaFecha = e.target.value;
+        const mora = calcularMora(selectedPagare, nuevaFecha);
+        setNewPago({
+            ...newPago,
+            fecha_pago: nuevaFecha,
+            mora_aplicada: mora
+        });
     };
 
     const handleConfirmPago = async (e) => {
@@ -1045,13 +1108,28 @@ const CobrosPlaya = () => {
                                 </div>
                                 <div className="form-group">
                                     <label>Fecha Cobro</label>
-                                    <input type="date" required value={newPago.fecha_pago} onChange={(e) => setNewPago({ ...newPago, fecha_pago: e.target.value })} />
+                                    <input type="date" required value={newPago.fecha_pago} onChange={handleFechaPagoChange} />
                                 </div>
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Monto Cobrado (Gs.)</label>
+                                    <label>Monto Cuota (Capital)</label>
                                     <input type="number" step="0.01" required value={newPago.monto_pagado} onChange={(e) => setNewPago({ ...newPago, monto_pagado: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Interés / Mora (Editable)</label>
+                                    <input type="number" step="0.01" value={newPago.mora_aplicada} onChange={(e) => setNewPago({ ...newPago, mora_aplicada: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Total a Cobrar (No editable)</label>
+                                    <input 
+                                        type="text" 
+                                        readOnly 
+                                        className="readonly-highlight"
+                                        value={`Gs. ${Math.round(parseFloat(newPago.monto_pagado || 0) + parseFloat(newPago.mora_aplicada || 0)).toLocaleString('es-PY')}`} 
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label>Forma de Pago</label>

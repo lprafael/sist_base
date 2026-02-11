@@ -1305,7 +1305,11 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             "cliente": f"{c.nombre} {c.apellido}",
             "vehiculo": f"{prod.marca} {prod.modelo}",
             "numero_documento": c.numero_documento,
-            "estado": p.estado
+            "estado": p.estado,
+            "periodo_int_mora": v.periodo_int_mora,
+            "monto_int_mora": float(v.monto_int_mora) if v.monto_int_mora is not None else 0.0,
+            "tasa_interes": float(v.tasa_interes) if v.tasa_interes is not None else 0.0,
+            "dias_gracia": v.dias_gracia or 0
         })
     return data
 
@@ -1434,30 +1438,38 @@ async def create_pago(
     if pago_data.fecha_pago > pagare.fecha_vencimiento:
         atraso_dias = (pago_data.fecha_pago - pagare.fecha_vencimiento).days
         
-        # Verificar días de gracia
-        dias_afectivos = atraso_dias - (venta.dias_gracia or 0)
-        
-        if dias_afectivos > 0:
-            # Calcular periodos según configuración de la venta
-            periodo = venta.periodo_int_mora or 'D'
+        # Si el usuario envió una mora (interés) editada, la respetamos
+        if pago_data.mora_aplicada is not None and pago_data.mora_aplicada > 0:
+            mora_calculada = Decimal(str(pago_data.mora_aplicada))
+        else:
+            # Calcular mora automática
+            # Verificar días de gracia
+            dias_afectivos = atraso_dias - (venta.dias_gracia or 0)
             
-            dias_por_periodo = 1
-            if periodo == 'S': dias_por_periodo = 7
-            elif periodo == 'M': dias_por_periodo = 30
-            elif periodo == 'A': dias_por_periodo = 365
-            
-            # Cantidad de periodos (proporcional)
-            num_periodos = Decimal(str(dias_afectivos)) / Decimal(str(dias_por_periodo))
-            
-            # NUEVA FÓRMULA SOLICITADA POR EL USUARIO:
-            # Mora = Saldo Pendiente * (Tasa % / 100) + (Cantidad de Periodos de Atraso * monto_int_mora)
-            tasa_porc = venta.tasa_interes or Decimal("0.00")
-            cargo_fijo = venta.monto_int_mora or Decimal("0.00")
-            
-            interes_al_saldo = pagare.saldo_pendiente * (tasa_porc / Decimal("100"))
-            multa_periodica = num_periodos * cargo_fijo
-            
-            mora_calculada = interes_al_saldo + multa_periodica
+            if dias_afectivos > 0:
+                # Calcular periodos según configuración de la venta
+                periodo = venta.periodo_int_mora or 'D'
+                
+                dias_por_periodo = 1
+                if periodo == 'S': dias_por_periodo = 7
+                elif periodo == 'M': dias_por_periodo = 30
+                elif periodo == 'A': dias_por_periodo = 365
+                
+                # Cantidad de periodos (proporcional)
+                num_periodos = Decimal(str(dias_afectivos)) / Decimal(str(dias_por_periodo))
+                
+                # NUEVA FÓRMULA SOLICITADA POR EL USUARIO:
+                # Mora = Saldo Pendiente * (Tasa % / 100) + (Cantidad de Periodos de Atraso * monto_int_mora)
+                tasa_porc = venta.tasa_interes or Decimal("0.00")
+                cargo_fijo = venta.monto_int_mora or Decimal("0.00")
+                
+                interes_al_saldo = pagare.saldo_pendiente * (tasa_porc / Decimal("100"))
+                multa_periodica = num_periodos * cargo_fijo
+                
+                mora_calculada = interes_al_saldo + multa_periodica
+    elif pago_data.mora_aplicada is not None and pago_data.mora_aplicada > 0:
+        # Incluso si no hay atraso, si el usuario forzó un interés, lo guardamos
+        mora_calculada = Decimal(str(pago_data.mora_aplicada))
 
     # 3. Registrar el pago
     # El monto pagado se aplica al saldo pendiente.

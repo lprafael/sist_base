@@ -251,6 +251,7 @@ class PagoBase(BaseModel):
     monto_pagado: Decimal
     forma_pago: str
     numero_referencia: Optional[str] = None
+    mora_aplicada: Optional[Decimal] = 0
     observaciones: Optional[str] = None
 
 class PagoCreate(PagoBase):
