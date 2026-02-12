@@ -1418,6 +1418,10 @@ async def create_pago(
     if pagare.estado == 'PAGADO':
         raise HTTPException(status_code=400, detail="El pagaré ya ha sido pagado completamente")
 
+    # Asegurar que el saldo pendiente esté inicializado si es NULL para evitar errores en cálculos
+    if pagare.saldo_pendiente is None:
+        pagare.saldo_pendiente = pagare.monto_cuota
+
     # Obtener la venta asociada al pagaré
     if not pagare.id_venta:
         raise HTTPException(status_code=400, detail="El pagaré no tiene una venta asociada")
@@ -1479,6 +1483,10 @@ async def create_pago(
     pago_dict = pago_data.dict()
     pago_dict['id_venta'] = venta.id_venta  # Usar el id_venta de la venta obtenida
     
+    # IMPORTANT: Pop mora_aplicada since we are passing it explicitly (recalculated)
+    # This avoids "TypeError: Pago() got multiple values for keyword argument 'mora_aplicada'"
+    pago_dict.pop('mora_aplicada', None)
+    
     new_pago = Pago(
         **pago_dict,
         dias_atraso=atraso_dias,
@@ -1490,6 +1498,7 @@ async def create_pago(
     monto_a_aplicar = Decimal(str(pago_data.monto_pagado))
     
     # Actualizamos el saldo pendiente del pagaré
+    # (Ya aseguramos que no es None arriba, pero por si acaso)
     if pagare.saldo_pendiente is None:
         pagare.saldo_pendiente = pagare.monto_cuota
         
