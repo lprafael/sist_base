@@ -1,0 +1,14 @@
+--- Investigando Pagaré ID: 4797 ---
+
+[PostgreSQL - Datos del Pagaré]
+ID: 4797 | Cuota: 16 | Monto: 5000000.00 | Estado: PAGADO | Saldo: 0.00
+Cliente: MARIA VERONICA (CI: 4878266) | Venta: 001-001-0000093
+
+[PostgreSQL - Pagos registrados para este pagaré]
+Recibo: PP-001-001-0000093-Q16-1 | Monto: 5000000.00 | Fecha: 2026-02-03 | Obs: Migrado de SQL Server (Pago Parcial - Pagoparcial)
+
+[SQL Server - dbo.cuoterodet para CI 4878266, Cuota 16]
+CI: 4878266              | Cuota: 16 | Monto: 5000000 | F.Pago: 1753-01-01 00:00:00 | Estado SQL: P
+
+[SQL Server - dbo.Pagoparcial para CI 4878266, Cuota 16]
+Cuota PP: 16 | Monto: 5000000 | Fecha: 2026-02-03 00:00:00

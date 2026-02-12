@@ -1,0 +1,92 @@
+--- Verificando Cliente CI: 4878266 ---
+
+[PostgreSQL - playa.pagares]
+Venta: 001-001-0000093 | Cuota: 1 | Monto: 1800000.00 | Venc: 2024-09-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 2 | Monto: 1800000.00 | Venc: 2024-10-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 3 | Monto: 1800000.00 | Venc: 2024-11-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 4 | Monto: 5000000.00 | Venc: 2024-12-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 5 | Monto: 1800000.00 | Venc: 2025-01-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 6 | Monto: 1800000.00 | Venc: 2025-02-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 7 | Monto: 1800000.00 | Venc: 2025-03-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 8 | Monto: 1800000.00 | Venc: 2025-04-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 9 | Monto: 1800000.00 | Venc: 2025-05-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 10 | Monto: 5000000.00 | Venc: 2025-06-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 11 | Monto: 1800000.00 | Venc: 2025-07-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 12 | Monto: 1800000.00 | Venc: 2025-08-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 13 | Monto: 1800000.00 | Venc: 2025-09-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 14 | Monto: 1800000.00 | Venc: 2025-10-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 15 | Monto: 1800000.00 | Venc: 2025-11-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 16 | Monto: 5000000.00 | Venc: 2025-12-03 | Estado: PAGADO
+Venta: 001-001-0000093 | Cuota: 17 | Monto: 1800000.00 | Venc: 2026-01-03 | Estado: VENCIDO
+Venta: 001-001-0000093 | Cuota: 18 | Monto: 1800000.00 | Venc: 2026-02-03 | Estado: VENCIDO
+Venta: 001-001-0000093 | Cuota: 19 | Monto: 1800000.00 | Venc: 2026-03-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 20 | Monto: 1800000.00 | Venc: 2026-04-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 21 | Monto: 1800000.00 | Venc: 2026-05-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 22 | Monto: 1800000.00 | Venc: 2026-06-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 23 | Monto: 1800000.00 | Venc: 2026-07-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 24 | Monto: 1800000.00 | Venc: 2026-08-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 25 | Monto: 1800000.00 | Venc: 2026-09-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 26 | Monto: 1800000.00 | Venc: 2026-10-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 27 | Monto: 1800000.00 | Venc: 2026-11-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 28 | Monto: 1800000.00 | Venc: 2026-12-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 29 | Monto: 1800000.00 | Venc: 2027-01-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 30 | Monto: 1800000.00 | Venc: 2027-02-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 31 | Monto: 1800000.00 | Venc: 2027-03-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 32 | Monto: 1800000.00 | Venc: 2027-04-03 | Estado: PENDIENTE
+Venta: 001-001-0000093 | Cuota: 33 | Monto: 1800000.00 | Venc: 2027-05-03 | Estado: PENDIENTE
+
+[PostgreSQL - playa.pagos]
+Cuota: 1 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q1
+Cuota: 2 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q2
+Cuota: 3 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q3
+Cuota: 4 | Pago: 5000000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q4
+Cuota: 5 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q5
+Cuota: 6 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q6
+Cuota: 7 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q7
+Cuota: 8 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q8
+Cuota: 9 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q9
+Cuota: 10 | Pago: 5000000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q10
+Cuota: 11 | Pago: 1800000.00 | Fecha: 2025-08-12 | Recibo: REC-001-001-0000093-Q11
+Cuota: 12 | Pago: 1800000.00 | Fecha: 2025-10-04 | Recibo: REC-001-001-0000093-Q12
+Cuota: 13 | Pago: 1800000.00 | Fecha: 2025-11-03 | Recibo: REC-001-001-0000093-Q13
+Cuota: 14 | Pago: 1800000.00 | Fecha: 2025-12-03 | Recibo: REC-001-001-0000093-Q14
+Cuota: 15 | Pago: 1800000.00 | Fecha: 2026-01-02 | Recibo: REC-001-001-0000093-Q15
+Cuota: 16 | Pago: 5000000.00 | Fecha: 2026-02-03 | Recibo: PP-001-001-0000093-Q16-1
+
+[SQL Server - dbo.cuoterodet]
+Venta SQL: 001-001-0000093      | Cuota: 1 | Monto: 1800000 | Venc: 2024-09-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 2 | Monto: 1800000 | Venc: 2024-10-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 3 | Monto: 1800000 | Venc: 2024-11-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 4 | Monto: 5000000 | Venc: 2024-12-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 5 | Monto: 1800000 | Venc: 2025-01-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 6 | Monto: 1800000 | Venc: 2025-02-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 7 | Monto: 1800000 | Venc: 2025-03-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 8 | Monto: 1800000 | Venc: 2025-04-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 9 | Monto: 1800000 | Venc: 2025-05-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 10 | Monto: 5000000 | Venc: 2025-06-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 11 | Monto: 1800000 | Venc: 2025-07-03 | F.Pago: 2025-08-12 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 12 | Monto: 1800000 | Venc: 2025-08-03 | F.Pago: 2025-10-04 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 13 | Monto: 1800000 | Venc: 2025-09-03 | F.Pago: 2025-11-03 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 14 | Monto: 1800000 | Venc: 2025-10-03 | F.Pago: 2025-12-03 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 15 | Monto: 1800000 | Venc: 2025-11-03 | F.Pago: 2026-01-02 00:00:00 (PAGADO)
+Venta SQL: 001-001-0000093      | Cuota: 16 | Monto: 5000000 | Venc: 2025-12-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 17 | Monto: 1800000 | Venc: 2026-01-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 18 | Monto: 1800000 | Venc: 2026-02-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 19 | Monto: 1800000 | Venc: 2026-03-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 20 | Monto: 1800000 | Venc: 2026-04-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 21 | Monto: 1800000 | Venc: 2026-05-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 22 | Monto: 1800000 | Venc: 2026-06-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 23 | Monto: 1800000 | Venc: 2026-07-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 24 | Monto: 1800000 | Venc: 2026-08-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 25 | Monto: 1800000 | Venc: 2026-09-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 26 | Monto: 1800000 | Venc: 2026-10-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 27 | Monto: 1800000 | Venc: 2026-11-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 28 | Monto: 1800000 | Venc: 2026-12-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 29 | Monto: 1800000 | Venc: 2027-01-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 30 | Monto: 1800000 | Venc: 2027-02-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 31 | Monto: 1800000 | Venc: 2027-03-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 32 | Monto: 1800000 | Venc: 2027-04-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+Venta SQL: 001-001-0000093      | Cuota: 33 | Monto: 1800000 | Venc: 2027-05-03 | F.Pago: 1753-01-01 00:00:00 (PENDIENTE/VENCIDO)
+
+[SQL Server - dbo.Pagoparcial]
+Cuota PP: 16 | Monto: 5000000 | Fecha: 2026-02-03 00:00:00

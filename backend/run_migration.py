@@ -158,7 +158,7 @@ def main():
         cols_cuodet = ['cuotaci', 'cuotacha', 'cuotanro', 'cuotaven', 'cuotasald', 'cuotaint', 'cuotamen', 'cuotafp', 'cuotaes']
         migrate_table(ms_cursor, pg_cursor, 'dbo.cuoterodet', 'migracion.st_cuoterodet', cols_cuodet)
 
-        cols_pp = ['cuotacipp', 'cuotachapp', 'cuotanropp', 'cuotamenpp', 'cuotafpp']
+        cols_pp = ['cuotacipp', 'cuotachapp', 'cuotanropp', 'cuotamenpp', 'cuotapagp', 'cuotafpp']
         migrate_table(ms_cursor, pg_cursor, 'dbo.Pagoparcial', 'migracion.st_pagoparcial', cols_pp)
 
         # 10. Ejecutar la transformación final en PostgreSQL

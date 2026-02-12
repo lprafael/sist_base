@@ -283,6 +283,7 @@ CREATE TABLE migracion.st_pagoparcial (
     cuotachapp VARCHAR(50),
     cuotanropp INT,
     cuotamenpp DECIMAL(15,2),
+    cuotapagp DECIMAL(15,2),
     cuotafpp TIMESTAMP
 );
 

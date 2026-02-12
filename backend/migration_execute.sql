@@ -377,7 +377,7 @@ SELECT
     v.id_venta,
     'PP-' || v.numero_venta || '-Q' || d.cuotanropp || '-' || ROW_NUMBER() OVER (PARTITION BY v.id_venta, d.cuotanropp ORDER BY d.cuotafpp),
     d.cuotafpp::DATE,
-    d.cuotamenpp,
+    d.cuotapagp,
     'EFECTIVO',
     'Migrado de SQL Server (Pago Parcial - Pagoparcial)'
 FROM migracion.st_pagoparcial d
