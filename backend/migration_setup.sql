@@ -299,15 +299,15 @@ ALTER TABLE playa.clientes ADD COLUMN IF NOT EXISTS mora_acumulada DECIMAL(15,2)
 ALTER TABLE playa.clientes ADD COLUMN IF NOT EXISTS fecha_calificacion DATE;
 ALTER TABLE playa.imagenes_productos ADD COLUMN IF NOT EXISTS imagen BYTEA;
 
--- Limpiar tablas para re-migración completa
-TRUNCATE playa.imagenes_productos RESTART IDENTITY CASCADE;
-TRUNCATE playa.referencias RESTART IDENTITY CASCADE;
-TRUNCATE playa.pagos RESTART IDENTITY CASCADE;
-TRUNCATE playa.pagares RESTART IDENTITY CASCADE;
-TRUNCATE playa.ventas RESTART IDENTITY CASCADE;
-TRUNCATE playa.productos RESTART IDENTITY CASCADE;
-TRUNCATE playa.garantes RESTART IDENTITY CASCADE;
-TRUNCATE playa.clientes RESTART IDENTITY CASCADE;
+-- Limpiar tablas para re-migración completa (COMENTADO PARA MODO INCREMENTAL)
+-- TRUNCATE playa.imagenes_productos RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.referencias RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.pagos RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.pagares RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.ventas RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.productos RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.garantes RESTART IDENTITY CASCADE;
+-- TRUNCATE playa.clientes RESTART IDENTITY CASCADE;
 -- No truncar categorias_vehiculos ya que tiene datos maestros
 
 ALTER TABLE playa.garantes ADD COLUMN IF NOT EXISTS antiguedad_laboral VARCHAR(20);

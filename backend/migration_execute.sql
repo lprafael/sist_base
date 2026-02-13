@@ -290,6 +290,22 @@ CROSS JOIN LATERAL (
 ) as t(img, ord)
 WHERE img IS NOT NULL;
 
+-- 7.1. PRODUCTOS HUÉRFANOS (Para cuotas sin producto en staging)
+INSERT INTO playa.productos (
+    codigo_interno, marca, modelo, año, color, chasis, motor,
+    costo_base, precio_contado_sugerido, precio_venta_minimo,
+    procedencia, estado_disponibilidad, fecha_ingreso, id_categoria, observaciones
+)
+SELECT DISTINCT
+    TRIM(s.cuotacha), 'GENERICO', 'PRODUCTO MIGRADO (SIN DETALLE)', NULL::INTEGER, 'S/D', 
+    TRIM(s.cuotacha), 'S/D', 
+    0, 0, 0, 'IMPORTADO', 'VENDIDO', '2000-01-01'::DATE, 1, 
+    'Producto generado automáticamente por falta de registro en DB original para cuotas huérfanas.'
+FROM migracion.st_cuotero s
+LEFT JOIN playa.productos p ON p.codigo_interno = TRIM(s.cuotacha)
+WHERE p.id_producto IS NULL AND NULLIF(TRIM(s.cuotacha), '') IS NOT NULL
+ON CONFLICT (chasis) DO NOTHING;
+
 -- 8. MIGRAR VENTAS
 
 INSERT INTO playa.ventas (
@@ -323,6 +339,33 @@ FROM migracion.st_ventas s
 JOIN migracion.st_ventas_detalle d ON s.factnro = d.factnro
 JOIN migracion.cliente_map m ON m.cliruc_original = TRIM(s.cliruc)
 JOIN playa.productos p ON p.codigo_interno = TRIM(d.procodigo)
+ON CONFLICT (numero_venta) DO NOTHING;
+
+-- 8.1. VENTAS VIRTUALES PARA CUOTAS HUÉRFANAS
+INSERT INTO playa.ventas (
+    numero_venta, id_cliente, id_producto, fecha_venta, tipo_venta,
+    precio_venta, descuento, precio_final, entrega_inicial, 
+    saldo_financiar, estado_venta, observaciones
+)
+SELECT DISTINCT
+    'PEND-' || TRIM(s.cuotaci) || '-' || TRIM(s.cuotacha),
+    m.id_cliente,
+    p.id_producto,
+    COALESCE(s.cuotafec::DATE, '2024-01-01'::DATE), -- Usar fecha del cuotero o fallback
+    'FINANCIADO',
+    s.cuotamon, 
+    0, 
+    s.cuotamon,
+    COALESCE(s.cuotaent, 0),
+    s.cuotasal,
+    'ACTIVA',
+    'Venta virtual generada para migrar cuotas huérfanas (sin factura en origen).'
+FROM migracion.st_cuotero s
+JOIN migracion.cliente_map m ON m.cliruc_original = TRIM(s.cuotaci)
+JOIN playa.productos p ON p.codigo_interno = TRIM(s.cuotacha)
+-- Solo si NO tiene una venta real ya migrada o si el cuotanrof es inválido
+WHERE (NULLIF(TRIM(s.cuotanrof), '') IS NULL OR NOT EXISTS (SELECT 1 FROM playa.ventas v2 WHERE v2.numero_venta = TRIM(s.cuotanrof)))
+AND NOT EXISTS (SELECT 1 FROM playa.ventas v3 WHERE v3.numero_venta = 'PEND-' || TRIM(s.cuotaci) || '-' || TRIM(s.cuotacha))
 ON CONFLICT (numero_venta) DO NOTHING;
 
 UPDATE playa.productos
@@ -361,6 +404,32 @@ JOIN migracion.st_cuotero c ON TRIM(c.cuotaci) = TRIM(d.cuotaci) AND TRIM(c.cuot
 JOIN playa.ventas v ON v.numero_venta = TRIM(c.cuotanrof)
 ON CONFLICT (numero_pagare) DO NOTHING;
 
+-- 9.1. MIGRAR PAGARÉS HUÉRFANOS (Usando las ventas virtuales)
+INSERT INTO playa.pagares (
+    id_venta, numero_pagare, numero_cuota, monto_cuota,
+    fecha_vencimiento, tipo_pagare, estado, saldo_pendiente, observaciones
+)
+SELECT 
+    v.id_venta,
+    v.numero_venta || '_Q' || LPAD(d.cuotanro::TEXT, 3, '0'),
+    d.cuotanro,
+    d.cuotamen,
+    d.cuotaven::DATE,
+    'CUOTA',
+    CASE 
+        WHEN EXTRACT(YEAR FROM d.cuotafp) > 1900 THEN 'PAGADO'
+        WHEN d.cuotaven < CURRENT_DATE THEN 'VENCIDO'
+        ELSE 'PENDIENTE'
+    END,
+    CASE WHEN EXTRACT(YEAR FROM d.cuotafp) > 1900 THEN 0 ELSE d.cuotamen END,
+    'Migrado de SQL Server (Caso Huérfano). Cuota Nro ' || d.cuotanro
+FROM migracion.st_cuoterodet d
+JOIN migracion.st_cuotero c ON TRIM(c.cuotaci) = TRIM(d.cuotaci) AND TRIM(c.cuotacha) = TRIM(d.cuotacha)
+JOIN playa.ventas v ON v.numero_venta = 'PEND-' || TRIM(c.cuotaci) || '-' || TRIM(c.cuotacha)
+-- Solo si no es una venta normal (ya cubierta por el paso anterior)
+WHERE (NULLIF(TRIM(c.cuotanrof), '') IS NULL OR NOT EXISTS (SELECT 1 FROM migracion.st_ventas sv WHERE sv.factnro::TEXT = TRIM(c.cuotanrof)))
+ON CONFLICT (numero_pagare) DO NOTHING;
+
 -- 10. MIGRAR PAGOS
 -- 10.1. Pagos desde Pagoparcial (Abonos parciales)
 INSERT INTO playa.pagos (
@@ -384,6 +453,25 @@ FROM migracion.st_pagoparcial d
 JOIN migracion.st_cuotero c ON TRIM(c.cuotaci) = TRIM(d.cuotacipp) AND TRIM(c.cuotacha) = TRIM(d.cuotachapp)
 JOIN playa.ventas v ON v.numero_venta = TRIM(c.cuotanrof)
 JOIN playa.pagares p ON p.id_venta = v.id_venta AND p.numero_cuota = d.cuotanropp
+ON CONFLICT (numero_recibo) DO NOTHING;
+
+-- 10.1.1. Pagos desde Pagoparcial (ORPHANS)
+INSERT INTO playa.pagos (
+    id_pagare, id_venta, numero_recibo, fecha_pago, monto_pagado, forma_pago, observaciones
+)
+SELECT 
+    p.id_pagare,
+    v.id_venta,
+    'PP-' || v.numero_venta || '-Q' || d.cuotanropp || '-' || ROW_NUMBER() OVER (PARTITION BY v.id_venta, d.cuotanropp ORDER BY d.cuotafpp),
+    d.cuotafpp::DATE,
+    d.cuotapagp,
+    'EFECTIVO',
+    'Migrado de SQL Server (Pago Parcial - Caso Huérfano)'
+FROM migracion.st_pagoparcial d
+JOIN migracion.st_cuotero c ON TRIM(c.cuotaci) = TRIM(d.cuotacipp) AND TRIM(c.cuotacha) = TRIM(d.cuotachapp)
+JOIN playa.ventas v ON v.numero_venta = 'PEND-' || TRIM(c.cuotaci) || '-' || TRIM(c.cuotacha)
+JOIN playa.pagares p ON p.id_venta = v.id_venta AND p.numero_cuota = d.cuotanropp
+WHERE (NULLIF(TRIM(c.cuotanrof), '') IS NULL OR NOT EXISTS (SELECT 1 FROM migracion.st_ventas sv WHERE sv.factnro::TEXT = TRIM(c.cuotanrof)))
 ON CONFLICT (numero_recibo) DO NOTHING;
 
 -- 10.2. Pagos desde cuoterodet (para cuotas pagadas que NO tienen detalle en Pagoparcial)
@@ -410,6 +498,32 @@ JOIN playa.ventas v ON v.numero_venta = TRIM(c.cuotanrof)
 JOIN playa.pagares p ON p.id_venta = v.id_venta AND p.numero_cuota = d.cuotanro
 WHERE EXTRACT(YEAR FROM d.cuotafp) > 1900
 -- Evitar duplicar si ya migramos abonos desde Pagoparcial para esta cuota
+AND NOT EXISTS (
+    SELECT 1 FROM migracion.st_pagoparcial pp 
+    WHERE TRIM(pp.cuotacipp) = TRIM(d.cuotaci) 
+    AND TRIM(pp.cuotachapp) = TRIM(d.cuotacha) 
+    AND pp.cuotanropp = d.cuotanro
+)
+ON CONFLICT (numero_recibo) DO NOTHING;
+
+-- 10.2.1. Pagos desde cuoterodet (ORPHANS)
+INSERT INTO playa.pagos (
+    id_pagare, id_venta, numero_recibo, fecha_pago, monto_pagado, forma_pago, observaciones
+)
+SELECT 
+    p.id_pagare,
+    v.id_venta,
+    'REC-' || v.numero_venta || '-Q' || d.cuotanro,
+    d.cuotafp::DATE,
+    d.cuotamen,
+    'EFECTIVO',
+    'Migrado de SQL Server (Pago Total - Caso Huérfano)'
+FROM migracion.st_cuoterodet d
+JOIN migracion.st_cuotero c ON TRIM(c.cuotaci) = TRIM(d.cuotaci) AND TRIM(c.cuotacha) = TRIM(d.cuotacha)
+JOIN playa.ventas v ON v.numero_venta = 'PEND-' || TRIM(c.cuotaci) || '-' || TRIM(c.cuotacha)
+JOIN playa.pagares p ON p.id_venta = v.id_venta AND p.numero_cuota = d.cuotanro
+WHERE EXTRACT(YEAR FROM d.cuotafp) > 1900
+AND (NULLIF(TRIM(c.cuotanrof), '') IS NULL OR NOT EXISTS (SELECT 1 FROM migracion.st_ventas sv WHERE sv.factnro::TEXT = TRIM(c.cuotanrof)))
 AND NOT EXISTS (
     SELECT 1 FROM migracion.st_pagoparcial pp 
     WHERE TRIM(pp.cuotacipp) = TRIM(d.cuotaci) 

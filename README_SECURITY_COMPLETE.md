@@ -1,4 +1,4 @@
-# Sistema de Seguridad Completo - VMT-CID
+# Sistema de Seguridad Completo - Sistema de Playa de Vehículos
 
 ## Resumen
 El sistema implementa seguridad de nivel empresarial:
@@ -35,10 +35,10 @@ El sistema implementa seguridad de nivel empresarial:
 ---
 
 ## Contacto
-- soporte@vmt-cid.com
+- lprafael1710@gmail.com
 
 
-Este documento describe la implementación completa del sistema de seguridad para el Sistema de Gestión de Catálogos VMT-CID.
+Este documento describe la implementación completa del sistema de seguridad para el Sistema de Playa de Vehículos.
 
 ## 🎯 Resumen del Sistema
 
@@ -368,7 +368,7 @@ DELETE /feriados/{fecha}      # Eliminar feriado
 4. **Error de email**: Verificar configuración SMTP
 
 ### Contacto
-Para soporte técnico o consultas sobre el sistema de seguridad, contactar al equipo de desarrollo VMT-CID.
+Para soporte técnico o consultas sobre el sistema de seguridad, contactar al equipo de desarrollo lprafael1710@gmail.com.
 
 ---
 

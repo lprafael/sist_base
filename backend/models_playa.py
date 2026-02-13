@@ -339,7 +339,9 @@ class Pagare(Base):
     monto_cuota = Column(DECIMAL(15, 2), nullable=False)
     fecha_vencimiento = Column(Date, nullable=False)
     tipo_pagare = Column(String(50), default='CUOTA')
-    estado = Column(String(50), default='PENDIENTE')
+    estado = Column(String(50), default='PENDIENTE') # Mantener por compatibilidad o migrar
+    id_estado = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.estados.id_estado'))
+    cancelado = Column(Boolean, default=False)
     saldo_pendiente = Column(DECIMAL(15, 2))
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
@@ -348,6 +350,7 @@ class Pagare(Base):
     venta = relationship("Venta", back_populates="pagares")
     pagos = relationship("Pago", back_populates="pagare")
     refuerzos = relationship("Refuerzo", back_populates="pagare")
+    estado_rel = relationship("Estado", back_populates="pagares")
 
 class Pago(Base):
     __tablename__ = "pagos"
@@ -356,6 +359,7 @@ class Pago(Base):
     id_pago = Column(Integer, primary_key=True, index=True)
     id_pagare = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.pagares.id_pagare'))
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta'))
+    id_cuenta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'), nullable=True)
     numero_recibo = Column(String(50), unique=True, nullable=False)
     fecha_pago = Column(Date, nullable=False)
     monto_pagado = Column(DECIMAL(15, 2), nullable=False)
@@ -370,6 +374,7 @@ class Pago(Base):
     # Relaciones
     pagare = relationship("Pagare", back_populates="pagos")
     venta = relationship("Venta", back_populates="pagos")
+    cuenta_rel = relationship("Cuenta", back_populates="pagos")
     historial_calificaciones = relationship("HistorialCalificacion", back_populates="pago")
 
 class HistorialCalificacion(Base):
@@ -453,3 +458,51 @@ class ImagenProducto(Base):
     
     # Relaciones
     producto = relationship("Producto", back_populates="imagenes")
+
+class Estado(Base):
+    __tablename__ = "estados"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_estado = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(50), unique=True, nullable=False)
+    descripcion = Column(Text)
+    color_hex = Column(String(7))
+    activo = Column(Boolean, default=True)
+    
+    # Relaciones
+    pagares = relationship("Pagare", back_populates="estado_rel")
+
+class Cuenta(Base):
+    __tablename__ = "cuentas"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_cuenta = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), unique=True, nullable=False)
+    tipo = Column(String(50)) # CAJA, BANCO, etc.
+    banco = Column(String(100))
+    numero_cuenta = Column(String(100))
+    saldo_actual = Column(DECIMAL(15, 2), default=0)
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    pagos = relationship("Pago", back_populates="cuenta_rel")
+    movimientos_origen = relationship("Movimiento", foreign_keys="Movimiento.id_cuenta_origen", back_populates="cuenta_origen")
+    movimientos_destino = relationship("Movimiento", foreign_keys="Movimiento.id_cuenta_destino", back_populates="cuenta_destino")
+
+class Movimiento(Base):
+    __tablename__ = "movimientos"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_movimiento = Column(Integer, primary_key=True, index=True)
+    id_cuenta_origen = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'))
+    id_cuenta_destino = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'))
+    monto = Column(DECIMAL(15, 2), nullable=False)
+    fecha = Column(DateTime, default=func.now())
+    concepto = Column(Text)
+    id_usuario = Column(Integer) # Referencia al usuario que hizo el movimiento
+    referencia = Column(String(100))
+    
+    # Relaciones
+    cuenta_origen = relationship("Cuenta", foreign_keys=[id_cuenta_origen], back_populates="movimientos_origen")
+    cuenta_destino = relationship("Cuenta", foreign_keys=[id_cuenta_destino], back_populates="movimientos_destino")

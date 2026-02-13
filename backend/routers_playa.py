@@ -9,7 +9,7 @@ from datetime import date, timedelta, datetime
 from decimal import Decimal
 from pydantic import BaseModel # Added BaseModel import
 from database import get_session
-from models_playa import CategoriaVehiculo, Producto, Cliente, Venta, Pagare, Pago, TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, UbicacionCliente # Added UbicacionCliente
+from models_playa import CategoriaVehiculo, Producto, Cliente, Venta, Pagare, Pago, TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, UbicacionCliente, Estado, Cuenta, Movimiento # Added new models
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
     ProductoCreate, ProductoUpdate, ProductoResponse,
@@ -21,7 +21,10 @@ from schemas_playa import (
     TipoGastoEmpresaCreate, TipoGastoEmpresaResponse, GastoEmpresaCreate, GastoEmpresaResponse,
     ConfigCalificacionCreate, ConfigCalificacionResponse,
     GanteCreate, GanteResponse, ReferenciaCreate, ReferenciaResponse, ClienteResponseFull,
-    UbicacionClienteCreate, UbicacionClienteResponse # Added UbicacionCliente
+    UbicacionClienteCreate, UbicacionClienteResponse,
+    EstadoCreate, EstadoResponse,
+    CuentaCreate, CuentaResponse,
+    MovimientoCreate, MovimientoResponse
 )
 from security import get_current_user, check_permission
 from audit_utils import log_audit_action
@@ -895,6 +898,11 @@ async def create_venta(
     # 4. Generar Pagarés
     hoy = new_venta.fecha_venta or date.today()
     
+    # Obtener estados para asignar el ID correcto
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    id_pendiente = all_states.get('PENDIENTE')
+
     # 4.1 Pagaré de Entrega Inicial (Aplica para Contado y Financiado si hay entrega)
     if (new_venta.entrega_inicial or 0) > 0:
         session.add(Pagare(
@@ -905,6 +913,7 @@ async def create_venta(
             fecha_vencimiento=hoy,
             tipo_pagare='ENTREGA_INICIAL',
             estado='PENDIENTE',
+            id_estado=id_pendiente,
             saldo_pendiente=new_venta.entrega_inicial
         ))
 
@@ -922,6 +931,7 @@ async def create_venta(
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='CUOTA',
                     estado='PENDIENTE',
+                    id_estado=id_pendiente,
                     saldo_pendiente=venta_data.monto_cuota
                 )
                 session.add(nuevo_pagare)
@@ -938,6 +948,7 @@ async def create_venta(
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='REFUERZO',
                     estado='PENDIENTE',
+                    id_estado=id_pendiente,
                     saldo_pendiente=venta_data.monto_refuerzo
                 )
                 session.add(nuevo_pagare)
@@ -1476,41 +1487,52 @@ async def create_pago(
         mora_calculada = Decimal(str(pago_data.mora_aplicada))
 
     # 3. Registrar el pago
-    # El monto pagado se aplica al saldo pendiente.
-    # Si el usuario quiere que la mora se pague primero, deberíamos restar de la mora primero.
-    # Pero como el saldo_pendiente solo rastrea capital, lo dejamos así por ahora.
-    # Asegurarse de usar el id_venta de la venta obtenida, no del pago_data
-    pago_dict = pago_data.dict()
-    pago_dict['id_venta'] = venta.id_venta  # Usar el id_venta de la venta obtenida
+    pago_dict = pago_data.model_dump()
+    pago_dict['id_venta'] = venta.id_venta
     
-    # IMPORTANT: Pop mora_aplicada since we are passing it explicitly (recalculated)
-    # This avoids "TypeError: Pago() got multiple values for keyword argument 'mora_aplicada'"
+    # Extraer campos que no van directamente a la tabla Pago
+    cancelar_pagare = pago_dict.pop('cancelar_pagare', False)
+    id_cuenta = pago_dict.get('id_cuenta')
+
+    # Eliminar mora_aplicada para pasarla recalculada
     pago_dict.pop('mora_aplicada', None)
     
     new_pago = Pago(
         **pago_dict,
         dias_atraso=atraso_dias,
-        mora_aplicada=mora_calculada.quantize(Decimal("1.00")) # Redondeo a entero para Gs.
+        mora_aplicada=mora_calculada.quantize(Decimal("1.00"))
     )
     session.add(new_pago)
     
+    # 3.1 Actualizar saldo de la cuenta si se especificó
+    if id_cuenta:
+        res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cuenta))
+        cuenta = res_c.scalar_one_or_none()
+        if cuenta:
+            if cuenta.saldo_actual is None: cuenta.saldo_actual = 0
+            cuenta.saldo_actual += Decimal(str(pago_data.monto_pagado))
+
     # 4. Actualizar estado del pagaré (SOPORTE PAGOS PARCIALES)
     monto_a_aplicar = Decimal(str(pago_data.monto_pagado))
     
-    # Actualizamos el saldo pendiente del pagaré
-    # (Ya aseguramos que no es None arriba, pero por si acaso)
     if pagare.saldo_pendiente is None:
         pagare.saldo_pendiente = pagare.monto_cuota
         
     pagare.saldo_pendiente -= monto_a_aplicar
     
-    if pagare.saldo_pendiente <= 0:
+    # Obtener estados por nombre para mayor seguridad
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    
+    if pagare.saldo_pendiente <= 0 or cancelar_pagare:
         pagare.estado = 'PAGADO'
+        pagare.id_estado = all_states.get('PAGADO')
         pagare.saldo_pendiente = 0
+        pagare.cancelado = True
     else:
         pagare.estado = 'PARCIAL'
-    
-    # 5. TODO: Actualizar calificación del cliente si es necesario
+        pagare.id_estado = all_states.get('PARCIAL')
+        pagare.cancelado = False
     
     await session.commit()
     await session.refresh(new_pago)
@@ -2566,6 +2588,157 @@ async def get_ventas_filtradas(
     }
 
 
+# ===== ESTADOS DE PAGARÉ =====
+@router.get("/estados", response_model=List[EstadoResponse])
+async def list_estados(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Estado).order_by(Estado.id_estado.asc()))
+    return result.scalars().all()
 
+@router.post("/estados", response_model=EstadoResponse)
+async def create_estado(
+    data: EstadoCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    new_estado = Estado(**data.model_dump())
+    session.add(new_estado)
+    await session.commit()
+    await session.refresh(new_estado)
+    return new_estado
 
+@router.put("/estados/{id_estado}", response_model=EstadoResponse)
+async def update_estado(
+    id_estado: int,
+    data: EstadoCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Estado).where(Estado.id_estado == id_estado))
+    estado = res.scalar_one_or_none()
+    if not estado:
+        raise HTTPException(status_code=404, detail="Estado no encontrado")
+    
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(estado, field, value)
+    
+    await session.commit()
+    await session.refresh(estado)
+    return estado
 
+@router.delete("/estados/{id_estado}")
+async def delete_estado(
+    id_estado: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Estado).where(Estado.id_estado == id_estado))
+    estado = res.scalar_one_or_none()
+    if not estado:
+        raise HTTPException(status_code=404, detail="Estado no encontrado")
+    
+    await session.delete(estado)
+    await session.commit()
+    return {"message": "Estado eliminado correctamente"}
+
+# ===== CUENTAS =====
+@router.get("/cuentas", response_model=List[CuentaResponse])
+async def list_cuentas(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Cuenta).order_by(Cuenta.nombre.asc()))
+    return result.scalars().all()
+
+@router.post("/cuentas", response_model=CuentaResponse)
+async def create_cuenta(
+    data: CuentaCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    new_cuenta = Cuenta(**data.model_dump())
+    session.add(new_cuenta)
+    await session.commit()
+    await session.refresh(new_cuenta)
+    return new_cuenta
+
+@router.put("/cuentas/{id_cuenta}", response_model=CuentaResponse)
+async def update_cuenta(
+    id_cuenta: int,
+    data: CuentaCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cuenta))
+    cuenta = res.scalar_one_or_none()
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(cuenta, field, value)
+    
+    await session.commit()
+    await session.refresh(cuenta)
+    return cuenta
+
+@router.delete("/cuentas/{id_cuenta}")
+async def delete_cuenta(
+    id_cuenta: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cuenta))
+    cuenta = res.scalar_one_or_none()
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    
+    await session.delete(cuenta)
+    await session.commit()
+    return {"message": "Cuenta eliminada correctamente"}
+
+# ===== MOVIMIENTOS =====
+@router.get("/movimientos", response_model=List[MovimientoResponse])
+async def list_movimientos(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(Movimiento)
+        .options(joinedload(Movimiento.cuenta_origen), joinedload(Movimiento.cuenta_destino))
+        .order_by(Movimiento.fecha.desc())
+    )
+    return result.scalars().all()
+
+@router.post("/movimientos", response_model=MovimientoResponse)
+async def create_movimiento(
+    data: MovimientoCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    # Validar cuentas si se especifican
+    if data.id_cuenta_origen:
+        res_o = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta_origen))
+        origen = res_o.scalar_one_or_none()
+        if not origen:
+            raise HTTPException(status_code=404, detail="Cuenta origen no encontrada")
+        # Restar del origen
+        if origen.saldo_actual is None: origen.saldo_actual = 0
+        origen.saldo_actual -= data.monto
+            
+    if data.id_cuenta_destino:
+        res_d = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta_destino))
+        destino = res_d.scalar_one_or_none()
+        if not destino:
+            raise HTTPException(status_code=404, detail="Cuenta destino no encontrada")
+        # Sumar al destino
+        if destino.saldo_actual is None: destino.saldo_actual = 0
+        destino.saldo_actual += data.monto
+
+    new_mov = Movimiento(
+        **data.model_dump(),
+        id_usuario=current_user.get("user_id")
+    )
+    session.add(new_mov)
+    await session.commit()
+    await session.refresh(new_mov)
+    
+    # Recargar relaciones
+    result = await session.execute(
+        select(Movimiento)
+        .options(joinedload(Movimiento.cuenta_origen), joinedload(Movimiento.cuenta_destino))
+        .where(Movimiento.id_movimiento == new_mov.id_movimiento)
+    )
+    return result.scalar_one()

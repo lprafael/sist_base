@@ -1,7 +1,7 @@
-# RESUMEN EJECUTIVO - Sistema de Catálogos VMT-CID
+# RESUMEN EJECUTIVO - Sistema de Playa de Vehículos
 
 ## Visión General
-El Sistema de Catálogos VMT-CID es una solución web robusta para la gestión de catálogos empresariales (gremios, EOTs, feriados), con seguridad avanzada, auditoría y flujos de usuario modernos.
+El Sistema de Playa de Vehículos es una solución web robusta para la gestión de catálogos empresariales (gremios, EOTs, feriados), con seguridad avanzada, auditoría y flujos de usuario modernos.
 
 ---
 
@@ -51,7 +51,7 @@ El Sistema de Catálogos VMT-CID es una solución web robusta para la gestión d
 
 ## 📋 Visión General
 
-El **Sistema de Catálogos VMT-CID** es una aplicación web moderna y segura diseñada para la gestión integral de catálogos empresariales, específicamente gremios, EOTs y feriados. El sistema implementa las mejores prácticas de seguridad y usabilidad para garantizar una experiencia de usuario óptima.
+El **Sistema de Playa de Vehículos** es una aplicación web moderna y segura diseñada para la gestión integral de catálogos empresariales, específicamente gremios, EOTs y feriados. El sistema implementa las mejores prácticas de seguridad y usabilidad para garantizar una experiencia de usuario óptima.
 
 ---
 
@@ -159,7 +159,7 @@ El **Sistema de Catálogos VMT-CID** es una aplicación web moderna y segura dis
 ### **Credenciales por Defecto**
 - **Usuario**: `admin`
 - **Contraseña**: `Admin123!`
-- **Email**: `admin@vmt-cid.com`
+- **Email**: `lprafael1710@gmail.com`
 
 ---
 
@@ -281,7 +281,7 @@ El **Sistema de Catálogos VMT-CID** es una aplicación web moderna y segura dis
 ## 📞 Contacto y Soporte
 
 ### **Información de Contacto**
-- **Email**: soporte@vmt-cid.com
+- **Email**: lprafael1710@gmail.com
 - **Documentación**: Disponible en el repositorio
 - **Soporte**: Lunes a Viernes, 8:00 AM - 6:00 PM
 
@@ -317,7 +317,7 @@ El **Sistema de Catálogos VMT-CID** es una aplicación web moderna y segura dis
 
 ## 🎉 Conclusión
 
-El **Sistema de Catálogos VMT-CID** representa una solución completa y moderna para la gestión de catálogos empresariales. Con su arquitectura robusta, sistema de seguridad avanzado y documentación exhaustiva, está preparado para satisfacer las necesidades actuales y futuras de la organización.
+El **Sistema de Playa de Vehículos** representa una solución completa y moderna para la gestión de vehículos en la playa. Con su arquitectura robusta, sistema de seguridad avanzado y documentación exhaustiva, está preparado para satisfacer las necesidades actuales y futuras de la organización.
 
 **El sistema está listo para ser desplegado y utilizado en producción.**
 

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe de Auditoría de Migración - Sistema de Playa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            padding: 3rem 2rem;
+            border-radius: 1.5rem;
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.2);
+        }
+
+        header h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+        }
+
+        .card h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .card .value {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .card .status {
+            display: inline-block;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+        }
+
+        .status-ok { background: #d1fae5; color: #065f46; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+
+        section {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary-dark);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .highlight {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .alert-box {
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert-info { background: #eff6ff; border-left: 4px solid var(--primary); color: #1e40af; }
+        .alert-warning { background: #fffbeb; border-left: 4px solid var(--warning); color: #92400e; }
+
+        .footer {
+            text-align: center;
+            margin-top: 4rem;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .badge-legacy {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 1rem; }
+            header { padding: 2rem 1rem; }
+            section { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Auditoría de Migración</h1>
+            <p>Sistema de Gestión de Playa de Vehículos</p>
+            <div style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">Fecha del Informe: 12 de febrero de 2026</div>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Integridad Estructural</h3>
+                <div class="value">99.8%</div>
+                <span class="status status-ok">Sólida</span>
+            </div>
+            <div class="card">
+                <h3>Cartera Pendiente</h3>
+                <div class="value" style="font-size: 1.5rem;">10.267.790.837 Gs.</div>
+                <span class="status status-ok">Conciliada</span>
+            </div>
+            <div class="card">
+                <h3>Casos de Legado</h3>
+                <div class="value">40</div>
+                <span class="status status-warning">Ajuste Aplicado</span>
+            </div>
+        </div>
+
+        <section>
+            <h2>Resumen Cuantitativo</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Entidad</th>
+                        <th>Origen (SQL Server)</th>
+                        <th>Destino (Postgres)</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Clientes</td>
+                        <td>301</td>
+                        <td>302</td>
+                        <td class="highlight">✅ OK</td>
+                    </tr>
+                    <tr>
+                        <td>Productos</td>
+                        <td>321</td>
+                        <td>363</td>
+                        <td class="highlight">✅ OK (Legado Incl.)</td>
+                    </tr>
+                    <tr>
+                        <td>Ventas</td>
+                        <td>292</td>
+                        <td>333</td>
+                        <td class="highlight">✅ OK (Virtual Incl.)</td>
+                    </tr>
+                    <tr>
+                        <td>Pagarés / Cuotas</td>
+                        <td>9,790</td>
+                        <td>9,767</td>
+                        <td style="color: var(--danger); font-weight: 600;">⚠️ -23 registros</td>
+                    </tr>
+                    <tr>
+                        <td>Pagos (Cobros)</td>
+                        <td>~4,497</td>
+                        <td>4,400</td>
+                        <td style="color: var(--warning); font-weight: 600;">⚠️ -97 registros</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="alert-box alert-info">
+                <strong>Nota:</strong> El aumento en Productos y Ventas se debe a la creación de registros de respaldo para clientes que tenían cuotas pero no facturas registradas en el sistema original.
+            </div>
+        </section>
+
+        <section>
+            <h2>Integridad de Relaciones</h2>
+            <div style="display: flex; justify-content: space-around; text-align: center; padding: 1rem 0;">
+                <div>
+                    <div style="font-size: 2rem;">0</div>
+                    <div style="font-size: 0.8rem; color: #64748b;">Pagarés sin Venta</div>
+                </div>
+                <div>
+                    <div style="font-size: 2rem;">0</div>
+                    <div style="font-size: 0.8rem; color: #64748b;">Ventas sin Cliente</div>
+                </div>
+                <div>
+                    <div style="font-size: 2rem;">0</div>
+                    <div style="font-size: 0.8rem; color: #64748b;">Ventas sin Producto</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Análisis de Casos de Legado (Huérfanos)</h2>
+            <p style="margin-bottom: 1.5rem;">Se detectaron inconsistencias en el origen que fueron solventadas mediante la creación de entidades virtuales para no perder historial financiero.</p>
+            <div class="alert-box alert-warning">
+                <div>
+                    <strong>40 Ventas Virtuales:</strong> Generadas para permitir la migración de cuotas de clientes sin factura asociada.
+                </div>
+            </div>
+            <div class="alert-box alert-warning">
+                <div>
+                    <strong>42 Productos Virtuales:</strong> Generados para cuotas que hacían referencia a un chasis no inventariado.
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Conclusión y Recomendación</h2>
+            <p>La migración se considera <strong>exitosa y estructuralmente sólida</strong>. La integridad alcanza el 99.8% en los registros financieros.</p>
+            <br>
+            <p><strong>Causa de discrepancias (-23 cuotas):</strong> Los registros faltantes corresponden a cuotas huérfanas en el sistema original que no poseen un RUC válido en la tabla maestra de clientes. Por seguridad de integridad referencial, estos no fueron migrados automáticamente.</p>
+            <br>
+            <p><strong>Recomendación:</strong> El sistema está listo para operar. El remanente de cobros no migrados (97) se debe a que pertenecen a los pagarés huérfanos mencionados. Se recomienda proceder a la fase de puesta en marcha.</p>
+        </section>
+
+        <div class="footer">
+            Generado automáticamente por el Sistema de Auditoría VMT | lprafael1710@gmail.com
+        </div>
+    </div>
+</body>
+</html>

@@ -1,9 +1,9 @@
-# FICHA TÉCNICA - Sistema de Catálogos VMT-CID
+# FICHA TÉCNICA - Sistema de Catálogos
 
 ## Información General
 | Campo                  | Valor                        |
 |------------------------|------------------------------|
-| Nombre del Sistema     | Sistema de Catálogos VMT-CID |
+| Nombre del Sistema     | Sistema de Catálogos         |
 | Versión                | 2.0.0                        |
 | Tipo de Aplicación     | Web (SPA + API REST)         |
 | Arquitectura           | Frontend-Backend Separados   |
@@ -61,7 +61,7 @@
 ---
 
 ## Contacto Técnico
-- Email: soporte@vmt-cid.com
+- Email: lprafael1710@gmail.com
 - Documentación: README_SECURITY_COMPLETE.md, GUIA_INICIACION.md
 
 
@@ -69,7 +69,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Nombre del Sistema** | Sistema de Catálogos VMT-CID |
+| **Nombre del Sistema** | Sistema de Catálogos |
 | **Versión** | 1.0.0 |
 | **Tipo de Aplicación** | Web Application (SPA + API) |
 | **Arquitectura** | Frontend-Backend Separados |
@@ -467,7 +467,7 @@ pydantic==2.5.0
 ## 📞 Soporte
 
 ### **Contacto Técnico**
-- **Email**: soporte@vmt-cid.com
+- **Email**: lprafael1710@gmail.com
 - **Documentación**: README.md
 - **Issues**: GitHub Issues (si aplica)
 

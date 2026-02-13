@@ -1,4 +1,4 @@
-# Sistema de Seguridad - VMT-CID
+# Sistema de Seguridad - Playa de Vehículos
 
 Este documento describe cómo configurar y usar el sistema de seguridad implementado en el backend.
 
@@ -78,7 +78,7 @@ Para usar Gmail como servidor de email:
 1. Activar la verificación en dos pasos en tu cuenta de Google
 2. Generar una "Contraseña de aplicación":
    - Ve a https://myaccount.google.com/apppasswords
-   - Selecciona "Otra" y dale un nombre (ej: "VMT-CID")
+   - Selecciona "Otra" y dale un nombre (ej: "Playa de Vehículos")
    - Usa la contraseña generada en `EMAIL_PASSWORD`
 
 ### 4. Crear Usuario Administrador
@@ -90,7 +90,7 @@ python create_admin.py
 Esto creará un usuario administrador con:
 - Usuario: `admin`
 - Contraseña: `Admin123!`
-- Email: `admin@vmt-cid.com`
+- Email: `lprafael1710@gmail.com`
 
 **IMPORTANTE**: Cambia la contraseña después del primer inicio de sesión.
 
@@ -115,7 +115,7 @@ Respuesta:
     "user": {
         "id": 1,
         "username": "admin",
-        "email": "admin@vmt-cid.com",
+        "email": "lprafael1710@gmail.com",
         "nombre_completo": "Administrador del Sistema",
         "rol": "admin",
         "activo": true,

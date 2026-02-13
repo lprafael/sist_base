@@ -2,7 +2,7 @@
 
 ## Resumen
 
-La base de datos del Sistema de Catálogos VMT-CID está diseñada para garantizar seguridad, trazabilidad y flexibilidad. Incluye:
+La base de datos del Sistema de Playa de Vehículos está diseñada para garantizar seguridad, trazabilidad y flexibilidad. Incluye:
 - Gestión de usuarios, roles y permisos (RBAC)
 - Auditoría de accesos y cambios
 - Notificaciones internas y por email
@@ -88,7 +88,7 @@ Tablas de negocio para catálogos principales.
 
 ## 📋 Resumen Ejecutivo
 
-Este documento describe la estructura completa de la base de datos para el Sistema de Catálogos VMT-CID, que incluye:
+Este documento describe la estructura completa de la base de datos para el Sistema de Playa de Vehículos, que incluye:
 
 - **Sistema de Seguridad**: Usuarios, roles, permisos y autenticación
 - **Sistema de Auditoría**: Logs de acceso y auditoría de cambios
@@ -431,10 +431,10 @@ Este documento describe la estructura completa de la base de datos para el Siste
 
 ### Email
 - `EMAIL_ENABLED`: true
-- `EMAIL_FROM_NAME`: "Sistema VMT-CID"
+- `EMAIL_FROM_NAME`: "Sistema de Playa de Vehículos"
 
 ### Sistema
-- `SYSTEM_NAME`: "Sistema de Catálogos VMT-CID"
+- `SYSTEM_NAME`: "Sistema de Playa de Vehículos"
 - `SYSTEM_VERSION`: "1.0.0"
 - `BACKUP_RETENTION_DAYS`: 30
 
@@ -459,7 +459,7 @@ Esto creará:
 **Usuario administrador por defecto**:
 - Usuario: `admin`
 - Contraseña: `Admin123!`
-- Email: `admin@vmt-cid.com`
+- Email: `lprafael1710@gmail.com`
 - Rol: `admin`
 
 ---

@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo   Iniciador de Servicios VMT-CID
+echo   Iniciador de Servicios
 echo ========================================
 echo.
 

@@ -10,26 +10,41 @@ const CobrosPlaya = () => {
     const [showModal, setShowModal] = useState(false);
     const [includeCancelados, setIncludeCancelados] = useState(false);
     const [selectedPagare, setSelectedPagare] = useState(null);
+    const [cuentas, setCuentas] = useState([]);
     const [sortConfig, setSortConfig] = useState({ key: 'fecha_vencimiento', direction: 'asc' });
     const [newPago, setNewPago] = useState({
         id_pagare: '',
         id_venta: '',
+        id_cuenta: '',
         numero_recibo: '',
         fecha_pago: new Date().toISOString().split('T')[0],
         monto_pagado: 0,
         mora_aplicada: 0,
         forma_pago: 'EFECTIVO',
         numero_referencia: '',
-        observaciones: ''
+        observaciones: '',
+        cancelar_pagare: false
     });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
         fetchPagares();
-        // Cargar todos los pagarés al inicio para tenerlos disponibles
         fetchAllPagares();
+        fetchCuentas();
     }, []);
+
+    const fetchCuentas = async () => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/cuentas`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setCuentas(res.data.filter(c => c.activo));
+        } catch (error) {
+            console.error('Error fetching cuentas:', error);
+        }
+    };
 
     const fetchPagares = async () => {
         try {
@@ -182,9 +197,11 @@ const CobrosPlaya = () => {
             ...newPago,
             id_pagare: pagare.id_pagare,
             id_venta: pagare.id_venta,
+            id_cuenta: '', // Reiniciar cuenta
             monto_pagado: pagare.saldo_pendiente,
             mora_aplicada: 0,
-            numero_recibo: `REC-${Date.now()}`
+            numero_recibo: `REC-${Date.now()}`,
+            cancelar_pagare: false
         };
 
         // Calcular mora inicial
@@ -1175,12 +1192,39 @@ const CobrosPlaya = () => {
                                         <option value="DEPOSITO">Depósito Bancario</option>
                                     </select>
                                 </div>
+                                <div className="form-group">
+                                    <label>Depositar en Cuenta / Caja</label>
+                                    <select
+                                        value={newPago.id_cuenta}
+                                        onChange={(e) => setNewPago({ ...newPago, id_cuenta: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">-- Seleccionar Cuenta --</option>
+                                        {cuentas.map(c => (
+                                            <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} ({c.tipo})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-row">
                                 {newPago.forma_pago !== 'EFECTIVO' && (
                                     <div className="form-group">
                                         <label>N° Referencia / Operación</label>
                                         <input type="text" value={newPago.numero_referencia} onChange={(e) => setNewPago({ ...newPago, numero_referencia: e.target.value })} placeholder="Ej: N° Transacción o Cheque" />
                                     </div>
                                 )}
+                                <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={newPago.cancelar_pagare}
+                                            onChange={(e) => setNewPago({ ...newPago, cancelar_pagare: e.target.checked })}
+                                            style={{ width: '20px', height: '20px' }}
+                                        />
+                                        <span style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>Dar por CANCELADO el pagaré</span>
+                                    </label>
+                                </div>
                             </div>
 
                             <div className="form-group">

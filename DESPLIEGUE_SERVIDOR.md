@@ -220,7 +220,7 @@ Después de ejecutar `create_admin.py`:
 
 - **Usuario**: `admin`
 - **Contraseña**: `Admin123!`
-- **Email**: `admin@vmt-cid.com`
+- **Email**: `lprafael1710@gmail.com`
 
 **⚠️ IMPORTANTE**: Cambiar la contraseña después del primer acceso.
 

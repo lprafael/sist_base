@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Instalacion del Sistema VMT-CID
+echo   Instalacion del Sistema
 echo ========================================
 echo.
 

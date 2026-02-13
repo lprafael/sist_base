@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "========================================"
-echo "  Instalación del Sistema VMT-CID"
+echo "  Instalación del Sistema"
 echo "========================================"
 echo ""
 

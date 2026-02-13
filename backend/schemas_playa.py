@@ -207,6 +207,8 @@ class PagareUpdate(BaseModel):
     monto_cuota: Optional[Decimal] = None
     fecha_vencimiento: Optional[date] = None
     estado: Optional[str] = None
+    id_estado: Optional[int] = None
+    cancelado: Optional[bool] = None
     saldo_pendiente: Optional[Decimal] = None
     observaciones: Optional[str] = None
 
@@ -219,6 +221,8 @@ class PagareResponse(BaseModel):
     fecha_vencimiento: Optional[date] = None
     tipo_pagare: Optional[str] = None
     estado: Optional[str] = None
+    id_estado: Optional[int] = None
+    cancelado: Optional[bool] = False
     saldo_pendiente: Optional[Decimal] = None
     fecha_pago: Optional[date] = None
     observaciones: Optional[str] = None
@@ -255,7 +259,8 @@ class PagoBase(BaseModel):
     observaciones: Optional[str] = None
 
 class PagoCreate(PagoBase):
-    pass
+    id_cuenta: Optional[int] = None
+    cancelar_pagare: Optional[bool] = False # Checkbox "Cancelado" de la UI
 
 class PagoResponse(PagoBase):
     id_pago: int
@@ -432,3 +437,56 @@ class ClienteResponseFull(ClienteResponse):
     garantes: Optional[List[GanteResponse]] = []
     referencias: Optional[List[ReferenciaResponse]] = []
     ubicaciones: Optional[List[UbicacionClienteResponse]] = []
+
+# ===== ESTADOS DE PAGARÉ =====
+class EstadoBase(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    color_hex: Optional[str] = None
+    activo: Optional[bool] = True
+
+class EstadoCreate(EstadoBase):
+    pass
+
+class EstadoResponse(EstadoBase):
+    id_estado: int
+    class Config:
+        from_attributes = True
+
+# ===== CUENTAS =====
+class CuentaBase(BaseModel):
+    nombre: str
+    tipo: Optional[str] = None # CAJA, BANCO, etc.
+    banco: Optional[str] = None
+    numero_cuenta: Optional[str] = None
+    saldo_actual: Optional[Decimal] = 0
+    activo: Optional[bool] = True
+
+class CuentaCreate(CuentaBase):
+    pass
+
+class CuentaResponse(CuentaBase):
+    id_cuenta: int
+    fecha_registro: Optional[datetime] = None
+    class Config:
+        from_attributes = True
+
+# ===== MOVIMIENTOS =====
+class MovimientoBase(BaseModel):
+    id_cuenta_origen: Optional[int] = None
+    id_cuenta_destino: Optional[int] = None
+    monto: Decimal
+    concepto: Optional[str] = None
+    referencia: Optional[str] = None
+
+class MovimientoCreate(MovimientoBase):
+    fecha: Optional[datetime] = None
+
+class MovimientoResponse(MovimientoBase):
+    id_movimiento: int
+    fecha: Optional[datetime] = None
+    id_usuario: Optional[int] = None
+    cuenta_origen: Optional[CuentaResponse] = None
+    cuenta_destino: Optional[CuentaResponse] = None
+    class Config:
+        from_attributes = True

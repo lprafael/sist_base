@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo   Actualizador del Sistema VMT-CID
+echo   Actualizador del Sistema de Playa de Vehículos
 echo ========================================
 echo.
 

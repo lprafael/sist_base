@@ -20,6 +20,9 @@ import TiposGastosEmpresa from "./components/playa/parametros/TiposGastosEmpresa
 import TiposGastosProductos from "./components/playa/parametros/TiposGastosProductos.jsx";
 import ReportesPlaya from "./components/playa/reportes/ReportesPlaya.jsx";
 import VendedoresPlaya from "./components/playa/parametros/VendedoresPlaya.jsx";
+import EstadosPlaya from "./components/playa/parametros/EstadosPlaya.jsx";
+import CuentasPlaya from "./components/playa/parametros/CuentasPlaya.jsx";
+import MovimientosCuentas from "./components/playa/negocios/MovimientosCuentas.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed, isMobileOpen, onMobileToggle }) {
   const handleToggle = () => {
@@ -240,6 +243,7 @@ export default function App() {
         { id: "ventas_playa", label: "Ventas", icon: "🤝", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "pagares_playa", label: "Pagarés", icon: "📝", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "cobros_playa", label: "Cobros", icon: "💵", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "movimientos_cuentas", label: "Movimientos", icon: "💸", roles: ['admin', 'manager'] },
       ]
     },
     {
@@ -250,6 +254,8 @@ export default function App() {
         { id: "tipos_gastos_empresa_playa", label: "Tipos Gastos Empresa", icon: "🏢", roles: ['admin', 'manager'] },
         { id: "tipos_gastos_productos_playa", label: "Tipos Gastos Productos", icon: "🛠️", roles: ['admin', 'manager'] },
         { id: "vendedores_playa", label: "Vendedores", icon: "👨‍💼", roles: ['admin', 'manager'] },
+        { id: "estados_playa", label: "Estados Pagarés", icon: "🔖", roles: ['admin', 'manager'] },
+        { id: "cuentas_playa", label: "Cuentas/Cajas", icon: "🏦", roles: ['admin', 'manager'] },
       ]
     },
     {
@@ -380,6 +386,9 @@ export default function App() {
             {tab === "gastos_playa" && <GastosVehiculo />}
             {tab === "gastos_empresa_playa" && <GastosEmpresa />}
             {tab === "reportes_mora" && <ReportesPlaya />}
+            {tab === "estados_playa" && <EstadosPlaya />}
+            {tab === "cuentas_playa" && <CuentasPlaya />}
+            {tab === "movimientos_cuentas" && <MovimientosCuentas />}
           </div>
 
         </main>

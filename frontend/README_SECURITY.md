@@ -1,4 +1,4 @@
-# Sistema de Seguridad - Frontend VMT-CID
+# Sistema de Seguridad - Frontend Playa de Vehículos
 
 Este documento describe cómo configurar y usar el sistema de seguridad implementado en el frontend.
 
