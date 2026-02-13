@@ -350,8 +350,8 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                         <strong>Pagarés Generados:</strong>
                                         <ul>
                                             {v.pagares?.map(p => (
-                                                <li key={p.id_pagare} className={p.estado.toLowerCase()}>
-                                                    Cuota {p.numero_cuota}: {p.fecha_vencimiento} ({p.estado})
+                                                <li key={p.id_pagare} className={(p.estado_rel?.nombre || '').toLowerCase()}>
+                                                    Cuota {p.numero_cuota}: {p.fecha_vencimiento} ({p.estado_rel?.nombre || 'N/A'})
                                                 </li>
                                             ))}
                                         </ul>

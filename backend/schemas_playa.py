@@ -202,11 +202,27 @@ class DetalleVentaResponse(DetalleVentaBase):
     class Config:
         from_attributes = True
 
+# ===== ESTADOS =====
+class EstadoBase(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    color_hex: Optional[str] = None
+
+class EstadoCreate(EstadoBase):
+    pass
+
+class EstadoResponse(EstadoBase):
+    id_estado: int
+    activo: Optional[bool] = True
+    class Config:
+        from_attributes = True
+
+# ===== PAGARES =====
 class PagareUpdate(BaseModel):
     numero_pagare: Optional[str] = None
     monto_cuota: Optional[Decimal] = None
     fecha_vencimiento: Optional[date] = None
-    estado: Optional[str] = None
+    # estado: Optional[str] = None # Removed
     id_estado: Optional[int] = None
     cancelado: Optional[bool] = None
     saldo_pendiente: Optional[Decimal] = None
@@ -220,8 +236,9 @@ class PagareResponse(BaseModel):
     monto_cuota: Optional[Decimal] = None
     fecha_vencimiento: Optional[date] = None
     tipo_pagare: Optional[str] = None
-    estado: Optional[str] = None
+    # estado: Optional[str] = None # Removed
     id_estado: Optional[int] = None
+    estado_rel: Optional[EstadoResponse] = None # Added relation
     cancelado: Optional[bool] = False
     saldo_pendiente: Optional[Decimal] = None
     fecha_pago: Optional[date] = None

@@ -190,8 +190,8 @@ const PagaresPlaya = () => {
                     bValue = new Date(b.fecha_vencimiento);
                     break;
                 case 'estado':
-                    aValue = a.estado.toLowerCase();
-                    bValue = b.estado.toLowerCase();
+                    aValue = a.estado_rel?.nombre?.toLowerCase() || '';
+                    bValue = b.estado_rel?.nombre?.toLowerCase() || '';
                     break;
                 default:
                     return 0;
@@ -358,7 +358,7 @@ const PagaresPlaya = () => {
                                 <td>Gs. ${Math.round(p.monto_cuota).toLocaleString('es-PY')}</td>
                                 <td>${new Date(p.fecha_vencimiento).toLocaleDateString('es-PY')}</td>
                                 <td>
-                                    <span class="status-badge ${p.estado.toLowerCase()}">${p.estado}</span>
+                                    <span class="status-badge ${(p.estado_rel?.nombre || '').toLowerCase()}">${p.estado_rel?.nombre || 'N/A'}</span>
                                 </td>
                             </tr>
                         `;
@@ -499,13 +499,19 @@ const PagaresPlaya = () => {
                                     <tr key={p.id_pagare}>
                                         <td>{p.numero_pagare}</td>
                                         <td>ID: {p.id_venta}</td>
-                                        <td>{p.numero_cuota} ({p.tipo_pagare})</td>
+                                        <td>
+                                            {p.numero_cuota} ({p.tipo_pagare})
+                                        </td>
                                         <td>Gs. {Math.round(p.monto_cuota).toLocaleString('es-PY')}</td>
                                         <td>{p.fecha_vencimiento}</td>
                                         <td>
-                                            <span className={`status-badge ${p.estado.toLowerCase()}`}>
-                                                {p.estado}
-                                            </span>
+                                            {p.estado_rel?.nombre ? (
+                                                <span className={`status-badge ${p.estado_rel.nombre.toLowerCase()}`}>
+                                                    {p.estado_rel.nombre}
+                                                </span>
+                                            ) : (
+                                                <span className="status-badge unknown">N/A</span>
+                                            )}
                                         </td>
                                         <td>
                                             <button className="btn-edit-small" onClick={() => handleEdit(p)}>

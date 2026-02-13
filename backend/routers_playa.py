@@ -9,7 +9,12 @@ from datetime import date, timedelta, datetime
 from decimal import Decimal
 from pydantic import BaseModel # Added BaseModel import
 from database import get_session
-from models_playa import CategoriaVehiculo, Producto, Cliente, Venta, Pagare, Pago, TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, UbicacionCliente, Estado, Cuenta, Movimiento # Added new models
+from models_playa import (
+    CategoriaVehiculo, Producto, Cliente, Venta, Pagare, Pago, 
+    TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
+    ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
+    UbicacionCliente, Estado, Cuenta, Movimiento
+)
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
     ProductoCreate, ProductoUpdate, ProductoResponse,
@@ -860,7 +865,7 @@ async def list_ventas(session: AsyncSession = Depends(get_session)):
         .options(
             joinedload(Venta.cliente),
             joinedload(Venta.producto),
-            joinedload(Venta.pagares), 
+            selectinload(Venta.pagares).joinedload(Pagare.estado_rel), 
             joinedload(Venta.detalles)
         )
         .order_by(Venta.fecha_registro.desc())
@@ -912,7 +917,7 @@ async def create_venta(
             monto_cuota=new_venta.entrega_inicial,
             fecha_vencimiento=hoy,
             tipo_pagare='ENTREGA_INICIAL',
-            estado='PENDIENTE',
+            # estado='PENDIENTE', # Removed
             id_estado=id_pendiente,
             saldo_pendiente=new_venta.entrega_inicial
         ))
@@ -930,7 +935,7 @@ async def create_venta(
                     monto_cuota=venta_data.monto_cuota,
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='CUOTA',
-                    estado='PENDIENTE',
+                    # estado='PENDIENTE', # Removed
                     id_estado=id_pendiente,
                     saldo_pendiente=venta_data.monto_cuota
                 )
@@ -1202,8 +1207,9 @@ async def update_venta(
                     monto_cuota=venta_data.monto_cuota,
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='CUOTA',
-                    estado='PENDIENTE',
-                    saldo_pendiente=venta_data.monto_cuota
+                    # estado='PENDIENTE', # Removed
+                    saldo_pendiente=venta_data.monto_cuota,
+                    id_estado=id_pendiente
                 )
                 session.add(nuevo_pagare)
                 pagares_generados += 1
@@ -1219,8 +1225,9 @@ async def update_venta(
                     monto_cuota=venta_data.monto_refuerzo,
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='REFUERZO',
-                    estado='PENDIENTE',
-                    saldo_pendiente=venta_data.monto_refuerzo
+                    # estado='PENDIENTE', # Removed
+                    saldo_pendiente=venta_data.monto_refuerzo,
+                    id_estado=id_pendiente
                 )
                 session.add(nuevo_pagare)
                 pagares_generados += 1
@@ -1265,12 +1272,13 @@ async def update_venta(
 async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     # Traer pagarés con saldo pendiente (PENDIENTE o PARCIAL)
     query = (
-        select(Pagare, Venta, Cliente, Producto)
+        select(Pagare, Venta, Cliente, Producto, Estado)
         .options(selectinload(Pagare.pagos))
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .join(Producto, Venta.id_producto == Producto.id_producto)
-        .where(Pagare.estado.in_(['PENDIENTE', 'PARCIAL', 'VENCIDO']))
+        .join(Estado, Pagare.id_estado == Estado.id_estado)
+        .where(Estado.nombre.in_(['PENDIENTE', 'PARCIAL', 'VENCIDO']))
         .where(Pagare.saldo_pendiente > 0)
         .order_by(Pagare.fecha_vencimiento)
     )
@@ -1279,7 +1287,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     pagares_list = result.all()
     
     # Obtener todos los IDs de venta únicos
-    venta_ids = list(set([v.id_venta for _, v, _, _ in pagares_list]))
+    venta_ids = list(set([v.id_venta for _, v, _, _, _ in pagares_list]))
     
     # Obtener total de cuotas por venta en una sola consulta
     if venta_ids:
@@ -1294,7 +1302,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
         ventas_cuotas = {}
     
     data = []
-    for p, v, c, prod in pagares_list:
+    for p, v, c, prod, est in pagares_list: # Unpack est (Estado)
         total_cuotas = ventas_cuotas.get(v.id_venta, 0)
         
         # Obtener fecha de pago si existe (para pagos parciales)
@@ -1316,7 +1324,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             "cliente": f"{c.nombre} {c.apellido}",
             "vehiculo": f"{prod.marca} {prod.modelo}",
             "numero_documento": c.numero_documento,
-            "estado": p.estado,
+            "estado": est.nombre, # Use est.nombre instead of p.estado
             "periodo_int_mora": v.periodo_int_mora,
             "monto_int_mora": float(v.monto_int_mora) if v.monto_int_mora is not None else 0.0,
             "tasa_interes": float(v.tasa_interes) if v.tasa_interes is not None else 0.0,
@@ -1330,11 +1338,12 @@ async def list_pagares(
     estado: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
-    query = select(Pagare).options(selectinload(Pagare.pagos))
+    query = select(Pagare).options(selectinload(Pagare.pagos), joinedload(Pagare.estado_rel))
     if id_venta:
         query = query.where(Pagare.id_venta == id_venta)
     if estado:
-        query = query.where(Pagare.estado == estado)
+        # Join with Estado to filter by name
+        query = query.join(Estado, Pagare.id_estado == Estado.id_estado).where(Estado.nombre == estado)
     
     query = query.order_by(Pagare.fecha_vencimiento.asc())
     result = await session.execute(query)
@@ -1371,7 +1380,7 @@ async def update_pagare(
         "numero_pagare": pagare.numero_pagare,
         "monto_cuota": float(pagare.monto_cuota) if pagare.monto_cuota else None,
         "fecha_vencimiento": pagare.fecha_vencimiento.isoformat() if pagare.fecha_vencimiento else None,
-        "estado": pagare.estado,
+        # "estado": pagare.estado, # Removed
         "saldo_pendiente": float(pagare.saldo_pendiente) if pagare.saldo_pendiente else None,
         "observaciones": pagare.observaciones
     }
@@ -1416,9 +1425,10 @@ async def create_pago(
     await session.execute(text("SET LOCAL search_path TO playa, public"))
     
     # 1. Obtener el pagaré con su venta asociada
+    # 1. Obtener el pagaré con su venta asociada y estado
     res_p = await session.execute(
         select(Pagare)
-        .options(joinedload(Pagare.venta))
+        .options(joinedload(Pagare.venta), joinedload(Pagare.estado_rel)) # Load estado_rel
         .where(Pagare.id_pagare == pago_data.id_pagare)
     )
     pagare = res_p.scalar_one_or_none()
@@ -1426,7 +1436,8 @@ async def create_pago(
     if not pagare:
         raise HTTPException(status_code=404, detail="El pagaré no existe")
     
-    if pagare.estado == 'PAGADO':
+    # Check status using relationship
+    if pagare.estado_rel and pagare.estado_rel.nombre == 'PAGADO':
         raise HTTPException(status_code=400, detail="El pagaré ya ha sido pagado completamente")
 
     # Asegurar que el saldo pendiente esté inicializado si es NULL para evitar errores en cálculos
@@ -1525,12 +1536,12 @@ async def create_pago(
     all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
     
     if pagare.saldo_pendiente <= 0 or cancelar_pagare:
-        pagare.estado = 'PAGADO'
+        # pagare.estado = 'PAGADO' # Removed
         pagare.id_estado = all_states.get('PAGADO')
         pagare.saldo_pendiente = 0
         pagare.cancelado = True
     else:
-        pagare.estado = 'PARCIAL'
+        # pagare.estado = 'PARCIAL' # Removed
         pagare.id_estado = all_states.get('PARCIAL')
         pagare.cancelado = False
     
@@ -2159,8 +2170,9 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
     res_cartera = await session.execute(
         select(func.sum(Pagare.saldo_pendiente))
         .join(Venta, Pagare.id_venta == Venta.id_venta)
+        .join(Estado, Pagare.id_estado == Estado.id_estado) # Join Estado
         .where(and_(
-            Pagare.estado.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
+            Estado.nombre.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
             Venta.estado_venta != 'ANULADA'
         ))
     )
@@ -2171,9 +2183,10 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
     res_mora = await session.execute(
         select(func.sum(Pagare.saldo_pendiente))
         .join(Venta, Pagare.id_venta == Venta.id_venta)
+        .join(Estado, Pagare.id_estado == Estado.id_estado) # Join Estado
         .where(and_(
-            Pagare.estado.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
-            or_(Pagare.estado == 'VENCIDO', Pagare.fecha_vencimiento < hoy_date),
+            Estado.nombre.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
+            or_(Estado.nombre == 'VENCIDO', Pagare.fecha_vencimiento < hoy_date),
             Venta.estado_venta != 'ANULADA'
         ))
     )
@@ -2259,8 +2272,9 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
             aging_case.label('rango_key'),
             func.sum(Pagare.saldo_pendiente).label('total')
         ).join(Venta, Pagare.id_venta == Venta.id_venta)
+        .join(Estado, Pagare.id_estado == Estado.id_estado) # Join Estado
         .where(and_(
-            Pagare.estado.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
+            Estado.nombre.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
             Venta.estado_venta != 'ANULADA'
         ))
         .group_by(aging_case)

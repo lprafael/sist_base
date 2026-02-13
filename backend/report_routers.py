@@ -14,7 +14,11 @@ from models_playa import (
     Producto,
     Pagare,
     ConfigCalificacion,
-    Vendedor
+    Vendedor,
+    Estado,
+    Cuenta,
+    Pago,
+    Movimiento
 )
 from security import get_current_user
 
@@ -74,6 +78,20 @@ class StockDisponibleResponse(BaseModel):
     entrega_inicial_sugerida: Optional[float] = None
     ubicacion_actual: Optional[str] = None
     dias_en_stock: int
+
+class MovimientoCuentaResponse(BaseModel):
+    fecha: datetime
+    concepto: str
+    referencia: Optional[str] = None
+    tipo: str # 'INGRESO', 'EGRESO'
+    monto: float
+    saldo_acumulado: float = 0
+
+class ReporteExtractoResponse(BaseModel):
+    cuenta_nombre: str
+    saldo_anterior: float
+    movimientos: List[MovimientoCuentaResponse]
+    saldo_final: float
 
 # --- Endpoints ---
 
@@ -169,7 +187,8 @@ async def get_clientes_en_mora(
         .join(Venta, Cliente.id_cliente == Venta.id_cliente)
         .join(Producto, Venta.id_producto == Producto.id_producto)
         .join(Pagare, Venta.id_venta == Pagare.id_venta)
-        .where(Pagare.estado != 'PAGADO')
+        .join(Estado, Pagare.id_estado == Estado.id_estado)
+        .where(Estado.nombre != 'PAGADO')
         .where(Pagare.fecha_vencimiento >= date_from)
         .where(Pagare.fecha_vencimiento <= date_to)
         .group_by(
@@ -223,7 +242,8 @@ async def get_cuotas_mora_detalle(
     # 1. Obtener los IDs de las ventas que tienen mora en este rango
     ventas_con_mora_res = await session.execute(
         select(Pagare.id_venta)
-        .where(Pagare.estado != 'PAGADO')
+        .join(Estado, Pagare.id_estado == Estado.id_estado)
+        .where(Estado.nombre != 'PAGADO')
         .where(Pagare.fecha_vencimiento >= date_from)
         .where(Pagare.fecha_vencimiento <= date_to)
         .distinct()
@@ -249,7 +269,7 @@ async def get_cuotas_mora_detalle(
             Pagare.monto_cuota,
             Pagare.saldo_pendiente,
             Pagare.fecha_vencimiento,
-            Pagare.estado,
+            Estado.nombre.label('estado'),
             Venta.cantidad_cuotas.label('total_cuotas'),
             Venta.monto_int_mora.label('tasa_config'),
             Cliente.id_cliente,
@@ -260,8 +280,9 @@ async def get_cuotas_mora_detalle(
         )
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
+        .join(Estado, Pagare.id_estado == Estado.id_estado)
         .where(Pagare.id_venta.in_(ventas_ids))
-        .where(Pagare.estado != 'PAGADO')
+        .where(Estado.nombre != 'PAGADO')
         .order_by(*order_criteria)
     )
     
@@ -348,7 +369,8 @@ async def recalcular_mora_clientes(
         )
         .join(Venta, Cliente.id_cliente == Venta.id_cliente)
         .join(Pagare, Venta.id_venta == Pagare.id_venta)
-        .where(Pagare.estado.in_(['PENDIENTE', 'PARCIAL', 'VENCIDO']))
+        .join(Estado, Pagare.id_estado == Estado.id_estado)
+        .where(Estado.nombre.in_(['PENDIENTE', 'PARCIAL', 'VENCIDO']))
         .where(Pagare.saldo_pendiente > 0)
         .group_by(Cliente.id_cliente)
     )
@@ -444,3 +466,116 @@ async def get_reporte_stock_disponible(
         })
         
     return reporte
+
+@router.get("/playa/reportes/extracto-cuenta", response_model=ReporteExtractoResponse)
+async def get_reporte_extracto_cuenta(
+    id_cuenta: int,
+    desde: Optional[date] = Query(None),
+    hasta: Optional[date] = Query(None),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Genera un extracto de movimientos (pagos y transferencias) para una cuenta específica.
+    """
+    date_from = desde or date(2020, 1, 1)
+    date_to = hasta or date.today()
+    datetime_from = datetime.combine(date_from, datetime.min.time())
+    datetime_to = datetime.combine(date_to, datetime.max.time())
+
+    # 1. Obtener información de la cuenta
+    res_cta = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cuenta))
+    cuenta = res_cta.scalar_one_or_none()
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    # 2. Calcular Saldo Anterior (antes de la fecha 'desde')
+    # Sumar pagos
+    q_pagos_ant = select(func.sum(Pago.monto_pagado)).where(Pago.id_cuenta == id_cuenta).where(Pago.fecha_pago < date_from)
+    res_pagos_ant = await session.execute(q_pagos_ant)
+    pagos_ant = float(res_pagos_ant.scalar() or 0)
+
+    # Sumar movimientos destino
+    q_mov_in_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_destino == id_cuenta).where(Movimiento.fecha < datetime_from)
+    res_mov_in_ant = await session.execute(q_mov_in_ant)
+    mov_in_ant = float(res_mov_in_ant.scalar() or 0)
+
+    # Restar movimientos origen
+    q_mov_out_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_origen == id_cuenta).where(Movimiento.fecha < datetime_from)
+    res_mov_out_ant = await session.execute(q_mov_out_ant)
+    mov_out_ant = float(res_mov_out_ant.scalar() or 0)
+
+    saldo_anterior = pagos_ant + mov_in_ant - mov_out_ant
+
+    # 3. Obtener Movimientos del periodo
+    # Pagos (Ingresos)
+    q_pagos = (
+        select(Pago, Cliente.nombre, Cliente.apellido)
+        .join(Venta, Pago.id_venta == Venta.id_venta)
+        .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
+        .where(Pago.id_cuenta == id_cuenta)
+        .where(Pago.fecha_pago >= date_from)
+        .where(Pago.fecha_pago <= date_to)
+    )
+    res_pagos = await session.execute(q_pagos)
+    movs_pydantic = []
+    for p, nom, ape in res_pagos.all():
+        movs_pydantic.append({
+            "fecha": datetime.combine(p.fecha_pago, datetime.min.time()),
+            "concepto": f"Cobro Cuota - Cliente: {nom} {ape} - Recibo: {p.numero_recibo}",
+            "referencia": p.numero_recibo,
+            "tipo": "INGRESO",
+            "monto": float(p.monto_pagado)
+        })
+
+    # Movimientos Destino (Ingresos por transferencias)
+    q_mov_in = (
+        select(Movimiento)
+        .where(Movimiento.id_cuenta_destino == id_cuenta)
+        .where(Movimiento.fecha >= datetime_from)
+        .where(Movimiento.fecha <= datetime_to)
+    )
+    res_mov_in = await session.execute(q_mov_in)
+    for m in res_mov_in.scalars().all():
+        movs_pydantic.append({
+            "fecha": m.fecha,
+            "concepto": m.concepto or "Transferencia Recibida",
+            "referencia": m.referencia,
+            "tipo": "INGRESO",
+            "monto": float(m.monto)
+        })
+
+    # Movimientos Origen (Egresos por transferencias)
+    q_mov_out = (
+        select(Movimiento)
+        .where(Movimiento.id_cuenta_origen == id_cuenta)
+        .where(Movimiento.fecha >= datetime_from)
+        .where(Movimiento.fecha <= datetime_to)
+    )
+    res_mov_out = await session.execute(q_mov_out)
+    for m in res_mov_out.scalars().all():
+        movs_pydantic.append({
+            "fecha": m.fecha,
+            "concepto": m.concepto or "Transferencia Realizada",
+            "referencia": m.referencia,
+            "tipo": "EGRESO",
+            "monto": float(m.monto)
+        })
+
+    # 4. Ordenar por fecha y calcular saldo acumulado
+    movs_pydantic.sort(key=lambda x: x["fecha"])
+    
+    current_balance = saldo_anterior
+    for m in movs_pydantic:
+        if m["tipo"] == "INGRESO":
+            current_balance += m["monto"]
+        else:
+            current_balance -= m["monto"]
+        m["saldo_acumulado"] = current_balance
+
+    return {
+        "cuenta_nombre": cuenta.nombre,
+        "saldo_anterior": saldo_anterior,
+        "movimientos": movs_pydantic,
+        "saldo_final": current_balance
+    }

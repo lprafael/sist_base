@@ -339,7 +339,6 @@ class Pagare(Base):
     monto_cuota = Column(DECIMAL(15, 2), nullable=False)
     fecha_vencimiento = Column(Date, nullable=False)
     tipo_pagare = Column(String(50), default='CUOTA')
-    estado = Column(String(50), default='PENDIENTE') # Mantener por compatibilidad o migrar
     id_estado = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.estados.id_estado'))
     cancelado = Column(Boolean, default=False)
     saldo_pendiente = Column(DECIMAL(15, 2))

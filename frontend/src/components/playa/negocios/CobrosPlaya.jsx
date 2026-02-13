@@ -140,6 +140,9 @@ const CobrosPlaya = () => {
                 const numero_documento = ventaInfo?.numero_documento || '';
                 const vehiculo = ventaInfo?.vehiculo || 'N/A';
 
+                const estadoCalculado = p.estado_rel?.nombre || p.estado ||
+                    (saldo_pendiente <= 0 || p.cancelado ? 'PAGADO' : 'PENDIENTE');
+
                 return {
                     id_pagare: p.id_pagare,
                     id_venta: p.id_venta,
@@ -147,7 +150,7 @@ const CobrosPlaya = () => {
                     monto_cuota: monto_cuota,
                     saldo_pendiente: saldo_pendiente,
                     fecha_vencimiento: fecha_vencimiento,
-                    estado: p.estado || 'PENDIENTE',
+                    estado: estadoCalculado,
                     fecha_pago: p.fecha_pago || null,
                     cliente: cliente,
                     numero_documento: numero_documento,
@@ -411,7 +414,8 @@ const CobrosPlaya = () => {
                             monto_cuota: monto_cuota,
                             saldo_pendiente: saldo_pendiente,
                             fecha_vencimiento: fecha_vencimiento,
-                            estado: p.estado || 'PENDIENTE',
+                            estado: p.estado_rel?.nombre || p.estado ||
+                                (saldo_pendiente <= 0 || p.cancelado ? 'PAGADO' : 'PENDIENTE'),
                             fecha_pago: p.fecha_pago || null,
                             cliente: ventasInfo[p.id_venta]?.cliente || 'N/A',
                             numero_documento: ventasInfo[p.id_venta]?.numero_documento || '',
@@ -548,7 +552,8 @@ const CobrosPlaya = () => {
                                 monto_cuota: monto_cuota,
                                 saldo_pendiente: saldo_pendiente,
                                 fecha_vencimiento: fecha_vencimiento,
-                                estado: p.estado || 'PENDIENTE',
+                                estado: p.estado_rel?.nombre || p.estado ||
+                                    (saldo_pendiente <= 0 || p.cancelado ? 'PAGADO' : 'PENDIENTE'),
                                 fecha_pago: p.fecha_pago || null,
                                 cliente: cliente,
                                 numero_documento: numero_documento,
@@ -952,8 +957,12 @@ const CobrosPlaya = () => {
     ${Object.values(pagaresByVenta).map(ventaData => {
             const totalMonto = ventaData.pagares.reduce((sum, p) => sum + parseFloat(p.monto_cuota || 0), 0);
             const totalSaldo = ventaData.pagares.reduce((sum, p) => sum + parseFloat(p.saldo_pendiente || 0), 0);
-            const pagados = ventaData.pagares.filter(p => p.estado === 'PAGADO').length;
-            const pendientes = ventaData.pagares.filter(p => p.estado === 'PENDIENTE' || p.estado === 'PARCIAL').length;
+            const pagados = ventaData.pagares.filter(p => (p.estado === 'PAGADO' || (parseFloat(p.saldo_pendiente || 0) <= 0))).length;
+            const pendientes = ventaData.pagares.filter(p => {
+                const est = p.estado;
+                const saldo = parseFloat(p.saldo_pendiente || 0);
+                return (est === 'PENDIENTE' || est === 'PARCIAL' || est === 'VENCIDO') && saldo > 0;
+            }).length;
 
             return `
         <div class="venta-group">
@@ -989,7 +998,8 @@ const CobrosPlaya = () => {
                 </thead>
                 <tbody>
                     ${ventaData.pagares.map(p => {
-                const isOverdue = new Date(p.fecha_vencimiento + 'T12:00:00') < new Date() && (p.estado === 'PENDIENTE' || p.estado === 'PARCIAL');
+                const currentStatus = p.estado_rel?.nombre || p.estado;
+                const isOverdue = new Date(p.fecha_vencimiento + 'T12:00:00') < new Date() && (currentStatus === 'PENDIENTE' || currentStatus === 'PARCIAL' || currentStatus === 'VENCIDO');
                 const fechaPagoFormat = p.fecha_pago ? p.fecha_pago.split('T')[0].split('-').reverse().join('/') : '-';
                 const fechaVencFormat = p.fecha_vencimiento.split('-').reverse().join('/');
                 return `
@@ -1112,7 +1122,7 @@ const CobrosPlaya = () => {
                                         </td>
                                         <td>Gs. {Math.round(parseFloat(p.monto_cuota)).toLocaleString('es-PY')}</td>
                                         <td><strong>Gs. {Math.round(parseFloat(p.saldo_pendiente)).toLocaleString('es-PY')}</strong></td>
-                                        <td><span className={`status-label ${p.estado.toLowerCase()}`}>{p.estado}</span></td>
+                                        <td><span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()}`}>{p.estado_rel?.nombre || p.estado}</span></td>
                                         <td>
                                             <button className="btn-cobrar" onClick={() => handleOpenCobro(p)}>
                                                 Cobrar

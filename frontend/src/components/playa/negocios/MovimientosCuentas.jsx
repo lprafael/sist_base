@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import './CategoriasPlaya.css';
+import '../parametros/CategoriasPlaya.css';
 
 const MovimientosCuentas = () => {
     const [movimientos, setMovimientos] = useState([]);
