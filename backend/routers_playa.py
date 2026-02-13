@@ -17,6 +17,7 @@ from models_playa import (
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
+    VendedorCreate, VendedorResponse,
     ProductoCreate, ProductoUpdate, ProductoResponse,
     ClienteCreate, ClienteResponse,
     VentaCreate, VentaResponse,
@@ -166,6 +167,94 @@ async def delete_categoria(
 
     return {"message": "Categoría eliminada correctamente"}
 
+# ===== VENDEDORES =====
+@router.get("/vendedores", response_model=List[VendedorResponse])
+async def list_vendedores(
+    active_only: bool = False,
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(Vendedor).order_by(Vendedor.nombre.asc())
+    if active_only:
+        query = query.where(Vendedor.activo == True)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+@router.post("/vendedores", response_model=VendedorResponse)
+async def create_vendedor(
+    data: VendedorCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    new_vendedor = Vendedor(**data.model_dump())
+    session.add(new_vendedor)
+    await session.commit()
+    await session.refresh(new_vendedor)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="vendedores",
+        record_id=new_vendedor.id_vendedor,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Vendedor creado: {new_vendedor.nombre} {new_vendedor.apellido}"
+    )
+    return new_vendedor
+
+@router.put("/vendedores/{id_vendedor}", response_model=VendedorResponse)
+async def update_vendedor(
+    id_vendedor: int,
+    data: VendedorCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Vendedor).where(Vendedor.id_vendedor == id_vendedor))
+    vendedor = res.scalar_one_or_none()
+    if not vendedor:
+        raise HTTPException(status_code=404, detail="Vendedor no encontrado")
+    
+    old_data = {c.name: getattr(vendedor, c.name) for c in vendedor.__table__.columns}
+    
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(vendedor, field, value)
+    
+    await session.commit()
+    await session.refresh(vendedor)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="vendedores",
+        record_id=id_vendedor,
+        previous_data=old_data,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Vendedor actualizado: {vendedor.nombre} {vendedor.apellido}"
+    )
+    return vendedor
+
+@router.delete("/vendedores/{id_vendedor}")
+async def delete_vendedor(
+    id_vendedor: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Vendedor).where(Vendedor.id_vendedor == id_vendedor))
+    vendedor = res.scalar_one_or_none()
+    if not vendedor:
+        raise HTTPException(status_code=404, detail="Vendedor no encontrado")
+    
+    # Verificar si tiene ventas asociadas
+    res_v = await session.execute(select(func.count(Venta.id_venta)).where(Venta.id_vendedor == id_vendedor))
+    if res_v.scalar_one() > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar un vendedor con ventas asociadas. Marque como inactivo en su lugar.")
+
+    await session.delete(vendedor)
+    await session.commit()
+    return {"message": "Vendedor eliminado correctamente"}
+
 # ===== CONFIGURACIÓN DE CALIFICACIONES =====
 @router.get("/config-calificaciones", response_model=List[ConfigCalificacionResponse])
 async def list_config_calificaciones(session: AsyncSession = Depends(get_session)):
@@ -309,7 +398,9 @@ async def list_vehiculos(
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        query = select(Producto)
+        query = select(Producto).options(
+            selectinload(Producto.ventas).selectinload(Venta.cliente)
+        )
         if available_only:
             query = query.where(Producto.estado_disponibilidad == 'DISPONIBLE')
         result = await session.execute(query)
@@ -356,7 +447,6 @@ async def create_vehiculo(
     
     await session.refresh(new_vehiculo)
     return new_vehiculo
-
 @router.put("/vehiculos/{id_producto}", response_model=ProductoResponse)
 async def update_vehiculo(
     id_producto: int,
@@ -418,6 +508,60 @@ async def update_vehiculo(
     
     await session.refresh(vehiculo)
     return vehiculo
+
+@router.delete("/vehiculos/{id_producto}")
+async def delete_vehiculo(
+    id_producto: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    # Solo administradores pueden borrar
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permisos para realizar esta acción")
+
+    result = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    vehiculo = result.scalar_one_or_none()
+    
+    if not vehiculo:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    
+    # 1. Verificar si tiene ventas relacionadas
+    ventas_check = await session.execute(select(DetalleVenta).where(DetalleVenta.id_producto == id_producto).limit(1))
+    if ventas_check.first() is not None:
+        raise HTTPException(status_code=400, detail="No se puede eliminar el vehículo porque ya tiene una venta asociada")
+    
+    # 2. Verificar si tiene gastos asociados
+    gastos_check = await session.execute(select(GastoProducto).where(GastoProducto.id_producto == id_producto).limit(1))
+    if gastos_check.first() is not None:
+        raise HTTPException(status_code=400, detail="No se puede eliminar el vehículo porque tiene gastos registrados")
+
+    # Auditoría: datos antes de borrar
+    old_data = {
+        column.name: getattr(vehiculo, column.name)
+        for column in vehiculo.__table__.columns
+    }
+    # Convertir decimales y fechas para JSON
+    for key, value in old_data.items():
+        if isinstance(value, Decimal):
+            old_data[key] = float(value)
+        elif isinstance(value, (date, datetime)):
+            old_data[key] = value.isoformat()
+
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="delete",
+        table="productos",
+        record_id=id_producto,
+        previous_data=old_data,
+        details=f"Vehículo eliminado: {vehiculo.marca} {vehiculo.modelo}"
+    )
+
+    await session.delete(vehiculo)
+    await session.commit()
+    
+    return {"message": "Vehículo eliminado correctamente"}
 
 # ===== CLIENTES =====
 @router.get("/clientes", response_model=List[ClienteResponse])

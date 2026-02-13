@@ -352,3 +352,83 @@
 .custom-table input:focus {
     border-color: #3b82f6;
 }
+
+/* Searchable Select Styles */
+.searchable-select-container {
+    position: relative;
+    z-index: 1001;
+    /* Higher than other form groups if needed */
+}
+
+.searchable-select {
+    position: relative;
+    width: 100%;
+}
+
+.search-input-modal {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    outline: none;
+    font-size: 0.95rem;
+    transition: all 0.3s;
+}
+
+.search-input-modal:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-top: 5px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 2000;
+}
+
+.dropdown-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #475569;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background: #f1f5f9;
+    color: #2563eb;
+    padding-left: 20px;
+}
+
+.dropdown-no-results {
+    padding: 15px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.selected-client-badge {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #059669;
+    background: #f0fdf4;
+    padding: 6px 12px;
+    border-radius: 8px;
+    display: inline-block;
+    border: 1px solid #dcfce7;
+}
+
+/* Ensure the form-row doesn't clip the dropdown */
+.tab-content {
+    overflow: visible !important;
+}

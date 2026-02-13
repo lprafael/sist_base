@@ -19,6 +19,22 @@ class CategoriaVehiculoResponse(CategoriaVehiculoBase):
     class Config:
         from_attributes = True
 
+# ===== VENDEDORES =====
+class VendedorBase(BaseModel):
+    nombre: str
+    apellido: str
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    activo: Optional[bool] = True
+
+class VendedorCreate(VendedorBase):
+    pass
+
+class VendedorResponse(VendedorBase):
+    id_vendedor: int
+    class Config:
+        from_attributes = True
+
 # ===== VEHÍCULOS (PRODUCTOS) =====
 class ProductoBase(BaseModel):
     id_categoria: Optional[int] = None
@@ -108,6 +124,8 @@ class ProductoResponse(BaseModel):
     fecha_ingreso: Optional[date] = None
     fecha_registro: Optional[datetime] = None
     activo: Optional[bool] = None
+    cliente_nombre: Optional[str] = None
+    cliente_documento: Optional[str] = None
 
     class Config:
         from_attributes = True

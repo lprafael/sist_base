@@ -5,6 +5,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Foreign
 from sqlalchemy.orm import relationship, foreign # Added foreign
 from sqlalchemy.sql import func
 from datetime import datetime
+from typing import Optional
 from models import Base
 
 # Schema para la playa
@@ -74,6 +75,23 @@ class Producto(Base):
     gastos = relationship("GastoProducto", back_populates="producto")
     imagenes = relationship("ImagenProducto", back_populates="producto")
     ventas = relationship("Venta", back_populates="producto")
+
+    @property
+    def cliente_nombre(self) -> Optional[str]:
+        if self.ventas:
+            # Buscar la venta activa más reciente (asumiendo que solo hay una venta 'ACTIVA' a la vez)
+            venta_activa = next((v for v in self.ventas if v.estado_venta == 'ACTIVA'), None)
+            if venta_activa and venta_activa.cliente:
+                return f"{venta_activa.cliente.nombre} {venta_activa.cliente.apellido}"
+        return None
+
+    @property
+    def cliente_documento(self) -> Optional[str]:
+        if self.ventas:
+            venta_activa = next((v for v in self.ventas if v.estado_venta == 'ACTIVA'), None)
+            if venta_activa and venta_activa.cliente:
+                return venta_activa.cliente.numero_documento
+        return None
 
 class Cliente(Base):
     __tablename__ = "clientes"

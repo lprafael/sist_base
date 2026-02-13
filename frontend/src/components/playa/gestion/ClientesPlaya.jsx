@@ -446,13 +446,13 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
         try {
             setLoading(true);
             const token = sessionStorage.getItem('token');
-            
+
             // Obtener datos completos del cliente
             const response = await axios.get(`${API_URL}/playa/clientes/${cliente.id_cliente}/full`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const clienteCompleto = response.data;
-            
+
             // Generar HTML y abrir en nueva ventana
             generateClienteHTML(clienteCompleto);
             setLoading(false);
@@ -650,8 +650,8 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     ` : ''}
 
     ${garantes.length > 0 ? garantes.map((garante, garanteIndex) => {
-        const refsGarante = cliente.referencias?.filter(r => r.tipo_entidad === 'GARANTE' && r.id_cliente === garante.id_garante) || [];
-        return `
+            const refsGarante = cliente.referencias?.filter(r => r.tipo_entidad === 'GARANTE' && r.id_cliente === garante.id_garante) || [];
+            return `
     <div class="section garante-section">
         <div class="section-title">GARANTE ${garanteIndex + 1}</div>
         <div class="data-grid">
@@ -684,7 +684,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
         ` : ''}
     </div>
     `;
-    }).join('') : ''}
+        }).join('') : ''}
 
     <div class="footer">
         <p>Fin del reporte - Peralta Automotores</p>
@@ -756,7 +756,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                             <tr>
                                 <th>Cliente</th>
                                 <th>Documento</th>
-                                <th>Celular</th>
+                                <th>Telef./Cel.</th>
                                 <th>Ciudad</th>
                                 <th>Calificación</th>
                                 <th>Acciones</th>
@@ -772,7 +772,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                         </div>
                                     </td>
                                     <td>{c.tipo_documento || ''}: {c.numero_documento || ''}</td>
-                                    <td>{c.celular || ''}</td>
+                                    <td>{[c.telefono, c.celular].filter(Boolean).join(' / ')}</td>
                                     <td>{c.ciudad || ''}</td>
                                     <td>
                                         <span className={`calif-badge ${(c.calificacion_actual || 'NUEVO').toLowerCase()}`}>
@@ -828,7 +828,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                             <input type="text" required value={newCliente.numero_documento || ''} onChange={(e) => setNewCliente({ ...newCliente, numero_documento: e.target.value })} />
                                         </div>
                                     </div>
-                                    
+
                                     <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Personales</h4>
                                     <div className="form-row">
                                         <div className="form-group">
@@ -863,7 +863,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                             <input type="text" value={newCliente.profesion || ''} onChange={(e) => setNewCliente({ ...newCliente, profesion: e.target.value })} />
                                         </div>
                                     </div>
-                                    
+
                                     <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Contacto</h4>
                                     <div className="form-row">
                                         <div className="form-group">
@@ -879,7 +879,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                         <label>Email</label>
                                         <input type="email" value={newCliente.email || ''} onChange={(e) => setNewCliente({ ...newCliente, email: e.target.value })} />
                                     </div>
-                                    
+
                                     <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Dirección</h4>
                                     <div className="form-group">
                                         <label>Dirección</label>
@@ -899,7 +899,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                         <label>Código Postal</label>
                                         <input type="text" value={newCliente.codigo_postal || ''} onChange={(e) => setNewCliente({ ...newCliente, codigo_postal: e.target.value })} />
                                     </div>
-                                    
+
                                     <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Laborales</h4>
                                     <div className="form-group">
                                         <label>Lugar de Trabajo</label>
@@ -923,13 +923,13 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                         <label>Ingreso Mensual</label>
                                         <input type="number" step="0.01" placeholder="0.00" value={newCliente.ingreso_mensual || ''} onChange={(e) => setNewCliente({ ...newCliente, ingreso_mensual: e.target.value })} />
                                     </div>
-                                    
+
                                     <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Observaciones</h4>
                                     <div className="form-group">
                                         <label>Observaciones</label>
                                         <textarea rows="3" value={newCliente.observaciones || ''} onChange={(e) => setNewCliente({ ...newCliente, observaciones: e.target.value })} />
                                     </div>
-                                    
+
                                     <div className="modal-actions">
                                         <button type="submit" className="btn-save">{editingCliente ? 'Actualizar Información' : 'Siguiente: Garantes'}</button>
                                     </div>
@@ -1044,7 +1044,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                     <input type="text" required value={currentGarante.numero_documento || ''} onChange={e => setCurrentGarante({ ...currentGarante, numero_documento: e.target.value })} />
                                 </div>
                             </div>
-                            
+
                             <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Personales</h4>
                             <div className="form-row">
                                 <div className="form-group">
@@ -1077,7 +1077,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                 <label>Relación con Cliente</label>
                                 <input type="text" placeholder="Ej: Hermano, Colega, Amigo" value={currentGarante.relacion_cliente || ''} onChange={e => setCurrentGarante({ ...currentGarante, relacion_cliente: e.target.value })} />
                             </div>
-                            
+
                             <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Contacto</h4>
                             <div className="form-row">
                                 <div className="form-group">
@@ -1093,7 +1093,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                 <label>Email</label>
                                 <input type="email" value={currentGarante.email || ''} onChange={e => setCurrentGarante({ ...currentGarante, email: e.target.value })} />
                             </div>
-                            
+
                             <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Dirección</h4>
                             <div className="form-group">
                                 <label>Dirección</label>
@@ -1103,7 +1103,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                 <label>Ciudad</label>
                                 <input type="text" value={currentGarante.ciudad || ''} onChange={e => setCurrentGarante({ ...currentGarante, ciudad: e.target.value })} />
                             </div>
-                            
+
                             <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Laborales</h4>
                             <div className="form-group">
                                 <label>Lugar de Trabajo</label>
@@ -1127,13 +1127,13 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
                                 <label>Ingreso Mensual</label>
                                 <input type="number" step="0.01" placeholder="0.00" value={currentGarante.ingreso_mensual || ''} onChange={e => setCurrentGarante({ ...currentGarante, ingreso_mensual: e.target.value })} />
                             </div>
-                            
+
                             <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Observaciones</h4>
                             <div className="form-group">
                                 <label>Observaciones</label>
                                 <textarea rows="3" value={currentGarante.observaciones || ''} onChange={e => setCurrentGarante({ ...currentGarante, observaciones: e.target.value })} />
                             </div>
-                            
+
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={() => setShowGanteModal(false)}>Cerrar</button>
                                 <button type="submit" className="btn-save">Guardar Garante</button>

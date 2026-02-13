@@ -13,6 +13,8 @@ const GastosVehiculo = () => {
     const [costoResumen, setCostoResumen] = useState(null);
     const [newType, setNewType] = useState({ nombre: '', descripcion: '' });
     const [editingGasto, setEditingGasto] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [vendedores, setVendedores] = useState([]);
 
     const [newGasto, setNewGasto] = useState({
         id_producto: '',
@@ -33,12 +35,14 @@ const GastosVehiculo = () => {
     const fetchInitialData = async () => {
         try {
             const token = sessionStorage.getItem('token');
-            const [vRes, tRes] = await Promise.all([
+            const [vRes, tRes, vendRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/playa/tipos-gastos`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/playa/tipos-gastos`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/vendedores?active_only=true`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setVehiculos(vRes.data);
             setTiposGastos(tRes.data);
+            setVendedores(vendRes.data);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching initial data:', error);
@@ -154,24 +158,63 @@ const GastosVehiculo = () => {
     };
 
 
+    const isCommissionGasto = () => {
+        if (!newGasto.id_tipo_gasto) return false;
+        const type = tiposGastos.find(t => String(t.id_tipo_gasto) === String(newGasto.id_tipo_gasto));
+        if (!type || !type.nombre) return false;
+        const name = type.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return name.includes("comision") && name.includes("venta");
+    };
+
+
     return (
         <div className="expenses-container">
             <div className="layout-split">
                 {/* Sidebar: Vehicle List */}
                 <div className="vehicle-sidebar">
                     <h3>Vehículos</h3>
+                    <div className="sidebar-search">
+                        <input
+                            type="text"
+                            placeholder="Buscar por marca, modelo, chasis o cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="sidebar-search-input"
+                        />
+                    </div>
                     <div className="v-list">
-                        {vehiculos.map(v => (
-                            <div
-                                key={v.id_producto}
-                                className={`v-item ${selectedVehiculo?.id_producto === v.id_producto ? 'active' : ''}`}
-                                onClick={() => handleSelectVehiculo(v)}
-                            >
-                                <span className="v-title">{v.marca} {v.modelo}</span>
-                                <span className="v-chassis">{v.chasis}</span>
-                                <span className={`v-status ${v.estado_disponibilidad.toLowerCase()}`}>{v.estado_disponibilidad}</span>
-                            </div>
-                        ))}
+                        {vehiculos
+                            .filter(v => {
+                                const search = searchTerm.toLowerCase();
+                                const vehicleMatch =
+                                    (v.marca?.toLowerCase() || '').includes(search) ||
+                                    (v.modelo?.toLowerCase() || '').includes(search) ||
+                                    (v.chasis?.toLowerCase() || '').includes(search);
+
+                                const clientMatch =
+                                    (v.cliente_nombre?.toLowerCase() || '').includes(search) ||
+                                    (v.cliente_documento?.toLowerCase() || '').includes(search);
+
+                                return vehicleMatch || clientMatch;
+                            })
+                            .map(v => (
+                                <div
+                                    key={v.id_producto}
+                                    className={`v-item ${selectedVehiculo?.id_producto === v.id_producto ? 'active' : ''} ${v.estado_disponibilidad.toLowerCase() === 'vendido' ? 'sold' : ''}`}
+                                    onClick={() => handleSelectVehiculo(v)}
+                                >
+                                    <div className="v-main-info">
+                                        <span className="v-title">{v.marca} {v.modelo}</span>
+                                        <span className={`v-status ${v.estado_disponibilidad.toLowerCase()}`}>{v.estado_disponibilidad}</span>
+                                    </div>
+                                    <span className="v-chassis">{v.chasis}</span>
+                                    {v.cliente_nombre && (
+                                        <div className="v-client-info">
+                                            👤 {v.cliente_nombre}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                     </div>
                 </div>
 
@@ -283,7 +326,27 @@ const GastosVehiculo = () => {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Proveedor</label>
-                                    <input type="text" value={newGasto.proveedor} onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })} />
+                                    {isCommissionGasto() ? (
+                                        <select
+                                            value={newGasto.proveedor}
+                                            onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Seleccione vendedor...</option>
+                                            {vendedores.map(v => (
+                                                <option key={v.id_vendedor} value={`${v.nombre} ${v.apellido}`}>
+                                                    {v.nombre} {v.apellido}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={newGasto.proveedor}
+                                            onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })}
+                                            placeholder="Escriba el proveedor..."
+                                        />
+                                    )}
                                 </div>
                                 <div className="form-group">
                                     <label>N° Factura</label>

@@ -132,6 +132,15 @@
     color: #2563eb;
 }
 
+.year,
+.engine {
+    display: block;
+    width: 100%;
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 4px 0;
+}
+
 .card-footer {
     display: flex;
     gap: 10px;
@@ -219,6 +228,12 @@
     gap: 5px;
 }
 
+.form-group label {
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {
@@ -231,6 +246,13 @@
 .form-group textarea {
     min-height: 80px;
     resize: vertical;
+}
+
+.read-only-input {
+    background-color: #f1f5f9;
+    cursor: not-allowed;
+    color: #64748b;
+    border-style: dashed !important;
 }
 
 .modal-tabs {
@@ -368,6 +390,28 @@
 
 .btn-icon:hover {
     background: #f1f5f9;
+}
+
+.btn-icon.delete:hover {
+    background-color: #fee2e2;
+}
+
+.btn-delete-card {
+    background-color: #fee2e2;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-delete-card:hover {
+    background-color: #fecaca;
+    transform: scale(1.05);
 }
 
 .btn-icon.sell {

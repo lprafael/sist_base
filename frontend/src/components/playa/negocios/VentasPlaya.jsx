@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './VentasPlaya.css';
 
@@ -17,6 +17,12 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         startDate: '',
         endDate: ''
     });
+    const [clientSearch, setClientSearch] = useState('');
+    const [showClientDropdown, setShowClientDropdown] = useState(false);
+    const [vehicleSearch, setVehicleSearch] = useState('');
+    const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
+    const dropdownRef = useRef(null);
+    const vehicleDropdownRef = useRef(null);
 
     const [newVenta, setNewVenta] = useState({
         numero_venta: `VNT-${Date.now()}`,
@@ -38,6 +44,19 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowClientDropdown(false);
+            }
+            if (vehicleDropdownRef.current && !vehicleDropdownRef.current.contains(event.target)) {
+                setShowVehicleDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         fetchData();
@@ -70,6 +89,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                         precio_venta: precio,
                         precio_final: precio - prev.descuento
                     }));
+                    setVehicleSearch(`${v.marca} ${v.modelo} (${v.chasis})`);
                     setShowModal(true);
                 }
                 setPreselectedVehicleId(null);
@@ -128,6 +148,12 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             monto_int_mora: parseFloat(venta.monto_int_mora) || 0,
             dias_gracia: parseInt(venta.dias_gracia) || 0
         });
+        if (venta.cliente) {
+            setClientSearch(`${venta.cliente.nombre} ${venta.cliente.apellido} (${venta.cliente.numero_documento})`);
+        }
+        if (venta.producto) {
+            setVehicleSearch(`${venta.producto.marca} ${venta.producto.modelo} (${venta.producto.chasis})`);
+        }
         setShowModal(true);
     };
 
@@ -137,6 +163,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         setActiveTab('datos');
         setShowAfterSalePagares(false);
         setJustCreatedPagares([]);
+        setClientSearch('');
+        setShowClientDropdown(false);
+        setVehicleSearch('');
+        setShowVehicleDropdown(false);
         setNewVenta({
             numero_venta: `VNT-${Date.now()}`,
             id_cliente: '',
@@ -410,19 +440,109 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                 {activeTab === 'datos' ? (
                                     <>
                                         <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Cliente</label>
-                                                <select required value={newVenta.id_cliente} onChange={(e) => setNewVenta({ ...newVenta, id_cliente: e.target.value })}>
-                                                    <option value="">Seleccione Cliente</option>
-                                                    {clientes.map(c => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido}</option>)}
-                                                </select>
+                                            <div className="form-group searchable-select-container" ref={dropdownRef}>
+                                                <label>Buscar Cliente (Nombre o Documento)</label>
+                                                <div className="searchable-select">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Escriba para buscar por nombre o documento..."
+                                                        value={clientSearch}
+                                                        onChange={(e) => {
+                                                            setClientSearch(e.target.value);
+                                                            setShowClientDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowClientDropdown(true)}
+                                                        className="search-input-modal"
+                                                    />
+                                                    {showClientDropdown && (
+                                                        <div className="select-dropdown">
+                                                            {clientes
+                                                                .filter(c => {
+                                                                    const search = clientSearch.toLowerCase();
+                                                                    return (c.nombre + ' ' + c.apellido).toLowerCase().includes(search) ||
+                                                                        c.numero_documento.toLowerCase().includes(search);
+                                                                })
+                                                                .map(c => (
+                                                                    <div
+                                                                        key={c.id_cliente}
+                                                                        className="dropdown-item"
+                                                                        onClick={() => {
+                                                                            setNewVenta({ ...newVenta, id_cliente: c.id_cliente });
+                                                                            setClientSearch(`${c.nombre} ${c.apellido} (${c.numero_documento})`);
+                                                                            setShowClientDropdown(false);
+                                                                        }}
+                                                                    >
+                                                                        {c.nombre} {c.apellido} ({c.numero_documento})
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                            {clientes.filter(c => {
+                                                                const search = clientSearch.toLowerCase();
+                                                                return (c.nombre + ' ' + c.apellido).toLowerCase().includes(search) ||
+                                                                    c.numero_documento.toLowerCase().includes(search);
+                                                            }).length === 0 && (
+                                                                    <div className="dropdown-no-results">No se encontraron clientes</div>
+                                                                )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <input type="hidden" required value={newVenta.id_cliente} />
+                                                {newVenta.id_cliente && !showClientDropdown && (
+                                                    <div className="selected-client-badge">
+                                                        Cliente seleccionado: <strong>{clientes.find(c => c.id_cliente === parseInt(newVenta.id_cliente))?.nombre} {clientes.find(c => c.id_cliente === parseInt(newVenta.id_cliente))?.apellido}</strong>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="form-group">
-                                                <label>Vehículo Disponible</label>
-                                                <select required disabled={!!editingVenta} value={newVenta.id_producto} onChange={(e) => handleVehiculoChange(e.target.value)}>
-                                                    <option value="">Seleccione Vehículo</option>
-                                                    {vehiculos.map(v => <option key={v.id_producto} value={v.id_producto}>{v.marca} {v.modelo} ({v.chasis})</option>)}
-                                                </select>
+                                            <div className="form-group searchable-select-container" ref={vehicleDropdownRef}>
+                                                <label>Vehículo Disponible (Marca, Modelo o Chasis)</label>
+                                                <div className="searchable-select">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Escriba para buscar vehículo..."
+                                                        disabled={!!editingVenta}
+                                                        value={vehicleSearch}
+                                                        onChange={(e) => {
+                                                            setVehicleSearch(e.target.value);
+                                                            setShowVehicleDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowVehicleDropdown(true)}
+                                                        className="search-input-modal"
+                                                    />
+                                                    {showVehicleDropdown && !editingVenta && (
+                                                        <div className="select-dropdown">
+                                                            {vehiculos
+                                                                .filter(v => {
+                                                                    const search = vehicleSearch.toLowerCase();
+                                                                    return v.marca.toLowerCase().includes(search) ||
+                                                                        v.modelo.toLowerCase().includes(search) ||
+                                                                        v.chasis.toLowerCase().includes(search);
+                                                                })
+                                                                .map(v => (
+                                                                    <div
+                                                                        key={v.id_producto}
+                                                                        className="dropdown-item"
+                                                                        onClick={() => {
+                                                                            handleVehiculoChange(v.id_producto);
+                                                                            setVehicleSearch(`${v.marca} ${v.modelo} (${v.chasis})`);
+                                                                            setShowVehicleDropdown(false);
+                                                                        }}
+                                                                    >
+                                                                        <strong>{v.marca} {v.modelo}</strong> ({v.chasis})
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                            {vehiculos.filter(v => {
+                                                                const search = vehicleSearch.toLowerCase();
+                                                                return v.marca.toLowerCase().includes(search) ||
+                                                                    v.modelo.toLowerCase().includes(search) ||
+                                                                    v.chasis.toLowerCase().includes(search);
+                                                            }).length === 0 && (
+                                                                    <div className="dropdown-no-results">No se encontraron vehículos disponibles</div>
+                                                                )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <input type="hidden" required value={newVenta.id_producto} />
                                             </div>
                                         </div>
 

@@ -44,6 +44,45 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
     });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+    const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const isAdmin = userData.rol === 'admin';
+
+    const handleDelete = async (id, name) => {
+        if (!window.confirm(`¿Estás seguro de que deseas eliminar el vehículo ${name}?`)) {
+            return;
+        }
+
+        try {
+            const token = sessionStorage.getItem('token');
+            await axios.delete(`${API_URL}/playa/vehiculos/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Vehículo eliminado correctamente');
+            fetchVehiculos();
+        } catch (error) {
+            console.error('Error al eliminar el vehículo:', error);
+            const detail = error.response?.data?.detail;
+            alert(detail || 'Ocurrió un error al intentar eliminar el vehículo. Es posible que tenga registros relacionados.');
+        }
+    };
+
+    const formatCurrency = (value) => {
+        if (value === null || value === undefined || value === '') return '';
+        // Convert to string and take only digits or parse as float and floor it
+        const number = Math.floor(parseFloat(String(value).replace(/[^0-9.]/g, '')));
+        if (isNaN(number)) return '';
+        return number.toLocaleString('es-PY');
+    };
+
+    const handleCurrencyChange = (e, field, isNew = false) => {
+        // Only keep digits
+        const rawValue = e.target.value.replace(/\D/g, '');
+        if (isNew) {
+            setNewVehiculo(prev => ({ ...prev, [field]: rawValue }));
+        } else {
+            setSelectedVehiculo(prev => ({ ...prev, [field]: rawValue }));
+        }
+    };
 
     useEffect(() => {
         fetchVehiculos();
@@ -360,11 +399,15 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         {v.estado_disponibilidad}
                                     </span>
                                     <h3>{v.marca} {v.modelo}</h3>
-                                    <p className="year">{v.año}</p>
+                                    <p className="year">Año: {v.año}</p>
+                                    <p className="engine">Motor: {v.motor || '-'}</p>
                                 </div>
                                 <div className="card-body">
-                                    <p><strong>Precio Sugerido:</strong>
-                                        <span className="price"> Gs. {Math.round(parseFloat(v.precio_contado_sugerido)).toLocaleString('es-PY')}</span>
+                                    <p><strong>Entrega Inicial:</strong>
+                                        <span className="price"> Gs. {v.entrega_inicial_sugerida ? Math.round(parseFloat(v.entrega_inicial_sugerida)).toLocaleString('es-PY') : '0'}</span>
+                                    </p>
+                                    <p><strong>Precio Financ.:</strong>
+                                        <span className="price"> Gs. {v.precio_financiado_sugerido ? Math.round(parseFloat(v.precio_financiado_sugerido)).toLocaleString('es-PY') : '0'}</span>
                                     </p>
                                 </div>
                                 <div className="card-footer">
@@ -376,6 +419,15 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     >
                                         {v.estado_disponibilidad === 'DISPONIBLE' ? 'Vender' : 'No Disponible'}
                                     </button>
+                                    {isAdmin && (
+                                        <button
+                                            className="btn-delete-card"
+                                            title="Eliminar Vehículo"
+                                            onClick={() => handleDelete(v.id_producto, `${v.marca} ${v.modelo}`)}
+                                        >
+                                            🗑️
+                                        </button>
+                                    )}
                                 </div>
 
                             </div>
@@ -395,8 +447,12 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     </th>
                                     <th>Color</th>
                                     <th>Chasis</th>
-                                    <th className="sortable" onClick={() => requestSort('precio_contado_sugerido')}>
-                                        Precio Sugerido {getSortIndicator('precio_contado_sugerido')}
+                                    <th>Motor</th>
+                                    <th className="sortable" onClick={() => requestSort('entrega_inicial_sugerida')}>
+                                        Entrega Inicial (Gs.) {getSortIndicator('entrega_inicial_sugerida')}
+                                    </th>
+                                    <th className="sortable" onClick={() => requestSort('precio_financiado_sugerido')}>
+                                        Precio Financiado (Gs.) {getSortIndicator('precio_financiado_sugerido')}
                                     </th>
                                     <th className="sortable" onClick={() => requestSort('estado_disponibilidad')}>
                                         Estado {getSortIndicator('estado_disponibilidad')}
@@ -415,8 +471,12 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         <td>{v.año}</td>
                                         <td>{v.color || '-'}</td>
                                         <td style={{ fontFamily: 'monospace' }}>{v.chasis}</td>
+                                        <td>{v.motor || '-'}</td>
+                                        <td style={{ fontWeight: 'bold', color: '#059669' }}>
+                                            Gs. {v.entrega_inicial_sugerida ? Math.round(parseFloat(v.entrega_inicial_sugerida)).toLocaleString('es-PY') : '0'}
+                                        </td>
                                         <td style={{ fontWeight: 'bold', color: '#2563eb' }}>
-                                            Gs. {Math.round(parseFloat(v.precio_contado_sugerido)).toLocaleString('es-PY')}
+                                            Gs. {v.precio_financiado_sugerido ? Math.round(parseFloat(v.precio_financiado_sugerido)).toLocaleString('es-PY') : '0'}
                                         </td>
                                         <td>
                                             <span className={`status-badge ${v.estado_disponibilidad.toLowerCase()}`}>
@@ -440,6 +500,15 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                 >
                                                     💲
                                                 </button>
+                                                {isAdmin && (
+                                                    <button
+                                                        className="btn-icon delete"
+                                                        title="Eliminar"
+                                                        onClick={() => handleDelete(v.id_producto, `${v.marca} ${v.modelo}`)}
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -490,7 +559,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         </div>
                                         <div className="form-group">
                                             <label>Código Interno</label>
-                                            <input type="text" value={newVehiculo.codigo_interno} onChange={(e) => setNewVehiculo({ ...newVehiculo, codigo_interno: e.target.value })} />
+                                            <input type="text" value={newVehiculo.codigo_interno} readOnly className="read-only-input" title="Se completa automáticamente con el chasis" />
                                         </div>
                                     </div>
                                     <div className="form-row">
@@ -516,21 +585,21 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Costo Base (Gs.)</label>
-                                            <input type="number" required value={newVehiculo.costo_base} onChange={(e) => setNewVehiculo({ ...newVehiculo, costo_base: e.target.value })} />
+                                            <input type="text" required value={formatCurrency(newVehiculo.costo_base)} onChange={(e) => handleCurrencyChange(e, 'costo_base', true)} />
                                         </div>
                                         <div className="form-group">
                                             <label>Precio Contado Sugerido (Gs.)</label>
-                                            <input type="number" required value={newVehiculo.precio_contado_sugerido} onChange={(e) => setNewVehiculo({ ...newVehiculo, precio_contado_sugerido: e.target.value })} />
+                                            <input type="text" required value={formatCurrency(newVehiculo.precio_contado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_contado_sugerido', true)} />
                                         </div>
                                     </div>
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Precio Financiado Sugerido (Gs.)</label>
-                                            <input type="number" value={newVehiculo.precio_financiado_sugerido} onChange={(e) => setNewVehiculo({ ...newVehiculo, precio_financiado_sugerido: e.target.value })} />
+                                            <input type="text" value={formatCurrency(newVehiculo.precio_financiado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_financiado_sugerido', true)} />
                                         </div>
                                         <div className="form-group">
                                             <label>Entrega Inicial Sugerida (Gs.)</label>
-                                            <input type="number" value={newVehiculo.entrega_inicial_sugerida} onChange={(e) => setNewVehiculo({ ...newVehiculo, entrega_inicial_sugerida: e.target.value })} />
+                                            <input type="text" value={formatCurrency(newVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida', true)} />
                                         </div>
                                     </div>
                                     <div className="form-group">
@@ -543,7 +612,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Chasis</label>
-                                            <input type="text" required value={newVehiculo.chasis} onChange={(e) => setNewVehiculo({ ...newVehiculo, chasis: e.target.value })} />
+                                            <input type="text" required value={newVehiculo.chasis} onChange={(e) => setNewVehiculo({ ...newVehiculo, chasis: e.target.value, codigo_interno: e.target.value })} />
                                         </div>
                                         <div className="form-group">
                                             <label>Motor</label>
@@ -557,13 +626,22 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         </div>
                                         <div className="form-group">
                                             <label>Combustible</label>
-                                            <input type="text" value={newVehiculo.combustible} onChange={(e) => setNewVehiculo({ ...newVehiculo, combustible: e.target.value })} />
+                                            <select value={newVehiculo.combustible} onChange={(e) => setNewVehiculo({ ...newVehiculo, combustible: e.target.value })}>
+                                                <option value="">Seleccione...</option>
+                                                <option value="NAFTA">NAFTA</option>
+                                                <option value="DIESEL">DIESEL</option>
+                                                <option value="HÍBRIDO">HÍBRIDO</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Transmisión</label>
-                                            <input type="text" value={newVehiculo.transmision} onChange={(e) => setNewVehiculo({ ...newVehiculo, transmision: e.target.value })} />
+                                            <select value={newVehiculo.transmision} onChange={(e) => setNewVehiculo({ ...newVehiculo, transmision: e.target.value })}>
+                                                <option value="">Seleccione...</option>
+                                                <option value="MEC">MEC</option>
+                                                <option value="AUT">AUT</option>
+                                            </select>
                                         </div>
                                         <div className="form-group">
                                             <label>Tipo Vehículo</label>
@@ -593,7 +671,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Precio Mínimo (Gs.)</label>
-                                            <input type="number" value={newVehiculo.precio_venta_minimo} onChange={(e) => setNewVehiculo({ ...newVehiculo, precio_venta_minimo: e.target.value })} />
+                                            <input type="text" value={formatCurrency(newVehiculo.precio_venta_minimo)} onChange={(e) => handleCurrencyChange(e, 'precio_venta_minimo', true)} />
                                         </div>
                                         <div className="form-group">
                                             <label>Fecha Ingreso</label>
@@ -653,7 +731,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         </div>
                                         <div className="form-group">
                                             <label>Código Interno</label>
-                                            <input type="text" value={selectedVehiculo.codigo_interno || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, codigo_interno: e.target.value })} />
+                                            <input type="text" value={selectedVehiculo.codigo_interno || ''} readOnly className="read-only-input" title="Se completa automáticamente con el chasis" />
                                         </div>
                                     </div>
                                     <div className="form-row">
@@ -679,21 +757,21 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Costo Base (Gs.)</label>
-                                            <input type="number" required value={selectedVehiculo.costo_base} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, costo_base: e.target.value })} />
+                                            <input type="text" required value={formatCurrency(selectedVehiculo.costo_base)} onChange={(e) => handleCurrencyChange(e, 'costo_base')} />
                                         </div>
                                         <div className="form-group">
                                             <label>Precio Contado Sugerido (Gs.)</label>
-                                            <input type="number" required value={selectedVehiculo.precio_contado_sugerido} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, precio_contado_sugerido: e.target.value })} />
+                                            <input type="text" required value={formatCurrency(selectedVehiculo.precio_contado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_contado_sugerido')} />
                                         </div>
                                     </div>
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Precio Financiado Sugerido (Gs.)</label>
-                                            <input type="number" value={selectedVehiculo.precio_financiado_sugerido || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, precio_financiado_sugerido: e.target.value })} />
+                                            <input type="text" value={formatCurrency(selectedVehiculo.precio_financiado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_financiado_sugerido')} />
                                         </div>
                                         <div className="form-group">
                                             <label>Entrega Inicial Sugerida (Gs.)</label>
-                                            <input type="number" value={selectedVehiculo.entrega_inicial_sugerida || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, entrega_inicial_sugerida: e.target.value })} />
+                                            <input type="text" value={formatCurrency(selectedVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida')} />
                                         </div>
                                     </div>
                                     <div className="form-row">
@@ -724,7 +802,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Chasis</label>
-                                            <input type="text" required value={selectedVehiculo.chasis} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, chasis: e.target.value })} />
+                                            <input type="text" required value={selectedVehiculo.chasis} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, chasis: e.target.value, codigo_interno: e.target.value })} />
                                         </div>
                                         <div className="form-group">
                                             <label>Motor</label>
@@ -738,13 +816,22 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         </div>
                                         <div className="form-group">
                                             <label>Combustible</label>
-                                            <input type="text" value={selectedVehiculo.combustible || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, combustible: e.target.value })} />
+                                            <select value={selectedVehiculo.combustible || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, combustible: e.target.value })}>
+                                                <option value="">Seleccione...</option>
+                                                <option value="NAFTA">NAFTA</option>
+                                                <option value="DIESEL">DIESEL</option>
+                                                <option value="HÍBRIDO">HÍBRIDO</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Transmisión</label>
-                                            <input type="text" value={selectedVehiculo.transmision || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, transmision: e.target.value })} />
+                                            <select value={selectedVehiculo.transmision || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, transmision: e.target.value })}>
+                                                <option value="">Seleccione...</option>
+                                                <option value="MEC">MEC</option>
+                                                <option value="AUT">AUT</option>
+                                            </select>
                                         </div>
                                         <div className="form-group">
                                             <label>Tipo Vehículo</label>
@@ -774,7 +861,7 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>Precio Mínimo (Gs.)</label>
-                                            <input type="number" value={selectedVehiculo.precio_venta_minimo || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, precio_venta_minimo: e.target.value })} />
+                                            <input type="text" value={formatCurrency(selectedVehiculo.precio_venta_minimo)} onChange={(e) => handleCurrencyChange(e, 'precio_venta_minimo')} />
                                         </div>
                                         <div className="form-group">
                                             <label>Fecha Ingreso</label>
