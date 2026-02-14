@@ -6,6 +6,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const [ventas, setVentas] = useState([]);
     const [vehiculos, setVehiculos] = useState([]);
     const [clientes, setClientes] = useState([]);
+    const [escribanias, setEscribanias] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingVenta, setEditingVenta] = useState(null);
@@ -40,7 +41,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         cantidad_refuerzos: 0,
         monto_refuerzo: 0,
         periodo_int_mora: 'D',
-        monto_int_mora: 0
+        monto_int_mora: 0,
+        id_escribania: '',
+        tipo_documento_propiedad: '',
+        observaciones: ''
     });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -65,16 +69,18 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const fetchData = async () => {
         try {
             const token = sessionStorage.getItem('token');
-            const [vRes, cRes, vntRes] = await Promise.all([
+            const [vRes, cRes, vntRes, eRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos?available_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/clientes`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/playa/ventas`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/playa/ventas`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/escribanias?active_only=true`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
             const fetchedVehiculos = vRes.data;
             setVehiculos(fetchedVehiculos);
             setClientes(cRes.data);
             setVentas(vntRes.data);
+            setEscribanias(eRes.data);
             setLoading(false);
 
             // Manejar pre-selección desde inventario
@@ -146,7 +152,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             monto_refuerzo: parseFloat(venta.monto_refuerzo) || 0,
             periodo_int_mora: venta.periodo_int_mora || 'D',
             monto_int_mora: parseFloat(venta.monto_int_mora) || 0,
-            dias_gracia: parseInt(venta.dias_gracia) || 0
+            dias_gracia: parseInt(venta.dias_gracia) || 0,
+            id_escribania: venta.id_escribania || '',
+            tipo_documento_propiedad: venta.tipo_documento_propiedad || '',
+            observaciones: venta.observaciones || ''
         });
         if (venta.cliente) {
             setClientSearch(`${venta.cliente.nombre} ${venta.cliente.apellido} (${venta.cliente.numero_documento})`);
@@ -184,7 +193,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             monto_refuerzo: 0,
             periodo_int_mora: 'D',
             monto_int_mora: 0,
-            dias_gracia: 0
+            dias_gracia: 0,
+            id_escribania: '',
+            tipo_documento_propiedad: '',
+            observaciones: ''
         });
     };
 
@@ -375,7 +387,21 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                             <p><strong>Precio Final:</strong> Gs. {Math.round(parseFloat(v.precio_final || 0)).toLocaleString('es-PY')}</p>
                             {v.tipo_venta === 'FINANCIADO' && (
                                 <>
-                                    <p><strong>Cuotas:</strong> {v.cantidad_cuotas || 0} de Gs. {Math.round(parseFloat(v.monto_cuota || 0)).toLocaleString('es-PY')}</p>
+                                    <p><strong>Cuotas:</strong> {(() => {
+                                        const lista = Array.isArray(v.pagares) ? v.pagares : [];
+                                        const cuotasPagares = lista.filter(p => String(p.tipo_pagare || 'CUOTA').toUpperCase() === 'CUOTA');
+
+                                        // Intentar obtener de la venta, si no, del conteo de pagarés
+                                        const vCant = Number(v.cantidad_cuotas);
+                                        const numCuotas = (vCant > 0 ? vCant : (cuotasPagares.length || lista.length || 0));
+
+                                        // Intentar obtener monto de la venta, si no, del primer pagaré
+                                        const vMonto = Number(v.monto_cuota);
+                                        const rawMonto = (vMonto > 0 ? vMonto : (cuotasPagares[0]?.monto_cuota ?? lista[0]?.monto_cuota ?? 0));
+
+                                        const monto = Number(rawMonto) || parseFloat(String(rawMonto || '0').replace(/,/g, '.')) || 0;
+                                        return `${numCuotas} de Gs. ${Math.round(monto).toLocaleString('es-PY')}`;
+                                    })()}</p>
                                     <div className="pagares-summary">
                                         <strong>Pagarés Generados:</strong>
                                         <ul>
@@ -595,6 +621,48 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                             <div className="form-group">
                                                 <label>Precio Final (Gs.)</label>
                                                 <input type="number" readOnly value={newVenta.precio_final} />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Escribanía</label>
+                                                <select
+                                                    value={newVenta.id_escribania || ''}
+                                                    onChange={(e) => setNewVenta({ ...newVenta, id_escribania: e.target.value })}
+                                                >
+                                                    <option value="">-- Seleccionar Escribanía --</option>
+                                                    {escribanias.map(esc => (
+                                                        <option key={esc.id_escribania} value={esc.id_escribania}>
+                                                            {esc.nombre}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Documento de Propiedad</label>
+                                                <select
+                                                    value={newVenta.tipo_documento_propiedad || ''}
+                                                    onChange={(e) => setNewVenta({ ...newVenta, tipo_documento_propiedad: e.target.value })}
+                                                >
+                                                    <option value="">-- Seleccionar --</option>
+                                                    <option value="TRANSFERENCIA">Transferencia</option>
+                                                    <option value="PRENDADO">Prendado</option>
+                                                    <option value="CEDULA_MARRON">Cédula Marrón</option>
+                                                    <option value="OTRO">Otro</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-row">
+                                            <div className="form-group full-width">
+                                                <label>Observaciones</label>
+                                                <textarea
+                                                    value={newVenta.observaciones || ''}
+                                                    onChange={(e) => setNewVenta({ ...newVenta, observaciones: e.target.value })}
+                                                    rows="2"
+                                                    className="observaciones-textarea"
+                                                />
                                             </div>
                                         </div>
                                     </>

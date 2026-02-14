@@ -1,3 +1,7 @@
+# Backend (FastAPI) + Frontend (Nginx). La base de datos es externa (configurar DATABASE_URL en backend/.env).
+# Uso: docker compose up -d
+# Frontend: http://localhost:3002  |  API: http://localhost:8002
+
 services:
   backend:
     build:
@@ -5,22 +9,19 @@ services:
       dockerfile: Dockerfile
     container_name: sist-playa-backend
     ports:
-      - "8002:8001" # Host:Container - Puerto 8002 en el servidor, 8001 en el container
+      - "8002:8001"
     environment:
       - PORT=8001
-      # Las demás variables de entorno deben estar en un archivo .env
-      # o definirse aquí directamente
     env_file:
       - ./backend/.env
     volumes:
-      # Montar el código para desarrollo (Hot-Reload de backend)
       - ./backend:/app
       - ./backend/logs:/app/logs
     restart: unless-stopped
     networks:
       - sist-playa-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,14 +33,14 @@ services:
       dockerfile: Dockerfile
     container_name: sist-playa-frontend
     ports:
-      - "3002:80" # Host:Container - Puerto 3002 en el servidor, 80 en el container (nginx)
+      - "3002:80"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - sist-playa-network
     healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3

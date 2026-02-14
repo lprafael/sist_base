@@ -12,4 +12,10 @@ fastapi-mail
 email-validator
 google-auth
 requests
+pymupdf
+# Extracción con IA opcional para documentos de importación (ligero)
+openai
+# OCR para PDFs escaneados: descomenta si lo necesitas (instala PyTorch ~1GB, build Docker lento)
+# easyocr
+# numpy
 

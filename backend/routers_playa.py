@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import join, and_, or_, func, case, text, delete
@@ -7,13 +7,27 @@ from sqlalchemy.orm import joinedload, selectinload
 from typing import List, Optional
 from datetime import date, timedelta, datetime
 from decimal import Decimal
-from pydantic import BaseModel # Added BaseModel import
+from pydantic import BaseModel
+import calendar
 from database import get_session
+
+def add_months(sourcedate: date, months: int) -> date:
+    """
+    Suma meses a una fecha manteniendo el mismo día del mes.
+    Si el día no existe en el mes destino (ej. 31 de febrero), 
+    devuelve el último día de ese mes.
+    """
+    month = sourcedate.month - 1 + months
+    year = sourcedate.year + month // 12
+    month = month % 12 + 1
+    day = min(sourcedate.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
 from models_playa import (
     CategoriaVehiculo, Producto, Cliente, Venta, Pagare, Pago, 
     TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
     ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
-    UbicacionCliente, Estado, Cuenta, Movimiento
+    UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
@@ -30,7 +44,9 @@ from schemas_playa import (
     UbicacionClienteCreate, UbicacionClienteResponse,
     EstadoCreate, EstadoResponse,
     CuentaCreate, CuentaResponse,
-    MovimientoCreate, MovimientoResponse
+    MovimientoCreate, MovimientoResponse,
+    DocumentoImportacionResponse, AnalizarDocumentosResponse, VinculacionProducto,
+    EscribaniaCreate, EscribaniaResponse
 )
 from security import get_current_user, check_permission
 from audit_utils import log_audit_action
@@ -254,6 +270,94 @@ async def delete_vendedor(
     await session.delete(vendedor)
     await session.commit()
     return {"message": "Vendedor eliminado correctamente"}
+
+# ===== ESCRIBANÍAS =====
+@router.get("/escribanias", response_model=List[EscribaniaResponse])
+async def list_escribanias(
+    active_only: bool = False,
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(Escribania).order_by(Escribania.nombre.asc())
+    if active_only:
+        query = query.where(Escribania.activo == True)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+@router.post("/escribanias", response_model=EscribaniaResponse)
+async def create_escribania(
+    data: EscribaniaCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    new_escribania = Escribania(**data.model_dump())
+    session.add(new_escribania)
+    await session.commit()
+    await session.refresh(new_escribania)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="escribanias",
+        record_id=new_escribania.id_escribania,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Escribanía creada: {new_escribania.nombre}"
+    )
+    return new_escribania
+
+@router.put("/escribanias/{id_escribania}", response_model=EscribaniaResponse)
+async def update_escribania(
+    id_escribania: int,
+    data: EscribaniaCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Escribania).where(Escribania.id_escribania == id_escribania))
+    escribania = res.scalar_one_or_none()
+    if not escribania:
+        raise HTTPException(status_code=404, detail="Escribanía no encontrada")
+    
+    old_data = {c.name: getattr(escribania, c.name) for c in escribania.__table__.columns}
+    
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(escribania, field, value)
+    
+    await session.commit()
+    await session.refresh(escribania)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="escribanias",
+        record_id=id_escribania,
+        previous_data=old_data,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Escribanía actualizada: {escribania.nombre}"
+    )
+    return escribania
+
+@router.delete("/escribanias/{id_escribania}")
+async def delete_escribania(
+    id_escribania: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(Escribania).where(Escribania.id_escribania == id_escribania))
+    escribania = res.scalar_one_or_none()
+    if not escribania:
+        raise HTTPException(status_code=404, detail="Escribanía no encontrada")
+    
+    # Verificar si tiene ventas asociadas
+    res_v = await session.execute(select(func.count(Venta.id_venta)).where(Venta.id_escribania == id_escribania))
+    if res_v.scalar_one() > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar una escribanía con ventas asociadas. Marque como inactiva en su lugar.")
+
+    await session.delete(escribania)
+    await session.commit()
+    return {"message": "Escribanía eliminada correctamente"}
 
 # ===== CONFIGURACIÓN DE CALIFICACIONES =====
 @router.get("/config-calificaciones", response_model=List[ConfigCalificacionResponse])
@@ -1009,6 +1113,7 @@ async def list_ventas(session: AsyncSession = Depends(get_session)):
         .options(
             joinedload(Venta.cliente),
             joinedload(Venta.producto),
+            joinedload(Venta.escribania_rel),
             selectinload(Venta.pagares).joinedload(Pagare.estado_rel), 
             joinedload(Venta.detalles)
         )
@@ -1071,7 +1176,7 @@ async def create_venta(
         # Pagarés de Cuotas
         if (venta_data.cantidad_cuotas or 0) > 0:
             for i in range(1, venta_data.cantidad_cuotas + 1):
-                vencimiento = hoy + timedelta(days=30 * i)
+                vencimiento = add_months(hoy, i)
                 nuevo_pagare = Pagare(
                     id_venta=new_venta.id_venta,
                     numero_pagare=f"{new_venta.numero_venta}-C{i}",
@@ -1088,7 +1193,7 @@ async def create_venta(
         # Pagarés de Refuerzos
         if (venta_data.cantidad_refuerzos or 0) > 0:
             for i in range(1, venta_data.cantidad_refuerzos + 1):
-                vencimiento = hoy + timedelta(days=365 * i)
+                vencimiento = add_months(hoy, 12 * i)
                 nuevo_pagare = Pagare(
                     id_venta=new_venta.id_venta,
                     numero_pagare=f"{new_venta.numero_venta}-R{i}",
@@ -1107,7 +1212,7 @@ async def create_venta(
     
     # Cargar la relación pagares y detalles para evitar error de lazy loading
     result = await session.execute(
-        select(Venta).options(joinedload(Venta.pagares), joinedload(Venta.detalles)).where(Venta.id_venta == new_venta.id_venta)
+        select(Venta).options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel)).where(Venta.id_venta == new_venta.id_venta)
     )
     venta_with_relations = result.unique().scalar_one()
     
@@ -1139,7 +1244,7 @@ async def create_venta(
     
     # RE-FETCH
     result = await session.execute(
-        select(Venta).options(joinedload(Venta.pagares), joinedload(Venta.detalles)).where(Venta.id_venta == new_venta.id_venta)
+        select(Venta).options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel)).where(Venta.id_venta == new_venta.id_venta)
     )
     return result.unique().scalar_one()
 
@@ -1151,7 +1256,7 @@ async def anular_venta(
 ):
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.producto), joinedload(Venta.cliente))
+        .options(joinedload(Venta.pagares), joinedload(Venta.producto), joinedload(Venta.cliente), joinedload(Venta.escribania_rel))
         .where(Venta.id_venta == venta_id)
     )
     venta = result.unique().scalar_one_or_none()
@@ -1236,7 +1341,7 @@ async def anular_venta(
     # RE-FETCH
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.detalles))
+        .options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel))
         .where(Venta.id_venta == venta_id)
     )
     return result.unique().scalar_one()
@@ -1250,7 +1355,7 @@ async def update_venta(
 ):
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.producto), joinedload(Venta.cliente))
+        .options(joinedload(Venta.pagares), joinedload(Venta.producto), joinedload(Venta.cliente), joinedload(Venta.escribania_rel))
         .where(Venta.id_venta == venta_id)
     )
     venta = result.unique().scalar_one_or_none()
@@ -1324,6 +1429,11 @@ async def update_venta(
     pagares_generados = 0
     base_date = venta.fecha_venta or date.today()
 
+    # Obtener estados para asignar el ID correcto
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    id_pendiente = all_states.get('PENDIENTE')
+
     # 4.1 Pagaré de Entrega Inicial
     if (venta.entrega_inicial or 0) > 0:
         session.add(Pagare(
@@ -1333,7 +1443,7 @@ async def update_venta(
             monto_cuota=venta.entrega_inicial,
             fecha_vencimiento=base_date,
             tipo_pagare='ENTREGA_INICIAL',
-            estado='PENDIENTE',
+            id_estado=id_pendiente,
             saldo_pendiente=venta.entrega_inicial
         ))
         pagares_generados += 1
@@ -1343,7 +1453,7 @@ async def update_venta(
         # Cuotas
         if (venta_data.cantidad_cuotas or 0) > 0:
             for i in range(1, venta_data.cantidad_cuotas + 1):
-                vencimiento = base_date + timedelta(days=30 * i)
+                vencimiento = add_months(base_date, i)
                 nuevo_pagare = Pagare(
                     id_venta=venta.id_venta,
                     numero_pagare=f"{venta.numero_venta}-C{i}",
@@ -1361,7 +1471,7 @@ async def update_venta(
         # Refuerzos
         if (venta_data.cantidad_refuerzos or 0) > 0:
             for i in range(1, venta_data.cantidad_refuerzos + 1):
-                vencimiento = base_date + timedelta(days=365 * i)
+                vencimiento = add_months(base_date, 12 * i)
                 nuevo_pagare = Pagare(
                     id_venta=venta.id_venta,
                     numero_pagare=f"{venta.numero_venta}-R{i}",
@@ -1408,7 +1518,7 @@ async def update_venta(
     # RE-FETCH
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.detalles))
+        .options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel))
         .where(Venta.id_venta == venta_id)
     )
     return result.unique().scalar_one()
@@ -2900,3 +3010,378 @@ async def create_movimiento(
         .where(Movimiento.id_movimiento == new_mov.id_movimiento)
     )
     return result.scalar_one()
+
+
+# ===== DOCUMENTOS DE IMPORTACIÓN =====
+# OCR con IA: EasyOCR para PDFs escaneados, LLM opcional para extracción estructurada
+_easyocr_reader = None  # Cache del reader para no cargar el modelo en cada request
+
+
+def _extract_text_from_pdf(pdf_bytes: bytes) -> str:
+    """Extrae texto de un PDF. Usa PyMuPDF; si el texto es muy corto (PDF escaneado), usa EasyOCR."""
+    import fitz
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text_parts = []
+        for page in doc:
+            text_parts.append(page.get_text())
+        doc.close()
+        full_text = "\n".join(text_parts)
+        # Si hay pocas páginas con muy poco texto, probablemente es escaneado -> OCR
+        num_pages = len(text_parts)
+        if num_pages > 0 and len(full_text.strip()) < max(100, 50 * num_pages):
+            try:
+                global _easyocr_reader
+                import numpy as np
+                import easyocr
+                if _easyocr_reader is None:
+                    _easyocr_reader = easyocr.Reader(["es", "en"], gpu=False, verbose=False)
+                reader = _easyocr_reader
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                ocr_parts = []
+                for page in doc:
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)  # 2x resolución
+                    img = np.ndarray(
+                        shape=[pix.height, pix.width, pix.n],
+                        dtype=np.uint8,
+                        buffer=pix.samples,
+                    )
+                    result = reader.readtext(img)
+                    ocr_parts.append("\n".join([item[1] for item in result]))
+                doc.close()
+                full_text = "\n".join(ocr_parts)
+                logger.info("OCR EasyOCR aplicado (PDF escaneado)")
+            except ImportError:
+                pass
+            except Exception as ocr_err:
+                logger.warning("EasyOCR no disponible o error: %s", ocr_err)
+        return full_text
+    except Exception as e:
+        logger.warning("Error extrayendo texto del PDF: %s", e)
+        return ""
+
+
+def _extract_with_llm(text_despacho: str, text_certificados: str) -> Optional[dict]:
+    """Si está configurado OPENAI_API_KEY o DOCUMENTOS_LLM_URL, usa un LLM para extraer datos estructurados."""
+    import os
+    import json
+    import re
+    api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("DOCUMENTOS_LLM_URL")  # ej. http://localhost:11434/v1 para Ollama
+    if not api_key and not base_url:
+        return None
+    prompt = """Eres un asistente que extrae datos de documentos de aduana (despacho e importación).
+
+Tienes dos textos:
+1) DOCUMENTO DE DESPACHO: puede contener "DESPACHO NUMERO:" o "NRO DE PEDIDO" y una lista de "NRO CHASIS = ...".
+2) CERTIFICADOS DE NACIONALIZACIÓN: puede contener "INFORMACION ADICIONAL", "NRO CHASIS = ..." y números de certificado.
+
+Extrae y responde ÚNICAMENTE un JSON válido, sin markdown ni texto extra, con esta estructura:
+{"nro_despacho": "número o null", "chasis_despacho": ["chasis1", "chasis2"], "certificados_por_chasis": {"CHASIS1": "nro_cert", "CHASIS2": "nro_cert"}}
+
+Si no encuentras algo, usa null o listas/objetos vacíos. Los chasis en certificados_por_chasis deben coincidir en mayúsculas/minúsculas con los de chasis_despacho.
+
+TEXTO DESPACHO:
+"""
+    prompt += (text_despacho[:12000] or "(vacío)") + "\n\nTEXTO CERTIFICADOS:\n" + (text_certificados[:12000] or "(vacío)")
+    try:
+        if base_url:
+            # Ollama (nativo) o API OpenAI-compatible
+            import requests
+            base_url = base_url.rstrip("/")
+            if "/v1" in base_url:
+                url = base_url + "/chat/completions"
+                payload = {"model": os.getenv("DOCUMENTOS_LLM_MODEL", "llama3.2"), "messages": [{"role": "user", "content": prompt}], "stream": False}
+                r = requests.post(url, json=payload, timeout=90)
+                r.raise_for_status()
+                content = r.json().get("choices", [{}])[0].get("message", {}).get("content", "{}")
+            else:
+                url = base_url + "/api/chat"
+                payload = {"model": os.getenv("DOCUMENTOS_LLM_MODEL", "llama3.2"), "messages": [{"role": "user", "content": prompt}], "stream": False}
+                r = requests.post(url, json=payload, timeout=90)
+                r.raise_for_status()
+                content = r.json().get("message", {}).get("content", "{}")
+        else:
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
+            resp = client.chat.completions.create(
+                model=os.getenv("DOCUMENTOS_LLM_MODEL", "gpt-4o-mini"),
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+            )
+            content = resp.choices[0].message.content or "{}"
+        # Extraer JSON del texto (por si el modelo envuelve en ```json)
+        content = content.strip()
+        for match in re.finditer(r"\{[\s\S]*\}", content):
+            data = json.loads(match.group())
+            if "nro_despacho" in data or "chasis_despacho" in data:
+                return data
+        return json.loads(content)
+    except Exception as e:
+        logger.warning("Extracción con LLM fallida: %s", e)
+        return None
+
+
+def _parse_despacho_text(text: str) -> tuple:
+    """Extrae número de despacho y lista de chasis del texto del documento de despacho.
+    Formatos esperados: 'DESPACHO NUMERO: 26003IC04000802H', 'NRO DE PEDIDO', y 'NRO CHASIS = NCP100-0058263'.
+    """
+    import re
+    nro_despacho = None
+    chasis_list = []
+    text_upper = text.upper()
+    # Número de despacho: "DESPACHO NUMERO: 26003IC04000802H" o "NRO DE PEDIDO" (valor en línea siguiente o mismo renglón)
+    for pattern in [
+        r"DESPACHO\s+NUMERO\s*:\s*([A-Z0-9\-]+)",
+        r"DESPACHO\s+NUMERO\s*:\s*([A-Z0-9]+)",
+        r"NRO\s+DE\s+PEDIDO\s*[\s:]*([A-Z0-9\-]+)",
+        r"(?:NRO\.?|NUMERO|NÚMERO|N°)\s*DESPACHO\s*[:\s]*([A-Z0-9\-]+)",
+        r"DESPACHO\s*(?:NRO\.?|N°)?\s*[:\s]*([A-Z0-9\-]+)",
+        r"(?:DESPACHO\s+)?(\d{4,}[A-Z0-9\-]*)",
+    ]:
+        m = re.search(pattern, text_upper, re.IGNORECASE)
+        if m:
+            nro_despacho = m.group(1).strip()
+            if len(nro_despacho) >= 6:  # Evitar capturar cosas como "1/9"
+                break
+            nro_despacho = None
+    if not nro_despacho:
+        nro_despacho = None
+    # Chasis: "NRO CHASIS = NCP100-0058263" o "NRO CHASIS = XZU414-1011371" (incluye guión)
+    chasis_from_equality = re.findall(r"NRO\s+CHASIS\s*=\s*([A-Z0-9\-]+)", text_upper, re.IGNORECASE)
+    for c in chasis_from_equality:
+        c = c.strip()
+        if len(c) >= 6 and c not in chasis_list:
+            chasis_list.append(c)
+    # Fallback: palabras alfanuméricas tipo VIN/chasis (8-20 caracteres, puede tener guión)
+    if not chasis_list:
+        chasis_candidates = re.findall(r"\b([A-Z0-9\-]{8,20})\b", text_upper)
+        seen = set(chasis_list)
+        for c in chasis_candidates:
+            if "-" in c or (len(c) >= 8 and not c.isdigit() and c not in seen):
+                seen.add(c)
+                chasis_list.append(c)
+    return (nro_despacho, chasis_list)
+
+
+def _parse_certificados_text(text: str) -> dict:
+    """Extrae mapeo chasis -> número de certificado del texto de certificados de nacionalización.
+    Optimizado para manejar chasis fragmentados en múltiples líneas y patrones AUT- de certificados.
+    """
+    import re
+    result = {}
+    text_upper = text.upper()
+    
+    # 1. Extraer todos los certificados AUT-XXXXX (suelen ser los de nacionalización)
+    # Buscamos patrones AUT- seguido de números/letras, permitiendo guiones.
+    all_certs = re.findall(r"\bAUT\-[A-Z0-9\-]+\b", text_upper)
+    all_certs = [c.strip("-") for c in all_certs if len(c) > 8]
+
+    # 2. Extraer Chasis manejando fragmentación de líneas
+    # Buscamos la etiqueta "NRO CHASIS" y extraemos lo que sigue, colapsando espacios/saltos
+    chasis_candidates = []
+    
+    # Dividir el texto en "bloques" que empiezan con la etiqueta de chasis
+    chunks = re.split(r"NRO\s*CHASIS\s*[:=\s]*", text_upper)
+    if len(chunks) > 1:
+        for chunk in chunks[1:]:
+            # Tomar los primeros caracteres significativos (máximo 40 para buscar el chasis)
+            # Colapsamos espacios y saltos de línea para unir fragmentos como "NCP100-005" + "8263"
+            area_de_busqueda = chunk[:60] # Tomar un margen generoso
+            clean_search = re.sub(r"[\s\n\r]+", "", area_de_busqueda)
+            
+            # Buscar el patrón de chasis (letras, números y guiones)
+            m = re.match(r"([A-Z0-9\-]{6,20})", clean_search)
+            if m:
+                chasis_candidates.append(m.group(1))
+
+    # 3. Asociación inteligente: chasis <-> certificado
+    # Si tenemos pocos certificados y pocos chasis, intentamos emparejar por cercanía en el texto
+    if chasis_candidates:
+        for ch in set(chasis_candidates):
+            # Posición del chasis en el texto original (aproximada si estaba fragmentado)
+            # Para la posición usamos solo los primeros 6 caracteres que son más propensos a estar juntos
+            prefix = ch[:6]
+            pos = text_upper.find(prefix)
+            
+            if pos != -1:
+                # Buscar el AUT- más cercano en un rango de +/- 2000 caracteres
+                closest_cert = None
+                min_dist = 999999
+                
+                for cert in all_certs:
+                    cert_pos = text_upper.find(cert)
+                    if cert_pos != -1:
+                        dist = abs(cert_pos - pos)
+                        if dist < min_dist:
+                            min_dist = dist
+                            closest_cert = cert
+                
+                if closest_cert:
+                    result[ch] = closest_cert
+
+    # 4. Fallback: Otros patrones de certificado (como NAC- o CERT-) si AUT- falló
+    if not result and chasis_candidates:
+        # Buscar patrones como "CERTIFICADO N° XXXXX" o "NAC. N° XXXXX"
+        extra_certs = re.findall(r"(?:CERT\.?|CERTIFICADO|NAC\.?)\s*[:\sN°]*\s*([A-Z0-9\-]{4,})", text_upper)
+        if extra_certs:
+            for ch in chasis_candidates:
+                result[ch] = extra_certs[0] # Usar el primero como fallback general
+
+    return result
+
+
+
+@router.get("/documentos-importacion", response_model=List[DocumentoImportacionResponse])
+async def list_documentos_importacion(session: AsyncSession = Depends(get_session)):
+    """Lista todos los documentos de importación."""
+    result = await session.execute(
+        select(DocumentoImportacion).order_by(DocumentoImportacion.fecha_registro.desc())
+    )
+    return result.scalars().all()
+
+
+@router.get("/documentos-importacion/{nro_despacho}", response_model=DocumentoImportacionResponse)
+async def get_documento_importacion(nro_despacho: str, session: AsyncSession = Depends(get_session)):
+    res = await session.execute(
+        select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == nro_despacho)
+    )
+    doc = res.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento de importación no encontrado")
+    return doc
+
+
+@router.post("/documentos-importacion/analizar", response_model=AnalizarDocumentosResponse)
+async def analizar_documentos_importacion(
+    file_despacho: UploadFile = File(...),
+    file_certificados: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Analiza los dos PDFs y extrae nro despacho, chasis y certificados. Indica si el despacho ya existe."""
+    if not file_despacho.filename or not file_despacho.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="El archivo de despacho debe ser un PDF.")
+    if not file_certificados.filename or not file_certificados.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="El archivo de certificados debe ser un PDF.")
+    despacho_bytes = await file_despacho.read()
+    certificados_bytes = await file_certificados.read()
+    text_despacho = _extract_text_from_pdf(despacho_bytes)
+    text_cert = _extract_text_from_pdf(certificados_bytes)
+    # Intentar extracción con LLM si está configurado (más flexible que regex)
+    llm_data = _extract_with_llm(text_despacho, text_cert)
+    if llm_data:
+        nro_despacho = llm_data.get("nro_despacho") or None
+        if nro_despacho and isinstance(nro_despacho, str):
+            nro_despacho = nro_despacho.strip() or None
+        chasis_despacho = list(llm_data.get("chasis_despacho") or [])
+        certificados_por_chasis = llm_data.get("certificados_por_chasis") or {}
+        # Normalizar claves a mayúsculas
+        certificados_por_chasis = {str(k).strip().upper(): str(v).strip() for k, v in certificados_por_chasis.items() if k}
+    else:
+        nro_despacho, chasis_despacho = _parse_despacho_text(text_despacho)
+        certificados_por_chasis = _parse_certificados_text(text_cert)
+    # Normalizar chasis (mayúsculas, strip) para comparar
+    chasis_despacho = [c.strip().upper() for c in chasis_despacho if c and str(c).strip()]
+    # ¿Ya existe el despacho?
+    existing = await session.execute(
+        select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == (nro_despacho or ""))
+    )
+    ya_existe = existing.scalar_one_or_none() is not None
+    # Vehículos en playa que coinciden con chasis del despacho (flexibilidad con guiones)
+    vehiculos_en_playa = []
+    if chasis_despacho:
+        # Generar variantes sin guiones para comparar también
+        chasis_clean = [c.replace("-", "").upper() for c in chasis_despacho]
+        
+        result = await session.execute(
+            select(Producto).where(
+                or_(
+                    func.upper(func.trim(Producto.chasis)).in_([c.upper() for c in chasis_despacho]),
+                    func.replace(func.upper(func.trim(Producto.chasis)), '-', '').in_(chasis_clean)
+                ),
+                Producto.activo == True
+            )
+        )
+        for p in result.scalars().all():
+            chasis_norm = (p.chasis or "").strip().upper()
+            vehiculos_en_playa.append({
+                "id_producto": p.id_producto,
+                "chasis": p.chasis,
+                "marca": p.marca,
+                "modelo": p.modelo,
+                "nro_cert_nac": certificados_por_chasis.get(chasis_norm) or p.nro_cert_nac,
+            })
+    return AnalizarDocumentosResponse(
+        nro_despacho=nro_despacho,
+        chasis_despacho=chasis_despacho,
+        certificados_por_chasis=certificados_por_chasis or {},
+        ya_existe=ya_existe,
+        vehiculos_en_playa=vehiculos_en_playa,
+    )
+
+
+class CrearDocumentoImportacionBody(BaseModel):
+    vinculaciones: List[VinculacionProducto]
+
+
+@router.post("/documentos-importacion", response_model=DocumentoImportacionResponse)
+async def create_documento_importacion(
+    file_despacho: UploadFile = File(...),
+    file_certificados: UploadFile = File(...),
+    nro_despacho: str = File(...),
+    vinculaciones: str = File(...),  # JSON string: [{"chasis":"XXX","nro_cert_nac":"YYY"}]
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Crea el registro de documento de importación y vincula productos (nro_despacho y nro_cert_nac)."""
+    import json
+    if not nro_despacho or not nro_despacho.strip():
+        raise HTTPException(status_code=400, detail="Falta el número de despacho.")
+    nro_despacho = nro_despacho.strip()
+    # Verificar que no exista
+    existing = await session.execute(
+        select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == nro_despacho)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"El número de despacho '{nro_despacho}' ya está registrado.")
+    try:
+        vinculaciones_list = json.loads(vinculaciones)
+    except Exception:
+        raise HTTPException(status_code=400, detail="vinculaciones debe ser un JSON válido (lista de {chasis, nro_cert_nac}).")
+    if not isinstance(vinculaciones_list, list):
+        raise HTTPException(status_code=400, detail="vinculaciones debe ser una lista.")
+    despacho_bytes = await file_despacho.read()
+    certificados_bytes = await file_certificados.read()
+    doc = DocumentoImportacion(
+        nro_despacho=nro_despacho,
+        pdf_despacho=despacho_bytes,
+        pdf_certificados=certificados_bytes,
+    )
+    session.add(doc)
+    await session.flush()
+    for v in vinculaciones_list:
+        chasis = (v.get("chasis") or "").strip()
+        nro_cert = (v.get("nro_cert_nac") or "").strip() or None
+        if not chasis:
+            continue
+        res = await session.execute(
+            select(Producto).where(func.upper(func.trim(Producto.chasis)) == chasis.upper())
+        )
+        prod = res.scalar_one_or_none()
+        if prod:
+            prod.nro_despacho = nro_despacho
+            prod.nro_cert_nac = nro_cert
+    await session.commit()
+    await session.refresh(doc)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="documentos_importacion",
+        record_id=None,
+        new_data={"nro_despacho": nro_despacho, "vinculaciones": len(vinculaciones_list)},
+        details=f"Documento de importación creado: {nro_despacho}"
+    )
+    return doc

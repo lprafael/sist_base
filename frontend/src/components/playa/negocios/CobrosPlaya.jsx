@@ -1143,7 +1143,7 @@ const CobrosPlaya = () => {
                         {selectedPagare && (
                             <div className="payment-summary">
                                 <p><strong>Cliente:</strong> {selectedPagare.cliente}</p>
-                                <p><strong>Concepto:</strong> Cuota {selectedPagare.numero_cuota} - {selectedPagare.vehiculo}</p>
+                                <p><strong>Concepto:</strong> Cuota {selectedPagare.numero_cuota}/{selectedPagare.total_cuotas || selectedPagare.numero_cuota} - {selectedPagare.vehiculo}</p>
                                 <p><strong>Saldo Actual:</strong> Gs. {Math.round(selectedPagare.saldo_pendiente).toLocaleString('es-PY')}</p>
                             </div>
                         )}

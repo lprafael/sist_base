@@ -371,6 +371,36 @@ CREATE TABLE IF NOT EXISTS imagenes_productos (
 );
 
 -- ============================================
+-- TABLA: DOCUMENTOS DE IMPORTACIÓN (Despacho + Certificados nacionalización)
+-- ============================================
+CREATE TABLE IF NOT EXISTS documentos_importacion (
+    nro_despacho VARCHAR(100) PRIMARY KEY,
+    fecha_despacho DATE,
+    cantidad_vehiculos INTEGER,
+    monto_pagado DECIMAL(15, 2),
+    pdf_despacho BYTEA,
+    pdf_certificados BYTEA,
+    observaciones TEXT,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Campos en productos para vincular con documento de importación y certificado de nacionalización
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS nro_despacho VARCHAR(100);
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS nro_cert_nac VARCHAR(100);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_productos_nro_despacho'
+          AND table_schema = 'playa' AND table_name = 'productos'
+    ) THEN
+        ALTER TABLE productos
+        ADD CONSTRAINT fk_productos_nro_despacho
+        FOREIGN KEY (nro_despacho) REFERENCES documentos_importacion(nro_despacho);
+    END IF;
+END $$;
+
+-- ============================================
 -- TABLA: USUARIOS (Nota: Redundante si se usa schema 'sistema')
 -- ============================================
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -412,6 +442,8 @@ CREATE INDEX IF NOT EXISTS idx_productos_chasis ON productos(chasis);
 CREATE INDEX IF NOT EXISTS idx_productos_estado ON productos(estado_disponibilidad);
 CREATE INDEX IF NOT EXISTS idx_productos_categoria ON productos(id_categoria);
 CREATE INDEX IF NOT EXISTS idx_productos_disponible_activo ON productos(estado_disponibilidad, activo) WHERE estado_disponibilidad = 'DISPONIBLE';
+CREATE INDEX IF NOT EXISTS idx_productos_nro_despacho ON productos(nro_despacho);
+CREATE INDEX IF NOT EXISTS idx_productos_nro_cert_nac ON productos(nro_cert_nac);
 
 -- Ventas: listado ordenado por fecha_registro, filtros por estado (dashboard, reportes)
 CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas(id_cliente);

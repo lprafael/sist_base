@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.git
+.gitignore
+*.log
+# .env retirado de ignore para que Vite pueda leerlo en el build
+# .env
+.DS_Store
+Thumbs.db

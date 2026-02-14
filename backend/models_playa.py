@@ -1,7 +1,7 @@
 # models_playa.py
 # Modelos de base de datos para el sistema de Playa de Vehículos
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, DECIMAL
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, DECIMAL, LargeBinary
 from sqlalchemy.orm import relationship, foreign # Added foreign
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -37,6 +37,24 @@ class CategoriaVehiculo(Base):
     # Relaciones
     productos = relationship("Producto", back_populates="categoria")
 
+class DocumentoImportacion(Base):
+    """Documento de despacho aduanero y certificados de nacionalización (PDFs). PK = nro_despacho."""
+    __tablename__ = "documentos_importacion"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+
+    nro_despacho = Column(String(100), primary_key=True, index=True)
+    fecha_despacho = Column(Date)
+    cantidad_vehiculos = Column(Integer)
+    monto_pagado = Column(DECIMAL(15, 2))
+    pdf_despacho = Column(LargeBinary)
+    pdf_certificados = Column(LargeBinary)
+    observaciones = Column(Text)
+    fecha_registro = Column(DateTime, default=func.now())
+
+    # Relación con productos que tienen este nro_despacho
+    productos = relationship("Producto", back_populates="documento_importacion", foreign_keys="Producto.nro_despacho")
+
+
 class Producto(Base):
     __tablename__ = "productos"
     __table_args__ = {"schema": PLAYA_SCHEMA}
@@ -69,12 +87,15 @@ class Producto(Base):
     fecha_ingreso = Column(Date, default=func.current_date())
     fecha_registro = Column(DateTime, default=func.now())
     activo = Column(Boolean, default=True)
+    nro_despacho = Column(String(100), ForeignKey(f'{PLAYA_SCHEMA}.documentos_importacion.nro_despacho'), index=True)
+    nro_cert_nac = Column(String(100), index=True)
     
     # Relaciones
     categoria = relationship("CategoriaVehiculo", back_populates="productos")
     gastos = relationship("GastoProducto", back_populates="producto")
     imagenes = relationship("ImagenProducto", back_populates="producto")
     ventas = relationship("Venta", back_populates="producto")
+    documento_importacion = relationship("DocumentoImportacion", back_populates="productos", foreign_keys=[nro_despacho])
 
     @property
     def cliente_nombre(self) -> Optional[str]:
@@ -266,6 +287,21 @@ class GastoEmpresa(Base):
     # Relaciones
     tipo_gasto = relationship("TipoGastoEmpresa", back_populates="gastos")
 
+class Escribania(Base):
+    __tablename__ = "escribanias"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+
+    id_escribania = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    telefono = Column(String(50))
+    email = Column(String(100))
+    direccion = Column(Text)
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+
+    # Relaciones
+    ventas = relationship("Venta", back_populates="escribania_rel")
+
 class Venta(Base):
     __tablename__ = "ventas"
     __table_args__ = {"schema": PLAYA_SCHEMA}
@@ -299,6 +335,8 @@ class Venta(Base):
     estado_venta = Column(String(50), default='ACTIVA')
     vendedor = Column(String(200)) # Legacy / String representation
     id_vendedor = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.vendedores.id_vendedor'), nullable=True) # New Relation
+    id_escribania = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.escribanias.id_escribania'), nullable=True)
+    tipo_documento_propiedad = Column(String(100)) # prendado, transferencia, etc.
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
     
@@ -312,6 +350,7 @@ class Venta(Base):
     refuerzos = relationship("Refuerzo", back_populates="venta")
     detalles = relationship("DetalleVenta", back_populates="venta", cascade="all, delete-orphan")
     vendedor_rel = relationship("Vendedor", back_populates="ventas")
+    escribania_rel = relationship("Escribania", back_populates="ventas")
 
 class DetalleVenta(Base):
     __tablename__ = "detalle_venta"

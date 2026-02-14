@@ -35,6 +35,22 @@ class VendedorResponse(VendedorBase):
     class Config:
         from_attributes = True
 
+# ===== ESCRIBANÍAS =====
+class EscribaniaBase(BaseModel):
+    nombre: str
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion: Optional[str] = None
+    activo: Optional[bool] = True
+
+class EscribaniaCreate(EscribaniaBase):
+    pass
+
+class EscribaniaResponse(EscribaniaBase):
+    id_escribania: int
+    class Config:
+        from_attributes = True
+
 # ===== VEHÍCULOS (PRODUCTOS) =====
 class ProductoBase(BaseModel):
     id_categoria: Optional[int] = None
@@ -75,6 +91,8 @@ class ProductoUpdate(BaseModel):
     año: Optional[int] = None
     color: Optional[str] = None
     chasis: Optional[str] = None
+    nro_despacho: Optional[str] = None
+    nro_cert_nac: Optional[str] = None
     motor: Optional[str] = None
     kilometraje: Optional[int] = None
     combustible: Optional[str] = None
@@ -94,8 +112,8 @@ class ProductoUpdate(BaseModel):
     fecha_ingreso: Optional[date] = None
     activo: Optional[bool] = None
 
-class ProductoResponse(BaseModel):
-    """Respuesta tolerante a NULL para datos migrados o incompletos."""
+class ProductoResponseSimple(BaseModel):
+    """Respuesta básica de producto sin campos calculados que requieran relaciones extra."""
     id_producto: int
     id_categoria: Optional[int] = None
     codigo_interno: Optional[str] = None
@@ -124,11 +142,41 @@ class ProductoResponse(BaseModel):
     fecha_ingreso: Optional[date] = None
     fecha_registro: Optional[datetime] = None
     activo: Optional[bool] = None
-    cliente_nombre: Optional[str] = None
-    cliente_documento: Optional[str] = None
+    nro_despacho: Optional[str] = None
+    nro_cert_nac: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class ProductoResponse(ProductoResponseSimple):
+    """Respuesta completa incluyendo campos calculados que pueden requerir lazy loading."""
+    cliente_nombre: Optional[str] = None
+    cliente_documento: Optional[str] = None
+
+# ===== DOCUMENTOS IMPORTACIÓN =====
+class DocumentoImportacionResponse(BaseModel):
+    nro_despacho: str
+    fecha_despacho: Optional[date] = None
+    cantidad_vehiculos: Optional[int] = None
+    monto_pagado: Optional[Decimal] = None
+    observaciones: Optional[str] = None
+    fecha_registro: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class VinculacionProducto(BaseModel):
+    chasis: str
+    nro_cert_nac: Optional[str] = None
+
+
+class AnalizarDocumentosResponse(BaseModel):
+    nro_despacho: Optional[str] = None
+    chasis_despacho: List[str] = []
+    certificados_por_chasis: Optional[dict] = None  # { "CHASIS": "nro_cert" }
+    ya_existe: bool = False
+    vehiculos_en_playa: List[dict] = []  # [{ id_producto, chasis, marca, modelo, nro_cert_nac }] para los que están en productos
 
 # ===== CLIENTES =====
 class ClienteBase(BaseModel):
@@ -194,6 +242,9 @@ class VentaBase(BaseModel):
     monto_refuerzo: Optional[Decimal] = 0
     id_vendedor: Optional[int] = None # Added id_vendedor
     vendedor: Optional[str] = None # Keeping for legacy/compatibility if sent as text
+    id_escribania: Optional[int] = None
+    tipo_documento_propiedad: Optional[str] = None # prendado, transferencia, etc.
+    observaciones: Optional[str] = None
     periodo_int_mora: Optional[str] = None # D, S, M, A
     monto_int_mora: Optional[Decimal] = 0
     dias_gracia: Optional[int] = 0
@@ -269,7 +320,8 @@ class VentaResponse(VentaBase):
     estado_venta: Optional[str] = None
     fecha_registro: Optional[datetime] = None
     cliente: Optional[ClienteResponse] = None
-    producto: Optional[ProductoResponse] = None
+    producto: Optional[ProductoResponseSimple] = None
+    escribania: Optional[EscribaniaResponse] = None
     pagares: Optional[List[PagareResponse]] = []
     detalles: Optional[List[DetalleVentaResponse]] = []
     # Respuesta tolerante a NULL (datos migrados)

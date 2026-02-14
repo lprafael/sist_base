@@ -30,7 +30,8 @@ const Login = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/login`, {
+      const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +63,8 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/google-login`, {
+      const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+      const response = await fetch(`${API_URL}/auth/google-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -243,7 +245,8 @@ const Login = ({ onLogin }) => {
               setLoading(true);
               setError('');
               try {
-                const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/notify/forgot-password`, {
+                const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+                const response = await fetch(`${API_URL}/notify/forgot-password`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ username: credentials.username })
