@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Faltantes - Auditoría de Migración</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 3rem 2rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border-left: 5px solid var(--danger);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--danger);
+        }
+
+        .stat-card .desc {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        section {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 {
+            color: var(--primary-dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .reason-box {
+            background: #fff7ed;
+            border-left: 5px solid var(--warning);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .reason-box strong {
+            color: #9a3412;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #f8fafc;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .ruc-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .footer {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 3rem;
+        }
+
+        .highlight-red {
+            color: var(--danger);
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Anexo de Auditoría</h1>
+            <p>Detalle Técnico de Registros No Migrados (Faltantes)</p>
+        </header>
+
+        <div class="summary-grid">
+            <div class="stat-card">
+                <h3>Cuotas Faltantes</h3>
+                <div class="value">-23</div>
+                <div class="desc">Registros de pagarés en SQL Server no movidos a Postgres.</div>
+            </div>
+            <div class="stat-card">
+                <h3>Cobros Faltantes</h3>
+                <div class="value">-97</div>
+                <div class="desc">Transacciones de pago asociadas a pagarés huerfanos.</div>
+            </div>
+        </div>
+
+        <section>
+            <h2>Causa de la Discrepancia</h2>
+            <div class="reason-box">
+                <strong>Anomalía de Integridad Referencial:</strong><br>
+                Se identificaron registros financieros (cuotas y pagos) en el sistema original que referencian a
+                documentos (RUC/CI) que <strong>no están registrados en la Tabla de Clientes (Maestro)</strong>. Por
+                seguridad de datos, el sistema de migración omite estos registros para evitar una base de datos con
+                "Basura Financiera" o deuda sin dueño legal.
+            </div>
+            <p>El remanente de cobros no migrados (97) se debe estrictamente a que estos pagos pertenecen a los pagarés
+                huérfanos mencionados. Al no existir la cuota en el nuevo sistema, el pago no tiene una entidad a la
+                cual aplicarse.</p>
+        </section>
+
+        <section>
+            <h2>Detalle de Documentos Afectados</h2>
+            <p style="margin-bottom: 1rem;">Los siguientes RUCs existen en las tablas de finanzas de origen pero están
+                ausentes en el catálogo de clientes:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Documento (RUC/CI)</th>
+                        <th>Cuotas Afectadas</th>
+                        <th>Cobros Afectados</th>
+                        <th>Estado en Origen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="ruc-badge">3744555</span></td>
+                        <td>30 registros</td>
+                        <td>27 registros</td>
+                        <td class="highlight-red">Registro Maestro Faltante</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ruc-badge">5174999</span></td>
+                        <td>30 registros</td>
+                        <td>30 registros</td>
+                        <td class="highlight-red">Registro Maestro Faltante</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="font-size: 0.8rem; color: #64748b; margin-top: 1rem;">* Nota: La diferencia entre las "-23 cuotas"
+                del informe general y el detalle por RUC se debe a registros parciales y cuotas con estado anulado en la
+                base de datos de origen que no fueron contabilizadas en el neto de auditoría.</p>
+        </section>
+
+        <section>
+            <h2>Acciones Recomendadas</h2>
+            <ul style="margin-left: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <li><strong>Verificación de Documentación:</strong> Localizar físicamente los contratos/facturas de los
+                    RUCs 3744555 y 5174999.</li>
+                <li><strong>Carga Manual:</strong> Si son clientes activos, registrarlos manualmente en el nuevo sistema
+                    y cargar su saldo de apertura.</li>
+                <li><strong>Ajuste de Cartera:</strong> Si corresponden a errores de carga del sistema de legado,
+                    proceder al cierre contable de esos montos en el sistema anterior.</li>
+            </ul>
+        </section>
+
+        <div class="footer">
+            Informe generado el 13 de febrero de 2026 | Sistema de Auditoría de Datos VMT
+        </div>
+    </div>
+</body>
+
+</html>

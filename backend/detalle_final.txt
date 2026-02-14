@@ -1,0 +1,16 @@
+--- DETALLE DE REGISTROS NO MIGRADOS (FALTANTES) - DESDE STAGING ---
+
+1. Cuotas (Pagarés) sin Cliente válido en Destino:
+CI/RUC          | Chasis                    | Cuotas Faltantes
+------------------------------------------------------------
+3744555         | NCP650008971              | 30   
+5174999         | SCP902035493              | 30   
+
+Total cuotas faltantes: 60
+
+2. Pagos (Cobros) sin Cliente válido en Destino:
+Total pagos faltantes estimados: 57
+
+3. Clientes con RUC inválido u omitido en Maestro que causan faltantes:
+- RUC: 3744555
+- RUC: 5174999
