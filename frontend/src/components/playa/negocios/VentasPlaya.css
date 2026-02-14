@@ -432,3 +432,25 @@
 .tab-content {
     overflow: visible !important;
 }
+
+.observaciones-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.observaciones-textarea:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.full-width {
+    flex: 1 1 100% !important;
+}

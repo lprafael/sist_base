@@ -349,6 +349,7 @@ async def init_playa(engine):
             "migration_add_precio_financiado_sugerido.sql",
             "update_escribanias.sql",
             "migration_documentos_importacion.sql",
+            "migration_performance_indexes.sql",
         ]
         for nombre in migraciones:
             sql_path = Path(__file__).parent / nombre

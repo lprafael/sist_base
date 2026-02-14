@@ -745,7 +745,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                     </div>
                                 )}
                             </div>
-
+                            <div style={{ height: '20px' }}></div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
                                 <button type="submit" className="btn-save">{editingVenta ? 'Guardar Cambios' : 'Confirmar Venta y Generar Pagarés'}</button>
