@@ -1,8 +1,11 @@
 import logging
+import os
+import shutil
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import join, and_, or_, func, case, text, delete
+from sqlalchemy import join, and_, or_, func, case, text, delete, update
 from sqlalchemy.orm import joinedload, selectinload
 from typing import List, Optional
 from datetime import date, timedelta, datetime
@@ -27,7 +30,8 @@ from models_playa import (
     CategoriaVehiculo, Producto, Cliente, Venta, Pagare, Pago, 
     TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
     ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
-    UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania
+    UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania,
+    ImagenProducto
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
@@ -46,7 +50,8 @@ from schemas_playa import (
     CuentaCreate, CuentaResponse,
     MovimientoCreate, MovimientoResponse,
     DocumentoImportacionResponse, AnalizarDocumentosResponse, VinculacionProducto,
-    EscribaniaCreate, EscribaniaResponse
+    EscribaniaCreate, EscribaniaResponse,
+    ImagenProductoCreate, ImagenProductoUpdate, ImagenProductoResponse
 )
 from security import get_current_user, check_permission
 from audit_utils import log_audit_action
@@ -666,6 +671,113 @@ async def delete_vehiculo(
     await session.commit()
     
     return {"message": "Vehículo eliminado correctamente"}
+
+# ===== IMÁGENES DE PRODUCTOS =====
+# Usar ruta absoluta para evitar problemas en Docker
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "imagenes_productos")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"📁 Upload directory configured at: {UPLOAD_DIR}")
+
+@router.get("/vehiculos/{id_producto}/imagenes", response_model=List[ImagenProductoResponse])
+async def list_imagenes_producto(id_producto: int, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(ImagenProducto)
+        .where(ImagenProducto.id_producto == id_producto)
+        .order_by(ImagenProducto.orden.asc(), ImagenProducto.id_imagen.asc())
+    )
+    return result.scalars().all()
+
+@router.post("/vehiculos/{id_producto}/imagenes", response_model=List[ImagenProductoResponse])
+async def upload_imagenes(
+    id_producto: int,
+    imagenes: List[UploadFile] = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    # Verificar que el producto exista
+    res = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    if not res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+    new_records = []
+    for img in imagenes:
+        # Validar tipo de archivo
+        if not img.content_type.startswith("image/"):
+            continue
+            
+        ext = os.path.splitext(img.filename or "")[1]
+        if not ext: ext = ".jpg"
+        filename = f"{uuid.uuid4()}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        
+        # Asegurarse de que el directorio existe (por si acaso)
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(img.file, buffer)
+            
+        new_img = ImagenProducto(
+            id_producto=id_producto,
+            nombre_archivo=img.filename,
+            ruta_archivo=f"/static/uploads/imagenes_productos/{filename}",
+            es_principal=False,
+            orden=0
+        )
+        session.add(new_img)
+        new_records.append(new_img)
+        
+    await session.commit()
+    for rec in new_records:
+        await session.refresh(rec)
+    return new_records
+
+@router.delete("/vehiculos/imagenes/{id_imagen}")
+async def delete_imagen(
+    id_imagen: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    res = await session.execute(select(ImagenProducto).where(ImagenProducto.id_imagen == id_imagen))
+    img = res.scalar_one_or_none()
+    if not img:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+        
+    # Eliminar archivo físico (usar UPLOAD_DIR para no depender del cwd)
+    if img.ruta_archivo:
+        filename = os.path.basename(img.ruta_archivo)
+        abs_path = os.path.join(UPLOAD_DIR, filename)
+        if os.path.exists(abs_path):
+            try:
+                os.remove(abs_path)
+            except Exception as e:
+                logging.warning(f"No se pudo eliminar el archivo {abs_path}: {e}")
+            
+    await session.delete(img)
+    await session.commit()
+    return {"message": "Imagen eliminada"}
+
+@router.patch("/vehiculos/imagenes/{id_imagen}/principal")
+async def set_principal(
+    id_imagen: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    res = await session.execute(select(ImagenProducto).where(ImagenProducto.id_imagen == id_imagen))
+    img = res.scalar_one_or_none()
+    if not img:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+        
+    # Desmarcar todas las demás del mismo producto
+    await session.execute(
+        update(ImagenProducto)
+        .where(ImagenProducto.id_producto == img.id_producto)
+        .values(es_principal=False)
+    )
+    
+    img.es_principal = True
+    await session.commit()
+    return {"message": "Imagen marcada como principal"}
+
 
 # ===== CLIENTES =====
 @router.get("/clientes", response_model=List[ClienteResponse])

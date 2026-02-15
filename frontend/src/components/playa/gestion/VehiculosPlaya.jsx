@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './VehiculosPlaya.css';
+import ImagenesVehiculo from './ImagenesVehiculo.jsx';
 
 const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId, setPreselectedCategoryId }) => {
     const [vehiculos, setVehiculos] = useState([]);
@@ -710,10 +711,17 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                             >
                                 Detalles Técnicos
                             </button>
+                            <button
+                                type="button"
+                                className={`tab-btn ${activeTabModal === 'imagenes' ? 'active' : ''}`}
+                                onClick={() => setActiveTabModal('imagenes')}
+                            >
+                                Imágenes
+                            </button>
                         </div>
 
                         <form onSubmit={handleUpdate}>
-                            {activeTabModal === 'general' ? (
+                            {activeTabModal === 'general' && (
                                 <div className="tab-content">
                                     <div className="form-row">
                                         <div className="form-group">
@@ -797,7 +805,8 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         <textarea value={selectedVehiculo.observaciones || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, observaciones: e.target.value })} />
                                     </div>
                                 </div>
-                            ) : (
+                            )}
+                            {activeTabModal === 'tecnico' && (
                                 <div className="tab-content">
                                     <div className="form-row">
                                         <div className="form-group">
@@ -868,6 +877,12 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                             <input type="date" value={selectedVehiculo.fecha_ingreso || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, fecha_ingreso: e.target.value })} />
                                         </div>
                                     </div>
+                                </div>
+                            )}
+
+                            {activeTabModal === 'imagenes' && (
+                                <div className="tab-content" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                    <ImagenesVehiculo id_producto={selectedVehiculo.id_producto} />
                                 </div>
                             )}
                             <div className="modal-actions">

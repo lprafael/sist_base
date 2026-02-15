@@ -11,18 +11,55 @@ Requisitos:
 
 import os
 import sys
+import argparse
 from pathlib import Path
+
+# Forzar UTF-8 en libpq y en la salida del script
+os.environ["PGCLIENTENCODING"] = "UTF8"
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from dotenv import load_dotenv
 import psycopg2
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote_plus
 import subprocess
 
 # Directorio del script (para encontrar migration_setup.sql y migration_execute.sql)
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-# Cargar variables de entorno
-load_dotenv()
+# Cargar variables de entorno. En Windows el .env suele estar en CP1252; leer como UTF-8
+# provoca byte 0xed ("í") y UnicodeDecodeError dentro de psycopg2/libpq.
+_env_file = SCRIPT_DIR / ".env"
+_env_encoding = "cp1252" if sys.platform == "win32" else "utf-8"
 
+def _load_env():
+    """Carga .env con codificación segura (cp1252 en Windows). DATABASE_URL se lee primero para evitar corrupción."""
+    if not _env_file.exists():
+        load_dotenv()
+        return
+    # Leer .env como bytes y decodificar con la codificación correcta
+    raw = _env_file.read_bytes()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode(_env_encoding)
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            k, _, v = line.partition("=")
+            key = k.strip()
+            v = v.strip()
+            if v.startswith('"') and v.endswith('"') or v.startswith("'") and v.endswith("'"):
+                v = v[1:-1]
+            os.environ[key] = v
+    # Cargar el resto por si falta alguna variable
+    load_dotenv(_env_file, encoding=_env_encoding)
+
+_load_env()
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     print("Error: DATABASE_URL no configurada en .env")
@@ -40,9 +77,24 @@ if sys.platform != "win32" and _sql_driver.strip() == "SQL Server":
     _sql_driver = "ODBC Driver 18 for SQL Server"
 SQL_ODBC_DRIVER = _sql_driver
 
-# Convertir URL para psycopg2
+# Convertir URL para psycopg2 y construir DSN con user/password codificados (evita UnicodeDecodeError en Windows con contraseñas con í/ñ/ú).
 db_url = DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://')
 parsed = urlparse(db_url)
+
+def get_pg_connection():
+    """Conexión a PostgreSQL. DSN 100% ASCII (user/password en percent-encode) para evitar UnicodeDecodeError en psycopg2/libpq (Windows)."""
+    user = parsed.username or ""
+    password = parsed.password or ""
+    host = parsed.hostname or "localhost"
+    port = parsed.port or "5432"
+    dbname = (parsed.path or "/postgres").lstrip("/") or "postgres"
+    # DSN solo con caracteres ASCII: evita que libpq reciba bytes 0xed etc. y falle al decodificar
+    user_enc = quote_plus(user)
+    password_enc = quote_plus(password)
+    dsn = f"postgresql://{user_enc}:{password_enc}@{host}:{port}/{dbname}"
+    if parsed.query:
+        dsn += "?" + parsed.query
+    return psycopg2.connect(dsn)
 
 def install_package(package):
     print(f"Instalando {package}...")
@@ -56,16 +108,16 @@ def run_sql_file(filename, cursor):
     with open(path, "r", encoding="utf-8") as f:
         sql = f.read()
     cursor.execute(sql)
-    print(f"✅ {filename} ejecutado correctamente.")
+    print(f"[OK] {filename} ejecutado correctamente.")
 
 def migrate_table(ms_cursor, pg_cursor, ms_table, pg_staging_table, columns):
-    print(f"📥 Migrando {ms_table} -> {pg_staging_table}...")
+    print(f"[TABLA] Migrando {ms_table} -> {pg_staging_table}...")
     cols_str = ', '.join(columns)
     ms_cursor.execute(f"SELECT {cols_str} FROM {ms_table}")
     rows = ms_cursor.fetchall()
     
     if not rows:
-        print(f"ℹ️  No hay datos en {ms_table}.")
+        print(f"[INFO] No hay datos en {ms_table}.")
         return
 
     placeholders = ', '.join(['%s'] * len(columns))
@@ -73,9 +125,18 @@ def migrate_table(ms_cursor, pg_cursor, ms_table, pg_staging_table, columns):
     
     for row in rows:
         pg_cursor.execute(insert_query, list(row))
-    print(f"✅ {len(rows)} registros movidos.")
+    print(f"[OK] {len(rows)} registros movidos.")
 
 def main():
+    parser = argparse.ArgumentParser(description="Migración SQL Server → PostgreSQL (staging → playa)")
+    parser.add_argument(
+        "--only",
+        choices=["imagenes_productos"],
+        help="Migrar solo la tabla indicada (requiere que playa.productos y migracion.st_productos existan o se llenen en este run).",
+    )
+    args = parser.parse_args()
+    only_table = args.only
+
     # Asegurar que pyodbc y psycopg2 estén instalados
     try:
         import pyodbc
@@ -84,18 +145,39 @@ def main():
         import pyodbc
 
     try:
-        # 1. Conectar a PostgreSQL
-        print("\n🐘 Conectando a PostgreSQL...")
-        pg_conn = psycopg2.connect(
-            host=parsed.hostname,
-            port=parsed.port or 5432,
-            database=parsed.path[1:],
-            user=parsed.username,
-            password=parsed.password
-        )
+        # 1. Conectar a PostgreSQL (DSN con user/password codificados para evitar error de codificación en Windows)
+        print("\nConectando a PostgreSQL...")
+        pg_conn = get_pg_connection()
         pg_conn.autocommit = True
         pg_cursor = pg_conn.cursor()
-        
+
+        if only_table == "imagenes_productos":
+            print("=== MIGRACIÓN SOLO: imagenes_productos ===")
+            run_sql_file("migration_setup.sql", pg_cursor)
+            print(f"\n[DB] Conectando a SQL Server ({SQL_SERVER})...")
+            driver_escaped = "{" + SQL_ODBC_DRIVER + "}"
+            extra = ";TrustServerCertificate=yes"
+            if SQL_TRUSTED and not SQL_USER:
+                conn_str = f"DRIVER={driver_escaped};SERVER={SQL_SERVER};DATABASE={SQL_DATABASE};Trusted_Connection=yes{extra}"
+            else:
+                conn_str = f"DRIVER={driver_escaped};SERVER={SQL_SERVER};DATABASE={SQL_DATABASE};UID={SQL_USER};PWD={SQL_PASSWORD}{extra}"
+            ms_conn = pyodbc.connect(conn_str)
+            ms_cursor = ms_conn.cursor()
+            cols_productos = [
+                'procodigo', 'prodescri', 'profingre', 'procosto', 'proprecon', 'proprecre',
+                'promodelo', 'proano', 'procolor', 'promotor', 'prochapa', 'protipo', 'prodeposi',
+                'proimagen', 'proimagen1', 'proimagen2', 'proimagen3', 'proimagen4', 'proimagen5', 'proimagen6'
+            ]
+            migrate_table(ms_cursor, pg_cursor, 'dbo.Productos', 'migracion.st_productos', cols_productos)
+            print("\n[PROCESO] Ejecutando migración de imagenes_productos...")
+            run_sql_file("migration_execute_imagenes_only.sql", pg_cursor)
+            print("\n=== [FIN] MIGRACIÓN imagenes_productos COMPLETADA ===")
+            ms_cursor.close()
+            ms_conn.close()
+            pg_cursor.close()
+            pg_conn.close()
+            return
+
         print("=== INICIANDO PROCESO DE MIGRACIÓN COMPLETO ===")
         
         # 2. Configurar esquema y funciones en PostgreSQL
@@ -165,7 +247,7 @@ def main():
         print("\n🔄 Ejecutando transformación y limpieza finale...")
         run_sql_file("migration_execute.sql", pg_cursor)
         
-        print("\n=== ✨ MIGRACIÓN COMPLETADA EXITOSAMENTE ===")
+        print("\n=== [FIN] MIGRACIÓN COMPLETADA EXITOSAMENTE ===")
         print(f"Se han migrado: Clientes, Garantes y todas las Referencias.")
         
         ms_cursor.close()
@@ -174,7 +256,7 @@ def main():
         pg_conn.close()
         
     except Exception as e:
-        print(f"\n❌ Error durante la migración: {e}")
+        print(f"\n[ERROR] Error durante la migración: {e}")
         import traceback
         traceback.print_exc()
 

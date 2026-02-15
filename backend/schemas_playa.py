@@ -577,3 +577,24 @@ class MovimientoResponse(MovimientoBase):
     cuenta_destino: Optional[CuentaResponse] = None
     class Config:
         from_attributes = True
+# ===== IMÁGENES DE PRODUCTOS =====
+class ImagenProductoBase(BaseModel):
+    id_producto: int
+    nombre_archivo: Optional[str] = None
+    ruta_archivo: Optional[str] = None
+    es_principal: Optional[bool] = False
+    orden: Optional[int] = 0
+
+class ImagenProductoCreate(ImagenProductoBase):
+    pass
+
+class ImagenProductoUpdate(BaseModel):
+    es_principal: Optional[bool] = None
+    orden: Optional[int] = None
+
+class ImagenProductoResponse(ImagenProductoBase):
+    id_imagen: int
+    fecha_registro: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

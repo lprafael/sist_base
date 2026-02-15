@@ -8,10 +8,13 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8002',
-        // target: 'http://172.16.222.222:8002',
+        target: 'http://127.0.0.1:8001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/static': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
       },
     },
   },

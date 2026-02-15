@@ -32,6 +32,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Depends, Response, status, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -81,6 +82,16 @@ app = FastAPI(
     description="API para la gestión base de usuarios, roles y auditoría",
     version="1.0.0"
 )
+# Montar archivos estáticos (para imágenes de productos, etc.)
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+os.makedirs(os.path.join(static_dir, "uploads/imagenes_productos"), exist_ok=True)
+print(f"Mounting static files from: {static_dir}")
+if os.path.exists(static_dir):
+    print(f"Static directory exists. Contents: {os.listdir(static_dir)}")
+else:
+    print(f"WARNING: Static directory {static_dir} NOT FOUND!")
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Configuración de CORS - Debe estar antes de cualquier ruta
 app.add_middleware(
@@ -93,6 +104,7 @@ app.add_middleware(
         "http://192.168.100.84:3001",
         "http://172.16.222.222:3002",
         "http://localhost:3002",
+        "http://localhost:3003",
         "http://170.51.29.84.sslip.io:3002",
         "http://170.51.29.84.nip.io:3002"
     ],

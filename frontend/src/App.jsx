@@ -25,6 +25,7 @@ import EstadosPlaya from "./components/playa/parametros/EstadosPlaya.jsx";
 import CuentasPlaya from "./components/playa/parametros/CuentasPlaya.jsx";
 import MovimientosCuentas from "./components/playa/negocios/MovimientosCuentas.jsx";
 import EscribaniasPlaya from "./components/playa/parametros/EscribaniasPlaya.jsx";
+import ImagenesVehiculo from "./components/playa/gestion/ImagenesVehiculo.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed, isMobileOpen, onMobileToggle }) {
   const handleToggle = () => {
@@ -226,6 +227,7 @@ export default function App() {
       items: [
         { id: "dashboard_playa", label: "Dashboard", icon: "📊", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "inventario", label: "Inventario", icon: "🚙", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "imagenes_productos", label: "Imágenes de Vehículos", icon: "📸", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "documentos_importacion", label: "Documentos Importación", icon: "📄", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "clientes_playa", label: "Clientes", icon: "👥", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "gastos_playa", label: "Gastos de Vehículos", icon: "🔧", roles: ['admin', 'manager', 'user', 'viewer'] },
@@ -384,6 +386,7 @@ export default function App() {
                 setPreselectedCategoryId={setPreselectedCategoryId}
               />
             )}
+            {tab === "imagenes_productos" && <ImagenesVehiculo />}
             {tab === "clientes_playa" && <ClientesPlaya preselectedCalificacion={preselectedCalificacion} setPreselectedCalificacion={setPreselectedCalificacion} />}
             {tab === "ventas_playa" && <VentasPlaya setTab={setTab} preselectedVehicleId={preselectedVehicleId} setPreselectedVehicleId={setPreselectedVehicleId} />}
             {tab === "pagares_playa" && <PagaresPlaya />}
