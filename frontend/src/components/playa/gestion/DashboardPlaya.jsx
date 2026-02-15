@@ -5,7 +5,7 @@ import './DashboardPlaya.css';
 const DashboardPlaya = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('resumen'); // resumen, ventas, cartera, gastos
+    const [activeTab, setActiveTab] = useState('resumen'); // resumen, ventas, cartera, gastos, estadisticas
     const [gastosFiltrados, setGastosFiltrados] = useState(null);
     const [loadingGastos, setLoadingGastos] = useState(false);
     const [ventasFiltradas, setVentasFiltradas] = useState(null);
@@ -655,6 +655,91 @@ const DashboardPlaya = () => {
         </div>
     );
 
+    const renderEstadisticas = () => (
+        <div className="tab-reports-grid">
+            <div className="report-card">
+                <h4>Ranking de Vendedores</h4>
+                <div className="ranking-list">
+                    {stats.mejores_vendedores.map((v, idx) => (
+                        <div key={idx} className="ranking-item">
+                            <div className="rank-number">{idx + 1}</div>
+                            <div className="rank-info">
+                                <span className="rank-name">{v.nombre}</span>
+                                <span className="rank-detail">{v.cantidad} ventas | Gs. {Math.round(v.total).toLocaleString('es-PY')}</span>
+                            </div>
+                            <div className="rank-bar-bg">
+                                <div 
+                                    className="rank-bar-fill seller" 
+                                    style={{ width: `${(v.cantidad / (stats.mejores_vendedores[0]?.cantidad || 1)) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    ))}
+                    {stats.mejores_vendedores.length === 0 && <p className="text-muted">No hay datos de vendedores.</p>}
+                </div>
+            </div>
+
+            <div className="report-card">
+                <h4>Vehículos Más Vendidos</h4>
+                <div className="ranking-list">
+                    {stats.vehiculos_mas_vendidos.map((v, idx) => (
+                        <div key={idx} className="ranking-item">
+                            <div className="rank-number highlight">{idx + 1}</div>
+                            <div className="rank-info">
+                                <span className="rank-name">{v.nombre}</span>
+                                <span className="rank-detail">{v.cantidad} unidades vendidas</span>
+                            </div>
+                            <div className="rank-bar-bg">
+                                <div 
+                                    className="rank-bar-fill vehicle-top" 
+                                    style={{ width: `${(v.cantidad / (stats.vehiculos_mas_vendidos[0]?.cantidad || 1)) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    ))}
+                    {stats.vehiculos_mas_vendidos.length === 0 && <p className="text-muted">No hay datos de vehículos vendidos.</p>}
+                </div>
+            </div>
+
+            <div className="report-card">
+                <h4>Vehículos Menos Vendidos</h4>
+                <div className="ranking-list">
+                    {stats.vehiculos_menos_vendidos.map((v, idx) => (
+                        <div key={idx} className="ranking-item">
+                            <div className="rank-number lowlight">{idx + 1}</div>
+                            <div className="rank-info">
+                                <span className="rank-name">{v.nombre}</span>
+                                <span className="rank-detail">{v.cantidad} unidades vendidas</span>
+                            </div>
+                            <div className="rank-bar-bg">
+                                <div 
+                                    className="rank-bar-fill vehicle-bottom" 
+                                    style={{ width: `${(v.cantidad / (stats.vehiculos_mas_vendidos[0]?.cantidad || 1)) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    ))}
+                    {stats.vehiculos_menos_vendidos.length === 0 && <p className="text-muted">No hay datos suficientes.</p>}
+                </div>
+            </div>
+
+            <div className="report-card welcome-message">
+                <h4>Información de Rendimiento</h4>
+                <p>Estas estadísticas reflejan el movimiento histórico de la playa. Los rankings ayudan a identificar qué modelos tienen mayor rotación y quiénes son los vendedores más efectivos en volumen y monto recaudado.</p>
+                <div style={{ marginTop: '20px' }}>
+                    <div className="mini-stat" style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px' }}>
+                        <label style={{ fontSize: '0.75rem', color: '#64748b' }}>PROMEDIO VENTAS POR VENDEDOR</label>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '1.2rem', fontWeight: '800' }}>
+                            {stats.mejores_vendedores.length > 0 
+                                ? (stats.cant_vendidos / stats.mejores_vendedores.length).toFixed(1) 
+                                : 0}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderGastosEmpresa = () => {
         const gastos = gastosFiltrados?.gastos || [];
         const totalGeneral = gastosFiltrados?.total_general || 0;
@@ -867,6 +952,7 @@ const DashboardPlaya = () => {
             case 'ventas': return renderVentasUtilidad();
             case 'cartera': return renderCarteraMora();
             case 'gastos': return renderGastosEmpresa();
+            case 'estadisticas': return renderEstadisticas();
             default: return renderResumenGeneral();
         }
     };
@@ -899,6 +985,12 @@ const DashboardPlaya = () => {
                         onClick={() => setActiveTab('gastos')}
                     >
                         Gastos Empresa
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'estadisticas' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('estadisticas')}
+                    >
+                        Estadísticas
                     </button>
                 </div>
             </div>

@@ -3,7 +3,8 @@ import "./Catalog.css";
 
 const PublicCatalog = ({ user }) => {
     const [vehicles, setVehicles] = useState([]);
-    const [featuredVehicle, setFeaturedVehicle] = useState(null);
+    const [featuredVehicles, setFeaturedVehicles] = useState([]);
+    const [featuredIndex, setFeaturedIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
@@ -18,20 +19,43 @@ const PublicCatalog = ({ user }) => {
 
     const fetchData = async () => {
         try {
-            const response = await fetch(`${API_URL}/playa/vehiculos?available_only=true`);
-            const data = await response.json();
-            setVehicles(data);
+            // Obtener vehículos disponibles
+            const responseV = await fetch(`${API_URL}/playa/vehiculos?available_only=true`);
+            const vehiclesData = await responseV.json();
+            setVehicles(vehiclesData);
 
-            if (data.length > 0) {
-                const randomIdx = Math.floor(Math.random() * data.length);
-                setFeaturedVehicle(data[randomIdx]);
+            // Obtener los 5 más vendidos (marcas/modelos)
+            const responseT = await fetch(`${API_URL}/playa/vehiculos/top-vendidos`);
+            const topData = await responseT.json();
+
+            // Filtrar vehículos disponibles que coincidan con los más vendidos
+            let featured = vehiclesData.filter(v =>
+                topData.some(t => t.marca === v.marca && t.modelo === v.modelo)
+            );
+
+            if (featured.length === 0 && vehiclesData.length > 0) {
+                featured = [...vehiclesData].sort(() => 0.5 - Math.random()).slice(0, 5);
+            } else if (featured.length > 5) {
+                featured = featured.slice(0, 5);
             }
+
+            setFeaturedVehicles(featured);
         } catch (error) {
             console.error("Error fetching vehicles:", error);
         } finally {
             setLoading(false);
         }
     };
+
+    // Efecto para la rotación del vehículo destacado
+    useEffect(() => {
+        if (featuredVehicles.length > 1) {
+            const interval = setInterval(() => {
+                setFeaturedIndex((prev) => (prev + 1) % featuredVehicles.length);
+            }, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [featuredVehicles]);
 
     const fetchCategories = async () => {
         try {
@@ -49,7 +73,8 @@ const PublicCatalog = ({ user }) => {
             const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
             return `${baseUrl}${principal.ruta_archivo}`;
         }
-        return "/placeholder-car.jpg";
+        // Imagen estándar en caso de no tener fotos (Unsplash)
+        return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
     };
 
     const filteredVehicles = vehicles.filter(v => {
@@ -89,18 +114,17 @@ const PublicCatalog = ({ user }) => {
                 </div>
             </nav>
 
-            {featuredVehicle && (
-                <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(${getImageUrl(featuredVehicle)})` }}>
+            {featuredVehicles.length > 0 && (
+                <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(${getImageUrl(featuredVehicles[featuredIndex])})` }}>
                     <div className="hero-content">
-                        <span className="badge">Destacado de hoy</span>
-                        <h1>{featuredVehicle.marca} {featuredVehicle.modelo}</h1>
-                        <p className="hero-price">{formatPrice(featuredVehicle.precio_venta)}</p>
+                        <span className="badge">Destacado {featuredVehicles.length > 1 ? `(${featuredIndex + 1}/${featuredVehicles.length})` : ''}</span>
+                        <h1>{featuredVehicles[featuredIndex].marca} {featuredVehicles[featuredIndex].modelo}</h1>
                         <div className="hero-details">
-                            <span>📅 {featuredVehicle.anho_fabricacion}</span>
-                            <span>🎨 {featuredVehicle.color}</span>
-                            <span>⛽ {featuredVehicle.tipo_combustible || 'Nafta'}</span>
+                            <span>📅 {featuredVehicles[featuredIndex].anho_fabricacion || featuredVehicles[featuredIndex].año}</span>
+                            <span>🎨 {featuredVehicles[featuredIndex].color}</span>
+                            <span>⛽ {featuredVehicles[featuredIndex].tipo_combustible || featuredVehicles[featuredIndex].combustible || 'Nafta'}</span>
                         </div>
-                        <button className="cta-button" onClick={() => handleWhatsApp(featuredVehicle)}>
+                        <button className="cta-button" onClick={() => handleWhatsApp(featuredVehicles[featuredIndex])}>
                             Consultar Ahora
                         </button>
                     </div>
@@ -138,11 +162,10 @@ const PublicCatalog = ({ user }) => {
                             <div className="card-info">
                                 <h3>{vehicle.marca} {vehicle.modelo}</h3>
                                 <div className="card-specs">
-                                    <span>{vehicle.anho_fabricacion}</span>
+                                    <span>{vehicle.anho_fabricacion || vehicle.año}</span>
                                     <span>•</span>
                                     <span>{vehicle.color}</span>
                                 </div>
-                                <p className="card-price">{formatPrice(vehicle.precio_venta)}</p>
                             </div>
                         </div>
                     ))}

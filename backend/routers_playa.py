@@ -58,6 +58,28 @@ from audit_utils import log_audit_action
 
 router = APIRouter(prefix="/playa", tags=["Playa de Vehículos"])
 
+@router.get("/vehiculos/top-vendidos")
+async def get_top_vendidos(session: AsyncSession = Depends(get_session)):
+    """
+    Retorna los 5 binomios Marca/Modelo más vendidos históricamente.
+    Endpoint público para el catálogo.
+    """
+    res = await session.execute(
+        select(
+            Producto.marca,
+            Producto.modelo,
+            func.count(Venta.id_venta).label('cantidad')
+        ).join(Venta, Producto.id_producto == Venta.id_producto)
+        .where(Venta.estado_venta != 'ANULADA')
+        .group_by(Producto.marca, Producto.modelo)
+        .order_by(text('cantidad DESC'))
+        .limit(5)
+    )
+    return [
+        {"marca": row.marca, "modelo": row.modelo, "cantidad": row.cantidad}
+        for row in res.all()
+    ]
+
 # ===== CATEGORÍAS =====
 @router.get("/categorias", response_model=List[CategoriaVehiculoResponse])
 async def list_categorias(session: AsyncSession = Depends(get_session)):
@@ -2670,6 +2692,59 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
         for row in res_gastos_tipo.all()
     ]
 
+    # 10. Mejores Vendedores
+    res_vendedores = await session.execute(
+        select(
+            Vendedor.nombre,
+            Vendedor.apellido,
+            func.count(Venta.id_venta).label('cantidad'),
+            func.sum(Venta.precio_final).label('total')
+        ).join(Venta, Vendedor.id_vendedor == Venta.id_vendedor)
+        .where(Venta.estado_venta != 'ANULADA')
+        .group_by(Vendedor.nombre, Vendedor.apellido)
+        .order_by(text('cantidad DESC'))
+        .limit(5)
+    )
+    mejores_vendedores = [
+        {"nombre": f"{row.nombre} {row.apellido}", "cantidad": row.cantidad, "total": float(row.total)}
+        for row in res_vendedores.all()
+    ]
+
+    # 11. Vehículos más vendidos (Marca + Modelo)
+    res_veh_top = await session.execute(
+        select(
+            Producto.marca,
+            Producto.modelo,
+            func.count(Venta.id_venta).label('cantidad')
+        ).join(Venta, Producto.id_producto == Venta.id_producto)
+        .where(Venta.estado_venta != 'ANULADA')
+        .group_by(Producto.marca, Producto.modelo)
+        .order_by(text('cantidad DESC'))
+        .limit(5)
+    )
+    vehiculos_mas_vendidos = [
+        {"nombre": f"{row.marca} {row.modelo}", "cantidad": row.cantidad}
+        for row in res_veh_top.all()
+    ]
+
+    # 12. Vehículos menos vendidos (incluyendo marcas/modelos que se venden poco)
+    # Para esto tomamos el ranking inverso de los que tienen al menos una venta
+    res_veh_bottom = await session.execute(
+        select(
+            Producto.marca,
+            Producto.modelo,
+            func.count(Venta.id_venta).label('cantidad')
+        ).join(Venta, Producto.id_producto == Venta.id_producto)
+        .where(Venta.estado_venta != 'ANULADA')
+        .group_by(Producto.marca, Producto.modelo)
+        .order_by(text('cantidad ASC'))
+        .limit(5)
+    )
+    vehiculos_menos_vendidos = [
+        {"nombre": f"{row.marca} {row.modelo}", "cantidad": row.cantidad}
+        for row in res_veh_bottom.all()
+    ]
+
     return {
         "valor_stock_actual": valor_stock,
         "cartera_pendiente": cartera_pendiente,
@@ -2682,7 +2757,10 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
         "ventas_mensuales": ventas_mensuales,
         "ventas_por_categoria": ventas_por_categoria,
         "cartera_por_vencimiento": cartera_por_vencimiento,
-        "gastos_por_tipo": gastos_por_tipo
+        "gastos_por_tipo": gastos_por_tipo,
+        "mejores_vendedores": mejores_vendedores,
+        "vehiculos_mas_vendidos": vehiculos_mas_vendidos,
+        "vehiculos_menos_vendidos": vehiculos_menos_vendidos
     }
 
 

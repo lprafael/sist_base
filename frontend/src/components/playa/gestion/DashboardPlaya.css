@@ -774,3 +774,103 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Rankings */
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 12px;
+    transition: transform 0.2s;
+}
+
+.ranking-item:hover {
+    transform: translateX(5px);
+    background: #f1f5f9;
+}
+
+.rank-number {
+    width: 32px;
+    height: 32px;
+    background: #e2e8f0;
+    color: #64748b;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.rank-number.highlight {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.rank-number.lowlight {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.rank-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.rank-name {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.rank-detail {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.rank-bar-bg {
+    width: 60px;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.rank-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+}
+
+.rank-bar-fill.seller {
+    background: #8b5cf6;
+}
+
+.rank-bar-fill.vehicle-top {
+    background: #10b981;
+}
+
+.rank-bar-fill.vehicle-bottom {
+    background: #ef4444;
+}
+
+@media (max-width: 480px) {
+    .ranking-item {
+        gap: 10px;
+        padding: 8px;
+    }
+    
+    .rank-bar-bg {
+        width: 40px;
+    }
+}
