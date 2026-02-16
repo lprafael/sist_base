@@ -26,6 +26,11 @@ const CobrosPlaya = () => {
         cancelar_pagare: false
     });
 
+    const [showPagosModal, setShowPagosModal] = useState(false);
+    const [selectedPagos, setSelectedPagos] = useState([]);
+    const [isEditingPago, setIsEditingPago] = useState(false);
+    const [pagoToEdit, setPagoToEdit] = useState(null);
+
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
@@ -281,16 +286,71 @@ const CobrosPlaya = () => {
         e.preventDefault();
         try {
             const token = sessionStorage.getItem('token');
-            await axios.post(`${API_URL}/playa/pagos`, newPago, {
+            if (isEditingPago) {
+                await axios.put(`${API_URL}/playa/pagos/${pagoToEdit.id_pago}`, newPago, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Cobro actualizado exitosamente');
+                setIsEditingPago(false);
+                setPagoToEdit(null);
+                // Si estamos editando desde el modal de pagos, refrescar esa lista
+                if (selectedPagare) {
+                    handleViewPagos(selectedPagare);
+                }
+            } else {
+                await axios.post(`${API_URL}/playa/pagos`, newPago, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Cobro registrado exitosamente');
+            }
+            setShowModal(false);
+            await Promise.all([fetchPagares(), fetchAllPagares()]);
+        } catch (error) {
+            alert('Error al procesar cobro: ' + (error.response?.data?.detail || error.message));
+        }
+    };
+
+    const handleViewPagos = async (pagare) => {
+        try {
+            setSelectedPagare(pagare);
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/pagares/${pagare.id_pagare}/pagos`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setShowModal(false);
-            // Actualizar ambos estados antes de avisar al usuario
-            // allPagares es el que suele usarse para el Plan de Pago completo
-            await Promise.all([fetchPagares(), fetchAllPagares()]);
-            alert('Cobro registrado exitosamente');
+            setSelectedPagos(res.data);
+            setShowPagosModal(true);
         } catch (error) {
-            alert('Error al registrar cobro: ' + (error.response?.data?.detail || error.message));
+            console.error('Error fetching pagos:', error);
+        }
+    };
+
+    const handleEditPago = (pago) => {
+        setPagoToEdit(pago);
+        setIsEditingPago(true);
+        setNewPago({
+            ...pago,
+            cancelar_pagare: false // No es relevante en edición
+        });
+        setShowModal(true);
+    };
+
+    const handleDeletePago = async (id_pago) => {
+        if (!window.confirm('¿Está seguro de que desea eliminar este cobro? Esto revertirá el saldo del pagaré.')) return;
+
+        try {
+            const token = sessionStorage.getItem('token');
+            await axios.delete(`${API_URL}/playa/pagos/${id_pago}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Cobro eliminado correctamente');
+            // Refrescar datos
+            await Promise.all([fetchPagares(), fetchAllPagares()]);
+            // Refrescar el modal de pagos
+            if (selectedPagare) {
+                handleViewPagos(selectedPagare);
+            }
+        } catch (error) {
+            alert('Error al eliminar cobro: ' + (error.response?.data?.detail || error.message));
         }
     };
 
@@ -303,10 +363,11 @@ const CobrosPlaya = () => {
     };
 
     const sortedPagares = () => {
-        const filtered = pagares.filter(p =>
-            p.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.numero_documento.includes(searchTerm) ||
-            p.vehiculo.toLowerCase().includes(searchTerm.toLowerCase())
+        const source = includeCancelados ? allPagares : pagares;
+        const filtered = source.filter(p =>
+            (p.cliente || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.numero_documento || '').includes(searchTerm) ||
+            (p.vehiculo || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
 
         return filtered.sort((a, b) => {
@@ -1068,7 +1129,7 @@ const CobrosPlaya = () => {
                                 checked={includeCancelados}
                                 onChange={(e) => setIncludeCancelados(e.target.checked)}
                             />
-                            <span>Mostrar cuotas canceladas</span>
+                            <span>Mostrar todos los pagarés</span>
                         </label>
                         <button className="btn-print" onClick={handlePrintPlanPago} title="Imprimir Plan de Pago">
                             🖨️ Imprimir Plan de Pago
@@ -1124,9 +1185,18 @@ const CobrosPlaya = () => {
                                         <td><strong>Gs. {Math.round(parseFloat(p.saldo_pendiente)).toLocaleString('es-PY')}</strong></td>
                                         <td><span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()}`}>{p.estado_rel?.nombre || p.estado}</span></td>
                                         <td>
-                                            <button className="btn-cobrar" onClick={() => handleOpenCobro(p)}>
-                                                Cobrar
-                                            </button>
+                                            <div className="action-buttons">
+                                                {p.saldo_pendiente > 0 && (
+                                                    <button className="btn-cobrar" onClick={() => handleOpenCobro(p)}>
+                                                        Cobrar
+                                                    </button>
+                                                )}
+                                                {(p.estado === 'PAGADO' || p.estado === 'PARCIAL' || p.cancelado) && (
+                                                    <button className="btn-edit-pagos" onClick={() => handleViewPagos(p)} title="Ver/Editar Pagos">
+                                                        ⚙️ Pagos
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -1247,6 +1317,55 @@ const CobrosPlaya = () => {
                                 <button type="submit" className="btn-save">Confirmar Cobro e Imprimir</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {showPagosModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content pagos-history-modal">
+                        <div className="modal-header">
+                            <h3>Historial de Cobros - Cuota {selectedPagare?.numero_cuota}</h3>
+                            <button className="btn-close" onClick={() => setShowPagosModal(false)}>×</button>
+                        </div>
+                        <div className="pagos-list">
+                            {selectedPagos.length === 0 ? (
+                                <p>No hay cobros registrados para este pagaré.</p>
+                            ) : (
+                                <table className="mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Recibo</th>
+                                            <th>Monto</th>
+                                            <th>Mora</th>
+                                            <th>Caja/Cuenta</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedPagos.map(pago => (
+                                            <tr key={pago.id_pago}>
+                                                <td>{pago.fecha_pago}</td>
+                                                <td>{pago.numero_recibo}</td>
+                                                <td>Gs. {Math.round(parseFloat(pago.monto_pagado)).toLocaleString('es-PY')}</td>
+                                                <td>Gs. {Math.round(parseFloat(pago.mora_aplicada)).toLocaleString('es-PY')}</td>
+                                                <td>{cuentas.find(c => c.id_cuenta === pago.id_cuenta)?.nombre || 'N/A'}</td>
+                                                <td>
+                                                    <div className="action-buttons-mini">
+                                                        <button className="btn-mini-edit" onClick={() => handleEditPago(pago)} title="Editar Cobro">✏️</button>
+                                                        <button className="btn-mini-delete" onClick={() => handleDeletePago(pago.id_pago)} title="Eliminar Cobro">🗑️</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn-save" onClick={() => setShowPagosModal(false)}>Cerrar</button>
+                        </div>
                     </div>
                 </div>
             )}
