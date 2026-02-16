@@ -7,6 +7,34 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
     const [selectedNetworks, setSelectedNetworks] = useState([]);
     const [selectedImages, setSelectedImages] = useState([]);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isGeneratingText, setIsGeneratingText] = useState(false);
+
+    const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+
+    React.useEffect(() => {
+        if (isOpen && vehiculoInfo && !postText) {
+            generateAIText();
+        }
+    }, [isOpen, vehiculoInfo]);
+
+    const generateAIText = async () => {
+        setIsGeneratingText(true);
+        try {
+            const token = sessionStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/playa/vehiculos/${vehiculoInfo.id_producto}/generar-texto-redes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.data && response.data.texto) {
+                setPostText(response.data.texto);
+            }
+        } catch (error) {
+            console.error('Error generating AI text:', error);
+            // Si falla, al menos ponemos algo básico
+            setPostText(`🚗 ${vehiculoInfo.marca} ${vehiculoInfo.modelo} ${vehiculoInfo.año} 🚗\n\nConsultar precio y financiación.`);
+        } finally {
+            setIsGeneratingText(false);
+        }
+    };
 
     const networks = [
         { id: 'facebook', label: 'Facebook', icon: '🔵' },
@@ -54,7 +82,6 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
             };
 
             // Llamada al backend
-            const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
             await axios.post(`${API_URL}/playa/social-post`, data, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -93,12 +120,23 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
                             ))}
                         </div>
 
-                        <span className="section-title">2. Texto de la Publicación</span>
+                        <div className="section-header-row">
+                            <span className="section-title">2. Texto de la Publicación</span>
+                            <button
+                                className="btn-regenerate"
+                                onClick={generateAIText}
+                                disabled={isGeneratingText}
+                                title="Regenerar con IA"
+                            >
+                                {isGeneratingText ? '⌛...' : '🔄 Re-generar'}
+                            </button>
+                        </div>
                         <textarea
-                            className="post-text-area"
-                            placeholder="Escribe aquí lo que quieres publicar..."
+                            className={`post-text-area ${isGeneratingText ? 'loading-text' : ''}`}
+                            placeholder={isGeneratingText ? "Generando texto con IA..." : "Escribe aquí lo que quieres publicar..."}
                             value={postText}
                             onChange={(e) => setPostText(e.target.value)}
+                            disabled={isGeneratingText}
                         />
                     </div>
 

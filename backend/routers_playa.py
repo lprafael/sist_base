@@ -807,6 +807,183 @@ class SocialPostRequest(BaseModel):
     redes: List[str]
     imagenes: List[int]
 
+@router.get("/vehiculos/{id_producto}/generar-texto-redes")
+async def generar_texto_redes(
+    id_producto: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Genera un texto atractivo para redes sociales usando IA (Ollama/OpenAI) 
+    basado en la ficha del vehículo.
+    """
+    # 1. Obtener info del vehículo
+    res = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    vehiculo = res.scalar_one_or_none()
+    if not vehiculo:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+    # 2. Preparar el pormpt con los datos del vehículo
+    detalles = [
+        f"Marca: {vehiculo.marca}",
+        f"Modelo: {vehiculo.modelo}",
+        f"Año: {vehiculo.año}",
+        f"Color: {vehiculo.color or 'A elección'}",
+        f"Motor: {vehiculo.motor or 'N/A'}",
+        f"Transmisión: {vehiculo.transmision or 'N/A'}",
+        f"Combustible: {vehiculo.combustible or 'N/A'}",
+    ]
+    
+    # Manejo inteligente de kilometraje para evitar alucinaciones de "0km" en usados
+    if vehiculo.kilometraje and vehiculo.kilometraje > 0:
+        detalles.append(f"Kilometraje: {vehiculo.kilometraje:,} km")
+    elif vehiculo.año and int(vehiculo.año) < 2024:
+        # Si es viejo y no hay kilometraje, no mandamos 0 para que la IA no mienta
+        pass
+    else:
+        detalles.append("Kilometraje: 0 km (Nuevo)")
+
+    precios = []
+    # No mandamos montos reales al prompt si la instrucción es "No des precios" 
+    # para evitar que la IA se confunda y los ponga
+    if vehiculo.precio_contado_sugerido or vehiculo.precio_financiado_sugerido:
+        precios.append("- Planes de financiación propia y bancaria.")
+        precios.append("- Recibimos tu usado como parte de pago.")
+
+    prompt = f"""
+ROL:
+Sos el mejor vendedor de autos usados recién importados de "Peralta Automotores" en Paraguay.
+Vendés con tono profesional, confiable, cercano y entusiasta, pero sin exagerar ni inventar nada.
+
+OBJETIVO:
+Redactar una publicación atractiva para Facebook y WhatsApp que genere consultas reales.
+
+DATOS DEL VEHÍCULO:
+{chr(10).join(detalles)}
+
+OBSERVACIONES:
+{vehiculo.observaciones or 'Impecable estado, listo para transferir.'}
+
+REGLAS OBLIGATORIAS (NO ROMPER ESTAS REGLAS):
+
+1. PROHIBIDO inventar datos técnicos, kilometraje, equipamiento o beneficios que no estén en los DATOS DEL VEHÍCULO.
+2. SOLO usar la información proporcionada.
+3. Español latino/paraguayo. No usar "tú". Usar "vos" o trato neutro cordial.
+4. NUNCA usar la palabra "Excluyente".
+5. NO mencionar precios ni montos de cuotas. Solo decir: "Consultá por nuestros planes de financiación".
+6. Si el vehículo es del año {vehiculo.año}, NO decir que es nuevo ni 0km salvo que esté explícitamente indicado.
+7. NO exagerar con frases irreales como:
+   - "nuevo como un cuadro"
+   - "único en el universo"
+   - "el mejor del mundo"
+8. NO repetir información ya mencionada.
+9. No hacer preguntas forzadas tipo vendedor insistente.
+10. No decir “actúe ahora”.
+11. No presentarse ni hablar de la empresa en primera persona.
+12. No inventar beneficios emocionales que no estén respaldados por los datos.
+
+ESTRUCTURA OBLIGATORIA:
+
+1️⃣ Primera línea llamativa con emojis y modelo + año  
+2️⃣ Lista clara de características en viñetas  
+3️⃣ Breve párrafo destacando beneficios reales según los datos  
+4️⃣ Llamado a la acción natural y paraguayo  
+5️⃣ Línea final de contacto obligatoria:
+
+"📲 Consultas: 0981431983  
+🌐 www.peraltaautomotores.com.py"
+
+FORMATO:
+- Usar emojis moderadamente.
+- Párrafos cortos.
+- Fácil de leer en celular.
+- Profesional pero cercano.
+
+RESPONDER ÚNICAMENTE CON EL TEXTO FINAL DE LA PUBLICACIÓN.
+"""
+
+
+    # 3. Llamar al LLM (Reusando lógica de _extract_with_llm pero simplificada para texto plano)
+    import os
+    import requests
+    from openai import OpenAI
+    
+    api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("DOCUMENTOS_LLM_URL")
+    model = os.getenv("DOCUMENTOS_LLM_MODEL", "llama3.2")
+
+    if not api_key and not base_url:
+        # Fallback si no hay IA: generar un texto básico manual
+        l1 = f"🚗 ¡NUEVO INGRESO! {vehiculo.marca} {vehiculo.modelo} {vehiculo.año} 🚗"
+        l2 = f"✨ Color {vehiculo.color}. Transmisión {vehiculo.transmision}. Motor {vehiculo.motor}."
+        l3 = f"💰 {chr(10).join(precios)}"
+        l4 = "\n📍 ¡Visítanos hoy mismo en nuestra playa!"
+        return {"texto": f"{l1}\n\n{l2}\n\n{l3}\n{l4}"}
+
+    try:
+        if base_url:
+            base_url = base_url.rstrip("/")
+            
+            # --- AUTO-DETECCIÓN DE MODELO OLLAMA ---
+            # Si es Ollama (no OpenAI), intentamos verificar si el modelo existe
+            # Si no existe, intentamos usar el primero disponible
+            if "11434" in base_url or "ollama" in base_url.lower():
+                try:
+                    tags_url = f"{base_url}/api/tags"
+                    tags_resp = requests.get(tags_url, timeout=5)
+                    if tags_resp.status_code == 200:
+                        available_models = [m["name"] for m in tags_resp.json().get("models", [])]
+                        if available_models:
+                            # Si el modelo configurado no está en la lista, usamos el primero que encontremos
+                            model_found = False
+                            for m in available_models:
+                                if model in m: # match parcial llama3.2 con llama3.2:latest
+                                    model = m
+                                    model_found = True
+                                    break
+                            
+                            if not model_found:
+                                logger.warning(f"Modelo '{model}' no encontrado en Ollama. Usando '{available_models[0]}' en su lugar.")
+                                model = available_models[0]
+                except Exception as ex:
+                    logger.warning(f"No se pudo verificar modelos en Ollama: {ex}")
+
+            if "/v1" in base_url:
+                url = base_url + "/chat/completions"
+                payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False}
+                r = requests.post(url, json=payload, timeout=120)
+                r.raise_for_status()
+                content = r.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+            else:
+                url = base_url + "/api/chat"
+                payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "options": {"temperature": 0.7}}
+                r = requests.post(url, json=payload, timeout=120)
+                r.raise_for_status()
+                content = r.json().get("message", {}).get("content", "")
+        else:
+            client = OpenAI(api_key=api_key)
+            resp = client.chat.completions.create(
+                model=os.getenv("DOCUMENTOS_LLM_MODEL", "gpt-4o-mini"),
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+            )
+            content = resp.choices[0].message.content or ""
+        
+        if not content:
+            raise Exception("La IA devolvió un texto vacío.")
+
+        return {"texto": content.strip()}
+    except Exception as e:
+        logger.error(f"Error al generar texto con IA ({model}): {e}")
+        # Fallback por error con más info
+        error_info = ""
+        if "404" in str(e):
+            error_info = "\n\n(Nota: El modelo 'llama3.2' no está en tu Ollama. Ejecuta 'ollama pull llama3.2' en tu terminal)"
+        elif "Connection" in str(e) or "Max retries" in str(e):
+            error_info = "\n\n(Nota: No se pudo conectar con Ollama. Asegúrate de que esté abierto y con OLLAMA_HOST=0.0.0.0)"
+        
+        return {"texto": f"🚗 {vehiculo.marca} {vehiculo.modelo} {vehiculo.año} 🚗\n\nConsultar precio y financiación.{error_info}"}
+
 @router.post("/social-post")
 async def social_post(
     data: SocialPostRequest,
