@@ -798,7 +798,79 @@ async def set_principal(
     
     img.es_principal = True
     await session.commit()
-    return {"message": "Imagen marcada como principal"}
+    return {"message": "Imagen principal actualizada"}
+
+# ===== PUBLICACIÓN EN REDES SOCIALES =====
+class SocialPostRequest(BaseModel):
+    id_producto: int
+    texto: str
+    redes: List[str]
+    imagenes: List[int]
+
+@router.post("/social-post")
+async def social_post(
+    data: SocialPostRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Endpoint para publicar contenido en redes sociales.
+    Aquí se integrarán las APIs de Facebook, Instagram, X, etc.
+    """
+    try:
+        # 1. Obtener info del vehículo e imágenes
+        res_veh = await session.execute(select(Producto).where(Producto.id_producto == data.id_producto))
+        vehiculo = res_veh.scalar_one_or_none()
+        
+        if not vehiculo:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+        res_img = await session.execute(select(ImagenProducto).where(ImagenProducto.id_imagen.in_(data.imagenes)))
+        imagenes_obj = res_img.scalars().all()
+
+        # 2. Lógica por cada red social (Placeholder)
+        results = {}
+        
+        for red in data.redes:
+            if red == 'facebook':
+                # token = os.getenv("FACEBOOK_ACCESS_TOKEN")
+                # Lógica de publicación usando facebook-sdk o request directo a Graph API
+                results['facebook'] = "Simulado: Publicado en Facebook"
+            
+            elif red == 'instagram':
+                # id_ig = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
+                # Lógica de publicación usando Instagram Graph API
+                results['instagram'] = "Simulado: Publicado en Instagram"
+            
+            elif red == 'twitter':
+                # Lógica usando tweepy o API v2 de X
+                results['twitter'] = "Simulado: Publicado en X (Twitter)"
+            
+            elif red == 'whatsapp':
+                # Lógica usando WhatsApp Business API o gateway
+                results['whatsapp'] = "Simulado: Enviado vía WhatsApp"
+
+        # 3. Registrar en auditoría
+        await log_audit_action(
+            session=session,
+            username=current_user["sub"],
+            user_id=current_user["user_id"],
+            action="social_publish",
+            table="productos",
+            record_id=vehiculo.id_producto,
+            new_data={"redes": data.redes, "texto": data.texto},
+            details=f"Publicación en redes ({', '.join(data.redes)}) para vehículo {vehiculo.marca} {vehiculo.modelo}"
+        )
+
+        return {
+            "status": "success",
+            "message": "Proceso de publicación completado",
+            "details": results
+        }
+
+    except Exception as e:
+        logging.exception("Error en social_post") # Changed logger.exception to logging.exception
+        raise HTTPException(status_code=500, detail=f"Error al publicar: {str(e)}")
 
 
 # ===== CLIENTES =====

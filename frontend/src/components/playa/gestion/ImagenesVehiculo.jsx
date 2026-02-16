@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './ImagenesVehiculo.css';
+import ModalPublicarRedes from './ModalPublicarRedes';
 
 const ImagenesVehiculo = ({ id_producto }) => {
     const [vehiculos, setVehiculos] = useState([]);
@@ -9,6 +10,7 @@ const ImagenesVehiculo = ({ id_producto }) => {
     const [loading, setLoading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
+    const [isModalRedesOpen, setIsModalRedesOpen] = useState(false);
     const fileInputRef = useRef(null);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -260,10 +262,16 @@ const ImagenesVehiculo = ({ id_producto }) => {
                         )}
 
                         {selectedVehiculoId && (
-                            <div style={{ marginTop: '10px' }}>
+                            <div className="vehicle-info-row" style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span className="info-badge">
                                     {imagenes.length} {imagenes.length === 1 ? 'imagen' : 'imágenes'} registradas
                                 </span>
+                                <button
+                                    onClick={() => setIsModalRedesOpen(true)}
+                                    className="btn-publicar-redes"
+                                >
+                                    📢 Publicar en Redes
+                                </button>
                             </div>
                         )}
                     </div>
@@ -338,7 +346,18 @@ const ImagenesVehiculo = ({ id_producto }) => {
                     <span className="close-preview">&times;</span>
                     <img src={previewImage} alt="Vista previa" onClick={(e) => e.stopPropagation()} />
                 </div>
-            )}        </div>
+            )}
+
+            {isModalRedesOpen && (
+                <ModalPublicarRedes
+                    isOpen={isModalRedesOpen}
+                    onClose={() => setIsModalRedesOpen(false)}
+                    imagenes={imagenes}
+                    vehiculoInfo={vehiculos.find(v => v.id_producto === selectedVehiculoId)}
+                    getImageUrl={getImageUrl}
+                />
+            )}
+        </div>
     );
 };
 
