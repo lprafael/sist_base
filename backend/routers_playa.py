@@ -2200,6 +2200,144 @@ async def create_pago(
     await session.refresh(new_pago)
     return new_pago
 
+@router.get("/pagares/{id_pagare}/pagos", response_model=List[PagoResponse])
+async def list_pagos_pagare(id_pagare: int, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(Pago).where(Pago.id_pagare == id_pagare).order_by(Pago.fecha_pago.desc())
+    )
+    return result.scalars().all()
+
+@router.put("/pagos/{id_pago}", response_model=PagoResponse)
+async def update_pago(
+    id_pago: int,
+    data: PagoCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    await session.execute(text("SET LOCAL search_path TO playa, public"))
+    
+    # 1. Obtener el pago actual
+    res_pago = await session.execute(select(Pago).where(Pago.id_pago == id_pago))
+    pago = res_pago.scalar_one_or_none()
+    if not pago:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+        
+    # 2. Obtener el pagaré
+    res_pagare = await session.execute(
+        select(Pagare).options(joinedload(Pagare.estado_rel)).where(Pagare.id_pagare == pago.id_pagare)
+    )
+    pagare = res_pagare.scalar_one_or_none()
+    if not pagare:
+        raise HTTPException(status_code=404, detail="Pagaré no encontrado")
+
+    old_monto = pago.monto_pagado
+    new_monto = Decimal(str(data.monto_pagado))
+    diff_monto = new_monto - old_monto
+
+    # 3. Actualizar cuenta si cambió el monto o la cuenta
+    if pago.id_cuenta:
+        res_c_old = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == pago.id_cuenta))
+        cuenta_old = res_c_old.scalar_one_or_none()
+        if cuenta_old:
+            cuenta_old.saldo_actual -= old_monto
+
+    if data.id_cuenta:
+        res_c_new = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta))
+        cuenta_new = res_c_new.scalar_one_or_none()
+        if cuenta_new:
+            if cuenta_new.saldo_actual is None: cuenta_new.saldo_actual = 0
+            cuenta_new.saldo_actual += new_monto
+
+    # 4. Actualizar saldo del pagaré
+    if pagare.saldo_pendiente is None:
+        pagare.saldo_pendiente = pagare.monto_cuota
+        
+    pagare.saldo_pendiente -= diff_monto
+
+    # 5. Actualizar estado del pagaré
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    
+    if pagare.saldo_pendiente <= 0:
+        pagare.id_estado = all_states.get('PAGADO')
+        pagare.saldo_pendiente = 0
+        pagare.cancelado = True
+    elif pagare.saldo_pendiente >= pagare.monto_cuota:
+        pagare.id_estado = all_states.get('PENDIENTE')
+        pagare.cancelado = False
+    else:
+        pagare.id_estado = all_states.get('PARCIAL')
+        pagare.cancelado = False
+
+    # 6. Actualizar el pago
+    pago.monto_pagado = new_monto
+    pago.fecha_pago = data.fecha_pago
+    pago.numero_recibo = data.numero_recibo
+    pago.forma_pago = data.forma_pago
+    pago.id_cuenta = data.id_cuenta
+    pago.numero_referencia = data.numero_referencia
+    pago.mora_aplicada = Decimal(str(data.mora_aplicada or 0))
+    pago.observaciones = data.observaciones
+
+    await session.commit()
+    await session.refresh(pago)
+    return pago
+
+@router.delete("/pagos/{id_pago}")
+async def delete_pago(
+    id_pago: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    await session.execute(text("SET LOCAL search_path TO playa, public"))
+    
+    # 1. Obtener el pago
+    res_pago = await session.execute(select(Pago).where(Pago.id_pago == id_pago))
+    pago = res_pago.scalar_one_or_none()
+    if not pago:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+        
+    # 2. Obtener el pagaré
+    res_pagare = await session.execute(
+        select(Pagare).options(joinedload(Pagare.estado_rel)).where(Pagare.id_pagare == pago.id_pagare)
+    )
+    pagare = res_pagare.scalar_one_or_none()
+    if not pagare:
+        raise HTTPException(status_code=404, detail="Pagaré no encontrado")
+
+    monto_a_revertir = pago.monto_pagado
+
+    # 3. Revertir saldo en la cuenta
+    if pago.id_cuenta:
+        res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == pago.id_cuenta))
+        cuenta = res_c.scalar_one_or_none()
+        if cuenta:
+            cuenta.saldo_actual -= monto_a_revertir
+
+    # 4. Revertir saldo del pagaré
+    if pagare.saldo_pendiente is None:
+        pagare.saldo_pendiente = pagare.monto_cuota
+    
+    pagare.saldo_pendiente += monto_a_revertir
+    
+    # 5. Actualizar estado del pagaré
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    
+    if pagare.saldo_pendiente >= pagare.monto_cuota:
+        pagare.id_estado = all_states.get('PENDIENTE')
+        pagare.saldo_pendiente = pagare.monto_cuota # Asegurar que no exceda
+        pagare.cancelado = False
+    else:
+        pagare.id_estado = all_states.get('PARCIAL')
+        pagare.cancelado = False
+
+    # 6. Eliminar el pago
+    await session.delete(pago)
+    await session.commit()
+    
+    return {"message": "Pago eliminado correctamente y saldo de pagaré actualizado"}
+
 # ===== GASTOS DE VEHÍCULOS =====
 @router.get("/tipos-gastos", response_model=List[TipoGastoProductoResponse])
 async def list_tipos_gastos(
