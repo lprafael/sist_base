@@ -39,6 +39,12 @@ const CobrosPlaya = () => {
         fetchCuentas();
     }, []);
 
+    useEffect(() => {
+        if (includeCancelados) {
+            fetchAllPagares();
+        }
+    }, [includeCancelados]);
+
     const fetchCuentas = async () => {
         try {
             const token = sessionStorage.getItem('token');
@@ -327,8 +333,16 @@ const CobrosPlaya = () => {
     const handleEditPago = (pago) => {
         setPagoToEdit(pago);
         setIsEditingPago(true);
+
+        // Formatear fecha para el input type="date"
+        let formattedDate = pago.fecha_pago;
+        if (formattedDate && formattedDate.includes('T')) {
+            formattedDate = formattedDate.split('T')[0];
+        }
+
         setNewPago({
             ...pago,
+            fecha_pago: formattedDate,
             cancelar_pagare: false // No es relevante en edición
         });
         setShowModal(true);
@@ -1114,6 +1128,16 @@ const CobrosPlaya = () => {
             <div className="header-actions">
                 <h2>Cobranzas y Recibos</h2>
                 <div className="header-controls">
+                    <div className="global-filters">
+                        <label className="checkbox-label highlight">
+                            <input
+                                type="checkbox"
+                                checked={includeCancelados}
+                                onChange={(e) => setIncludeCancelados(e.target.checked)}
+                            />
+                            <span>Mostrar todos los pagarés (Incluir Pagados)</span>
+                        </label>
+                    </div>
                     <div className="search-bar">
                         <input
                             type="text"
@@ -1123,14 +1147,6 @@ const CobrosPlaya = () => {
                         />
                     </div>
                     <div className="print-controls">
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                checked={includeCancelados}
-                                onChange={(e) => setIncludeCancelados(e.target.checked)}
-                            />
-                            <span>Mostrar todos los pagarés</span>
-                        </label>
                         <button className="btn-print" onClick={handlePrintPlanPago} title="Imprimir Plan de Pago">
                             🖨️ Imprimir Plan de Pago
                         </button>
@@ -1158,6 +1174,7 @@ const CobrosPlaya = () => {
                                 <th onClick={() => requestSort('estado')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                                     Estado {getSortIcon('estado')}
                                 </th>
+                                {includeCancelados && <th>Último Pago</th>}
                                 <th>Acción</th>
                             </tr>
                         </thead>
@@ -1184,6 +1201,15 @@ const CobrosPlaya = () => {
                                         <td>Gs. {Math.round(parseFloat(p.monto_cuota)).toLocaleString('es-PY')}</td>
                                         <td><strong>Gs. {Math.round(parseFloat(p.saldo_pendiente)).toLocaleString('es-PY')}</strong></td>
                                         <td><span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()}`}>{p.estado_rel?.nombre || p.estado}</span></td>
+                                        {includeCancelados && (
+                                            <td>
+                                                {p.fecha_pago ? (
+                                                    <span className="date-badge success">
+                                                        {p.fecha_pago.split('T')[0]}
+                                                    </span>
+                                                ) : '-'}
+                                            </td>
+                                        )}
                                         <td>
                                             <div className="action-buttons">
                                                 {p.saldo_pendiente > 0 && (
@@ -1192,8 +1218,8 @@ const CobrosPlaya = () => {
                                                     </button>
                                                 )}
                                                 {(p.estado === 'PAGADO' || p.estado === 'PARCIAL' || p.cancelado) && (
-                                                    <button className="btn-edit-pagos" onClick={() => handleViewPagos(p)} title="Ver/Editar Pagos">
-                                                        ⚙️ Pagos
+                                                    <button className="btn-edit-pagos" onClick={() => handleViewPagos(p)} title="Ver historial y editar cobros">
+                                                        ⚙️ Ver/Editar Cobros
                                                     </button>
                                                 )}
                                             </div>
