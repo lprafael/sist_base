@@ -525,7 +525,9 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>Registrar Nuevo Vehículo</h3>
+                        <div className="modal-header">
+                            <h3>Registrar Nuevo Vehículo</h3>
+                        </div>
                         <div className="modal-tabs">
                             <button
                                 type="button"
@@ -543,149 +545,153 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreate}>
-                            {activeTabModal === 'general' ? (
-                                <div className="tab-content">
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Categoría</label>
-                                            <select
-                                                value={newVehiculo.id_categoria}
-                                                onChange={(e) => setNewVehiculo({ ...newVehiculo, id_categoria: e.target.value })}
-                                                required
-                                            >
-                                                <option value="">Seleccione categoría</option>
-                                                {categorias.map(c => (
-                                                    <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
-                                                ))}
-                                            </select>
+                        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div className="modal-body">
+                                {activeTabModal === 'general' ? (
+                                    <div className="tab-content">
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Categoría</label>
+                                                <select
+                                                    value={newVehiculo.id_categoria}
+                                                    onChange={(e) => setNewVehiculo({ ...newVehiculo, id_categoria: e.target.value })}
+                                                    required
+                                                >
+                                                    <option value="">Seleccione categoría</option>
+                                                    {categorias.map(c => (
+                                                        <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Código Interno</label>
+                                                <input type="text" value={newVehiculo.codigo_interno} readOnly className="read-only-input" title="Se completa automáticamente con el chasis" />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Marca</label>
+                                                <input type="text" required value={newVehiculo.marca} onChange={(e) => setNewVehiculo({ ...newVehiculo, marca: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Modelo</label>
+                                                <input type="text" required value={newVehiculo.modelo} onChange={(e) => setNewVehiculo({ ...newVehiculo, modelo: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Año</label>
+                                                <input type="number" required value={newVehiculo.año} onChange={(e) => setNewVehiculo({ ...newVehiculo, año: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Color</label>
+                                                <input type="text" value={newVehiculo.color} onChange={(e) => setNewVehiculo({ ...newVehiculo, color: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Costo Base (Gs.)</label>
+                                                <input type="text" required value={formatCurrency(newVehiculo.costo_base)} onChange={(e) => handleCurrencyChange(e, 'costo_base', true)} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Precio Contado Sugerido (Gs.)</label>
+                                                <input type="text" required value={formatCurrency(newVehiculo.precio_contado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_contado_sugerido', true)} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Precio Financiado Sugerido (Gs.)</label>
+                                                <input type="text" value={formatCurrency(newVehiculo.precio_financiado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_financiado_sugerido', true)} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Entrega Inicial Sugerida (Gs.)</label>
+                                                <input type="text" value={formatCurrency(newVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida', true)} />
+                                            </div>
                                         </div>
                                         <div className="form-group">
-                                            <label>Código Interno</label>
-                                            <input type="text" value={newVehiculo.codigo_interno} readOnly className="read-only-input" title="Se completa automáticamente con el chasis" />
+                                            <label>Observaciones</label>
+                                            <textarea value={newVehiculo.observaciones} onChange={(e) => setNewVehiculo({ ...newVehiculo, observaciones: e.target.value })} />
                                         </div>
                                     </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Marca</label>
-                                            <input type="text" required value={newVehiculo.marca} onChange={(e) => setNewVehiculo({ ...newVehiculo, marca: e.target.value })} />
+                                ) : (
+                                    <div className="tab-content">
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Chasis</label>
+                                                <input type="text" required value={newVehiculo.chasis} onChange={(e) => setNewVehiculo({ ...newVehiculo, chasis: e.target.value, codigo_interno: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Motor</label>
+                                                <input type="text" value={newVehiculo.motor} onChange={(e) => setNewVehiculo({ ...newVehiculo, motor: e.target.value })} />
+                                            </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Modelo</label>
-                                            <input type="text" required value={newVehiculo.modelo} onChange={(e) => setNewVehiculo({ ...newVehiculo, modelo: e.target.value })} />
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Kilometraje</label>
+                                                <input type="number" value={newVehiculo.kilometraje} onChange={(e) => setNewVehiculo({ ...newVehiculo, kilometraje: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Combustible</label>
+                                                <select value={newVehiculo.combustible} onChange={(e) => setNewVehiculo({ ...newVehiculo, combustible: e.target.value })}>
+                                                    <option value="">Seleccione...</option>
+                                                    <option value="NAFTA">NAFTA</option>
+                                                    <option value="DIESEL">DIESEL</option>
+                                                    <option value="HÍBRIDO">HÍBRIDO</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Transmisión</label>
+                                                <select value={newVehiculo.transmision} onChange={(e) => setNewVehiculo({ ...newVehiculo, transmision: e.target.value })}>
+                                                    <option value="">Seleccione...</option>
+                                                    <option value="MEC">MEC</option>
+                                                    <option value="AUT">AUT</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Tipo Vehículo</label>
+                                                <input type="text" value={newVehiculo.tipo_vehiculo} onChange={(e) => setNewVehiculo({ ...newVehiculo, tipo_vehiculo: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Nro. Puertas</label>
+                                                <input type="number" value={newVehiculo.numero_puertas} onChange={(e) => setNewVehiculo({ ...newVehiculo, numero_puertas: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Capacidad Pasajeros</label>
+                                                <input type="number" value={newVehiculo.capacidad_pasajeros} onChange={(e) => setNewVehiculo({ ...newVehiculo, capacidad_pasajeros: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Procedencia</label>
+                                                <input type="text" value={newVehiculo.procedencia} onChange={(e) => setNewVehiculo({ ...newVehiculo, procedencia: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Ubicación Actual</label>
+                                                <input type="text" value={newVehiculo.ubicacion_actual} onChange={(e) => setNewVehiculo({ ...newVehiculo, ubicacion_actual: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Precio Mínimo (Gs.)</label>
+                                                <input type="text" value={formatCurrency(newVehiculo.precio_venta_minimo)} onChange={(e) => handleCurrencyChange(e, 'precio_venta_minimo', true)} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Fecha Ingreso</label>
+                                                <input type="date" value={newVehiculo.fecha_ingreso} onChange={(e) => setNewVehiculo({ ...newVehiculo, fecha_ingreso: e.target.value })} />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Año</label>
-                                            <input type="number" required value={newVehiculo.año} onChange={(e) => setNewVehiculo({ ...newVehiculo, año: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Color</label>
-                                            <input type="text" value={newVehiculo.color} onChange={(e) => setNewVehiculo({ ...newVehiculo, color: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Costo Base (Gs.)</label>
-                                            <input type="text" required value={formatCurrency(newVehiculo.costo_base)} onChange={(e) => handleCurrencyChange(e, 'costo_base', true)} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Precio Contado Sugerido (Gs.)</label>
-                                            <input type="text" required value={formatCurrency(newVehiculo.precio_contado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_contado_sugerido', true)} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Precio Financiado Sugerido (Gs.)</label>
-                                            <input type="text" value={formatCurrency(newVehiculo.precio_financiado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_financiado_sugerido', true)} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Entrega Inicial Sugerida (Gs.)</label>
-                                            <input type="text" value={formatCurrency(newVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida', true)} />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Observaciones</label>
-                                        <textarea value={newVehiculo.observaciones} onChange={(e) => setNewVehiculo({ ...newVehiculo, observaciones: e.target.value })} />
-                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
+                                    <button type="submit" className="btn-save">Guardar Vehículo</button>
                                 </div>
-                            ) : (
-                                <div className="tab-content">
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Chasis</label>
-                                            <input type="text" required value={newVehiculo.chasis} onChange={(e) => setNewVehiculo({ ...newVehiculo, chasis: e.target.value, codigo_interno: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Motor</label>
-                                            <input type="text" value={newVehiculo.motor} onChange={(e) => setNewVehiculo({ ...newVehiculo, motor: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Kilometraje</label>
-                                            <input type="number" value={newVehiculo.kilometraje} onChange={(e) => setNewVehiculo({ ...newVehiculo, kilometraje: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Combustible</label>
-                                            <select value={newVehiculo.combustible} onChange={(e) => setNewVehiculo({ ...newVehiculo, combustible: e.target.value })}>
-                                                <option value="">Seleccione...</option>
-                                                <option value="NAFTA">NAFTA</option>
-                                                <option value="DIESEL">DIESEL</option>
-                                                <option value="HÍBRIDO">HÍBRIDO</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Transmisión</label>
-                                            <select value={newVehiculo.transmision} onChange={(e) => setNewVehiculo({ ...newVehiculo, transmision: e.target.value })}>
-                                                <option value="">Seleccione...</option>
-                                                <option value="MEC">MEC</option>
-                                                <option value="AUT">AUT</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Tipo Vehículo</label>
-                                            <input type="text" value={newVehiculo.tipo_vehiculo} onChange={(e) => setNewVehiculo({ ...newVehiculo, tipo_vehiculo: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Nro. Puertas</label>
-                                            <input type="number" value={newVehiculo.numero_puertas} onChange={(e) => setNewVehiculo({ ...newVehiculo, numero_puertas: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Capacidad Pasajeros</label>
-                                            <input type="number" value={newVehiculo.capacidad_pasajeros} onChange={(e) => setNewVehiculo({ ...newVehiculo, capacidad_pasajeros: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Procedencia</label>
-                                            <input type="text" value={newVehiculo.procedencia} onChange={(e) => setNewVehiculo({ ...newVehiculo, procedencia: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Ubicación Actual</label>
-                                            <input type="text" value={newVehiculo.ubicacion_actual} onChange={(e) => setNewVehiculo({ ...newVehiculo, ubicacion_actual: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Precio Mínimo (Gs.)</label>
-                                            <input type="text" value={formatCurrency(newVehiculo.precio_venta_minimo)} onChange={(e) => handleCurrencyChange(e, 'precio_venta_minimo', true)} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Fecha Ingreso</label>
-                                            <input type="date" value={newVehiculo.fecha_ingreso} onChange={(e) => setNewVehiculo({ ...newVehiculo, fecha_ingreso: e.target.value })} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
-                                <button type="submit" className="btn-save">Guardar Vehículo</button>
                             </div>
                         </form>
                     </div>
@@ -722,175 +728,179 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                             </button>
                         </div>
 
-                        <form onSubmit={handleUpdate}>
-                            {activeTabModal === 'general' && (
-                                <div className="tab-content">
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Categoría</label>
-                                            <select
-                                                value={selectedVehiculo.id_categoria}
-                                                onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, id_categoria: e.target.value })}
-                                                required
-                                            >
-                                                <option value="">Seleccione categoría</option>
-                                                {categorias.map(c => (
-                                                    <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
-                                                ))}
-                                            </select>
+                        <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div className="modal-body">
+                                {activeTabModal === 'general' && (
+                                    <div className="tab-content">
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Categoría</label>
+                                                <select
+                                                    value={selectedVehiculo.id_categoria}
+                                                    onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, id_categoria: e.target.value })}
+                                                    required
+                                                >
+                                                    <option value="">Seleccione categoría</option>
+                                                    {categorias.map(c => (
+                                                        <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Código Interno</label>
+                                                <input type="text" value={selectedVehiculo.codigo_interno || ''} readOnly className="read-only-input" title="Se completa automáticamente con el chasis" />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Marca</label>
+                                                <input type="text" required value={selectedVehiculo.marca} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, marca: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Modelo</label>
+                                                <input type="text" required value={selectedVehiculo.modelo} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, modelo: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Año</label>
+                                                <input type="number" required value={selectedVehiculo.año} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, año: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Color</label>
+                                                <input type="text" value={selectedVehiculo.color || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, color: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Costo Base (Gs.)</label>
+                                                <input type="text" required value={formatCurrency(selectedVehiculo.costo_base)} onChange={(e) => handleCurrencyChange(e, 'costo_base')} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Precio Contado Sugerido (Gs.)</label>
+                                                <input type="text" required value={formatCurrency(selectedVehiculo.precio_contado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_contado_sugerido')} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Precio Financiado Sugerido (Gs.)</label>
+                                                <input type="text" value={formatCurrency(selectedVehiculo.precio_financiado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_financiado_sugerido')} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Entrega Inicial Sugerida (Gs.)</label>
+                                                <input type="text" value={formatCurrency(selectedVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida')} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Estado Disponibilidad</label>
+                                                <select value={selectedVehiculo.estado_disponibilidad} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, estado_disponibilidad: e.target.value })}>
+                                                    <option value="DISPONIBLE">DISPONIBLE</option>
+                                                    <option value="RESERVADO">RESERVADO</option>
+                                                    <option value="VENDIDO">VENDIDO</option>
+                                                    <option value="MANTENIMIENTO">MANTENIMIENTO</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Activo</label>
+                                                <select value={String(selectedVehiculo.activo)} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, activo: e.target.value === 'true' })}>
+                                                    <option value="true">Sí</option>
+                                                    <option value="false">No</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         <div className="form-group">
-                                            <label>Código Interno</label>
-                                            <input type="text" value={selectedVehiculo.codigo_interno || ''} readOnly className="read-only-input" title="Se completa automáticamente con el chasis" />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Marca</label>
-                                            <input type="text" required value={selectedVehiculo.marca} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, marca: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Modelo</label>
-                                            <input type="text" required value={selectedVehiculo.modelo} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, modelo: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Año</label>
-                                            <input type="number" required value={selectedVehiculo.año} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, año: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Color</label>
-                                            <input type="text" value={selectedVehiculo.color || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, color: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Costo Base (Gs.)</label>
-                                            <input type="text" required value={formatCurrency(selectedVehiculo.costo_base)} onChange={(e) => handleCurrencyChange(e, 'costo_base')} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Precio Contado Sugerido (Gs.)</label>
-                                            <input type="text" required value={formatCurrency(selectedVehiculo.precio_contado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_contado_sugerido')} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Precio Financiado Sugerido (Gs.)</label>
-                                            <input type="text" value={formatCurrency(selectedVehiculo.precio_financiado_sugerido)} onChange={(e) => handleCurrencyChange(e, 'precio_financiado_sugerido')} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Entrega Inicial Sugerida (Gs.)</label>
-                                            <input type="text" value={formatCurrency(selectedVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida')} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Estado Disponibilidad</label>
-                                            <select value={selectedVehiculo.estado_disponibilidad} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, estado_disponibilidad: e.target.value })}>
-                                                <option value="DISPONIBLE">DISPONIBLE</option>
-                                                <option value="RESERVADO">RESERVADO</option>
-                                                <option value="VENDIDO">VENDIDO</option>
-                                                <option value="MANTENIMIENTO">MANTENIMIENTO</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Activo</label>
-                                            <select value={String(selectedVehiculo.activo)} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, activo: e.target.value === 'true' })}>
-                                                <option value="true">Sí</option>
-                                                <option value="false">No</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Observaciones</label>
-                                        <textarea value={selectedVehiculo.observaciones || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, observaciones: e.target.value })} />
-                                    </div>
-                                </div>
-                            )}
-                            {activeTabModal === 'tecnico' && (
-                                <div className="tab-content">
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Chasis</label>
-                                            <input type="text" required value={selectedVehiculo.chasis} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, chasis: e.target.value, codigo_interno: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Motor</label>
-                                            <input type="text" value={selectedVehiculo.motor || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, motor: e.target.value })} />
+                                            <label>Observaciones</label>
+                                            <textarea value={selectedVehiculo.observaciones || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, observaciones: e.target.value })} />
                                         </div>
                                     </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Kilometraje</label>
-                                            <input type="number" value={selectedVehiculo.kilometraje || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, kilometraje: e.target.value })} />
+                                )}
+                                {activeTabModal === 'tecnico' && (
+                                    <div className="tab-content">
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Chasis</label>
+                                                <input type="text" required value={selectedVehiculo.chasis} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, chasis: e.target.value, codigo_interno: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Motor</label>
+                                                <input type="text" value={selectedVehiculo.motor || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, motor: e.target.value })} />
+                                            </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Combustible</label>
-                                            <select value={selectedVehiculo.combustible || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, combustible: e.target.value })}>
-                                                <option value="">Seleccione...</option>
-                                                <option value="NAFTA">NAFTA</option>
-                                                <option value="DIESEL">DIESEL</option>
-                                                <option value="HÍBRIDO">HÍBRIDO</option>
-                                            </select>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Kilometraje</label>
+                                                <input type="number" value={selectedVehiculo.kilometraje || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, kilometraje: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Combustible</label>
+                                                <select value={selectedVehiculo.combustible || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, combustible: e.target.value })}>
+                                                    <option value="">Seleccione...</option>
+                                                    <option value="NAFTA">NAFTA</option>
+                                                    <option value="DIESEL">DIESEL</option>
+                                                    <option value="HÍBRIDO">HÍBRIDO</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Transmisión</label>
+                                                <select value={selectedVehiculo.transmision || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, transmision: e.target.value })}>
+                                                    <option value="">Seleccione...</option>
+                                                    <option value="MEC">MEC</option>
+                                                    <option value="AUT">AUT</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Tipo Vehículo</label>
+                                                <input type="text" value={selectedVehiculo.tipo_vehiculo || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, tipo_vehiculo: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Nro. Puertas</label>
+                                                <input type="number" value={selectedVehiculo.numero_puertas || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, numero_puertas: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Capacidad Pasajeros</label>
+                                                <input type="number" value={selectedVehiculo.capacidad_pasajeros || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, capacidad_pasajeros: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Procedencia</label>
+                                                <input type="text" value={selectedVehiculo.procedencia || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, procedencia: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Ubicación Actual</label>
+                                                <input type="text" value={selectedVehiculo.ubicacion_actual || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, ubicacion_actual: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Precio Mínimo (Gs.)</label>
+                                                <input type="text" value={formatCurrency(selectedVehiculo.precio_venta_minimo)} onChange={(e) => handleCurrencyChange(e, 'precio_venta_minimo')} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Fecha Ingreso</label>
+                                                <input type="date" value={selectedVehiculo.fecha_ingreso || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, fecha_ingreso: e.target.value })} />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Transmisión</label>
-                                            <select value={selectedVehiculo.transmision || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, transmision: e.target.value })}>
-                                                <option value="">Seleccione...</option>
-                                                <option value="MEC">MEC</option>
-                                                <option value="AUT">AUT</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Tipo Vehículo</label>
-                                            <input type="text" value={selectedVehiculo.tipo_vehiculo || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, tipo_vehiculo: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Nro. Puertas</label>
-                                            <input type="number" value={selectedVehiculo.numero_puertas || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, numero_puertas: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Capacidad Pasajeros</label>
-                                            <input type="number" value={selectedVehiculo.capacidad_pasajeros || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, capacidad_pasajeros: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Procedencia</label>
-                                            <input type="text" value={selectedVehiculo.procedencia || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, procedencia: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Ubicación Actual</label>
-                                            <input type="text" value={selectedVehiculo.ubicacion_actual || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, ubicacion_actual: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Precio Mínimo (Gs.)</label>
-                                            <input type="text" value={formatCurrency(selectedVehiculo.precio_venta_minimo)} onChange={(e) => handleCurrencyChange(e, 'precio_venta_minimo')} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Fecha Ingreso</label>
-                                            <input type="date" value={selectedVehiculo.fecha_ingreso || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, fecha_ingreso: e.target.value })} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                                )}
 
-                            {activeTabModal === 'imagenes' && (
-                                <div className="tab-content" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                                    <ImagenesVehiculo id_producto={selectedVehiculo.id_producto} />
+                                {activeTabModal === 'imagenes' && (
+                                    <div className="tab-content">
+                                        <ImagenesVehiculo id_producto={selectedVehiculo.id_producto} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <div className="modal-actions">
+                                    <button type="submit" className="btn-save">Guardar Cambios</button>
+                                    <button type="button" className="btn-primary" onClick={() => handleVenderClick(selectedVehiculo)}>Ir a Vender</button>
+                                    <button type="button" className="btn-cancel" onClick={() => setShowDetailsModal(false)}>Cerrar</button>
                                 </div>
-                            )}
-                            <div className="modal-actions">
-                                <button type="submit" className="btn-save">Guardar Cambios</button>
-                                <button type="button" className="btn-primary" onClick={() => handleVenderClick(selectedVehiculo)}>Ir a Vender</button>
-                                <button type="button" className="btn-cancel" onClick={() => setShowDetailsModal(false)}>Cerrar</button>
                             </div>
                         </form>
                     </div>

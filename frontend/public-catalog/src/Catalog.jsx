@@ -1,6 +1,66 @@
 import React, { useState, useEffect } from "react";
 import "./Catalog.css";
 
+const VehicleCard = ({ vehicle, onWhatsApp }) => {
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+
+    const images = vehicle.imagenes || [];
+    const hasImages = images.length > 0;
+
+    useEffect(() => {
+        if (!isHovered) {
+            const principalIndex = images.findIndex(img => img.es_principal);
+            setCurrentImageIndex(principalIndex !== -1 ? principalIndex : 0);
+            return;
+        }
+
+        if (images.length <= 1) return;
+
+        const interval = setInterval(() => {
+            setCurrentImageIndex(prev => (prev + 1) % images.length);
+        }, 1200);
+
+        return () => clearInterval(interval);
+    }, [isHovered, images]);
+
+    const getImageUrl = () => {
+        if (!hasImages) return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
+        
+        const img = images[currentImageIndex] || images[0];
+        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
+        return `${baseUrl}${img.ruta_archivo}`;
+    };
+
+    return (
+        <div 
+            className="vehicle-card glass"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            <div className="card-image-wrapper">
+                <img src={getImageUrl()} alt={`${vehicle.marca} ${vehicle.modelo}`} />
+                <div className="card-overlay">
+                    <button onClick={() => onWhatsApp(vehicle)}>WhatsApp</button>
+                    {hasImages && images.length > 1 && isHovered && (
+                        <div className="image-counter">
+                            {currentImageIndex + 1} / {images.length}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="card-info">
+                <h3>{vehicle.marca} {vehicle.modelo}</h3>
+                <div className="card-specs">
+                    <span>{vehicle.anho_fabricacion || vehicle.año}</span>
+                    <span>•</span>
+                    <span>{vehicle.color}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const PublicCatalog = ({ user }) => {
     const [vehicles, setVehicles] = useState([]);
     const [featuredVehicles, setFeaturedVehicles] = useState([]);
@@ -159,22 +219,11 @@ const PublicCatalog = ({ user }) => {
 
                 <div className="vehicle-grid">
                     {filteredVehicles.map(vehicle => (
-                        <div key={vehicle.id_producto} className="vehicle-card glass">
-                            <div className="card-image-wrapper">
-                                <img src={getImageUrl(vehicle)} alt={vehicle.modelo} />
-                                <div className="card-overlay">
-                                    <button onClick={() => handleWhatsApp(vehicle)}>WhatsApp</button>
-                                </div>
-                            </div>
-                            <div className="card-info">
-                                <h3>{vehicle.marca} {vehicle.modelo}</h3>
-                                <div className="card-specs">
-                                    <span>{vehicle.anho_fabricacion || vehicle.año}</span>
-                                    <span>•</span>
-                                    <span>{vehicle.color}</span>
-                                </div>
-                            </div>
-                        </div>
+                        <VehicleCard 
+                            key={vehicle.id_producto} 
+                            vehicle={vehicle} 
+                            onWhatsApp={handleWhatsApp} 
+                        />
                     ))}
                 </div>
                 {filteredVehicles.length === 0 && <p className="no-results">No se encontraron vehículos.</p>}
