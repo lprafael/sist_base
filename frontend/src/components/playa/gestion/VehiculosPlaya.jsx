@@ -125,13 +125,15 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
         }
     };
 
-    // Helper function to clean vehicle data before sending to backend
     const cleanVehiculoData = (data) => {
         const cleaned = { ...data };
 
         // Convert empty strings to null for optional fields
+        // But NOT for fields that are strictly required in the backend schema
+        const strictlyRequired = ['marca', 'modelo', 'chasis', 'costo_base'];
+
         Object.keys(cleaned).forEach(key => {
-            if (cleaned[key] === '') {
+            if (cleaned[key] === '' && !strictlyRequired.includes(key)) {
                 cleaned[key] = null;
             }
         });
@@ -139,18 +141,18 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
         // Ensure numeric fields are properly typed
         const numericFields = ['id_categoria', 'año', 'kilometraje', 'numero_puertas', 'capacidad_pasajeros'];
         numericFields.forEach(field => {
-            if (cleaned[field] !== null && cleaned[field] !== undefined) {
+            if (cleaned[field] !== null && cleaned[field] !== undefined && cleaned[field] !== '') {
                 const num = parseInt(cleaned[field]);
-                cleaned[field] = isNaN(num) ? null : num;
+                cleaned[field] = isNaN(num) ? (strictlyRequired.includes(field) ? cleaned[field] : null) : num;
             }
         });
 
         // Ensure decimal fields are properly typed
         const decimalFields = ['costo_base', 'precio_contado_sugerido', 'precio_financiado_sugerido', 'precio_venta_minimo', 'entrega_inicial_sugerida'];
         decimalFields.forEach(field => {
-            if (cleaned[field] !== null && cleaned[field] !== undefined) {
+            if (cleaned[field] !== null && cleaned[field] !== undefined && cleaned[field] !== '') {
                 const num = parseFloat(cleaned[field]);
-                cleaned[field] = isNaN(num) ? null : num;
+                cleaned[field] = isNaN(num) ? (strictlyRequired.includes(field) ? cleaned[field] : null) : num;
             }
         });
 

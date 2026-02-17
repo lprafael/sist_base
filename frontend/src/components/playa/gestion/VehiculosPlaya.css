@@ -201,13 +201,79 @@
 
 .modal-content {
     background: white;
-    padding: 30px;
+    padding: 0;
     border-radius: 24px;
     width: 800px;
     max-width: 95%;
+    height: 90vh;
     max-height: 90vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    min-height: 0;
+}
+
+.modal-content h3,
+.modal-header-detail {
+    padding: 25px 30px 15px;
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1e293b;
+    border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
+}
+
+.modal-header-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-tabs {
+    padding: 0 30px;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    flex-shrink: 0;
+}
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.tab-content {
+    padding: 25px 30px 40px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Estilo de la barra de desplazamiento para que sea visible y moderna */
+.tab-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tab-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.tab-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    border: 2px solid #f1f5f9;
+}
+
+.tab-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* Estilo específico para el modal de ventas que es más grande */
@@ -261,6 +327,7 @@
     margin-bottom: 25px;
     border-bottom: 1px solid #e2e8f0;
     padding-bottom: 1px;
+    flex-shrink: 0;
 }
 
 .tab-btn {
@@ -302,10 +369,15 @@
 .modal-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 15px;
-    margin-top: 25px;
+    padding: 20px 30px;
+    background: #ffffff;
     border-top: 1px solid #e2e8f0;
-    padding-top: 20px;
+    border-radius: 0 0 24px 24px;
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+    margin-top: auto;
 }
 
 .btn-cancel {
@@ -474,11 +546,22 @@
     .modal-content {
         width: 95%;
         max-width: 95%;
-        padding: 16px;
+        padding: 0;
+        max-height: 95vh;
+    }
+
+    .modal-content h3 {
+        padding: 20px;
+        font-size: 1.2rem;
+    }
+
+    .tab-content {
+        padding: 20px;
     }
 
     .form-row {
         flex-direction: column;
+        gap: 15px;
     }
 
     .form-group {
@@ -486,12 +569,14 @@
     }
 
     .modal-actions {
-        flex-direction: column-reverse;
+        flex-direction: column;
+        padding: 15px 20px;
         gap: 10px;
     }
 
     .modal-actions button {
         width: 100%;
+        padding: 12px;
     }
 }
 

@@ -12,6 +12,7 @@ const ImagenesVehiculo = ({ id_producto }) => {
     const [previewImage, setPreviewImage] = useState(null);
     const [isModalRedesOpen, setIsModalRedesOpen] = useState(false);
     const fileInputRef = useRef(null);
+    const searchContainerRef = useRef(null);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
     // URL base del backend para archivos estáticos (imágenes). Si no se define, se usa ruta relativa /static (proxy de Vite).
@@ -28,6 +29,16 @@ const ImagenesVehiculo = ({ id_producto }) => {
             setImagenes([]);
         }
     }, [selectedVehiculoId]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const fetchVehiculos = async () => {
         try {
@@ -152,12 +163,12 @@ const ImagenesVehiculo = ({ id_producto }) => {
     const [showDropdown, setShowDropdown] = useState(false);
 
     const filteredVehiculos = vehiculos.filter(v =>
-        `${v.marca} ${v.modelo} ${v.chasis}`.toLowerCase().includes(searchTerm.toLowerCase())
+        `${v.marca} ${v.modelo} ${v.chasis} ${v.color || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleSelectVehiculo = (vehiculo) => {
         setSelectedVehiculoId(vehiculo.id_producto);
-        setSearchTerm(`${vehiculo.marca} ${vehiculo.modelo} - Chasis: ${vehiculo.chasis}`);
+        setSearchTerm(`${vehiculo.marca} ${vehiculo.modelo} ${vehiculo.color ? `(${vehiculo.color})` : ''} - Chasis: ${vehiculo.chasis}`);
         setShowDropdown(false);
     };
 
@@ -186,12 +197,12 @@ const ImagenesVehiculo = ({ id_producto }) => {
                         <h2>Gestión de Imágenes de Vehículos</h2>
                     </div>
 
-                    <div className="vehicle-search-container" style={{ position: 'relative', marginBottom: '20px' }}>
+                    <div className="vehicle-search-container" ref={searchContainerRef} style={{ position: 'relative', marginBottom: '20px' }}>
                         <label>Buscar Vehículo:</label>
                         <div className="search-input-wrapper" style={{ display: 'flex', gap: '10px' }}>
                             <input
                                 type="text"
-                                placeholder="Escribe marca, modelo o chasis..."
+                                placeholder="Escribe marca, modelo, chasis o color..."
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
@@ -222,7 +233,7 @@ const ImagenesVehiculo = ({ id_producto }) => {
                             )}
                         </div>
 
-                        {showDropdown && searchTerm && !selectedVehiculoId && (
+                        {showDropdown && !selectedVehiculoId && (
                             <div className="search-dropdown" style={{
                                 position: 'absolute',
                                 top: '100%',
@@ -249,7 +260,7 @@ const ImagenesVehiculo = ({ id_producto }) => {
                                             onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
                                             onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
                                         >
-                                            <strong>{v.marca} {v.modelo}</strong>
+                                            <strong>{v.marca} {v.modelo} ({v.color || 'Sin color'})</strong>
                                             <div style={{ fontSize: '0.85em', color: '#666' }}>
                                                 Chasis: {v.chasis} | Año: {v.año}
                                             </div>
