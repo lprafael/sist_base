@@ -530,7 +530,8 @@ async def list_vehiculos(
 ):
     try:
         query = select(Producto).options(
-            selectinload(Producto.ventas).selectinload(Venta.cliente)
+            selectinload(Producto.ventas).selectinload(Venta.cliente),
+            selectinload(Producto.imagenes)
         )
         if available_only:
             query = query.where(Producto.estado_disponibilidad == 'DISPONIBLE')
@@ -542,7 +543,14 @@ async def list_vehiculos(
 
 @router.get("/vehiculos/{id_producto}", response_model=ProductoResponse)
 async def get_vehiculo(id_producto: int, session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    result = await session.execute(
+        select(Producto)
+        .options(
+            selectinload(Producto.ventas).selectinload(Venta.cliente),
+            selectinload(Producto.imagenes)
+        )
+        .where(Producto.id_producto == id_producto)
+    )
     vehiculo = result.scalar_one_or_none()
     if not vehiculo:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
@@ -562,7 +570,6 @@ async def create_vehiculo(
     new_vehiculo = Producto(**vehiculo_data.dict())
     session.add(new_vehiculo)
     await session.commit()
-    await session.refresh(new_vehiculo)
     
     # Auditoría
     await log_audit_action(
@@ -572,12 +579,20 @@ async def create_vehiculo(
         action="create",
         table="productos",
         record_id=new_vehiculo.id_producto,
-        new_data=vehiculo_data.dict(exclude_none=True),
+        new_data=vehiculo_data.model_dump(exclude_none=True),
         details=f"Vehículo registrado: {new_vehiculo.marca} {new_vehiculo.modelo}"
     )
     
-    await session.refresh(new_vehiculo)
-    return new_vehiculo
+    # Re-obtener con relaciones para la respuesta
+    result = await session.execute(
+        select(Producto)
+        .options(
+            selectinload(Producto.ventas).selectinload(Venta.cliente),
+            selectinload(Producto.imagenes)
+        )
+        .where(Producto.id_producto == new_vehiculo.id_producto)
+    )
+    return result.scalar_one()
 @router.put("/vehiculos/{id_producto}", response_model=ProductoResponse)
 async def update_vehiculo(
     id_producto: int,
@@ -615,7 +630,6 @@ async def update_vehiculo(
         setattr(vehiculo, field, value)
     
     await session.commit()
-    await session.refresh(vehiculo)
     
     # Auditoría: nuevos datos
     new_data_for_audit = update_data.copy()
@@ -637,8 +651,16 @@ async def update_vehiculo(
         details=f"Vehículo actualizado: {vehiculo.marca} {vehiculo.modelo}"
     )
     
-    await session.refresh(vehiculo)
-    return vehiculo
+    # Re-obtener con relaciones para la respuesta
+    result = await session.execute(
+        select(Producto)
+        .options(
+            selectinload(Producto.ventas).selectinload(Venta.cliente),
+            selectinload(Producto.imagenes)
+        )
+        .where(Producto.id_producto == id_producto)
+    )
+    return result.scalar_one()
 
 @router.delete("/vehiculos/{id_producto}")
 async def delete_vehiculo(
@@ -657,7 +679,7 @@ async def delete_vehiculo(
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
     
     # 1. Verificar si tiene ventas relacionadas
-    ventas_check = await session.execute(select(DetalleVenta).where(DetalleVenta.id_producto == id_producto).limit(1))
+    ventas_check = await session.execute(select(Venta).where(Venta.id_producto == id_producto).limit(1))
     if ventas_check.first() is not None:
         raise HTTPException(status_code=400, detail="No se puede eliminar el vehículo porque ya tiene una venta asociada")
     
@@ -665,6 +687,9 @@ async def delete_vehiculo(
     gastos_check = await session.execute(select(GastoProducto).where(GastoProducto.id_producto == id_producto).limit(1))
     if gastos_check.first() is not None:
         raise HTTPException(status_code=400, detail="No se puede eliminar el vehículo porque tiene gastos registrados")
+
+    # 3. Eliminar imágenes relacionadas (limpieza automática)
+    await session.execute(delete(ImagenProducto).where(ImagenProducto.id_producto == id_producto))
 
     # Auditoría: datos antes de borrar
     old_data = {
@@ -1497,8 +1522,11 @@ async def list_ventas(session: AsyncSession = Depends(get_session)):
             joinedload(Venta.cliente),
             joinedload(Venta.producto),
             joinedload(Venta.escribania_rel),
-            selectinload(Venta.pagares).joinedload(Pagare.estado_rel), 
-            joinedload(Venta.detalles)
+            joinedload(Venta.detalles),
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            )
         )
         .order_by(Venta.fecha_registro.desc())
     )
@@ -1595,7 +1623,16 @@ async def create_venta(
     
     # Cargar la relación pagares y detalles para evitar error de lazy loading
     result = await session.execute(
-        select(Venta).options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel)).where(Venta.id_venta == new_venta.id_venta)
+        select(Venta)
+        .options(
+            joinedload(Venta.detalles),
+            joinedload(Venta.escribania_rel),
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            )
+        )
+        .where(Venta.id_venta == new_venta.id_venta)
     )
     venta_with_relations = result.unique().scalar_one()
     
@@ -1627,7 +1664,14 @@ async def create_venta(
     
     # RE-FETCH
     result = await session.execute(
-        select(Venta).options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel)).where(Venta.id_venta == new_venta.id_venta)
+        select(Venta)
+        .options(
+            joinedload(Venta.detalles),
+            joinedload(Venta.escribania_rel),
+            selectinload(Venta.pagares).joinedload(Pagare.estado_rel),
+            selectinload(Venta.pagares).selectinload(Pagare.pagos)
+        )
+        .where(Venta.id_venta == new_venta.id_venta)
     )
     return result.unique().scalar_one()
 
@@ -1639,7 +1683,15 @@ async def anular_venta(
 ):
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.producto), joinedload(Venta.cliente), joinedload(Venta.escribania_rel))
+        .options(
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            ),
+            joinedload(Venta.producto),
+            joinedload(Venta.cliente),
+            joinedload(Venta.escribania_rel)
+        )
         .where(Venta.id_venta == venta_id)
     )
     venta = result.unique().scalar_one_or_none()
@@ -1724,7 +1776,14 @@ async def anular_venta(
     # RE-FETCH
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel))
+        .options(
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            ),
+            joinedload(Venta.detalles),
+            joinedload(Venta.escribania_rel)
+        )
         .where(Venta.id_venta == venta_id)
     )
     return result.unique().scalar_one()
@@ -1738,7 +1797,15 @@ async def update_venta(
 ):
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.producto), joinedload(Venta.cliente), joinedload(Venta.escribania_rel))
+        .options(
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            ),
+            joinedload(Venta.producto),
+            joinedload(Venta.cliente),
+            joinedload(Venta.escribania_rel)
+        )
         .where(Venta.id_venta == venta_id)
     )
     venta = result.unique().scalar_one_or_none()
@@ -1901,7 +1968,14 @@ async def update_venta(
     # RE-FETCH
     result = await session.execute(
         select(Venta)
-        .options(joinedload(Venta.pagares), joinedload(Venta.detalles), joinedload(Venta.escribania_rel))
+        .options(
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            ),
+            joinedload(Venta.detalles),
+            joinedload(Venta.escribania_rel)
+        )
         .where(Venta.id_venta == venta_id)
     )
     return result.unique().scalar_one()
@@ -1916,7 +1990,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
         .join(Producto, Venta.id_producto == Producto.id_producto)
         .join(Estado, Pagare.id_estado == Estado.id_estado)
         .where(Estado.nombre.in_(['PENDIENTE', 'PARCIAL', 'VENCIDO']))
-        .where(Pagare.saldo_pendiente > 0)
+        .where(Pagare.cancelado == False)
         .order_by(Pagare.fecha_vencimiento)
     )
     
@@ -1949,6 +2023,17 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             if p_pagos:
                 fecha_pago_val = p_pagos[0].fecha_pago.isoformat() if hasattr(p_pagos[0].fecha_pago, 'isoformat') else str(p_pagos[0].fecha_pago)
 
+        # Calcular estado dinámico para mayor claridad
+        is_overdue = p.fecha_vencimiento < datetime.now().date()
+        current_status = est.nombre
+        
+        if current_status == 'PAGADO':
+            estado_display = 'PAGADO'
+        elif current_status == 'PARCIAL':
+            estado_display = 'PARCIAL(VENCIDO)' if is_overdue else 'PARCIAL'
+        else:
+            estado_display = 'VENCIDO' if is_overdue else 'PENDIENTE'
+
         data.append({
             "id_pagare": p.id_pagare,
             "id_venta": v.id_venta,
@@ -1961,11 +2046,22 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             "cliente": f"{c.nombre} {c.apellido}",
             "vehiculo": f"{prod.marca} {prod.modelo}",
             "numero_documento": c.numero_documento,
-            "estado": est.nombre, # Use est.nombre instead of p.estado
+            "estado": estado_display, # Use calculated status
+            "cancelado": p.cancelado if p.cancelado is not None else False,
             "periodo_int_mora": v.periodo_int_mora,
             "monto_int_mora": float(v.monto_int_mora) if v.monto_int_mora is not None else 0.0,
             "tasa_interes": float(v.tasa_interes) if v.tasa_interes is not None else 0.0,
-            "dias_gracia": v.dias_gracia or 0
+            "dias_gracia": v.dias_gracia or 0,
+            "pagos": [
+                {
+                    "id_pago": pago_item.id_pago,
+                    "fecha_pago": pago_item.fecha_pago.isoformat() if hasattr(pago_item.fecha_pago, 'isoformat') else str(pago_item.fecha_pago),
+                    "monto_pagado": float(pago_item.monto_pagado),
+                    "numero_recibo": pago_item.numero_recibo,
+                    "mora_aplicada": float(pago_item.mora_aplicada or 0),
+                    "forma_pago": pago_item.forma_pago
+                } for pago_item in sorted(p.pagos, key=lambda x: x.fecha_pago, reverse=True)
+            ] if p.pagos else []
         })
     return data
 
@@ -2172,14 +2268,19 @@ async def create_pago(
     res_st = await session.execute(select(Estado))
     all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
     
-    if pagare.saldo_pendiente <= 0 or cancelar_pagare:
-        # pagare.estado = 'PAGADO' # Removed
+    if cancelar_pagare:
         pagare.id_estado = all_states.get('PAGADO')
-        pagare.saldo_pendiente = 0
+        pagare.saldo_pendiente = 0 # Forzar saldo 0 si se cancela manualmente
         pagare.cancelado = True
     else:
-        # pagare.estado = 'PARCIAL' # Removed
-        pagare.id_estado = all_states.get('PARCIAL')
+        # Si no se marca "cancelar", el estado es PARCIAL (o PENDIENTE si no se pagó nada)
+        if pagare.saldo_pendiente <= 0:
+            # Saldo cubierto pero no cancelado -> PARCIAL para permitir más cobros (ej: mora)
+            pagare.id_estado = all_states.get('PARCIAL')
+        elif pagare.saldo_pendiente >= pagare.monto_cuota:
+            pagare.id_estado = all_states.get('PENDIENTE')
+        else:
+            pagare.id_estado = all_states.get('PARCIAL')
         pagare.cancelado = False
     
     await session.commit()
@@ -2206,6 +2307,39 @@ async def list_pagos_pagare(id_pagare: int, session: AsyncSession = Depends(get_
         select(Pago).where(Pago.id_pagare == id_pagare).order_by(Pago.fecha_pago.desc())
     )
     return result.scalars().all()
+
+@router.get("/pagos", response_model=List[PagoResponse])
+async def list_todos_pagos(
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session)
+):
+    """Lista los últimos pagos registrados en el sistema de forma global."""
+    await session.execute(text("SET LOCAL search_path TO playa, public"))
+    # Necesitamos cargar el pagaré y la venta para mostrar a quién pertenece el pago
+    result = await session.execute(
+        select(Pago)
+        .options(
+            joinedload(Pago.pagare).joinedload(Pagare.venta).joinedload(Venta.cliente),
+            joinedload(Pago.pagare).joinedload(Pagare.venta).joinedload(Venta.producto)
+        )
+        .order_by(Pago.fecha_pago.desc(), Pago.id_pago.desc())
+        .limit(limit)
+    )
+    pagos = result.scalars().all()
+    
+    # Mapear datos virtuales para la respuesta
+    for p in pagos:
+        try:
+            if p.pagare and p.pagare.venta and p.pagare.venta.cliente:
+                c = p.pagare.venta.cliente
+                p.cliente_nombre = f"{c.nombre} {c.apellido}".strip()
+            if p.pagare and p.pagare.venta and p.pagare.venta.producto:
+                prod = p.pagare.venta.producto
+                p.vehiculo = f"{prod.marca} {prod.modelo}".strip()
+        except:
+            pass
+            
+    return pagos
 
 @router.put("/pagos/{id_pago}", response_model=PagoResponse)
 async def update_pago(
@@ -2258,15 +2392,17 @@ async def update_pago(
     res_st = await session.execute(select(Estado))
     all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
     
-    if pagare.saldo_pendiente <= 0:
+    if data.cancelar_pagare:
         pagare.id_estado = all_states.get('PAGADO')
         pagare.saldo_pendiente = 0
         pagare.cancelado = True
-    elif pagare.saldo_pendiente >= pagare.monto_cuota:
-        pagare.id_estado = all_states.get('PENDIENTE')
-        pagare.cancelado = False
     else:
-        pagare.id_estado = all_states.get('PARCIAL')
+        if pagare.saldo_pendiente <= 0:
+            pagare.id_estado = all_states.get('PARCIAL')
+        elif pagare.saldo_pendiente >= pagare.monto_cuota:
+            pagare.id_estado = all_states.get('PENDIENTE')
+        else:
+            pagare.id_estado = all_states.get('PARCIAL')
         pagare.cancelado = False
 
     # 6. Actualizar el pago
@@ -3962,3 +4098,455 @@ async def create_documento_importacion(
         details=f"Documento de importación creado: {nro_despacho}"
     )
     return doc
+
+# ===== ENDPOINT DE DIAGNÓSTICO =====
+@router.get("/diagnostico/pagares-inconsistentes")
+async def diagnosticar_pagares_inconsistentes(
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Encuentra pagarés con saldo_pendiente = 0 pero sin pagos registrados.
+    Esto indica datos inconsistentes que necesitan corrección.
+    """
+    # Buscar pagarés con saldo 0 o NULL
+    query = (
+        select(Pagare)
+        .options(selectinload(Pagare.pagos), joinedload(Pagare.estado_rel))
+        .where(
+            or_(
+                Pagare.saldo_pendiente == 0,
+                Pagare.saldo_pendiente == None
+            )
+        )
+    )
+    
+    result = await session.execute(query)
+    pagares = result.scalars().all()
+    
+    inconsistentes = []
+    for p in pagares:
+        # Si no tiene pagos pero el saldo es 0, es inconsistente
+        if (not p.pagos or len(p.pagos) == 0) and (p.saldo_pendiente == 0 or p.saldo_pendiente is None):
+            inconsistentes.append({
+                "id_pagare": p.id_pagare,
+                "id_venta": p.id_venta,
+                "numero_pagare": p.numero_pagare,
+                "numero_cuota": p.numero_cuota,
+                "monto_cuota": float(p.monto_cuota) if p.monto_cuota else 0,
+                "saldo_pendiente": float(p.saldo_pendiente) if p.saldo_pendiente else 0,
+                "estado": p.estado_rel.nombre if p.estado_rel else "DESCONOCIDO",
+                "cancelado": p.cancelado,
+                "cantidad_pagos": 0,
+                "problema": "Saldo en 0 pero sin pagos registrados"
+            })
+    
+    return {
+        "total_inconsistentes": len(inconsistentes),
+        "pagares": inconsistentes
+    }
+
+@router.post("/diagnostico/corregir-pagare/{id_pagare}")
+async def corregir_pagare_inconsistente(
+    id_pagare: int,
+    accion: str,  # "restaurar_saldo" o "marcar_pagado"
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Corrige un pagaré inconsistente.
+    - restaurar_saldo: Restaura el saldo_pendiente al monto_cuota original
+    - marcar_pagado: Marca el pagaré como PAGADO y cancelado=True
+    """
+    res = await session.execute(
+        select(Pagare)
+        .options(joinedload(Pagare.estado_rel))
+        .where(Pagare.id_pagare == id_pagare)
+    )
+    pagare = res.scalar_one_or_none()
+    
+    if not pagare:
+        raise HTTPException(status_code=404, detail="Pagaré no encontrado")
+    
+    # Obtener estados
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    
+    old_data = {
+        "saldo_pendiente": float(pagare.saldo_pendiente) if pagare.saldo_pendiente else None,
+        "id_estado": pagare.id_estado,
+        "cancelado": pagare.cancelado
+    }
+    
+    if accion == "restaurar_saldo":
+        # Restaurar el saldo al monto original
+        pagare.saldo_pendiente = pagare.monto_cuota
+        pagare.id_estado = all_states.get('PENDIENTE')
+        pagare.cancelado = False
+        mensaje = f"Saldo restaurado a Gs. {float(pagare.monto_cuota):,.0f}"
+        
+    elif accion == "marcar_pagado":
+        # Marcar como pagado definitivamente
+        pagare.saldo_pendiente = 0
+        pagare.id_estado = all_states.get('PAGADO')
+        pagare.cancelado = True
+        mensaje = "Pagaré marcado como PAGADO y cancelado"
+
+    elif accion == "desmarcar_cancelado":
+        # Quitar el flag de cancelado para permitir más pagos
+        pagare.cancelado = False
+        mensaje = "Pagaré desmarcado como cancelado. Ahora permite agregar más pagos."
+
+    elif accion == "recalcular_estado":
+        # Recalcular estado basado en el saldo real
+        if pagare.saldo_pendiente <= 0:
+            pagare.id_estado = all_states.get('PAGADO')
+            # pagare.cancelado = True # Opcional, mejor dejar que el usuario decida
+        elif pagare.saldo_pendiente < pagare.monto_cuota:
+            pagare.id_estado = all_states.get('PARCIAL')
+        else:
+            # Verificar si está vencido
+            from datetime import date
+            if pagare.fecha_vencimiento < date.today():
+                pagare.id_estado = all_states.get('VENCIDO')
+            else:
+                pagare.id_estado = all_states.get('PENDIENTE')
+        mensaje = f"Estado recalculado a: {pagare.estado_rel.nombre if pagare.estado_rel else 'OK'}"
+        
+    else:
+        raise HTTPException(status_code=400, detail="Acción no válida. Use 'restaurar_saldo', 'marcar_pagado', 'desmarcar_cancelado' o 'recalcular_estado'")
+    
+    await session.commit()
+    await session.refresh(pagare)
+    
+    # Auditoría
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="pagares",
+        record_id=id_pagare,
+        previous_data=old_data,
+        new_data={
+            "saldo_pendiente": float(pagare.saldo_pendiente) if pagare.saldo_pendiente else None,
+            "id_estado": pagare.id_estado,
+            "cancelado": pagare.cancelado
+        },
+        details=f"Corrección de pagaré inconsistente: {mensaje}"
+    )
+    
+    return {
+        "mensaje": mensaje,
+        "pagare": {
+            "id_pagare": pagare.id_pagare,
+            "saldo_pendiente": float(pagare.saldo_pendiente) if pagare.saldo_pendiente else 0,
+            "estado": pagare.estado_rel.nombre if pagare.estado_rel else "DESCONOCIDO",
+            "cancelado": pagare.cancelado
+        }
+    }
+
+@router.get("/diagnostico/triggers-info")
+async def diagnosticar_triggers(
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Diagnóstico de triggers y estructura de la tabla pagares.
+    Verifica si hay triggers activos que puedan estar causando conflictos.
+    """
+    diagnostico = {}
+    
+    # 1. Verificar triggers en la tabla pagares
+    query_triggers = text("""
+        SELECT 
+            t.tgname AS trigger_name,
+            p.proname AS function_name,
+            CASE t.tgenabled
+                WHEN 'O' THEN 'ENABLED'
+                WHEN 'D' THEN 'DISABLED'
+                WHEN 'R' THEN 'REPLICA'
+                WHEN 'A' THEN 'ALWAYS'
+            END AS status
+        FROM pg_trigger t
+        JOIN pg_class c ON t.tgrelid = c.oid
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        LEFT JOIN pg_proc p ON t.tgfoid = p.oid
+        WHERE n.nspname = 'playa'
+          AND c.relname = 'pagares'
+          AND NOT t.tgisinternal
+    """)
+    
+    result = await session.execute(query_triggers)
+    triggers_pagares = [dict(row._mapping) for row in result]
+    diagnostico["triggers_en_pagares"] = triggers_pagares
+    
+    # 2. Verificar triggers en la tabla pagos
+    query_triggers_pagos = text("""
+        SELECT 
+            t.tgname AS trigger_name,
+            p.proname AS function_name,
+            CASE t.tgenabled
+                WHEN 'O' THEN 'ENABLED'
+                WHEN 'D' THEN 'DISABLED'
+                WHEN 'R' THEN 'REPLICA'
+                WHEN 'A' THEN 'ALWAYS'
+            END AS status
+        FROM pg_trigger t
+        JOIN pg_class c ON t.tgrelid = c.oid
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        LEFT JOIN pg_proc p ON t.tgfoid = p.oid
+        WHERE n.nspname = 'playa'
+          AND c.relname = 'pagos'
+          AND NOT t.tgisinternal
+    """)
+    
+    result = await session.execute(query_triggers_pagos)
+    triggers_pagos = [dict(row._mapping) for row in result]
+    diagnostico["triggers_en_pagos"] = triggers_pagos
+    
+    # 3. Verificar estructura de la tabla pagares
+    query_columns = text("""
+        SELECT 
+            column_name,
+            data_type,
+            is_nullable,
+            column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'playa'
+          AND table_name = 'pagares'
+          AND column_name IN ('estado', 'id_estado', 'cancelado', 'saldo_pendiente')
+        ORDER BY ordinal_position
+    """)
+    
+    result = await session.execute(query_columns)
+    columns = [dict(row._mapping) for row in result]
+    diagnostico["columnas_pagares"] = columns
+    
+    # 4. Verificar si existe la función actualizar_estado_pagare
+    query_function = text("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_proc p
+            JOIN pg_namespace n ON p.pronamespace = n.oid
+            WHERE n.nspname = 'playa'
+              AND p.proname = 'actualizar_estado_pagare'
+        ) AS function_exists
+    """)
+    
+    result = await session.execute(query_function)
+    function_exists = result.scalar()
+    diagnostico["funcion_actualizar_estado_existe"] = function_exists
+    
+    # 5. Estadísticas de pagarés inconsistentes
+    query_stats = text("""
+        SELECT 
+            COUNT(*) AS total_inconsistentes,
+            COUNT(CASE WHEN pg.id_estado IS NOT NULL THEN 1 END) AS con_id_estado,
+            COUNT(CASE WHEN pg.cancelado = TRUE THEN 1 END) AS marcados_cancelado
+        FROM playa.pagares pg
+        LEFT JOIN playa.pagos p ON pg.id_pagare = p.id_pagare
+        WHERE (pg.saldo_pendiente = 0 OR pg.saldo_pendiente IS NULL)
+          AND p.id_pago IS NULL
+    """)
+    
+    result = await session.execute(query_stats)
+    stats = dict(result.mappings().first() or {})
+    diagnostico["estadisticas_inconsistentes"] = stats
+    
+    # 6. Verificar si hay campo "estado" (VARCHAR) antiguo
+    query_old_estado = text("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'playa'
+              AND table_name = 'pagares'
+              AND column_name = 'estado'
+              AND data_type = 'character varying'
+        ) AS old_estado_exists
+    """)
+    
+    result = await session.execute(query_old_estado)
+    old_estado_exists = result.scalar()
+    diagnostico["campo_estado_antiguo_existe"] = old_estado_exists
+    
+    # Análisis y recomendaciones
+    recomendaciones = []
+    
+    if old_estado_exists:
+        recomendaciones.append({
+            "nivel": "ADVERTENCIA",
+            "mensaje": "Existe el campo 'estado' (VARCHAR) antiguo. Esto puede causar conflictos con 'id_estado'.",
+            "accion": "Considerar eliminar el campo 'estado' antiguo si ya no se usa."
+        })
+    
+    if function_exists:
+        recomendaciones.append({
+            "nivel": "INFO",
+            "mensaje": "La función 'actualizar_estado_pagare' existe en la base de datos.",
+            "accion": "Verificar si está siendo usada por algún trigger activo."
+        })
+    
+    if len(triggers_pagos) > 0:
+        trigger_names = [t["trigger_name"] for t in triggers_pagos]
+        if "trg_actualizar_estado_pagare" in trigger_names:
+            recomendaciones.append({
+                "nivel": "CRÍTICO",
+                "mensaje": "El trigger 'trg_actualizar_estado_pagare' está activo y puede estar actualizando el campo 'estado' antiguo.",
+                "accion": "Este trigger debe ser modificado para usar 'id_estado' en lugar de 'estado'."
+            })
+    
+    if stats.get("total_inconsistentes", 0) > 0:
+        recomendaciones.append({
+            "nivel": "ADVERTENCIA",
+            "mensaje": f"Se encontraron {stats['total_inconsistentes']} pagarés con saldo 0 pero sin pagos registrados.",
+            "accion": "Usar el endpoint /diagnostico/pagares-inconsistentes para corregirlos."
+        })
+    
+    diagnostico["recomendaciones"] = recomendaciones
+    
+    return diagnostico
+
+@router.post("/diagnostico/eliminar-trigger-antiguo")
+async def eliminar_trigger_antiguo(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Elimina el trigger antiguo 'trg_actualizar_estado_pagare' que usa el campo 'estado' obsoleto.
+    Este trigger ya no es necesario porque la lógica de actualización de estados
+    se maneja desde el código de la aplicación.
+    """
+    if current_user["rol"] not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos para esta operación")
+    
+    try:
+        # 1. Eliminar el trigger
+        await session.execute(text("""
+            DROP TRIGGER IF EXISTS trg_actualizar_estado_pagare ON playa.pagos;
+        """))
+        
+        # 2. Opcionalmente, eliminar la función si ya no se usa
+        # (La dejamos por si acaso, pero se puede eliminar después)
+        # await session.execute(text("""
+        #     DROP FUNCTION IF EXISTS playa.actualizar_estado_pagare();
+        # """))
+        
+        await session.commit()
+        
+        # Auditoría
+        await log_audit_action(
+            session=session,
+            username=current_user["sub"],
+            user_id=current_user["user_id"],
+            action="delete",
+            table="pg_trigger",
+            record_id=None,
+            previous_data={"trigger_name": "trg_actualizar_estado_pagare"},
+            new_data=None,
+            details="Trigger antiguo eliminado. La lógica de estados ahora se maneja desde la aplicación."
+        )
+        
+        return {
+            "success": True,
+            "mensaje": "Trigger 'trg_actualizar_estado_pagare' eliminado exitosamente",
+            "detalles": "La actualización de estados de pagarés ahora se maneja completamente desde el código de la aplicación, lo que proporciona mejor control, auditoría y mantenibilidad."
+        }
+        
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar trigger: {str(e)}")
+
+@router.post("/diagnostico/actualizar-trigger-estado")
+async def actualizar_trigger_estado(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Actualiza el trigger 'trg_actualizar_estado_pagare' para que use 'id_estado' 
+    en lugar del campo 'estado' obsoleto.
+    
+    NOTA: Es preferible eliminar el trigger y manejar todo desde el código.
+    """
+    if current_user["rol"] not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos para esta operación")
+    
+    try:
+        # Obtener los IDs de los estados
+        res_st = await session.execute(select(Estado))
+        all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+        
+        id_pagado = all_states.get('PAGADO')
+        id_parcial = all_states.get('PARCIAL')
+        
+        if not id_pagado or not id_parcial:
+            raise HTTPException(status_code=500, detail="No se encontraron los estados PAGADO o PARCIAL en la base de datos")
+        
+        # Crear nueva función actualizada
+        await session.execute(text(f"""
+            CREATE OR REPLACE FUNCTION playa.actualizar_estado_pagare()
+            RETURNS TRIGGER AS $$
+            DECLARE
+                total_pagado_monto DECIMAL(15,2);
+                monto_pagare_monto DECIMAL(15,2);
+            BEGIN
+                -- Obtiene el monto total de la cuota
+                SELECT monto_cuota INTO monto_pagare_monto
+                FROM playa.pagares WHERE id_pagare = NEW.id_pagare;
+                
+                -- Suma todos los pagos realizados
+                SELECT COALESCE(SUM(monto_pagado), 0) INTO total_pagado_monto
+                FROM playa.pagos WHERE id_pagare = NEW.id_pagare;
+                
+                -- Si el total pagado >= monto de la cuota → PAGADO
+                IF total_pagado_monto >= monto_pagare_monto THEN
+                    UPDATE playa.pagares 
+                    SET id_estado = {id_pagado}, 
+                        saldo_pendiente = 0,
+                        cancelado = TRUE
+                    WHERE id_pagare = NEW.id_pagare;
+                -- Si no, estado PARCIAL
+                ELSE
+                    UPDATE playa.pagares 
+                    SET id_estado = {id_parcial}, 
+                        saldo_pendiente = monto_pagare_monto - total_pagado_monto,
+                        cancelado = FALSE
+                    WHERE id_pagare = NEW.id_pagare;
+                END IF;
+                
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """))
+        
+        # Recrear el trigger
+        await session.execute(text("""
+            DROP TRIGGER IF EXISTS trg_actualizar_estado_pagare ON playa.pagos;
+            CREATE TRIGGER trg_actualizar_estado_pagare
+            AFTER INSERT ON playa.pagos
+            FOR EACH ROW
+            EXECUTE FUNCTION playa.actualizar_estado_pagare();
+        """))
+        
+        await session.commit()
+        
+        # Auditoría
+        await log_audit_action(
+            session=session,
+            username=current_user["sub"],
+            user_id=current_user["user_id"],
+            action="update",
+            table="pg_trigger",
+            record_id=None,
+            previous_data={"trigger_name": "trg_actualizar_estado_pagare", "version": "antigua"},
+            new_data={"trigger_name": "trg_actualizar_estado_pagare", "version": "actualizada", "usa_id_estado": True},
+            details="Trigger actualizado para usar id_estado en lugar de estado VARCHAR"
+        )
+        
+        return {
+            "success": True,
+            "mensaje": "Trigger actualizado exitosamente",
+            "detalles": "El trigger ahora usa 'id_estado' y 'cancelado' correctamente. Sin embargo, se recomienda eliminar el trigger y manejar la lógica desde el código de la aplicación."
+        }
+        
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al actualizar trigger: {str(e)}")

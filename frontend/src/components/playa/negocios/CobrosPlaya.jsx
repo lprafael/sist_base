@@ -30,6 +30,9 @@ const CobrosPlaya = () => {
     const [selectedPagos, setSelectedPagos] = useState([]);
     const [isEditingPago, setIsEditingPago] = useState(false);
     const [pagoToEdit, setPagoToEdit] = useState(null);
+    const [recentPagos, setRecentPagos] = useState([]);
+    const [fetchingRecent, setFetchingRecent] = useState(false);
+    const [expandedRow, setExpandedRow] = useState(null);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
@@ -37,6 +40,7 @@ const CobrosPlaya = () => {
         fetchPagares();
         fetchAllPagares();
         fetchCuentas();
+        fetchRecentPagos();
     }, []);
 
     useEffect(() => {
@@ -44,6 +48,10 @@ const CobrosPlaya = () => {
             fetchAllPagares();
         }
     }, [includeCancelados]);
+
+    const toggleRow = (id) => {
+        setExpandedRow(expandedRow === id ? null : id);
+    };
 
     const fetchCuentas = async () => {
         try {
@@ -54,6 +62,21 @@ const CobrosPlaya = () => {
             setCuentas(res.data.filter(c => c.activo));
         } catch (error) {
             console.error('Error fetching cuentas:', error);
+        }
+    };
+
+    const fetchRecentPagos = async () => {
+        setFetchingRecent(true);
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/pagos?limit=20`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setRecentPagos(res.data);
+        } catch (error) {
+            console.error('Error fetching recent pagos:', error);
+        } finally {
+            setFetchingRecent(false);
         }
     };
 
@@ -75,7 +98,11 @@ const CobrosPlaya = () => {
         try {
             const token = sessionStorage.getItem('token');
 
-            // Obtener todos los pagarés y todas las ventas en paralelo
+            // ✅ CORRECCIÓN: Usar /pagares para traer TODOS los pagarés (incluyendo PAGADOS)
+            // El endpoint /pagares/pendientes NO incluye pagarés con estado PAGADO,
+            // lo que causaba que no se mostrara el historial de pagos de cuotas pagadas
+
+            // Obtener pagarés y ventas en paralelo
             const [pagaresResponse, ventasResponse] = await Promise.all([
                 axios.get(`${API_URL}/playa/pagares`, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -95,7 +122,6 @@ const CobrosPlaya = () => {
             if (ventasResponse.data && Array.isArray(ventasResponse.data)) {
                 ventasResponse.data.forEach(venta => {
                     if (venta && venta.id_venta) {
-                        // Asegurarse de que siempre se agregue al mapa, incluso si falta cliente o producto
                         const clienteNombre = venta.cliente
                             ? `${venta.cliente.nombre || ''} ${venta.cliente.apellido || ''}`.trim()
                             : 'N/A';
@@ -119,7 +145,7 @@ const CobrosPlaya = () => {
 
             console.log('Ventas cargadas en mapa:', Object.keys(ventasMap).length, 'ventas');
 
-            // Agregar información a los pagarés y convertir Decimal a float
+            // Procesar pagarés con información de ventas
             const pagaresWithInfo = pagaresResponse.data.map(p => {
                 const monto_cuota = typeof p.monto_cuota === 'object' && p.monto_cuota !== null
                     ? parseFloat(p.monto_cuota)
@@ -145,32 +171,32 @@ const CobrosPlaya = () => {
                     fecha_vencimiento = new Date().toISOString().split('T')[0];
                 }
 
-                // Obtener información de la venta, con valores por defecto
-                const ventaInfo = ventasMap[p.id_venta];
-                const cliente = ventaInfo?.cliente || 'N/A';
-                const numero_documento = ventaInfo?.numero_documento || '';
-                const vehiculo = ventaInfo?.vehiculo || 'N/A';
+                // ✅ CORRECCIÓN: Usar estado_rel.nombre del backend
+                const estadoCalculado = p.estado_rel?.nombre || 'PENDIENTE';
 
-                const estadoCalculado = p.estado_rel?.nombre || p.estado ||
-                    (saldo_pendiente <= 0 || p.cancelado ? 'PAGADO' : 'PENDIENTE');
+                // Obtener información de la venta
+                const ventaInfo = ventasMap[p.id_venta];
 
                 return {
                     id_pagare: p.id_pagare,
                     id_venta: p.id_venta,
                     numero_cuota: p.numero_cuota || 0,
+                    total_cuotas: 0, // Se calculará después
                     monto_cuota: monto_cuota,
                     saldo_pendiente: saldo_pendiente,
                     fecha_vencimiento: fecha_vencimiento,
                     estado: estadoCalculado,
                     fecha_pago: p.fecha_pago || null,
-                    cliente: cliente,
-                    numero_documento: numero_documento,
-                    vehiculo: vehiculo,
-                    total_cuotas: 0, // Se calculará después
+                    cliente: ventaInfo?.cliente || 'N/A',
+                    numero_documento: ventaInfo?.numero_documento || '',
+                    vehiculo: ventaInfo?.vehiculo || 'N/A',
                     periodo_int_mora: ventaInfo?.periodo_int_mora,
                     monto_int_mora: ventaInfo?.monto_int_mora,
                     tasa_interes: ventaInfo?.tasa_interes,
-                    dias_gracia: ventaInfo?.dias_gracia
+                    dias_gracia: ventaInfo?.dias_gracia,
+                    cancelado: p.cancelado || false,
+                    // ✅ IMPORTANTE: Incluir el array de pagos que viene del backend
+                    pagos: p.pagos || []
                 };
             }).filter(p => p.id_venta); // Filtrar pagarés sin id_venta
 
@@ -179,6 +205,7 @@ const CobrosPlaya = () => {
                 p.cliente && p.cliente !== 'N/A' && p.vehiculo && p.vehiculo !== 'N/A'
             );
             console.log('Pagarés con información completa:', pagaresConInfo.length, 'de', pagaresWithInfo.length);
+            console.log('Pagarés con pagos:', pagaresWithInfo.filter(p => p.pagos && p.pagos.length > 0).length);
 
             // Calcular total de cuotas por venta
             const ventasCuotas = {};
@@ -205,8 +232,21 @@ const CobrosPlaya = () => {
         }
     };
 
-    const handleOpenCobro = (pagare) => {
+    const handleOpenCobro = async (pagare) => {
         setSelectedPagare(pagare);
+
+        // Cargar pagos previos para mostrar en el desglose
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/pagares/${pagare.id_pagare}/pagos`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSelectedPagos(res.data);
+        } catch (error) {
+            console.error('Error fetching existing pagos:', error);
+            setSelectedPagos([]);
+        }
+
         const initialPago = {
             ...newPago,
             id_pagare: pagare.id_pagare,
@@ -310,7 +350,7 @@ const CobrosPlaya = () => {
                 alert('Cobro registrado exitosamente');
             }
             setShowModal(false);
-            await Promise.all([fetchPagares(), fetchAllPagares()]);
+            await Promise.all([fetchPagares(), fetchAllPagares(), fetchRecentPagos()]);
         } catch (error) {
             alert('Error al procesar cobro: ' + (error.response?.data?.detail || error.message));
         }
@@ -319,14 +359,25 @@ const CobrosPlaya = () => {
     const handleViewPagos = async (pagare) => {
         try {
             setSelectedPagare(pagare);
-            const token = sessionStorage.getItem('token');
-            const res = await axios.get(`${API_URL}/playa/pagares/${pagare.id_pagare}/pagos`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setSelectedPagos(res.data);
+
+            // ✅ OPTIMIZACIÓN: Usar el array de pagos que ya viene con el pagaré
+            // en lugar de hacer una llamada adicional a la API
+            if (pagare.pagos && Array.isArray(pagare.pagos)) {
+                setSelectedPagos(pagare.pagos);
+            } else {
+                // Fallback: Si por alguna razón no tiene el array, hacer la llamada
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/pagares/${pagare.id_pagare}/pagos`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setSelectedPagos(res.data);
+            }
+
             setShowPagosModal(true);
         } catch (error) {
             console.error('Error fetching pagos:', error);
+            setSelectedPagos([]);
+            setShowPagosModal(true);
         }
     };
 
@@ -1182,49 +1233,97 @@ const CobrosPlaya = () => {
                             {sortedPagares().map(p => {
                                 const isOverdue = new Date(p.fecha_vencimiento) < new Date();
                                 return (
-                                    <tr key={p.id_pagare} className={isOverdue ? 'overdue-row' : ''}>
-                                        <td>
-                                            <span className={`date-badge ${isOverdue ? 'danger' : ''}`}>
-                                                {p.fecha_vencimiento}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="client-cell">
-                                                <strong>{p.cliente}</strong>
-                                                <span>{p.numero_documento}</span>
-                                            </div>
-                                        </td>
-                                        <td>{p.vehiculo}</td>
-                                        <td>
-                                            {p.numero_cuota}/{p.total_cuotas || p.numero_cuota}
-                                        </td>
-                                        <td>Gs. {Math.round(parseFloat(p.monto_cuota)).toLocaleString('es-PY')}</td>
-                                        <td><strong>Gs. {Math.round(parseFloat(p.saldo_pendiente)).toLocaleString('es-PY')}</strong></td>
-                                        <td><span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()}`}>{p.estado_rel?.nombre || p.estado}</span></td>
-                                        {includeCancelados && (
+                                    <React.Fragment key={p.id_pagare}>
+                                        <tr className={isOverdue ? 'overdue-row' : ''}>
                                             <td>
-                                                {p.fecha_pago ? (
-                                                    <span className="date-badge success">
-                                                        {p.fecha_pago.split('T')[0]}
-                                                    </span>
-                                                ) : '-'}
+                                                <span className={`date-badge ${isOverdue ? 'danger' : ''}`}>
+                                                    {p.fecha_vencimiento}
+                                                </span>
                                             </td>
+                                            <td>
+                                                <div className="client-cell">
+                                                    <strong>{p.cliente}</strong>
+                                                    <span>{p.numero_documento}</span>
+                                                </div>
+                                            </td>
+                                            <td>{p.vehiculo}</td>
+                                            <td>
+                                                {p.numero_cuota}/{p.total_cuotas || p.numero_cuota}
+                                            </td>
+                                            <td>Gs. {Math.round(parseFloat(p.monto_cuota)).toLocaleString('es-PY')}</td>
+                                            <td><strong>Gs. {Math.round(parseFloat(p.saldo_pendiente)).toLocaleString('es-PY')}</strong></td>
+                                            <td>
+                                                <span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()} ${isOverdue && (p.estado_rel?.nombre || p.estado) !== 'PAGADO' ? 'vencido' : ''}`}>
+                                                    {(p.estado_rel?.nombre || p.estado) === 'PAGADO'
+                                                        ? 'PAGADO'
+                                                        : (p.estado_rel?.nombre || p.estado) === 'PARCIAL'
+                                                            ? (isOverdue ? 'PARCIAL(VENCIDO)' : 'PARCIAL')
+                                                            : (isOverdue ? 'VENCIDO' : 'PENDIENTE')}
+                                                </span>
+                                            </td>
+                                            {includeCancelados && (
+                                                <td>
+                                                    {p.fecha_pago ? (
+                                                        <span className="date-badge success">
+                                                            {p.fecha_pago.split('T')[0]}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                            )}
+                                            <td>
+                                                <div className="action-buttons">
+                                                    <button className="btn-expand" onClick={() => toggleRow(p.id_pagare)} title="Ver detalles de pagos">
+                                                        {expandedRow === p.id_pagare ? '🔼' : '🔽'}
+                                                    </button>
+                                                    {!p.cancelado && (
+                                                        <button className="btn-cobrar" onClick={() => handleOpenCobro(p)}>
+                                                            Agregar Pago
+                                                        </button>
+                                                    )}
+                                                    {(p.pagos && p.pagos.length > 0) && (
+                                                        <button className="btn-edit-pagos" onClick={() => handleViewPagos(p)} title="Ver historial y editar cobros">
+                                                            ⚙️
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {expandedRow === p.id_pagare && (
+                                            <tr className="expanded-detail-row">
+                                                <td colSpan={includeCancelados ? 9 : 8}>
+                                                    <div className="details-container">
+                                                        <h5>Historial de Pagos de esta Cuota</h5>
+                                                        {p.pagos && p.pagos.length > 0 ? (
+                                                            <table className="pago-detail-table">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Fecha</th>
+                                                                        <th>Recibo</th>
+                                                                        <th>Forma</th>
+                                                                        <th>Interés/Mora</th>
+                                                                        <th>Monto Pagado</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {p.pagos.map(pg => (
+                                                                        <tr key={pg.id_pago}>
+                                                                            <td>{pg.fecha_pago}</td>
+                                                                            <td>{pg.numero_recibo}</td>
+                                                                            <td>{pg.forma_pago}</td>
+                                                                            <td>Gs. {Math.round(pg.mora_aplicada).toLocaleString('es-PY')}</td>
+                                                                            <td><strong>Gs. {Math.round(pg.monto_pagado).toLocaleString('es-PY')}</strong></td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        ) : (
+                                                            <p className="no-pagos-msg">No se han registrado pagos para esta cuota aún.</p>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         )}
-                                        <td>
-                                            <div className="action-buttons">
-                                                {p.saldo_pendiente > 0 && (
-                                                    <button className="btn-cobrar" onClick={() => handleOpenCobro(p)}>
-                                                        Cobrar
-                                                    </button>
-                                                )}
-                                                {(p.estado === 'PAGADO' || p.estado === 'PARCIAL' || p.cancelado) && (
-                                                    <button className="btn-edit-pagos" onClick={() => handleViewPagos(p)} title="Ver historial y editar cobros">
-                                                        ⚙️ Ver/Editar Cobros
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    </React.Fragment>
                                 );
                             })}
                         </tbody>
@@ -1232,170 +1331,259 @@ const CobrosPlaya = () => {
                 </div>
             )}
 
-            {showModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h3>Registrar Recibo de Pago</h3>
-                        {selectedPagare && (
-                            <div className="payment-summary">
-                                <p><strong>Cliente:</strong> {selectedPagare.cliente}</p>
-                                <p><strong>Concepto:</strong> Cuota {selectedPagare.numero_cuota}/{selectedPagare.total_cuotas || selectedPagare.numero_cuota} - {selectedPagare.vehiculo}</p>
-                                <p><strong>Saldo Actual:</strong> Gs. {Math.round(selectedPagare.saldo_pendiente).toLocaleString('es-PY')}</p>
-                            </div>
-                        )}
-                        <form onSubmit={handleConfirmPago}>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>N° Recibo</label>
-                                    <input type="text" required value={newPago.numero_recibo} onChange={(e) => setNewPago({ ...newPago, numero_recibo: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Fecha de Cobro</label>
-                                    <input type="date" required value={newPago.fecha_pago} onChange={handleFechaPagoChange} />
-                                </div>
-                            </div>
-
-                            <div className="calculation-box">
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label>Monto de la Cuota (Gs.)</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            required
-                                            value={newPago.monto_pagado}
-                                            onChange={(e) => setNewPago({ ...newPago, monto_pagado: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Interés / Mora (Gs. - Editable)</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            value={newPago.mora_aplicada}
-                                            onChange={(e) => setNewPago({ ...newPago, mora_aplicada: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Total a Cobrar (Capital + Int.)</label>
-                                        <input
-                                            type="text"
-                                            readOnly
-                                            className="total-highlight"
-                                            value={`Gs. ${Math.round(parseFloat(newPago.monto_pagado || 0) + parseFloat(newPago.mora_aplicada || 0)).toLocaleString('es-PY')}`}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Forma de Pago</label>
-                                    <select value={newPago.forma_pago} onChange={(e) => setNewPago({ ...newPago, forma_pago: e.target.value })}>
-                                        <option value="EFECTIVO">Efectivo</option>
-                                        <option value="TRANSFERENCIA">Transferencia</option>
-                                        <option value="CHEQUE">Cheque</option>
-                                        <option value="DEPOSITO">Depósito Bancario</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Depositar en Cuenta / Caja</label>
-                                    <select
-                                        value={newPago.id_cuenta}
-                                        onChange={(e) => setNewPago({ ...newPago, id_cuenta: e.target.value })}
-                                        required
-                                    >
-                                        <option value="">-- Seleccionar Cuenta --</option>
-                                        {cuentas.map(c => (
-                                            <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} ({c.tipo})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                {newPago.forma_pago !== 'EFECTIVO' && (
-                                    <div className="form-group">
-                                        <label>N° Referencia / Operación</label>
-                                        <input type="text" value={newPago.numero_referencia} onChange={(e) => setNewPago({ ...newPago, numero_referencia: e.target.value })} placeholder="Ej: N° Transacción o Cheque" />
-                                    </div>
-                                )}
-                                <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={newPago.cancelar_pagare}
-                                            onChange={(e) => setNewPago({ ...newPago, cancelar_pagare: e.target.checked })}
-                                            style={{ width: '20px', height: '20px' }}
-                                        />
-                                        <span style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>Dar por CANCELADO el pagaré</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label>Observaciones</label>
-                                <textarea rows="2" value={newPago.observaciones} onChange={(e) => setNewPago({ ...newPago, observaciones: e.target.value })} placeholder="Escribe aquí cualquier observación relevante..."></textarea>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
-                                <button type="submit" className="btn-save">Confirmar Cobro e Imprimir</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {showPagosModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content pagos-history-modal">
-                        <div className="modal-header">
-                            <h3>Historial de Cobros - Cuota {selectedPagare?.numero_cuota}</h3>
-                            <button className="btn-close" onClick={() => setShowPagosModal(false)}>×</button>
+            {
+                !loading && (
+                    <div className="recent-payments-main-section">
+                        <div className="section-header">
+                            <h3>Últimos Cobros Registrados</h3>
+                            <button className="btn-refresh" onClick={fetchRecentPagos} disabled={fetchingRecent}>
+                                {fetchingRecent ? '⌛' : '🔄'} Actualizar
+                            </button>
                         </div>
-                        <div className="pagos-list">
-                            {selectedPagos.length === 0 ? (
-                                <p>No hay cobros registrados para este pagaré.</p>
-                            ) : (
-                                <table className="mini-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Recibo</th>
-                                            <th>Monto</th>
-                                            <th>Mora</th>
-                                            <th>Caja/Cuenta</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selectedPagos.map(pago => (
-                                            <tr key={pago.id_pago}>
-                                                <td>{pago.fecha_pago}</td>
-                                                <td>{pago.numero_recibo}</td>
-                                                <td>Gs. {Math.round(parseFloat(pago.monto_pagado)).toLocaleString('es-PY')}</td>
-                                                <td>Gs. {Math.round(parseFloat(pago.mora_aplicada)).toLocaleString('es-PY')}</td>
-                                                <td>{cuentas.find(c => c.id_cuenta === pago.id_cuenta)?.nombre || 'N/A'}</td>
-                                                <td>
-                                                    <div className="action-buttons-mini">
-                                                        <button className="btn-mini-edit" onClick={() => handleEditPago(pago)} title="Editar Cobro">✏️</button>
-                                                        <button className="btn-mini-delete" onClick={() => handleDeletePago(pago.id_pago)} title="Eliminar Cobro">🗑️</button>
-                                                    </div>
-                                                </td>
+                        <div className="responsive-table">
+                            <table className="main-table recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Recibo</th>
+                                        <th>Cliente</th>
+                                        <th>Vehículo</th>
+                                        <th>Monto</th>
+                                        <th>Caja/Cuenta</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentPagos.length === 0 ? (
+                                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No hay cobros registrados recientemente.</td></tr>
+                                    ) : (
+                                        recentPagos.map(p => (
+                                            <tr key={p.id_pago}>
+                                                <td><span className="date-badge">{p.fecha_pago}</span></td>
+                                                <td><strong>{p.numero_recibo}</strong></td>
+                                                <td>{p.cliente_nombre || 'N/A'}</td>
+                                                <td>{p.vehiculo || 'N/A'}</td>
+                                                <td><strong>Gs. {Math.round(p.monto_pagado).toLocaleString('es-PY')}</strong></td>
+                                                <td>{cuentas.find(c => c.id_cuenta === p.id_cuenta)?.nombre || 'N/A'}</td>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn-save" onClick={() => setShowPagosModal(false)}>Cerrar</button>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {
+                showModal && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h3>Gestión de Pagos - Recibo de Cobro</h3>
+                                <button className="btn-close-modal-top" onClick={() => setShowModal(false)}>&times;</button>
+                            </div>
+                            <form onSubmit={handleConfirmPago}>
+                                <div className="modal-body">
+                                    {selectedPagare && (
+                                        <div className="payment-summary-full">
+                                            <div className="summary-basic">
+                                                <div className="client-header-modal">
+                                                    <p><strong>Cliente:</strong> {selectedPagare.client_name || selectedPagare.cliente}</p>
+                                                    <p><strong>Vehículo:</strong> {selectedPagare.vehiculo}</p>
+                                                </div>
+                                                <div className="concept-row-modal">
+                                                    <p><strong>Concepto:</strong> Cuota {selectedPagare.numero_cuota}/{selectedPagare.total_cuotas || selectedPagare.numero_cuota}</p>
+                                                    <p><strong>Vencimiento:</strong> {selectedPagare.fecha_vencimiento}</p>
+                                                </div>
+                                                <div className="summary-amounts">
+                                                    <p className="total-cuota-label"><strong>Importe Total:</strong> Gs. {Math.round(selectedPagare.monto_cuota).toLocaleString('es-PY')}</p>
+                                                    <p className="saldo-actual-label"><strong>Saldo Pendiente:</strong> Gs. {Math.round(selectedPagare.saldo_pendiente).toLocaleString('es-PY')}</p>
+                                                </div>
+                                            </div>
+
+                                            {selectedPagos.length > 0 && !isEditingPago && (
+                                                <div className="previous-payments-table-section">
+                                                    <h4>Pagos Registrados Anteriormente:</h4>
+                                                    <table className="mini-payments-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Fecha</th>
+                                                                <th>N° Recibo</th>
+                                                                <th>Monto</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {selectedPagos.map((p) => (
+                                                                <tr key={p.id_pago}>
+                                                                    <td>{p.fecha_pago.split('T')[0]}</td>
+                                                                    <td>{p.numero_recibo}</td>
+                                                                    <td>Gs. {Math.round(p.monto_pagado).toLocaleString('es-PY')}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>N° Recibo</label>
+                                            <input type="text" required value={newPago.numero_recibo} onChange={(e) => setNewPago({ ...newPago, numero_recibo: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Fecha de Cobro</label>
+                                            <input type="date" required value={newPago.fecha_pago} onChange={handleFechaPagoChange} />
+                                        </div>
+                                    </div>
+
+                                    <div className="calculation-box">
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Monto de la Cuota (Gs.)</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    required
+                                                    value={newPago.monto_pagado}
+                                                    onChange={(e) => setNewPago({ ...newPago, monto_pagado: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Interés / Mora (Gs. - Editable)</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={newPago.mora_aplicada}
+                                                    onChange={(e) => setNewPago({ ...newPago, mora_aplicada: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Total a Cobrar (Capital + Int.)</label>
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    className="total-highlight"
+                                                    value={`Gs. ${Math.round(parseFloat(newPago.monto_pagado || 0) + parseFloat(newPago.mora_aplicada || 0)).toLocaleString('es-PY')}`}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label>Forma de Pago</label>
+                                            <select value={newPago.forma_pago} onChange={(e) => setNewPago({ ...newPago, forma_pago: e.target.value })}>
+                                                <option value="EFECTIVO">Efectivo</option>
+                                                <option value="TRANSFERENCIA">Transferencia</option>
+                                                <option value="CHEQUE">Cheque</option>
+                                                <option value="DEPOSITO">Depósito Bancario</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Depositar en Cuenta / Caja</label>
+                                            <select
+                                                value={newPago.id_cuenta}
+                                                onChange={(e) => setNewPago({ ...newPago, id_cuenta: e.target.value })}
+                                                required
+                                            >
+                                                <option value="">-- Seleccionar Cuenta --</option>
+                                                {cuentas.map(c => (
+                                                    <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} ({c.tipo})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-row">
+                                        {newPago.forma_pago !== 'EFECTIVO' && (
+                                            <div className="form-group">
+                                                <label>N° Referencia / Operación</label>
+                                                <input type="text" value={newPago.numero_referencia} onChange={(e) => setNewPago({ ...newPago, numero_referencia: e.target.value })} placeholder="Ej: N° Transacción o Cheque" />
+                                            </div>
+                                        )}
+                                        <div className="form-group checkbox-group" style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={newPago.cancelar_pagare}
+                                                    onChange={(e) => setNewPago({ ...newPago, cancelar_pagare: e.target.checked })}
+                                                    style={{ width: '20px', height: '20px' }}
+                                                />
+                                                <span style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>Dar por CANCELADO el pagaré</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>Observaciones</label>
+                                        <textarea rows="2" value={newPago.observaciones} onChange={(e) => setNewPago({ ...newPago, observaciones: e.target.value })} placeholder="Escribe aquí cualquier observación relevante..."></textarea>
+                                    </div>
+                                </div>
+
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>Cerrar</button>
+                                    <button type="submit" className="btn-save">Agregar Pago e Imprimir</button>
+                                </div>
+                            </form>
+
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                showPagosModal && (
+                    <div className="modal-overlay">
+                        <div className="modal-content pagos-history-modal">
+                            <div className="modal-header">
+                                <h3>Historial de Cobros - Cuota {selectedPagare?.numero_cuota}</h3>
+                                <button className="btn-close" onClick={() => setShowPagosModal(false)}>×</button>
+                            </div>
+                            <div className="pagos-list">
+                                {selectedPagos.length === 0 ? (
+                                    <p>No hay cobros registrados para este pagaré.</p>
+                                ) : (
+                                    <table className="mini-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Recibo</th>
+                                                <th>Monto</th>
+                                                <th>Mora</th>
+                                                <th>Caja/Cuenta</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedPagos.map(pago => (
+                                                <tr key={pago.id_pago}>
+                                                    <td>{pago.fecha_pago}</td>
+                                                    <td>{pago.numero_recibo}</td>
+                                                    <td>Gs. {Math.round(parseFloat(pago.monto_pagado)).toLocaleString('es-PY')}</td>
+                                                    <td>Gs. {Math.round(parseFloat(pago.mora_aplicada)).toLocaleString('es-PY')}</td>
+                                                    <td>{cuentas.find(c => c.id_cuenta === pago.id_cuenta)?.nombre || 'N/A'}</td>
+                                                    <td>
+                                                        <div className="action-buttons-mini">
+                                                            <button className="btn-mini-edit" onClick={() => handleEditPago(pago)} title="Editar Cobro">✏️</button>
+                                                            <button className="btn-mini-delete" onClick={() => handleDeletePago(pago.id_pago)} title="Eliminar Cobro">🗑️</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                            <div className="modal-actions">
+                                <button className="btn-save" onClick={() => setShowPagosModal(false)}>Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

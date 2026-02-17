@@ -144,6 +144,7 @@ class ProductoResponseSimple(BaseModel):
     activo: Optional[bool] = None
     nro_despacho: Optional[str] = None
     nro_cert_nac: Optional[str] = None
+    imagenes: Optional[List['ImagenProductoResponse']] = []
 
     class Config:
         from_attributes = True
@@ -312,6 +313,7 @@ class PagareResponse(BaseModel):
     saldo_pendiente: Optional[Decimal] = None
     fecha_pago: Optional[date] = None
     observaciones: Optional[str] = None
+    pagos: Optional[List['PagoResponse']] = [] # Relación con el historial de pagos
     class Config:
         from_attributes = True
 
@@ -349,11 +351,30 @@ class PagoCreate(PagoBase):
     id_cuenta: Optional[int] = None
     cancelar_pagare: Optional[bool] = False # Checkbox "Cancelado" de la UI
 
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: Any) -> Any:
+        """Acepta '' en campos opcionales y los convierte a None o '0' para evitar 422 de Pydantic."""
+        if not isinstance(data, dict):
+            return data
+        # id_cuenta debe ser None si es ""
+        if "id_cuenta" in data and (data["id_cuenta"] == "" or data["id_cuenta"] is None):
+            data = {**data, "id_cuenta": None}
+        # campos Decimal deben ser "0" o similar si vienen vacíos
+        for key in ("mora_aplicada", "monto_pagado"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: "0"}
+        return data
+
 class PagoResponse(PagoBase):
     id_pago: int
+    id_cuenta: Optional[int] = None
     dias_atraso: Optional[int] = 0
     mora_aplicada: Optional[Decimal] = None
     fecha_registro: Optional[datetime] = None
+    # Campos virtuales para listados globales
+    cliente_nombre: Optional[str] = None
+    vehiculo: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -471,7 +492,16 @@ class GanteBase(BaseModel):
     activo: Optional[bool] = True
 
 class GanteCreate(GanteBase):
-    pass
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: Any) -> Any:
+        """Acepta '' en campos opcionales date/number y los convierte a None (evita 422 desde frontend)."""
+        if not isinstance(data, dict):
+            return data
+        for key in ("fecha_nacimiento", "ingreso_mensual"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: None}
+        return data
 
 class GanteResponse(GanteBase):
     id_garante: int

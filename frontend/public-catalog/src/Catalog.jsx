@@ -15,6 +15,13 @@ const PublicCatalog = ({ user }) => {
     useEffect(() => {
         fetchData();
         fetchCategories();
+
+        // Polling cada 30 segundos para que se actualice "automáticamente"
+        const interval = setInterval(() => {
+            fetchData();
+        }, 30000);
+
+        return () => clearInterval(interval);
     }, []);
 
     const fetchData = async () => {
