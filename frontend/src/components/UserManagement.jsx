@@ -116,6 +116,7 @@ const UserManagement = () => {
   };
 
   const handleResendPassword = async () => {
+    if (!editUser || !editUser.username) return;
     if (!window.confirm(`¿Seguro que deseas generar y enviar una nueva contraseña temporal a ${editUser.username}?`)) return;
 
     setLoading(true);
@@ -126,14 +127,25 @@ const UserManagement = () => {
         body: JSON.stringify({ username: editUser.username })
       });
 
+      const data = await response.json();
       if (response.ok) {
-        alert('Se ha enviado una nueva contraseña temporal al usuario por email.');
+        alert(data.message || 'Se ha enviado una nueva contraseña temporal al usuario por email.');
       } else {
-        const data = await response.json();
         alert(data.detail || 'Error al reenviar contraseña');
       }
     } catch (err) {
-      alert('Error de conexión');
+      console.error('Error in handleResendPassword:', err);
+      // Intentar obtener el detalle del error si authFetch lanzó uno
+      if (err.response) {
+        try {
+          const data = await err.response.json();
+          alert(data.detail || 'Error al procesar la solicitud');
+        } catch (e) {
+          alert('Error en el servidor');
+        }
+      } else {
+        alert(err.message || 'Error de conexión');
+      }
     } finally {
       setLoading(false);
     }

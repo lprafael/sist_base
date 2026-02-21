@@ -4,7 +4,7 @@ import './DocumentosImportacion.css';
 
 const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
-export default function DocumentosImportacion() {
+export default function DocumentosImportacion({ preselectedDespacho, setPreselectedDespacho }) {
     const [documentos, setDocumentos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModalCarga, setShowModalCarga] = useState(false);
@@ -17,10 +17,29 @@ export default function DocumentosImportacion() {
     const [vinculaciones, setVinculaciones] = useState([]);
     const [dragDespacho, setDragDespacho] = useState(false);
     const [dragCertificados, setDragCertificados] = useState(false);
+    const [highlightedDespacho, setHighlightedDespacho] = useState(null);
 
     useEffect(() => {
         fetchDocumentos();
     }, []);
+
+    useEffect(() => {
+        if (preselectedDespacho) {
+            setHighlightedDespacho(preselectedDespacho);
+            // Scroll to the row
+            setTimeout(() => {
+                const row = document.querySelector(`.row-highlight`);
+                if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+
+            // Clear after some time or on interaction
+            const timer = setTimeout(() => {
+                setHighlightedDespacho(null);
+                if (setPreselectedDespacho) setPreselectedDespacho(null);
+            }, 8000);
+            return () => clearTimeout(timer);
+        }
+    }, [preselectedDespacho]);
 
     const fetchDocumentos = async () => {
         try {
@@ -37,6 +56,36 @@ export default function DocumentosImportacion() {
     };
 
     const getToken = () => sessionStorage.getItem('token');
+
+    const handleVerPDF = async (nro, type) => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/documentos-importacion/${nro}/pdf-${type}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            window.open(url, '_blank');
+        } catch (e) {
+            alert('Error al abrir el PDF: ' + (e.response?.data?.detail || e.message));
+        }
+    };
+
+    const handleEditar = (d) => {
+        // Convertir productos ya vinculados al formato del modal de vinculación
+        const vList = (d.productos || []).map(p => ({
+            id_producto: p.id_producto,
+            chasis: p.chasis,
+            marca: p.marca || '-',
+            modelo: p.modelo || '-',
+            nro_cert_nac: p.nro_cert_nac,
+            existe: true,
+            vincular: true
+        }));
+        setAnalisis({ nro_despacho: d.nro_despacho });
+        setVinculaciones(vList);
+        setShowModalVincular(true);
+    };
 
     const handleDropDespacho = (e) => {
         e.preventDefault();
@@ -79,19 +128,29 @@ export default function DocumentosImportacion() {
                 return;
             }
             const allChasis = res.data.chasis_despacho || [];
+
+            // Helper para normalizar chasis (quitar guiones, espacios y pasar a mayúsculas)
+            const normalizeChasis = (c) => (c || '').toUpperCase().replace(/[-\s]/g, '');
+
             const vehiculosPlayaDict = {};
             (res.data.vehiculos_en_playa || []).forEach((v) => {
-                vehiculosPlayaDict[v.chasis.toUpperCase()] = v;
+                vehiculosPlayaDict[normalizeChasis(v.chasis)] = v;
+            });
+
+            // Normalizar también las claves de certificados_por_chasis
+            const certsDict = {};
+            Object.entries(res.data.certificados_por_chasis || {}).forEach(([ch, val]) => {
+                certsDict[normalizeChasis(ch)] = val;
             });
 
             const list = allChasis.map((chasis) => {
-                const normalizedChasis = chasis.toUpperCase();
-                const v = vehiculosPlayaDict[normalizedChasis];
+                const norm = normalizeChasis(chasis);
+                const v = vehiculosPlayaDict[norm];
                 if (v) {
                     return {
                         ...v,
                         vincular: true,
-                        nro_cert_nac: v.nro_cert_nac || res.data.certificados_por_chasis[normalizedChasis] || '',
+                        nro_cert_nac: v.nro_cert_nac || certsDict[norm] || '',
                         existe: true
                     };
                 } else {
@@ -100,7 +159,7 @@ export default function DocumentosImportacion() {
                         chasis: chasis,
                         marca: '-',
                         modelo: '-',
-                        nro_cert_nac: res.data.certificados_por_chasis[normalizedChasis] || '',
+                        nro_cert_nac: certsDict[norm] || '',
                         vincular: false,
                         existe: false
                     };
@@ -215,6 +274,7 @@ export default function DocumentosImportacion() {
                                 <th>Cant. vehículos</th>
                                 <th>Monto pagado</th>
                                 <th>Registro</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -224,12 +284,25 @@ export default function DocumentosImportacion() {
                                 </tr>
                             ) : (
                                 documentos.map((d) => (
-                                    <tr key={d.nro_despacho}>
+                                    <tr key={d.nro_despacho} className={highlightedDespacho === d.nro_despacho ? 'row-highlight' : ''}>
                                         <td><strong>{d.nro_despacho}</strong></td>
                                         <td>{d.fecha_despacho ? new Date(d.fecha_despacho).toLocaleDateString('es-PY') : '-'}</td>
                                         <td>{d.cantidad_vehiculos ?? '-'}</td>
                                         <td>{d.monto_pagado != null ? Number(d.monto_pagado).toLocaleString('es-PY') : '-'}</td>
                                         <td>{d.fecha_registro ? new Date(d.fecha_registro).toLocaleString('es-PY') : '-'}</td>
+                                        <td className="actions-cell">
+                                            <div className="btn-group">
+                                                <button className="btn-action edit" title="Editar vinculos / Ver detalles" onClick={() => handleEditar(d)}>
+                                                    ✏️
+                                                </button>
+                                                <button className="btn-action view" title="Ver Despacho PDF" onClick={() => handleVerPDF(d.nro_despacho, 'despacho')}>
+                                                    📄
+                                                </button>
+                                                <button className="btn-action view" title="Ver Certificados PDF" onClick={() => handleVerPDF(d.nro_despacho, 'certificados')}>
+                                                    📜
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))
                             )}

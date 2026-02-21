@@ -103,6 +103,7 @@ export default function App() {
   const [preselectedVehicleId, setPreselectedVehicleId] = useState(null);
   const [preselectedCategoryId, setPreselectedCategoryId] = useState(null);
   const [preselectedCalificacion, setPreselectedCalificacion] = useState(null);
+  const [preselectedDespacho, setPreselectedDespacho] = useState(null);
 
   const handleLogout = async () => {
     try {
@@ -141,7 +142,7 @@ export default function App() {
     if (!user) return;
 
     const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20 minutos
-    const ABSOLUTE_LIMIT = 60 * 60 * 1000;   // 60 minutos
+    const ABSOLUTE_LIMIT = 60 * 60 * 1000 * 2;   // 60 minutos
     const CHECK_INTERVAL = 10000;           // Revisar cada 10 segundos
 
     // Al iniciar sesión, guardamos el tiempo de inicio si no existe
@@ -380,13 +381,14 @@ export default function App() {
             {tab === "tipos_gastos_empresa_playa" && <TiposGastosEmpresa />}
             {tab === "tipos_gastos_productos_playa" && <TiposGastosProductos />}
             {tab === "vendedores_playa" && <VendedoresPlaya />}
-            {tab === "documentos_importacion" && <DocumentosImportacion />}
+            {tab === "documentos_importacion" && <DocumentosImportacion preselectedDespacho={preselectedDespacho} setPreselectedDespacho={setPreselectedDespacho} />}
             {tab === "inventario" && (
               <VehiculosPlaya
                 setTab={setTab}
                 setPreselectedVehicleId={setPreselectedVehicleId}
                 preselectedCategoryId={preselectedCategoryId}
                 setPreselectedCategoryId={setPreselectedCategoryId}
+                setPreselectedDespacho={setPreselectedDespacho}
               />
             )}
             {tab === "imagenes_productos" && <ImagenesVehiculo />}

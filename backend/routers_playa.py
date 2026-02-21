@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import join, and_, or_, func, case, text, delete, update
@@ -31,7 +31,7 @@ from models_playa import (
     TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
     ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
     UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania,
-    ImagenProducto
+    ImagenProducto, HistorialCalificacion, Refuerzo
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
@@ -1520,7 +1520,7 @@ async def list_ventas(session: AsyncSession = Depends(get_session)):
         select(Venta)
         .options(
             joinedload(Venta.cliente),
-            joinedload(Venta.producto),
+            joinedload(Venta.producto).selectinload(Producto.imagenes),
             joinedload(Venta.escribania_rel),
             joinedload(Venta.detalles),
             selectinload(Venta.pagares).options(
@@ -1570,17 +1570,35 @@ async def create_venta(
 
     # 4.1 Pagaré de Entrega Inicial (Aplica para Contado y Financiado si hay entrega)
     if (new_venta.entrega_inicial or 0) > 0:
-        session.add(Pagare(
+        id_pagado = all_states.get('PAGADO')
+        pagare_ei = Pagare(
             id_venta=new_venta.id_venta,
             numero_pagare=f"{new_venta.numero_venta}-EI",
             numero_cuota=0,
             monto_cuota=new_venta.entrega_inicial,
             fecha_vencimiento=hoy,
             tipo_pagare='ENTREGA_INICIAL',
-            # estado='PENDIENTE', # Removed
-            id_estado=id_pendiente,
-            saldo_pendiente=new_venta.entrega_inicial
-        ))
+            id_estado=id_pagado,  # Se registra directamente como PAGADO
+            saldo_pendiente=0,     # Saldo cero al estar pagado
+            cancelado=True
+        )
+        session.add(pagare_ei)
+        await session.flush()  # Para obtener el id_pagare
+
+        # Crear el pago automático de la entrega inicial
+        pago_ei = Pago(
+            id_pagare=pagare_ei.id_pagare,
+            id_venta=new_venta.id_venta,
+            numero_recibo=f"REC-EI-{new_venta.numero_venta}",
+            fecha_pago=hoy,
+            monto_pagado=new_venta.entrega_inicial,
+            forma_pago='EFECTIVO',
+            dias_atraso=0,
+            mora_aplicada=0,
+            descuento_aplicado=0,
+            observaciones='Pago de entrega inicial registrado automáticamente al crear la venta'
+        )
+        session.add(pago_ei)
 
     # 4.2 Pagarés de Financiación
     if venta_data.tipo_venta == 'FINANCIADO':
@@ -1612,7 +1630,6 @@ async def create_venta(
                     monto_cuota=venta_data.monto_refuerzo,
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='REFUERZO',
-                    estado='PENDIENTE',
                     id_estado=id_pendiente,
                     saldo_pendiente=venta_data.monto_refuerzo
                 )
@@ -1666,31 +1683,41 @@ async def create_venta(
     result = await session.execute(
         select(Venta)
         .options(
-            joinedload(Venta.detalles),
+            joinedload(Venta.cliente),
+            joinedload(Venta.producto).selectinload(Producto.imagenes),
             joinedload(Venta.escribania_rel),
-            selectinload(Venta.pagares).joinedload(Pagare.estado_rel),
-            selectinload(Venta.pagares).selectinload(Pagare.pagos)
+            joinedload(Venta.detalles),
+            selectinload(Venta.pagares).options(
+                joinedload(Pagare.estado_rel),
+                selectinload(Pagare.pagos)
+            )
         )
         .where(Venta.id_venta == new_venta.id_venta)
     )
     return result.unique().scalar_one()
 
-@router.put("/ventas/{venta_id}/anular", response_model=VentaResponse)
+@router.delete("/ventas/{venta_id}/anular")
 async def anular_venta(
     venta_id: int,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
+    """
+    Elimina completamente una venta y todos sus registros relacionados,
+    siempre y cuando no tenga cuotas pagadas.
+    - Elimina pagarés (y sus pagos asociados, si existieran sin pago aun)
+    - Elimina detalles de venta
+    - Elimina refuerzos
+    - Revierte el vehículo a DISPONIBLE
+    - Elimina la venta
+    """
+    # Traer la venta con relaciones
     result = await session.execute(
         select(Venta)
         .options(
-            selectinload(Venta.pagares).options(
-                joinedload(Pagare.estado_rel),
-                selectinload(Pagare.pagos)
-            ),
-            joinedload(Venta.producto),
-            joinedload(Venta.cliente),
-            joinedload(Venta.escribania_rel)
+            selectinload(Venta.pagares).selectinload(Pagare.pagos),
+            selectinload(Venta.detalles),
+            selectinload(Venta.refuerzos),
         )
         .where(Venta.id_venta == venta_id)
     )
@@ -1699,15 +1726,19 @@ async def anular_venta(
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    if venta.estado_venta == 'ANULADA':
-        raise HTTPException(status_code=400, detail="La venta ya está anulada")
+    # Verificar si tiene pagos registrados (cualquier pago, de cualquier pagaré)
+    pagos_result = await session.execute(
+        select(func.count(Pago.id_pago)).where(Pago.id_venta == venta_id)
+    )
+    cantidad_pagos = pagos_result.scalar()
+    if cantidad_pagos and cantidad_pagos > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede eliminar la venta porque tiene {cantidad_pagos} pago(s) registrado(s). Primero elimine los pagos."
+        )
 
-    # Validar que no existan pagos registrados
-    pagos_check = await session.execute(select(Pago).where(Pago.id_venta == venta_id))
-    if pagos_check.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="No se puede anular la venta porque tiene pagos registrados")
 
-    # Guardar datos para auditoría
+    # Guardar datos para auditoría antes de eliminar
     old_data = {
         "numero_venta": venta.numero_venta,
         "id_cliente": venta.id_cliente,
@@ -1715,78 +1746,60 @@ async def anular_venta(
         "fecha_venta": venta.fecha_venta.isoformat() if venta.fecha_venta else None,
         "tipo_venta": venta.tipo_venta,
         "precio_venta": float(venta.precio_venta) if venta.precio_venta is not None else None,
-        "descuento": float(venta.descuento) if venta.descuento is not None else None,
         "precio_final": float(venta.precio_final) if venta.precio_final is not None else None,
-        "entrega_inicial": float(venta.entrega_inicial) if venta.entrega_inicial is not None else None,
-        "saldo_financiar": float(venta.saldo_financiar) if venta.saldo_financiar is not None else None,
-        "cantidad_cuotas": venta.cantidad_cuotas,
-        "monto_cuota": float(venta.monto_cuota) if venta.monto_cuota is not None else None,
         "estado_venta": venta.estado_venta,
-        "pagares": [
-            {
-                "id_pagare": p.id_pagare,
-                "numero_pagare": p.numero_pagare,
-                "numero_cuota": p.numero_cuota,
-                "monto_cuota": float(p.monto_cuota) if p.monto_cuota is not None else None,
-                "fecha_vencimiento": p.fecha_vencimiento.isoformat() if p.fecha_vencimiento else None,
-                "estado": p.estado,
-                "saldo_pendiente": float(p.saldo_pendiente) if p.saldo_pendiente is not None else None,
-            }
-            for p in (venta.pagares or [])
-        ],
+        "cantidad_pagares": len(venta.pagares or []),
     }
 
-    pagares_eliminados = 0
-    for pagare in (venta.pagares or []):
+    # 1. Eliminar historial_calificaciones vinculado a los pagarés de esta venta
+    await session.execute(
+        delete(HistorialCalificacion).where(HistorialCalificacion.id_venta == venta_id)
+    )
+
+    # 2. Eliminar pagarés (con su cascade en pagos si los hubiera, pero ya validamos que no hay)
+    for pagare in list(venta.pagares or []):
         await session.delete(pagare)
-        pagares_eliminados += 1
 
-    # Anular venta
-    venta.estado_venta = 'ANULADA'
+    # 3. Eliminar refuerzos
+    for refuerzo in list(venta.refuerzos or []):
+        await session.delete(refuerzo)
 
-    # Revertir vehículo a DISPONIBLE
+    # 4. Eliminar detalles de venta (también tiene cascade pero por si acaso)
+    for detalle in list(venta.detalles or []):
+        await session.delete(detalle)
+
+    # 5. Revertir vehículo a DISPONIBLE
     if venta.id_producto:
-        # Usamos una consulta directa para asegurar que el estado del vehículo se actualice
-        res_v = await session.execute(select(Producto).where(Producto.id_producto == venta.id_producto))
+        res_v = await session.execute(
+            select(Producto).where(Producto.id_producto == venta.id_producto)
+        )
         vehiculo_para_revertir = res_v.scalar_one_or_none()
         if vehiculo_para_revertir:
             vehiculo_para_revertir.estado_disponibilidad = 'DISPONIBLE'
 
+    # 6. Flush para que las deletes de relaciones se procesen antes de borrar la venta
+    await session.flush()
+
+    # 7. Eliminar la venta
+    await session.delete(venta)
+
     await session.commit()
-    await session.refresh(venta)
 
-    new_data_for_audit = {
-        "estado_venta": venta.estado_venta,
-        "pagares_eliminados": pagares_eliminados,
-        "vehiculo_estado": venta.producto.estado_disponibilidad if venta.producto else None,
-    }
-
+    # Auditoría
     await log_audit_action(
         session=session,
         username=current_user["sub"],
         user_id=current_user["user_id"],
-        action="update",
+        action="delete",
         table="ventas",
         record_id=venta_id,
         previous_data=old_data,
-        new_data=new_data_for_audit,
-        details=f"Venta anulada: {venta.numero_venta}"
+        new_data={"eliminada": True},
+        details=f"Venta eliminada: {old_data['numero_venta']}"
     )
-    
-    # RE-FETCH
-    result = await session.execute(
-        select(Venta)
-        .options(
-            selectinload(Venta.pagares).options(
-                joinedload(Pagare.estado_rel),
-                selectinload(Pagare.pagos)
-            ),
-            joinedload(Venta.detalles),
-            joinedload(Venta.escribania_rel)
-        )
-        .where(Venta.id_venta == venta_id)
-    )
-    return result.unique().scalar_one()
+
+    return {"ok": True, "message": f"Venta {old_data['numero_venta']} eliminada correctamente."}
+
 
 @router.put("/ventas/{venta_id}", response_model=VentaResponse)
 async def update_venta(
@@ -1798,13 +1811,14 @@ async def update_venta(
     result = await session.execute(
         select(Venta)
         .options(
+            joinedload(Venta.cliente),
+            joinedload(Venta.producto).selectinload(Producto.imagenes),
+            joinedload(Venta.escribania_rel),
+            joinedload(Venta.detalles),
             selectinload(Venta.pagares).options(
                 joinedload(Pagare.estado_rel),
                 selectinload(Pagare.pagos)
-            ),
-            joinedload(Venta.producto),
-            joinedload(Venta.cliente),
-            joinedload(Venta.escribania_rel)
+            )
         )
         .where(Venta.id_venta == venta_id)
     )
@@ -1816,9 +1830,35 @@ async def update_venta(
     if venta.estado_venta == 'ANULADA':
         raise HTTPException(status_code=400, detail="No se puede modificar una venta anulada")
 
-    pagos_check = await session.execute(select(Pago).where(Pago.id_venta == venta_id))
-    if pagos_check.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="No se puede modificar la venta porque tiene pagos registrados")
+    # Detectar cambios estructurales que requerirían recrear pagarés
+    structural_fields = [
+        'fecha_venta', 'tipo_venta', 'precio_venta', 'descuento', 'precio_final',
+        'entrega_inicial', 'saldo_financiar', 'cantidad_cuotas', 'monto_cuota',
+        'cantidad_refuerzos', 'monto_refuerzo'
+    ]
+    
+    is_structural_change = False
+    for field in structural_fields:
+        new_val = getattr(venta_data, field)
+        old_val = getattr(venta, field)
+        
+        # Normalizar para comparación (Decimal vs float/int)
+        if isinstance(old_val, Decimal):
+            if new_val is not None and Decimal(str(new_val)) != old_val:
+                is_structural_change = True
+                break
+        elif old_val != new_val:
+            is_structural_change = True
+            break
+
+    pagos_check = await session.execute(select(Pago).where(Pago.id_venta == venta_id).limit(1))
+    has_pagos = pagos_check.scalars().first() is not None
+
+    if has_pagos and is_structural_change:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="No se puede modificar la estructura financiera de la venta (precios, cuotas, fechas) porque ya existen pagos registrados. Solo puede editar campos informativos o de interés."
+        )
 
     if venta.id_producto != venta_data.id_producto:
         raise HTTPException(status_code=400, detail="No se puede cambiar el vehículo de una venta")
@@ -1863,78 +1903,77 @@ async def update_venta(
         else:
             setattr(venta, field, value)
 
-    # Eliminar detalles antiguos y crear nuevos
-    for d in (venta.detalles or []):
-        await session.delete(d)
-    
-    for det in detalles_data:
-        nuevo_detalle = DetalleVenta(id_venta=venta.id_venta, **det)
-        session.add(nuevo_detalle)
-
-    pagares_eliminados = 0
-    for pagare in (venta.pagares or []):
-        await session.delete(pagare)
-        pagares_eliminados += 1
-
-    pagares_generados = 0
-    base_date = venta.fecha_venta or date.today()
-
-    # Obtener estados para asignar el ID correcto
-    res_st = await session.execute(select(Estado))
-    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
-    id_pendiente = all_states.get('PENDIENTE')
-
-    # 4.1 Pagaré de Entrega Inicial
-    if (venta.entrega_inicial or 0) > 0:
-        session.add(Pagare(
-            id_venta=venta.id_venta,
-            numero_pagare=f"{venta.numero_venta}-EI",
-            numero_cuota=0,
-            monto_cuota=venta.entrega_inicial,
-            fecha_vencimiento=base_date,
-            tipo_pagare='ENTREGA_INICIAL',
-            id_estado=id_pendiente,
-            saldo_pendiente=venta.entrega_inicial
-        ))
-        pagares_generados += 1
-
-    # 4.2 Pagarés de Financiación
-    if venta_data.tipo_venta == 'FINANCIADO':
-        # Cuotas
-        if (venta_data.cantidad_cuotas or 0) > 0:
-            for i in range(1, venta_data.cantidad_cuotas + 1):
-                vencimiento = add_months(base_date, i)
-                nuevo_pagare = Pagare(
-                    id_venta=venta.id_venta,
-                    numero_pagare=f"{venta.numero_venta}-C{i}",
-                    numero_cuota=i,
-                    monto_cuota=venta_data.monto_cuota,
-                    fecha_vencimiento=vencimiento,
-                    tipo_pagare='CUOTA',
-                    # estado='PENDIENTE', # Removed
-                    saldo_pendiente=venta_data.monto_cuota,
-                    id_estado=id_pendiente
-                )
-                session.add(nuevo_pagare)
-                pagares_generados += 1
+    if is_structural_change:
+        # Eliminar detalles antiguos y crear nuevos
+        for d in (venta.detalles or []):
+            await session.delete(d)
         
-        # Refuerzos
-        if (venta_data.cantidad_refuerzos or 0) > 0:
-            for i in range(1, venta_data.cantidad_refuerzos + 1):
-                vencimiento = add_months(base_date, 12 * i)
-                nuevo_pagare = Pagare(
-                    id_venta=venta.id_venta,
-                    numero_pagare=f"{venta.numero_venta}-R{i}",
-                    numero_cuota=i,
-                    monto_cuota=venta_data.monto_refuerzo,
-                    fecha_vencimiento=vencimiento,
-                    tipo_pagare='REFUERZO',
-                    # estado='PENDIENTE', # Removed
-                    saldo_pendiente=venta_data.monto_refuerzo,
-                    id_estado=id_pendiente
-                )
-                session.add(nuevo_pagare)
-                pagares_generados += 1
+        for det in detalles_data:
+            nuevo_detalle = DetalleVenta(id_venta=venta.id_venta, **det)
+            session.add(nuevo_detalle)
+
+        pagares_eliminados = 0
+        for pagare in (venta.pagares or []):
+            await session.delete(pagare)
+            pagares_eliminados += 1
+
+        pagares_generados = 0
+        base_date = venta.fecha_venta or date.today()
+
+        # Obtener estados para asignar el ID correcto
+        res_st = await session.execute(select(Estado))
+        all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+        id_pendiente = all_states.get('PENDIENTE')
+
+        # 4.1 Pagaré de Entrega Inicial
+        if (venta.entrega_inicial or 0) > 0:
+            session.add(Pagare(
+                id_venta=venta.id_venta,
+                numero_pagare=f"{venta.numero_venta}-EI",
+                numero_cuota=0,
+                monto_cuota=venta.entrega_inicial,
+                fecha_vencimiento=base_date,
+                tipo_pagare='ENTREGA_INICIAL',
+                id_estado=id_pendiente,
+                saldo_pendiente=venta.entrega_inicial
+            ))
+            pagares_generados += 1
+
+        # 4.2 Pagarés de Financiación
+        if venta_data.tipo_venta == 'FINANCIADO':
+            # Cuotas
+            if (venta_data.cantidad_cuotas or 0) > 0:
+                for i in range(1, venta_data.cantidad_cuotas + 1):
+                    vencimiento = add_months(base_date, i)
+                    nuevo_pagare = Pagare(
+                        id_venta=venta.id_venta,
+                        numero_pagare=f"{venta.numero_venta}-C{i}",
+                        numero_cuota=i,
+                        monto_cuota=venta_data.monto_cuota,
+                        fecha_vencimiento=vencimiento,
+                        tipo_pagare='CUOTA',
+                        saldo_pendiente=venta_data.monto_cuota,
+                        id_estado=id_pendiente
+                    )
+                    session.add(nuevo_pagare)
+                    pagares_generados += 1
+            
+            # Refuerzos
+            if (venta_data.cantidad_refuerzos or 0) > 0:
+                for i in range(1, venta_data.cantidad_refuerzos + 1):
+                    vencimiento = add_months(base_date, 12 * i) # Refuerzos anuales por defecto
+                    nuevo_pagare = Pagare(
+                        id_venta=venta.id_venta,
+                        numero_pagare=f"{venta.numero_venta}-R{i}",
+                        numero_cuota=i,
+                        monto_cuota=venta_data.monto_refuerzo,
+                        fecha_vencimiento=vencimiento,
+                        tipo_pagare='REFUERZO',
+                        saldo_pendiente=venta_data.monto_refuerzo,
+                        id_estado=id_pendiente
+                    )
+                    session.add(nuevo_pagare)
+                    pagares_generados += 1
 
     await session.commit()
     await session.refresh(venta) # Refresh after commit to ensure relationships are loaded for audit
@@ -2000,11 +2039,12 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     # Obtener todos los IDs de venta únicos
     venta_ids = list(set([v.id_venta for _, v, _, _, _ in pagares_list]))
     
-    # Obtener total de cuotas por venta en una sola consulta
+    # Obtener total de cuotas por venta en una sola consulta (solo tipo CUOTA, excluyendo ENTREGA_INICIAL)
     if venta_ids:
         count_query = (
             select(Pagare.id_venta, func.count(Pagare.id_pagare).label('total'))
             .where(Pagare.id_venta.in_(venta_ids))
+            .where(Pagare.tipo_pagare == 'CUOTA')
             .group_by(Pagare.id_venta)
         )
         count_result = await session.execute(count_query)
@@ -2014,7 +2054,11 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     
     data = []
     for p, v, c, prod, est in pagares_list: # Unpack est (Estado)
-        total_cuotas = ventas_cuotas.get(v.id_venta, 0)
+        # Para ENTREGA_INICIAL mostrar 0/0, para el resto el total de cuotas del tipo CUOTA
+        if p.tipo_pagare == 'ENTREGA_INICIAL':
+            total_cuotas = 0
+        else:
+            total_cuotas = ventas_cuotas.get(v.id_venta, 0)
         
         # Obtener fecha de pago si existe (para pagos parciales)
         fecha_pago_val = None
@@ -2038,6 +2082,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             "id_pagare": p.id_pagare,
             "id_venta": v.id_venta,
             "numero_cuota": p.numero_cuota,
+            "tipo_pagare": p.tipo_pagare,
             "total_cuotas": total_cuotas,
             "monto_cuota": float(p.monto_cuota),
             "saldo_pendiente": float(p.saldo_pendiente) if p.saldo_pendiente is not None else float(p.monto_cuota),
@@ -2045,6 +2090,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
             "fecha_pago": fecha_pago_val,
             "cliente": f"{c.nombre} {c.apellido}",
             "vehiculo": f"{prod.marca} {prod.modelo}",
+            "chasis": prod.chasis,
             "numero_documento": c.numero_documento,
             "estado": estado_display, # Use calculated status
             "cancelado": p.cancelado if p.cancelado is not None else False,
@@ -2124,8 +2170,7 @@ async def update_pagare(
         setattr(pagare, field, value)
         
     await session.commit()
-    await session.refresh(pagare)
-    
+
     # Auditoría: nuevos datos
     new_data_for_audit = update_data.copy()
     for key, value in new_data_for_audit.items():
@@ -2145,8 +2190,17 @@ async def update_pagare(
         new_data=new_data_for_audit,
         details=f"Pagaré actualizado: {pagare.numero_pagare}"
     )
-    
-    return pagare
+
+    # Re-consultar con relaciones cargadas para serialización correcta
+    result2 = await session.execute(
+        select(Pagare)
+        .options(
+            joinedload(Pagare.estado_rel),
+            selectinload(Pagare.pagos),
+        )
+        .where(Pagare.id_pagare == id_pagare)
+    )
+    return result2.scalar_one()
 
 @router.post("/pagos", response_model=PagoResponse)
 async def create_pago(
@@ -2197,8 +2251,8 @@ async def create_pago(
     if pago_data.fecha_pago > pagare.fecha_vencimiento:
         atraso_dias = (pago_data.fecha_pago - pagare.fecha_vencimiento).days
         
-        # Si el usuario envió una mora (interés) editada, la respetamos
-        if pago_data.mora_aplicada is not None and pago_data.mora_aplicada > 0:
+        # Si el usuario envió una mora (interés) editada, la respetamos (incluso si es 0)
+        if pago_data.mora_aplicada is not None:
             mora_calculada = Decimal(str(pago_data.mora_aplicada))
         else:
             # Calcular mora automática
@@ -2226,7 +2280,7 @@ async def create_pago(
                 multa_periodica = num_periodos * cargo_fijo
                 
                 mora_calculada = interes_al_saldo + multa_periodica
-    elif pago_data.mora_aplicada is not None and pago_data.mora_aplicada > 0:
+    elif pago_data.mora_aplicada is not None:
         # Incluso si no hay atraso, si el usuario forzó un interés, lo guardamos
         mora_calculada = Decimal(str(pago_data.mora_aplicada))
 
@@ -2336,6 +2390,7 @@ async def list_todos_pagos(
             if p.pagare and p.pagare.venta and p.pagare.venta.producto:
                 prod = p.pagare.venta.producto
                 p.vehiculo = f"{prod.marca} {prod.modelo}".strip()
+                p.chasis = prod.chasis
         except:
             pass
             
@@ -3783,20 +3838,27 @@ def _extract_with_llm(text_despacho: str, text_certificados: str) -> Optional[di
     base_url = os.getenv("DOCUMENTOS_LLM_URL")  # ej. http://localhost:11434/v1 para Ollama
     if not api_key and not base_url:
         return None
-    prompt = """Eres un asistente que extrae datos de documentos de aduana (despacho e importación).
+    prompt = """Eres un experto en extraer datos de documentos de aduana de Paraguay (Despacho e Importación).
 
-Tienes dos textos:
-1) DOCUMENTO DE DESPACHO: puede contener "DESPACHO NUMERO:" o "NRO DE PEDIDO" y una lista de "NRO CHASIS = ...".
-2) CERTIFICADOS DE NACIONALIZACIÓN: puede contener "INFORMACION ADICIONAL", "NRO CHASIS = ..." y números de certificado.
+Tienes dos textos extraídos de PDFs (posiblemente vía OCR):
+1) DOCUMENTO DE DESPACHO: contiene número de despacho y lista de chasis.
+2) CERTIFICADOS DE NACIONALIZACIÓN: contiene la vinculación de cada chasis con su número de certificado "AUT-".
 
-Extrae y responde ÚNICAMENTE un JSON válido, sin markdown ni texto extra, con esta estructura:
-{"nro_despacho": "número o null", "chasis_despacho": ["chasis1", "chasis2"], "certificados_por_chasis": {"CHASIS1": "nro_cert", "CHASIS2": "nro_cert"}}
+### REGLAS CRÍTICAS:
+- Los números de CHASIS y de CERTIFICADO pueden estar divididos en varias líneas. Debes unirlos inteligentemente.
+  Ejemplo: "AUT-26003IC04000802H-" y abajo "0002" es el certificado "AUT-26003IC04000802H-0002".
+  Ejemplo: "XZU414-1011" y abajo "371" es el chasis "XZU414-1011371".
+- El número de despacho suele tener 16 caracteres (ej. 26003IC04000802H).
+- Ignore etiquetas como "AÑO FABRICACION", "AÑO VEHICULO", "NRO MOTOR", "NRO RUA", etc. que puedan aparecer cerca del chasis.
 
-Si no encuentras algo, usa null o listas/objetos vacíos. Los chasis en certificados_por_chasis deben coincidir en mayúsculas/minúsculas con los de chasis_despacho.
+Extrae y responde ÚNICAMENTE un JSON válido, sin markdown, con esta estructura:
+{"nro_despacho": "número completo", "chasis_despacho": ["CHASIS1", "CHASIS2"], "certificados_por_chasis": {"CHASIS1": "AUT-XXXX-YYYY", "CHASIS2": "AUT-ZZZZ-WWWW"}}
+
+Si no encuentras algo, usa null o listas/objetos vacíos.
 
 TEXTO DESPACHO:
 """
-    prompt += (text_despacho[:12000] or "(vacío)") + "\n\nTEXTO CERTIFICADOS:\n" + (text_certificados[:12000] or "(vacío)")
+    prompt += (text_despacho[:14000] or "(vacío)") + "\n\nTEXTO CERTIFICADOS:\n" + (text_certificados[:14000] or "(vacío)")
     try:
         if base_url:
             # Ollama (nativo) o API OpenAI-compatible
@@ -3860,86 +3922,85 @@ def _parse_despacho_text(text: str) -> tuple:
             nro_despacho = None
     if not nro_despacho:
         nro_despacho = None
-    # Chasis: "NRO CHASIS = NCP100-0058263" o "NRO CHASIS = XZU414-1011371" (incluye guión)
-    chasis_from_equality = re.findall(r"NRO\s+CHASIS\s*=\s*([A-Z0-9\-]+)", text_upper, re.IGNORECASE)
-    for c in chasis_from_equality:
-        c = c.strip()
-        if len(c) >= 6 and c not in chasis_list:
-            chasis_list.append(c)
-    # Fallback: palabras alfanuméricas tipo VIN/chasis (8-20 caracteres, puede tener guión)
+    # Chasis: "NRO CHASIS = NCP100-0058263" o fragmentado
+    chunks = re.split(r"NRO\s+CHASIS\s*[=:]?\s*", text_upper)
+    if len(chunks) > 1:
+        for chunk in chunks[1:]:
+            # Cortar antes del siguiente campo común para no arrastrar "NROMOTOR", etc.
+            area = re.split(r"NRO\s+MOTOR|MOTOR|MARCA|MODELO|ANIO|AÑO|RUA", chunk)[0]
+            area = area[:50] # Suficiente para el chasis
+            clean = re.sub(r"[\s\n\r]+", "", area)
+            m = re.search(r"([A-Z0-9\-]{8,22})", clean)
+            if m:
+                val = m.group(1)
+                # Limpiar ruidos comunes al final
+                for noise in ["NRO", "MOTOR", "ANIO", "MARCA"]:
+                    if val.endswith(noise):
+                        val = val[:-len(noise)]
+                if val not in chasis_list:
+                    chasis_list.append(val)
+    
+    # Fallback: palabras alfanuméricas tipo VIN/chasis (8-22 caracteres, puede tener guión)
     if not chasis_list:
-        chasis_candidates = re.findall(r"\b([A-Z0-9\-]{8,20})\b", text_upper)
+        chasis_candidates = re.findall(r"\b([A-Z0-9\-]{8,22})\b", text_upper)
         seen = set(chasis_list)
         for c in chasis_candidates:
-            if "-" in c or (len(c) >= 8 and not c.isdigit() and c not in seen):
-                seen.add(c)
-                chasis_list.append(c)
+            # Debe tener al menos una letra o un guión para no ser solo un número cualquiera
+            if re.search(r"[A-Z\-]", c) and c not in seen:
+                # Evitar palabras comunes que parecen chasis
+                if c not in ["FABRICACION", "CERTIFICADO"]:
+                    seen.add(c)
+                    chasis_list.append(c)
     return (nro_despacho, chasis_list)
 
 
 def _parse_certificados_text(text: str) -> dict:
-    """Extrae mapeo chasis -> número de certificado del texto de certificados de nacionalización.
-    Optimizado para manejar chasis fragmentados en múltiples líneas y patrones AUT- de certificados.
-    """
+    """Extrae mapeo chasis -> número de certificado con lógica de proximidad robusta."""
     import re
     result = {}
     text_upper = text.upper()
     
-    # 1. Extraer todos los certificados AUT-XXXXX (suelen ser los de nacionalización)
-    # Buscamos patrones AUT- seguido de números/letras, permitiendo guiones.
-    all_certs = re.findall(r"\bAUT\-[A-Z0-9\-]+\b", text_upper)
-    all_certs = [c.strip("-") for c in all_certs if len(c) > 8]
+    # 1. Encontrar todos los chasis y sus posiciones
+    # Usamos un split más limpieza para encontrar chasis probables
+    chasis_matches = []
+    chunks = re.finditer(r"NRO\s*CHASIS\s*[:=\s]*", text_upper)
+    for m_label in chunks:
+        pos_start = m_label.end()
+        # Escaneamos un área adelante para encontrar el valor
+        area = text_upper[pos_start : pos_start + 120]
+        # Cortamos antes de etiquetas ruidosas
+        area_clean_parts = re.split(r"NRO\s+MOTOR|MOTOR|MARCA|MODELO|ANIO|AÑO|RUA", area)
+        area_to_regex = area_clean_parts[0]
+        
+        # Regex para el chasis
+        m_val = re.search(r"([A-Z0-9\-]{8,22})", re.sub(r"[\s\n\r]+", "", area_to_regex))
+        if m_val:
+            val = m_val.group(1)
+            # Limpieza básica
+            for noise in ["NRO", "MOTOR", "ANIO", "MARCA"]:
+                if val.endswith(noise): val = val[:-len(noise)]
+            chasis_matches.append({"val": val, "pos": pos_start})
 
-    # 2. Extraer Chasis manejando fragmentación de líneas
-    # Buscamos la etiqueta "NRO CHASIS" y extraemos lo que sigue, colapsando espacios/saltos
-    chasis_candidates = []
-    
-    # Dividir el texto en "bloques" que empiezan con la etiqueta de chasis
-    chunks = re.split(r"NRO\s*CHASIS\s*[:=\s]*", text_upper)
-    if len(chunks) > 1:
-        for chunk in chunks[1:]:
-            # Tomar los primeros caracteres significativos (máximo 40 para buscar el chasis)
-            # Colapsamos espacios y saltos de línea para unir fragmentos como "NCP100-005" + "8263"
-            area_de_busqueda = chunk[:60] # Tomar un margen generoso
-            clean_search = re.sub(r"[\s\n\r]+", "", area_de_busqueda)
-            
-            # Buscar el patrón de chasis (letras, números y guiones)
-            m = re.match(r"([A-Z0-9\-]{6,20})", clean_search)
-            if m:
-                chasis_candidates.append(m.group(1))
+    # 2. Encontrar todos los certificados AUT-
+    cert_matches = []
+    # Pattern flexible que permite ruidos entre partes
+    cert_regex = re.compile(r"AUT\-[\s\n\r]*[A-Z0-9\-]{10,25}[\s\n\r]*\-?[\s\n\r]*[A-Z0-9]{1,5}")
+    for m_cert in cert_regex.finditer(text_upper):
+        clean_val = re.sub(r"[\s\n\r]+", "", m_cert.group()).strip("-")
+        cert_matches.append({"val": clean_val, "pos": m_cert.start()})
 
-    # 3. Asociación inteligente: chasis <-> certificado
-    # Si tenemos pocos certificados y pocos chasis, intentamos emparejar por cercanía en el texto
-    if chasis_candidates:
-        for ch in set(chasis_candidates):
-            # Posición del chasis en el texto original (aproximada si estaba fragmentado)
-            # Para la posición usamos solo los primeros 6 caracteres que son más propensos a estar juntos
-            prefix = ch[:6]
-            pos = text_upper.find(prefix)
-            
-            if pos != -1:
-                # Buscar el AUT- más cercano en un rango de +/- 2000 caracteres
-                closest_cert = None
-                min_dist = 999999
-                
-                for cert in all_certs:
-                    cert_pos = text_upper.find(cert)
-                    if cert_pos != -1:
-                        dist = abs(cert_pos - pos)
-                        if dist < min_dist:
-                            min_dist = dist
-                            closest_cert = cert
-                
-                if closest_cert:
-                    result[ch] = closest_cert
-
-    # 4. Fallback: Otros patrones de certificado (como NAC- o CERT-) si AUT- falló
-    if not result and chasis_candidates:
-        # Buscar patrones como "CERTIFICADO N° XXXXX" o "NAC. N° XXXXX"
-        extra_certs = re.findall(r"(?:CERT\.?|CERTIFICADO|NAC\.?)\s*[:\sN°]*\s*([A-Z0-9\-]{4,})", text_upper)
-        if extra_certs:
-            for ch in chasis_candidates:
-                result[ch] = extra_certs[0] # Usar el primero como fallback general
+    # 3. Emparejar por proximidad (el certificado suele estar arriba o abajo del chasis en el mismo bloque)
+    for ch_match in chasis_matches:
+        best_cert = None
+        min_dist = 999999
+        for c_match in cert_matches:
+            dist = abs(c_match["pos"] - ch_match["pos"])
+            if dist < min_dist:
+                min_dist = dist
+                best_cert = c_match["val"]
+        
+        if best_cert and min_dist < 4000:
+            result[ch_match["val"]] = best_cert
 
     return result
 
@@ -3949,7 +4010,9 @@ def _parse_certificados_text(text: str) -> dict:
 async def list_documentos_importacion(session: AsyncSession = Depends(get_session)):
     """Lista todos los documentos de importación."""
     result = await session.execute(
-        select(DocumentoImportacion).order_by(DocumentoImportacion.fecha_registro.desc())
+        select(DocumentoImportacion)
+        .options(selectinload(DocumentoImportacion.productos))
+        .order_by(DocumentoImportacion.fecha_registro.desc())
     )
     return result.scalars().all()
 
@@ -3963,6 +4026,22 @@ async def get_documento_importacion(nro_despacho: str, session: AsyncSession = D
     if not doc:
         raise HTTPException(status_code=404, detail="Documento de importación no encontrado")
     return doc
+
+@router.get("/documentos-importacion/{nro_despacho}/pdf-despacho")
+async def get_pdf_despacho(nro_despacho: str, session: AsyncSession = Depends(get_session)):
+    """Retorna el PDF del despacho."""
+    doc = await session.get(DocumentoImportacion, nro_despacho)
+    if not doc or not doc.pdf_despacho:
+        raise HTTPException(status_code=404, detail="PDF de despacho no encontrado")
+    return Response(content=doc.pdf_despacho, media_type="application/pdf")
+
+@router.get("/documentos-importacion/{nro_despacho}/pdf-certificados")
+async def get_pdf_certificados(nro_despacho: str, session: AsyncSession = Depends(get_session)):
+    """Retorna el PDF de los certificados."""
+    doc = await session.get(DocumentoImportacion, nro_despacho)
+    if not doc or not doc.pdf_certificados:
+        raise HTTPException(status_code=404, detail="PDF de certificados no encontrado")
+    return Response(content=doc.pdf_certificados, media_type="application/pdf")
 
 
 @router.post("/documentos-importacion/analizar", response_model=AnalizarDocumentosResponse)
@@ -3994,8 +4073,21 @@ async def analizar_documentos_importacion(
     else:
         nro_despacho, chasis_despacho = _parse_despacho_text(text_despacho)
         certificados_por_chasis = _parse_certificados_text(text_cert)
-    # Normalizar chasis (mayúsculas, strip) para comparar
-    chasis_despacho = [c.strip().upper() for c in chasis_despacho if c and str(c).strip()]
+    # Normalizar chasis (mayúsculas, strip, y quitar ruidos comunes)
+    def clean_chasis(c):
+        if not c: return ""
+        c = str(c).strip().upper()
+        # Eliminar ruidos pegados al final (comunes en OCR)
+        for noise in ["NROMOTOR", "NRO MOTOR", "MOTOR", "ANIO", "MARCA", "MODELO", "RUA"]:
+            if c.endswith(noise):
+                c = c[:-len(noise)]
+        return c.strip()
+
+    chasis_despacho = [clean_chasis(c) for c in chasis_despacho if c]
+    
+    # También normalizar las claves del diccionario de certificados
+    certificados_por_chasis = {clean_chasis(k): v for k, v in certificados_por_chasis.items() if k}
+
     # ¿Ya existe el despacho?
     existing = await session.execute(
         select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == (nro_despacho or ""))
@@ -4004,26 +4096,36 @@ async def analizar_documentos_importacion(
     # Vehículos en playa que coinciden con chasis del despacho (flexibilidad con guiones)
     vehiculos_en_playa = []
     if chasis_despacho:
-        # Generar variantes sin guiones para comparar también
-        chasis_clean = [c.replace("-", "").upper() for c in chasis_despacho]
+        # Generar variantes sin guiones ni espacios para comparar también
+        chasis_clean = [c.replace("-", "").replace(" ", "").upper() for c in chasis_despacho]
         
         result = await session.execute(
             select(Producto).where(
                 or_(
                     func.upper(func.trim(Producto.chasis)).in_([c.upper() for c in chasis_despacho]),
-                    func.replace(func.upper(func.trim(Producto.chasis)), '-', '').in_(chasis_clean)
+                    func.replace(func.replace(func.upper(func.trim(Producto.chasis)), '-', ''), ' ', '').in_(chasis_clean)
                 ),
                 Producto.activo == True
             )
         )
         for p in result.scalars().all():
-            chasis_norm = (p.chasis or "").strip().upper()
+            chasis_norm = clean_chasis(p.chasis)
+            # Buscar en certificados_por_chasis usando el chasis limpio del producto o sus variantes
+            nro_cert = certificados_por_chasis.get(chasis_norm)
+            if not nro_cert:
+                # Probar versión sin guiones si no hubo coincidencia exacta
+                ch_simple = chasis_norm.replace("-", "").replace(" ", "")
+                for k, v in certificados_por_chasis.items():
+                    if k.replace("-", "").replace(" ", "") == ch_simple:
+                        nro_cert = v
+                        break
+
             vehiculos_en_playa.append({
                 "id_producto": p.id_producto,
                 "chasis": p.chasis,
                 "marca": p.marca,
                 "modelo": p.modelo,
-                "nro_cert_nac": certificados_por_chasis.get(chasis_norm) or p.nro_cert_nac,
+                "nro_cert_nac": nro_cert or p.nro_cert_nac,
             })
     return AnalizarDocumentosResponse(
         nro_despacho=nro_despacho,
@@ -4078,8 +4180,16 @@ async def create_documento_importacion(
         nro_cert = (v.get("nro_cert_nac") or "").strip() or None
         if not chasis:
             continue
+        # Búsqueda flexible de chasis (ignorando guiones y espacios)
+        chasis_norm = chasis.upper().replace("-", "").replace(" ", "")
         res = await session.execute(
-            select(Producto).where(func.upper(func.trim(Producto.chasis)) == chasis.upper())
+            select(Producto).where(
+                or_(
+                    func.upper(func.trim(Producto.chasis)) == chasis.upper(),
+                    func.replace(func.replace(func.upper(func.trim(Producto.chasis)), '-', ''), ' ', '') == chasis_norm
+                ),
+                Producto.activo == True
+            )
         )
         prod = res.scalar_one_or_none()
         if prod:

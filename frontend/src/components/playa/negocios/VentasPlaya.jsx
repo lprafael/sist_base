@@ -42,6 +42,9 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         monto_refuerzo: 0,
         periodo_int_mora: 'D',
         monto_int_mora: 0,
+        tasa_interes: 0,
+        dias_gracia: 0,
+        id_vendedor: '',
         id_escribania: '',
         tipo_documento_propiedad: '',
         observaciones: ''
@@ -106,16 +109,25 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         }
     };
 
-    const handleAnularVenta = async (ventaId) => {
-        if (!confirm('¿Desea anular esta venta? Se eliminarán los pagarés asociados si no existen pagos.')) return;
+    const handleAnularVenta = async (ventaId, numeroVenta) => {
+        if (!confirm(
+            `¿Está seguro de que desea ELIMINAR COMPLETAMENTE la venta ${numeroVenta || ventaId}?\n\n` +
+            `Esta acción eliminará:\n` +
+            `• La venta y sus detalles\n` +
+            `• Todos los pagarés asociados\n` +
+            `• El vehículo volverá a estar DISPONIBLE\n\n` +
+            `Solo es posible si la venta no tiene cuotas pagadas.\n` +
+            `Esta acción NO se puede deshacer.`
+        )) return;
         try {
             const token = sessionStorage.getItem('token');
-            await axios.put(`${API_URL}/playa/ventas/${ventaId}/anular`, null, {
+            const res = await axios.delete(`${API_URL}/playa/ventas/${ventaId}/anular`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            alert(res.data?.message || 'Venta eliminada correctamente.');
             fetchData();
         } catch (error) {
-            alert('Error al anular venta: ' + (error.response?.data?.detail || error.message));
+            alert('Error al eliminar venta: ' + (error.response?.data?.detail || error.message));
         }
     };
 
@@ -152,7 +164,9 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             monto_refuerzo: parseFloat(venta.monto_refuerzo) || 0,
             periodo_int_mora: venta.periodo_int_mora || 'D',
             monto_int_mora: parseFloat(venta.monto_int_mora) || 0,
+            tasa_interes: parseFloat(venta.tasa_interes) || 0,
             dias_gracia: parseInt(venta.dias_gracia) || 0,
+            id_vendedor: venta.id_vendedor || '',
             id_escribania: venta.id_escribania || '',
             tipo_documento_propiedad: venta.tipo_documento_propiedad || '',
             observaciones: venta.observaciones || ''
@@ -193,7 +207,9 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             monto_refuerzo: 0,
             periodo_int_mora: 'D',
             monto_int_mora: 0,
+            tasa_interes: 0,
             dias_gracia: 0,
+            id_vendedor: '',
             id_escribania: '',
             tipo_documento_propiedad: '',
             observaciones: ''
@@ -428,10 +444,9 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                             <button
                                 type="button"
                                 className="btn-anular"
-                                disabled={(v.estado_venta || 'ACTIVA') === 'ANULADA'}
-                                onClick={() => handleAnularVenta(v.id_venta)}
+                                onClick={() => handleAnularVenta(v.id_venta, v.numero_venta)}
                             >
-                                Anular
+                                Eliminar Venta
                             </button>
                         </div>
                     </div>
@@ -441,311 +456,330 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content large">
-                        <h3>{editingVenta ? 'Editar Venta' : 'Nueva Venta de Vehículo'}</h3>
-                        <form onSubmit={handleSaveVenta}>
-                            {newVenta.tipo_venta === 'FINANCIADO' && (
-                                <div className="modal-tabs">
-                                    <button
-                                        type="button"
-                                        className={`tab-btn ${activeTab === 'datos' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('datos')}
-                                    >
-                                        Datos de Venta
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tab-btn ${activeTab === 'financiamiento' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('financiamiento')}
-                                    >
-                                        Financiación
-                                    </button>
-                                </div>
-                            )}
+                        <div className="modal-header">
+                            <h3>{editingVenta ? 'Editar Venta' : 'Nueva Venta de Vehículo'}</h3>
+                            <button className="btn-close-modal-top" onClick={handleCloseModal}>&times;</button>
+                        </div>
+                        <form onSubmit={handleSaveVenta} className="modal-form">
+                            <div className="modal-body">
+                                {newVenta.tipo_venta === 'FINANCIADO' && (
+                                    <div className="modal-tabs">
+                                        <button
+                                            type="button"
+                                            className={`tab-btn ${activeTab === 'datos' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('datos')}
+                                        >
+                                            Datos de Venta
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`tab-btn ${activeTab === 'financiamiento' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('financiamiento')}
+                                        >
+                                            Financiación
+                                        </button>
+                                    </div>
+                                )}
 
-                            <div className="tab-content">
-                                {activeTab === 'datos' ? (
-                                    <>
-                                        <div className="form-row">
-                                            <div className="form-group searchable-select-container" ref={dropdownRef}>
-                                                <label>Buscar Cliente (Nombre o Documento)</label>
-                                                <div className="searchable-select">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Escriba para buscar por nombre o documento..."
-                                                        value={clientSearch}
-                                                        onChange={(e) => {
-                                                            setClientSearch(e.target.value);
-                                                            setShowClientDropdown(true);
-                                                        }}
-                                                        onFocus={() => setShowClientDropdown(true)}
-                                                        className="search-input-modal"
-                                                    />
-                                                    {showClientDropdown && (
-                                                        <div className="select-dropdown">
-                                                            {clientes
-                                                                .filter(c => {
+                                <div className="tab-content">
+                                    {activeTab === 'datos' ? (
+                                        <>
+                                            <div className="form-row">
+                                                <div className="form-group searchable-select-container" ref={dropdownRef}>
+                                                    <label>Buscar Cliente (Nombre o Documento)</label>
+                                                    <div className="searchable-select">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Escriba para buscar por nombre o documento..."
+                                                            value={clientSearch}
+                                                            onChange={(e) => {
+                                                                setClientSearch(e.target.value);
+                                                                setShowClientDropdown(true);
+                                                            }}
+                                                            onFocus={() => setShowClientDropdown(true)}
+                                                            className="search-input-modal"
+                                                        />
+                                                        {showClientDropdown && (
+                                                            <div className="select-dropdown">
+                                                                {clientes
+                                                                    .filter(c => {
+                                                                        const search = clientSearch.toLowerCase();
+                                                                        return (c.nombre + ' ' + c.apellido).toLowerCase().includes(search) ||
+                                                                            c.numero_documento.toLowerCase().includes(search);
+                                                                    })
+                                                                    .map(c => (
+                                                                        <div
+                                                                            key={c.id_cliente}
+                                                                            className="dropdown-item"
+                                                                            onClick={() => {
+                                                                                setNewVenta({ ...newVenta, id_cliente: c.id_cliente });
+                                                                                setClientSearch(`${c.nombre} ${c.apellido} (${c.numero_documento})`);
+                                                                                setShowClientDropdown(false);
+                                                                            }}
+                                                                        >
+                                                                            {c.nombre} {c.apellido} ({c.numero_documento})
+                                                                        </div>
+                                                                    ))
+                                                                }
+                                                                {clientes.filter(c => {
                                                                     const search = clientSearch.toLowerCase();
                                                                     return (c.nombre + ' ' + c.apellido).toLowerCase().includes(search) ||
                                                                         c.numero_documento.toLowerCase().includes(search);
-                                                                })
-                                                                .map(c => (
-                                                                    <div
-                                                                        key={c.id_cliente}
-                                                                        className="dropdown-item"
-                                                                        onClick={() => {
-                                                                            setNewVenta({ ...newVenta, id_cliente: c.id_cliente });
-                                                                            setClientSearch(`${c.nombre} ${c.apellido} (${c.numero_documento})`);
-                                                                            setShowClientDropdown(false);
-                                                                        }}
-                                                                    >
-                                                                        {c.nombre} {c.apellido} ({c.numero_documento})
-                                                                    </div>
-                                                                ))
-                                                            }
-                                                            {clientes.filter(c => {
-                                                                const search = clientSearch.toLowerCase();
-                                                                return (c.nombre + ' ' + c.apellido).toLowerCase().includes(search) ||
-                                                                    c.numero_documento.toLowerCase().includes(search);
-                                                            }).length === 0 && (
-                                                                    <div className="dropdown-no-results">No se encontraron clientes</div>
-                                                                )}
+                                                                }).length === 0 && (
+                                                                        <div className="dropdown-no-results">No se encontraron clientes</div>
+                                                                    )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <input type="hidden" required value={newVenta.id_cliente} />
+                                                    {newVenta.id_cliente && !showClientDropdown && (
+                                                        <div className="selected-client-badge">
+                                                            Cliente seleccionado: <strong>{clientes.find(c => c.id_cliente === parseInt(newVenta.id_cliente))?.nombre} {clientes.find(c => c.id_cliente === parseInt(newVenta.id_cliente))?.apellido}</strong>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <input type="hidden" required value={newVenta.id_cliente} />
-                                                {newVenta.id_cliente && !showClientDropdown && (
-                                                    <div className="selected-client-badge">
-                                                        Cliente seleccionado: <strong>{clientes.find(c => c.id_cliente === parseInt(newVenta.id_cliente))?.nombre} {clientes.find(c => c.id_cliente === parseInt(newVenta.id_cliente))?.apellido}</strong>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="form-group searchable-select-container" ref={vehicleDropdownRef}>
-                                                <label>Vehículo Disponible (Marca, Modelo o Chasis)</label>
-                                                <div className="searchable-select">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Escriba para buscar vehículo..."
-                                                        disabled={!!editingVenta}
-                                                        value={vehicleSearch}
-                                                        onChange={(e) => {
-                                                            setVehicleSearch(e.target.value);
-                                                            setShowVehicleDropdown(true);
-                                                        }}
-                                                        onFocus={() => setShowVehicleDropdown(true)}
-                                                        className="search-input-modal"
-                                                    />
-                                                    {showVehicleDropdown && !editingVenta && (
-                                                        <div className="select-dropdown">
-                                                            {vehiculos
-                                                                .filter(v => {
+                                                <div className="form-group searchable-select-container" ref={vehicleDropdownRef}>
+                                                    <label>Vehículo Disponible (Marca, Modelo o Chasis)</label>
+                                                    <div className="searchable-select">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Escriba para buscar vehículo..."
+                                                            disabled={!!editingVenta}
+                                                            value={vehicleSearch}
+                                                            onChange={(e) => {
+                                                                setVehicleSearch(e.target.value);
+                                                                setShowVehicleDropdown(true);
+                                                            }}
+                                                            onFocus={() => setShowVehicleDropdown(true)}
+                                                            className="search-input-modal"
+                                                        />
+                                                        {showVehicleDropdown && !editingVenta && (
+                                                            <div className="select-dropdown">
+                                                                {vehiculos
+                                                                    .filter(v => {
+                                                                        const search = vehicleSearch.toLowerCase();
+                                                                        return v.marca.toLowerCase().includes(search) ||
+                                                                            v.modelo.toLowerCase().includes(search) ||
+                                                                            v.chasis.toLowerCase().includes(search);
+                                                                    })
+                                                                    .map(v => (
+                                                                        <div
+                                                                            key={v.id_producto}
+                                                                            className="dropdown-item"
+                                                                            onClick={() => {
+                                                                                handleVehiculoChange(v.id_producto);
+                                                                                setVehicleSearch(`${v.marca} ${v.modelo} (${v.chasis})`);
+                                                                                setShowVehicleDropdown(false);
+                                                                            }}
+                                                                        >
+                                                                            <strong>{v.marca} {v.modelo}</strong> ({v.chasis})
+                                                                        </div>
+                                                                    ))
+                                                                }
+                                                                {vehiculos.filter(v => {
                                                                     const search = vehicleSearch.toLowerCase();
                                                                     return v.marca.toLowerCase().includes(search) ||
                                                                         v.modelo.toLowerCase().includes(search) ||
                                                                         v.chasis.toLowerCase().includes(search);
-                                                                })
-                                                                .map(v => (
-                                                                    <div
-                                                                        key={v.id_producto}
-                                                                        className="dropdown-item"
-                                                                        onClick={() => {
-                                                                            handleVehiculoChange(v.id_producto);
-                                                                            setVehicleSearch(`${v.marca} ${v.modelo} (${v.chasis})`);
-                                                                            setShowVehicleDropdown(false);
-                                                                        }}
-                                                                    >
-                                                                        <strong>{v.marca} {v.modelo}</strong> ({v.chasis})
-                                                                    </div>
-                                                                ))
-                                                            }
-                                                            {vehiculos.filter(v => {
-                                                                const search = vehicleSearch.toLowerCase();
-                                                                return v.marca.toLowerCase().includes(search) ||
-                                                                    v.modelo.toLowerCase().includes(search) ||
-                                                                    v.chasis.toLowerCase().includes(search);
-                                                            }).length === 0 && (
-                                                                    <div className="dropdown-no-results">No se encontraron vehículos disponibles</div>
-                                                                )}
-                                                        </div>
-                                                    )}
+                                                                }).length === 0 && (
+                                                                        <div className="dropdown-no-results">No se encontraron vehículos disponibles</div>
+                                                                    )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <input type="hidden" required value={newVenta.id_producto} />
                                                 </div>
-                                                <input type="hidden" required value={newVenta.id_producto} />
                                             </div>
-                                        </div>
 
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Fecha Venta</label>
-                                                <input type="date" value={newVenta.fecha_venta} onChange={(e) => setNewVenta({ ...newVenta, fecha_venta: e.target.value })} />
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Fecha Venta</label>
+                                                    <input type="date" value={newVenta.fecha_venta} onChange={(e) => setNewVenta({ ...newVenta, fecha_venta: e.target.value })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Descuento (Gs.)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={newVenta.descuento}
+                                                        onChange={(e) => {
+                                                            const descuento = parseFloat(e.target.value) || 0;
+                                                            const updated = { ...newVenta, descuento, precio_final: (newVenta.precio_venta - descuento) };
+                                                            setNewVenta(calculateFinancing(updated));
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="form-group">
-                                                <label>Descuento (Gs.)</label>
-                                                <input
-                                                    type="number"
-                                                    value={newVenta.descuento}
-                                                    onChange={(e) => {
-                                                        const descuento = parseFloat(e.target.value) || 0;
-                                                        const updated = { ...newVenta, descuento, precio_final: (newVenta.precio_venta - descuento) };
-                                                        setNewVenta(calculateFinancing(updated));
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
 
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Tipo de Venta</label>
-                                                <select value={newVenta.tipo_venta} onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    // Si hay un vehículo seleccionado, actualizar el precio según el tipo de venta
-                                                    let updatedVenta = { ...newVenta, tipo_venta: val };
-                                                    if (newVenta.id_producto) {
-                                                        const v = vehiculos.find(veh => veh.id_producto === parseInt(newVenta.id_producto));
-                                                        if (v) {
-                                                            const precio = val === 'FINANCIADO' && v.precio_financiado_sugerido
-                                                                ? parseFloat(v.precio_financiado_sugerido)
-                                                                : parseFloat(v.precio_contado_sugerido);
-                                                            updatedVenta.precio_venta = precio;
-                                                            updatedVenta.precio_final = precio - updatedVenta.descuento;
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Tipo de Venta</label>
+                                                    <select value={newVenta.tipo_venta} onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        // Si hay un vehículo seleccionado, actualizar el precio según el tipo de venta
+                                                        let updatedVenta = { ...newVenta, tipo_venta: val };
+                                                        if (newVenta.id_producto) {
+                                                            const v = vehiculos.find(veh => veh.id_producto === parseInt(newVenta.id_producto));
+                                                            if (v) {
+                                                                const precio = val === 'FINANCIADO' && v.precio_financiado_sugerido
+                                                                    ? parseFloat(v.precio_financiado_sugerido)
+                                                                    : parseFloat(v.precio_contado_sugerido);
+                                                                updatedVenta.precio_venta = precio;
+                                                                updatedVenta.precio_final = precio - updatedVenta.descuento;
+                                                            }
                                                         }
-                                                    }
-                                                    setNewVenta(calculateFinancing(updatedVenta));
-                                                }}>
-                                                    <option value="CONTADO">Contado</option>
-                                                    <option value="FINANCIADO">Financiado</option>
-                                                </select>
+                                                        setNewVenta(calculateFinancing(updatedVenta));
+                                                    }}>
+                                                        <option value="CONTADO">Contado</option>
+                                                        <option value="FINANCIADO">Financiado</option>
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Precio Venta (Gs.)</label>
+                                                    <input type="number" readOnly value={newVenta.precio_venta} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Precio Final (Gs.)</label>
+                                                    <input type="number" readOnly value={newVenta.precio_final} />
+                                                </div>
                                             </div>
-                                            <div className="form-group">
-                                                <label>Precio Venta (Gs.)</label>
-                                                <input type="number" readOnly value={newVenta.precio_venta} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Precio Final (Gs.)</label>
-                                                <input type="number" readOnly value={newVenta.precio_final} />
-                                            </div>
-                                        </div>
 
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Escribanía</label>
-                                                <select
-                                                    value={newVenta.id_escribania || ''}
-                                                    onChange={(e) => setNewVenta({ ...newVenta, id_escribania: e.target.value })}
-                                                >
-                                                    <option value="">-- Seleccionar Escribanía --</option>
-                                                    {escribanias.map(esc => (
-                                                        <option key={esc.id_escribania} value={esc.id_escribania}>
-                                                            {esc.nombre}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Escribanía</label>
+                                                    <select
+                                                        value={newVenta.id_escribania || ''}
+                                                        onChange={(e) => setNewVenta({ ...newVenta, id_escribania: e.target.value })}
+                                                    >
+                                                        <option value="">-- Seleccionar Escribanía --</option>
+                                                        {escribanias.map(esc => (
+                                                            <option key={esc.id_escribania} value={esc.id_escribania}>
+                                                                {esc.nombre}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Documento de Propiedad</label>
+                                                    <select
+                                                        value={newVenta.tipo_documento_propiedad || ''}
+                                                        onChange={(e) => setNewVenta({ ...newVenta, tipo_documento_propiedad: e.target.value })}
+                                                    >
+                                                        <option value="">-- Seleccionar --</option>
+                                                        <option value="TITULO_AL_CONTADO">Título al Contado</option>
+                                                        <option value="PRENDADO">Prendado</option>
+                                                        <option value="RECONOCIMIENTO_DE_DEUDA">Reconocimiento de Deuda</option>
+                                                        <option value="CONTRATO_SIMPLE">Contrato Simple</option>
+                                                        <option value="OTRO">Otro</option>
+                                                    </select>
+                                                </div>
                                             </div>
-                                            <div className="form-group">
-                                                <label>Documento de Propiedad</label>
-                                                <select
-                                                    value={newVenta.tipo_documento_propiedad || ''}
-                                                    onChange={(e) => setNewVenta({ ...newVenta, tipo_documento_propiedad: e.target.value })}
-                                                >
-                                                    <option value="">-- Seleccionar --</option>
-                                                    <option value="TRANSFERENCIA">Transferencia</option>
-                                                    <option value="PRENDADO">Prendado</option>
-                                                    <option value="CEDULA_MARRON">Cédula Marrón</option>
-                                                    <option value="OTRO">Otro</option>
-                                                </select>
-                                            </div>
-                                        </div>
 
-                                        <div className="form-row">
-                                            <div className="form-group full-width">
-                                                <label>Observaciones</label>
-                                                <textarea
-                                                    value={newVenta.observaciones || ''}
-                                                    onChange={(e) => setNewVenta({ ...newVenta, observaciones: e.target.value })}
-                                                    rows="2"
-                                                    className="observaciones-textarea"
-                                                />
+                                            <div className="form-row">
+                                                <div className="form-group full-width">
+                                                    <label>Observaciones</label>
+                                                    <textarea
+                                                        value={newVenta.observaciones || ''}
+                                                        onChange={(e) => setNewVenta({ ...newVenta, observaciones: e.target.value })}
+                                                        rows="2"
+                                                        className="observaciones-textarea"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="financing-section">
+                                            <h4>Configuración de Cuotas y Refuerzos</h4>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Entrega Inicial (Gs.)</label>
+                                                    <input type="number" value={newVenta.entrega_inicial}
+                                                        onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, entrega_inicial: parseFloat(e.target.value) || 0 }))} />
+                                                </div>
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Cant. Cuotas</label>
+                                                    <input type="number" value={newVenta.cantidad_cuotas}
+                                                        onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, cantidad_cuotas: parseInt(e.target.value) || 0 }))} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Monto Cuota (Gs.)</label>
+                                                    <input type="number" value={newVenta.monto_cuota}
+                                                        onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, monto_cuota: parseFloat(e.target.value) || 0 }))} />
+                                                </div>
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Cant. Refuerzos</label>
+                                                    <input type="number" value={newVenta.cantidad_refuerzos}
+                                                        onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, cantidad_refuerzos: parseInt(e.target.value) || 0 }))} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Monto Refuerzo (Gs.)</label>
+                                                    <input type="number" value={newVenta.monto_refuerzo}
+                                                        onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, monto_refuerzo: parseFloat(e.target.value) || 0 }))} />
+                                                </div>
+                                            </div>
+                                            <div className="form-row" style={{ marginTop: '10px', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#f8fafc' }}>
+                                                <div className="form-group">
+                                                    <label>Calcular Mora cada:</label>
+                                                    <select value={newVenta.periodo_int_mora} onChange={(e) => setNewVenta({ ...newVenta, periodo_int_mora: e.target.value })}>
+                                                        <option value="D">Día</option>
+                                                        <option value="S">Semana</option>
+                                                        <option value="M">Mes</option>
+                                                        <option value="A">Año</option>
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Interés Mora (%)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={newVenta.tasa_interes}
+                                                        onChange={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            setNewVenta({
+                                                                ...newVenta,
+                                                                tasa_interes: val,
+                                                                monto_int_mora: val > 0 ? 0 : newVenta.monto_int_mora
+                                                            });
+                                                        }}
+                                                        placeholder="% sobre saldo"
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Cargo Fijo por Período</label>
+                                                    <input
+                                                        type="number"
+                                                        value={newVenta.monto_int_mora}
+                                                        onChange={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            setNewVenta({
+                                                                ...newVenta,
+                                                                monto_int_mora: val,
+                                                                tasa_interes: val > 0 ? 0 : newVenta.tasa_interes
+                                                            });
+                                                        }}
+                                                        placeholder="Gs. por período de atraso"
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Días Gracia</label>
+                                                    <input
+                                                        type="number"
+                                                        value={newVenta.dias_gracia}
+                                                        onChange={(e) => setNewVenta({ ...newVenta, dias_gracia: parseInt(e.target.value) || 0 })}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="info-resumen" style={{ marginTop: '20px', padding: '15px', background: '#e2e8f0', borderRadius: '10px' }}>
+                                                <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>Entrega Inicial: Gs. {(newVenta.entrega_inicial || 0).toLocaleString('es-PY')}</p>
+                                                <p style={{ margin: '0', fontWeight: 'bold', color: '#444' }}>Total Financiado (Cuotas + Refuerzos): Gs. {((newVenta.cantidad_cuotas * newVenta.monto_cuota) + (newVenta.cantidad_refuerzos * newVenta.monto_refuerzo)).toLocaleString('es-PY')}</p>
+                                                <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', borderTop: '1px solid #cbd5e1', paddingTop: '5px' }}>Total Venta: Gs. {(newVenta.precio_final || 0).toLocaleString('es-PY')}</p>
                                             </div>
                                         </div>
-                                    </>
-                                ) : (
-                                    <div className="financing-section">
-                                        <h4>Configuración de Cuotas y Refuerzos</h4>
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Entrega Inicial (Gs.)</label>
-                                                <input type="number" value={newVenta.entrega_inicial}
-                                                    onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, entrega_inicial: parseFloat(e.target.value) || 0 }))} />
-                                            </div>
-                                        </div>
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Cant. Cuotas</label>
-                                                <input type="number" value={newVenta.cantidad_cuotas}
-                                                    onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, cantidad_cuotas: parseInt(e.target.value) || 0 }))} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Monto Cuota (Gs.)</label>
-                                                <input type="number" value={newVenta.monto_cuota}
-                                                    onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, monto_cuota: parseFloat(e.target.value) || 0 }))} />
-                                            </div>
-                                        </div>
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Cant. Refuerzos</label>
-                                                <input type="number" value={newVenta.cantidad_refuerzos}
-                                                    onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, cantidad_refuerzos: parseInt(e.target.value) || 0 }))} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Monto Refuerzo (Gs.)</label>
-                                                <input type="number" value={newVenta.monto_refuerzo}
-                                                    onChange={(e) => setNewVenta(calculateFinancing({ ...newVenta, monto_refuerzo: parseFloat(e.target.value) || 0 }))} />
-                                            </div>
-                                        </div>
-                                        <div className="form-row" style={{ marginTop: '10px', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#f8fafc' }}>
-                                            <div className="form-group">
-                                                <label>Calcular Mora cada:</label>
-                                                <select value={newVenta.periodo_int_mora} onChange={(e) => setNewVenta({ ...newVenta, periodo_int_mora: e.target.value })}>
-                                                    <option value="D">Día</option>
-                                                    <option value="S">Semana</option>
-                                                    <option value="M">Mes</option>
-                                                    <option value="A">Año</option>
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Interés Mora (%)</label>
-                                                <input
-                                                    type="number"
-                                                    value={newVenta.tasa_interes}
-                                                    onChange={(e) => setNewVenta({ ...newVenta, tasa_interes: parseFloat(e.target.value) || 0 })}
-                                                    placeholder="% sobre saldo"
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Cargo Fijo por Período</label>
-                                                <input
-                                                    type="number"
-                                                    value={newVenta.monto_int_mora}
-                                                    onChange={(e) => setNewVenta({ ...newVenta, monto_int_mora: parseFloat(e.target.value) || 0 })}
-                                                    placeholder="Gs. por período de atraso"
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Días Gracia</label>
-                                                <input
-                                                    type="number"
-                                                    value={newVenta.dias_gracia}
-                                                    onChange={(e) => setNewVenta({ ...newVenta, dias_gracia: parseInt(e.target.value) || 0 })}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="info-resumen" style={{ marginTop: '20px', padding: '15px', background: '#e2e8f0', borderRadius: '10px' }}>
-                                            <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>Entrega Inicial: Gs. {(newVenta.entrega_inicial || 0).toLocaleString('es-PY')}</p>
-                                            <p style={{ margin: '0', fontWeight: 'bold', color: '#444' }}>Total Financiado (Cuotas + Refuerzos): Gs. {((newVenta.cantidad_cuotas * newVenta.monto_cuota) + (newVenta.cantidad_refuerzos * newVenta.monto_refuerzo)).toLocaleString('es-PY')}</p>
-                                            <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', borderTop: '1px solid #cbd5e1', paddingTop: '5px' }}>Total Venta: Gs. {(newVenta.precio_final || 0).toLocaleString('es-PY')}</p>
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ height: '20px' }}></div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
                                 <button type="submit" className="btn-save">{editingVenta ? 'Guardar Cambios' : 'Confirmar Venta y Generar Pagarés'}</button>
@@ -758,59 +792,64 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             {showAfterSalePagares && (
                 <div className="modal-overlay">
                     <div className="modal-content large">
-                        <h3>Venta Registrada - Editar Pagarés Generados</h3>
-                        <p>A continuación puede ajustar las fechas y números de los pagarés generados automáticamente.</p>
+                        <div className="modal-header">
+                            <h3>Venta Registrada - Editar Pagarés Generados</h3>
+                            <button className="btn-close-modal-top" onClick={handleCloseModal}>&times;</button>
+                        </div>
+                        <div className="modal-body">
+                            <p>A continuación puede ajustar las fechas y números de los pagarés generados automáticamente.</p>
 
-                        <div className="pagares-edit-list" style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px' }}>
-                            <table className="custom-table">
-                                <thead>
-                                    <tr>
-                                        <th>Nro. Pagaré</th>
-                                        <th>Cuota</th>
-                                        <th>Monto</th>
-                                        <th>Vencimiento</th>
-                                        <th>Observaciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {justCreatedPagares.map(p => (
-                                        <tr key={p.id_pagare}>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    value={p.numero_pagare}
-                                                    onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, numero_pagare: e.target.value })}
-                                                    style={{ width: '120px' }}
-                                                />
-                                            </td>
-                                            <td>{p.numero_cuota} ({p.tipo_pagare})</td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    value={p.monto_cuota}
-                                                    onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, monto_cuota: e.target.value })}
-                                                    style={{ width: '100px' }}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="date"
-                                                    value={p.fecha_vencimiento}
-                                                    onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, fecha_vencimiento: e.target.value })}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    value={p.observaciones || ''}
-                                                    placeholder="Opcional"
-                                                    onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, observaciones: e.target.value })}
-                                                />
-                                            </td>
+                            <div className="pagares-edit-list">
+                                <table className="custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nro. Pagaré</th>
+                                            <th>Cuota</th>
+                                            <th>Monto</th>
+                                            <th>Vencimiento</th>
+                                            <th>Observaciones</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {justCreatedPagares.map(p => (
+                                            <tr key={p.id_pagare}>
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        value={p.numero_pagare}
+                                                        onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, numero_pagare: e.target.value })}
+                                                        style={{ width: '120px' }}
+                                                    />
+                                                </td>
+                                                <td>{p.numero_cuota} ({p.tipo_pagare})</td>
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        value={p.monto_cuota}
+                                                        onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, monto_cuota: e.target.value })}
+                                                        style={{ width: '100px' }}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="date"
+                                                        value={p.fecha_vencimiento}
+                                                        onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, fecha_vencimiento: e.target.value })}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        value={p.observaciones || ''}
+                                                        placeholder="Opcional"
+                                                        onChange={(e) => handleUpdateJustCreatedPagare(p.id_pagare, { ...p, observaciones: e.target.value })}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div className="modal-actions">

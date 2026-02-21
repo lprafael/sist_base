@@ -486,6 +486,33 @@
     transform: scale(1.05);
 }
 
+.btn-document-card {
+    background-color: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-document-card:hover {
+    background-color: #e2e8f0;
+    transform: scale(1.05);
+}
+
+.btn-icon.doc {
+    color: #64748b;
+}
+
+.btn-icon.doc:hover {
+    background-color: #f1f5f9;
+    color: #3b82f6;
+}
+
 .btn-icon.sell {
     color: #059669;
 }

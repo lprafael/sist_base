@@ -21,6 +21,10 @@ async def resend_user_password(
 ):
     """Genera una nueva contraseña temporal y la envía al usuario por email"""
     username = data.username
+    print(f"DEBUG: Resend password requested for username: {username}")
+    if not username:
+        raise HTTPException(status_code=400, detail="El nombre de usuario es requerido")
+    
     result = await session.execute(select(Usuario).where(Usuario.username == username))
     user = result.scalar_one_or_none()
     if not user:
@@ -31,10 +35,17 @@ async def resend_user_password(
     user.hashed_password = get_password_hash(temp_password)
     await session.commit()
     # Enviar email
-    email_service.send_welcome_email(
+    enviado = email_service.send_welcome_email(
         user.email,
         user.username,
         temp_password,
         user.rol
     )
+    
+    if not enviado:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Se generó la contraseña pero no se pudo enviar el correo de notificación. Por favor verifica la configuración de email."
+        )
+        
     return {"message": "Se ha enviado una nueva contraseña temporal al usuario por email."}

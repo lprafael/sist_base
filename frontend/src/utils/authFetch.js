@@ -4,7 +4,7 @@
 export async function authFetch(url, options = {}) {
   // Obtener el token actual
   let token = sessionStorage.getItem('token');
-  
+
   // Configurar headers iniciales
   const headers = {
     'Content-Type': 'application/json',
@@ -13,9 +13,9 @@ export async function authFetch(url, options = {}) {
   };
 
   // Asegurarse de que la URL sea relativa para usar el proxy
-  const requestUrl = url.startsWith('http') ? url : 
-                    (url.startsWith('/api') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`);
-  
+  const requestUrl = url.startsWith('http') ? url :
+    (url.startsWith('/api') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`);
+
   // Realizar la petición
   let response = await fetch(requestUrl, { ...options, headers });
 
@@ -36,16 +36,16 @@ export async function authFetch(url, options = {}) {
 
         if (refreshResponse.ok) {
           const { access_token, refresh_token } = await refreshResponse.json();
-          
+
           // Actualizar tokens
           sessionStorage.setItem('token', access_token);
           if (refresh_token) {
             sessionStorage.setItem('refreshToken', refresh_token);
           }
-          
+
           // Reintentar la petición original con el nuevo token
           headers['Authorization'] = `Bearer ${access_token}`;
-          response = await fetch(url, { ...options, headers });
+          response = await fetch(requestUrl, { ...options, headers });
         } else {
           // Si el refresh falla, limpiar y redirigir a login
           sessionStorage.removeItem('token');

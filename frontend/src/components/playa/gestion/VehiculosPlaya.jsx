@@ -3,7 +3,7 @@ import axios from 'axios';
 import './VehiculosPlaya.css';
 import ImagenesVehiculo from './ImagenesVehiculo.jsx';
 
-const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId, setPreselectedCategoryId }) => {
+const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId, setPreselectedCategoryId, setPreselectedDespacho }) => {
     const [vehiculos, setVehiculos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -277,6 +277,15 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
         setTab('ventas_playa');
     };
 
+    const handleVerDocumento = (v) => {
+        if (!v.nro_despacho) {
+            alert('Este vehículo no tiene un número de despacho vinculado.');
+            return;
+        }
+        setPreselectedDespacho(v.nro_despacho);
+        setTab('documentos_importacion');
+    };
+
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -422,6 +431,13 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     >
                                         {v.estado_disponibilidad === 'DISPONIBLE' ? 'Vender' : 'No Disponible'}
                                     </button>
+                                    <button
+                                        className="btn-document-card"
+                                        title="Ver Despacho / Certificado"
+                                        onClick={() => handleVerDocumento(v)}
+                                    >
+                                        📄
+                                    </button>
                                     {isAdmin && (
                                         <button
                                             className="btn-delete-card"
@@ -502,6 +518,13 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                     onClick={() => handleVenderClick(v)}
                                                 >
                                                     💲
+                                                </button>
+                                                <button
+                                                    className="btn-icon doc"
+                                                    title="Ver Despacho / Certificado"
+                                                    onClick={() => handleVerDocumento(v)}
+                                                >
+                                                    📄
                                                 </button>
                                                 {isAdmin && (
                                                     <button

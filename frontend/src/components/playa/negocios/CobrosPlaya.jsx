@@ -134,6 +134,7 @@ const CobrosPlaya = () => {
                             cliente: clienteNombre || 'N/A',
                             numero_documento: clienteDoc,
                             vehiculo: vehiculoInfo || 'N/A',
+                            chasis: venta.producto?.chasis || '',
                             periodo_int_mora: venta.periodo_int_mora,
                             monto_int_mora: venta.monto_int_mora,
                             tasa_interes: venta.tasa_interes,
@@ -190,11 +191,13 @@ const CobrosPlaya = () => {
                     cliente: ventaInfo?.cliente || 'N/A',
                     numero_documento: ventaInfo?.numero_documento || '',
                     vehiculo: ventaInfo?.vehiculo || 'N/A',
+                    chasis: ventaInfo?.chasis || '',
                     periodo_int_mora: ventaInfo?.periodo_int_mora,
                     monto_int_mora: ventaInfo?.monto_int_mora,
                     tasa_interes: ventaInfo?.tasa_interes,
                     dias_gracia: ventaInfo?.dias_gracia,
                     cancelado: p.cancelado || false,
+                    tipo_pagare: p.tipo_pagare || 'CUOTA',
                     // ✅ IMPORTANTE: Incluir el array de pagos que viene del backend
                     pagos: p.pagos || []
                 };
@@ -207,10 +210,10 @@ const CobrosPlaya = () => {
             console.log('Pagarés con información completa:', pagaresConInfo.length, 'de', pagaresWithInfo.length);
             console.log('Pagarés con pagos:', pagaresWithInfo.filter(p => p.pagos && p.pagos.length > 0).length);
 
-            // Calcular total de cuotas por venta
+            // Calcular total de cuotas por venta (solo tipo CUOTA, excluyendo ENTREGA_INICIAL)
             const ventasCuotas = {};
             pagaresWithInfo.forEach(p => {
-                if (p.id_venta) {
+                if (p.id_venta && p.tipo_pagare === 'CUOTA') {
                     if (!ventasCuotas[p.id_venta]) {
                         ventasCuotas[p.id_venta] = 0;
                     }
@@ -220,7 +223,9 @@ const CobrosPlaya = () => {
 
             // Asignar total de cuotas
             pagaresWithInfo.forEach(p => {
-                if (p.id_venta) {
+                if (p.tipo_pagare === 'ENTREGA_INICIAL') {
+                    p.total_cuotas = 0; // Muestra 0/0
+                } else if (p.id_venta) {
                     p.total_cuotas = ventasCuotas[p.id_venta] || p.numero_cuota;
                 }
             });
@@ -233,6 +238,32 @@ const CobrosPlaya = () => {
     };
 
     const handleOpenCobro = async (pagare) => {
+        // ✅ VALIDACIÓN: No permitir pagar una cuota sin haber cancelado la anterior
+        const anteriorPendiente = allPagares.find(p =>
+            p.id_venta === pagare.id_venta &&
+            p.tipo_pagare === pagare.tipo_pagare &&
+            p.numero_cuota < pagare.numero_cuota &&
+            !p.cancelado
+        );
+
+        if (anteriorPendiente) {
+            alert(`No se puede cobrar la cuota ${pagare.numero_cuota} sin haber cancelado la anterior (Cuota ${anteriorPendiente.numero_cuota})`);
+            return;
+        }
+
+        // Si es la cuota 1, verificar que la Entrega Inicial esté cancelada
+        if (pagare.tipo_pagare === 'CUOTA' && pagare.numero_cuota === 1) {
+            const eiPendiente = allPagares.find(p =>
+                p.id_venta === pagare.id_venta &&
+                p.tipo_pagare === 'ENTREGA_INICIAL' &&
+                !p.cancelado
+            );
+            if (eiPendiente) {
+                alert('No se puede cobrar la cuota 1 sin haber cancelado la Entrega Inicial');
+                return;
+            }
+        }
+
         setSelectedPagare(pagare);
 
         // Cargar pagos previos para mostrar en el desglose
@@ -331,6 +362,11 @@ const CobrosPlaya = () => {
     const handleConfirmPago = async (e) => {
         e.preventDefault();
         try {
+            if (parseFloat(newPago.monto_pagado) < 0 || parseFloat(newPago.mora_aplicada) < 0) {
+                alert('Los montos no pueden ser negativos');
+                return;
+            }
+
             const token = sessionStorage.getItem('token');
             if (isEditingPago) {
                 await axios.put(`${API_URL}/playa/pagos/${pagoToEdit.id_pago}`, newPago, {
@@ -360,18 +396,12 @@ const CobrosPlaya = () => {
         try {
             setSelectedPagare(pagare);
 
-            // ✅ OPTIMIZACIÓN: Usar el array de pagos que ya viene con el pagaré
-            // en lugar de hacer una llamada adicional a la API
-            if (pagare.pagos && Array.isArray(pagare.pagos)) {
-                setSelectedPagos(pagare.pagos);
-            } else {
-                // Fallback: Si por alguna razón no tiene el array, hacer la llamada
-                const token = sessionStorage.getItem('token');
-                const res = await axios.get(`${API_URL}/playa/pagares/${pagare.id_pagare}/pagos`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setSelectedPagos(res.data);
-            }
+            // Siempre obtener datos frescos al ver historial para asegurar que refleje cambios recientes
+            const token = sessionStorage.getItem('token');
+            const res = await axios.get(`${API_URL}/playa/pagares/${pagare.id_pagare}/pagos`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSelectedPagos(res.data);
 
             setShowPagosModal(true);
         } catch (error) {
@@ -429,11 +459,24 @@ const CobrosPlaya = () => {
 
     const sortedPagares = () => {
         const source = includeCancelados ? allPagares : pagares;
-        const filtered = source.filter(p =>
-            (p.cliente || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.numero_documento || '').includes(searchTerm) ||
-            (p.vehiculo || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const search = searchTerm.toLowerCase().trim();
+        const searchClean = search.replace(/[-\s]/g, '');
+
+        const filtered = source.filter(p => {
+            if (!search) return true;
+
+            const cliente = (p.cliente || '').toLowerCase();
+            const documento = (p.numero_documento || '').toLowerCase();
+            const vehiculo = (p.vehiculo || '').toLowerCase();
+            const chasis = (p.chasis || '').toLowerCase();
+            const chasisClean = chasis.replace(/[-\s]/g, '');
+
+            return cliente.includes(search) ||
+                documento.includes(search) ||
+                vehiculo.includes(search) ||
+                chasis.includes(search) ||
+                (searchClean !== '' && chasisClean.includes(searchClean));
+        });
 
         return filtered.sort((a, b) => {
             let aValue = a[sortConfig.key];
@@ -502,7 +545,8 @@ const CobrosPlaya = () => {
                                 ventasInfo[venta.id_venta] = {
                                     cliente: clienteNombre || 'N/A',
                                     numero_documento: clienteDoc,
-                                    vehiculo: vehiculoInfo || 'N/A'
+                                    vehiculo: vehiculoInfo || 'N/A',
+                                    chasis: venta.producto?.chasis || ''
                                 };
                             }
                         });
@@ -546,6 +590,8 @@ const CobrosPlaya = () => {
                             cliente: ventasInfo[p.id_venta]?.cliente || 'N/A',
                             numero_documento: ventasInfo[p.id_venta]?.numero_documento || '',
                             vehiculo: ventasInfo[p.id_venta]?.vehiculo || 'N/A',
+                            chasis: ventasInfo[p.id_venta]?.chasis || '',
+                            tipo_pagare: p.tipo_pagare || 'CUOTA',
                             total_cuotas: 0
                         };
                     }).filter(p => p.id_venta);
@@ -635,7 +681,8 @@ const CobrosPlaya = () => {
                                     ventasMap[venta.id_venta] = {
                                         cliente: clienteNombre || 'N/A',
                                         numero_documento: clienteDoc,
-                                        vehiculo: vehiculoInfo || 'N/A'
+                                        vehiculo: vehiculoInfo || 'N/A',
+                                        chasis: venta.producto?.chasis || ''
                                     };
                                 }
                             });
@@ -684,6 +731,8 @@ const CobrosPlaya = () => {
                                 cliente: cliente,
                                 numero_documento: numero_documento,
                                 vehiculo: vehiculo,
+                                chasis: ventaInfo?.chasis || '',
+                                tipo_pagare: p.tipo_pagare || 'CUOTA',
                                 total_cuotas: 0
                             };
                         }).filter(p => p.id_venta);
@@ -748,12 +797,14 @@ const CobrosPlaya = () => {
             const cliente = (p.cliente || '').toLowerCase().trim();
             const documento = (p.numero_documento || '').toLowerCase().trim();
             const vehiculo = (p.vehiculo || '').toLowerCase().trim();
+            const chasis = (p.chasis || '').toLowerCase().trim();
 
             // Buscar en todos los campos disponibles (incluso si son 'N/A', buscar en la cadena completa)
             // Esto permite encontrar coincidencias incluso si algunos campos están como 'N/A'
             const matches = cliente.includes(search) ||
                 documento.includes(search) ||
-                vehiculo.includes(search);
+                vehiculo.includes(search) ||
+                chasis.includes(search);
 
             return matches;
         });
@@ -829,6 +880,7 @@ const CobrosPlaya = () => {
                     cliente: p.cliente || 'N/A',
                     numero_documento: p.numero_documento || '',
                     vehiculo: p.vehiculo || 'N/A',
+                    chasis: p.chasis || '',
                     pagares: []
                 };
             }
@@ -1081,14 +1133,33 @@ const CobrosPlaya = () => {
     ` : ''}
     
     ${Object.values(pagaresByVenta).map(ventaData => {
-            const totalMonto = ventaData.pagares.reduce((sum, p) => sum + parseFloat(p.monto_cuota || 0), 0);
-            const totalSaldo = ventaData.pagares.reduce((sum, p) => sum + parseFloat(p.saldo_pendiente || 0), 0);
+            const todayStr = new Date().toISOString().split('T')[0];
             const pagados = ventaData.pagares.filter(p => (p.estado === 'PAGADO' || (parseFloat(p.saldo_pendiente || 0) <= 0))).length;
             const pendientes = ventaData.pagares.filter(p => {
                 const est = p.estado;
                 const saldo = parseFloat(p.saldo_pendiente || 0);
                 return (est === 'PENDIENTE' || est === 'PARCIAL' || est === 'VENCIDO') && saldo > 0;
             }).length;
+
+            // Calcular totales con la nueva lógica
+            let totalMonto = 0;
+            let totalMora = 0;
+            let totalSaldoReal = 0;
+
+            ventaData.pagares.forEach(p => {
+                const m = calcularMora(p, todayStr);
+                const tp = (p.pagos || []).reduce((acc, pg) => acc + parseFloat(pg.monto_pagado || 0), 0);
+                const mc = parseFloat(p.monto_cuota || 0);
+                const sr = Math.max(0, mc + m - tp);
+
+                // Estos valores se usarán dentro del loop del map de abajo
+                p._moraActual = m;
+                p._saldoReal = sr;
+
+                totalMonto += mc;
+                totalMora += m;
+                totalSaldoReal += sr;
+            });
 
             return `
         <div class="venta-group">
@@ -1105,6 +1176,11 @@ const CobrosPlaya = () => {
                 <div class="venta-info-item">
                     <strong>Vehículo:</strong> ${ventaData.vehiculo}
                 </div>
+                ${ventaData.chasis ? `
+                <div class="venta-info-item">
+                    <strong>Chasis:</strong> ${ventaData.chasis}
+                </div>
+                ` : ''}
                 <div class="venta-info-item">
                     <strong>Total Cuotas:</strong> ${ventaData.pagares.length} | 
                     <strong>Pagadas:</strong> ${pagados} | 
@@ -1116,7 +1192,8 @@ const CobrosPlaya = () => {
                     <tr>
                         <th>Cuota</th>
                         <th>Monto Cuota</th>
-                        <th>Saldo Pendiente</th>
+                        <th>Interés (Mora)</th>
+                        <th>Saldo Real</th>
                         <th>Vencimiento</th>
                         <th>Estado</th>
                         ${includeCancelados ? '<th>Fecha de Pago</th>' : ''}
@@ -1130,9 +1207,10 @@ const CobrosPlaya = () => {
                 const fechaVencFormat = p.fecha_vencimiento.split('-').reverse().join('/');
                 return `
                         <tr class="${isOverdue ? 'overdue' : ''}">
-                            <td>${p.numero_cuota}/${p.total_cuotas || p.numero_cuota}</td>
+                            <td>${p.tipo_pagare === 'ENTREGA_INICIAL' ? 'Entrega Inicial' : `${p.numero_cuota}/${p.total_cuotas || p.numero_cuota}`}</td>
                             <td>Gs. ${Math.round(parseFloat(p.monto_cuota || 0)).toLocaleString('es-PY')}</td>
-                            <td>Gs. ${Math.round(parseFloat(p.saldo_pendiente || 0)).toLocaleString('es-PY')}</td>
+                            <td>Gs. ${Math.round(p._moraActual).toLocaleString('es-PY')}</td>
+                            <td>Gs. ${Math.round(p._saldoReal).toLocaleString('es-PY')}</td>
                             <td>${fechaVencFormat}</td>
                             <td>
                                 <span class="status-badge ${p.estado.toLowerCase()}">${p.estado}</span>
@@ -1146,7 +1224,9 @@ const CobrosPlaya = () => {
                     <tr style="background-color: #f1f5f9; font-weight: bold;">
                         <td colspan="2">TOTAL</td>
                         <td>Gs. ${Math.round(totalMonto).toLocaleString('es-PY')}</td>
-                        <td colspan="${includeCancelados ? '3' : '2'}">Saldo Pendiente: Gs. ${Math.round(totalSaldo).toLocaleString('es-PY')}</td>
+                        <td>Gs. ${Math.round(totalMora).toLocaleString('es-PY')}</td>
+                        <td>Gs. ${Math.round(totalSaldoReal).toLocaleString('es-PY')}</td>
+                        <td colspan="${includeCancelados ? '3' : '2'}"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -1192,7 +1272,7 @@ const CobrosPlaya = () => {
                     <div className="search-bar">
                         <input
                             type="text"
-                            placeholder="Buscar por cliente, documento o vehículo..."
+                            placeholder="Buscar por cliente, documento, vehículo o chasis..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -1218,9 +1298,12 @@ const CobrosPlaya = () => {
                                 <th onClick={() => requestSort('cliente')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                                     Cliente {getSortIcon('cliente')}
                                 </th>
-                                <th>Vehículo</th>
+                                <th onClick={() => requestSort('vehiculo')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                    Vehículo {getSortIcon('vehiculo')}
+                                </th>
                                 <th>Cuota N°</th>
                                 <th>Total</th>
+                                <th>Interés</th>
                                 <th>Saldo</th>
                                 <th onClick={() => requestSort('estado')} style={{ cursor: 'pointer', userSelect: 'none' }}>
                                     Estado {getSortIcon('estado')}
@@ -1246,12 +1329,30 @@ const CobrosPlaya = () => {
                                                     <span>{p.numero_documento}</span>
                                                 </div>
                                             </td>
-                                            <td>{p.vehiculo}</td>
                                             <td>
-                                                {p.numero_cuota}/{p.total_cuotas || p.numero_cuota}
+                                                <strong>{p.vehiculo}</strong>
+                                                {p.chasis && <span className="chasis-label"> ({p.chasis})</span>}
+                                            </td>
+                                            <td>
+                                                {p.tipo_pagare === 'ENTREGA_INICIAL'
+                                                    ? <span style={{ fontWeight: '600', color: '#0369a1' }}>Entrega Inicial</span>
+                                                    : `${p.numero_cuota}/${p.total_cuotas || p.numero_cuota}`}
                                             </td>
                                             <td>Gs. {Math.round(parseFloat(p.monto_cuota)).toLocaleString('es-PY')}</td>
-                                            <td><strong>Gs. {Math.round(parseFloat(p.saldo_pendiente)).toLocaleString('es-PY')}</strong></td>
+                                            {(() => {
+                                                const today = new Date().toISOString().split('T')[0];
+                                                const mora = calcularMora(p, today);
+                                                const totalPagado = (p.pagos || []).reduce((acc, pg) => acc + parseFloat(pg.monto_pagado || 0), 0);
+                                                const saldoReal = Math.max(0, parseFloat(p.monto_cuota || 0) + mora - totalPagado);
+                                                return (
+                                                    <>
+                                                        <td style={{ color: mora > 0 ? '#dc2626' : '#6b7280', fontWeight: mora > 0 ? '600' : 'normal' }}>
+                                                            {mora > 0 ? `Gs. ${Math.round(mora).toLocaleString('es-PY')}` : '—'}
+                                                        </td>
+                                                        <td><strong>Gs. {Math.round(saldoReal).toLocaleString('es-PY')}</strong></td>
+                                                    </>
+                                                );
+                                            })()}
                                             <td>
                                                 <span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()} ${isOverdue && (p.estado_rel?.nombre || p.estado) !== 'PAGADO' ? 'vencido' : ''}`}>
                                                     {(p.estado_rel?.nombre || p.estado) === 'PAGADO'
@@ -1290,7 +1391,7 @@ const CobrosPlaya = () => {
                                         </tr>
                                         {expandedRow === p.id_pagare && (
                                             <tr className="expanded-detail-row">
-                                                <td colSpan={includeCancelados ? 9 : 8}>
+                                                <td colSpan={includeCancelados ? 10 : 9}>
                                                     <div className="details-container">
                                                         <h5>Historial de Pagos de esta Cuota</h5>
                                                         {p.pagos && p.pagos.length > 0 ? (
@@ -1361,7 +1462,10 @@ const CobrosPlaya = () => {
                                                 <td><span className="date-badge">{p.fecha_pago}</span></td>
                                                 <td><strong>{p.numero_recibo}</strong></td>
                                                 <td>{p.cliente_nombre || 'N/A'}</td>
-                                                <td>{p.vehiculo || 'N/A'}</td>
+                                                <td>
+                                                    <strong>{p.vehiculo || 'N/A'}</strong>
+                                                    {p.chasis && <small className="chasis-sub"> ({p.chasis})</small>}
+                                                </td>
                                                 <td><strong>Gs. {Math.round(p.monto_pagado).toLocaleString('es-PY')}</strong></td>
                                                 <td>{cuentas.find(c => c.id_cuenta === p.id_cuenta)?.nombre || 'N/A'}</td>
                                             </tr>
@@ -1369,6 +1473,57 @@ const CobrosPlaya = () => {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                showPagosModal && (
+                    <div className="modal-overlay">
+                        <div className="modal-content pagos-history-modal">
+                            <div className="modal-header">
+                                <h3>Historial de Cobros - Cuota {selectedPagare?.numero_cuota}</h3>
+                                <button className="btn-close" onClick={() => setShowPagosModal(false)}>×</button>
+                            </div>
+                            <div className="pagos-list">
+                                {selectedPagos.length === 0 ? (
+                                    <p>No hay cobros registrados para este pagaré.</p>
+                                ) : (
+                                    <table className="mini-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Recibo</th>
+                                                <th>Monto</th>
+                                                <th>Mora</th>
+                                                <th>Caja/Cuenta</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedPagos.map(pago => (
+                                                <tr key={pago.id_pago}>
+                                                    <td>{pago.fecha_pago}</td>
+                                                    <td>{pago.numero_recibo}</td>
+                                                    <td>Gs. {Math.round(parseFloat(pago.monto_pagado)).toLocaleString('es-PY')}</td>
+                                                    <td>Gs. {Math.round(parseFloat(pago.mora_aplicada)).toLocaleString('es-PY')}</td>
+                                                    <td>{cuentas.find(c => c.id_cuenta === pago.id_cuenta)?.nombre || 'N/A'}</td>
+                                                    <td>
+                                                        <div className="action-buttons-mini">
+                                                            <button className="btn-mini-edit" onClick={() => handleEditPago(pago)} title="Editar Cobro">✏️</button>
+                                                            <button className="btn-mini-delete" onClick={() => handleDeletePago(pago.id_pago)} title="Eliminar Cobro">🗑️</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                            <div className="modal-actions">
+                                <button className="btn-save" onClick={() => setShowPagosModal(false)}>Cerrar</button>
+                            </div>
                         </div>
                     </div>
                 )
@@ -1392,7 +1547,7 @@ const CobrosPlaya = () => {
                                                     <p><strong>Vehículo:</strong> {selectedPagare.vehiculo}</p>
                                                 </div>
                                                 <div className="concept-row-modal">
-                                                    <p><strong>Concepto:</strong> Cuota {selectedPagare.numero_cuota}/{selectedPagare.total_cuotas || selectedPagare.numero_cuota}</p>
+                                                    <p><strong>Concepto:</strong> {selectedPagare.tipo_pagare === 'ENTREGA_INICIAL' ? 'Entrega Inicial' : `Cuota ${selectedPagare.numero_cuota}/${selectedPagare.total_cuotas || selectedPagare.numero_cuota}`}</p>
                                                     <p><strong>Vencimiento:</strong> {selectedPagare.fecha_vencimiento}</p>
                                                 </div>
                                                 <div className="summary-amounts">
@@ -1445,6 +1600,7 @@ const CobrosPlaya = () => {
                                                 <input
                                                     type="number"
                                                     step="0.01"
+                                                    min="0"
                                                     required
                                                     value={newPago.monto_pagado}
                                                     onChange={(e) => setNewPago({ ...newPago, monto_pagado: e.target.value })}
@@ -1455,6 +1611,7 @@ const CobrosPlaya = () => {
                                                 <input
                                                     type="number"
                                                     step="0.01"
+                                                    min="0"
                                                     value={newPago.mora_aplicada}
                                                     onChange={(e) => setNewPago({ ...newPago, mora_aplicada: e.target.value })}
                                                 />
@@ -1528,57 +1685,6 @@ const CobrosPlaya = () => {
                                 </div>
                             </form>
 
-                        </div>
-                    </div>
-                )
-            }
-
-            {
-                showPagosModal && (
-                    <div className="modal-overlay">
-                        <div className="modal-content pagos-history-modal">
-                            <div className="modal-header">
-                                <h3>Historial de Cobros - Cuota {selectedPagare?.numero_cuota}</h3>
-                                <button className="btn-close" onClick={() => setShowPagosModal(false)}>×</button>
-                            </div>
-                            <div className="pagos-list">
-                                {selectedPagos.length === 0 ? (
-                                    <p>No hay cobros registrados para este pagaré.</p>
-                                ) : (
-                                    <table className="mini-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Fecha</th>
-                                                <th>Recibo</th>
-                                                <th>Monto</th>
-                                                <th>Mora</th>
-                                                <th>Caja/Cuenta</th>
-                                                <th>Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedPagos.map(pago => (
-                                                <tr key={pago.id_pago}>
-                                                    <td>{pago.fecha_pago}</td>
-                                                    <td>{pago.numero_recibo}</td>
-                                                    <td>Gs. {Math.round(parseFloat(pago.monto_pagado)).toLocaleString('es-PY')}</td>
-                                                    <td>Gs. {Math.round(parseFloat(pago.mora_aplicada)).toLocaleString('es-PY')}</td>
-                                                    <td>{cuentas.find(c => c.id_cuenta === pago.id_cuenta)?.nombre || 'N/A'}</td>
-                                                    <td>
-                                                        <div className="action-buttons-mini">
-                                                            <button className="btn-mini-edit" onClick={() => handleEditPago(pago)} title="Editar Cobro">✏️</button>
-                                                            <button className="btn-mini-delete" onClick={() => handleDeletePago(pago.id_pago)} title="Eliminar Cobro">🗑️</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-                            <div className="modal-actions">
-                                <button className="btn-save" onClick={() => setShowPagosModal(false)}>Cerrar</button>
-                            </div>
                         </div>
                     </div>
                 )

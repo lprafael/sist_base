@@ -148,6 +148,8 @@ class ProductoResponseSimple(BaseModel):
 
     class Config:
         from_attributes = True
+        # Exclude computed properties that require lazy loading
+        ignored_types = (property,)
 
 class ProductoResponse(ProductoResponseSimple):
     """Respuesta completa incluyendo campos calculados que pueden requerir lazy loading."""
@@ -162,6 +164,7 @@ class DocumentoImportacionResponse(BaseModel):
     monto_pagado: Optional[Decimal] = None
     observaciones: Optional[str] = None
     fecha_registro: Optional[datetime] = None
+    productos: Optional[List[ProductoResponseSimple]] = []
 
     class Config:
         from_attributes = True
@@ -248,10 +251,35 @@ class VentaBase(BaseModel):
     observaciones: Optional[str] = None
     periodo_int_mora: Optional[str] = None # D, S, M, A
     monto_int_mora: Optional[Decimal] = 0
+    tasa_interes: Optional[Decimal] = 0
     dias_gracia: Optional[int] = 0
 
 class VentaCreate(VentaBase):
     detalles: Optional[List['DetalleVentaCreate']] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: Any) -> Any:
+        """Acepta '' en campos opcionales y los convierte a None o '0' para evitar 422 desde frontend."""
+        if not isinstance(data, dict):
+            return data
+        
+        # IDs que deben ser None si son ""
+        for key in ("id_vendedor", "id_escribania"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: None}
+        
+        # Decimales que deben ser "0" o similares si son ""
+        for key in ("descuento", "entrega_inicial", "saldo_financiar", "monto_cuota", "monto_refuerzo", "monto_int_mora", "tasa_interes"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: "0"}
+        
+        # Enteros que deben ser 0 si son ""
+        for key in ("cantidad_cuotas", "cantidad_refuerzos", "dias_gracia"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: 0}
+                
+        return data
 
 # ===== DETALLES DE VENTA =====
 class DetalleVentaBase(BaseModel):
@@ -327,6 +355,8 @@ class VentaResponse(VentaBase):
     pagares: Optional[List[PagareResponse]] = []
     detalles: Optional[List[DetalleVentaResponse]] = []
     # Respuesta tolerante a NULL (datos migrados)
+    id_cliente: Optional[int] = None
+    id_producto: Optional[int] = None
     numero_venta: Optional[str] = None
     fecha_venta: Optional[date] = None
     tipo_venta: Optional[str] = None
@@ -344,7 +374,7 @@ class PagoBase(BaseModel):
     monto_pagado: Decimal
     forma_pago: str
     numero_referencia: Optional[str] = None
-    mora_aplicada: Optional[Decimal] = 0
+    mora_aplicada: Optional[Decimal] = None
     observaciones: Optional[str] = None
 
 class PagoCreate(PagoBase):

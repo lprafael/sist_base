@@ -529,38 +529,44 @@ const PagaresPlaya = () => {
             {selectedPagare && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>Editar Pagaré {selectedPagare.numero_pagare}</h3>
-                        <form onSubmit={handleSave}>
-                            <div className="form-group">
-                                <label>Número de Pagaré</label>
-                                <input
-                                    type="text"
-                                    value={editingData.numero_pagare}
-                                    onChange={(e) => setEditingData({ ...editingData, numero_pagare: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Monto (Gs.)</label>
-                                <input
-                                    type="number"
-                                    value={editingData.monto_cuota}
-                                    onChange={(e) => setEditingData({ ...editingData, monto_cuota: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Fecha de Vencimiento</label>
-                                <input
-                                    type="date"
-                                    value={editingData.fecha_vencimiento}
-                                    onChange={(e) => setEditingData({ ...editingData, fecha_vencimiento: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Observaciones</label>
-                                <textarea
-                                    value={editingData.observaciones}
-                                    onChange={(e) => setEditingData({ ...editingData, observaciones: e.target.value })}
-                                ></textarea>
+                        <div className="modal-header">
+                            <h3>Editar Pagaré {selectedPagare.numero_pagare}</h3>
+                            <button className="btn-close-modal-top" onClick={() => setSelectedPagare(null)}>&times;</button>
+                        </div>
+                        <form onSubmit={handleSave} className="modal-form">
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Número de Pagaré</label>
+                                    <input
+                                        type="text"
+                                        value={editingData.numero_pagare}
+                                        onChange={(e) => setEditingData({ ...editingData, numero_pagare: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Monto (Gs.)</label>
+                                    <input
+                                        type="number"
+                                        value={editingData.monto_cuota}
+                                        onChange={(e) => setEditingData({ ...editingData, monto_cuota: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Fecha de Vencimiento</label>
+                                    <input
+                                        type="date"
+                                        value={editingData.fecha_vencimiento}
+                                        onChange={(e) => setEditingData({ ...editingData, fecha_vencimiento: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Observaciones</label>
+                                    <textarea
+                                        value={editingData.observaciones}
+                                        onChange={(e) => setEditingData({ ...editingData, observaciones: e.target.value })}
+                                        className="observaciones-textarea"
+                                    ></textarea>
+                                </div>
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={() => setSelectedPagare(null)}>Cancelar</button>
