@@ -326,16 +326,16 @@ const CobrosPlaya = () => {
         let interesCalculado = 0;
 
         if (periodo === 'D') {
-            // Cálculo Diario: Días de atraso * monto_int_mora
+            // Cálculo Diario: Días de atraso * montoIntMora
             interesCalculado = diffDays * montoIntMora;
         } else {
-            // Otros periodos (Semanal, Mensual, Anual) - Proporcional
+            // Otros periodos (Semanal, Mensual, Anual) - Por periodos transcurridos
             let diasPorPeriodo = 1;
             if (periodo === 'S') diasPorPeriodo = 7;
             else if (periodo === 'M') diasPorPeriodo = 30;
             else if (periodo === 'A') diasPorPeriodo = 365;
 
-            const numPeriodos = diffDays / diasPorPeriodo;
+            const numPeriodos = Math.floor(diffDays / diasPorPeriodo);
             interesCalculado = numPeriodos * montoIntMora;
         }
 
@@ -346,7 +346,7 @@ const CobrosPlaya = () => {
 
         console.log(`Cálculo de mora: Días atraso: ${diffDays}, Periodo: ${periodo}, Monto Mora: ${montoIntMora}, Interés: ${interesCalculado}`);
 
-        return Math.round(interesCalculado);
+        return Math.floor(interesCalculado);
     };
 
     const handleFechaPagoChange = (e) => {
@@ -505,7 +505,7 @@ const CobrosPlaya = () => {
         return sortConfig.direction === 'asc' ? '🔼' : '🔽';
     };
 
-    const handlePrintPlanPago = async () => {
+    const handleVerPlanPago = async () => {
         let pagaresToPrint;
 
         // Si se incluyen cancelados, asegurarse de tener los datos
@@ -1222,7 +1222,7 @@ const CobrosPlaya = () => {
                 </tbody>
                 <tfoot>
                     <tr style="background-color: #f1f5f9; font-weight: bold;">
-                        <td colspan="2">TOTAL</td>
+                        <td>TOTAL</td>
                         <td>Gs. ${Math.round(totalMonto).toLocaleString('es-PY')}</td>
                         <td>Gs. ${Math.round(totalMora).toLocaleString('es-PY')}</td>
                         <td>Gs. ${Math.round(totalSaldoReal).toLocaleString('es-PY')}</td>
@@ -1247,11 +1247,14 @@ const CobrosPlaya = () => {
         printWindow.document.write(printContent);
         printWindow.document.close();
 
+        // Quitamos el auto-print para que solo se visualice
+        /*
         printWindow.onload = () => {
             setTimeout(() => {
                 printWindow.print();
             }, 250);
         };
+        */
     };
 
     return (
@@ -1278,8 +1281,8 @@ const CobrosPlaya = () => {
                         />
                     </div>
                     <div className="print-controls">
-                        <button className="btn-print" onClick={handlePrintPlanPago} title="Imprimir Plan de Pago">
-                            🖨️ Imprimir Plan de Pago
+                        <button className="btn-print" onClick={handleVerPlanPago} title="Ver Plan de Pago">
+                            📋Ver Plan de Pagos
                         </button>
                     </div>
                 </div>

@@ -269,9 +269,13 @@ async def get_cuotas_mora_detalle(
             Pagare.monto_cuota,
             Pagare.saldo_pendiente,
             Pagare.fecha_vencimiento,
+            Pagare.tipo_pagare,
             Estado.nombre.label('estado'),
-            Venta.cantidad_cuotas.label('total_cuotas'),
-            Venta.monto_int_mora.label('tasa_config'),
+            Venta.cantidad_cuotas,
+            Venta.cantidad_refuerzos,
+            Venta.monto_int_mora,
+            Venta.periodo_int_mora,
+            Venta.dias_gracia,
             Cliente.id_cliente,
             Cliente.nombre,
             Cliente.apellido,
@@ -305,6 +309,9 @@ async def get_cuotas_mora_detalle(
         
         running_balance = saldo_total_inicial
         
+        # Diccionario para cachear conteos reales si la venta tiene data en 0
+        real_counts = {}
+
         for row in rows_venta:
             # Solo incluimos en el reporte las que están en mora según el rango
             is_in_mora = (row.fecha_vencimiento >= date_from and row.fecha_vencimiento <= date_to)
@@ -317,10 +324,49 @@ async def get_cuotas_mora_detalle(
             
             if is_in_mora:
                 dias_mora = (date_to - row.fecha_vencimiento).days
-                tasa_uso = float(row.tasa_config) if row.tasa_config and float(row.tasa_config) > 0 else 0.0005
                 monto_s = float(row.saldo_pendiente or 0)
-                interes = monto_s * (max(0, dias_mora) * tasa_uso)
                 
+                # Nueva lógica de interés fijo por periodo
+                interes = 0
+                dias_gracia = row.dias_gracia or 0
+                
+                if dias_mora > dias_gracia:
+                    monto_mora_fijo = float(row.monto_int_mora or 0)
+                    periodo = row.periodo_int_mora or 'D'
+                    
+                    # Calcular cantidad de periodos transcurridos
+                    cant_periodos = 0
+                    if periodo == 'D':
+                        cant_periodos = dias_mora
+                    elif periodo == 'S':
+                        cant_periodos = dias_mora // 7
+                    elif periodo == 'M':
+                        cant_periodos = dias_mora // 30
+                    elif periodo == 'A':
+                        cant_periodos = dias_mora // 365
+                    
+                    interes = cant_periodos * monto_mora_fijo
+                
+                # Determinar el total de cuotas según el tipo
+                tipo = row.tipo_pagare
+                total_quincena = 0
+                if tipo == 'CUOTA':
+                    total_quincena = row.cantidad_cuotas or 0
+                elif tipo == 'REFUERZO':
+                    total_quincena = row.cantidad_refuerzos or 0
+                
+                # Si sigue siendo 0 (data inconsistente), hacemos un fallback contando los pagarés reales
+                if total_quincena == 0:
+                    if tipo not in real_counts:
+                        # Fetch count of pagares of this type for this sale
+                        q_count = select(func.count(Pagare.id_pagare)).where(
+                            Pagare.id_venta == row.id_venta,
+                            Pagare.tipo_pagare == tipo
+                        )
+                        res_count = await session.execute(q_count)
+                        real_counts[tipo] = res_count.scalar() or 0
+                    total_quincena = real_counts[tipo]
+
                 reporte.append({
                     "cliente_id": row.id_cliente,
                     "cliente_nombre": f"{row.nombre} {row.apellido}",
@@ -328,7 +374,7 @@ async def get_cuotas_mora_detalle(
                     "cliente_telefono": row.telefono,
                     "id_venta": row.id_venta,
                     "numero_cuota": row.numero_cuota or 0,
-                    "cantidad_cuotas_total": row.total_cuotas or 0,
+                    "cantidad_cuotas_total": total_quincena,
                     "fecha_vencimiento": row.fecha_vencimiento,
                     "monto_cuota": float(row.monto_cuota or 0),
                     "saldo_pendiente": monto_s,
