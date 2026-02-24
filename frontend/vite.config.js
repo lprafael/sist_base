@@ -23,7 +23,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor': ['react', 'react-dom'],
-          'ui': ['lucide-react', 'framer-motion'],
+          'utils': ['axios', 'xlsx', 'jspdf'],
+          'ui-libs': ['leaflet', 'react-leaflet', '@tanstack/react-table'],
         },
       },
     },

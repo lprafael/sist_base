@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import '../parametros/CategoriasPlaya.css';
+import './MovimientosCuentas.css';
 
 const MovimientosCuentas = () => {
     const [movimientos, setMovimientos] = useState([]);
@@ -96,7 +96,7 @@ const MovimientosCuentas = () => {
     );
 
     return (
-        <div className="categorias-container">
+        <div className="movimientos-container">
             <div className="header-actions">
                 <h2>Movimientos entre Cuentas</h2>
                 <div className="search-bar">
@@ -108,15 +108,15 @@ const MovimientosCuentas = () => {
                     />
                 </div>
                 <button className="btn-primary" onClick={openModal}>
-                    💸 Registrar Movimiento
+                    <span>💸</span> Registrar Movimiento
                 </button>
             </div>
 
             {loading ? (
                 <div className="loading">Cargando movimientos...</div>
             ) : (
-                <div className="categorias-table-wrapper">
-                    <table className="categorias-table">
+                <div className="movimientos-table-wrapper">
+                    <table className="movimientos-table">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -131,11 +131,11 @@ const MovimientosCuentas = () => {
                             {filteredMovimientos.map(m => (
                                 <tr key={m.id_movimiento}>
                                     <td>{formatDate(m.fecha)}</td>
-                                    <td style={{ color: 'red' }}>{m.cuenta_origen?.nombre || 'Ingreso Externo'}</td>
-                                    <td style={{ color: 'green' }}>{m.cuenta_destino?.nombre || 'Egreso Externo'}</td>
+                                    <td style={{ color: '#dc2626', fontWeight: '500' }}>{m.cuenta_origen?.nombre || 'Ingreso Externo'}</td>
+                                    <td style={{ color: '#16a34a', fontWeight: '500' }}>{m.cuenta_destino?.nombre || 'Egreso Externo'}</td>
                                     <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(m.monto)}</td>
                                     <td>{m.concepto}</td>
-                                    <td>{m.referencia}</td>
+                                    <td style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{m.referencia}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -144,65 +144,73 @@ const MovimientosCuentas = () => {
             )}
 
             {showModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h3>Nuevo Movimiento</h3>
+                <div className="modal-overlay" onClick={closeModal}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Nuevo Movimiento</h3>
+                            <button className="btn-close-modal-top" onClick={closeModal}>&times;</button>
+                        </div>
+                        
                         <form onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label>Cuenta Origen (Sale dinero)</label>
-                                <select
-                                    value={formData.id_cuenta_origen}
-                                    onChange={(e) => setFormData({ ...formData, id_cuenta_origen: e.target.value })}
-                                >
-                                    <option value="">-- Seleccionar (Opcional si es ingreso externo) --</option>
-                                    {cuentas.map(c => (
-                                        <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} (Sald: {formatCurrency(c.saldo_actual)})</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Cuenta Origen (Sale dinero)</label>
+                                    <select
+                                        value={formData.id_cuenta_origen}
+                                        onChange={(e) => setFormData({ ...formData, id_cuenta_origen: e.target.value })}
+                                    >
+                                        <option value="">-- Seleccionar (Opcional si es ingreso externo) --</option>
+                                        {cuentas.map(c => (
+                                            <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} (Sald: {formatCurrency(c.saldo_actual)})</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div className="form-group">
-                                <label>Cuenta Destino (Entra dinero)</label>
-                                <select
-                                    value={formData.id_cuenta_destino}
-                                    onChange={(e) => setFormData({ ...formData, id_cuenta_destino: e.target.value })}
-                                >
-                                    <option value="">-- Seleccionar (Opcional si es egreso externo) --</option>
-                                    {cuentas.map(c => (
-                                        <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} (Sald: {formatCurrency(c.saldo_actual)})</option>
-                                    ))}
-                                </select>
-                            </div>
+                                <div className="form-group">
+                                    <label>Cuenta Destino (Entra dinero)</label>
+                                    <select
+                                        value={formData.id_cuenta_destino}
+                                        onChange={(e) => setFormData({ ...formData, id_cuenta_destino: e.target.value })}
+                                    >
+                                        <option value="">-- Seleccionar (Opcional si es egreso externo) --</option>
+                                        {cuentas.map(c => (
+                                            <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} (Sald: {formatCurrency(c.saldo_actual)})</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div className="form-group">
-                                <label>Monto</label>
-                                <input
-                                    type="number"
-                                    value={formData.monto}
-                                    onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-                                    required
-                                    min="1"
-                                />
-                            </div>
+                                <div className="form-group">
+                                    <label>Monto</label>
+                                    <input
+                                        type="number"
+                                        value={formData.monto}
+                                        onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
+                                        required
+                                        min="1"
+                                        placeholder="Ingrese el monto del movimiento"
+                                    />
+                                </div>
 
-                            <div className="form-group">
-                                <label>Concepto / Motivo</label>
-                                <input
-                                    type="text"
-                                    value={formData.concepto}
-                                    onChange={(e) => setFormData({ ...formData, concepto: e.target.value })}
-                                    required
-                                    placeholder="Ej: Transferencia para pago de sueldos"
-                                />
-                            </div>
+                                <div className="form-group">
+                                    <label>Concepto / Motivo</label>
+                                    <input
+                                        type="text"
+                                        value={formData.concepto}
+                                        onChange={(e) => setFormData({ ...formData, concepto: e.target.value })}
+                                        required
+                                        placeholder="Ej: Transferencia para pago de sueldos"
+                                    />
+                                </div>
 
-                            <div className="form-group">
-                                <label>Referencia (Nº Operación, Documento...)</label>
-                                <input
-                                    type="text"
-                                    value={formData.referencia}
-                                    onChange={(e) => setFormData({ ...formData, referencia: e.target.value })}
-                                />
+                                <div className="form-group">
+                                    <label>Referencia (Nº Operación, Documento...)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.referencia}
+                                        onChange={(e) => setFormData({ ...formData, referencia: e.target.value })}
+                                        placeholder="Número de comprobante o referencia bancaria"
+                                    />
+                                </div>
                             </div>
 
                             <div className="modal-actions">

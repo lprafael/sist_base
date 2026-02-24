@@ -9,7 +9,7 @@ const ReportesPlaya = () => {
     const [datosVentas, setDatosVentas] = useState([]);
     const [datosExtracto, setDatosExtracto] = useState(null);
     const [cuentas, setCuentas] = useState([]);
-    const [idCuentaSeleccionada, setIdCuentaSeleccionada] = useState('');
+    const [idCuentaSeleccionada, setIdCuentaSeleccionada] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fechaDesde, setFechaDesde] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
     const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
@@ -34,9 +34,9 @@ const ReportesPlaya = () => {
             fetchVentas();
         } else if (reporteSeleccionado === 'extracto_cuenta') {
             fetchCuentas();
-            if (idCuentaSeleccionada) fetchExtractoCuenta();
+            if (idCuentaSeleccionada.length > 0) fetchExtractoCuenta();
         }
-    }, [reporteSeleccionado, ordenMora, idCuentaSeleccionada]);
+    }, [reporteSeleccionado, ordenMora, JSON.stringify(idCuentaSeleccionada)]);
 
     const fetchVentas = async () => {
         setLoading(true);
@@ -75,8 +75,8 @@ const ReportesPlaya = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCuentas(res.data);
-            if (res.data.length > 0 && !idCuentaSeleccionada) {
-                setIdCuentaSeleccionada(res.data[0].id_cuenta);
+            if (res.data.length > 0 && idCuentaSeleccionada.length === 0) {
+                setIdCuentaSeleccionada(res.data.map(c => c.id_cuenta));
             }
         } catch (error) {
             console.error('Error fetching accounts:', error);
@@ -84,11 +84,14 @@ const ReportesPlaya = () => {
     };
 
     const fetchExtractoCuenta = async () => {
-        if (!idCuentaSeleccionada) return;
-        setLoading(true);
         try {
             const token = sessionStorage.getItem('token');
-            const res = await axios.get(`${API_URL}/playa/reportes/extracto-cuenta?id_cuenta=${idCuentaSeleccionada}&desde=${fechaDesde}&hasta=${fechaHasta}`, {
+            const params = new URLSearchParams();
+            idCuentaSeleccionada.forEach(id => params.append('id_cuentas', id));
+            params.append('desde', fechaDesde);
+            params.append('hasta', fechaHasta);
+
+            const res = await axios.get(`${API_URL}/playa/reportes/extracto-cuenta?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setDatosExtracto(res.data);
@@ -181,19 +184,28 @@ const ReportesPlaya = () => {
                     {(reporteSeleccionado === 'clientes_mora' || reporteSeleccionado === 'ventas' || reporteSeleccionado === 'extracto_cuenta') && (
                         <div className="date-filter">
                             {reporteSeleccionado === 'extracto_cuenta' && (
-                                <div className="filter-group">
-                                    <label>Cuenta:</label>
-                                    <select
-                                        className="date-input"
-                                        value={idCuentaSeleccionada}
-                                        onChange={(e) => setIdCuentaSeleccionada(e.target.value)}
-                                        style={{ minWidth: '150px' }}
-                                    >
-                                        <option value="">Seleccione Cuenta</option>
-                                        {cuentas.map(c => (
-                                            <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre}</option>
-                                        ))}
-                                    </select>
+                                <div className="filter-group multiselect-group">
+                                    <label>Cuentas ({idCuentaSeleccionada.length}):</label>
+                                    <div className="multiselect-dropdown-container">
+                                        <div className="multiselect-chips no-print">
+                                            {cuentas.map(c => (
+                                                <label key={c.id_cuenta} className={`chip-item ${idCuentaSeleccionada.includes(c.id_cuenta) ? 'selected' : ''}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={idCuentaSeleccionada.includes(c.id_cuenta)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setIdCuentaSeleccionada([...idCuentaSeleccionada, c.id_cuenta]);
+                                                            } else {
+                                                                setIdCuentaSeleccionada(idCuentaSeleccionada.filter(id => id !== c.id_cuenta));
+                                                            }
+                                                        }}
+                                                    />
+                                                    {c.nombre}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                             <div className="filter-group">
@@ -456,6 +468,47 @@ const ReportesPlaya = () => {
                                 </tfoot>
                             )}
                         </table>
+
+                        {idCuentaSeleccionada.length > 1 && datosExtracto?.resumen_cuentas?.length > 0 && (
+                            <div className="resumen-cuentas-section" style={{ marginTop: '40px' }}>
+                                <h3 style={{ borderBottom: '2px solid #000', paddingBottom: '5px', marginBottom: '15px' }}>RESUMEN POR CUENTA</h3>
+                                <table className="reporte-table formal-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Cuenta</th>
+                                            <th style={{ textAlign: 'right' }}>Saldo Anterior</th>
+                                            <th style={{ textAlign: 'right' }}>Total Ingresos</th>
+                                            <th style={{ textAlign: 'right' }}>Total Egresos</th>
+                                            <th style={{ textAlign: 'right' }}>Saldo Final</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {datosExtracto.resumen_cuentas.map((cta, idx) => (
+                                            <tr key={idx}>
+                                                <td style={{ fontWeight: 'bold' }}>{cta.nombre}</td>
+                                                <td style={{ textAlign: 'right' }}>Gs. {Math.round(cta.saldo_anterior).toLocaleString('es-PY')}</td>
+                                                <td style={{ textAlign: 'right', color: '#16a34a' }}>Gs. {Math.round(cta.ingresos).toLocaleString('es-PY')}</td>
+                                                <td style={{ textAlign: 'right', color: '#dc2626' }}>Gs. {Math.round(cta.egresos).toLocaleString('es-PY')}</td>
+                                                <td style={{ textAlign: 'right', fontWeight: 'bold' }}>Gs. {Math.round(cta.saldo_final).toLocaleString('es-PY')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                                            <td>TOTAL CONSOLIDADO</td>
+                                            <td style={{ textAlign: 'right' }}>Gs. {Math.round(datosExtracto.saldo_anterior).toLocaleString('es-PY')}</td>
+                                            <td style={{ textAlign: 'right', color: '#16a34a' }}>
+                                                Gs. {Math.round(datosExtracto.movimientos.filter(m => m.tipo === 'INGRESO').reduce((acc, curr) => acc + curr.monto, 0)).toLocaleString('es-PY')}
+                                            </td>
+                                            <td style={{ textAlign: 'right', color: '#dc2626' }}>
+                                                Gs. {Math.round(datosExtracto.movimientos.filter(m => m.tipo === 'EGRESO').reduce((acc, curr) => acc + curr.monto, 0)).toLocaleString('es-PY')}
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>Gs. {Math.round(datosExtracto.saldo_final).toLocaleString('es-PY')}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <table className="reporte-table formal-table">

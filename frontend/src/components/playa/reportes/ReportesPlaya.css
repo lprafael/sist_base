@@ -7,21 +7,26 @@
 .reportes-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 25px;
+    gap: 20px;
 }
 
 .reportes-actions {
     display: flex;
     gap: 15px;
+    flex: 1;
+    justify-content: flex-end;
 }
 
 .report-selector {
-    display: flex;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
     background: #e2e8f0;
     padding: 5px;
     border-radius: 10px;
+    flex-shrink: 0;
 }
 
 .report-selector .tab-btn {
@@ -546,4 +551,68 @@
     .order-filter {
         display: none !important;
     }
+}
+
+/* Estilos para el Multiselect de Cuentas */
+.multiselect-group {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+}
+
+.multiselect-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 600px;
+    max-height: 80px;
+    overflow-y: auto;
+    padding: 5px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.chip-item {
+    padding: 4px 10px;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.chip-item:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.chip-item.selected {
+    background: #e0e7ff;
+    border-color: #4f46e5;
+    color: #4f46e5;
+}
+
+.chip-item input[type="checkbox"] {
+    display: none;
+}
+
+.multiselect-chips::-webkit-scrollbar {
+    width: 6px;
+}
+
+.multiselect-chips::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.multiselect-chips::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
 }

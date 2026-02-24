@@ -87,11 +87,20 @@ class MovimientoCuentaResponse(BaseModel):
     monto: float
     saldo_acumulado: float = 0
 
+class ResumenCuenta(BaseModel):
+    id_cuenta: int
+    nombre: str
+    saldo_anterior: float
+    ingresos: float
+    egresos: float
+    saldo_final: float
+
 class ReporteExtractoResponse(BaseModel):
     cuenta_nombre: str
     saldo_anterior: float
     movimientos: List[MovimientoCuentaResponse]
     saldo_final: float
+    resumen_cuentas: List[ResumenCuenta] = []
 
 # --- Endpoints ---
 
@@ -515,100 +524,170 @@ async def get_reporte_stock_disponible(
 
 @router.get("/playa/reportes/extracto-cuenta", response_model=ReporteExtractoResponse)
 async def get_reporte_extracto_cuenta(
-    id_cuenta: int,
+    id_cuentas: List[int] = Query(...),
     desde: Optional[date] = Query(None),
     hasta: Optional[date] = Query(None),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Genera un extracto de movimientos (pagos y transferencias) para una cuenta específica.
+    Genera un extracto de movimientos (pagos y transferencias) para una o varias cuentas específicas.
     """
     date_from = desde or date(2020, 1, 1)
     date_to = hasta or date.today()
     datetime_from = datetime.combine(date_from, datetime.min.time())
     datetime_to = datetime.combine(date_to, datetime.max.time())
 
-    # 1. Obtener información de la cuenta
-    res_cta = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cuenta))
-    cuenta = res_cta.scalar_one_or_none()
-    if not cuenta:
-        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    # 1. Obtener información de las cuentas
+    res_ctas = await session.execute(select(Cuenta).where(Cuenta.id_cuenta.in_(id_cuentas)))
+    cuentas = res_ctas.scalars().all()
+    if not cuentas:
+        raise HTTPException(status_code=404, detail="Cuentas no encontradas")
+    
+    cuenta_nombres = ", ".join([c.nombre for c in cuentas])
+    if len(cuentas) > 3:
+        cuenta_nombres = f"{len(cuentas)} cuentas seleccionadas"
 
     # 2. Calcular Saldo Anterior (antes de la fecha 'desde')
     # Sumar pagos
-    q_pagos_ant = select(func.sum(Pago.monto_pagado)).where(Pago.id_cuenta == id_cuenta).where(Pago.fecha_pago < date_from)
+    q_pagos_ant = select(func.sum(Pago.monto_pagado)).where(Pago.id_cuenta.in_(id_cuentas)).where(Pago.fecha_pago < date_from)
     res_pagos_ant = await session.execute(q_pagos_ant)
     pagos_ant = float(res_pagos_ant.scalar() or 0)
 
-    # Sumar movimientos destino
-    q_mov_in_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_destino == id_cuenta).where(Movimiento.fecha < datetime_from)
+    # Sumar movimientos destino (Entregas a las cuentas seleccionadas)
+    # IMPORTANTE: Si es transferencia entre dos cuentas del mismo grupo (ambas seleccionadas), se netea.
+    # Pero aquí calculamos saldo anterior, así que solo nos importa lo que entró desde fuera del grupo.
+    # En realidad, el saldo anterior es la suma de saldos de cada cuenta.
+    
+    # Movimientos que entran a alguna de estas cuentas
+    q_mov_in_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_destino.in_(id_cuentas)).where(Movimiento.fecha < datetime_from)
     res_mov_in_ant = await session.execute(q_mov_in_ant)
     mov_in_ant = float(res_mov_in_ant.scalar() or 0)
 
-    # Restar movimientos origen
-    q_mov_out_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_origen == id_cuenta).where(Movimiento.fecha < datetime_from)
+    # Movimientos que salen de alguna de estas cuentas
+    q_mov_out_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_origen.in_(id_cuentas)).where(Movimiento.fecha < datetime_from)
     res_mov_out_ant = await session.execute(q_mov_out_ant)
     mov_out_ant = float(res_mov_out_ant.scalar() or 0)
 
     saldo_anterior = pagos_ant + mov_in_ant - mov_out_ant
 
     # 3. Obtener Movimientos del periodo
-    # Pagos (Ingresos)
+    # Pagos (Ingresos) - Unimos con Pagare para saber el tipo (CUOTA, ENTREGA, REFUERZO)
     q_pagos = (
-        select(Pago, Cliente.nombre, Cliente.apellido)
+        select(Pago, Cliente.nombre, Cliente.apellido, Cuenta.nombre.label('cuenta_nom'), Pagare.tipo_pagare)
         .join(Venta, Pago.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
-        .where(Pago.id_cuenta == id_cuenta)
+        .join(Cuenta, Pago.id_cuenta == Cuenta.id_cuenta)
+        .join(Pagare, Pago.id_pagare == Pagare.id_pagare)
+        .where(Pago.id_cuenta.in_(id_cuentas))
         .where(Pago.fecha_pago >= date_from)
         .where(Pago.fecha_pago <= date_to)
     )
     res_pagos = await session.execute(q_pagos)
     movs_pydantic = []
-    for p, nom, ape in res_pagos.all():
+    for p, nom, ape, cta_nom, tipo_pg in res_pagos.all():
+        # Traducir tipo_pagare
+        ref_text = "Entrega"
+        if tipo_pg == 'ENTREGA': ref_text = "Entrega"
+        elif tipo_pg == 'CUOTA': ref_text = "Cuota"
+        elif tipo_pg == 'REFUERZO': ref_text = "Refuerzo"
+        
         movs_pydantic.append({
             "fecha": datetime.combine(p.fecha_pago, datetime.min.time()),
-            "concepto": f"Cobro Cuota - Cliente: {nom} {ape} - Recibo: {p.numero_recibo}",
-            "referencia": p.numero_recibo,
+            "concepto": f"[{cta_nom}] Cobro Cuota - Cliente: {nom} {ape}",
+            "referencia": ref_text,
             "tipo": "INGRESO",
-            "monto": float(p.monto_pagado)
+            "monto": float(p.monto_pagado),
+            "id_cuenta": p.id_cuenta # Útil para el resumen por cuenta en el front
         })
 
-    # Movimientos Destino (Ingresos por transferencias)
+    # Movimientos del periodo
+    # Entregas a alguna cuenta del grupo
     q_mov_in = (
-        select(Movimiento)
-        .where(Movimiento.id_cuenta_destino == id_cuenta)
+        select(Movimiento, Cuenta.nombre.label('cta_dest_nom'), Cuenta.id_cuenta.label('cta_dest_id'))
+        .join(Cuenta, Movimiento.id_cuenta_destino == Cuenta.id_cuenta)
+        .where(Movimiento.id_cuenta_destino.in_(id_cuentas))
         .where(Movimiento.fecha >= datetime_from)
         .where(Movimiento.fecha <= datetime_to)
     )
     res_mov_in = await session.execute(q_mov_in)
-    for m in res_mov_in.scalars().all():
+    for m, cta_dest_nom, cta_dest_id in res_mov_in.all():
+        is_internal = m.id_cuenta_origen in id_cuentas
+        
         movs_pydantic.append({
             "fecha": m.fecha,
-            "concepto": m.concepto or "Transferencia Recibida",
-            "referencia": m.referencia,
+            "concepto": f"[{cta_dest_nom}] {m.concepto or 'Transferencia Recibida'}",
+            "referencia": "Transf. Interna" if is_internal else "Ingreso Externo",
             "tipo": "INGRESO",
-            "monto": float(m.monto)
+            "monto": float(m.monto),
+            "id_cuenta": cta_dest_id
         })
 
-    # Movimientos Origen (Egresos por transferencias)
+    # Salidas de alguna de estas cuentas
     q_mov_out = (
-        select(Movimiento)
-        .where(Movimiento.id_cuenta_origen == id_cuenta)
+        select(Movimiento, Cuenta.nombre.label('cta_orig_nom'), Cuenta.id_cuenta.label('cta_orig_id'))
+        .join(Cuenta, Movimiento.id_cuenta_origen == Cuenta.id_cuenta)
+        .where(Movimiento.id_cuenta_origen.in_(id_cuentas))
         .where(Movimiento.fecha >= datetime_from)
         .where(Movimiento.fecha <= datetime_to)
     )
     res_mov_out = await session.execute(q_mov_out)
-    for m in res_mov_out.scalars().all():
+    for m, cta_orig_nom, cta_orig_id in res_mov_out.all():
+        is_internal = m.id_cuenta_destino in id_cuentas
+        
+        # Clasificación de Gastos por palabras clave
+        ref_text = "Egreso Externo"
+        if is_internal:
+            ref_text = "Transf. Interna"
+        else:
+            conc = (m.concepto or "").lower()
+            if any(k in conc for k in ["vehiculo", "vehículo", "chasis", "mecanico", "taller", "repuesto", "cubierta"]):
+                ref_text = "Gasto Vehículo"
+            else:
+                ref_text = "Gasto Empresa"
+
         movs_pydantic.append({
             "fecha": m.fecha,
-            "concepto": m.concepto or "Transferencia Realizada",
-            "referencia": m.referencia,
+            "concepto": f"[{cta_orig_nom}] {m.concepto or 'Transferencia Realizada'}",
+            "referencia": ref_text,
             "tipo": "EGRESO",
-            "monto": float(m.monto)
+            "monto": float(m.monto),
+            "id_cuenta": cta_orig_id
         })
 
-    # 4. Ordenar por fecha y calcular saldo acumulado
+    # 4. Calcular Resumen por Cuenta
+    resumen_cuentas = []
+    for cta in cuentas:
+        # Saldo anterior por cuenta
+        q_p_ant = select(func.sum(Pago.monto_pagado)).where(Pago.id_cuenta == cta.id_cuenta).where(Pago.fecha_pago < date_from)
+        res_p_ant = await session.execute(q_p_ant)
+        p_ant = float(res_p_ant.scalar() or 0)
+
+        q_mi_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_destino == cta.id_cuenta).where(Movimiento.fecha < datetime_from)
+        res_mi_ant = await session.execute(q_mi_ant)
+        mi_ant = float(res_mi_ant.scalar() or 0)
+
+        q_mo_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_origen == cta.id_cuenta).where(Movimiento.fecha < datetime_from)
+        res_mo_ant = await session.execute(q_mo_ant)
+        mo_ant = float(res_mo_ant.scalar() or 0)
+
+        s_ant_cta = p_ant + mi_ant - mo_ant
+        
+        # Movimientos del periodo por cuenta
+        movs_cta = [m for m in movs_pydantic if m.get("id_cuenta") == cta.id_cuenta]
+        ing_cta = sum(m["monto"] for m in movs_cta if m["tipo"] == "INGRESO")
+        egr_cta = sum(m["monto"] for m in movs_cta if m["tipo"] == "EGRESO")
+
+        resumen_cuentas.append({
+            "id_cuenta": cta.id_cuenta,
+            "nombre": cta.nombre,
+            "saldo_anterior": s_ant_cta,
+            "ingresos": ing_cta,
+            "egresos": egr_cta,
+            "saldo_final": s_ant_cta + ing_cta - egr_cta
+        })
+
+    # 5. Ordenar por fecha y calcular saldo acumulado global
     movs_pydantic.sort(key=lambda x: x["fecha"])
     
     current_balance = saldo_anterior
@@ -620,8 +699,9 @@ async def get_reporte_extracto_cuenta(
         m["saldo_acumulado"] = current_balance
 
     return {
-        "cuenta_nombre": cuenta.nombre,
+        "cuenta_nombre": cuenta_nombres,
         "saldo_anterior": saldo_anterior,
         "movimientos": movs_pydantic,
-        "saldo_final": current_balance
+        "saldo_final": current_balance,
+        "resumen_cuentas": resumen_cuentas
     }

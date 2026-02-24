@@ -1588,7 +1588,13 @@ const CobrosPlaya = () => {
                                     <div className="form-row">
                                         <div className="form-group">
                                             <label>N° Recibo</label>
-                                            <input type="text" required value={newPago.numero_recibo} onChange={(e) => setNewPago({ ...newPago, numero_recibo: e.target.value })} />
+                                            <input
+                                                type="text"
+                                                required
+                                                readOnly
+                                                className="readonly-highlight"
+                                                value={newPago.numero_recibo}
+                                            />
                                         </div>
                                         <div className="form-group">
                                             <label>Fecha de Cobro</label>
