@@ -1,0 +1,50 @@
+INFO:     127.0.0.1:43414 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59798 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49676 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39332 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36290 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39188 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33886 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51578 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52800 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55244 - "GET /health HTTP/1.1" 200 OK
+  {'type': 'get_attribute_error', 'loc': ('response', 331, 'producto', 'cliente_nombre'), 'msg': "Error extracting attribute: MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)", 'input': <models_playa.Producto object at 0x70d83192c8d0>, 'ctx': {'error': "MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)"}}
+  {'type': 'get_attribute_error', 'loc': ('response', 331, 'producto', 'cliente_documento'), 'msg': "Error extracting attribute: MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)", 'input': <models_playa.Producto object at 0x70d83192c8d0>, 'ctx': {'error': "MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)"}}
+
+  File "/app/routers_playa.py", line 1006, in list_ventas
+    GET /playa/ventas
+INFO:     127.0.0.1:39538 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33654 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52660 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44044 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36230 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51846 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50502 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58244 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56034 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42554 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46888 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33492 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50072 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44080 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44206 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44626 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58928 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48378 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58578 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48616 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35238 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35472 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50976 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46270 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41484 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50942 - "GET /health HTTP/1.1" 200 OK
+INFO:     172.20.0.3:41742 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     172.20.0.3:41754 - "GET /playa/dashboard/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54214 - "GET /health HTTP/1.1" 200 OK
+INFO:     172.20.0.3:44954 - "GET /playa/categorias HTTP/1.1" 200 OK
+INFO:     172.20.0.3:44946 - "GET /playa/vehiculos HTTP/1.1" 200 OK
+INFO:     172.20.0.3:44966 - "GET /playa/dashboard/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43278 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41978 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46158 - "GET /health HTTP/1.1" 200 OK

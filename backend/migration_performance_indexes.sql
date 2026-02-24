@@ -1,10 +1,10 @@
 -- ======================================================
--- MIGRACIÓN: CREACIÓN DE ÍNDICES PARA OPTIMIZACIÓN
+-- MIGRACION: CREACION DE INDICES PARA OPTIMIZACION
 -- ======================================================
 
 DO $$
 BEGIN
-    -- Clientes: optimizar búsquedas por nombre y apellido
+    -- Clientes: optimizar busquedas por nombre y apellido
     IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_clientes_nombre_apellido') THEN
         CREATE INDEX idx_clientes_nombre_apellido ON playa.clientes (nombre, apellido);
     END IF;
@@ -18,7 +18,7 @@ BEGIN
         CREATE INDEX idx_ventas_vendedor ON playa.ventas (id_vendedor);
     END IF;
 
-    -- Pagarés: optimizar estados y vencimientos
+    -- Pagares: optimizar estados y vencimientos
     IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_pagares_id_estado') THEN
         CREATE INDEX idx_pagares_id_estado ON playa.pagares (id_estado);
     END IF;
