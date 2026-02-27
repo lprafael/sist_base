@@ -142,7 +142,8 @@ export default function App() {
     if (!user) return;
 
     const INACTIVITY_LIMIT = 20 * 60 * 1000; // 20 minutos
-    const ABSOLUTE_LIMIT = 60 * 60 * 1000 * 2;   // 60 minutos
+    // Aumentar el límite de tiempo absoluto a 2 horas
+    const ABSOLUTE_LIMIT = 60 * 60 * 1000 * 2;   // 2 horas
     const CHECK_INTERVAL = 10000;           // Revisar cada 10 segundos
 
     // Al iniciar sesión, guardamos el tiempo de inicio si no existe
@@ -178,7 +179,7 @@ export default function App() {
       else if (now - loginTime > ABSOLUTE_LIMIT) {
         console.log("Cerrando sesión por tiempo máximo alcanzado");
         handleLogout();
-        alert("Tu sesión ha expirado (límite de 60 minutos alcanzado).");
+        alert("Tu sesión ha expirado (límite de 2 horas alcanzado).");
       }
     }, CHECK_INTERVAL);
 

@@ -144,6 +144,8 @@ class ProductoResponseSimple(BaseModel):
     activo: Optional[bool] = None
     nro_despacho: Optional[str] = None
     nro_cert_nac: Optional[str] = None
+    total_gastos: Optional[Decimal] = 0
+    costo_final: Optional[Decimal] = 0
     imagenes: Optional[List['ImagenProductoResponse']] = []
 
     class Config:

@@ -78,6 +78,7 @@ class StockDisponibleResponse(BaseModel):
     entrega_inicial_sugerida: Optional[float] = None
     ubicacion_actual: Optional[str] = None
     dias_en_stock: int
+    costo_final: float = 0
 
 class MovimientoCuentaResponse(BaseModel):
     fecha: datetime
@@ -238,7 +239,7 @@ async def get_clientes_en_mora(
 async def get_cuotas_mora_detalle(
     desde: Optional[date] = Query(None),
     hasta: Optional[date] = Query(None),
-    orden: str = Query('cliente'), # 'cliente' o 'dias_mora'
+    orden: str = Query('cliente'), # 'cliente', 'dias_mora' o 'vencimiento'
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
@@ -267,6 +268,9 @@ async def get_cuotas_mora_detalle(
     if orden == 'dias_mora':
         # Ordenar por fecha de vencimiento más antigua (más días de mora)
         order_criteria = [Pagare.fecha_vencimiento.asc(), Cliente.nombre.asc(), Pagare.numero_cuota.asc()]
+    elif orden == 'vencimiento':
+        # Ordenar por fecha de vencimiento (más reciente primero o según se prefiera, usaremos asc para coherencia con mora)
+        order_criteria = [Pagare.fecha_vencimiento.asc(), Cliente.nombre.asc()]
     else:
         # Por defecto: Cliente (Alfabético)
         order_criteria = [Cliente.nombre.asc(), Cliente.apellido.asc(), Pagare.id_venta.asc(), Pagare.numero_cuota.asc()]
@@ -393,7 +397,14 @@ async def get_cuotas_mora_detalle(
                     "total_pago": monto_s + interes
                 })
         
-    # Reordenar el reporte final si es necesario (ya viene medio ordenado por el loop)
+    # 4. Reordenar el reporte final según el criterio solicitado
+    # El agrupamiento previo por venta es necesario para el saldo_total_venta, 
+    # pero el usuario espera un orden global en la tabla.
+    if orden == 'dias_mora' or orden == 'vencimiento':
+        reporte.sort(key=lambda x: (x['fecha_vencimiento'], x['cliente_nombre']))
+    elif orden == 'cliente':
+        reporte.sort(key=lambda x: (x['cliente_nombre'], x['fecha_vencimiento']))
+
     return reporte
 @router.post("/playa/reportes/recalcular-mora")
 async def recalcular_mora_clientes(
@@ -486,22 +497,37 @@ async def get_reporte_stock_disponible(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Obtiene el stock de vehículos disponibles con su entrega inicial sugerida.
+    Obtiene el stock de vehículos disponibles con su entrega inicial sugerida y costo total.
     """
+    # Subquery para sumar gastos por producto
+    from models_playa import GastoProducto
+    subq_gastos = (
+        select(
+            GastoProducto.id_producto,
+            func.sum(GastoProducto.monto).label("total_gastos")
+        )
+        .group_by(GastoProducto.id_producto)
+        .subquery()
+    )
+
     query = (
-        select(Producto)
+        select(
+            Producto,
+            func.coalesce(subq_gastos.c.total_gastos, 0).label("total_gastos")
+        )
+        .outerjoin(subq_gastos, Producto.id_producto == subq_gastos.c.id_producto)
         .where(Producto.estado_disponibilidad == 'DISPONIBLE')
         .where(or_(Producto.activo == True, Producto.activo.is_(None)))
         .order_by(Producto.marca, Producto.modelo)
     )
     
     result = await session.execute(query)
-    productos = result.scalars().all()
+    rows = result.all()
     
     reporte = []
     today = date.today()
     
-    for p in productos:
+    for p, total_gastos in rows:
         dias_stock = 0
         if p.fecha_ingreso:
             dias_stock = (today - p.fecha_ingreso).days
@@ -517,7 +543,8 @@ async def get_reporte_stock_disponible(
             "precio_financiado_sugerido": float(p.precio_financiado_sugerido) if p.precio_financiado_sugerido is not None else None,
             "entrega_inicial_sugerida": float(p.entrega_inicial_sugerida) if p.entrega_inicial_sugerida is not None else None,
             "ubicacion_actual": p.ubicacion_actual if p.ubicacion_actual else None,
-            "dias_en_stock": dias_stock
+            "dias_en_stock": dias_stock,
+            "costo_final": float((p.costo_base or 0) + total_gastos)
         })
         
     return reporte

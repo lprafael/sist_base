@@ -616,3 +616,33 @@
     background: #cbd5e1;
     border-radius: 10px;
 }
+
+/* Sortable Table Headers */
+.formal-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 20px !important;
+}
+
+.formal-table th.sortable:hover {
+    background: #f1f5f9 !important;
+    color: #4f46e5 !important;
+}
+
+.sort-indicator {
+    font-size: 0.7rem;
+    margin-left: 5px;
+    opacity: 0.5;
+}
+
+.sortable.active .sort-indicator {
+    opacity: 1;
+    color: #4f46e5;
+}
+
+@media print {
+    .sort-indicator {
+        display: none !important;
+    }
+}

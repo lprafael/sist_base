@@ -142,9 +142,12 @@ const PagaresPlaya = () => {
     const filteredAndSortedPagares = pagares
         .filter(p => {
             // Filtro por búsqueda de texto
+            const cliente = clientesInfo[p.id_venta];
             const matchesSearch =
                 p.numero_pagare.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.id_venta.toString().includes(searchTerm);
+                p.id_venta.toString().includes(searchTerm) ||
+                (cliente?.nombre_completo && cliente.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (cliente?.numero_documento && cliente.numero_documento.toLowerCase().includes(searchTerm.toLowerCase()));
 
             if (!matchesSearch) return false;
 
@@ -396,7 +399,7 @@ const PagaresPlaya = () => {
                         <div className="search-box">
                             <input
                                 type="text"
-                                placeholder="Buscar por número o venta..."
+                                placeholder="Buscar por número, venta, cliente o documento..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -462,6 +465,7 @@ const PagaresPlaya = () => {
                                 >
                                     Venta {getSortIcon('id_venta')}
                                 </th>
+                                {includeClientNames && <th>Cliente</th>}
                                 <th>Cuota</th>
                                 <th
                                     className="sortable"
@@ -499,6 +503,17 @@ const PagaresPlaya = () => {
                                     <tr key={p.id_pagare}>
                                         <td>{p.numero_pagare}</td>
                                         <td>ID: {p.id_venta}</td>
+                                        {includeClientNames && (
+                                            <td>
+                                                {clientesInfo[p.id_venta] ? (
+                                                    <div className="client-info-cell">
+                                                        <strong>{clientesInfo[p.id_venta].nombre_completo}</strong>
+                                                        <br />
+                                                        <small>{clientesInfo[p.id_venta].numero_documento}</small>
+                                                    </div>
+                                                ) : 'N/A'}
+                                            </td>
+                                        )}
                                         <td>
                                             {p.numero_cuota} ({p.tipo_pagare})
                                         </td>

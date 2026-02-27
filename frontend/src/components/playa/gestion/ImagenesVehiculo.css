@@ -98,6 +98,16 @@
     cursor: pointer;
 }
 
+.btn-crop-img {
+    background: #f59e0b;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 4px;
+}
+
 .btn-set-principal {
     background: #3b82f6;
     color: white;

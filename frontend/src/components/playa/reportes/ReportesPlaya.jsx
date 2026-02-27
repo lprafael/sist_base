@@ -13,7 +13,8 @@ const ReportesPlaya = () => {
     const [loading, setLoading] = useState(false);
     const [fechaDesde, setFechaDesde] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
     const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
-    const [ordenMora, setOrdenMora] = useState('cliente'); // 'cliente' o 'dias_mora'
+    const [ordenMora, setOrdenMora] = useState('cliente'); // 'cliente', 'dias_mora' o 'vencimiento'
+    const [vistaStock, setVistaStock] = useState('administracion'); // 'administracion' o 'vendedor'
     const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -232,33 +233,34 @@ const ReportesPlaya = () => {
                         </div>
                     )}
 
-                    {reporteSeleccionado === 'clientes_mora' && (
+                    {reporteSeleccionado === 'stock_disponible' && (
                         <div className="order-filter no-print">
-                            <span className="order-label">Ordenar por:</span>
+                            <span className="order-label">Vista:</span>
                             <div className="radio-group">
-                                <label className={`radio-btn ${ordenMora === 'cliente' ? 'selected' : ''}`}>
+                                <label className={`radio-btn ${vistaStock === 'administracion' ? 'selected' : ''}`}>
                                     <input
                                         type="radio"
-                                        name="ordenMora"
-                                        value="cliente"
-                                        checked={ordenMora === 'cliente'}
-                                        onChange={(e) => setOrdenMora(e.target.value)}
+                                        name="vistaStock"
+                                        value="administracion"
+                                        checked={vistaStock === 'administracion'}
+                                        onChange={(e) => setVistaStock(e.target.value)}
                                     />
-                                    Cliente
+                                    Administración
                                 </label>
-                                <label className={`radio-btn ${ordenMora === 'dias_mora' ? 'selected' : ''}`}>
+                                <label className={`radio-btn ${vistaStock === 'vendedor' ? 'selected' : ''}`}>
                                     <input
                                         type="radio"
-                                        name="ordenMora"
-                                        value="dias_mora"
-                                        checked={ordenMora === 'dias_mora'}
-                                        onChange={(e) => setOrdenMora(e.target.value)}
+                                        name="vistaStock"
+                                        value="vendedor"
+                                        checked={vistaStock === 'vendedor'}
+                                        onChange={(e) => setVistaStock(e.target.value)}
                                     />
-                                    Días atraso
+                                    Vendedor
                                 </label>
                             </div>
                         </div>
                     )}
+
                     <button className="btn-print" onClick={handlePrint} disabled={loading}>
                         🖨️ Imprimir Reporte
                     </button>
@@ -340,13 +342,30 @@ const ReportesPlaya = () => {
                         <table className="reporte-table formal-table">
                             <thead>
                                 <tr>
-                                    <th>Nombre Cliente</th>
+                                    <th
+                                        className={`sortable ${ordenMora === 'cliente' ? 'active' : ''} no-print-pointer`}
+                                        onClick={() => setOrdenMora('cliente')}
+                                    >
+                                        Nombre Cliente {ordenMora === 'cliente' && <span className="sort-indicator">▼</span>}
+                                    </th>
                                     <th>C.I.Nro.</th>
                                     <th style={{ textAlign: 'center' }}>Nro. Cuota</th>
-                                    <th style={{ textAlign: 'center' }}>Fecha Vencimiento</th>
+                                    <th
+                                        className={`sortable ${ordenMora === 'vencimiento' ? 'active' : ''}`}
+                                        style={{ textAlign: 'center' }}
+                                        onClick={() => setOrdenMora('vencimiento')}
+                                    >
+                                        Fecha Vencimiento {ordenMora === 'vencimiento' && <span className="sort-indicator">▼</span>}
+                                    </th>
                                     <th style={{ textAlign: 'right' }}>Saldo cuota</th>
                                     <th style={{ textAlign: 'right' }}>Cuota Mensual</th>
-                                    <th style={{ textAlign: 'center' }}>Dias Mora</th>
+                                    <th
+                                        className={`sortable ${ordenMora === 'dias_mora' ? 'active' : ''}`}
+                                        style={{ textAlign: 'center' }}
+                                        onClick={() => setOrdenMora('dias_mora')}
+                                    >
+                                        Dias Mora {ordenMora === 'dias_mora' && <span className="sort-indicator">▼</span>}
+                                    </th>
                                     <th style={{ textAlign: 'right' }}>Total Mora</th>
                                     <th style={{ textAlign: 'right' }}>Total Pago Cuota</th>
                                 </tr>
@@ -517,8 +536,9 @@ const ReportesPlaya = () => {
                                 <th>VEHÍCULO</th>
                                 <th>CHASIS</th>
                                 <th>COLOR</th>
-                                <th>UBICACIÓN</th>
-                                <th style={{ textAlign: 'center' }}>DÍAS EN STOCK</th>
+                                {vistaStock === 'administracion' && <th>UBICACIÓN</th>}
+                                {vistaStock === 'administracion' && <th style={{ textAlign: 'center' }}>DÍAS EN STOCK</th>}
+                                {vistaStock === 'administracion' && <th style={{ textAlign: 'right' }}>COSTO</th>}
                                 <th style={{ textAlign: 'right' }}>PRECIO CONTADO</th>
                                 <th style={{ textAlign: 'right' }}>PRECIO FINANCIADO</th>
                                 <th style={{ background: '#fef3c7', textAlign: 'right' }}>ENTREGA INICIAL</th>
@@ -534,8 +554,15 @@ const ReportesPlaya = () => {
                                         </td>
                                         <td style={{ fontFamily: 'monospace' }}>{row.chasis || '-'}</td>
                                         <td>{row.color || '-'}</td>
-                                        <td>{row.ubicacion_actual || 'Playa Principal'}</td>
-                                        <td style={{ textAlign: 'center' }}>{row.dias_en_stock ?? '-'}</td>
+                                        {vistaStock === 'administracion' && <td>{row.ubicacion_actual || 'Playa Principal'}</td>}
+                                        {vistaStock === 'administracion' && <td style={{ textAlign: 'center' }}>{row.dias_en_stock ?? '-'}</td>}
+                                        {vistaStock === 'administracion' && (
+                                            <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                                {row.costo_final && !isNaN(row.costo_final)
+                                                    ? Math.round(parseFloat(row.costo_final)).toLocaleString('es-PY')
+                                                    : '0'}
+                                            </td>
+                                        )}
                                         <td style={{ textAlign: 'right' }}>
                                             {row.precio_contado_sugerido && !isNaN(row.precio_contado_sugerido)
                                                 ? Math.round(parseFloat(row.precio_contado_sugerido)).toLocaleString('es-PY')
@@ -555,7 +582,7 @@ const ReportesPlaya = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>No hay vehículos disponibles en stock.</td>
+                                    <td colSpan={vistaStock === 'administracion' ? 9 : 6} style={{ textAlign: 'center', padding: '20px' }}>No hay vehículos disponibles en stock.</td>
                                 </tr>
                             )}
                         </tbody>

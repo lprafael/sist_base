@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './ImagenesVehiculo.css';
 import ModalPublicarRedes from './ModalPublicarRedes';
+import ModalRecortarImagen from './ModalRecortarImagen';
 
 const ImagenesVehiculo = ({ id_producto }) => {
     const [vehiculos, setVehiculos] = useState([]);
@@ -11,6 +12,7 @@ const ImagenesVehiculo = ({ id_producto }) => {
     const [dragActive, setDragActive] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
     const [isModalRedesOpen, setIsModalRedesOpen] = useState(false);
+    const [croppingImage, setCroppingImage] = useState(null);
     const fileInputRef = useRef(null);
     const searchContainerRef = useRef(null);
 
@@ -91,9 +93,70 @@ const ImagenesVehiculo = ({ id_producto }) => {
     };
 
     const handleFileInputChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
+        if (e.target.files && e.target.files.length > 0) {
             handleUpload(e.target.files);
         }
+    };
+
+    const addWatermark = async (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // Establecer dimensiones del canvas
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    // Dibujar imagen original
+                    ctx.drawImage(img, 0, 0);
+
+                    // Cargar logo para marca de agua
+                    const logo = new Image();
+                    logo.onload = () => {
+                        // Calcular tamaño del logo para que sea grande y centrado
+                        const targetScale = 0.8; // Ocupar el 80% de la imagen
+                        const scale = Math.min((canvas.width * targetScale) / logo.width, (canvas.height * targetScale) / logo.height);
+                        const logoWidth = logo.width * scale;
+                        const logoHeight = logo.height * scale;
+
+                        // Centrar el logo
+                        const x = (canvas.width - logoWidth) / 2;
+                        const y = (canvas.height - logoHeight) / 2;
+
+                        // Dibujar logo con opacidad baja (semitransparente)
+                        ctx.globalAlpha = 0.35;
+                        ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+                        ctx.globalAlpha = 1.0;
+
+                        // Convertir canvas a blob
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                // Crear un nuevo archivo a partir del blob
+                                const watermarkedFile = new File([blob], file.name, {
+                                    type: 'image/jpeg',
+                                    lastModified: Date.now(),
+                                });
+                                resolve(watermarkedFile);
+                            } else {
+                                reject(new Error('Error al procesar la imagen'));
+                            }
+                        }, 'image/jpeg', 0.9);
+                    };
+                    logo.onerror = () => {
+                        console.warn('No se pudo cargar el logo de la marca de agua, subiendo original.');
+                        resolve(file); // Continuar con el original si falla el logo
+                    };
+                    logo.src = '/imágenes/logo_micoche.png'; // Ruta desde public
+                };
+                img.onerror = () => reject(new Error('Error al cargar la imagen original'));
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
     };
 
     const handleUpload = async (files) => {
@@ -102,20 +165,29 @@ const ImagenesVehiculo = ({ id_producto }) => {
             return;
         }
 
-        const formData = new FormData();
-        Array.from(files).forEach(file => {
-            if (file.type.startsWith('image/')) {
-                formData.append('imagenes', file);
-            }
-        });
-
-        if (formData.getAll('imagenes').length === 0) {
-            alert('Solo se permiten archivos de imagen.');
-            return;
-        }
-
         setLoading(true);
         try {
+            const formData = new FormData();
+            const processPromises = Array.from(files).map(async (file) => {
+                if (file.type.startsWith('image/')) {
+                    try {
+                        const watermarkedFile = await addWatermark(file);
+                        formData.append('imagenes', watermarkedFile);
+                    } catch (err) {
+                        console.error('Error watermarking file:', file.name, err);
+                        formData.append('imagenes', file); // Fallback al original
+                    }
+                }
+            });
+
+            await Promise.all(processPromises);
+
+            if (formData.getAll('imagenes').length === 0) {
+                alert('No se procesaron imágenes válidas.');
+                setLoading(false);
+                return;
+            }
+
             const token = sessionStorage.getItem('token');
             await axios.post(`${API_URL}/playa/vehiculos/${selectedVehiculoId}/imagenes`, formData, {
                 headers: {
@@ -156,6 +228,43 @@ const ImagenesVehiculo = ({ id_producto }) => {
             fetchImagenes(selectedVehiculoId);
         } catch (error) {
             console.error('Error setting principal image:', error);
+        }
+    };
+
+    const handleStartCrop = (img) => {
+        setCroppingImage(img);
+    };
+
+    const handleSaveCropped = async (id_imagen_original, croppedBlob) => {
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            const file = new File([croppedBlob], `recortada_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            formData.append('imagenes', file);
+
+            const token = sessionStorage.getItem('token');
+            // Subir la nueva imagen
+            await axios.post(`${API_URL}/playa/vehiculos/${selectedVehiculoId}/imagenes`, formData, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            // Opcional: Eliminar la original
+            if (window.confirm('¿Deseas eliminar la imagen original y mantener solo la recortada?')) {
+                await axios.delete(`${API_URL}/playa/vehiculos/imagenes/${id_imagen_original}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+
+            setCroppingImage(null);
+            fetchImagenes(selectedVehiculoId);
+        } catch (error) {
+            console.error('Error saving cropped image:', error);
+            alert('Error al guardar la imagen recortada');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -333,6 +442,13 @@ const ImagenesVehiculo = ({ id_producto }) => {
                                         {img.es_principal ? 'Principal' : 'Hacer Principal'}
                                     </button>
                                     <button
+                                        className="btn-crop-img"
+                                        onClick={() => handleStartCrop(img)}
+                                        title="Recortar imagen"
+                                    >
+                                        ✂️
+                                    </button>
+                                    <button
                                         className="btn-delete-img"
                                         onClick={() => handleDelete(img.id_imagen)}
                                         title="Eliminar imagen"
@@ -366,6 +482,14 @@ const ImagenesVehiculo = ({ id_producto }) => {
                     imagenes={imagenes}
                     vehiculoInfo={vehiculos.find(v => v.id_producto === selectedVehiculoId)}
                     getImageUrl={getImageUrl}
+                />
+            )}
+
+            {croppingImage && (
+                <ModalRecortarImagen
+                    image={getImageUrl(croppingImage.ruta_archivo)}
+                    onClose={() => setCroppingImage(null)}
+                    onSave={(blob) => handleSaveCropped(croppingImage.id_imagen, blob)}
                 />
             )}
         </div>

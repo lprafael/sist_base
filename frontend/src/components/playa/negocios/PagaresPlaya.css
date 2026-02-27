@@ -66,6 +66,16 @@
     transition: all 0.2s;
 }
 
+.client-info-cell strong {
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.client-info-cell small {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
 .btn-edit-small:hover {
     background: #bae6fd;
 }

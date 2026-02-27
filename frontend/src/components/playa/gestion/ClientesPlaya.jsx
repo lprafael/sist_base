@@ -803,458 +803,477 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
 
                         {editingCliente && (
                             <div className="modal-tabs">
-                                <button className={`tab-btn ${activeTab === 'datos' ? 'active' : ''}`} onClick={() => setActiveTab('datos')}>1. Datos Básico</button>
-                                <button className={`tab-btn ${activeTab === 'garantes' ? 'active' : ''}`} onClick={() => setActiveTab('garantes')}>2. Garantes</button>
-                                <button className={`tab-btn ${activeTab === 'referencias' ? 'active' : ''}`} onClick={() => setActiveTab('referencias')}>3. Referencias</button>
-                                <button className={`tab-btn ${activeTab === 'ubicaciones' ? 'active' : ''}`} onClick={() => setActiveTab('ubicaciones')}>4. Ubicaciones</button>
+                                <button type="button" className={`tab-btn ${activeTab === 'datos' ? 'active' : ''}`} onClick={() => setActiveTab('datos')}>1. Datos Básico</button>
+                                <button type="button" className={`tab-btn ${activeTab === 'garantes' ? 'active' : ''}`} onClick={() => setActiveTab('garantes')}>2. Garantes</button>
+                                <button type="button" className={`tab-btn ${activeTab === 'referencias' ? 'active' : ''}`} onClick={() => setActiveTab('referencias')}>3. Referencias</button>
+                                <button type="button" className={`tab-btn ${activeTab === 'ubicaciones' ? 'active' : ''}`} onClick={() => setActiveTab('ubicaciones')}>4. Ubicaciones</button>
                             </div>
                         )}
 
-                        <div className="tab-content">
-                            {activeTab === 'datos' && (
-                                <form onSubmit={handleSaveCliente}>
-                                    <h4 style={{ marginBottom: '15px', color: '#2563eb' }}>Datos de Identificación</h4>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Tipo Doc.</label>
-                                            <select value={newCliente.tipo_documento} onChange={(e) => setNewCliente({ ...newCliente, tipo_documento: e.target.value })}>
-                                                <option value="CI">CI</option>
-                                                <option value="RUC">RUC</option>
-                                                <option value="PASAPORTE">Pasaporte</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Número Documento *</label>
-                                            <input type="text" required value={newCliente.numero_documento || ''} onChange={(e) => setNewCliente({ ...newCliente, numero_documento: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Personales</h4>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Nombre *</label>
-                                            <input type="text" required value={newCliente.nombre || ''} onChange={(e) => setNewCliente({ ...newCliente, nombre: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Apellido *</label>
-                                            <input type="text" required value={newCliente.apellido || ''} onChange={(e) => setNewCliente({ ...newCliente, apellido: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Fecha de Nacimiento</label>
-                                            <input type="date" value={newCliente.fecha_nacimiento || ''} onChange={(e) => setNewCliente({ ...newCliente, fecha_nacimiento: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Estado Civil</label>
-                                            <select value={newCliente.estado_civil || ''} onChange={(e) => setNewCliente({ ...newCliente, estado_civil: e.target.value })}>
-                                                <option value="">Seleccionar...</option>
-                                                <option value="SOLTERO">Soltero</option>
-                                                <option value="CASADO">Casado</option>
-                                                <option value="DIVORCIADO">Divorciado</option>
-                                                <option value="VIUDO">Viudo</option>
-                                                <option value="UNION_LIBRE">Unión Libre</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Profesión</label>
-                                            <input type="text" value={newCliente.profesion || ''} onChange={(e) => setNewCliente({ ...newCliente, profesion: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Contacto</h4>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Teléfono</label>
-                                            <input type="text" value={newCliente.telefono || ''} onChange={(e) => setNewCliente({ ...newCliente, telefono: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Celular</label>
-                                            <input type="text" value={newCliente.celular || ''} onChange={(e) => setNewCliente({ ...newCliente, celular: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Email</label>
-                                        <input type="email" value={newCliente.email || ''} onChange={(e) => setNewCliente({ ...newCliente, email: e.target.value })} />
-                                    </div>
-
-                                    <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Dirección</h4>
-                                    <div className="form-group">
-                                        <label>Dirección</label>
-                                        <textarea rows="2" value={newCliente.direccion || ''} onChange={(e) => setNewCliente({ ...newCliente, direccion: e.target.value })} />
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Ciudad</label>
-                                            <input type="text" value={newCliente.ciudad || ''} onChange={(e) => setNewCliente({ ...newCliente, ciudad: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Departamento</label>
-                                            <input type="text" value={newCliente.departamento || ''} onChange={(e) => setNewCliente({ ...newCliente, departamento: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Código Postal</label>
-                                        <input type="text" value={newCliente.codigo_postal || ''} onChange={(e) => setNewCliente({ ...newCliente, codigo_postal: e.target.value })} />
-                                    </div>
-
-                                    <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Laborales</h4>
-                                    <div className="form-group">
-                                        <label>Lugar de Trabajo</label>
-                                        <input type="text" value={newCliente.lugar_trabajo || ''} onChange={(e) => setNewCliente({ ...newCliente, lugar_trabajo: e.target.value })} />
-                                    </div>
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Teléfono Trabajo</label>
-                                            <input type="text" value={newCliente.telefono_trabajo || ''} onChange={(e) => setNewCliente({ ...newCliente, telefono_trabajo: e.target.value })} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label>Antigüedad Laboral</label>
-                                            <input type="text" placeholder="Ej: 2 años, 6 meses" value={newCliente.antiguedad_laboral || ''} onChange={(e) => setNewCliente({ ...newCliente, antiguedad_laboral: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Dirección Laboral</label>
-                                        <textarea rows="2" value={newCliente.direccion_laboral || ''} onChange={(e) => setNewCliente({ ...newCliente, direccion_laboral: e.target.value })} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Ingreso Mensual</label>
-                                        <input type="number" step="0.01" placeholder="0.00" value={newCliente.ingreso_mensual || ''} onChange={(e) => setNewCliente({ ...newCliente, ingreso_mensual: e.target.value })} />
-                                    </div>
-
-                                    <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Observaciones</h4>
-                                    <div className="form-group">
-                                        <label>Observaciones</label>
-                                        <textarea rows="3" value={newCliente.observaciones || ''} onChange={(e) => setNewCliente({ ...newCliente, observaciones: e.target.value })} />
-                                    </div>
-
-                                    <div className="modal-actions">
-                                        <button type="submit" className="btn-save">{editingCliente ? 'Actualizar Información' : 'Siguiente: Garantes'}</button>
-                                    </div>
-                                </form>
-                            )}
-
-                            {activeTab === 'garantes' && (
-                                <div className="garantes-section">
-                                    <div className="list-header">
-                                        <h4>Garantes Registrados</h4>
-                                        <button className="btn-mini btn-add" onClick={handleAddGarante}>+ Agregar Garante</button>
-                                    </div>
-                                    <div className="mini-list">
-                                        {newCliente.garantes.length === 0 ? (
-                                            <div className="empty-state">No hay garantes registrados.</div>
-                                        ) : (
-                                            newCliente.garantes.map(g => (
-                                                <div key={g.id_garante} className="mini-card">
-                                                    <div className="card-info">
-                                                        <h4>{g.nombre} {g.apellido}</h4>
-                                                        <p>Doc: {g.numero_documento} | Relación: {g.relacion_cliente}</p>
-                                                    </div>
-                                                    <div className="card-actions">
-                                                        <button className="btn-mini" onClick={() => handleAddRef('GARANTE', g.id_garante, g.nombre)}>📌 Referencias</button>
-                                                        <button className="btn-mini" onClick={() => { setCurrentGarante(g); setShowGanteModal(true); }}>✏️</button>
-                                                        <button className="btn-mini" onClick={() => handleDeleteGante(g.id_garante)}>🗑️</button>
-                                                    </div>
+                        <form onSubmit={handleSaveCliente} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div className="modal-body">
+                                <div className="tab-content">
+                                    {activeTab === 'datos' && (
+                                        <div className="client-form-content">
+                                            <h4 style={{ marginBottom: '15px', color: '#2563eb' }}>Datos de Identificación</h4>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Tipo Doc.</label>
+                                                    <select value={newCliente.tipo_documento} onChange={(e) => setNewCliente({ ...newCliente, tipo_documento: e.target.value })}>
+                                                        <option value="CI">CI</option>
+                                                        <option value="RUC">RUC</option>
+                                                        <option value="PASAPORTE">Pasaporte</option>
+                                                    </select>
                                                 </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'referencias' && (
-                                <div className="referencias-section">
-                                    <div className="list-header">
-                                        <h4>Referencias del Cliente</h4>
-                                        <button className="btn-mini btn-add" onClick={() => handleAddRef('CLIENTE', editingCliente.id_cliente, editingCliente.nombre)}>+ Nueva Referencia</button>
-                                    </div>
-                                    <div className="mini-list">
-                                        {newCliente.referencias.filter(r => r.tipo_entidad === 'CLIENTE').length === 0 ? (
-                                            <div className="empty-state">Sin referencias.</div>
-                                        ) : (
-                                            newCliente.referencias.filter(r => r.tipo_entidad === 'CLIENTE').map(r => (
-                                                <div key={r.id_referencia} className="mini-card">
-                                                    <div className="card-info">
-                                                        <h4>{r.nombre} ({r.tipo_referencia})</h4>
-                                                        <p>Telf: {r.telefono} | {r.parentesco_cargo}</p>
-                                                    </div>
-                                                    <div className="card-actions">
-                                                        <button className="btn-mini" onClick={() => { setCurrentRef(r); setShowRefModal(true); }}>✏️</button>
-                                                        <button className="btn-mini" onClick={() => handleDeleteRef(r.id_referencia)}>🗑️</button>
-                                                    </div>
+                                                <div className="form-group">
+                                                    <label>Número Documento *</label>
+                                                    <input type="text" required value={newCliente.numero_documento || ''} onChange={(e) => setNewCliente({ ...newCliente, numero_documento: e.target.value })} />
                                                 </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                                            </div>
 
-                            {activeTab === 'ubicaciones' && (
-                                <div className="ubicaciones-section">
-                                    <div className="list-header">
-                                        <h4>Ubicaciones del Cliente</h4>
-                                        <button className="btn-mini btn-add" onClick={handleAddUbi}>+ Nueva Ubicación</button>
-                                    </div>
-                                    <div className="mini-list">
-                                        {newCliente.ubicaciones.length === 0 ? (
-                                            <div className="empty-state">Sin ubicaciones registradas.</div>
-                                        ) : (
-                                            newCliente.ubicaciones.map(u => (
-                                                <div key={u.id_ubicacion} className="mini-card">
-                                                    <div className="card-info">
-                                                        <h4>{u.nombre_lugar} ({u.tipo_ubicacion})</h4>
-                                                        <p>{u.direccion_texto}</p>
-                                                        {u.referencia && <p className="text-muted"><small>Ref: {u.referencia}</small></p>}
-                                                    </div>
-                                                    <div className="card-actions">
-                                                        <button className="btn-mini" onClick={() => { setCurrentUbi(u); setShowUbiModal(true); }}>✏️</button>
-                                                        <button className="btn-mini" onClick={() => handleDeleteUbi(u.id_ubicacion)}>🗑️</button>
-                                                    </div>
+                                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Personales</h4>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Nombre *</label>
+                                                    <input type="text" required value={newCliente.nombre || ''} onChange={(e) => setNewCliente({ ...newCliente, nombre: e.target.value })} />
                                                 </div>
-                                            ))
-                                        )}
-                                    </div>
+                                                <div className="form-group">
+                                                    <label>Apellido *</label>
+                                                    <input type="text" required value={newCliente.apellido || ''} onChange={(e) => setNewCliente({ ...newCliente, apellido: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Fecha de Nacimiento</label>
+                                                    <input type="date" value={newCliente.fecha_nacimiento || ''} onChange={(e) => setNewCliente({ ...newCliente, fecha_nacimiento: e.target.value })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Estado Civil</label>
+                                                    <select value={newCliente.estado_civil || ''} onChange={(e) => setNewCliente({ ...newCliente, estado_civil: e.target.value })}>
+                                                        <option value="">Seleccionar...</option>
+                                                        <option value="SOLTERO">Soltero</option>
+                                                        <option value="CASADO">Casado</option>
+                                                        <option value="DIVORCIADO">Divorciado</option>
+                                                        <option value="VIUDO">Viudo</option>
+                                                        <option value="UNION_LIBRE">Unión Libre</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Profesión</label>
+                                                    <input type="text" value={newCliente.profesion || ''} onChange={(e) => setNewCliente({ ...newCliente, profesion: e.target.value })} />
+                                                </div>
+                                            </div>
+
+                                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Contacto</h4>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Teléfono</label>
+                                                    <input type="text" value={newCliente.telefono || ''} onChange={(e) => setNewCliente({ ...newCliente, telefono: e.target.value })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Celular</label>
+                                                    <input type="text" value={newCliente.celular || ''} onChange={(e) => setNewCliente({ ...newCliente, celular: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Email</label>
+                                                <input type="email" value={newCliente.email || ''} onChange={(e) => setNewCliente({ ...newCliente, email: e.target.value })} />
+                                            </div>
+
+                                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Dirección</h4>
+                                            <div className="form-group">
+                                                <label>Dirección</label>
+                                                <textarea rows="2" value={newCliente.direccion || ''} onChange={(e) => setNewCliente({ ...newCliente, direccion: e.target.value })} />
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Ciudad</label>
+                                                    <input type="text" value={newCliente.ciudad || ''} onChange={(e) => setNewCliente({ ...newCliente, ciudad: e.target.value })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Departamento</label>
+                                                    <input type="text" value={newCliente.departamento || ''} onChange={(e) => setNewCliente({ ...newCliente, departamento: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Código Postal</label>
+                                                <input type="text" value={newCliente.codigo_postal || ''} onChange={(e) => setNewCliente({ ...newCliente, codigo_postal: e.target.value })} />
+                                            </div>
+
+                                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Laborales</h4>
+                                            <div className="form-group">
+                                                <label>Lugar de Trabajo</label>
+                                                <input type="text" value={newCliente.lugar_trabajo || ''} onChange={(e) => setNewCliente({ ...newCliente, lugar_trabajo: e.target.value })} />
+                                            </div>
+                                            <div className="form-row">
+                                                <div className="form-group">
+                                                    <label>Teléfono Trabajo</label>
+                                                    <input type="text" value={newCliente.telefono_trabajo || ''} onChange={(e) => setNewCliente({ ...newCliente, telefono_trabajo: e.target.value })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Antigüedad Laboral</label>
+                                                    <input type="text" placeholder="Ej: 2 años, 6 meses" value={newCliente.antiguedad_laboral || ''} onChange={(e) => setNewCliente({ ...newCliente, antiguedad_laboral: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Dirección Laboral</label>
+                                                <textarea rows="2" value={newCliente.direccion_laboral || ''} onChange={(e) => setNewCliente({ ...newCliente, direccion_laboral: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Ingreso Mensual</label>
+                                                <input type="number" step="0.01" placeholder="0.00" value={newCliente.ingreso_mensual || ''} onChange={(e) => setNewCliente({ ...newCliente, ingreso_mensual: e.target.value })} />
+                                            </div>
+
+                                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Observaciones</h4>
+                                            <div className="form-group">
+                                                <label>Observaciones</label>
+                                                <textarea rows="3" value={newCliente.observaciones || ''} onChange={(e) => setNewCliente({ ...newCliente, observaciones: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'garantes' && (
+                                        <div className="garantes-section">
+                                            <div className="list-header">
+                                                <h4>Garantes Registrados</h4>
+                                                <button type="button" className="btn-mini btn-add" onClick={handleAddGarante}>+ Agregar Garante</button>
+                                            </div>
+                                            <div className="mini-list">
+                                                {newCliente.garantes.length === 0 ? (
+                                                    <div className="empty-state">No hay garantes registrados.</div>
+                                                ) : (
+                                                    newCliente.garantes.map(g => (
+                                                        <div key={g.id_garante} className="mini-card">
+                                                            <div className="card-info">
+                                                                <h4>{g.nombre} {g.apellido}</h4>
+                                                                <p>Doc: {g.numero_documento} | Relación: {g.relacion_cliente}</p>
+                                                            </div>
+                                                            <div className="card-actions">
+                                                                <button type="button" className="btn-mini" onClick={() => handleAddRef('GARANTE', g.id_garante, g.nombre)}>📌 Referencias</button>
+                                                                <button type="button" className="btn-mini" onClick={() => { setCurrentGarante(g); setShowGanteModal(true); }}>✏️</button>
+                                                                <button type="button" className="btn-mini" onClick={() => handleDeleteGante(g.id_garante)}>🗑️</button>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'referencias' && (
+                                        <div className="referencias-section">
+                                            <div className="list-header">
+                                                <h4>Referencias del Cliente</h4>
+                                                <button type="button" className="btn-mini btn-add" onClick={() => handleAddRef('CLIENTE', editingCliente.id_cliente, editingCliente.nombre)}>+ Nueva Referencia</button>
+                                            </div>
+                                            <div className="mini-list">
+                                                {newCliente.referencias.filter(r => r.tipo_entidad === 'CLIENTE').length === 0 ? (
+                                                    <div className="empty-state">Sin referencias.</div>
+                                                ) : (
+                                                    newCliente.referencias.filter(r => r.tipo_entidad === 'CLIENTE').map(r => (
+                                                        <div key={r.id_referencia} className="mini-card">
+                                                            <div className="card-info">
+                                                                <h4>{r.nombre} ({r.tipo_referencia})</h4>
+                                                                <p>Telf: {r.telefono} | {r.parentesco_cargo}</p>
+                                                            </div>
+                                                            <div className="card-actions">
+                                                                <button type="button" className="btn-mini" onClick={() => { setCurrentRef(r); setShowRefModal(true); }}>✏️</button>
+                                                                <button type="button" className="btn-mini" onClick={() => handleDeleteRef(r.id_referencia)}>🗑️</button>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'ubicaciones' && (
+                                        <div className="ubicaciones-section">
+                                            <div className="list-header">
+                                                <h4>Ubicaciones del Cliente</h4>
+                                                <button type="button" className="btn-mini btn-add" onClick={handleAddUbi}>+ Nueva Ubicación</button>
+                                            </div>
+                                            <div className="mini-list">
+                                                {newCliente.ubicaciones.length === 0 ? (
+                                                    <div className="empty-state">Sin ubicaciones registradas.</div>
+                                                ) : (
+                                                    newCliente.ubicaciones.map(u => (
+                                                        <div key={u.id_ubicacion} className="mini-card">
+                                                            <div className="card-info">
+                                                                <h4>{u.nombre_lugar} ({u.tipo_ubicacion})</h4>
+                                                                <p>{u.direccion_texto}</p>
+                                                                {u.referencia && <p className="text-muted"><small>Ref: {u.referencia}</small></p>}
+                                                            </div>
+                                                            <div className="card-actions">
+                                                                <button type="button" className="btn-mini" onClick={() => { setCurrentUbi(u); setShowUbiModal(true); }}>✏️</button>
+                                                                <button type="button" className="btn-mini" onClick={() => handleDeleteUbi(u.id_ubicacion)}>🗑️</button>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+
+                            <div className="modal-footer">
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
+                                    {(activeTab === 'datos' || !editingCliente) && (
+                                        <button type="submit" className="btn-save">
+                                            {editingCliente ? 'Actualizar Información' : 'Siguiente: Garantes'}
+                                        </button>
+                                    )}
+                                    {editingCliente && activeTab !== 'datos' && (
+                                        <button type="button" className="btn-save" onClick={handleCloseModal}>Finalizar Perfil</button>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
 
             {/* SUB-MODAL GARANTE */}
-            {showGanteModal && (
-                <div className="sub-modal-overlay">
-                    <div className="sub-modal-content large">
-                        <h4>{currentGarante.id_garante ? 'Editar Garante' : 'Nuevo Garante'}</h4>
-                        <form onSubmit={handleSaveGante}>
-                            <h4 style={{ marginBottom: '15px', color: '#2563eb' }}>Datos de Identificación</h4>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Tipo Doc.</label>
-                                    <select value={currentGarante.tipo_documento || 'CI'} onChange={e => setCurrentGarante({ ...currentGarante, tipo_documento: e.target.value })}>
-                                        <option value="CI">CI</option>
-                                        <option value="RUC">RUC</option>
-                                        <option value="PASAPORTE">Pasaporte</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Número Documento *</label>
-                                    <input type="text" required value={currentGarante.numero_documento || ''} onChange={e => setCurrentGarante({ ...currentGarante, numero_documento: e.target.value })} />
-                                </div>
-                            </div>
-
-                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Personales</h4>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Nombre *</label>
-                                    <input type="text" required value={currentGarante.nombre || ''} onChange={e => setCurrentGarante({ ...currentGarante, nombre: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Apellido *</label>
-                                    <input type="text" required value={currentGarante.apellido || ''} onChange={e => setCurrentGarante({ ...currentGarante, apellido: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Fecha de Nacimiento</label>
-                                    <input type="date" value={currentGarante.fecha_nacimiento || ''} onChange={e => setCurrentGarante({ ...currentGarante, fecha_nacimiento: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Estado Civil</label>
-                                    <select value={currentGarante.estado_civil || ''} onChange={e => setCurrentGarante({ ...currentGarante, estado_civil: e.target.value })}>
-                                        <option value="">Seleccionar...</option>
-                                        <option value="SOLTERO">Soltero</option>
-                                        <option value="CASADO">Casado</option>
-                                        <option value="DIVORCIADO">Divorciado</option>
-                                        <option value="VIUDO">Viudo</option>
-                                        <option value="UNION_LIBRE">Unión Libre</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Relación con Cliente</label>
-                                <input type="text" placeholder="Ej: Hermano, Colega, Amigo" value={currentGarante.relacion_cliente || ''} onChange={e => setCurrentGarante({ ...currentGarante, relacion_cliente: e.target.value })} />
-                            </div>
-
-                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Contacto</h4>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Teléfono</label>
-                                    <input type="text" value={currentGarante.telefono || ''} onChange={e => setCurrentGarante({ ...currentGarante, telefono: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Celular</label>
-                                    <input type="text" value={currentGarante.celular || ''} onChange={e => setCurrentGarante({ ...currentGarante, celular: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Email</label>
-                                <input type="email" value={currentGarante.email || ''} onChange={e => setCurrentGarante({ ...currentGarante, email: e.target.value })} />
-                            </div>
-
-                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Dirección</h4>
-                            <div className="form-group">
-                                <label>Dirección</label>
-                                <textarea rows="2" value={currentGarante.direccion || ''} onChange={e => setCurrentGarante({ ...currentGarante, direccion: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Ciudad</label>
-                                <input type="text" value={currentGarante.ciudad || ''} onChange={e => setCurrentGarante({ ...currentGarante, ciudad: e.target.value })} />
-                            </div>
-
-                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Laborales</h4>
-                            <div className="form-group">
-                                <label>Lugar de Trabajo</label>
-                                <input type="text" value={currentGarante.lugar_trabajo || ''} onChange={e => setCurrentGarante({ ...currentGarante, lugar_trabajo: e.target.value })} />
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Teléfono Trabajo</label>
-                                    <input type="text" value={currentGarante.telefono_trabajo || ''} onChange={e => setCurrentGarante({ ...currentGarante, telefono_trabajo: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label>Antigüedad Laboral</label>
-                                    <input type="text" placeholder="Ej: 2 años, 6 meses" value={currentGarante.antiguedad_laboral || ''} onChange={e => setCurrentGarante({ ...currentGarante, antiguedad_laboral: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Dirección Laboral</label>
-                                <textarea rows="2" value={currentGarante.direccion_laboral || ''} onChange={e => setCurrentGarante({ ...currentGarante, direccion_laboral: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Ingreso Mensual</label>
-                                <input type="number" step="0.01" placeholder="0.00" value={currentGarante.ingreso_mensual || ''} onChange={e => setCurrentGarante({ ...currentGarante, ingreso_mensual: e.target.value })} />
-                            </div>
-
-                            <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Observaciones</h4>
-                            <div className="form-group">
-                                <label>Observaciones</label>
-                                <textarea rows="3" value={currentGarante.observaciones || ''} onChange={e => setCurrentGarante({ ...currentGarante, observaciones: e.target.value })} />
-                            </div>
-
-                            <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={() => setShowGanteModal(false)}>Cerrar</button>
-                                <button type="submit" className="btn-save">Guardar Garante</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* SUB-MODAL REFERENCIA */}
-            {showRefModal && (
-                <div className="sub-modal-overlay">
-                    <div className="sub-modal-content">
-                        <h4>Ref. para: <span style={{ color: '#3b82f6' }}>{refConfig.entity_name}</span></h4>
-                        <form onSubmit={handleSaveRef}>
-                            <div className="form-group">
-                                <label>Tipo de Referencia</label>
-                                <select value={currentRef.tipo_referencia} onChange={e => setCurrentRef({ ...currentRef, tipo_referencia: e.target.value })}>
-                                    <option value="PERSONAL">Personal</option>
-                                    <option value="LABORAL">Laboral</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label>Nombre Completo</label>
-                                <input type="text" required value={currentRef.nombre} onChange={e => setCurrentRef({ ...currentRef, nombre: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Teléfono</label>
-                                <input type="text" required value={currentRef.telefono} onChange={e => setCurrentRef({ ...currentRef, telefono: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Parentesco / Cargo</label>
-                                <input type="text" value={currentRef.parentesco_cargo} onChange={e => setCurrentRef({ ...currentRef, parentesco_cargo: e.target.value })} />
-                            </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={() => setShowRefModal(false)}>Cerrar</button>
-                                <button type="submit" className="btn-save">Guardar Referencia</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* SUB-MODAL UBICACIÓN */}
-            {showUbiModal && (
-                <div className="sub-modal-overlay">
-                    <div className="sub-modal-content large-map-modal">
-                        <h4>{currentUbi.id_ubicacion ? 'Editar Ubicación' : 'Nueva Ubicación'}</h4>
-                        <div className="ubi-modal-layout">
-                            <div className="ubi-form">
-                                <form onSubmit={handleSaveUbi}>
+            {
+                showGanteModal && (
+                    <div className="sub-modal-overlay">
+                        <div className="sub-modal-content large">
+                            <h4>{currentGarante.id_garante ? 'Editar Garante' : 'Nuevo Garante'}</h4>
+                            <form onSubmit={handleSaveGante}>
+                                <h4 style={{ marginBottom: '15px', color: '#2563eb' }}>Datos de Identificación</h4>
+                                <div className="form-row">
                                     <div className="form-group">
-                                        <label>Nombre del Lugar</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            placeholder="Ej: Mi Casa, Local de Trabajo"
-                                            value={currentUbi?.nombre_lugar || ''}
-                                            onChange={e => setCurrentUbi({ ...currentUbi, nombre_lugar: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Tipo</label>
-                                        <select value={currentUbi?.tipo_ubicacion || 'CASA'} onChange={e => setCurrentUbi({ ...currentUbi, tipo_ubicacion: e.target.value })}>
-                                            <option value="CASA">Casa</option>
-                                            <option value="TRABAJO">Trabajo</option>
-                                            <option value="REFERENCIA">Referencia</option>
-                                            <option value="OTRO">Otro</option>
+                                        <label>Tipo Doc.</label>
+                                        <select value={currentGarante.tipo_documento || 'CI'} onChange={e => setCurrentGarante({ ...currentGarante, tipo_documento: e.target.value })}>
+                                            <option value="CI">CI</option>
+                                            <option value="RUC">RUC</option>
+                                            <option value="PASAPORTE">Pasaporte</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Dirección Recuperada</label>
-                                        <textarea
-                                            rows="2"
-                                            value={currentUbi?.direccion_texto || ''}
-                                            onChange={e => setCurrentUbi({ ...currentUbi, direccion_texto: e.target.value })}
-                                        />
+                                        <label>Número Documento *</label>
+                                        <input type="text" required value={currentGarante.numero_documento || ''} onChange={e => setCurrentGarante({ ...currentGarante, numero_documento: e.target.value })} />
+                                    </div>
+                                </div>
+
+                                <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Personales</h4>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Nombre *</label>
+                                        <input type="text" required value={currentGarante.nombre || ''} onChange={e => setCurrentGarante({ ...currentGarante, nombre: e.target.value })} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Punto de Referencia / Detalles</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ej: Portón verde, frente a la plaza"
-                                            value={currentUbi?.referencia || ''}
-                                            onChange={e => setCurrentUbi({ ...currentUbi, referencia: e.target.value })}
-                                        />
+                                        <label>Apellido *</label>
+                                        <input type="text" required value={currentGarante.apellido || ''} onChange={e => setCurrentGarante({ ...currentGarante, apellido: e.target.value })} />
                                     </div>
-                                    <div className="coords-info">
-                                        <span>Lat: {Number(currentUbi?.latitud || 0).toFixed(6)}</span>
-                                        <span>Long: {Number(currentUbi?.longitud || 0).toFixed(6)}</span>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Fecha de Nacimiento</label>
+                                        <input type="date" value={currentGarante.fecha_nacimiento || ''} onChange={e => setCurrentGarante({ ...currentGarante, fecha_nacimiento: e.target.value })} />
                                     </div>
-                                    <div className="modal-actions">
-                                        <button type="button" className="btn-cancel" onClick={() => setShowUbiModal(false)}>Cerrar</button>
-                                        <button type="submit" className="btn-save">Guardar Ubicación</button>
+                                    <div className="form-group">
+                                        <label>Estado Civil</label>
+                                        <select value={currentGarante.estado_civil || ''} onChange={e => setCurrentGarante({ ...currentGarante, estado_civil: e.target.value })}>
+                                            <option value="">Seleccionar...</option>
+                                            <option value="SOLTERO">Soltero</option>
+                                            <option value="CASADO">Casado</option>
+                                            <option value="DIVORCIADO">Divorciado</option>
+                                            <option value="VIUDO">Viudo</option>
+                                            <option value="UNION_LIBRE">Unión Libre</option>
+                                        </select>
                                     </div>
-                                </form>
-                            </div>
-                            <div className="ubi-map-container">
-                                <label>Mueve el marcador o haz clic en el mapa</label>
-                                <div className="map-wrapper">
-                                    {mapReady && (
-                                        <MapContainer
-                                            key={showUbiModal ? 'map-active-' + Date.now() : 'map-inactive'}
-                                            center={[Number(currentUbi.latitud), Number(currentUbi.longitud)]}
-                                            zoom={15}
-                                            style={{ height: '350px', width: '100%' }}
-                                        >
-                                            <TileLayer
-                                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                </div>
+                                <div className="form-group">
+                                    <label>Relación con Cliente</label>
+                                    <input type="text" placeholder="Ej: Hermano, Colega, Amigo" value={currentGarante.relacion_cliente || ''} onChange={e => setCurrentGarante({ ...currentGarante, relacion_cliente: e.target.value })} />
+                                </div>
+
+                                <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Contacto</h4>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Teléfono</label>
+                                        <input type="text" value={currentGarante.telefono || ''} onChange={e => setCurrentGarante({ ...currentGarante, telefono: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Celular</label>
+                                        <input type="text" value={currentGarante.celular || ''} onChange={e => setCurrentGarante({ ...currentGarante, celular: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Email</label>
+                                    <input type="email" value={currentGarante.email || ''} onChange={e => setCurrentGarante({ ...currentGarante, email: e.target.value })} />
+                                </div>
+
+                                <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Dirección</h4>
+                                <div className="form-group">
+                                    <label>Dirección</label>
+                                    <textarea rows="2" value={currentGarante.direccion || ''} onChange={e => setCurrentGarante({ ...currentGarante, direccion: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Ciudad</label>
+                                    <input type="text" value={currentGarante.ciudad || ''} onChange={e => setCurrentGarante({ ...currentGarante, ciudad: e.target.value })} />
+                                </div>
+
+                                <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Datos Laborales</h4>
+                                <div className="form-group">
+                                    <label>Lugar de Trabajo</label>
+                                    <input type="text" value={currentGarante.lugar_trabajo || ''} onChange={e => setCurrentGarante({ ...currentGarante, lugar_trabajo: e.target.value })} />
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Teléfono Trabajo</label>
+                                        <input type="text" value={currentGarante.telefono_trabajo || ''} onChange={e => setCurrentGarante({ ...currentGarante, telefono_trabajo: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Antigüedad Laboral</label>
+                                        <input type="text" placeholder="Ej: 2 años, 6 meses" value={currentGarante.antiguedad_laboral || ''} onChange={e => setCurrentGarante({ ...currentGarante, antiguedad_laboral: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Dirección Laboral</label>
+                                    <textarea rows="2" value={currentGarante.direccion_laboral || ''} onChange={e => setCurrentGarante({ ...currentGarante, direccion_laboral: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Ingreso Mensual</label>
+                                    <input type="number" step="0.01" placeholder="0.00" value={currentGarante.ingreso_mensual || ''} onChange={e => setCurrentGarante({ ...currentGarante, ingreso_mensual: e.target.value })} />
+                                </div>
+
+                                <h4 style={{ marginTop: '20px', marginBottom: '15px', color: '#2563eb' }}>Observaciones</h4>
+                                <div className="form-group">
+                                    <label>Observaciones</label>
+                                    <textarea rows="3" value={currentGarante.observaciones || ''} onChange={e => setCurrentGarante({ ...currentGarante, observaciones: e.target.value })} />
+                                </div>
+
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={() => setShowGanteModal(false)}>Cerrar</button>
+                                    <button type="submit" className="btn-save">Guardar Garante</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* SUB-MODAL REFERENCIA */}
+            {
+                showRefModal && (
+                    <div className="sub-modal-overlay">
+                        <div className="sub-modal-content">
+                            <h4>Ref. para: <span style={{ color: '#3b82f6' }}>{refConfig.entity_name}</span></h4>
+                            <form onSubmit={handleSaveRef}>
+                                <div className="form-group">
+                                    <label>Tipo de Referencia</label>
+                                    <select value={currentRef.tipo_referencia} onChange={e => setCurrentRef({ ...currentRef, tipo_referencia: e.target.value })}>
+                                        <option value="PERSONAL">Personal</option>
+                                        <option value="LABORAL">Laboral</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label>Nombre Completo</label>
+                                    <input type="text" required value={currentRef.nombre} onChange={e => setCurrentRef({ ...currentRef, nombre: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Teléfono</label>
+                                    <input type="text" required value={currentRef.telefono} onChange={e => setCurrentRef({ ...currentRef, telefono: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Parentesco / Cargo</label>
+                                    <input type="text" value={currentRef.parentesco_cargo} onChange={e => setCurrentRef({ ...currentRef, parentesco_cargo: e.target.value })} />
+                                </div>
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={() => setShowRefModal(false)}>Cerrar</button>
+                                    <button type="submit" className="btn-save">Guardar Referencia</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* SUB-MODAL UBICACIÓN */}
+            {
+                showUbiModal && (
+                    <div className="sub-modal-overlay">
+                        <div className="sub-modal-content large-map-modal">
+                            <h4>{currentUbi.id_ubicacion ? 'Editar Ubicación' : 'Nueva Ubicación'}</h4>
+                            <div className="ubi-modal-layout">
+                                <div className="ubi-form">
+                                    <form onSubmit={handleSaveUbi}>
+                                        <div className="form-group">
+                                            <label>Nombre del Lugar</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="Ej: Mi Casa, Local de Trabajo"
+                                                value={currentUbi?.nombre_lugar || ''}
+                                                onChange={e => setCurrentUbi({ ...currentUbi, nombre_lugar: e.target.value })}
                                             />
-                                            <LocationMarker ubi={currentUbi} setUbi={setCurrentUbi} />
-                                            <MapEvents setUbi={setCurrentUbi} />
-                                        </MapContainer>
-                                    )}
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Tipo</label>
+                                            <select value={currentUbi?.tipo_ubicacion || 'CASA'} onChange={e => setCurrentUbi({ ...currentUbi, tipo_ubicacion: e.target.value })}>
+                                                <option value="CASA">Casa</option>
+                                                <option value="TRABAJO">Trabajo</option>
+                                                <option value="REFERENCIA">Referencia</option>
+                                                <option value="OTRO">Otro</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Dirección Recuperada</label>
+                                            <textarea
+                                                rows="2"
+                                                value={currentUbi?.direccion_texto || ''}
+                                                onChange={e => setCurrentUbi({ ...currentUbi, direccion_texto: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Punto de Referencia / Detalles</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ej: Portón verde, frente a la plaza"
+                                                value={currentUbi?.referencia || ''}
+                                                onChange={e => setCurrentUbi({ ...currentUbi, referencia: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="coords-info">
+                                            <span>Lat: {Number(currentUbi?.latitud || 0).toFixed(6)}</span>
+                                            <span>Long: {Number(currentUbi?.longitud || 0).toFixed(6)}</span>
+                                        </div>
+                                        <div className="modal-actions">
+                                            <button type="button" className="btn-cancel" onClick={() => setShowUbiModal(false)}>Cerrar</button>
+                                            <button type="submit" className="btn-save">Guardar Ubicación</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div className="ubi-map-container">
+                                    <label>Mueve el marcador o haz clic en el mapa</label>
+                                    <div className="map-wrapper">
+                                        {mapReady && (
+                                            <MapContainer
+                                                key={showUbiModal ? 'map-active-' + Date.now() : 'map-inactive'}
+                                                center={[Number(currentUbi.latitud), Number(currentUbi.longitud)]}
+                                                zoom={15}
+                                                style={{ height: '350px', width: '100%' }}
+                                            >
+                                                <TileLayer
+                                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                                />
+                                                <LocationMarker ubi={currentUbi} setUbi={setCurrentUbi} />
+                                                <MapEvents setUbi={setCurrentUbi} />
+                                            </MapContainer>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
         </div>
     );
 };

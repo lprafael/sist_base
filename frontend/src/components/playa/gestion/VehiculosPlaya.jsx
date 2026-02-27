@@ -415,6 +415,9 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <p className="engine">Motor: {v.motor || '-'}</p>
                                 </div>
                                 <div className="card-body">
+                                    <p><strong>Costo:</strong>
+                                        <span className="price"> Gs. {v.costo_final ? Math.round(parseFloat(v.costo_final)).toLocaleString('es-PY') : '0'}</span>
+                                    </p>
                                     <p><strong>Entrega Inicial:</strong>
                                         <span className="price"> Gs. {v.entrega_inicial_sugerida ? Math.round(parseFloat(v.entrega_inicial_sugerida)).toLocaleString('es-PY') : '0'}</span>
                                     </p>
@@ -467,6 +470,9 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                     <th>Color</th>
                                     <th>Chasis</th>
                                     <th>Motor</th>
+                                    <th className="sortable" onClick={() => requestSort('costo_final')}>
+                                        Costo (Gs.) {getSortIndicator('costo_final')}
+                                    </th>
                                     <th className="sortable" onClick={() => requestSort('entrega_inicial_sugerida')}>
                                         Entrega Inicial (Gs.) {getSortIndicator('entrega_inicial_sugerida')}
                                     </th>
@@ -491,6 +497,9 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         <td>{v.color || '-'}</td>
                                         <td style={{ fontFamily: 'monospace' }}>{v.chasis}</td>
                                         <td>{v.motor || '-'}</td>
+                                        <td style={{ fontWeight: 'bold' }}>
+                                            Gs. {v.costo_final ? Math.round(parseFloat(v.costo_final)).toLocaleString('es-PY') : '0'}
+                                        </td>
                                         <td style={{ fontWeight: 'bold', color: '#059669' }}>
                                             Gs. {v.entrega_inicial_sugerida ? Math.round(parseFloat(v.entrega_inicial_sugerida)).toLocaleString('es-PY') : '0'}
                                         </td>

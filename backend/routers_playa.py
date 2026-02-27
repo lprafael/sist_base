@@ -529,14 +529,41 @@ async def list_vehiculos(
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        query = select(Producto).options(
-            selectinload(Producto.ventas).selectinload(Venta.cliente),
-            selectinload(Producto.imagenes)
+        # Subquery para sumar gastos por producto
+        subq_gastos = (
+            select(
+                GastoProducto.id_producto,
+                func.sum(GastoProducto.monto).label("total_gastos")
+            )
+            .group_by(GastoProducto.id_producto)
+            .subquery()
         )
+
+        query = (
+            select(
+                Producto,
+                func.coalesce(subq_gastos.c.total_gastos, 0).label("total_gastos")
+            )
+            .outerjoin(subq_gastos, Producto.id_producto == subq_gastos.c.id_producto)
+            .options(
+                selectinload(Producto.ventas).selectinload(Venta.cliente),
+                selectinload(Producto.imagenes)
+            )
+        )
+
         if available_only:
             query = query.where(Producto.estado_disponibilidad == 'DISPONIBLE')
+
         result = await session.execute(query)
-        return result.scalars().all()
+        rows = result.all()
+
+        vehiculos_list = []
+        for p, total_gastos in rows:
+            p.total_gastos = total_gastos
+            p.costo_final = (p.costo_base or 0) + total_gastos
+            vehiculos_list.append(p)
+
+        return vehiculos_list
     except Exception as e:
         logger.exception("Error en list_vehiculos")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1286,6 +1313,18 @@ async def create_garante(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
+    # Verificar si ya existe este documento para este cliente (evitar duplicados)
+    check = await session.execute(
+        select(Gante).where(
+            and_(
+                Gante.id_cliente == data.id_cliente,
+                Gante.numero_documento == data.numero_documento
+            )
+        )
+    )
+    if check.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Este garante ya está registrado para este cliente")
+
     new_garante = Gante(**data.model_dump())
     session.add(new_garante)
     await session.commit()
@@ -1368,6 +1407,19 @@ async def create_referencia(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
+    # Verificar si ya existe una referencia con el mismo nombre para este cliente/garante
+    check = await session.execute(
+        select(Referencia).where(
+            and_(
+                Referencia.id_cliente == data.id_cliente,
+                Referencia.tipo_entidad == data.tipo_entidad,
+                func.lower(Referencia.nombre) == func.lower(data.nombre)
+            )
+        )
+    )
+    if check.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Esta referencia ya está registrada")
+
     new_ref = Referencia(**data.model_dump())
     session.add(new_ref)
     await session.commit()
