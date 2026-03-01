@@ -1,0 +1,11 @@
+{
+"type": "FeatureCollection",
+"name": "Ciudades_Alto Paraguay",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+"features": [
+{ "type": "Feature", "properties": { "COD_DIST": "1705", "DPTO": "17", "DPTO_DESC": "ALTO PARAGUAY", "DISTRITO": "05", "DIST_DESC": "CARMELO PERALTA", "POINT_X": 405412.861, "POINT_Y": 7603153.6383600002, "DIST_DESC_": "CARMELO PERALTA" }, "geometry": { "type": "Point", "coordinates": [ -57.914243605275338, -21.672406371098472 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1704", "DPTO": "17", "DPTO_DESC": "ALTO PARAGUAY", "DISTRITO": "04", "DIST_DESC": "BAHIA NEGRA", "POINT_X": 378025.7854, "POINT_Y": 7762079.1709200004, "DIST_DESC_": "BAHÍA NEGRA" }, "geometry": { "type": "Point", "coordinates": [ -58.167724337054537, -20.235037311025405 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1702", "DPTO": "17", "DPTO_DESC": "ALTO PARAGUAY", "DISTRITO": "02", "DIST_DESC": "PUERTO CASADO", "POINT_X": 402588.1455, "POINT_Y": 7535357.64836, "DIST_DESC_": "PUERTO CASADO" }, "geometry": { "type": "Point", "coordinates": [ -57.945590886446645, -22.284679308115557 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1701", "DPTO": "17", "DPTO_DESC": "ALTO PARAGUAY", "DISTRITO": "01", "DIST_DESC": "FUERTE OLIMPO", "POINT_X": 409265.70305000001, "POINT_Y": 7672598.8820399996, "DIST_DESC_": "FUERTE OLIMPO" }, "geometry": { "type": "Point", "coordinates": [ -57.873280817479667, -21.045224714829523 ] } }
+]
+}

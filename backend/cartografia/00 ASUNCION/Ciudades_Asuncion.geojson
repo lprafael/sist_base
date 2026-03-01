@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "Ciudades_Asuncion",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+"features": [
+{ "type": "Feature", "properties": { "COD_DIST": "0000", "DPTO": "00", "DPTO_DESC": "ASUNCION", "DISTRITO": "00", "DIST_DESC": "ASUNCION", "POINT_X": 439538.3125, "POINT_Y": 7203280.9036100004, "DIST_DESC_": "ASUNCIÓN" }, "geometry": { "type": "Point", "coordinates": [ -57.600555361166293, -25.285702138269311 ] } }
+]
+}

@@ -14,7 +14,7 @@ He analizado los puertos ocupados en tu servidor y preparado toda la configuraci
 | 5678 | validaciones-n8n | ⚠️ Ocupado |
 | 8080 | cbd-monitor-frontend | ⚠️ Ocupado |
 
-## ✅ Puertos Asignados para sist_catalogos
+## ✅ Puertos Asignados para SIGEL
 
 | Servicio | Puerto Host | Puerto Container | URL de Acceso |
 |----------|-------------|------------------|---------------|
@@ -62,16 +62,17 @@ nano .env  # Editar con valores reales
 
 ```bash
 # Opción 1: Git
-git clone https://github.com/vmt-gurus/sist_catalogos.git
-
+# https://github.com/lprafael/sist_base/tree/SIGEL
+git clone https://github.com/lprafael/sist_base.git
+cd SIGEL
 # Opción 2: SCP
-scp -r . user@172.16.222.222:/ruta/destino/sist_catalogos
+scp -r . user@172.16.222.222:/ruta/destino/SIGEL
 ```
 
 ### 4. Desplegar con Docker
 
 ```bash
-cd sist_catalogos
+cd SIGEL
 docker-compose build
 docker-compose up -d
 ```

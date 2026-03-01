@@ -12,7 +12,7 @@ Según `docker container ls`, los siguientes puertos están en uso:
 | **5000** | 5000 | validaciones-backend | ⚠️ Ocupado |
 | **5678** | 5678 | validaciones-n8n | ⚠️ Ocupado |
 
-## 🔍 Puertos Requeridos por sist_catalogos
+## 🔍 Puertos Requeridos por SIGEL
 
 Según la configuración actual del proyecto:
 

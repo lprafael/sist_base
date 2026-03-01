@@ -1,0 +1,18 @@
+{
+"type": "FeatureCollection",
+"name": "Ciudades_Caazapa",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+"features": [
+{ "type": "Feature", "properties": { "COD_DIST": "0611", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "11", "DIST_DESC": "3 DE MAYO", "POINT_X": 590085.3964, "POINT_Y": 7070723.4998599999, "DIST_DESC_": "3 DE MAYO" }, "geometry": { "type": "Point", "coordinates": [ -56.096154828451709, -26.481057060478765 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0610", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "10", "DIST_DESC": "YUTY", "POINT_X": 574640.69224999996, "POINT_Y": 7056105.6591800004, "DIST_DESC_": "YUTY" }, "geometry": { "type": "Point", "coordinates": [ -56.250245199962592, -26.613929557318801 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0609", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "09", "DIST_DESC": "FULGENCIO YEGROS", "POINT_X": 559449.7431, "POINT_Y": 7073716.5168000003, "DIST_DESC_": "YEGROS" }, "geometry": { "type": "Point", "coordinates": [ -56.403651102544899, -26.455648701231063 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0608", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "08", "DIST_DESC": "TAVAI", "POINT_X": 650095.77965000004, "POINT_Y": 7103535.3396899998, "DIST_DESC_": "TAVAÍ" }, "geometry": { "type": "Point", "coordinates": [ -55.498018823710417, -26.179806838137765 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0607", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "07", "DIST_DESC": "SAN JUAN NEPOMUCENO", "POINT_X": 606564.2273, "POINT_Y": 7111651.9550499991, "DIST_DESC_": "SAN JUAN NEPOMUCENO" }, "geometry": { "type": "Point", "coordinates": [ -55.934224333769059, -26.110416116689994 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0606", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "06", "DIST_DESC": "MACIEL", "POINT_X": 552691.7746, "POINT_Y": 7104021.1403599996, "DIST_DESC_": "MACIEL" }, "geometry": { "type": "Point", "coordinates": [ -56.472679236508597, -26.182292823078413 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0605", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "05", "DIST_DESC": "GENERAL HIGINIO MORINIGO", "POINT_X": 591513.90874999994, "POINT_Y": 7120979.718369999, "DIST_DESC_": "GRAL. HIGINIO MORINIGO" }, "geometry": { "type": "Point", "coordinates": [ -56.085384193308698, -26.027233263302872 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0604", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "04", "DIST_DESC": "MOISES BERTONI", "POINT_X": 551229.14169299998, "POINT_Y": 7084570.8728, "DIST_DESC_": "DR. MOISÉS S. BERTONI" }, "geometry": { "type": "Point", "coordinates": [ -56.486544216554812, -26.357965261516121 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0603", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "03", "DIST_DESC": "BUENA VISTA", "POINT_X": 591555.6734, "POINT_Y": 7103273.8588899998, "DIST_DESC_": "BUENA VISTA" }, "geometry": { "type": "Point", "coordinates": [ -56.083721539925186, -26.187089190296781 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0602", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "02", "DIST_DESC": "ABAI", "POINT_X": 605399.187561, "POINT_Y": 7119483.1804299997, "DIST_DESC_": "ABAÍ" }, "geometry": { "type": "Point", "coordinates": [ -55.946507589258331, -26.039799635611871 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0601", "DPTO": "06", "DPTO_DESC": "CAAZAPA", "DISTRITO": "01", "DIST_DESC": "CAAZAPA", "POINT_X": 562988.0683, "POINT_Y": 7102519.328, "DIST_DESC_": "CAAZAPÁ" }, "geometry": { "type": "Point", "coordinates": [ -56.369569142602479, -26.195438381692583 ] } }
+]
+}

@@ -1,0 +1,161 @@
+/* CandidateDashboard.css */
+.candidate-dashboard {
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dashboard-header {
+    margin-bottom: 32px;
+}
+
+.dashboard-header h2 {
+    font-size: 1.75rem;
+    color: #1a365d;
+}
+
+.dashboard-header p {
+    color: #718096;
+    margin-top: 4px;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 1px solid #edf2f7;
+}
+
+.stat-card.primary {
+    border-top: 4px solid #2b6cb0;
+}
+
+.stat-card.secondary {
+    border-top: 4px solid #48bb78;
+}
+
+.stat-card.warning {
+    border-top: 4px solid #ed8936;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-top: 8px;
+    color: #1a365d;
+}
+
+.stat-icon {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-size: 1.5rem;
+    opacity: 0.5;
+}
+
+.stat-note {
+    font-size: 0.75rem;
+    color: #ed8936;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.map-and-list {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 1024px) {
+    .map-and-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+.map-wrapper {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+/* CAUDILLOS LIST */
+
+.caudillos-section {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.caudillos-section h3 {
+    margin-top: 0;
+    font-size: 1.25rem;
+    color: #2b6cb0;
+    margin-bottom: 24px;
+}
+
+.caudillos-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.caudillo-row {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.caudillo-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.c-name {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.c-count {
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+.bar-wrapper {
+    height: 10px;
+    background: #edf2f7;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4299e1, #667eea);
+    border-radius: 5px;
+    transition: width 0.5s ease-out;
+}
+
+.empty-msg {
+    text-align: center;
+    padding: 40px;
+    color: #a0aec0;
+}

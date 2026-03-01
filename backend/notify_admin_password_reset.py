@@ -6,7 +6,7 @@ from database import get_session
 from email_service import email_service
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/notify", tags=["Notificaciones"])
+router = APIRouter(prefix="/api/notify", tags=["Notificaciones"])
 
 class ForgotPasswordRequest(BaseModel):
     username: str

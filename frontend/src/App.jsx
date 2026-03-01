@@ -1,11 +1,15 @@
-// App.js
-// Frontend principal del Sistema Base
-// Sistema de autenticación integrado
+// App.jsx
+// Frontend principal del Sistema SIGEL (Sistema de Gestión Electoral)
 import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
+import VoterRegistration from "./components/VoterRegistration.jsx";
+import CandidateDashboard from "./components/CandidateDashboard.jsx";
+import GeoDashboard from "./components/GeoDashboard.jsx";
+import LandingPage from "./pages/LandingPage.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -20,7 +24,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
             {isSidebarCollapsed ? "➡️" : "⬅️"}
           </button>
         )}
-        <h1>Sistema Base - Poliverso</h1>
+        <h1>SIGEL - Gestión Electoral</h1>
       </div>
       <div className="header-user-info">
         {user && (
@@ -36,7 +40,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
         <div className="logo-container" style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
           <img
             src="/imágenes/Logo_chico.PNG"
-            alt="Logo RDS"
+            alt="Logo SIGEL"
             style={{ height: 40 }}
           />
         </div>
@@ -50,26 +54,10 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
   );
 }
 
-export default function App() {
+function MainDashboard({ user, onLogout }) {
   const [tab, setTab] = useState("usuarios");
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState({});
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-    setLoading(false);
-  }, []);
-
-  const handleLogin = (loginData) => {
-    setUser(loginData.user);
-  };
 
   const toggleCategory = (categoryTitle) => {
     setCollapsedCategories(prev => ({
@@ -77,44 +65,6 @@ export default function App() {
       [categoryTitle]: !prev[categoryTitle]
     }));
   };
-
-  const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="loading-screen" style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'var(--background-color)'
-      }}>
-        <div className="loader">Cargando...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   const menuGroups = [
     {
@@ -124,6 +74,14 @@ export default function App() {
         { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
       ]
+    },
+    {
+      title: "Gestión Electoral",
+      items: [
+        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'manager', 'user'] },
+        { id: 'tablero', label: 'Tablero Candidato', icon: '📈', roles: ['admin', 'manager'] },
+        { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin'] },
+      ]
     }
   ];
 
@@ -131,7 +89,7 @@ export default function App() {
     <div className="app-container">
       <CabeceradePagina
         user={user}
-        onLogout={handleLogout}
+        onLogout={onLogout}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         isSidebarCollapsed={sidebarCollapsed}
       />
@@ -178,14 +136,7 @@ export default function App() {
           <div style={{ marginTop: 'auto', padding: '0 12px', marginBottom: '12px' }}>
             <button
               className="sidebar-tab"
-              style={{
-                width: '100%',
-                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                border: '1px solid var(--border-color)',
-                padding: sidebarCollapsed ? '10px' : '10px 16px'
-              }}
               onClick={() => window.open('/ficha_tecnica_sistema.html', '_blank')}
-              title={sidebarCollapsed ? "Ficha del Sistema" : ""}
             >
               <span className="icon">📄</span>
               {!sidebarCollapsed && <span className="label">Ficha del Sistema</span>}
@@ -198,9 +149,71 @@ export default function App() {
             {tab === "usuarios" && <UserManagement />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
+            {tab === "captacion" && <VoterRegistration />}
+            {tab === "tablero" && (user.rol === 'admin' || user.rol === 'manager') && <CandidateDashboard />}
+            {tab === "geografia" && user.rol === 'admin' && <GeoDashboard />}
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLogin = (loginData) => {
+    setUser(loginData.user);
+  };
+
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="loading-screen"><div className="loader">Cargando SIGEL...</div></div>;
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
+        />
+        <Route
+          path="/dashboard"
+          element={user ? <MainDashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
+        />
+        {/* Redirección por defecto */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
   );
 }

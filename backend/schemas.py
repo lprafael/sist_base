@@ -10,8 +10,9 @@ from enum import Enum
 
 class TipoUsuario(str, Enum):
     ADMIN = "admin"
-    MANAGER = "manager"
-    USER = "user"
+    INTENDENTE = "intendente"
+    CONCEJAL = "concejal"
+    CAUDILLO = "caudillo"
     VIEWER = "viewer"
 
 class TipoAccion(str, Enum):
@@ -321,3 +322,81 @@ class RoleInfo(BaseModel):
 class PermissionCheck(BaseModel):
     permission: str
     has_permission: bool
+
+# ===== SCHEMAS ELECTORALES =====
+
+class PadronResponse(BaseModel):
+    cedula: str
+    nombre: str
+    apellido_paterno: str
+    apellido_materno: str
+    fecha_nacimiento: Optional[date] = None
+    genero: Optional[str] = None
+    distrito: Optional[str] = None
+    departamento: Optional[str] = None
+    mesa_nro: Optional[int] = None
+    orden_nro: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class CaptacionCreate(BaseModel):
+    cedula_votante: str
+    parentesco: Optional[str] = None
+    grado_seguridad: int = 3 # 1-5
+    observaciones: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+
+class PosibleVotanteResponse(BaseModel):
+    id: int
+    id_caudillo: int
+    cedula_votante: str
+    nombre_votante: str
+    apellido_votante: str
+    parentesco: Optional[str] = None
+    grado_seguridad: int
+    fecha_captacion: datetime
+    validacion_candidato: bool
+
+    class Config:
+        from_attributes = True
+
+class ResumenCaudillo(BaseModel):
+    id_caudillo: int
+    nombre_caudillo: str
+    cantidad_votantes: int
+
+class DashboardCandidatoResponse(BaseModel):
+    total_votantes_unicos: int
+    total_votantes_bruto: int 
+    caudillos: List[ResumenCaudillo]
+    puntos_calor: List[Dict[str, Any]] = [] # [{lat: X, lng: Y, weight: Z}]
+
+class AnrPadronResponse(BaseModel):
+    cedula: str
+    nombres: str
+    apellidos: str
+    nacimiento: Optional[date] = None
+    departamento: Optional[int] = None
+    distrito: Optional[int] = None
+    seccional: Optional[int] = None
+    local: Optional[int] = None
+    mesa: Optional[int] = None
+    orden: Optional[int] = None
+    
+    # Campos descriptivos (opcionales)
+    nombre_departamento: Optional[str] = None
+    nombre_distrito: Optional[str] = None
+    nombre_seccional: Optional[str] = None
+    nombre_local: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class CatalogItem(BaseModel):
+    id: int
+    descripcion: str
+    
+    class Config:
+        from_attributes = True

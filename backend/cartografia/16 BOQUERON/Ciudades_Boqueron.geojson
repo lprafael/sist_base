@@ -1,0 +1,11 @@
+{
+"type": "FeatureCollection",
+"name": "Ciudades_Boqueron",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+"features": [
+{ "type": "Feature", "properties": { "COD_DIST": "1606", "DPTO": "16", "DPTO_DESC": "BOQUERON", "DISTRITO": "06", "DIST_DESC": "BOQUERON", "POINT_X": 0.0, "POINT_Y": 0.0, "DIST_DESC_": "BOQUERÓN" }, "geometry": { "type": "Point", "coordinates": [ -60.119924823174387, -22.645849197760089 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1605", "DPTO": "16", "DPTO_DESC": "BOQUERON", "DISTRITO": "05", "DIST_DESC": "LOMA PLATA", "POINT_X": 208397.8573, "POINT_Y": 7522200.1475799996, "DIST_DESC_": "LOMA PLATA" }, "geometry": { "type": "Point", "coordinates": [ -59.831846046070986, -22.381497707224064 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1604", "DPTO": "16", "DPTO_DESC": "BOQUERON", "DISTRITO": "04", "DIST_DESC": "FILADELFIA", "POINT_X": 187707.554706, "POINT_Y": 7524787.0758199999, "DIST_DESC_": "FILADELFIA" }, "geometry": { "type": "Point", "coordinates": [ -60.032062082470809, -22.354519280442176 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1602", "DPTO": "16", "DPTO_DESC": "BOQUERON", "DISTRITO": "02", "DIST_DESC": "MARISCAL ESTIGARRIBIA", "POINT_X": 128399.9348, "POINT_Y": 7560158.7995300004, "DIST_DESC_": "MARISCAL JOSÉ FÉLIX ESTIGARRIBIA" }, "geometry": { "type": "Point", "coordinates": [ -60.598936157846289, -22.023795725636482 ] } }
+]
+}

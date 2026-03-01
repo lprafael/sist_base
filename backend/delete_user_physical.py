@@ -6,7 +6,7 @@ from schemas import LogAccesoCreate
 from database import get_session
 from security import check_permission
 
-router = APIRouter(prefix="/auth", tags=["Autenticación"])
+router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
 
 @router.delete("/users/{user_id}/hard")
 async def delete_user_physical(

@@ -31,7 +31,7 @@ from email_service import email_service
 from database import get_session
 from audit_utils import log_audit_action, get_client_ip, get_user_agent
 
-router = APIRouter(prefix="/auth", tags=["Autenticación"])
+router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
 
 # Función para generar contraseña aleatoria
 def generate_random_password(length: int = 12) -> str:
@@ -233,10 +233,40 @@ async def logout(
 @router.post("/users", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
-    current_user: dict = Depends(check_permission("manage_users")),
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Crear nuevo usuario (solo administradores)"""
+    """Crear nuevo usuario con validación de jerarquía"""
+    from security import ROLES
+    
+    current_role = current_user.get("role")
+    target_role = user_data.rol
+    
+    # Definir jerarquía de roles
+    hierarchy = {
+        "admin": ["admin", "intendente", "concejal", "caudillo"],
+        "intendente": ["concejal", "caudillo"],
+        "concejal": ["caudillo"],
+        "caudillo": []
+    }
+    
+    # Verificar permisos y jerarquía
+    user_permissions = ROLES.get(current_role, {}).get("permissions", [])
+    
+    can_manage = "manage_users" in user_permissions or "manage_subordinates" in user_permissions
+    
+    if not can_manage:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para crear usuarios"
+        )
+        
+    if target_role not in hierarchy.get(current_role, []):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Como {current_role}, no puedes crear usuarios con el rol {target_role}"
+        )
+
     # Verificar si el usuario ya existe
     result = await session.execute(
         select(Usuario).where(
@@ -267,20 +297,34 @@ async def create_user(
     await session.commit()
     await session.refresh(new_user)
     
+    # Si el usuario tiene un rol electoral, crear también su registro en la tabla caudillos
+    if target_role in ["intendente", "concejal", "caudillo"]:
+        from models import Caudillo
+        nuevo_caudillo = Caudillo(
+            id_usuario_sistema=new_user.id,
+            nombre_caudillo=new_user.nombre_completo,
+            activo=True
+        )
+        session.add(nuevo_caudillo)
+        await session.commit()
+    
     # Enviar email con credenciales
-    email_service.send_welcome_email(
-        user_data.email, 
-        user_data.username, 
-        password, 
-        user_data.rol
-    )
+    try:
+        email_service.send_welcome_email(
+            user_data.email, 
+            user_data.username, 
+            password, 
+            user_data.rol
+        )
+    except Exception as e:
+         print(f"Error enviando email: {str(e)}")
     
     # Registrar log de acceso
     await log_access(session, LogAccesoCreate(
         usuario_id=current_user["user_id"],
         username=current_user["sub"],
         accion="create_user",
-        detalles={"mensaje": f"Usuario creado: {user_data.username}"}
+        detalles={"mensaje": f"Usuario creado: {user_data.username} con rol {target_role}"}
     ))
     # Registrar log de auditoría
     await log_audit_action(
@@ -296,18 +340,37 @@ async def create_user(
             "rol": new_user.rol,
             "activo": new_user.activo,
         },
-        details=f"Usuario creado: {new_user.username}"
+        details=f"Usuario creado por {current_role}: {new_user.username}"
     )
     
     return UserResponse.from_orm(new_user)
 
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
-    current_user: dict = Depends(check_permission("manage_users")),
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Listar usuarios (solo administradores)"""
-    result = await session.execute(select(Usuario))
+    """Listar usuarios con filtrado por jerarquía"""
+    from security import ROLES
+    
+    current_role = current_user.get("role")
+    user_permissions = ROLES.get(current_role, {}).get("permissions", [])
+    
+    if "manage_users" not in user_permissions and "manage_subordinates" not in user_permissions:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para ver la lista de usuarios"
+        )
+    
+    if current_role == "admin":
+        stmt = select(Usuario)
+    else:
+        # Ver usuarios creados por mí (mis subordinados directos)
+        # O en una estructura más compleja, ver toda mi rama descendente
+        # Por ahora, implementamos ver subordinados directos según lo solicitado
+        stmt = select(Usuario).where(Usuario.creado_por == current_user["user_id"])
+        
+    result = await session.execute(stmt)
     users = result.scalars().all()
     return [UserResponse.from_orm(user) for user in users]
 
@@ -328,19 +391,48 @@ async def get_user(
 async def update_user(
     user_id: int,
     user_data: UserUpdate,
-    current_user: dict = Depends(check_permission("manage_users")),
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Actualizar usuario"""
+    """Actualizar usuario con validación de jerarquía"""
+    from security import ROLES
+    
+    # Buscar el usuario a actualizar
     result = await session.execute(select(Usuario).where(Usuario.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
+    current_role = current_user.get("role")
+    user_permissions = ROLES.get(current_role, {}).get("permissions", [])
+    
+    # Verificar si tengo permiso de gestión
+    can_manage = "manage_users" in user_permissions or "manage_subordinates" in user_permissions
+    if not can_manage:
+        raise HTTPException(status_code=403, detail="No tienes permisos para gestionar usuarios")
+    
+    # Si no soy admin, solo puedo editar a mis propios subordinados
+    if current_role != "admin" and user.creado_por != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Solo puedes editar usuarios creados por ti")
+
     # Actualizar campos
     update_data = user_data.dict(exclude_unset=True)
+    
+    # Validar cambio de rol si se intenta
+    if "rol" in update_data:
+        target_role = update_data["rol"]
+        hierarchy = {
+            "admin": ["admin", "intendente", "concejal", "caudillo"],
+            "intendente": ["concejal", "caudillo"],
+            "concejal": ["caudillo"],
+            "caudillo": []
+        }
+        if target_role not in hierarchy.get(current_role, []):
+            raise HTTPException(status_code=403, detail=f"No puedes asignar el rol {target_role}")
+
     for field, value in update_data.items():
         setattr(user, field, value)
+        
     try:
         await session.commit()
         await session.refresh(user)
@@ -349,14 +441,14 @@ async def update_user(
         if 'email' in str(e.orig):
             raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
         raise HTTPException(status_code=400, detail="Error de integridad de datos")
-    # Registrar log de acceso
+        
+    # Registrar logs
     await log_access(session, LogAccesoCreate(
         usuario_id=current_user["user_id"],
         username=current_user["sub"],
         accion="update_user",
         detalles={"mensaje": f"Usuario actualizado: {user.username}"}
     ))
-    # Registrar log de auditoría
     await log_audit_action(
         session=session,
         username=current_user["sub"],
@@ -372,28 +464,47 @@ async def update_user(
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int,
-    current_user: dict = Depends(check_permission("manage_users")),
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Eliminar usuario (desactivar)"""
+    """Eliminar usuario (desactivar) con validación de jerarquía"""
+    from security import ROLES
+    
     result = await session.execute(select(Usuario).where(Usuario.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    current_role = current_user.get("role")
+    user_permissions = ROLES.get(current_role, {}).get("permissions", [])
+    
     # Proteger admin
-    if user.username == 'admin' and user.rol == 'admin':
-        raise HTTPException(status_code=403, detail="No se puede eliminar el usuario admin")
-    # Desactivar usuario en lugar de eliminarlo
+    if user.username == 'admin' or user.rol == 'admin':
+        if current_role != 'admin':
+            raise HTTPException(status_code=403, detail="No puedes eliminar a un administrador")
+        if user.username == 'admin':
+             raise HTTPException(status_code=403, detail="No se puede eliminar el usuario principal admin")
+
+    # Verificar si tengo permiso de gestión
+    can_manage = "manage_users" in user_permissions or "manage_subordinates" in user_permissions
+    if not can_manage:
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar usuarios")
+        
+    # Si no soy admin, solo puedo eliminar a mis propios subordinados
+    if current_role != "admin" and user.creado_por != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Solo puedes eliminar usuarios creados por ti")
+
+    # Desactivar usuario
     user.activo = False
     await session.commit()
-    # Registrar log de acceso
+    
+    # Registrar logs
     await log_access(session, LogAccesoCreate(
         usuario_id=current_user["user_id"],
         username=current_user["sub"],
         accion="delete_user",
         detalles={"mensaje": f"Usuario desactivado: {user.username}"}
     ))
-    # Registrar log de auditoría
     await log_audit_action(
         session=session,
         username=current_user["sub"],
@@ -401,11 +512,7 @@ async def delete_user(
         action="delete",
         table="usuarios",
         record_id=user.id,
-        previous_data={
-            "username": user.username,
-            "email": user.email,
-            "rol": user.rol,
-        },
+        previous_data={"username": user.username, "email": user.email, "rol": user.rol},
         details=f"Usuario desactivado: {user.username}"
     )
     return {"message": "Usuario desactivado exitosamente"}

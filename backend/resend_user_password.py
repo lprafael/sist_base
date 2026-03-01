@@ -9,7 +9,7 @@ from security import get_password_hash
 import secrets
 import string
 
-router = APIRouter(prefix="/notify", tags=["Notificaciones"])
+router = APIRouter(prefix="/api/notify", tags=["Notificaciones"])
 
 class ResendPasswordRequest(BaseModel):
     username: str

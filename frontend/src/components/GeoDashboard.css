@@ -1,0 +1,193 @@
+.geo-dashboard {
+    padding: 20px;
+    background: #f8fafc;
+    min-height: calc(100vh - 80px);
+}
+
+.geo-header {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.geo-header h2 {
+    color: #1a365d;
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+.geo-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.geo-tabs button {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid #cbd5e0;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.geo-tabs button.active {
+    background: #3182ce;
+    color: white;
+    border-color: #3182ce;
+}
+
+.geo-main {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.geo-sidebar h3 {
+    margin-top: 0;
+    font-size: 1.1rem;
+    color: #4a5568;
+    border-bottom: 1px solid #edf2f7;
+    padding-bottom: 10px;
+}
+
+.stats-list {
+    max-height: 700px;
+    overflow-y: auto;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid #f7fafc;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 6px;
+}
+
+.stat-item:hover {
+    background: #ebf8ff;
+}
+
+.stat-item.active {
+    background: #bee3f8;
+    font-weight: bold;
+}
+
+.item-name {
+    color: #2d3748;
+}
+
+.item-value {
+    color: #3182ce;
+    font-weight: 600;
+}
+
+.map-container {
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.locales-crud h3 {
+    margin-top: 0;
+}
+
+.crud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.badge {
+    background: #edf2f7;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: #4a5568;
+}
+
+.subtitle {
+    color: #718096;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.locales-table-wrapper {
+    overflow-x: auto;
+}
+
+.locales-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.locales-table th {
+    text-align: left;
+    background: #f7fafc;
+    padding: 12px;
+    color: #718096;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.locales-table td {
+    padding: 12px;
+    border-bottom: 1px solid #edf2f7;
+    font-size: 0.95rem;
+}
+
+.addr-cell {
+    color: #718096;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.count-cell {
+    text-align: center;
+    font-weight: 600;
+    color: #2b6cb0;
+}
+
+.coord-inputs {
+    display: flex;
+    gap: 5px;
+}
+
+.coord-inputs input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+.save-btn {
+    padding: 6px 12px;
+    background: #48bb78;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.save-btn:hover {
+    background: #38a169;
+}
+
+.empty {
+    text-align: center;
+    padding: 40px !important;
+    color: #a0aec0;
+}

@@ -1,0 +1,17 @@
+{
+"type": "FeatureCollection",
+"name": "Ciudades_Misiones",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+"features": [
+{ "type": "Feature", "properties": { "COD_DIST": "0809", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "09", "DIST_DESC": "VILLA FLORIDA", "POINT_X": 487734.4166, "POINT_Y": 7078783.2606800003, "DIST_DESC_": "VILLA FLORIDA" }, "geometry": { "type": "Point", "coordinates": [ -57.12299181466544, -26.411091151974695 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0808", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "08", "DIST_DESC": "SANTIAGO", "POINT_X": 523268.16745000001, "POINT_Y": 6998034.8535000002, "DIST_DESC_": "SANTIAGO" }, "geometry": { "type": "Point", "coordinates": [ -56.765186633331545, -27.140015455719666 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0807", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "07", "DIST_DESC": "SANTA ROSA", "POINT_X": 514573.9376, "POINT_Y": 7026007.6654599998, "DIST_DESC_": "SANTA ROSA" }, "geometry": { "type": "Point", "coordinates": [ -56.85325353638197, -26.887580915951528 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0806", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "06", "DIST_DESC": "SANTA MARIA", "POINT_X": 505603.22865, "POINT_Y": 7037527.1441700002, "DIST_DESC_": "SANTA MARÍA" }, "geometry": { "type": "Point", "coordinates": [ -56.943631970121203, -26.783638773120558 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0805", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "05", "DIST_DESC": "SAN PATRICIO", "POINT_X": 517170.9807, "POINT_Y": 7016243.9128599996, "DIST_DESC_": "SAN PATRICIO" }, "geometry": { "type": "Point", "coordinates": [ -56.826969260105798, -26.975704760496697 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0804", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "04", "DIST_DESC": "SAN MIGUEL", "POINT_X": 496083.1409, "POINT_Y": 7064945.5382200005, "DIST_DESC_": "SAN MIGUEL" }, "geometry": { "type": "Point", "coordinates": [ -57.039318362202721, -26.536083077102841 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0803", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "03", "DIST_DESC": "SAN IGNACIO", "POINT_X": 497665.1798, "POINT_Y": 7026273.07008, "DIST_DESC_": "SAN IGNACIO" }, "geometry": { "type": "Point", "coordinates": [ -57.023509077050313, -26.885258896799293 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0802", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "02", "DIST_DESC": "AYOLAS", "POINT_X": 516827.8061, "POINT_Y": 6971777.4032300003, "DIST_DESC_": "AYOLAS" }, "geometry": { "type": "Point", "coordinates": [ -56.829819526269411, -27.377167228080996 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0801", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "01", "DIST_DESC": "SAN JUAN BAUTISTA", "POINT_X": 486069.1029, "POINT_Y": 7050175.3223099997, "DIST_DESC_": "SAN JUAN BAUTISTA DE LAS MISIONES" }, "geometry": { "type": "Point", "coordinates": [ -57.140003736304308, -26.669381309158997 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "0810", "DPTO": "08", "DPTO_DESC": "MISIONES", "DISTRITO": "10", "DIST_DESC": "YABEBYRY", "POINT_X": 483590.238, "POINT_Y": 6971357.0390999997, "DIST_DESC_": "YABEBYRY" }, "geometry": { "type": "Point", "coordinates": [ -57.165958449387347, -27.380967395408149 ] } }
+]
+}

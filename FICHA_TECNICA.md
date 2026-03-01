@@ -311,7 +311,7 @@ GET    /health                # Health check
 
 #### **Backend (.env)**
 ```env
-DATABASE_URL=postgresql+asyncpg://user:pass@192.168.100.112/vmt_catalogos
+DATABASE_URL=postgresql+asyncpg://user:pass@192.168.100.112/vmt_SIGEL
 SECRET_KEY=your-secret-key-here
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587

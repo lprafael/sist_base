@@ -1,0 +1,13 @@
+{
+"type": "FeatureCollection",
+"name": "Ciudades_Amambay",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4674" } },
+"features": [
+{ "type": "Feature", "properties": { "COD_DIST": "1306", "DPTO": "13", "DPTO_DESC": "AMAMBAY", "DISTRITO": "06", "DIST_DESC": "CERRO CORA", "POINT_X": 0.0, "POINT_Y": 0.0, "DIST_DESC_": "CERRO CORÁ" }, "geometry": { "type": "Point", "coordinates": [ -55.852442669651666, -22.625465216618302 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1305", "DPTO": "13", "DPTO_DESC": "AMAMBAY", "DISTRITO": "05", "DIST_DESC": "KARAPA'I", "POINT_X": 603433.14823000005, "POINT_Y": 7389767.3279499989, "DIST_DESC_": "KARAPAÍ" }, "geometry": { "type": "Point", "coordinates": [ -55.986219366874373, -23.599315221160573 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1304", "DPTO": "13", "DPTO_DESC": "AMAMBAY", "DISTRITO": "04", "DIST_DESC": "ZANJA PYTA", "POINT_X": 640631.033, "POINT_Y": 7496066.3143999996, "DIST_DESC_": "ZANJA PYTA" }, "geometry": { "type": "Point", "coordinates": [ -55.631471546806004, -22.636552823037377 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1303", "DPTO": "13", "DPTO_DESC": "AMAMBAY", "DISTRITO": "03", "DIST_DESC": "CAPITAN BADO", "POINT_X": 649215.8126, "POINT_Y": 7426169.2624000004, "DIST_DESC_": "CAPITÁN BADO" }, "geometry": { "type": "Point", "coordinates": [ -55.541197212199897, -23.267028661434932 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1302", "DPTO": "13", "DPTO_DESC": "AMAMBAY", "DISTRITO": "02", "DIST_DESC": "BELLA VISTA", "POINT_X": 550210.08375, "POINT_Y": 7553589.8800299997, "DIST_DESC_": "BELLA VISTA" }, "geometry": { "type": "Point", "coordinates": [ -56.513153164779084, -22.121991317918607 ] } },
+{ "type": "Feature", "properties": { "COD_DIST": "1301", "DPTO": "13", "DPTO_DESC": "AMAMBAY", "DISTRITO": "01", "DIST_DESC": "PEDRO JUAN CABALLERO", "POINT_X": 629623.91760299995, "POINT_Y": 7505215.0163000003, "DIST_DESC_": "PEDRO JUAN CABALLERO" }, "geometry": { "type": "Point", "coordinates": [ -55.739317405712967, -22.554802742896577 ] } }
+]
+}

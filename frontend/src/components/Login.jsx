@@ -92,7 +92,7 @@ const Login = ({ onLogin }) => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h2>Sistema Base - Poliverso</h2>
+          <h2>SIGEL - Gestión Electoral</h2>
           <p>Inicia sesión para continuar</p>
         </div>
 
@@ -161,14 +161,14 @@ const Login = ({ onLogin }) => {
             <span>O</span>
           </div>
 
-          <div className="google-login-container">
+          <div className="google-login-container" style={{ display: 'flex', justifyContent: 'center' }}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={() => setError('Error al iniciar sesión con Google')}
-              useOneTap
+              useOneTap={false}
               theme="outline"
               size="large"
-              width="100%"
+              width="350"
               text="signin_with"
               locale="es"
             />

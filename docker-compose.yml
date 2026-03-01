@@ -1,28 +1,45 @@
 version: '3.8'
 
 services:
+  # Base de Datos con PostGIS Integrado
+  db:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: SIGEL-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=SIGEL
+    ports:
+      - "5433:5432" # Mapeado a 5433 para evitar conflicto con tu Postgres local
+    volumes:
+      - sigel_db_data:/var/lib/postgresql/data
+    networks:
+      - SIGEL-network
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sist-catalogos-backend
+    container_name: SIGEL-backend
     ports:
-      - "8002:8001"  # Host:Container - Puerto 8002 en el servidor, 8001 en el container
+      - "8002:8001"
+    depends_on:
+      - db
     environment:
       - PORT=8001
-      # Las demás variables de entorno deben estar en un archivo .env
-      # o definirse aquí directamente
+      # Ahora apunta al contenedor 'db' interno
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/SIGEL
     env_file:
       - ./backend/.env
     volumes:
-      # Montar el código para desarrollo (opcional, comentar en producción)
-      # - ./backend:/app
+      - ./backend:/app
       - ./backend/logs:/app/logs
     restart: unless-stopped
     networks:
-      - sist-catalogos-network
+      - SIGEL-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/health\")'" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,20 +49,43 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: sist-catalogos-frontend
+    container_name: SIGEL-frontend
     ports:
-      - "3002:80"  # Host:Container - Puerto 3002 en el servidor, 80 en el container (nginx)
+      - "3002:80"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
-      - sist-catalogos-network
+      - SIGEL-network
+    volumes:
+      - ./frontend/public:/usr/share/nginx/html/public
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  padron-downloader:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: SIGEL-padron-downloader
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/SIGEL
+    env_file:
+      - ./backend/.env
+    networks:
+      - SIGEL-network
+    command: [ "python", "download_padron/download_anr.py", "--start", "1000001", "--end", "2000000", "--concurrency", "20", "--batch", "500" ]
+    restart: "no"
+
 networks:
-  sist-catalogos-network:
+  SIGEL-network:
     driver: bridge
+
+volumes:
+  sigel_db_data:

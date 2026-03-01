@@ -9,7 +9,7 @@
 - **5000** → validaciones-backend
 - **5678** → validaciones-n8n
 
-### Puertos Asignados para sist_catalogos
+### Puertos Asignados para SIGEL
 - **8002** → Backend (puerto interno del container: 8001)
 - **3002** → Frontend (puerto interno del container: 80)
 
@@ -72,15 +72,15 @@ Si los puertos están ocupados, editar `docker-compose.yml` y cambiar los puerto
 ```bash
 # En el servidor (172.16.222.222)
 cd /ruta/donde/quieres/el/proyecto
-git clone https://github.com/vmt-gurus/sist_catalogos.git
-cd sist_catalogos
+git clone https://github.com/lprafael/sist_base.git
+cd SIGEL
 ```
 
 ### Opción 2: Usando SCP/SFTP
 
 ```bash
 # Desde tu máquina local
-scp -r . user@172.16.222.222:/ruta/destino/sist_catalogos
+scp -r . user@172.16.222.222:/ruta/destino/SIGEL
 ```
 
 ## 🐳 Construcción y Despliegue con Docker
@@ -88,7 +88,7 @@ scp -r . user@172.16.222.222:/ruta/destino/sist_catalogos
 ### 1. Construir las imágenes
 
 ```bash
-cd sist_catalogos
+cd SIGEL
 docker-compose build
 ```
 
@@ -118,12 +118,12 @@ El flag `-d` ejecuta los contenedores en modo detached (en segundo plano).
 ```bash
 docker-compose ps
 # o
-docker container ls | grep sist-catalogos
+docker container ls | grep SIGEL
 ```
 
 Deberías ver:
-- `sist-catalogos-backend` en el puerto 8002
-- `sist-catalogos-frontend` en el puerto 3002
+- `SIGEL-backend` en el puerto 8002
+- `SIGEL-frontend` en el puerto 3002
 
 ### 5. Ver los logs
 

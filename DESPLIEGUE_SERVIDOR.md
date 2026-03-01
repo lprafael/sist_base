@@ -33,8 +33,9 @@ ssh user@172.16.222.222
 cd /opt  # o la ruta que prefieras
 
 # Clonar el repositorio
-git clone https://github.com/hatoweb/sist_catalogos.git
-cd sist_catalogos
+# https://github.com/lprafael/sist_base/tree/SIGEL
+git clone https://github.com/lprafael/sist_base.git
+cd SIGEL
 ```
 
 ### 3. Verificar Puertos Disponibles
@@ -83,7 +84,7 @@ PORT=8001
 ### 5. Construir las Imágenes Docker
 
 ```bash
-cd /opt/sist_catalogos  # o la ruta donde clonaste
+cd /opt/SIGEL  # o la ruta donde clonaste
 
 # Probar primero con la versión nueva (sin guión)
 docker compose build
@@ -115,12 +116,12 @@ docker compose ps
 # docker-compose ps
 
 # Alternativa
-docker container ls | grep sist-catalogos
+docker container ls | grep SIGEL
 ```
 
 Deberías ver:
-- `sist-catalogos-backend` en el puerto 8002
-- `sist-catalogos-frontend` en el puerto 3002
+- `SIGEL-backend` en el puerto 8002
+- `SIGEL-frontend` en el puerto 3002
 
 ### 8. Ver los Logs (Opcional)
 
@@ -175,7 +176,7 @@ http://172.16.222.222:3002
 Cuando haya cambios en GitHub:
 
 ```bash
-cd /opt/sist_catalogos  # o la ruta donde clonaste
+cd /opt/SIGEL  # o la ruta donde clonaste
 git pull origin main
 docker compose build
 docker compose up -d

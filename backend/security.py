@@ -76,29 +76,39 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     payload = verify_token(token)
     return payload
 
-# Roles y permisos (Hardcoded para validación rápida, idealmente usar base de datos)
+# Roles y permisos actualizados para el sistema electoral SIGEL
 ROLES = {
     "admin": {
-        "description": "Administrador del sistema",
+        "description": "Administrador del sistema - Acceso total",
         "permissions": [
             "read", "write", "delete", "manage_users", "manage_roles",
             "usuarios_read", "usuarios_write", "usuarios_delete", "usuarios_manage",
             "roles_read", "roles_write", "roles_delete", "roles_manage",
             "auditoria_read", "auditoria_export",
-            "sistema_config", "sistema_backup", "sistema_reportes"
+            "sistema_config", "sistema_backup", "sistema_reportes",
+            "electoral_admin", "electoral_read", "electoral_write"
         ]
     },
-    "manager": {
-        "description": "Gerente con acceso completo a datos",
-        "permissions": ["read", "write", "delete", "usuarios_read", "auditoria_read", "sistema_backup"]
+    "intendente": {
+        "description": "Candidato Intendente - Gestión total electoral",
+        "permissions": [
+            "read", "write", "manage_users", 
+            "electoral_read", "electoral_write", "electoral_view_all", 
+            "manage_subordinates", "auditoria_read"
+        ]
     },
-    "user": {
-        "description": "Usuario básico",
-        "permissions": ["read", "write"]
+    "concejal": {
+        "description": "Candidato a Concejal - Gestión de su propia estructura",
+        "permissions": [
+            "read", "write", "electoral_read", "electoral_write", 
+            "manage_subordinates"
+        ]
     },
-    "viewer": {
-        "description": "Solo lectura",
-        "permissions": ["read"]
+    "caudillo": {
+        "description": "Caudillo - Captación de simpatizantes",
+        "permissions": [
+            "read", "electoral_read", "electoral_write"
+        ]
     }
 }
 

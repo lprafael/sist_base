@@ -5,9 +5,14 @@ asyncpg
 python-dotenv
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==3.1.7
 python-multipart
 fastapi-mail
 email-validator
 google-auth
 requests
+geopandas
+geoalchemy2
+shapely
+psycopg2-binary
 
