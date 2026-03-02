@@ -55,35 +55,38 @@ npm run dev
 
 ### Navegación por Roles
 
-#### Administrador
-- Acceso completo a todos los módulos
-- Gestión de usuarios
-- CRUD completo en gremios, EOTs y feriados
+#### 🔑 Administrador (`admin`)
+- Acceso completo a todos los módulos y todos los distritos
+- Gestión de usuarios (crear intendentes, concejales, caudillos)
+- Auditoría, backups y configuración del sistema
+- Panel georreferenciado sin restricciones
 
-#### Gerente
-- Acceso completo a datos
-- CRUD en gremios, EOTs y feriados
-- No puede gestionar usuarios
+#### 🏛️ Candidato a Intendente (`intendente`)
+- Ve su equipo: concejales + caudillos de sus concejales + sus caudillos propios
+- Ve todos los simpatizantes de su estructura
+- Puede crear concejales y caudillos dentro de su distrito
+- Panel georreferenciado filtrado a su distrito
 
-#### Usuario
-- Lectura y escritura de datos
-- No puede eliminar registros
-- No puede gestionar usuarios
+#### 🏙️ Candidato a Concejal (`concejal`)
+- Ve sus caudillos directos y sus propios simpatizantes
+- Puede crear caudillos propios
+- No ve datos de otros concejales ni del intendente
 
-#### Visualizador
-- Solo lectura
-- No puede modificar datos
+#### 👥 Caudillo (`caudillo`)
+- Solo puede agregar y ver su propia lista de simpatizantes
+- No ve datos de otros caudillos ni de niveles superiores
+- Sin acceso a gestión de usuarios
 
-### Gestión de Usuarios (Solo Admin)
+### Gestión de Usuarios (Admin, Intendente y Concejal)
 
-1. Hacer clic en "Gestión de Usuarios" en el menú lateral
+1. Hacer clic en **"Mi Equipo"** (o "Gestión de Usuarios" si eres admin) en el menú lateral
 2. Para crear un nuevo usuario:
    - Hacer clic en "Crear Usuario"
    - Llenar el formulario con los datos del usuario
-   - Seleccionar el rol apropiado
-   - Hacer clic en "Crear Usuario"
+   - Seleccionar el rol apropiado (solo los roles que tu nivel puede crear)
+   - Hacer clic en "Crear"
 3. Para desactivar un usuario:
-   - Hacer clic en "Desactivar" en la fila correspondiente
+   - Hacer clic en 🚫 en la fila correspondiente
    - Confirmar la acción
 
 ## Estructura de Archivos
@@ -138,11 +141,10 @@ Editar `frontend/src/components/Login.css`:
 ```javascript
 const getRoleLabel = (role) => {
   switch(role) {
-    case 'admin': return 'Administrador';
-    case 'manager': return 'Gerente';
-    case 'user': return 'Usuario';
-    case 'viewer': return 'Visualizador';
-    case 'nuevo_rol': return 'Nuevo Rol';
+    case 'admin':      return '🔑 Administrador';
+    case 'intendente': return '🏛️ Candidato a Intendente';
+    case 'concejal':   return '🏙️ Candidato a Concejal';
+    case 'caudillo':   return '👥 Caudillo';
     default: return role;
   }
 };

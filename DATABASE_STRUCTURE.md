@@ -114,11 +114,13 @@ Este documento describe la estructura completa de la base de datos para el Siste
 | `email` | String(100) | Email único del usuario |
 | `hashed_password` | String(255) | Contraseña hasheada con bcrypt |
 | `nombre_completo` | String(100) | Nombre completo del usuario |
-| `rol` | String(20) | Rol principal (compatibilidad) |
+| `rol` | String(20) | Rol: admin, intendente, concejal, caudillo |
 | `activo` | Boolean | Estado activo/inactivo |
 | `fecha_creacion` | DateTime | Fecha de creación |
 | `ultimo_acceso` | DateTime | Último acceso al sistema |
-| `creado_por` | Integer (FK) | Usuario que lo creó |
+| `creado_por` | Integer (FK) | Usuario que lo creó (jerarquía) |
+| `departamento_id` | Integer | Departamento asignado (intendente/concejal) |
+| `distrito_id` | Integer | Distrito asignado (intendente/concejal) |
 
 **Relaciones**:
 - `roles` (many-to-many): Roles asignados al usuario
@@ -393,32 +395,45 @@ Este documento describe la estructura completa de la base de datos para el Siste
 
 ## 🎯 Roles y Permisos por Defecto
 
+### Jerarquía de Roles
+
+```
+Administrador (admin)
+└── Candidato a Intendente (intendente)  → por distrito
+    ├── Candidato a Concejal (concejal)   → mismo distrito
+    │   └── Caudillo (caudillo)           → referente de base
+    └── Caudillo (caudillo)               → caudillo propio del intendente
+```
+
 ### Rol: `admin`
 **Descripción**: Administrador del sistema con acceso completo
 **Permisos**: Todos los permisos del sistema
+- Ve todos los departamentos y distritos
+- Gestión de usuarios, auditoría y backups
+- Panel georreferenciado global
 
-### Rol: `manager`
-**Descripción**: Gerente con permisos de gestión y lectura
+### Rol: `intendente`
+**Descripción**: Candidato a Intendente — restringido a su `distrito_id`
 **Permisos**:
-- Gremios: read, write, export
-- EOTs: read, write, export
-- Feriados: read, write, export
-- Usuarios: read
-- Auditoría: read
+- Simpatizantes: ver toda su rama (sus concejales + sus caudillos + caudillos de sus concejales)
+- Usuarios: ver su equipo (concejales + caudillos)
+- Puede crear: concejales y caudillos propios
+- Panel georreferenciado: filtrado a su distrito
 
-### Rol: `user`
-**Descripción**: Usuario con permisos básicos de lectura y escritura
+### Rol: `concejal`
+**Descripción**: Candidato a Concejal — restringido a su `distrito_id`
 **Permisos**:
-- Gremios: read, write
-- EOTs: read, write
-- Feriados: read, write
+- Simpatizantes: su lista + los de sus caudillos directos
+- Usuarios: ver sus caudillos directos
+- Puede crear: caudillos propios
+- No ve datos de otros concejales ni del intendente
 
-### Rol: `viewer`
-**Descripción**: Visualizador con permisos de solo lectura
+### Rol: `caudillo`
+**Descripción**: Caudillo / Referente — nivel base
 **Permisos**:
-- Gremios: read
-- EOTs: read
-- Feriados: read
+- Simpatizantes: solo puede agregar y ver los suyos propios
+- No puede ver otros caudillos ni sus simpatizantes
+- No puede crear usuarios
 
 ---
 

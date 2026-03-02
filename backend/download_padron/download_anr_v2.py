@@ -198,17 +198,16 @@ async def save_batch_asyncpg(pool: asyncpg.Pool, batch: list) -> int:
 
 async def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Descargador de Padrón ANR v2 (optimizado)")
+    parser = argparse.ArgumentParser(description="Descargador de Padron ANR v2 (optimizado)")
     parser.add_argument("--start", type=int, default=1000001)
     parser.add_argument("--end", type=int, default=2000000)
-    parser.add_argument("--concurrency", type=int, default=50, help="Peticiones HTTP simultáneas")
+    parser.add_argument("--concurrency", type=int, default=50, help="Workers HTTP simultaneos")
     parser.add_argument("--batch", type=int, default=500, help="Registros por INSERT batch")
     parser.add_argument("--recreate", action="store_true")
     parser.add_argument("--skip-existing", action="store_true", help="Omite CIs ya descargadas")
     parser.add_argument("--test", action="store_true", help="Prueba con 100 CIs")
     args = parser.parse_args()
 
-    # Crear pool de conexiones asyncpg (directamente, sin SQLAlchemy)
     pool = await asyncpg.create_pool(DB_DSN, min_size=5, max_size=20)
     await init_db(pool, args.recreate)
 
@@ -217,37 +216,33 @@ async def main():
     else:
         cedulas = list(range(args.start, args.end + 1))
 
-    # Omitir las ya descargadas
     if args.skip_existing:
         existing = await get_existing_cedulas(pool, args.start, args.end)
         cedulas = [c for c in cedulas if c not in existing]
-        logger.info(f"Quedan {len(cedulas)} cédulas por descargar.")
+        logger.info(f"Quedan {len(cedulas)} cedulas por descargar.")
 
     total = len(cedulas)
-    logger.info(f"Iniciando descarga de {total} cédulas con concurrencia={args.concurrency}...")
+    logger.info(f"Iniciando descarga de {total} cedulas con concurrencia={args.concurrency}...")
 
-    semaphore = asyncio.Semaphore(args.concurrency)
+    # Resetear el tiempo AQUI, despues de skip-existing
     buffer = deque()
     stats = {"checked": 0, "saved": 0, "start_time": time.time(), "done": False}
 
-    # Saver task: guarda cada 3 segundos o cuando el buffer supere el batch size
+    # --- Saver task ---
     async def saver_task():
         while not stats["done"] or buffer:
             if len(buffer) >= args.batch:
                 batch = [buffer.popleft() for _ in range(min(args.batch, len(buffer)))]
                 saved = await save_batch_asyncpg(pool, batch)
                 stats["saved"] += saved
-            await asyncio.sleep(2)
-        # Guardar lo que quede
+            await asyncio.sleep(1)
         if buffer:
             batch = list(buffer)
             buffer.clear()
             saved = await save_batch_asyncpg(pool, batch)
             stats["saved"] += saved
 
-    saver = asyncio.create_task(saver_task())
-
-    # Progress logger task
+    # --- Progress task ---
     async def progress_task():
         while not stats["done"]:
             await asyncio.sleep(15)
@@ -255,39 +250,59 @@ async def main():
             speed = stats["checked"] / elapsed if elapsed > 0 else 0
             pct = stats["checked"] / total * 100 if total > 0 else 0
             eta_s = (total - stats["checked"]) / speed if speed > 0 else 0
-            eta_min = eta_s / 60
             tasa_hit = stats["saved"] / stats["checked"] * 100 if stats["checked"] > 0 else 0
             logger.info(
                 f"[{pct:.1f}%] {stats['checked']:,}/{total:,} CIs | "
                 f"Guardadas: {stats['saved']:,} ({tasa_hit:.0f}% hit) | "
-                f"Vel: {speed:.0f} CI/s | ETA: {eta_min:.0f} min"
+                f"Vel: {speed:.0f} CI/s | ETA: {eta_s/60:.0f} min"
             )
 
+    # --- Workers (queue-based, throughput continuo) ---
+    queue = asyncio.Queue(maxsize=args.concurrency * 3)
+
+    limits = httpx.Limits(
+        max_connections=args.concurrency + 20,
+        max_keepalive_connections=args.concurrency
+    )
+
+    async def worker(client):
+        while True:
+            cedula = await queue.get()
+            if cedula is None:
+                queue.task_done()
+                break
+            try:
+                result = await fetch_single(client, cedula, asyncio.Semaphore(1))
+                stats["checked"] += 1
+                if result:
+                    buffer.append(result)
+            finally:
+                queue.task_done()
+
+    saver = asyncio.create_task(saver_task())
     progress = asyncio.create_task(progress_task())
 
-    # Fetch tasks
-    limits = httpx.Limits(max_connections=args.concurrency + 20, max_keepalive_connections=args.concurrency)
-    async with httpx.AsyncClient(headers=HEADERS, limits=limits, http2=True) as client:
-        
-        async def fetch_and_buffer(cedula):
-            result = await fetch_single(client, cedula, semaphore)
-            stats["checked"] += 1
-            if result:
-                buffer.append(result)
+    async with httpx.AsyncClient(headers=HEADERS, limits=limits) as client:
+        # Lanzar workers
+        workers = [asyncio.create_task(worker(client)) for _ in range(args.concurrency)]
 
-        # Procesar en lotes para no crear demasiadas tasks
-        chunk_size = 2000
-        for i in range(0, len(cedulas), chunk_size):
-            chunk = cedulas[i:i + chunk_size]
-            tasks = [fetch_and_buffer(c) for c in chunk]
-            await asyncio.gather(*tasks)
+        # Productor: encolar todas las cedulas
+        for c in cedulas:
+            await queue.put(c)
+
+        # Senales de fin para cada worker
+        for _ in range(args.concurrency):
+            await queue.put(None)
+
+        await queue.join()
+        await asyncio.gather(*workers)
 
     stats["done"] = True
     await saver
     progress.cancel()
 
     total_time = time.time() - stats["start_time"]
-    logger.info(f"✅ Proceso finalizado en {total_time:.1f}s ({total_time/60:.1f} min)")
+    logger.info(f"Proceso finalizado en {total_time:.1f}s ({total_time/60:.1f} min)")
     logger.info(f"   Total verificadas: {stats['checked']:,}")
     logger.info(f"   Total guardadas:   {stats['saved']:,}")
 

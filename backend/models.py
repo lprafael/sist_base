@@ -38,11 +38,14 @@ class Usuario(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     nombre_completo = Column(String(100), nullable=False)
-    rol = Column(String(20), default='user')  # Mantener para compatibilidad
+    rol = Column(String(20), default='user')  # admin, intendente, concejal, caudillo
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     ultimo_acceso = Column(DateTime)
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
+    # Localización para filtrar datos por territorio
+    departamento_id = Column(Integer, nullable=True)  # Departamento asignado (intendente/concejal)
+    distrito_id = Column(Integer, nullable=True)       # Distrito asignado (intendente/concejal)
     
     # Relaciones
     roles = relationship("Rol", secondary=usuario_rol, back_populates="usuarios")
@@ -284,7 +287,9 @@ class Caudillo(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     id_usuario_sistema = Column(Integer, ForeignKey('sistema.usuarios.id'))
-    id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'))
+    id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'), nullable=True)
+    id_superior = Column(Integer, ForeignKey('electoral.caudillos.id'), nullable=True)  # Superior jerárquico
+    rol_electoral = Column(String(20), default='caudillo')  # intendente, concejal, caudillo
     nombre_caudillo = Column(String(155), nullable=False)
     telefono = Column(String(20))
     zona_influencia = Column(Text)

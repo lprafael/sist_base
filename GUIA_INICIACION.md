@@ -217,17 +217,6 @@ Después del login exitoso, verás:
    - Fecha de creación
 
 ### **Crear Nuevo Usuario**
-1. Hacer clic en "Crear Usuario" (+)
-2. Llenar el formulario:
-   - **Usuario**: Nombre de usuario único
-   - **Email**: Email válido y único
-   - **Nombre Completo**: Nombre completo del usuario
-   - **Rol**: Seleccionar rol (admin, manager, user, viewer)
-3. Hacer clic en "Crear Usuario"
-4. El sistema enviará un email con las credenciales
-
-### **Editar Usuario**
-1. En la tabla, hacer clic en el ícono de editar (✏️)
 2. Modificar los campos necesarios
 3. Hacer clic en "Actualizar"
 
@@ -287,29 +276,30 @@ Después del login exitoso, verás:
 ## 🎯 Roles y Permisos
 
 ### **Rol: Administrador (admin)**
-- **Acceso Completo**: Todas las funcionalidades
-- **Gestión de Usuarios**: Crear, editar, eliminar usuarios
-- **Gestión de Roles**: Asignar roles y permisos
+- **Acceso Completo**: Todos los departamentos, distritos y datos del sistema
+- **Gestión de Usuarios**: Crear cualquier rol (intendente, concejal, caudillo)
 - **Logs de Auditoría**: Ver todos los logs del sistema
-- **Configuración del Sistema**: Modificar parámetros
+- **Panel Georreferenciado**: Vista global sin restricciones
 
-### **Rol: Gerente (manager)**
-- **Gestión de Catálogos**: Crear, editar, eliminar
-- **Exportación**: Exportar datos
-- **Lectura de Usuarios**: Ver lista de usuarios
-- **Logs de Auditoría**: Ver logs básicos
+### **Rol: Candidato a Intendente (intendente)**
+- **Alcance**: Limitado a su distrito asignado
+- **Ve su equipo**: Sus concejales, sus caudillos y los caudillos de sus concejales
+- **Ve simpatizantes**: De toda su estructura (rama completa)
+- **Puede crear**: Nuevos concejales y caudillos propios
+- **Panel Georreferenciado**: Filtrado a su distrito
 
-### **Rol: Usuario (user)**
-- **Gestión Básica**: Crear y editar catálogos
-- **Lectura**: Ver todos los datos
-- **Sin Eliminación**: No puede eliminar registros
-- **Sin Exportación**: No puede exportar datos
+### **Rol: Candidato a Concejal (concejal)**
+- **Alcance**: Limitado a su distrito asignado
+- **Ve su equipo**: Solo sus caudillos directos
+- **Ve simpatizantes**: Los suyos + los de sus caudillos
+- **Puede crear**: Nuevos caudillos propios
+- **No ve**: Datos de otros concejales ni del intendente
 
-### **Rol: Visualizador (viewer)**
-- **Solo Lectura**: Ver datos sin modificar
-- **Sin Creación**: No puede crear nuevos registros
-- **Sin Edición**: No puede editar registros existentes
-- **Sin Eliminación**: No puede eliminar registros
+### **Rol: Caudillo (caudillo)**
+- **Acceso mínimo**: Solo puede agregar simpatizantes
+- **Ve**: Únicamente su propia lista de simpatizantes
+- **No puede**: Ver otros caudillos, concejales ni niveles superiores
+- **No puede**: Crear otros usuarios
 
 ---
 

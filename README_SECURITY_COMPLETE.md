@@ -143,25 +143,25 @@ npm run dev
 
 ### Roles Disponibles
 
-#### 🔴 Administrador
+#### 🔴 Administrador (`admin`)
 - **Permisos**: `read`, `write`, `delete`, `manage_users`, `manage_roles`
-- **Acceso**: Completo al sistema
-- **Funciones**: Gestión de usuarios, logs, configuración
+- **Acceso**: Completo al sistema, todos los distritos y departamentos
+- **Funciones**: Gestión de usuarios, logs, configuración, panel georreferenciado global
 
-#### 🟡 Gerente
-- **Permisos**: `read`, `write`, `delete`
-- **Acceso**: CRUD completo en datos
-- **Funciones**: Gestión de gremios, EOTs, feriados
+#### 🟠 Candidato a Intendente (`intendente`)
+- **Permisos**: `read`, `write`, `manage_subordinates`
+- **Acceso**: Limitado a su distrito asignado
+- **Funciones**: Ve sus concejales, los caudillos de sus concejales, y todos los simpatizantes de su estructura. Puede crear concejales y caudillos propios.
 
-#### 🟢 Usuario
-- **Permisos**: `read`, `write`
-- **Acceso**: Lectura y escritura
-- **Funciones**: No puede eliminar registros
+#### 🟡 Candidato a Concejal (`concejal`)
+- **Permisos**: `read`, `write`, `manage_subordinates`
+- **Acceso**: Su propio registro + sus caudillos directos
+- **Funciones**: Ve y gestiona sus propios caudillos y los simpatizantes de su rama. No ve datos de otros concejales.
 
-#### 🔵 Visualizador
-- **Permisos**: `read`
-- **Acceso**: Solo lectura
-- **Funciones**: Consulta de datos
+#### 🟢 Caudillo (`caudillo`)
+- **Permisos**: `write` (solo captación)
+- **Acceso**: Solo su propia lista de simpatizantes
+- **Funciones**: Agrega simpatizantes y ve únicamente su propia lista. No puede ver datos de otros caudillos ni niveles superiores.
 
 ### Implementación de Permisos
 ```python

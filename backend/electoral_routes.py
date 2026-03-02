@@ -127,36 +127,22 @@ async def get_mis_votantes(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    """Obtiene la lista de votantes captados por el usuario actual y su rama jerárquica"""
+    """Obtiene la lista de votantes según la jerarquía del usuario:
+    - caudillo: solo su propia lista
+    - concejal: su lista + la de sus caudillos
+    - intendente: toda la rama (concejales + sus caudillos + caudillos propios)
+    - admin: todos
+    """
+    from hierarchy_utils import get_visible_caudillo_ids
+    
     user_id = current_user["user_id"]
-    user_role = current_user.get("role", "viewer")
+    user_role = current_user.get("role", "caudillo")
     
-    # Identificar IDs de usuarios del sistema en mi rama
-    sub_user_ids = [user_id]
-    
-    if user_role == "admin":
-        res_ids = await session.execute(select(Usuario.id))
-        sub_user_ids = [u[0] for u in res_ids.all()]
-    elif user_role == "intendente":
-        res = await session.execute(select(Usuario.id).where(Usuario.creado_por == user_id))
-        direct_sub_ids = [u[0] for u in res.all()]
-        sub_user_ids.extend(direct_sub_ids)
-        if direct_sub_ids:
-            res_lv2 = await session.execute(select(Usuario.id).where(Usuario.creado_por.in_(direct_sub_ids)))
-            sub_user_ids.extend([u[0] for u in res_lv2.all()])
-    elif user_role == "concejal":
-        res = await session.execute(select(Usuario.id).where(Usuario.creado_por == user_id))
-        sub_user_ids.extend([u[0] for u in res.all()])
-
-    # Identificar IDs de Caudillos vinculados
-    stmt_caudillos = select(Caudillo.id).where(Caudillo.id_usuario_sistema.in_(sub_user_ids))
-    res_caudillos = await session.execute(stmt_caudillos)
-    caudillo_ids = [c[0] for c in res_caudillos.all()]
+    caudillo_ids = await get_visible_caudillo_ids(user_id, user_role, session)
     
     if not caudillo_ids:
         return []
 
-    # Join con padrón ANR para tener nombres y filtrar por mi rama
     stmt = select(
         PosibleVotante.id,
         PosibleVotante.id_caudillo,
@@ -192,38 +178,18 @@ async def get_dashboard_candidato(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    """Obtiene estadísticas generales basadas en la jerarquía del usuario"""
-    user_id = current_user["user_id"]
-    user_role = current_user.get("role", "viewer")
-    
-    # Identificar todos los usuarios que pertenecen a la estructura del usuario actual
-    sub_user_ids = [user_id]
-    
-    if user_role == "admin":
-        # Dashboard Global para admin
-        all_users = await session.execute(select(Usuario.id))
-        sub_user_ids = [u[0] for u in all_users.all()]
-    elif user_role == "intendente":
-        # Obtener mis subordinados directos (Concejales y mis propios Caudillos)
-        res = await session.execute(select(Usuario.id).where(Usuario.creado_por == user_id))
-        direct_sub_ids = [u[0] for u in res.all()]
-        sub_user_ids.extend(direct_sub_ids)
-        
-        # Obtener subordinados de segundo nivel (Caudillos de mis concejales)
-        if direct_sub_ids:
-            res_lv2 = await session.execute(select(Usuario.id).where(Usuario.creado_por.in_(direct_sub_ids)))
-            sub_user_ids.extend([u[0] for u in res_lv2.all()])
-    elif user_role == "concejal":
-        # Obtener mis propios Caudillos
-        res = await session.execute(select(Usuario.id).where(Usuario.creado_por == user_id))
-        sub_user_ids.extend([u[0] for u in res.all()])
-    # Si es caudillo, solo ve el suyo (ya incluido al inicio)
+    """Obtiene estadísticas basadas en la jerarquía del usuario:
+    - caudillo: solo sus propios simpatizantes
+    - concejal: sus simpatizantes + los de sus caudillos
+    - intendente: toda su rama
+    - admin: todo el sistema
+    """
+    from hierarchy_utils import get_visible_caudillo_ids
 
-    # Identificar IDs de Caudillos de todos estos usuarios del sistema
-    stmt_caudillos = select(Caudillo).where(Caudillo.id_usuario_sistema.in_(sub_user_ids))
-    res_caudillos = await session.execute(stmt_caudillos)
-    caudillos = res_caudillos.scalars().all()
-    caudillo_ids = [c.id for c in caudillos]
+    user_id = current_user["user_id"]
+    user_role = current_user.get("role", "caudillo")
+
+    caudillo_ids = await get_visible_caudillo_ids(user_id, user_role, session)
 
     if not caudillo_ids:
         return {
@@ -233,6 +199,11 @@ async def get_dashboard_candidato(
             "puntos_calor": []
         }
 
+    # Caudillos con datos completos para el ranking
+    stmt_caudillos = select(Caudillo).where(Caudillo.id.in_(caudillo_ids))
+    res_caudillos = await session.execute(stmt_caudillos)
+    caudillos = res_caudillos.scalars().all()
+
     # Votantes únicos
     stmt_unicos = select(func.count(func.distinct(PosibleVotante.cedula_votante))).where(
         PosibleVotante.id_caudillo.in_(caudillo_ids)
@@ -240,7 +211,7 @@ async def get_dashboard_candidato(
     res_unicos = await session.execute(stmt_unicos)
     total_unicos = res_unicos.scalar() or 0
 
-    # Resumen por caudillo (para el ranking)
+    # Resumen por caudillo (ranking)
     resumen_caudillos = []
     total_bruto = 0
     for c in caudillos:
@@ -253,7 +224,6 @@ async def get_dashboard_candidato(
         })
         total_bruto += count
     
-    # Ordenar por cantidad (ranking)
     resumen_caudillos.sort(key=lambda x: x["cantidad_votantes"], reverse=True)
 
     # Mapa de calor

@@ -236,23 +236,22 @@ async def create_user(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Crear nuevo usuario con validación de jerarquía"""
+    """Crear nuevo usuario con validación de jerarquía y propagación de territorio"""
     from security import ROLES
+    from hierarchy_utils import inherit_territory
     
     current_role = current_user.get("role")
     target_role = user_data.rol
     
-    # Definir jerarquía de roles
+    # Jerarquía de quién puede crear qué
     hierarchy = {
-        "admin": ["admin", "intendente", "concejal", "caudillo"],
+        "admin":      ["admin", "intendente", "concejal", "caudillo"],
         "intendente": ["concejal", "caudillo"],
-        "concejal": ["caudillo"],
-        "caudillo": []
+        "concejal":   ["caudillo"],
+        "caudillo":   []
     }
     
-    # Verificar permisos y jerarquía
     user_permissions = ROLES.get(current_role, {}).get("permissions", [])
-    
     can_manage = "manage_users" in user_permissions or "manage_subordinates" in user_permissions
     
     if not can_manage:
@@ -279,6 +278,21 @@ async def create_user(
             detail="El usuario o email ya existe"
         )
     
+    # Obtener datos del creador para heredar territorio
+    creator_result = await session.execute(select(Usuario).where(Usuario.id == current_user["user_id"]))
+    creator = creator_result.scalar_one_or_none()
+    
+    # Determinar territorio: usar el del formulario, o heredar del creador
+    departamento_id = user_data.departamento_id or (creator.departamento_id if creator else None)
+    distrito_id = user_data.distrito_id or (creator.distrito_id if creator else None)
+    
+    # Validar que intendentes y concejales tengan distrito asignado
+    if target_role in ["intendente", "concejal"] and not distrito_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"El rol '{target_role}' requiere un distrito asignado (distrito_id)"
+        )
+    
     # Generar contraseña aleatoria
     password = generate_random_password()
     hashed_password = get_password_hash(password)
@@ -290,19 +304,34 @@ async def create_user(
         hashed_password=hashed_password,
         nombre_completo=user_data.nombre_completo,
         rol=user_data.rol,
-        creado_por=current_user["user_id"]
+        creado_por=current_user["user_id"],
+        departamento_id=departamento_id,
+        distrito_id=distrito_id
     )
     
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
     
-    # Si el usuario tiene un rol electoral, crear también su registro en la tabla caudillos
+    # Crear registro en electoral.caudillos para roles electorales
     if target_role in ["intendente", "concejal", "caudillo"]:
         from models import Caudillo
+        
+        # Buscar ID del caudillo superior (el creador)
+        superior_caudillo_id = None
+        if current_role in ["intendente", "concejal"]:
+            res_sup = await session.execute(
+                select(Caudillo.id).where(Caudillo.id_usuario_sistema == current_user["user_id"])
+            )
+            row = res_sup.first()
+            if row:
+                superior_caudillo_id = row[0]
+        
         nuevo_caudillo = Caudillo(
             id_usuario_sistema=new_user.id,
             nombre_caudillo=new_user.nombre_completo,
+            rol_electoral=target_role,
+            id_superior=superior_caudillo_id,
             activo=True
         )
         session.add(nuevo_caudillo)
@@ -319,14 +348,12 @@ async def create_user(
     except Exception as e:
          print(f"Error enviando email: {str(e)}")
     
-    # Registrar log de acceso
     await log_access(session, LogAccesoCreate(
         usuario_id=current_user["user_id"],
         username=current_user["sub"],
         accion="create_user",
         detalles={"mensaje": f"Usuario creado: {user_data.username} con rol {target_role}"}
     ))
-    # Registrar log de auditoría
     await log_audit_action(
         session=session,
         username=current_user["sub"],
@@ -338,7 +365,8 @@ async def create_user(
             "username": new_user.username,
             "email": new_user.email,
             "rol": new_user.rol,
-            "activo": new_user.activo,
+            "departamento_id": departamento_id,
+            "distrito_id": distrito_id,
         },
         details=f"Usuario creado por {current_role}: {new_user.username}"
     )
@@ -350,8 +378,9 @@ async def list_users(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Listar usuarios con filtrado por jerarquía"""
+    """Listar usuarios con filtrado por jerarquía completa"""
     from security import ROLES
+    from hierarchy_utils import get_visible_user_ids
     
     current_role = current_user.get("role")
     user_permissions = ROLES.get(current_role, {}).get("permissions", [])
@@ -362,13 +391,14 @@ async def list_users(
             detail="No tienes permisos para ver la lista de usuarios"
         )
     
+    visible_ids = await get_visible_user_ids(current_user["user_id"], current_role, session)
+    
     if current_role == "admin":
-        stmt = select(Usuario)
+        stmt = select(Usuario).order_by(Usuario.rol, Usuario.nombre_completo)
     else:
-        # Ver usuarios creados por mí (mis subordinados directos)
-        # O en una estructura más compleja, ver toda mi rama descendente
-        # Por ahora, implementamos ver subordinados directos según lo solicitado
-        stmt = select(Usuario).where(Usuario.creado_por == current_user["user_id"])
+        if not visible_ids:
+            return []
+        stmt = select(Usuario).where(Usuario.id.in_(visible_ids)).order_by(Usuario.rol, Usuario.nombre_completo)
         
     result = await session.execute(stmt)
     users = result.scalars().all()

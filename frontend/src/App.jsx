@@ -31,9 +31,10 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
           <div className="user-details">
             <div className="user-name">{user.nombre_completo}</div>
             <div className="user-role">
-              {user.rol === 'admin' ? 'Administrador' :
-                user.rol === 'manager' ? 'Gerente' :
-                  user.rol === 'user' ? 'Usuario' : 'Visualizador'}
+              {user.rol === 'admin' ? '🔑 Administrador' :
+                user.rol === 'intendente' ? '🏛️ Candidato Intendente' :
+                  user.rol === 'concejal' ? '🏙️ Candidato Concejal' :
+                    user.rol === 'caudillo' ? '👥 Caudillo' : 'Visualizador'}
             </div>
           </div>
         )}
@@ -70,17 +71,17 @@ function MainDashboard({ user, onLogout }) {
     {
       title: "Administración",
       items: [
-        { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Perfil', icon: '👤', roles: ['admin', 'manager', 'user', 'viewer'] },
-        { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
-        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
+        { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Equipo', icon: '👤', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin'] },
+        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin'] },
       ]
     },
     {
       title: "Gestión Electoral",
       items: [
-        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'manager', 'user'] },
-        { id: 'tablero', label: 'Tablero Candidato', icon: '📈', roles: ['admin', 'manager'] },
-        { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin'] },
+        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'intendente', 'concejal', 'caudillo'] },
+        { id: 'tablero', label: 'Mi Tablero', icon: '📈', roles: ['admin', 'intendente', 'concejal', 'caudillo'] },
+        { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin', 'intendente', 'concejal'] },
       ]
     }
   ];
@@ -146,12 +147,12 @@ function MainDashboard({ user, onLogout }) {
 
         <main className="main-content">
           <div className="fade-in">
-            {tab === "usuarios" && <UserManagement />}
-            {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
-            {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
-            {tab === "captacion" && <VoterRegistration />}
-            {tab === "tablero" && (user.rol === 'admin' || user.rol === 'manager') && <CandidateDashboard />}
-            {tab === "geografia" && user.rol === 'admin' && <GeoDashboard />}
+            {tab === "usuarios" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <UserManagement user={user} />}
+            {tab === "auditoria" && user.rol === 'admin' && <AuditSystem />}
+            {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
+            {tab === "captacion" && ['admin', 'intendente', 'concejal', 'caudillo'].includes(user.rol) && <VoterRegistration user={user} />}
+            {tab === "tablero" && ['admin', 'intendente', 'concejal', 'caudillo'].includes(user.rol) && <CandidateDashboard user={user} />}
+            {tab === "geografia" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <GeoDashboard user={user} />}
           </div>
         </main>
       </div>

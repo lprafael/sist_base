@@ -3686,3 +3686,968 @@
 2026-03-01 23:21:05,492 - INFO - CI Verificadas: 137350 | Guardadas: 55487 | Vel: 14.57 CI/s
 2026-03-01 23:21:09,210 - INFO - CI Verificadas: 137400 | Guardadas: 55487 | Vel: 14.57 CI/s
 2026-03-01 23:21:12,154 - INFO - CI Verificadas: 137450 | Guardadas: 55523 | Vel: 14.57 CI/s
+2026-03-01 23:21:14,940 - INFO - CI Verificadas: 137500 | Guardadas: 55523 | Vel: 14.58 CI/s
+2026-03-01 23:21:18,234 - INFO - CI Verificadas: 137550 | Guardadas: 55564 | Vel: 14.58 CI/s
+2026-03-01 23:21:21,789 - INFO - CI Verificadas: 137600 | Guardadas: 55598 | Vel: 14.58 CI/s
+2026-03-01 23:21:24,753 - INFO - CI Verificadas: 137650 | Guardadas: 55598 | Vel: 14.58 CI/s
+2026-03-01 23:21:29,312 - INFO - CI Verificadas: 137700 | Guardadas: 55641 | Vel: 14.57 CI/s
+2026-03-01 23:21:32,880 - INFO - CI Verificadas: 137750 | Guardadas: 55661 | Vel: 14.57 CI/s
+2026-03-01 23:21:35,881 - INFO - CI Verificadas: 137800 | Guardadas: 55691 | Vel: 14.58 CI/s
+2026-03-01 23:21:40,436 - INFO - CI Verificadas: 137850 | Guardadas: 55716 | Vel: 14.57 CI/s
+2026-03-01 23:21:43,543 - INFO - CI Verificadas: 137900 | Guardadas: 55716 | Vel: 14.57 CI/s
+2026-03-01 23:21:48,253 - INFO - CI Verificadas: 137950 | Guardadas: 55745 | Vel: 14.57 CI/s
+2026-03-01 23:21:51,448 - INFO - CI Verificadas: 138000 | Guardadas: 55776 | Vel: 14.57 CI/s
+2026-03-01 23:21:55,275 - INFO - CI Verificadas: 138050 | Guardadas: 55803 | Vel: 14.57 CI/s
+2026-03-01 23:21:58,606 - INFO - CI Verificadas: 138100 | Guardadas: 55803 | Vel: 14.57 CI/s
+2026-03-01 23:22:01,884 - INFO - CI Verificadas: 138150 | Guardadas: 55833 | Vel: 14.57 CI/s
+2026-03-01 23:22:05,515 - INFO - CI Verificadas: 138200 | Guardadas: 55869 | Vel: 14.57 CI/s
+2026-03-01 23:22:09,462 - INFO - CI Verificadas: 138250 | Guardadas: 55869 | Vel: 14.57 CI/s
+2026-03-01 23:22:13,240 - INFO - CI Verificadas: 138300 | Guardadas: 55892 | Vel: 14.57 CI/s
+2026-03-01 23:22:16,851 - INFO - CI Verificadas: 138350 | Guardadas: 55927 | Vel: 14.57 CI/s
+2026-03-01 23:22:21,045 - INFO - CI Verificadas: 138400 | Guardadas: 55950 | Vel: 14.57 CI/s
+2026-03-01 23:22:24,927 - INFO - CI Verificadas: 138450 | Guardadas: 55950 | Vel: 14.57 CI/s
+2026-03-01 23:22:28,408 - INFO - CI Verificadas: 138500 | Guardadas: 55974 | Vel: 14.57 CI/s
+2026-03-01 23:22:31,743 - INFO - CI Verificadas: 138550 | Guardadas: 56008 | Vel: 14.57 CI/s
+2026-03-01 23:22:34,998 - INFO - CI Verificadas: 138600 | Guardadas: 56008 | Vel: 14.57 CI/s
+2026-03-01 23:22:39,644 - INFO - CI Verificadas: 138650 | Guardadas: 56040 | Vel: 14.57 CI/s
+2026-03-01 23:22:42,505 - INFO - CI Verificadas: 138700 | Guardadas: 56062 | Vel: 14.57 CI/s
+2026-03-01 23:22:46,204 - INFO - CI Verificadas: 138750 | Guardadas: 56095 | Vel: 14.57 CI/s
+2026-03-01 23:22:49,650 - INFO - CI Verificadas: 138800 | Guardadas: 56095 | Vel: 14.57 CI/s
+2026-03-01 23:22:53,703 - INFO - CI Verificadas: 138850 | Guardadas: 56135 | Vel: 14.57 CI/s
+2026-03-01 23:22:57,343 - INFO - CI Verificadas: 138900 | Guardadas: 56155 | Vel: 14.57 CI/s
+2026-03-01 23:23:05,853 - INFO - CI Verificadas: 138950 | Guardadas: 56185 | Vel: 14.56 CI/s
+2026-03-01 23:23:13,112 - INFO - CI Verificadas: 139000 | Guardadas: 56200 | Vel: 14.55 CI/s
+2026-03-01 23:23:23,166 - INFO - CI Verificadas: 139050 | Guardadas: 56223 | Vel: 14.54 CI/s
+2026-03-01 23:23:31,314 - INFO - CI Verificadas: 139100 | Guardadas: 56248 | Vel: 14.54 CI/s
+2026-03-01 23:23:39,975 - INFO - CI Verificadas: 139150 | Guardadas: 56255 | Vel: 14.53 CI/s
+2026-03-01 23:23:47,861 - INFO - CI Verificadas: 139200 | Guardadas: 56280 | Vel: 14.52 CI/s
+2026-03-01 23:23:59,780 - INFO - CI Verificadas: 139250 | Guardadas: 56294 | Vel: 14.51 CI/s
+2026-03-01 23:24:06,497 - INFO - CI Verificadas: 139300 | Guardadas: 56322 | Vel: 14.50 CI/s
+2026-03-01 23:24:14,190 - INFO - CI Verificadas: 139350 | Guardadas: 56343 | Vel: 14.50 CI/s
+2026-03-01 23:24:22,375 - INFO - CI Verificadas: 139400 | Guardadas: 56369 | Vel: 14.49 CI/s
+2026-03-01 23:24:33,321 - INFO - CI Verificadas: 139450 | Guardadas: 56387 | Vel: 14.48 CI/s
+2026-03-01 23:24:46,849 - INFO - CI Verificadas: 139500 | Guardadas: 56409 | Vel: 14.46 CI/s
+2026-03-01 23:24:56,309 - INFO - CI Verificadas: 139550 | Guardadas: 56432 | Vel: 14.45 CI/s
+2026-03-01 23:25:08,555 - INFO - CI Verificadas: 139600 | Guardadas: 56456 | Vel: 14.44 CI/s
+2026-03-01 23:25:18,604 - INFO - CI Verificadas: 139650 | Guardadas: 56476 | Vel: 14.43 CI/s
+2026-03-01 23:25:25,398 - INFO - CI Verificadas: 139700 | Guardadas: 56485 | Vel: 14.43 CI/s
+2026-03-01 23:25:29,005 - INFO - CI Verificadas: 139750 | Guardadas: 56502 | Vel: 14.43 CI/s
+2026-03-01 23:25:35,338 - INFO - CI Verificadas: 139800 | Guardadas: 56531 | Vel: 14.42 CI/s
+2026-03-01 23:25:40,927 - INFO - CI Verificadas: 139850 | Guardadas: 56540 | Vel: 14.42 CI/s
+2026-03-01 23:25:46,860 - INFO - CI Verificadas: 139900 | Guardadas: 56579 | Vel: 14.41 CI/s
+2026-03-01 23:25:51,178 - INFO - CI Verificadas: 139950 | Guardadas: 56579 | Vel: 14.41 CI/s
+2026-03-01 23:25:55,540 - INFO - CI Verificadas: 140000 | Guardadas: 56601 | Vel: 14.41 CI/s
+2026-03-01 23:26:00,502 - INFO - CI Verificadas: 140050 | Guardadas: 56624 | Vel: 14.41 CI/s
+2026-03-01 23:26:05,207 - INFO - CI Verificadas: 140100 | Guardadas: 56640 | Vel: 14.41 CI/s
+2026-03-01 23:26:09,929 - INFO - CI Verificadas: 140150 | Guardadas: 56661 | Vel: 14.41 CI/s
+2026-03-01 23:26:15,358 - INFO - CI Verificadas: 140200 | Guardadas: 56683 | Vel: 14.40 CI/s
+2026-03-01 23:26:19,510 - INFO - CI Verificadas: 140250 | Guardadas: 56700 | Vel: 14.40 CI/s
+2026-03-01 23:26:23,308 - INFO - CI Verificadas: 140300 | Guardadas: 56728 | Vel: 14.40 CI/s
+2026-03-01 23:26:28,222 - INFO - CI Verificadas: 140350 | Guardadas: 56742 | Vel: 14.40 CI/s
+2026-03-01 23:26:32,576 - INFO - CI Verificadas: 140400 | Guardadas: 56761 | Vel: 14.40 CI/s
+2026-03-01 23:26:37,309 - INFO - CI Verificadas: 140450 | Guardadas: 56774 | Vel: 14.40 CI/s
+2026-03-01 23:26:41,243 - INFO - CI Verificadas: 140500 | Guardadas: 56774 | Vel: 14.40 CI/s
+2026-03-01 23:26:44,963 - INFO - CI Verificadas: 140550 | Guardadas: 56795 | Vel: 14.40 CI/s
+2026-03-01 23:26:49,329 - INFO - CI Verificadas: 140600 | Guardadas: 56819 | Vel: 14.39 CI/s
+2026-03-01 23:26:55,560 - INFO - CI Verificadas: 140650 | Guardadas: 56843 | Vel: 14.39 CI/s
+2026-03-01 23:27:02,605 - INFO - CI Verificadas: 140700 | Guardadas: 56872 | Vel: 14.38 CI/s
+2026-03-01 23:27:08,648 - INFO - CI Verificadas: 140750 | Guardadas: 56888 | Vel: 14.38 CI/s
+2026-03-01 23:27:14,347 - INFO - CI Verificadas: 140800 | Guardadas: 56901 | Vel: 14.38 CI/s
+2026-03-01 23:27:15,678 - WARNING - Timeout/Error para CI 1140705: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-01 23:27:20,448 - INFO - CI Verificadas: 140850 | Guardadas: 56922 | Vel: 14.37 CI/s
+2026-03-01 23:27:24,019 - INFO - CI Verificadas: 140900 | Guardadas: 56939 | Vel: 14.37 CI/s
+2026-03-01 23:27:27,786 - INFO - CI Verificadas: 140950 | Guardadas: 56964 | Vel: 14.37 CI/s
+2026-03-01 23:27:31,531 - INFO - CI Verificadas: 141000 | Guardadas: 56990 | Vel: 14.37 CI/s
+2026-03-01 23:27:35,194 - INFO - CI Verificadas: 141050 | Guardadas: 56990 | Vel: 14.37 CI/s
+2026-03-01 23:27:39,803 - INFO - CI Verificadas: 141100 | Guardadas: 57015 | Vel: 14.37 CI/s
+2026-03-01 23:27:43,837 - INFO - CI Verificadas: 141150 | Guardadas: 57033 | Vel: 14.37 CI/s
+2026-03-01 23:27:47,683 - INFO - CI Verificadas: 141200 | Guardadas: 57053 | Vel: 14.37 CI/s
+2026-03-01 23:27:51,951 - INFO - CI Verificadas: 141250 | Guardadas: 57074 | Vel: 14.37 CI/s
+2026-03-01 23:27:56,254 - INFO - CI Verificadas: 141300 | Guardadas: 57074 | Vel: 14.37 CI/s
+2026-03-01 23:28:00,144 - INFO - CI Verificadas: 141350 | Guardadas: 57087 | Vel: 14.37 CI/s
+2026-03-01 23:28:03,547 - INFO - CI Verificadas: 141400 | Guardadas: 57109 | Vel: 14.37 CI/s
+2026-03-01 23:28:07,567 - INFO - CI Verificadas: 141450 | Guardadas: 57141 | Vel: 14.37 CI/s
+2026-03-01 23:28:10,901 - INFO - CI Verificadas: 141500 | Guardadas: 57141 | Vel: 14.37 CI/s
+2026-03-01 23:28:13,905 - INFO - CI Verificadas: 141550 | Guardadas: 57167 | Vel: 14.37 CI/s
+2026-03-01 23:28:17,616 - INFO - CI Verificadas: 141600 | Guardadas: 57193 | Vel: 14.37 CI/s
+2026-03-01 23:28:21,577 - INFO - CI Verificadas: 141650 | Guardadas: 57193 | Vel: 14.37 CI/s
+2026-03-01 23:28:25,966 - INFO - CI Verificadas: 141700 | Guardadas: 57217 | Vel: 14.36 CI/s
+2026-03-01 23:28:30,367 - INFO - CI Verificadas: 141750 | Guardadas: 57235 | Vel: 14.36 CI/s
+2026-03-01 23:28:33,999 - INFO - CI Verificadas: 141800 | Guardadas: 57258 | Vel: 14.36 CI/s
+2026-03-01 23:28:37,650 - INFO - CI Verificadas: 141850 | Guardadas: 57290 | Vel: 14.36 CI/s
+2026-03-01 23:28:41,843 - INFO - CI Verificadas: 141900 | Guardadas: 57311 | Vel: 14.36 CI/s
+2026-03-01 23:28:45,173 - INFO - CI Verificadas: 141950 | Guardadas: 57311 | Vel: 14.36 CI/s
+2026-03-01 23:28:48,339 - INFO - CI Verificadas: 142000 | Guardadas: 57347 | Vel: 14.36 CI/s
+2026-03-01 23:28:51,838 - INFO - CI Verificadas: 142050 | Guardadas: 57382 | Vel: 14.36 CI/s
+2026-03-01 23:28:55,908 - INFO - CI Verificadas: 142100 | Guardadas: 57382 | Vel: 14.36 CI/s
+2026-03-01 23:28:59,619 - INFO - CI Verificadas: 142150 | Guardadas: 57407 | Vel: 14.36 CI/s
+2026-03-01 23:29:02,389 - INFO - CI Verificadas: 142200 | Guardadas: 57444 | Vel: 14.36 CI/s
+2026-03-01 23:29:07,200 - INFO - CI Verificadas: 142250 | Guardadas: 57466 | Vel: 14.36 CI/s
+2026-03-01 23:29:11,056 - INFO - CI Verificadas: 142300 | Guardadas: 57466 | Vel: 14.36 CI/s
+2026-03-01 23:29:15,067 - INFO - CI Verificadas: 142350 | Guardadas: 57482 | Vel: 14.36 CI/s
+2026-03-01 23:29:18,701 - INFO - CI Verificadas: 142400 | Guardadas: 57514 | Vel: 14.36 CI/s
+2026-03-01 23:29:22,744 - INFO - CI Verificadas: 142450 | Guardadas: 57536 | Vel: 14.36 CI/s
+2026-03-01 23:29:26,310 - INFO - CI Verificadas: 142500 | Guardadas: 57536 | Vel: 14.36 CI/s
+2026-03-01 23:29:30,846 - INFO - CI Verificadas: 142550 | Guardadas: 57569 | Vel: 14.36 CI/s
+2026-03-01 23:29:34,710 - INFO - CI Verificadas: 142600 | Guardadas: 57592 | Vel: 14.36 CI/s
+2026-03-01 23:29:38,364 - INFO - CI Verificadas: 142650 | Guardadas: 57613 | Vel: 14.36 CI/s
+2026-03-01 23:29:42,325 - INFO - CI Verificadas: 142700 | Guardadas: 57635 | Vel: 14.35 CI/s
+2026-03-01 23:29:45,850 - INFO - CI Verificadas: 142750 | Guardadas: 57635 | Vel: 14.35 CI/s
+2026-03-02 03:19:36,937 - WARNING - Timeout/Error para CI 1142774: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:36,943 - WARNING - Timeout/Error para CI 1142761: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:36,944 - WARNING - Timeout/Error para CI 1142757: ('Connection broken: IncompleteRead(7652 bytes read, 173 more expected)', IncompleteRead(7652 bytes read, 173 more expected)). Reintento 1 en 2s...
+2026-03-02 03:19:36,948 - WARNING - Timeout/Error para CI 1142753: ('Connection broken: IncompleteRead(8011 bytes read, 302 more expected)', IncompleteRead(8011 bytes read, 302 more expected)). Reintento 1 en 2s...
+2026-03-02 03:19:36,957 - WARNING - Timeout/Error para CI 1142778: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:36,966 - WARNING - Timeout/Error para CI 1142762: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,030 - WARNING - Timeout/Error para CI 1142776: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,036 - WARNING - Timeout/Error para CI 1142773: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,036 - WARNING - Timeout/Error para CI 1142772: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,042 - WARNING - Timeout/Error para CI 1142764: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,043 - WARNING - Timeout/Error para CI 1142769: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:36,966 - WARNING - Timeout/Error para CI 1142770: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,044 - WARNING - Timeout/Error para CI 1142758: ('Connection broken: IncompleteRead(7652 bytes read, 173 more expected)', IncompleteRead(7652 bytes read, 173 more expected)). Reintento 1 en 2s...
+2026-03-02 03:19:37,044 - WARNING - Timeout/Error para CI 1142759: ('Connection broken: IncompleteRead(7652 bytes read, 173 more expected)', IncompleteRead(7652 bytes read, 173 more expected)). Reintento 1 en 2s...
+2026-03-02 03:19:37,047 - WARNING - Timeout/Error para CI 1142771: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')). Reintento 1 en 2s...
+2026-03-02 03:19:37,060 - WARNING - Timeout/Error para CI 1142760: ('Connection broken: IncompleteRead(7652 bytes read, 173 more expected)', IncompleteRead(7652 bytes read, 173 more expected)). Reintento 1 en 2s...
+2026-03-02 03:19:40,967 - WARNING - Timeout/Error para CI 1142779: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142779.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 1 en 2s...
+2026-03-02 03:19:41,040 - WARNING - Timeout/Error para CI 1142780: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142780.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 1 en 2s...
+2026-03-02 03:19:41,066 - WARNING - Timeout/Error para CI 1142781: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142781.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 1 en 2s...
+2026-03-02 03:19:41,069 - WARNING - Timeout/Error para CI 1142782: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142782.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 1 en 2s...
+2026-03-02 05:35:05,842 - WARNING - Timeout/Error para CI 1142769: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142769.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,934 - WARNING - Timeout/Error para CI 1142774: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142774.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,934 - WARNING - Timeout/Error para CI 1142772: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142772.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,939 - WARNING - Timeout/Error para CI 1142776: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142776.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,977 - WARNING - Timeout/Error para CI 1142773: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142773.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,978 - WARNING - Timeout/Error para CI 1142758: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142758.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,979 - WARNING - Timeout/Error para CI 1142759: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142759.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,979 - WARNING - Timeout/Error para CI 1142770: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142770.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,982 - WARNING - Timeout/Error para CI 1142764: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142764.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,984 - WARNING - Timeout/Error para CI 1142753: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142753.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,991 - WARNING - Timeout/Error para CI 1142778: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142778.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,995 - WARNING - Timeout/Error para CI 1142757: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142757.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:05,998 - WARNING - Timeout/Error para CI 1142771: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142771.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:06,024 - WARNING - Timeout/Error para CI 1142761: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142761.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:06,024 - WARNING - Timeout/Error para CI 1142762: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142762.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:06,046 - WARNING - Timeout/Error para CI 1142760: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/2/1142760.json (Caused by NameResolutionError("HTTPSConnection(host='www.anr.org.py', port=443): Failed to resolve 'www.anr.org.py' ([Errno -5] No address associated with hostname)")). Reintento 2 en 4s...
+2026-03-02 05:35:21,112 - INFO - CI Verificadas: 142800 | Guardadas: 57677 | Vel: 4.48 CI/s
+2026-03-02 05:35:26,555 - INFO - CI Verificadas: 142850 | Guardadas: 57697 | Vel: 4.48 CI/s
+2026-03-02 05:35:29,949 - INFO - CI Verificadas: 142900 | Guardadas: 57725 | Vel: 4.48 CI/s
+2026-03-02 05:35:33,144 - INFO - CI Verificadas: 142950 | Guardadas: 57725 | Vel: 4.48 CI/s
+2026-03-02 05:35:47,999 - WARNING - Timeout/Error para CI 1142967: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:48,160 - WARNING - Timeout/Error para CI 1142970: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:48,671 - WARNING - Timeout/Error para CI 1142975: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:48,869 - WARNING - Timeout/Error para CI 1142950: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:48,870 - WARNING - Timeout/Error para CI 1142963: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,104 - WARNING - Timeout/Error para CI 1142977: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:49,375 - WARNING - Timeout/Error para CI 1142933: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,390 - WARNING - Timeout/Error para CI 1142962: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,528 - WARNING - Timeout/Error para CI 1142978: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:49,642 - WARNING - Timeout/Error para CI 1142979: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:49,707 - WARNING - Timeout/Error para CI 1142976: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,766 - WARNING - Timeout/Error para CI 1142974: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,785 - WARNING - Timeout/Error para CI 1142980: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:35:49,786 - WARNING - Timeout/Error para CI 1142964: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,809 - WARNING - Timeout/Error para CI 1142966: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,839 - WARNING - Timeout/Error para CI 1142968: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:49,934 - WARNING - Timeout/Error para CI 1142972: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:50,322 - WARNING - Timeout/Error para CI 1142960: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:50,414 - WARNING - Timeout/Error para CI 1142956: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:35:50,448 - WARNING - Timeout/Error para CI 1142952: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:36:10,824 - INFO - CI Verificadas: 143000 | Guardadas: 57758 | Vel: 4.48 CI/s
+2026-03-02 05:36:14,869 - INFO - CI Verificadas: 143050 | Guardadas: 57758 | Vel: 4.48 CI/s
+2026-03-02 05:36:19,359 - INFO - CI Verificadas: 143100 | Guardadas: 57780 | Vel: 4.48 CI/s
+2026-03-02 05:36:33,462 - WARNING - Timeout/Error para CI 1143107: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,625 - WARNING - Timeout/Error para CI 1143108: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,666 - WARNING - Timeout/Error para CI 1143109: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,725 - WARNING - Timeout/Error para CI 1143110: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,729 - WARNING - Timeout/Error para CI 1143111: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,731 - WARNING - Timeout/Error para CI 1143112: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,832 - WARNING - Timeout/Error para CI 1143113: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:33,942 - WARNING - Timeout/Error para CI 1143114: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,025 - WARNING - Timeout/Error para CI 1143115: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,032 - WARNING - Timeout/Error para CI 1143116: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,083 - WARNING - Timeout/Error para CI 1143117: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,164 - WARNING - Timeout/Error para CI 1143118: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,346 - WARNING - Timeout/Error para CI 1143119: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,376 - WARNING - Timeout/Error para CI 1143120: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,462 - WARNING - Timeout/Error para CI 1143121: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,720 - WARNING - Timeout/Error para CI 1143122: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:34,977 - WARNING - Timeout/Error para CI 1143123: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:35,015 - WARNING - Timeout/Error para CI 1143105: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out.. Reintento 1 en 2s...
+2026-03-02 05:36:35,016 - WARNING - Timeout/Error para CI 1143124: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:35,019 - WARNING - Timeout/Error para CI 1143125: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 05:36:50,501 - WARNING - Timeout/Error para CI 1143107: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143107.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218003653d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,647 - WARNING - Timeout/Error para CI 1143108: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143108.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218043b8d90>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,688 - WARNING - Timeout/Error para CI 1143109: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143109.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180028d490>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,774 - WARNING - Timeout/Error para CI 1143110: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143110.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218043b9610>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,778 - WARNING - Timeout/Error para CI 1143111: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143111.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180024b090>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,779 - WARNING - Timeout/Error para CI 1143112: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143112.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180024c110>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,852 - WARNING - Timeout/Error para CI 1143113: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143113.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800238510>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:50,962 - WARNING - Timeout/Error para CI 1143114: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143114.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180038e6d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,045 - WARNING - Timeout/Error para CI 1143115: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143115.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180038ff90>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,053 - WARNING - Timeout/Error para CI 1143116: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143116.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801cf2410>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,103 - WARNING - Timeout/Error para CI 1143117: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143117.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801cf17d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,184 - WARNING - Timeout/Error para CI 1143118: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143118.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180039a210>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,366 - WARNING - Timeout/Error para CI 1143119: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143119.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180039af10>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,394 - WARNING - Timeout/Error para CI 1143120: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143120.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801cfeed0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,484 - WARNING - Timeout/Error para CI 1143121: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143121.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801cfda90>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,742 - WARNING - Timeout/Error para CI 1143122: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143122.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801d04290>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:51,996 - WARNING - Timeout/Error para CI 1143123: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143123.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801d04f10>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:52,022 - WARNING - Timeout/Error para CI 1143125: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143125.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218003ead90>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:52,035 - WARNING - Timeout/Error para CI 1143124: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143124.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801d05c50>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:36:52,036 - WARNING - Timeout/Error para CI 1143105: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143105.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180024a7d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)')). Reintento 2 en 4s...
+2026-03-02 05:37:09,524 - ERROR - Fallo definitivo para CI 1143107 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143107.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218003c6b50>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,674 - ERROR - Fallo definitivo para CI 1143108 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143108.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800350f50>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,714 - ERROR - Fallo definitivo para CI 1143109 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143109.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800353950>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,799 - ERROR - Fallo definitivo para CI 1143110 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143110.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800351a50>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,800 - ERROR - Fallo definitivo para CI 1143112 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143112.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800254dd0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,806 - ERROR - Fallo definitivo para CI 1143111 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143111.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800254ed0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,875 - ERROR - Fallo definitivo para CI 1143113 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143113.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800255a50>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:09,986 - ERROR - Fallo definitivo para CI 1143114 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143114.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800340fd0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,069 - ERROR - Fallo definitivo para CI 1143115 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143115.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800342650>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,078 - ERROR - Fallo definitivo para CI 1143116 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143116.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800342510>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,121 - ERROR - Fallo definitivo para CI 1143117 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143117.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801d130d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,195 - ERROR - Fallo definitivo para CI 1143118 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143118.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801d12090>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,375 - ERROR - Fallo definitivo para CI 1143119 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143119.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800419710>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,406 - ERROR - Fallo definitivo para CI 1143120 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143120.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218004197d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,507 - ERROR - Fallo definitivo para CI 1143121 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143121.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721800418690>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:10,768 - ERROR - Fallo definitivo para CI 1143122 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143122.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801d062d0>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:11,018 - ERROR - Fallo definitivo para CI 1143123 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143123.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x7218003c7110>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:11,044 - ERROR - Fallo definitivo para CI 1143125 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143125.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x721801cffa50>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:11,048 - ERROR - Fallo definitivo para CI 1143124 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143124.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180039a090>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:11,058 - ERROR - Fallo definitivo para CI 1143105 tras 3 intentos: HTTPSConnectionPool(host='www.anr.org.py', port=443): Max retries exceeded with url: /assets/p2026/1/1/4/3/1143105.json (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.anr.org.py', port=443) at 0x72180039b410>, 'Connection to www.anr.org.py timed out. (connect timeout=15)'))
+2026-03-02 05:37:12,616 - INFO - CI Verificadas: 143150 | Guardadas: 57804 | Vel: 4.47 CI/s
+2026-03-02 05:37:18,591 - INFO - CI Verificadas: 143200 | Guardadas: 57824 | Vel: 4.48 CI/s
+2026-03-02 05:37:21,632 - INFO - CI Verificadas: 143250 | Guardadas: 57835 | Vel: 4.48 CI/s
+2026-03-02 05:37:24,571 - INFO - CI Verificadas: 143300 | Guardadas: 57835 | Vel: 4.48 CI/s
+2026-03-02 05:37:27,826 - INFO - CI Verificadas: 143350 | Guardadas: 57891 | Vel: 4.48 CI/s
+2026-03-02 05:37:30,960 - INFO - CI Verificadas: 143400 | Guardadas: 57930 | Vel: 4.48 CI/s
+2026-03-02 05:37:33,748 - INFO - CI Verificadas: 143450 | Guardadas: 57930 | Vel: 4.48 CI/s
+2026-03-02 05:37:37,163 - INFO - CI Verificadas: 143500 | Guardadas: 57977 | Vel: 4.48 CI/s
+2026-03-02 05:37:41,491 - INFO - CI Verificadas: 143550 | Guardadas: 57995 | Vel: 4.48 CI/s
+2026-03-02 05:37:44,926 - INFO - CI Verificadas: 143600 | Guardadas: 57995 | Vel: 4.48 CI/s
+2026-03-02 05:37:48,928 - INFO - CI Verificadas: 143650 | Guardadas: 58010 | Vel: 4.49 CI/s
+2026-03-02 05:37:51,965 - INFO - CI Verificadas: 143700 | Guardadas: 58039 | Vel: 4.49 CI/s
+2026-03-02 05:37:54,742 - INFO - CI Verificadas: 143750 | Guardadas: 58039 | Vel: 4.49 CI/s
+2026-03-02 05:37:56,962 - INFO - CI Verificadas: 143800 | Guardadas: 58080 | Vel: 4.49 CI/s
+2026-03-02 05:38:00,557 - INFO - CI Verificadas: 143850 | Guardadas: 58121 | Vel: 4.49 CI/s
+2026-03-02 05:38:03,795 - INFO - CI Verificadas: 143900 | Guardadas: 58121 | Vel: 4.49 CI/s
+2026-03-02 05:38:07,782 - INFO - CI Verificadas: 143950 | Guardadas: 58150 | Vel: 4.49 CI/s
+2026-03-02 05:38:11,685 - INFO - CI Verificadas: 144000 | Guardadas: 58169 | Vel: 4.49 CI/s
+2026-03-02 05:38:14,807 - INFO - CI Verificadas: 144050 | Guardadas: 58169 | Vel: 4.49 CI/s
+2026-03-02 05:38:17,897 - INFO - CI Verificadas: 144100 | Guardadas: 58204 | Vel: 4.50 CI/s
+2026-03-02 05:38:21,202 - INFO - CI Verificadas: 144150 | Guardadas: 58240 | Vel: 4.50 CI/s
+2026-03-02 05:38:25,260 - INFO - CI Verificadas: 144200 | Guardadas: 58240 | Vel: 4.50 CI/s
+2026-03-02 05:38:28,525 - INFO - CI Verificadas: 144250 | Guardadas: 58277 | Vel: 4.50 CI/s
+2026-03-02 05:38:32,167 - INFO - CI Verificadas: 144300 | Guardadas: 58304 | Vel: 4.50 CI/s
+2026-03-02 05:38:35,416 - INFO - CI Verificadas: 144350 | Guardadas: 58304 | Vel: 4.50 CI/s
+2026-03-02 05:38:38,721 - INFO - CI Verificadas: 144400 | Guardadas: 58341 | Vel: 4.50 CI/s
+2026-03-02 05:38:43,090 - INFO - CI Verificadas: 144450 | Guardadas: 58369 | Vel: 4.50 CI/s
+2026-03-02 05:38:46,377 - INFO - CI Verificadas: 144500 | Guardadas: 58391 | Vel: 4.50 CI/s
+2026-03-02 05:38:49,408 - INFO - CI Verificadas: 144550 | Guardadas: 58391 | Vel: 4.50 CI/s
+2026-03-02 05:38:52,632 - INFO - CI Verificadas: 144600 | Guardadas: 58426 | Vel: 4.51 CI/s
+2026-03-02 05:38:55,993 - INFO - CI Verificadas: 144650 | Guardadas: 58456 | Vel: 4.51 CI/s
+2026-03-02 05:38:59,659 - INFO - CI Verificadas: 144700 | Guardadas: 58456 | Vel: 4.51 CI/s
+2026-03-02 05:39:04,576 - INFO - CI Verificadas: 144750 | Guardadas: 58481 | Vel: 4.51 CI/s
+2026-03-02 05:39:08,493 - INFO - CI Verificadas: 144800 | Guardadas: 58481 | Vel: 4.51 CI/s
+2026-03-02 05:39:11,763 - INFO - CI Verificadas: 144850 | Guardadas: 58517 | Vel: 4.51 CI/s
+2026-03-02 05:39:14,485 - INFO - CI Verificadas: 144900 | Guardadas: 58517 | Vel: 4.51 CI/s
+2026-03-02 05:39:17,898 - INFO - CI Verificadas: 144950 | Guardadas: 58554 | Vel: 4.51 CI/s
+2026-03-02 05:39:21,337 - INFO - CI Verificadas: 145000 | Guardadas: 58582 | Vel: 4.51 CI/s
+2026-03-02 05:39:24,128 - INFO - CI Verificadas: 145050 | Guardadas: 58582 | Vel: 4.52 CI/s
+2026-03-02 05:39:27,538 - INFO - CI Verificadas: 145100 | Guardadas: 58627 | Vel: 4.52 CI/s
+2026-03-02 05:39:31,099 - INFO - CI Verificadas: 145150 | Guardadas: 58654 | Vel: 4.52 CI/s
+2026-03-02 05:39:34,730 - INFO - CI Verificadas: 145200 | Guardadas: 58654 | Vel: 4.52 CI/s
+2026-03-02 05:39:38,486 - INFO - CI Verificadas: 145250 | Guardadas: 58682 | Vel: 4.52 CI/s
+2026-03-02 05:39:42,451 - INFO - CI Verificadas: 145300 | Guardadas: 58701 | Vel: 4.52 CI/s
+2026-03-02 05:39:46,700 - INFO - CI Verificadas: 145350 | Guardadas: 58719 | Vel: 4.52 CI/s
+2026-03-02 05:39:50,697 - INFO - CI Verificadas: 145400 | Guardadas: 58719 | Vel: 4.52 CI/s
+2026-03-02 05:39:54,453 - INFO - CI Verificadas: 145450 | Guardadas: 58741 | Vel: 4.52 CI/s
+2026-03-02 05:39:57,433 - INFO - CI Verificadas: 145500 | Guardadas: 58772 | Vel: 4.52 CI/s
+2026-03-02 05:40:01,184 - INFO - CI Verificadas: 145550 | Guardadas: 58803 | Vel: 4.53 CI/s
+2026-03-02 05:40:05,371 - INFO - CI Verificadas: 145600 | Guardadas: 58803 | Vel: 4.53 CI/s
+2026-03-02 05:40:08,684 - INFO - CI Verificadas: 145650 | Guardadas: 58823 | Vel: 4.53 CI/s
+2026-03-02 05:40:11,482 - INFO - CI Verificadas: 145700 | Guardadas: 58868 | Vel: 4.53 CI/s
+2026-03-02 05:40:14,954 - INFO - CI Verificadas: 145750 | Guardadas: 58868 | Vel: 4.53 CI/s
+2026-03-02 05:40:17,830 - INFO - CI Verificadas: 145800 | Guardadas: 58908 | Vel: 4.53 CI/s
+2026-03-02 05:40:21,670 - INFO - CI Verificadas: 145850 | Guardadas: 58936 | Vel: 4.53 CI/s
+2026-03-02 05:40:24,965 - INFO - CI Verificadas: 145900 | Guardadas: 58936 | Vel: 4.53 CI/s
+2026-03-02 05:40:28,415 - INFO - CI Verificadas: 145950 | Guardadas: 58978 | Vel: 4.53 CI/s
+2026-03-02 05:40:32,316 - INFO - CI Verificadas: 146000 | Guardadas: 59006 | Vel: 4.54 CI/s
+2026-03-02 05:40:36,052 - INFO - CI Verificadas: 146050 | Guardadas: 59006 | Vel: 4.54 CI/s
+2026-03-02 05:40:39,351 - INFO - CI Verificadas: 146100 | Guardadas: 59035 | Vel: 4.54 CI/s
+2026-03-02 05:40:42,765 - INFO - CI Verificadas: 146150 | Guardadas: 59052 | Vel: 4.54 CI/s
+2026-03-02 05:40:46,536 - INFO - CI Verificadas: 146200 | Guardadas: 59073 | Vel: 4.54 CI/s
+2026-03-02 05:40:50,666 - INFO - CI Verificadas: 146250 | Guardadas: 59073 | Vel: 4.54 CI/s
+2026-03-02 05:40:55,404 - INFO - CI Verificadas: 146300 | Guardadas: 59099 | Vel: 4.54 CI/s
+2026-03-02 05:40:59,555 - INFO - CI Verificadas: 146350 | Guardadas: 59111 | Vel: 4.54 CI/s
+2026-03-02 05:41:03,397 - INFO - CI Verificadas: 146400 | Guardadas: 59133 | Vel: 4.54 CI/s
+2026-03-02 05:41:07,449 - INFO - CI Verificadas: 146450 | Guardadas: 59147 | Vel: 4.54 CI/s
+2026-03-02 05:41:10,987 - INFO - CI Verificadas: 146500 | Guardadas: 59147 | Vel: 4.55 CI/s
+2026-03-02 05:41:15,026 - INFO - CI Verificadas: 146550 | Guardadas: 59173 | Vel: 4.55 CI/s
+2026-03-02 05:41:18,357 - INFO - CI Verificadas: 146600 | Guardadas: 59201 | Vel: 4.55 CI/s
+2026-03-02 05:41:21,642 - INFO - CI Verificadas: 146650 | Guardadas: 59229 | Vel: 4.55 CI/s
+2026-03-02 05:41:26,120 - INFO - CI Verificadas: 146700 | Guardadas: 59229 | Vel: 4.55 CI/s
+2026-03-02 05:41:29,802 - INFO - CI Verificadas: 146750 | Guardadas: 59250 | Vel: 4.55 CI/s
+2026-03-02 05:41:33,291 - INFO - CI Verificadas: 146800 | Guardadas: 59282 | Vel: 4.55 CI/s
+2026-03-02 05:41:36,665 - INFO - CI Verificadas: 146850 | Guardadas: 59302 | Vel: 4.55 CI/s
+2026-03-02 05:41:40,398 - INFO - CI Verificadas: 146900 | Guardadas: 59302 | Vel: 4.55 CI/s
+2026-03-02 05:41:44,100 - INFO - CI Verificadas: 146950 | Guardadas: 59331 | Vel: 4.55 CI/s
+2026-03-02 05:41:47,794 - INFO - CI Verificadas: 147000 | Guardadas: 59355 | Vel: 4.56 CI/s
+2026-03-02 05:41:50,997 - INFO - CI Verificadas: 147050 | Guardadas: 59355 | Vel: 4.56 CI/s
+2026-03-02 05:41:54,366 - INFO - CI Verificadas: 147100 | Guardadas: 59396 | Vel: 4.56 CI/s
+2026-03-02 05:41:57,814 - INFO - CI Verificadas: 147150 | Guardadas: 59433 | Vel: 4.56 CI/s
+2026-03-02 05:42:02,467 - INFO - CI Verificadas: 147200 | Guardadas: 59445 | Vel: 4.56 CI/s
+2026-03-02 05:42:07,384 - INFO - CI Verificadas: 147250 | Guardadas: 59454 | Vel: 4.56 CI/s
+2026-03-02 05:42:12,010 - INFO - CI Verificadas: 147300 | Guardadas: 59461 | Vel: 4.56 CI/s
+2026-03-02 05:42:16,997 - INFO - CI Verificadas: 147350 | Guardadas: 59466 | Vel: 4.56 CI/s
+2026-03-02 05:42:20,841 - INFO - CI Verificadas: 147400 | Guardadas: 59466 | Vel: 4.56 CI/s
+2026-03-02 05:42:25,218 - INFO - CI Verificadas: 147450 | Guardadas: 59485 | Vel: 4.56 CI/s
+2026-03-02 05:42:29,413 - INFO - CI Verificadas: 147500 | Guardadas: 59501 | Vel: 4.57 CI/s
+2026-03-02 05:42:33,268 - INFO - CI Verificadas: 147550 | Guardadas: 59528 | Vel: 4.57 CI/s
+2026-03-02 05:42:36,222 - INFO - CI Verificadas: 147600 | Guardadas: 59528 | Vel: 4.57 CI/s
+2026-03-02 05:42:41,100 - INFO - CI Verificadas: 147650 | Guardadas: 59559 | Vel: 4.57 CI/s
+2026-03-02 05:42:45,218 - INFO - CI Verificadas: 147700 | Guardadas: 59568 | Vel: 4.57 CI/s
+2026-03-02 05:42:48,708 - INFO - CI Verificadas: 147750 | Guardadas: 59587 | Vel: 4.57 CI/s
+2026-03-02 05:42:52,863 - INFO - CI Verificadas: 147800 | Guardadas: 59587 | Vel: 4.57 CI/s
+2026-03-02 05:42:56,733 - INFO - CI Verificadas: 147850 | Guardadas: 59622 | Vel: 4.57 CI/s
+2026-03-02 05:43:00,477 - INFO - CI Verificadas: 147900 | Guardadas: 59649 | Vel: 4.57 CI/s
+2026-03-02 05:43:04,605 - INFO - CI Verificadas: 147950 | Guardadas: 59669 | Vel: 4.57 CI/s
+2026-03-02 05:43:08,828 - INFO - CI Verificadas: 148000 | Guardadas: 59705 | Vel: 4.58 CI/s
+2026-03-02 05:43:12,205 - INFO - CI Verificadas: 148050 | Guardadas: 59705 | Vel: 4.58 CI/s
+2026-03-02 05:43:15,714 - INFO - CI Verificadas: 148100 | Guardadas: 59731 | Vel: 4.58 CI/s
+2026-03-02 05:43:20,036 - INFO - CI Verificadas: 148150 | Guardadas: 59757 | Vel: 4.58 CI/s
+2026-03-02 05:43:24,048 - INFO - CI Verificadas: 148200 | Guardadas: 59774 | Vel: 4.58 CI/s
+2026-03-02 05:43:27,553 - INFO - CI Verificadas: 148250 | Guardadas: 59774 | Vel: 4.58 CI/s
+2026-03-02 05:43:32,046 - INFO - CI Verificadas: 148300 | Guardadas: 59811 | Vel: 4.58 CI/s
+2026-03-02 05:43:35,769 - INFO - CI Verificadas: 148350 | Guardadas: 59825 | Vel: 4.58 CI/s
+2026-03-02 05:43:38,426 - INFO - CI Verificadas: 148400 | Guardadas: 59853 | Vel: 4.58 CI/s
+2026-03-02 05:43:42,412 - INFO - CI Verificadas: 148450 | Guardadas: 59853 | Vel: 4.58 CI/s
+2026-03-02 05:43:45,371 - INFO - CI Verificadas: 148500 | Guardadas: 59880 | Vel: 4.59 CI/s
+2026-03-02 05:43:49,263 - INFO - CI Verificadas: 148550 | Guardadas: 59917 | Vel: 4.59 CI/s
+2026-03-02 05:43:53,613 - INFO - CI Verificadas: 148600 | Guardadas: 59944 | Vel: 4.59 CI/s
+2026-03-02 05:43:58,181 - INFO - CI Verificadas: 148650 | Guardadas: 59969 | Vel: 4.59 CI/s
+2026-03-02 05:44:04,073 - INFO - CI Verificadas: 148700 | Guardadas: 59970 | Vel: 4.59 CI/s
+2026-03-02 05:44:08,978 - INFO - CI Verificadas: 148750 | Guardadas: 59970 | Vel: 4.59 CI/s
+2026-03-02 05:44:14,164 - INFO - CI Verificadas: 148800 | Guardadas: 59970 | Vel: 4.59 CI/s
+2026-03-02 05:44:18,753 - INFO - CI Verificadas: 148850 | Guardadas: 59970 | Vel: 4.59 CI/s
+2026-03-02 05:44:21,722 - INFO - CI Verificadas: 148900 | Guardadas: 59970 | Vel: 4.59 CI/s
+2026-03-02 05:44:25,929 - INFO - CI Verificadas: 148950 | Guardadas: 60006 | Vel: 4.59 CI/s
+2026-03-02 05:44:29,714 - INFO - CI Verificadas: 149000 | Guardadas: 60026 | Vel: 4.59 CI/s
+2026-03-02 05:44:34,214 - INFO - CI Verificadas: 149050 | Guardadas: 60042 | Vel: 4.60 CI/s
+2026-03-02 05:44:36,997 - INFO - CI Verificadas: 149100 | Guardadas: 60042 | Vel: 4.60 CI/s
+2026-03-02 05:44:40,054 - INFO - CI Verificadas: 149150 | Guardadas: 60073 | Vel: 4.60 CI/s
+2026-03-02 05:44:43,762 - INFO - CI Verificadas: 149200 | Guardadas: 60109 | Vel: 4.60 CI/s
+2026-03-02 05:44:46,705 - INFO - CI Verificadas: 149250 | Guardadas: 60109 | Vel: 4.60 CI/s
+2026-03-02 05:44:49,753 - INFO - CI Verificadas: 149300 | Guardadas: 60147 | Vel: 4.60 CI/s
+2026-03-02 05:44:53,656 - INFO - CI Verificadas: 149350 | Guardadas: 60177 | Vel: 4.60 CI/s
+2026-03-02 05:44:57,523 - INFO - CI Verificadas: 149400 | Guardadas: 60177 | Vel: 4.60 CI/s
+2026-03-02 05:45:01,550 - INFO - CI Verificadas: 149450 | Guardadas: 60207 | Vel: 4.60 CI/s
+2026-03-02 05:45:04,655 - INFO - CI Verificadas: 149500 | Guardadas: 60230 | Vel: 4.61 CI/s
+2026-03-02 05:45:08,920 - INFO - CI Verificadas: 149550 | Guardadas: 60265 | Vel: 4.61 CI/s
+2026-03-02 05:45:12,374 - INFO - CI Verificadas: 149600 | Guardadas: 60265 | Vel: 4.61 CI/s
+2026-03-02 05:45:16,204 - INFO - CI Verificadas: 149650 | Guardadas: 60299 | Vel: 4.61 CI/s
+2026-03-02 05:45:18,679 - INFO - CI Verificadas: 149700 | Guardadas: 60339 | Vel: 4.61 CI/s
+2026-03-02 05:45:21,891 - INFO - CI Verificadas: 149750 | Guardadas: 60339 | Vel: 4.61 CI/s
+2026-03-02 05:45:25,245 - INFO - CI Verificadas: 149800 | Guardadas: 60381 | Vel: 4.61 CI/s
+2026-03-02 05:45:29,372 - INFO - CI Verificadas: 149850 | Guardadas: 60405 | Vel: 4.61 CI/s
+2026-03-02 05:45:31,825 - INFO - CI Verificadas: 149900 | Guardadas: 60405 | Vel: 4.61 CI/s
+2026-03-02 05:45:35,361 - INFO - CI Verificadas: 149950 | Guardadas: 60443 | Vel: 4.61 CI/s
+2026-03-02 05:45:38,739 - INFO - CI Verificadas: 150000 | Guardadas: 60472 | Vel: 4.62 CI/s
+2026-03-02 05:45:43,285 - INFO - CI Verificadas: 150050 | Guardadas: 60472 | Vel: 4.62 CI/s
+2026-03-02 05:45:46,821 - INFO - CI Verificadas: 150100 | Guardadas: 60494 | Vel: 4.62 CI/s
+2026-03-02 05:45:50,604 - INFO - CI Verificadas: 150150 | Guardadas: 60519 | Vel: 4.62 CI/s
+2026-03-02 05:45:54,327 - INFO - CI Verificadas: 150200 | Guardadas: 60548 | Vel: 4.62 CI/s
+2026-03-02 05:45:58,240 - INFO - CI Verificadas: 150250 | Guardadas: 60548 | Vel: 4.62 CI/s
+2026-03-02 05:46:01,316 - INFO - CI Verificadas: 150300 | Guardadas: 60569 | Vel: 4.62 CI/s
+2026-03-02 05:46:06,337 - INFO - CI Verificadas: 150350 | Guardadas: 60597 | Vel: 4.62 CI/s
+2026-03-02 05:46:11,060 - INFO - CI Verificadas: 150400 | Guardadas: 60597 | Vel: 4.62 CI/s
+2026-03-02 05:46:14,802 - INFO - CI Verificadas: 150450 | Guardadas: 60600 | Vel: 4.62 CI/s
+2026-03-02 05:46:18,666 - INFO - CI Verificadas: 150500 | Guardadas: 60600 | Vel: 4.63 CI/s
+2026-03-02 05:46:22,809 - INFO - CI Verificadas: 150550 | Guardadas: 60636 | Vel: 4.63 CI/s
+2026-03-02 05:46:25,353 - INFO - CI Verificadas: 150600 | Guardadas: 60667 | Vel: 4.63 CI/s
+2026-03-02 05:46:28,059 - INFO - CI Verificadas: 150650 | Guardadas: 60667 | Vel: 4.63 CI/s
+2026-03-02 05:46:32,126 - INFO - CI Verificadas: 150700 | Guardadas: 60709 | Vel: 4.63 CI/s
+2026-03-02 05:46:36,122 - INFO - CI Verificadas: 150750 | Guardadas: 60737 | Vel: 4.63 CI/s
+2026-03-02 05:46:40,008 - INFO - CI Verificadas: 150800 | Guardadas: 60758 | Vel: 4.63 CI/s
+2026-03-02 05:46:43,901 - INFO - CI Verificadas: 150850 | Guardadas: 60758 | Vel: 4.63 CI/s
+2026-03-02 05:46:48,184 - INFO - CI Verificadas: 150900 | Guardadas: 60786 | Vel: 4.63 CI/s
+2026-03-02 05:46:51,614 - INFO - CI Verificadas: 150950 | Guardadas: 60808 | Vel: 4.63 CI/s
+2026-03-02 05:46:55,977 - INFO - CI Verificadas: 151000 | Guardadas: 60828 | Vel: 4.64 CI/s
+2026-03-02 05:47:00,153 - INFO - CI Verificadas: 151050 | Guardadas: 60840 | Vel: 4.64 CI/s
+2026-03-02 05:47:04,141 - INFO - CI Verificadas: 151100 | Guardadas: 60870 | Vel: 4.64 CI/s
+2026-03-02 05:47:07,650 - INFO - CI Verificadas: 151150 | Guardadas: 60870 | Vel: 4.64 CI/s
+2026-03-02 05:47:11,675 - INFO - CI Verificadas: 151200 | Guardadas: 60900 | Vel: 4.64 CI/s
+2026-03-02 05:47:15,604 - INFO - CI Verificadas: 151250 | Guardadas: 60920 | Vel: 4.64 CI/s
+2026-03-02 05:47:19,363 - INFO - CI Verificadas: 151300 | Guardadas: 60947 | Vel: 4.64 CI/s
+2026-03-02 05:47:23,378 - INFO - CI Verificadas: 151350 | Guardadas: 60947 | Vel: 4.64 CI/s
+2026-03-02 05:47:30,446 - INFO - CI Verificadas: 151400 | Guardadas: 60962 | Vel: 4.64 CI/s
+2026-03-02 05:47:35,807 - INFO - CI Verificadas: 151450 | Guardadas: 60962 | Vel: 4.64 CI/s
+2026-03-02 05:47:40,696 - INFO - CI Verificadas: 151500 | Guardadas: 60962 | Vel: 4.64 CI/s
+2026-03-02 05:47:45,818 - INFO - CI Verificadas: 151550 | Guardadas: 60962 | Vel: 4.65 CI/s
+2026-03-02 05:47:51,777 - INFO - CI Verificadas: 151600 | Guardadas: 60962 | Vel: 4.65 CI/s
+2026-03-02 05:47:56,460 - INFO - CI Verificadas: 151650 | Guardadas: 60962 | Vel: 4.65 CI/s
+2026-03-02 05:48:01,739 - INFO - CI Verificadas: 151700 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:07,252 - INFO - CI Verificadas: 151750 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:12,960 - INFO - CI Verificadas: 151800 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:18,781 - INFO - CI Verificadas: 151850 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:23,403 - INFO - CI Verificadas: 151900 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:29,282 - INFO - CI Verificadas: 151950 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:33,219 - INFO - CI Verificadas: 152000 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:38,501 - INFO - CI Verificadas: 152050 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:43,606 - INFO - CI Verificadas: 152100 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:48,615 - INFO - CI Verificadas: 152150 | Guardadas: 60964 | Vel: 4.65 CI/s
+2026-03-02 05:48:53,112 - INFO - CI Verificadas: 152200 | Guardadas: 60964 | Vel: 4.66 CI/s
+2026-03-02 05:48:58,249 - INFO - CI Verificadas: 152250 | Guardadas: 60964 | Vel: 4.66 CI/s
+2026-03-02 05:49:03,738 - INFO - CI Verificadas: 152300 | Guardadas: 60964 | Vel: 4.66 CI/s
+2026-03-02 05:49:08,444 - INFO - CI Verificadas: 152350 | Guardadas: 60964 | Vel: 4.66 CI/s
+2026-03-02 05:49:12,310 - INFO - CI Verificadas: 152400 | Guardadas: 60973 | Vel: 4.66 CI/s
+2026-03-02 05:49:17,050 - INFO - CI Verificadas: 152450 | Guardadas: 60995 | Vel: 4.66 CI/s
+2026-03-02 05:49:21,000 - INFO - CI Verificadas: 152500 | Guardadas: 61013 | Vel: 4.66 CI/s
+2026-03-02 05:49:25,291 - INFO - CI Verificadas: 152550 | Guardadas: 61029 | Vel: 4.66 CI/s
+2026-03-02 05:49:29,233 - INFO - CI Verificadas: 152600 | Guardadas: 61049 | Vel: 4.66 CI/s
+2026-03-02 05:49:33,327 - INFO - CI Verificadas: 152650 | Guardadas: 61049 | Vel: 4.66 CI/s
+2026-03-02 05:49:37,479 - INFO - CI Verificadas: 152700 | Guardadas: 61062 | Vel: 4.66 CI/s
+2026-03-02 05:49:41,882 - INFO - CI Verificadas: 152750 | Guardadas: 61081 | Vel: 4.67 CI/s
+2026-03-02 05:49:45,893 - INFO - CI Verificadas: 152800 | Guardadas: 61098 | Vel: 4.67 CI/s
+2026-03-02 05:49:49,911 - INFO - CI Verificadas: 152850 | Guardadas: 61131 | Vel: 4.67 CI/s
+2026-03-02 05:49:54,475 - INFO - CI Verificadas: 152900 | Guardadas: 61144 | Vel: 4.67 CI/s
+2026-03-02 05:49:57,939 - INFO - CI Verificadas: 152950 | Guardadas: 61144 | Vel: 4.67 CI/s
+2026-03-02 05:50:00,733 - INFO - CI Verificadas: 153000 | Guardadas: 61171 | Vel: 4.67 CI/s
+2026-03-02 05:50:03,919 - INFO - CI Verificadas: 153050 | Guardadas: 61171 | Vel: 4.67 CI/s
+2026-03-02 05:50:10,513 - INFO - CI Verificadas: 153100 | Guardadas: 61227 | Vel: 4.67 CI/s
+2026-03-02 05:50:15,388 - INFO - CI Verificadas: 153150 | Guardadas: 61238 | Vel: 4.67 CI/s
+2026-03-02 05:50:19,817 - INFO - CI Verificadas: 153200 | Guardadas: 61254 | Vel: 4.67 CI/s
+2026-03-02 05:50:23,122 - INFO - CI Verificadas: 153250 | Guardadas: 61254 | Vel: 4.67 CI/s
+2026-03-02 05:50:28,184 - INFO - CI Verificadas: 153300 | Guardadas: 61291 | Vel: 4.68 CI/s
+2026-03-02 05:50:31,947 - INFO - CI Verificadas: 153350 | Guardadas: 61298 | Vel: 4.68 CI/s
+2026-03-02 05:50:35,007 - INFO - CI Verificadas: 153400 | Guardadas: 61331 | Vel: 4.68 CI/s
+2026-03-02 05:50:38,474 - INFO - CI Verificadas: 153450 | Guardadas: 61331 | Vel: 4.68 CI/s
+2026-03-02 05:50:40,589 - INFO - CI Verificadas: 153500 | Guardadas: 61364 | Vel: 4.68 CI/s
+2026-03-02 05:50:42,963 - INFO - CI Verificadas: 153550 | Guardadas: 61364 | Vel: 4.68 CI/s
+2026-03-02 05:50:45,448 - INFO - CI Verificadas: 153600 | Guardadas: 61391 | Vel: 4.68 CI/s
+2026-03-02 05:50:47,715 - INFO - CI Verificadas: 153650 | Guardadas: 61391 | Vel: 4.68 CI/s
+2026-03-02 05:50:50,100 - INFO - CI Verificadas: 153700 | Guardadas: 61431 | Vel: 4.68 CI/s
+2026-03-02 05:50:52,397 - INFO - CI Verificadas: 153750 | Guardadas: 61431 | Vel: 4.69 CI/s
+2026-03-02 05:50:54,879 - INFO - CI Verificadas: 153800 | Guardadas: 61457 | Vel: 4.69 CI/s
+2026-03-02 05:50:57,084 - INFO - CI Verificadas: 153850 | Guardadas: 61457 | Vel: 4.69 CI/s
+2026-03-02 05:50:59,322 - INFO - CI Verificadas: 153900 | Guardadas: 61457 | Vel: 4.69 CI/s
+2026-03-02 05:51:03,078 - INFO - CI Verificadas: 153950 | Guardadas: 61504 | Vel: 4.69 CI/s
+2026-03-02 05:51:05,195 - INFO - CI Verificadas: 154000 | Guardadas: 61537 | Vel: 4.69 CI/s
+2026-03-02 05:51:07,394 - INFO - CI Verificadas: 154050 | Guardadas: 61537 | Vel: 4.69 CI/s
+2026-03-02 05:51:09,588 - INFO - CI Verificadas: 154100 | Guardadas: 61537 | Vel: 4.69 CI/s
+2026-03-02 05:51:12,025 - INFO - CI Verificadas: 154150 | Guardadas: 61582 | Vel: 4.70 CI/s
+2026-03-02 05:51:14,416 - INFO - CI Verificadas: 154200 | Guardadas: 61582 | Vel: 4.70 CI/s
+2026-03-02 05:51:16,863 - INFO - CI Verificadas: 154250 | Guardadas: 61607 | Vel: 4.70 CI/s
+2026-03-02 05:51:19,143 - INFO - CI Verificadas: 154300 | Guardadas: 61607 | Vel: 4.70 CI/s
+2026-03-02 05:51:21,302 - INFO - CI Verificadas: 154350 | Guardadas: 61635 | Vel: 4.70 CI/s
+2026-03-02 05:51:23,521 - INFO - CI Verificadas: 154400 | Guardadas: 61635 | Vel: 4.70 CI/s
+2026-03-02 05:51:25,704 - INFO - CI Verificadas: 154450 | Guardadas: 61689 | Vel: 4.70 CI/s
+2026-03-02 05:51:28,016 - INFO - CI Verificadas: 154500 | Guardadas: 61689 | Vel: 4.70 CI/s
+2026-03-02 05:51:30,172 - INFO - CI Verificadas: 154550 | Guardadas: 61734 | Vel: 4.70 CI/s
+2026-03-02 05:51:34,234 - INFO - CI Verificadas: 154600 | Guardadas: 61734 | Vel: 4.71 CI/s
+2026-03-02 05:51:38,478 - INFO - CI Verificadas: 154650 | Guardadas: 61760 | Vel: 4.71 CI/s
+2026-03-02 05:51:42,156 - INFO - CI Verificadas: 154700 | Guardadas: 61777 | Vel: 4.71 CI/s
+2026-03-02 05:51:45,741 - INFO - CI Verificadas: 154750 | Guardadas: 61813 | Vel: 4.71 CI/s
+2026-03-02 05:51:49,008 - INFO - CI Verificadas: 154800 | Guardadas: 61813 | Vel: 4.71 CI/s
+2026-03-02 05:51:53,583 - INFO - CI Verificadas: 154850 | Guardadas: 61848 | Vel: 4.71 CI/s
+2026-03-02 05:51:58,880 - INFO - CI Verificadas: 154900 | Guardadas: 61851 | Vel: 4.71 CI/s
+2026-03-02 05:52:03,647 - INFO - CI Verificadas: 154950 | Guardadas: 61856 | Vel: 4.71 CI/s
+2026-03-02 05:52:09,716 - INFO - CI Verificadas: 155000 | Guardadas: 61862 | Vel: 4.71 CI/s
+2026-03-02 05:52:13,902 - INFO - CI Verificadas: 155050 | Guardadas: 61864 | Vel: 4.71 CI/s
+2026-03-02 05:52:18,980 - INFO - CI Verificadas: 155100 | Guardadas: 61876 | Vel: 4.71 CI/s
+2026-03-02 05:52:22,645 - INFO - CI Verificadas: 155150 | Guardadas: 61881 | Vel: 4.72 CI/s
+2026-03-02 05:52:26,905 - INFO - CI Verificadas: 155200 | Guardadas: 61909 | Vel: 4.72 CI/s
+2026-03-02 05:52:32,381 - INFO - CI Verificadas: 155250 | Guardadas: 61912 | Vel: 4.72 CI/s
+2026-03-02 05:52:37,863 - INFO - CI Verificadas: 155300 | Guardadas: 61915 | Vel: 4.72 CI/s
+2026-03-02 05:52:42,981 - INFO - CI Verificadas: 155350 | Guardadas: 61918 | Vel: 4.72 CI/s
+2026-03-02 05:52:48,101 - INFO - CI Verificadas: 155400 | Guardadas: 61922 | Vel: 4.72 CI/s
+2026-03-02 05:52:52,553 - INFO - CI Verificadas: 155450 | Guardadas: 61926 | Vel: 4.72 CI/s
+2026-03-02 05:52:56,679 - INFO - CI Verificadas: 155500 | Guardadas: 61942 | Vel: 4.72 CI/s
+2026-03-02 05:53:02,211 - INFO - CI Verificadas: 155550 | Guardadas: 61956 | Vel: 4.72 CI/s
+2026-03-02 05:53:05,644 - INFO - CI Verificadas: 155600 | Guardadas: 61982 | Vel: 4.72 CI/s
+2026-03-02 05:53:09,498 - INFO - CI Verificadas: 155650 | Guardadas: 61982 | Vel: 4.72 CI/s
+2026-03-02 05:53:13,576 - INFO - CI Verificadas: 155700 | Guardadas: 62004 | Vel: 4.73 CI/s
+2026-03-02 05:53:17,196 - INFO - CI Verificadas: 155750 | Guardadas: 62021 | Vel: 4.73 CI/s
+2026-03-02 05:53:21,338 - INFO - CI Verificadas: 155800 | Guardadas: 62050 | Vel: 4.73 CI/s
+2026-03-02 05:53:24,732 - INFO - CI Verificadas: 155850 | Guardadas: 62050 | Vel: 4.73 CI/s
+2026-03-02 05:53:28,339 - INFO - CI Verificadas: 155900 | Guardadas: 62085 | Vel: 4.73 CI/s
+2026-03-02 05:53:32,517 - INFO - CI Verificadas: 155950 | Guardadas: 62113 | Vel: 4.73 CI/s
+2026-03-02 05:53:36,567 - INFO - CI Verificadas: 156000 | Guardadas: 62132 | Vel: 4.73 CI/s
+2026-03-02 05:53:40,207 - INFO - CI Verificadas: 156050 | Guardadas: 62132 | Vel: 4.73 CI/s
+2026-03-02 05:53:43,958 - INFO - CI Verificadas: 156100 | Guardadas: 62162 | Vel: 4.73 CI/s
+2026-03-02 05:53:47,348 - INFO - CI Verificadas: 156150 | Guardadas: 62188 | Vel: 4.73 CI/s
+2026-03-02 05:53:52,125 - INFO - CI Verificadas: 156200 | Guardadas: 62209 | Vel: 4.73 CI/s
+2026-03-02 05:53:56,327 - INFO - CI Verificadas: 156250 | Guardadas: 62226 | Vel: 4.74 CI/s
+2026-03-02 05:54:00,750 - INFO - CI Verificadas: 156300 | Guardadas: 62242 | Vel: 4.74 CI/s
+2026-03-02 05:54:04,957 - INFO - CI Verificadas: 156350 | Guardadas: 62242 | Vel: 4.74 CI/s
+2026-03-02 05:54:08,770 - INFO - CI Verificadas: 156400 | Guardadas: 62262 | Vel: 4.74 CI/s
+2026-03-02 05:54:13,246 - INFO - CI Verificadas: 156450 | Guardadas: 62283 | Vel: 4.74 CI/s
+2026-03-02 05:54:16,796 - INFO - CI Verificadas: 156500 | Guardadas: 62309 | Vel: 4.74 CI/s
+2026-03-02 05:54:20,491 - INFO - CI Verificadas: 156550 | Guardadas: 62338 | Vel: 4.74 CI/s
+2026-03-02 05:54:23,460 - INFO - CI Verificadas: 156600 | Guardadas: 62338 | Vel: 4.74 CI/s
+2026-03-02 05:54:28,038 - INFO - CI Verificadas: 156650 | Guardadas: 62375 | Vel: 4.74 CI/s
+2026-03-02 05:54:32,338 - INFO - CI Verificadas: 156700 | Guardadas: 62386 | Vel: 4.74 CI/s
+2026-03-02 05:54:37,439 - INFO - CI Verificadas: 156750 | Guardadas: 62396 | Vel: 4.74 CI/s
+2026-03-02 05:54:41,458 - INFO - CI Verificadas: 156800 | Guardadas: 62412 | Vel: 4.75 CI/s
+2026-03-02 05:54:44,814 - INFO - CI Verificadas: 156850 | Guardadas: 62412 | Vel: 4.75 CI/s
+2026-03-02 05:54:48,396 - INFO - CI Verificadas: 156900 | Guardadas: 62441 | Vel: 4.75 CI/s
+2026-03-02 05:54:53,101 - INFO - CI Verificadas: 156950 | Guardadas: 62470 | Vel: 4.75 CI/s
+2026-03-02 05:54:58,302 - INFO - CI Verificadas: 157000 | Guardadas: 62492 | Vel: 4.75 CI/s
+2026-03-02 05:55:02,941 - INFO - CI Verificadas: 157050 | Guardadas: 62503 | Vel: 4.75 CI/s
+2026-03-02 05:55:06,320 - INFO - CI Verificadas: 157100 | Guardadas: 62523 | Vel: 4.75 CI/s
+2026-03-02 05:55:08,852 - INFO - CI Verificadas: 157150 | Guardadas: 62523 | Vel: 4.75 CI/s
+2026-03-02 05:55:12,770 - INFO - CI Verificadas: 157200 | Guardadas: 62577 | Vel: 4.75 CI/s
+2026-03-02 05:55:16,711 - INFO - CI Verificadas: 157250 | Guardadas: 62605 | Vel: 4.75 CI/s
+2026-03-02 05:55:20,716 - INFO - CI Verificadas: 157300 | Guardadas: 62620 | Vel: 4.76 CI/s
+2026-03-02 05:55:24,580 - INFO - CI Verificadas: 157350 | Guardadas: 62620 | Vel: 4.76 CI/s
+2026-03-02 05:55:27,393 - INFO - CI Verificadas: 157400 | Guardadas: 62650 | Vel: 4.76 CI/s
+2026-03-02 05:55:31,151 - INFO - CI Verificadas: 157450 | Guardadas: 62683 | Vel: 4.76 CI/s
+2026-03-02 05:55:34,993 - INFO - CI Verificadas: 157500 | Guardadas: 62683 | Vel: 4.76 CI/s
+2026-03-02 05:55:39,212 - INFO - CI Verificadas: 157550 | Guardadas: 62706 | Vel: 4.76 CI/s
+2026-03-02 05:55:43,097 - INFO - CI Verificadas: 157600 | Guardadas: 62730 | Vel: 4.76 CI/s
+2026-03-02 05:55:46,948 - INFO - CI Verificadas: 157650 | Guardadas: 62756 | Vel: 4.76 CI/s
+2026-03-02 05:55:50,328 - INFO - CI Verificadas: 157700 | Guardadas: 62756 | Vel: 4.76 CI/s
+2026-03-02 05:55:53,701 - INFO - CI Verificadas: 157750 | Guardadas: 62786 | Vel: 4.76 CI/s
+2026-03-02 05:55:57,696 - INFO - CI Verificadas: 157800 | Guardadas: 62820 | Vel: 4.77 CI/s
+2026-03-02 05:56:01,534 - INFO - CI Verificadas: 157850 | Guardadas: 62852 | Vel: 4.77 CI/s
+2026-03-02 05:56:05,260 - INFO - CI Verificadas: 157900 | Guardadas: 62852 | Vel: 4.77 CI/s
+2026-03-02 05:56:11,421 - INFO - CI Verificadas: 157950 | Guardadas: 62884 | Vel: 4.77 CI/s
+2026-03-02 05:56:14,495 - INFO - CI Verificadas: 158000 | Guardadas: 62884 | Vel: 4.77 CI/s
+2026-03-02 05:56:18,977 - INFO - CI Verificadas: 158050 | Guardadas: 62910 | Vel: 4.77 CI/s
+2026-03-02 05:56:23,009 - INFO - CI Verificadas: 158100 | Guardadas: 62926 | Vel: 4.77 CI/s
+2026-03-02 05:56:26,537 - INFO - CI Verificadas: 158150 | Guardadas: 62957 | Vel: 4.77 CI/s
+2026-03-02 05:56:30,065 - INFO - CI Verificadas: 158200 | Guardadas: 62957 | Vel: 4.77 CI/s
+2026-03-02 05:56:33,498 - INFO - CI Verificadas: 158250 | Guardadas: 63003 | Vel: 4.77 CI/s
+2026-03-02 05:56:36,891 - INFO - CI Verificadas: 158300 | Guardadas: 63041 | Vel: 4.77 CI/s
+2026-03-02 05:56:40,556 - INFO - CI Verificadas: 158350 | Guardadas: 63041 | Vel: 4.78 CI/s
+2026-03-02 05:56:44,173 - INFO - CI Verificadas: 158400 | Guardadas: 63072 | Vel: 4.78 CI/s
+2026-03-02 05:56:47,919 - INFO - CI Verificadas: 158450 | Guardadas: 63099 | Vel: 4.78 CI/s
+2026-03-02 05:56:51,245 - INFO - CI Verificadas: 158500 | Guardadas: 63120 | Vel: 4.78 CI/s
+2026-03-02 05:56:55,845 - INFO - CI Verificadas: 158550 | Guardadas: 63120 | Vel: 4.78 CI/s
+2026-03-02 05:57:01,012 - INFO - CI Verificadas: 158600 | Guardadas: 63145 | Vel: 4.78 CI/s
+2026-03-02 05:57:05,368 - INFO - CI Verificadas: 158650 | Guardadas: 63145 | Vel: 4.78 CI/s
+2026-03-02 05:57:09,903 - INFO - CI Verificadas: 158700 | Guardadas: 63160 | Vel: 4.78 CI/s
+2026-03-02 05:57:13,142 - INFO - CI Verificadas: 158750 | Guardadas: 63177 | Vel: 4.78 CI/s
+2026-03-02 05:57:17,207 - INFO - CI Verificadas: 158800 | Guardadas: 63209 | Vel: 4.78 CI/s
+2026-03-02 05:57:21,987 - INFO - CI Verificadas: 158850 | Guardadas: 63229 | Vel: 4.78 CI/s
+2026-03-02 05:57:25,762 - INFO - CI Verificadas: 158900 | Guardadas: 63229 | Vel: 4.79 CI/s
+2026-03-02 05:57:28,929 - INFO - CI Verificadas: 158950 | Guardadas: 63252 | Vel: 4.79 CI/s
+2026-03-02 05:57:33,416 - INFO - CI Verificadas: 159000 | Guardadas: 63279 | Vel: 4.79 CI/s
+2026-03-02 05:57:36,477 - INFO - CI Verificadas: 159050 | Guardadas: 63307 | Vel: 4.79 CI/s
+2026-03-02 05:57:40,310 - INFO - CI Verificadas: 159100 | Guardadas: 63307 | Vel: 4.79 CI/s
+2026-03-02 05:57:44,590 - INFO - CI Verificadas: 159150 | Guardadas: 63328 | Vel: 4.79 CI/s
+2026-03-02 05:57:50,218 - INFO - CI Verificadas: 159200 | Guardadas: 63346 | Vel: 4.79 CI/s
+2026-03-02 05:57:54,716 - INFO - CI Verificadas: 159250 | Guardadas: 63357 | Vel: 4.79 CI/s
+2026-03-02 05:57:58,179 - INFO - CI Verificadas: 159300 | Guardadas: 63379 | Vel: 4.79 CI/s
+2026-03-02 05:58:02,101 - INFO - CI Verificadas: 159350 | Guardadas: 63401 | Vel: 4.79 CI/s
+2026-03-02 05:58:06,007 - INFO - CI Verificadas: 159400 | Guardadas: 63401 | Vel: 4.79 CI/s
+2026-03-02 05:58:09,179 - INFO - CI Verificadas: 159450 | Guardadas: 63416 | Vel: 4.80 CI/s
+2026-03-02 05:58:13,886 - INFO - CI Verificadas: 159500 | Guardadas: 63439 | Vel: 4.80 CI/s
+2026-03-02 05:58:17,432 - INFO - CI Verificadas: 159550 | Guardadas: 63464 | Vel: 4.80 CI/s
+2026-03-02 05:58:23,021 - INFO - CI Verificadas: 159600 | Guardadas: 63476 | Vel: 4.80 CI/s
+2026-03-02 05:58:27,907 - INFO - CI Verificadas: 159650 | Guardadas: 63480 | Vel: 4.80 CI/s
+2026-03-02 05:58:32,085 - INFO - CI Verificadas: 159700 | Guardadas: 63493 | Vel: 4.80 CI/s
+2026-03-02 05:58:35,576 - INFO - CI Verificadas: 159750 | Guardadas: 63493 | Vel: 4.80 CI/s
+2026-03-02 05:58:39,437 - INFO - CI Verificadas: 159800 | Guardadas: 63519 | Vel: 4.80 CI/s
+2026-03-02 05:58:44,628 - INFO - CI Verificadas: 159850 | Guardadas: 63538 | Vel: 4.80 CI/s
+2026-03-02 05:58:48,738 - INFO - CI Verificadas: 159900 | Guardadas: 63570 | Vel: 4.80 CI/s
+2026-03-02 05:58:52,079 - INFO - CI Verificadas: 159950 | Guardadas: 63570 | Vel: 4.80 CI/s
+2026-03-02 05:58:55,922 - INFO - CI Verificadas: 160000 | Guardadas: 63599 | Vel: 4.81 CI/s
+2026-03-02 05:58:59,618 - INFO - CI Verificadas: 160050 | Guardadas: 63621 | Vel: 4.81 CI/s
+2026-03-02 05:59:02,612 - INFO - CI Verificadas: 160100 | Guardadas: 63657 | Vel: 4.81 CI/s
+2026-03-02 05:59:06,350 - INFO - CI Verificadas: 160150 | Guardadas: 63657 | Vel: 4.81 CI/s
+2026-03-02 05:59:10,144 - INFO - CI Verificadas: 160200 | Guardadas: 63694 | Vel: 4.81 CI/s
+2026-03-02 05:59:13,665 - INFO - CI Verificadas: 160250 | Guardadas: 63719 | Vel: 4.81 CI/s
+2026-03-02 05:59:17,483 - INFO - CI Verificadas: 160300 | Guardadas: 63749 | Vel: 4.81 CI/s
+2026-03-02 05:59:20,982 - INFO - CI Verificadas: 160350 | Guardadas: 63749 | Vel: 4.81 CI/s
+2026-03-02 05:59:24,952 - INFO - CI Verificadas: 160400 | Guardadas: 63778 | Vel: 4.81 CI/s
+2026-03-02 05:59:28,707 - INFO - CI Verificadas: 160450 | Guardadas: 63800 | Vel: 4.81 CI/s
+2026-03-02 05:59:32,926 - INFO - CI Verificadas: 160500 | Guardadas: 63820 | Vel: 4.82 CI/s
+2026-03-02 05:59:37,293 - INFO - CI Verificadas: 160550 | Guardadas: 63820 | Vel: 4.82 CI/s
+2026-03-02 05:59:41,348 - INFO - CI Verificadas: 160600 | Guardadas: 63845 | Vel: 4.82 CI/s
+2026-03-02 05:59:45,845 - INFO - CI Verificadas: 160650 | Guardadas: 63862 | Vel: 4.82 CI/s
+2026-03-02 05:59:49,356 - INFO - CI Verificadas: 160700 | Guardadas: 63881 | Vel: 4.82 CI/s
+2026-03-02 05:59:53,917 - INFO - CI Verificadas: 160750 | Guardadas: 63904 | Vel: 4.82 CI/s
+2026-03-02 05:59:57,987 - INFO - CI Verificadas: 160800 | Guardadas: 63921 | Vel: 4.82 CI/s
+2026-03-02 06:00:01,705 - INFO - CI Verificadas: 160850 | Guardadas: 63921 | Vel: 4.82 CI/s
+2026-03-02 06:00:05,434 - INFO - CI Verificadas: 160900 | Guardadas: 63945 | Vel: 4.82 CI/s
+2026-03-02 06:00:09,766 - INFO - CI Verificadas: 160950 | Guardadas: 63971 | Vel: 4.82 CI/s
+2026-03-02 06:00:13,527 - INFO - CI Verificadas: 161000 | Guardadas: 63990 | Vel: 4.82 CI/s
+2026-03-02 06:00:17,261 - INFO - CI Verificadas: 161050 | Guardadas: 63990 | Vel: 4.83 CI/s
+2026-03-02 06:00:20,800 - INFO - CI Verificadas: 161100 | Guardadas: 64017 | Vel: 4.83 CI/s
+2026-03-02 06:00:23,952 - INFO - CI Verificadas: 161150 | Guardadas: 64058 | Vel: 4.83 CI/s
+2026-03-02 06:00:27,543 - INFO - CI Verificadas: 161200 | Guardadas: 64088 | Vel: 4.83 CI/s
+2026-03-02 06:00:30,525 - INFO - CI Verificadas: 161250 | Guardadas: 64088 | Vel: 4.83 CI/s
+2026-03-02 06:00:34,126 - INFO - CI Verificadas: 161300 | Guardadas: 64133 | Vel: 4.83 CI/s
+2026-03-02 06:00:38,069 - INFO - CI Verificadas: 161350 | Guardadas: 64160 | Vel: 4.83 CI/s
+2026-03-02 06:00:41,391 - INFO - CI Verificadas: 161400 | Guardadas: 64160 | Vel: 4.83 CI/s
+2026-03-02 06:00:44,391 - INFO - CI Verificadas: 161450 | Guardadas: 64201 | Vel: 4.83 CI/s
+2026-03-02 06:00:47,986 - INFO - CI Verificadas: 161500 | Guardadas: 64237 | Vel: 4.83 CI/s
+2026-03-02 06:00:52,032 - INFO - CI Verificadas: 161550 | Guardadas: 64237 | Vel: 4.84 CI/s
+2026-03-02 06:00:55,439 - INFO - CI Verificadas: 161600 | Guardadas: 64265 | Vel: 4.84 CI/s
+2026-03-02 06:00:58,958 - INFO - CI Verificadas: 161650 | Guardadas: 64300 | Vel: 4.84 CI/s
+2026-03-02 06:01:02,705 - INFO - CI Verificadas: 161700 | Guardadas: 64326 | Vel: 4.84 CI/s
+2026-03-02 06:01:06,109 - INFO - CI Verificadas: 161750 | Guardadas: 64326 | Vel: 4.84 CI/s
+2026-03-02 06:01:10,042 - INFO - CI Verificadas: 161800 | Guardadas: 64360 | Vel: 4.84 CI/s
+2026-03-02 06:01:13,245 - INFO - CI Verificadas: 161850 | Guardadas: 64385 | Vel: 4.84 CI/s
+2026-03-02 06:01:16,387 - INFO - CI Verificadas: 161900 | Guardadas: 64385 | Vel: 4.84 CI/s
+2026-03-02 06:01:20,856 - INFO - CI Verificadas: 161950 | Guardadas: 64425 | Vel: 4.84 CI/s
+2026-03-02 06:01:24,511 - INFO - CI Verificadas: 162000 | Guardadas: 64448 | Vel: 4.84 CI/s
+2026-03-02 06:01:27,823 - INFO - CI Verificadas: 162050 | Guardadas: 64484 | Vel: 4.85 CI/s
+2026-03-02 06:01:32,445 - INFO - CI Verificadas: 162100 | Guardadas: 64484 | Vel: 4.85 CI/s
+2026-03-02 06:01:36,240 - INFO - CI Verificadas: 162150 | Guardadas: 64504 | Vel: 4.85 CI/s
+2026-03-02 06:01:39,445 - INFO - CI Verificadas: 162200 | Guardadas: 64539 | Vel: 4.85 CI/s
+2026-03-02 06:01:43,023 - INFO - CI Verificadas: 162250 | Guardadas: 64570 | Vel: 4.85 CI/s
+2026-03-02 06:01:46,728 - INFO - CI Verificadas: 162300 | Guardadas: 64570 | Vel: 4.85 CI/s
+2026-03-02 06:01:50,111 - INFO - CI Verificadas: 162350 | Guardadas: 64594 | Vel: 4.85 CI/s
+2026-03-02 06:01:53,704 - INFO - CI Verificadas: 162400 | Guardadas: 64630 | Vel: 4.85 CI/s
+2026-03-02 06:01:57,070 - INFO - CI Verificadas: 162450 | Guardadas: 64630 | Vel: 4.85 CI/s
+2026-03-02 06:02:00,297 - INFO - CI Verificadas: 162500 | Guardadas: 64675 | Vel: 4.85 CI/s
+2026-03-02 06:02:03,787 - INFO - CI Verificadas: 162550 | Guardadas: 64708 | Vel: 4.85 CI/s
+2026-03-02 06:02:08,643 - INFO - CI Verificadas: 162600 | Guardadas: 64723 | Vel: 4.86 CI/s
+2026-03-02 06:02:13,535 - INFO - CI Verificadas: 162650 | Guardadas: 64723 | Vel: 4.86 CI/s
+2026-03-02 06:02:16,778 - INFO - CI Verificadas: 162700 | Guardadas: 64723 | Vel: 4.86 CI/s
+2026-03-02 06:02:20,260 - INFO - CI Verificadas: 162750 | Guardadas: 64753 | Vel: 4.86 CI/s
+2026-03-02 06:02:23,699 - INFO - CI Verificadas: 162800 | Guardadas: 64784 | Vel: 4.86 CI/s
+2026-03-02 06:02:27,303 - INFO - CI Verificadas: 162850 | Guardadas: 64784 | Vel: 4.86 CI/s
+2026-03-02 06:02:30,560 - INFO - CI Verificadas: 162900 | Guardadas: 64817 | Vel: 4.86 CI/s
+2026-03-02 06:02:33,940 - INFO - CI Verificadas: 162950 | Guardadas: 64858 | Vel: 4.86 CI/s
+2026-03-02 06:02:37,587 - INFO - CI Verificadas: 163000 | Guardadas: 64858 | Vel: 4.86 CI/s
+2026-03-02 06:02:41,220 - INFO - CI Verificadas: 163050 | Guardadas: 64885 | Vel: 4.86 CI/s
+2026-03-02 06:02:44,134 - INFO - CI Verificadas: 163100 | Guardadas: 64917 | Vel: 4.87 CI/s
+2026-03-02 06:02:48,307 - INFO - CI Verificadas: 163150 | Guardadas: 64948 | Vel: 4.87 CI/s
+2026-03-02 06:02:52,014 - INFO - CI Verificadas: 163200 | Guardadas: 64948 | Vel: 4.87 CI/s
+2026-03-02 06:02:55,407 - INFO - CI Verificadas: 163250 | Guardadas: 64971 | Vel: 4.87 CI/s
+2026-03-02 06:02:59,542 - INFO - CI Verificadas: 163300 | Guardadas: 65002 | Vel: 4.87 CI/s
+2026-03-02 06:03:04,559 - INFO - CI Verificadas: 163350 | Guardadas: 65018 | Vel: 4.87 CI/s
+2026-03-02 06:03:09,299 - INFO - CI Verificadas: 163400 | Guardadas: 65033 | Vel: 4.87 CI/s
+2026-03-02 06:03:13,034 - INFO - CI Verificadas: 163450 | Guardadas: 65063 | Vel: 4.87 CI/s
+2026-03-02 06:03:17,639 - INFO - CI Verificadas: 163500 | Guardadas: 65063 | Vel: 4.87 CI/s
+2026-03-02 06:03:23,580 - INFO - CI Verificadas: 163550 | Guardadas: 65101 | Vel: 4.87 CI/s
+2026-03-02 06:03:26,987 - INFO - CI Verificadas: 163600 | Guardadas: 65101 | Vel: 4.87 CI/s
+2026-03-02 06:03:31,225 - INFO - CI Verificadas: 163650 | Guardadas: 65137 | Vel: 4.87 CI/s
+2026-03-02 06:03:34,650 - INFO - CI Verificadas: 163700 | Guardadas: 65164 | Vel: 4.88 CI/s
+2026-03-02 06:03:38,621 - INFO - CI Verificadas: 163750 | Guardadas: 65188 | Vel: 4.88 CI/s
+2026-03-02 06:03:42,746 - INFO - CI Verificadas: 163800 | Guardadas: 65188 | Vel: 4.88 CI/s
+2026-03-02 06:03:46,398 - INFO - CI Verificadas: 163850 | Guardadas: 65210 | Vel: 4.88 CI/s
+2026-03-02 06:03:49,963 - INFO - CI Verificadas: 163900 | Guardadas: 65242 | Vel: 4.88 CI/s
+2026-03-02 06:03:53,913 - INFO - CI Verificadas: 163950 | Guardadas: 65261 | Vel: 4.88 CI/s
+2026-03-02 06:03:57,052 - INFO - CI Verificadas: 164000 | Guardadas: 65261 | Vel: 4.88 CI/s
+2026-03-02 06:04:00,893 - INFO - CI Verificadas: 164050 | Guardadas: 65300 | Vel: 4.88 CI/s
+2026-03-02 06:04:04,338 - INFO - CI Verificadas: 164100 | Guardadas: 65329 | Vel: 4.88 CI/s
+2026-03-02 06:04:08,195 - INFO - CI Verificadas: 164150 | Guardadas: 65362 | Vel: 4.88 CI/s
+2026-03-02 06:04:11,899 - INFO - CI Verificadas: 164200 | Guardadas: 65362 | Vel: 4.89 CI/s
+2026-03-02 06:04:15,680 - INFO - CI Verificadas: 164250 | Guardadas: 65394 | Vel: 4.89 CI/s
+2026-03-02 06:04:19,621 - INFO - CI Verificadas: 164300 | Guardadas: 65429 | Vel: 4.89 CI/s
+2026-03-02 06:04:23,655 - INFO - CI Verificadas: 164350 | Guardadas: 65458 | Vel: 4.89 CI/s
+2026-03-02 06:04:28,322 - INFO - CI Verificadas: 164400 | Guardadas: 65479 | Vel: 4.89 CI/s
+2026-03-02 06:04:32,060 - INFO - CI Verificadas: 164450 | Guardadas: 65479 | Vel: 4.89 CI/s
+2026-03-02 06:04:35,755 - INFO - CI Verificadas: 164500 | Guardadas: 65507 | Vel: 4.89 CI/s
+2026-03-02 06:04:39,634 - INFO - CI Verificadas: 164550 | Guardadas: 65526 | Vel: 4.89 CI/s
+2026-03-02 06:04:44,023 - INFO - CI Verificadas: 164600 | Guardadas: 65548 | Vel: 4.89 CI/s
+2026-03-02 06:04:48,479 - INFO - CI Verificadas: 164650 | Guardadas: 65563 | Vel: 4.89 CI/s
+2026-03-02 06:04:57,561 - INFO - CI Verificadas: 164700 | Guardadas: 65576 | Vel: 4.89 CI/s
+2026-03-02 06:05:04,194 - INFO - CI Verificadas: 164750 | Guardadas: 65605 | Vel: 4.89 CI/s
+2026-03-02 06:05:08,799 - INFO - CI Verificadas: 164800 | Guardadas: 65627 | Vel: 4.89 CI/s
+2026-03-02 06:05:12,233 - INFO - CI Verificadas: 164850 | Guardadas: 65627 | Vel: 4.90 CI/s
+2026-03-02 06:05:16,894 - INFO - CI Verificadas: 164900 | Guardadas: 65659 | Vel: 4.90 CI/s
+2026-03-02 06:05:21,759 - INFO - CI Verificadas: 164950 | Guardadas: 65685 | Vel: 4.90 CI/s
+2026-03-02 06:05:25,878 - INFO - CI Verificadas: 165000 | Guardadas: 65710 | Vel: 4.90 CI/s
+2026-03-02 06:05:29,000 - INFO - CI Verificadas: 165050 | Guardadas: 65740 | Vel: 4.90 CI/s
+2026-03-02 06:05:33,102 - INFO - CI Verificadas: 165100 | Guardadas: 65740 | Vel: 4.90 CI/s
+2026-03-02 06:05:36,199 - INFO - CI Verificadas: 165150 | Guardadas: 65761 | Vel: 4.90 CI/s
+2026-03-02 06:05:40,871 - INFO - CI Verificadas: 165200 | Guardadas: 65794 | Vel: 4.90 CI/s
+2026-03-02 06:05:44,346 - INFO - CI Verificadas: 165250 | Guardadas: 65820 | Vel: 4.90 CI/s
+2026-03-02 06:05:47,866 - INFO - CI Verificadas: 165300 | Guardadas: 65820 | Vel: 4.90 CI/s
+2026-03-02 06:05:52,513 - INFO - CI Verificadas: 165350 | Guardadas: 65848 | Vel: 4.90 CI/s
+2026-03-02 06:05:56,096 - INFO - CI Verificadas: 165400 | Guardadas: 65861 | Vel: 4.91 CI/s
+2026-03-02 06:05:59,965 - INFO - CI Verificadas: 165450 | Guardadas: 65883 | Vel: 4.91 CI/s
+2026-03-02 06:06:03,933 - INFO - CI Verificadas: 165500 | Guardadas: 65906 | Vel: 4.91 CI/s
+2026-03-02 06:06:07,665 - INFO - CI Verificadas: 165550 | Guardadas: 65906 | Vel: 4.91 CI/s
+2026-03-02 06:06:12,866 - INFO - CI Verificadas: 165600 | Guardadas: 65937 | Vel: 4.91 CI/s
+2026-03-02 06:06:18,368 - INFO - CI Verificadas: 165650 | Guardadas: 65940 | Vel: 4.91 CI/s
+2026-03-02 06:06:22,790 - INFO - CI Verificadas: 165700 | Guardadas: 65940 | Vel: 4.91 CI/s
+2026-03-02 06:06:26,999 - INFO - CI Verificadas: 165750 | Guardadas: 65961 | Vel: 4.91 CI/s
+2026-03-02 06:06:30,666 - INFO - CI Verificadas: 165800 | Guardadas: 65983 | Vel: 4.91 CI/s
+2026-03-02 06:06:34,492 - INFO - CI Verificadas: 165850 | Guardadas: 66004 | Vel: 4.91 CI/s
+2026-03-02 06:06:38,867 - INFO - CI Verificadas: 165900 | Guardadas: 66032 | Vel: 4.91 CI/s
+2026-03-02 06:06:42,951 - INFO - CI Verificadas: 165950 | Guardadas: 66032 | Vel: 4.92 CI/s
+2026-03-02 06:06:46,340 - INFO - CI Verificadas: 166000 | Guardadas: 66055 | Vel: 4.92 CI/s
+2026-03-02 06:06:49,886 - INFO - CI Verificadas: 166050 | Guardadas: 66089 | Vel: 4.92 CI/s
+2026-03-02 06:06:52,970 - INFO - CI Verificadas: 166100 | Guardadas: 66089 | Vel: 4.92 CI/s
+2026-03-02 06:06:56,791 - INFO - CI Verificadas: 166150 | Guardadas: 66125 | Vel: 4.92 CI/s
+2026-03-02 06:07:00,151 - INFO - CI Verificadas: 166200 | Guardadas: 66157 | Vel: 4.92 CI/s
+2026-03-02 06:07:03,716 - INFO - CI Verificadas: 166250 | Guardadas: 66189 | Vel: 4.92 CI/s
+2026-03-02 06:07:07,258 - INFO - CI Verificadas: 166300 | Guardadas: 66189 | Vel: 4.92 CI/s
+2026-03-02 06:07:10,811 - INFO - CI Verificadas: 166350 | Guardadas: 66225 | Vel: 4.92 CI/s
+2026-03-02 06:07:14,603 - INFO - CI Verificadas: 166400 | Guardadas: 66249 | Vel: 4.92 CI/s
+2026-03-02 06:07:18,441 - INFO - CI Verificadas: 166450 | Guardadas: 66249 | Vel: 4.93 CI/s
+2026-03-02 06:07:22,443 - INFO - CI Verificadas: 166500 | Guardadas: 66278 | Vel: 4.93 CI/s
+2026-03-02 06:07:26,300 - INFO - CI Verificadas: 166550 | Guardadas: 66307 | Vel: 4.93 CI/s
+2026-03-02 06:07:29,793 - INFO - CI Verificadas: 166600 | Guardadas: 66331 | Vel: 4.93 CI/s
+2026-03-02 06:07:34,076 - INFO - CI Verificadas: 166650 | Guardadas: 66354 | Vel: 4.93 CI/s
+2026-03-02 06:07:37,671 - INFO - CI Verificadas: 166700 | Guardadas: 66354 | Vel: 4.93 CI/s
+2026-03-02 06:07:41,506 - INFO - CI Verificadas: 166750 | Guardadas: 66378 | Vel: 4.93 CI/s
+2026-03-02 06:07:44,911 - INFO - CI Verificadas: 166800 | Guardadas: 66407 | Vel: 4.93 CI/s
+2026-03-02 06:07:48,856 - INFO - CI Verificadas: 166850 | Guardadas: 66431 | Vel: 4.93 CI/s
+2026-03-02 06:07:52,513 - INFO - CI Verificadas: 166900 | Guardadas: 66431 | Vel: 4.93 CI/s
+2026-03-02 06:07:55,917 - INFO - CI Verificadas: 166950 | Guardadas: 66463 | Vel: 4.93 CI/s
+2026-03-02 06:08:00,250 - INFO - CI Verificadas: 167000 | Guardadas: 66494 | Vel: 4.94 CI/s
+2026-03-02 06:08:03,553 - INFO - CI Verificadas: 167050 | Guardadas: 66494 | Vel: 4.94 CI/s
+2026-03-02 06:08:07,194 - INFO - CI Verificadas: 167100 | Guardadas: 66519 | Vel: 4.94 CI/s
+2026-03-02 06:08:10,717 - INFO - CI Verificadas: 167150 | Guardadas: 66549 | Vel: 4.94 CI/s
+2026-03-02 06:08:14,970 - INFO - CI Verificadas: 167200 | Guardadas: 66576 | Vel: 4.94 CI/s
+2026-03-02 06:08:18,455 - INFO - CI Verificadas: 167250 | Guardadas: 66576 | Vel: 4.94 CI/s
+2026-03-02 06:08:23,015 - INFO - CI Verificadas: 167300 | Guardadas: 66606 | Vel: 4.94 CI/s
+2026-03-02 06:08:26,751 - INFO - CI Verificadas: 167350 | Guardadas: 66629 | Vel: 4.94 CI/s
+2026-03-02 06:08:30,986 - INFO - CI Verificadas: 167400 | Guardadas: 66652 | Vel: 4.94 CI/s
+2026-03-02 06:08:34,741 - INFO - CI Verificadas: 167450 | Guardadas: 66675 | Vel: 4.94 CI/s
+2026-03-02 06:08:37,685 - INFO - CI Verificadas: 167500 | Guardadas: 66675 | Vel: 4.94 CI/s
+2026-03-02 06:08:41,511 - INFO - CI Verificadas: 167550 | Guardadas: 66713 | Vel: 4.95 CI/s
+2026-03-02 06:08:45,992 - INFO - CI Verificadas: 167600 | Guardadas: 66733 | Vel: 4.95 CI/s
+2026-03-02 06:08:49,973 - INFO - CI Verificadas: 167650 | Guardadas: 66761 | Vel: 4.95 CI/s
+2026-03-02 06:08:53,655 - INFO - CI Verificadas: 167700 | Guardadas: 66761 | Vel: 4.95 CI/s
+2026-03-02 06:08:57,055 - INFO - CI Verificadas: 167750 | Guardadas: 66785 | Vel: 4.95 CI/s
+2026-03-02 06:09:01,535 - INFO - CI Verificadas: 167800 | Guardadas: 66812 | Vel: 4.95 CI/s
+2026-03-02 06:09:05,748 - INFO - CI Verificadas: 167850 | Guardadas: 66835 | Vel: 4.95 CI/s
+2026-03-02 06:09:10,167 - INFO - CI Verificadas: 167900 | Guardadas: 66849 | Vel: 4.95 CI/s
+2026-03-02 06:09:13,769 - INFO - CI Verificadas: 167950 | Guardadas: 66849 | Vel: 4.95 CI/s
+2026-03-02 06:09:16,859 - INFO - CI Verificadas: 168000 | Guardadas: 66881 | Vel: 4.95 CI/s
+2026-03-02 06:09:20,710 - INFO - CI Verificadas: 168050 | Guardadas: 66921 | Vel: 4.95 CI/s
+2026-03-02 06:09:24,445 - INFO - CI Verificadas: 168100 | Guardadas: 66942 | Vel: 4.96 CI/s
+2026-03-02 06:09:28,632 - INFO - CI Verificadas: 168150 | Guardadas: 66942 | Vel: 4.96 CI/s
+2026-03-02 06:09:32,355 - INFO - CI Verificadas: 168200 | Guardadas: 66967 | Vel: 4.96 CI/s
+2026-03-02 06:09:36,102 - INFO - CI Verificadas: 168250 | Guardadas: 66997 | Vel: 4.96 CI/s
+2026-03-02 06:09:40,409 - INFO - CI Verificadas: 168300 | Guardadas: 67021 | Vel: 4.96 CI/s
+2026-03-02 06:09:43,954 - INFO - CI Verificadas: 168350 | Guardadas: 67021 | Vel: 4.96 CI/s
+2026-03-02 06:09:47,589 - INFO - CI Verificadas: 168400 | Guardadas: 67048 | Vel: 4.96 CI/s
+2026-03-02 06:09:51,546 - INFO - CI Verificadas: 168450 | Guardadas: 67075 | Vel: 4.96 CI/s
+2026-03-02 06:09:55,343 - INFO - CI Verificadas: 168500 | Guardadas: 67095 | Vel: 4.96 CI/s
+2026-03-02 06:09:59,456 - INFO - CI Verificadas: 168550 | Guardadas: 67120 | Vel: 4.96 CI/s
+2026-03-02 06:10:03,531 - INFO - CI Verificadas: 168600 | Guardadas: 67120 | Vel: 4.96 CI/s
+2026-03-02 06:10:08,262 - INFO - CI Verificadas: 168650 | Guardadas: 67137 | Vel: 4.97 CI/s
+2026-03-02 06:10:12,395 - INFO - CI Verificadas: 168700 | Guardadas: 67152 | Vel: 4.97 CI/s
+2026-03-02 06:10:16,185 - INFO - CI Verificadas: 168750 | Guardadas: 67173 | Vel: 4.97 CI/s
+2026-03-02 06:10:20,736 - INFO - CI Verificadas: 168800 | Guardadas: 67193 | Vel: 4.97 CI/s
+2026-03-02 06:10:24,331 - INFO - CI Verificadas: 168850 | Guardadas: 67217 | Vel: 4.97 CI/s
+2026-03-02 06:10:28,522 - INFO - CI Verificadas: 168900 | Guardadas: 67217 | Vel: 4.97 CI/s
+2026-03-02 06:10:31,935 - INFO - CI Verificadas: 168950 | Guardadas: 67243 | Vel: 4.97 CI/s
+2026-03-02 06:10:35,826 - INFO - CI Verificadas: 169000 | Guardadas: 67270 | Vel: 4.97 CI/s
+2026-03-02 06:10:38,921 - INFO - CI Verificadas: 169050 | Guardadas: 67270 | Vel: 4.97 CI/s
+2026-03-02 06:10:42,837 - INFO - CI Verificadas: 169100 | Guardadas: 67306 | Vel: 4.97 CI/s
+2026-03-02 06:10:46,159 - INFO - CI Verificadas: 169150 | Guardadas: 67330 | Vel: 4.97 CI/s
+2026-03-02 06:10:49,452 - INFO - CI Verificadas: 169200 | Guardadas: 67367 | Vel: 4.98 CI/s
+2026-03-02 06:10:53,130 - INFO - CI Verificadas: 169250 | Guardadas: 67367 | Vel: 4.98 CI/s
+2026-03-02 06:10:56,644 - INFO - CI Verificadas: 169300 | Guardadas: 67393 | Vel: 4.98 CI/s
+2026-03-02 06:11:00,629 - INFO - CI Verificadas: 169350 | Guardadas: 67428 | Vel: 4.98 CI/s
+2026-03-02 06:11:04,892 - INFO - CI Verificadas: 169400 | Guardadas: 67451 | Vel: 4.98 CI/s
+2026-03-02 06:11:08,391 - INFO - CI Verificadas: 169450 | Guardadas: 67451 | Vel: 4.98 CI/s
+2026-03-02 06:11:12,328 - INFO - CI Verificadas: 169500 | Guardadas: 67482 | Vel: 4.98 CI/s
+2026-03-02 06:11:15,706 - INFO - CI Verificadas: 169550 | Guardadas: 67517 | Vel: 4.98 CI/s
+2026-03-02 06:11:19,340 - INFO - CI Verificadas: 169600 | Guardadas: 67542 | Vel: 4.98 CI/s
+2026-03-02 06:11:22,712 - INFO - CI Verificadas: 169650 | Guardadas: 67542 | Vel: 4.98 CI/s
+2026-03-02 06:11:26,076 - INFO - CI Verificadas: 169700 | Guardadas: 67576 | Vel: 4.98 CI/s
+2026-03-02 06:11:29,987 - INFO - CI Verificadas: 169750 | Guardadas: 67608 | Vel: 4.99 CI/s
+2026-03-02 06:11:34,728 - INFO - CI Verificadas: 169800 | Guardadas: 67617 | Vel: 4.99 CI/s
+2026-03-02 06:11:37,914 - INFO - CI Verificadas: 169850 | Guardadas: 67617 | Vel: 4.99 CI/s
+2026-03-02 06:11:41,760 - INFO - CI Verificadas: 169900 | Guardadas: 67642 | Vel: 4.99 CI/s
+2026-03-02 06:11:46,180 - INFO - CI Verificadas: 169950 | Guardadas: 67668 | Vel: 4.99 CI/s
+2026-03-02 06:11:49,449 - INFO - CI Verificadas: 170000 | Guardadas: 67668 | Vel: 4.99 CI/s
+2026-03-02 06:11:52,929 - INFO - CI Verificadas: 170050 | Guardadas: 67700 | Vel: 4.99 CI/s
+2026-03-02 06:11:56,463 - INFO - CI Verificadas: 170100 | Guardadas: 67740 | Vel: 4.99 CI/s
+2026-03-02 06:11:59,929 - INFO - CI Verificadas: 170150 | Guardadas: 67771 | Vel: 4.99 CI/s
+2026-03-02 06:12:03,337 - INFO - CI Verificadas: 170200 | Guardadas: 67771 | Vel: 4.99 CI/s
+2026-03-02 06:12:07,466 - INFO - CI Verificadas: 170250 | Guardadas: 67804 | Vel: 4.99 CI/s
+2026-03-02 06:12:09,068 - WARNING - Error 502 para CI 1170191. Reintento 1...
+2026-03-02 06:12:10,701 - INFO - CI Verificadas: 170300 | Guardadas: 67834 | Vel: 5.00 CI/s
+2026-03-02 06:12:14,532 - INFO - CI Verificadas: 170350 | Guardadas: 67834 | Vel: 5.00 CI/s
+2026-03-02 06:12:18,110 - INFO - CI Verificadas: 170400 | Guardadas: 67866 | Vel: 5.00 CI/s
+2026-03-02 06:12:21,565 - INFO - CI Verificadas: 170450 | Guardadas: 67902 | Vel: 5.00 CI/s
+2026-03-02 06:12:26,120 - INFO - CI Verificadas: 170500 | Guardadas: 67925 | Vel: 5.00 CI/s
+2026-03-02 06:12:29,998 - INFO - CI Verificadas: 170550 | Guardadas: 67949 | Vel: 5.00 CI/s
+2026-03-02 06:12:33,764 - INFO - CI Verificadas: 170600 | Guardadas: 67949 | Vel: 5.00 CI/s
+2026-03-02 06:12:37,603 - INFO - CI Verificadas: 170650 | Guardadas: 67977 | Vel: 5.00 CI/s
+2026-03-02 06:12:40,913 - INFO - CI Verificadas: 170700 | Guardadas: 68005 | Vel: 5.00 CI/s
+2026-03-02 06:12:45,151 - INFO - CI Verificadas: 170750 | Guardadas: 68028 | Vel: 5.00 CI/s
+2026-03-02 06:12:49,476 - INFO - CI Verificadas: 170800 | Guardadas: 68028 | Vel: 5.00 CI/s
+2026-03-02 06:12:52,591 - INFO - CI Verificadas: 170850 | Guardadas: 68044 | Vel: 5.01 CI/s
+2026-03-02 06:12:56,755 - INFO - CI Verificadas: 170900 | Guardadas: 68080 | Vel: 5.01 CI/s
+2026-03-02 06:13:00,096 - INFO - CI Verificadas: 170950 | Guardadas: 68101 | Vel: 5.01 CI/s
+2026-03-02 06:13:04,280 - INFO - CI Verificadas: 171000 | Guardadas: 68101 | Vel: 5.01 CI/s
+2026-03-02 06:13:08,083 - INFO - CI Verificadas: 171050 | Guardadas: 68125 | Vel: 5.01 CI/s
+2026-03-02 06:13:11,770 - INFO - CI Verificadas: 171100 | Guardadas: 68156 | Vel: 5.01 CI/s
+2026-03-02 06:13:15,620 - INFO - CI Verificadas: 171150 | Guardadas: 68186 | Vel: 5.01 CI/s
+2026-03-02 06:13:19,278 - INFO - CI Verificadas: 171200 | Guardadas: 68186 | Vel: 5.01 CI/s
+2026-03-02 06:13:22,862 - INFO - CI Verificadas: 171250 | Guardadas: 68209 | Vel: 5.01 CI/s
+2026-03-02 06:13:26,822 - INFO - CI Verificadas: 171300 | Guardadas: 68231 | Vel: 5.01 CI/s
+2026-03-02 06:13:29,875 - INFO - CI Verificadas: 171350 | Guardadas: 68231 | Vel: 5.01 CI/s
+2026-03-02 06:13:33,573 - INFO - CI Verificadas: 171400 | Guardadas: 68274 | Vel: 5.02 CI/s
+2026-03-02 06:13:36,575 - INFO - CI Verificadas: 171450 | Guardadas: 68308 | Vel: 5.02 CI/s
+2026-03-02 06:13:40,374 - INFO - CI Verificadas: 171500 | Guardadas: 68338 | Vel: 5.02 CI/s
+2026-03-02 06:13:43,833 - INFO - CI Verificadas: 171550 | Guardadas: 68338 | Vel: 5.02 CI/s
+2026-03-02 06:13:47,036 - INFO - CI Verificadas: 171600 | Guardadas: 68369 | Vel: 5.02 CI/s
+2026-03-02 06:13:52,196 - INFO - CI Verificadas: 171650 | Guardadas: 68391 | Vel: 5.02 CI/s
+2026-03-02 06:13:56,714 - INFO - CI Verificadas: 171700 | Guardadas: 68408 | Vel: 5.02 CI/s
+2026-03-02 06:14:00,275 - INFO - CI Verificadas: 171750 | Guardadas: 68429 | Vel: 5.02 CI/s
+2026-03-02 06:14:03,613 - INFO - CI Verificadas: 171800 | Guardadas: 68429 | Vel: 5.02 CI/s
+2026-03-02 06:14:06,257 - WARNING - Error 502 para CI 1171750. Reintento 1...
+2026-03-02 06:14:07,237 - INFO - CI Verificadas: 171850 | Guardadas: 68473 | Vel: 5.02 CI/s
+2026-03-02 06:14:10,625 - INFO - CI Verificadas: 171900 | Guardadas: 68508 | Vel: 5.02 CI/s
+2026-03-02 06:14:13,709 - INFO - CI Verificadas: 171950 | Guardadas: 68508 | Vel: 5.03 CI/s
+2026-03-02 06:14:17,886 - INFO - CI Verificadas: 172000 | Guardadas: 68543 | Vel: 5.03 CI/s
+2026-03-02 06:14:21,839 - INFO - CI Verificadas: 172050 | Guardadas: 68561 | Vel: 5.03 CI/s
+2026-03-02 06:14:25,534 - INFO - CI Verificadas: 172100 | Guardadas: 68588 | Vel: 5.03 CI/s
+2026-03-02 06:14:29,214 - INFO - CI Verificadas: 172150 | Guardadas: 68588 | Vel: 5.03 CI/s
+2026-03-02 06:14:32,656 - INFO - CI Verificadas: 172200 | Guardadas: 68614 | Vel: 5.03 CI/s
+2026-03-02 06:14:36,069 - INFO - CI Verificadas: 172250 | Guardadas: 68656 | Vel: 5.03 CI/s
+2026-03-02 06:14:40,461 - INFO - CI Verificadas: 172300 | Guardadas: 68656 | Vel: 5.03 CI/s
+2026-03-02 06:14:43,753 - INFO - CI Verificadas: 172350 | Guardadas: 68677 | Vel: 5.03 CI/s
+2026-03-02 06:14:47,490 - INFO - CI Verificadas: 172400 | Guardadas: 68710 | Vel: 5.03 CI/s
+2026-03-02 06:14:51,598 - INFO - CI Verificadas: 172450 | Guardadas: 68729 | Vel: 5.04 CI/s
+2026-03-02 06:14:55,233 - INFO - CI Verificadas: 172500 | Guardadas: 68729 | Vel: 5.04 CI/s
+2026-03-02 06:14:58,876 - INFO - CI Verificadas: 172550 | Guardadas: 68751 | Vel: 5.04 CI/s
+2026-03-02 06:15:02,471 - INFO - CI Verificadas: 172600 | Guardadas: 68778 | Vel: 5.04 CI/s
+2026-03-02 06:15:07,134 - INFO - CI Verificadas: 172650 | Guardadas: 68801 | Vel: 5.04 CI/s
+2026-03-02 06:15:11,699 - INFO - CI Verificadas: 172700 | Guardadas: 68810 | Vel: 5.04 CI/s
+2026-03-02 06:15:15,878 - INFO - CI Verificadas: 172750 | Guardadas: 68810 | Vel: 5.04 CI/s
+2026-03-02 06:15:20,606 - INFO - CI Verificadas: 172800 | Guardadas: 68823 | Vel: 5.04 CI/s
+2026-03-02 06:15:24,603 - INFO - CI Verificadas: 172850 | Guardadas: 68838 | Vel: 5.04 CI/s
+2026-03-02 06:15:28,829 - INFO - CI Verificadas: 172900 | Guardadas: 68855 | Vel: 5.04 CI/s
+2026-03-02 06:15:32,712 - INFO - CI Verificadas: 172950 | Guardadas: 68882 | Vel: 5.04 CI/s
+2026-03-02 06:15:36,175 - INFO - CI Verificadas: 173000 | Guardadas: 68904 | Vel: 5.04 CI/s
+2026-03-02 06:15:41,084 - INFO - CI Verificadas: 173050 | Guardadas: 68910 | Vel: 5.05 CI/s
+2026-03-02 06:15:45,522 - INFO - CI Verificadas: 173100 | Guardadas: 68910 | Vel: 5.05 CI/s
+2026-03-02 06:15:49,621 - INFO - CI Verificadas: 173150 | Guardadas: 68926 | Vel: 5.05 CI/s
+2026-03-02 06:15:53,512 - INFO - CI Verificadas: 173200 | Guardadas: 68943 | Vel: 5.05 CI/s
+2026-03-02 06:15:56,591 - INFO - CI Verificadas: 173250 | Guardadas: 68974 | Vel: 5.05 CI/s
+2026-03-02 06:16:01,104 - INFO - CI Verificadas: 173300 | Guardadas: 68974 | Vel: 5.05 CI/s
+2026-03-02 06:16:05,451 - INFO - CI Verificadas: 173350 | Guardadas: 68992 | Vel: 5.05 CI/s
+2026-03-02 06:16:10,041 - INFO - CI Verificadas: 173400 | Guardadas: 69006 | Vel: 5.05 CI/s
+2026-03-02 06:16:13,265 - INFO - CI Verificadas: 173450 | Guardadas: 69027 | Vel: 5.05 CI/s
+2026-03-02 06:16:16,844 - INFO - CI Verificadas: 173500 | Guardadas: 69064 | Vel: 5.05 CI/s
+2026-03-02 06:16:21,651 - INFO - CI Verificadas: 173550 | Guardadas: 69072 | Vel: 5.05 CI/s
+2026-03-02 06:16:26,944 - INFO - CI Verificadas: 173600 | Guardadas: 69085 | Vel: 5.05 CI/s
+2026-03-02 06:16:32,009 - INFO - CI Verificadas: 173650 | Guardadas: 69093 | Vel: 5.06 CI/s
+2026-03-02 06:16:35,986 - INFO - CI Verificadas: 173700 | Guardadas: 69093 | Vel: 5.06 CI/s
+2026-03-02 06:16:39,659 - INFO - CI Verificadas: 173750 | Guardadas: 69116 | Vel: 5.06 CI/s
+2026-03-02 06:16:43,947 - INFO - CI Verificadas: 173800 | Guardadas: 69140 | Vel: 5.06 CI/s
+2026-03-02 06:16:48,371 - INFO - CI Verificadas: 173850 | Guardadas: 69151 | Vel: 5.06 CI/s
+2026-03-02 06:16:52,808 - INFO - CI Verificadas: 173900 | Guardadas: 69167 | Vel: 5.06 CI/s
+2026-03-02 06:16:57,029 - INFO - CI Verificadas: 173950 | Guardadas: 69180 | Vel: 5.06 CI/s
+2026-03-02 06:17:01,502 - INFO - CI Verificadas: 174000 | Guardadas: 69180 | Vel: 5.06 CI/s
+2026-03-02 06:17:04,853 - INFO - CI Verificadas: 174050 | Guardadas: 69195 | Vel: 5.06 CI/s
+2026-03-02 06:17:08,535 - INFO - CI Verificadas: 174100 | Guardadas: 69229 | Vel: 5.06 CI/s
+2026-03-02 06:17:12,612 - INFO - CI Verificadas: 174150 | Guardadas: 69256 | Vel: 5.06 CI/s
+2026-03-02 06:17:16,854 - INFO - CI Verificadas: 174200 | Guardadas: 69267 | Vel: 5.06 CI/s
+2026-03-02 06:17:20,489 - INFO - CI Verificadas: 174250 | Guardadas: 69267 | Vel: 5.07 CI/s
+2026-03-02 06:17:23,644 - INFO - CI Verificadas: 174300 | Guardadas: 69296 | Vel: 5.07 CI/s
+2026-03-02 06:17:33,519 - INFO - CI Verificadas: 174350 | Guardadas: 69331 | Vel: 5.07 CI/s
+2026-03-02 06:17:43,920 - INFO - CI Verificadas: 174400 | Guardadas: 69340 | Vel: 5.07 CI/s
+2026-03-02 06:17:44,337 - WARNING - Timeout/Error para CI 1174361: HTTPSConnectionPool(host='www.anr.org.py', port=443): Read timed out. (read timeout=15). Reintento 1 en 2s...
+2026-03-02 06:17:48,009 - INFO - CI Verificadas: 174450 | Guardadas: 69356 | Vel: 5.07 CI/s
+2026-03-02 06:17:52,081 - INFO - CI Verificadas: 174500 | Guardadas: 69380 | Vel: 5.07 CI/s
+2026-03-02 06:17:56,306 - INFO - CI Verificadas: 174550 | Guardadas: 69380 | Vel: 5.07 CI/s
+2026-03-02 06:17:59,629 - INFO - CI Verificadas: 174600 | Guardadas: 69396 | Vel: 5.07 CI/s
+2026-03-02 06:18:04,786 - INFO - CI Verificadas: 174650 | Guardadas: 69424 | Vel: 5.07 CI/s
+2026-03-02 06:18:10,322 - INFO - CI Verificadas: 174700 | Guardadas: 69439 | Vel: 5.07 CI/s
+2026-03-02 06:18:14,635 - INFO - CI Verificadas: 174750 | Guardadas: 69452 | Vel: 5.07 CI/s
+2026-03-02 06:18:19,383 - INFO - CI Verificadas: 174800 | Guardadas: 69479 | Vel: 5.07 CI/s
+2026-03-02 06:18:22,805 - INFO - CI Verificadas: 174850 | Guardadas: 69507 | Vel: 5.07 CI/s
+2026-03-02 06:18:27,241 - INFO - CI Verificadas: 174900 | Guardadas: 69539 | Vel: 5.07 CI/s
+2026-03-02 06:18:30,042 - INFO - CI Verificadas: 174950 | Guardadas: 69539 | Vel: 5.08 CI/s
+2026-03-02 06:18:34,093 - INFO - CI Verificadas: 175000 | Guardadas: 69574 | Vel: 5.08 CI/s
+2026-03-02 06:18:38,675 - INFO - CI Verificadas: 175050 | Guardadas: 69604 | Vel: 5.08 CI/s
+2026-03-02 06:18:42,763 - INFO - CI Verificadas: 175100 | Guardadas: 69624 | Vel: 5.08 CI/s
+2026-03-02 06:18:47,166 - INFO - CI Verificadas: 175150 | Guardadas: 69624 | Vel: 5.08 CI/s
+2026-03-02 06:18:50,947 - INFO - CI Verificadas: 175200 | Guardadas: 69641 | Vel: 5.08 CI/s
+2026-03-02 06:18:54,719 - INFO - CI Verificadas: 175250 | Guardadas: 69668 | Vel: 5.08 CI/s
+2026-03-02 06:18:59,256 - INFO - CI Verificadas: 175300 | Guardadas: 69692 | Vel: 5.08 CI/s
+2026-03-02 06:19:03,946 - INFO - CI Verificadas: 175350 | Guardadas: 69712 | Vel: 5.08 CI/s
+2026-03-02 06:19:08,218 - INFO - CI Verificadas: 175400 | Guardadas: 69741 | Vel: 5.08 CI/s
+2026-03-02 06:19:13,497 - INFO - CI Verificadas: 175450 | Guardadas: 69755 | Vel: 5.08 CI/s
+2026-03-02 06:19:17,635 - INFO - CI Verificadas: 175500 | Guardadas: 69773 | Vel: 5.08 CI/s
+2026-03-02 06:19:22,721 - INFO - CI Verificadas: 175550 | Guardadas: 69785 | Vel: 5.09 CI/s
+2026-03-02 06:19:26,776 - INFO - CI Verificadas: 175600 | Guardadas: 69785 | Vel: 5.09 CI/s
+2026-03-02 06:19:29,912 - INFO - CI Verificadas: 175650 | Guardadas: 69807 | Vel: 5.09 CI/s
+2026-03-02 06:19:33,474 - INFO - CI Verificadas: 175700 | Guardadas: 69848 | Vel: 5.09 CI/s
+2026-03-02 06:19:37,299 - INFO - CI Verificadas: 175750 | Guardadas: 69848 | Vel: 5.09 CI/s
+2026-03-02 06:19:40,874 - INFO - CI Verificadas: 175800 | Guardadas: 69871 | Vel: 5.09 CI/s
+2026-03-02 06:19:44,585 - INFO - CI Verificadas: 175850 | Guardadas: 69900 | Vel: 5.09 CI/s
+2026-03-02 06:19:47,542 - INFO - CI Verificadas: 175900 | Guardadas: 69900 | Vel: 5.09 CI/s
+2026-03-02 06:19:51,614 - INFO - CI Verificadas: 175950 | Guardadas: 69941 | Vel: 5.09 CI/s
+2026-03-02 06:19:56,011 - INFO - CI Verificadas: 176000 | Guardadas: 69959 | Vel: 5.09 CI/s
+2026-03-02 06:19:59,233 - INFO - CI Verificadas: 176050 | Guardadas: 69984 | Vel: 5.09 CI/s
+2026-03-02 06:20:03,354 - INFO - CI Verificadas: 176100 | Guardadas: 69984 | Vel: 5.10 CI/s
+2026-03-02 06:20:07,402 - INFO - CI Verificadas: 176150 | Guardadas: 70010 | Vel: 5.10 CI/s
+2026-03-02 06:20:10,813 - INFO - CI Verificadas: 176200 | Guardadas: 70033 | Vel: 5.10 CI/s
+2026-03-02 06:20:14,211 - INFO - CI Verificadas: 176250 | Guardadas: 70069 | Vel: 5.10 CI/s
+2026-03-02 06:20:17,731 - INFO - CI Verificadas: 176300 | Guardadas: 70069 | Vel: 5.10 CI/s
+2026-03-02 06:20:20,784 - INFO - CI Verificadas: 176350 | Guardadas: 70096 | Vel: 5.10 CI/s
+2026-03-02 06:20:25,081 - INFO - CI Verificadas: 176400 | Guardadas: 70130 | Vel: 5.10 CI/s
+2026-03-02 06:20:28,996 - INFO - CI Verificadas: 176450 | Guardadas: 70157 | Vel: 5.10 CI/s
+2026-03-02 06:20:32,190 - INFO - CI Verificadas: 176500 | Guardadas: 70157 | Vel: 5.10 CI/s
+2026-03-02 06:20:34,818 - INFO - CI Verificadas: 176550 | Guardadas: 70196 | Vel: 5.10 CI/s
+2026-03-02 06:20:38,460 - INFO - CI Verificadas: 176600 | Guardadas: 70196 | Vel: 5.10 CI/s
+2026-03-02 06:20:43,336 - INFO - CI Verificadas: 176650 | Guardadas: 70231 | Vel: 5.11 CI/s
+2026-03-02 06:20:46,804 - INFO - CI Verificadas: 176700 | Guardadas: 70246 | Vel: 5.11 CI/s
+2026-03-02 06:20:50,150 - INFO - CI Verificadas: 176750 | Guardadas: 70282 | Vel: 5.11 CI/s
+2026-03-02 06:20:53,583 - INFO - CI Verificadas: 176800 | Guardadas: 70282 | Vel: 5.11 CI/s
+2026-03-02 06:20:56,990 - INFO - CI Verificadas: 176850 | Guardadas: 70316 | Vel: 5.11 CI/s
+2026-03-02 06:21:00,781 - INFO - CI Verificadas: 176900 | Guardadas: 70356 | Vel: 5.11 CI/s
+2026-03-02 06:21:05,097 - INFO - CI Verificadas: 176950 | Guardadas: 70375 | Vel: 5.11 CI/s
+2026-03-02 06:21:09,379 - INFO - CI Verificadas: 177000 | Guardadas: 70388 | Vel: 5.11 CI/s
+2026-03-02 06:21:13,106 - INFO - CI Verificadas: 177050 | Guardadas: 70388 | Vel: 5.11 CI/s
+2026-03-02 06:21:17,022 - INFO - CI Verificadas: 177100 | Guardadas: 70418 | Vel: 5.11 CI/s
+2026-03-02 06:21:20,403 - INFO - CI Verificadas: 177150 | Guardadas: 70447 | Vel: 5.11 CI/s
+2026-03-02 06:21:24,174 - INFO - CI Verificadas: 177200 | Guardadas: 70447 | Vel: 5.12 CI/s
+2026-03-02 06:21:28,063 - INFO - CI Verificadas: 177250 | Guardadas: 70480 | Vel: 5.12 CI/s
+2026-03-02 06:21:31,787 - INFO - CI Verificadas: 177300 | Guardadas: 70504 | Vel: 5.12 CI/s
+2026-03-02 06:21:35,040 - INFO - CI Verificadas: 177350 | Guardadas: 70532 | Vel: 5.12 CI/s
+2026-03-02 06:21:38,552 - INFO - CI Verificadas: 177400 | Guardadas: 70532 | Vel: 5.12 CI/s
+2026-03-02 06:21:42,506 - INFO - CI Verificadas: 177450 | Guardadas: 70572 | Vel: 5.12 CI/s
+2026-03-02 06:21:46,739 - INFO - CI Verificadas: 177500 | Guardadas: 70595 | Vel: 5.12 CI/s
+2026-03-02 06:21:50,172 - INFO - CI Verificadas: 177550 | Guardadas: 70617 | Vel: 5.12 CI/s
+2026-03-02 06:21:54,007 - INFO - CI Verificadas: 177600 | Guardadas: 70617 | Vel: 5.12 CI/s
+2026-03-02 06:21:57,681 - INFO - CI Verificadas: 177650 | Guardadas: 70646 | Vel: 5.12 CI/s
+2026-03-02 06:22:01,741 - INFO - CI Verificadas: 177700 | Guardadas: 70670 | Vel: 5.12 CI/s
+2026-03-02 06:22:05,376 - INFO - CI Verificadas: 177750 | Guardadas: 70693 | Vel: 5.12 CI/s
+2026-03-02 06:22:09,136 - INFO - CI Verificadas: 177800 | Guardadas: 70693 | Vel: 5.13 CI/s
+2026-03-02 06:22:12,740 - INFO - CI Verificadas: 177850 | Guardadas: 70724 | Vel: 5.13 CI/s
+2026-03-02 06:22:16,898 - INFO - CI Verificadas: 177900 | Guardadas: 70753 | Vel: 5.13 CI/s
+2026-03-02 06:22:21,664 - INFO - CI Verificadas: 177950 | Guardadas: 70772 | Vel: 5.13 CI/s
+2026-03-02 06:22:25,070 - INFO - CI Verificadas: 178000 | Guardadas: 70796 | Vel: 5.13 CI/s
+2026-03-02 06:22:28,318 - INFO - CI Verificadas: 178050 | Guardadas: 70796 | Vel: 5.13 CI/s
+2026-03-02 06:22:32,481 - INFO - CI Verificadas: 178100 | Guardadas: 70827 | Vel: 5.13 CI/s
+2026-03-02 06:22:37,200 - INFO - CI Verificadas: 178150 | Guardadas: 70851 | Vel: 5.13 CI/s
+2026-03-02 06:22:41,040 - INFO - CI Verificadas: 178200 | Guardadas: 70877 | Vel: 5.13 CI/s
+2026-03-02 06:22:45,185 - INFO - CI Verificadas: 178250 | Guardadas: 70897 | Vel: 5.13 CI/s
+2026-03-02 06:22:49,117 - INFO - CI Verificadas: 178300 | Guardadas: 70897 | Vel: 5.13 CI/s
+2026-03-02 06:22:52,488 - INFO - CI Verificadas: 178350 | Guardadas: 70922 | Vel: 5.14 CI/s
+2026-03-02 06:22:56,496 - INFO - CI Verificadas: 178400 | Guardadas: 70951 | Vel: 5.14 CI/s
+2026-03-02 06:23:00,071 - INFO - CI Verificadas: 178450 | Guardadas: 70983 | Vel: 5.14 CI/s
+2026-03-02 06:23:04,088 - INFO - CI Verificadas: 178500 | Guardadas: 70983 | Vel: 5.14 CI/s
+2026-03-02 06:23:08,117 - INFO - CI Verificadas: 178550 | Guardadas: 71000 | Vel: 5.14 CI/s
+2026-03-02 06:23:11,917 - INFO - CI Verificadas: 178600 | Guardadas: 71028 | Vel: 5.14 CI/s
+2026-03-02 06:23:15,881 - INFO - CI Verificadas: 178650 | Guardadas: 71049 | Vel: 5.14 CI/s
+2026-03-02 06:23:19,257 - INFO - CI Verificadas: 178700 | Guardadas: 71049 | Vel: 5.14 CI/s
+2026-03-02 06:23:23,093 - INFO - CI Verificadas: 178750 | Guardadas: 71078 | Vel: 5.14 CI/s
+2026-03-02 06:23:27,147 - INFO - CI Verificadas: 178800 | Guardadas: 71101 | Vel: 5.14 CI/s
+2026-03-02 06:23:30,703 - INFO - CI Verificadas: 178850 | Guardadas: 71124 | Vel: 5.14 CI/s
+2026-03-02 06:23:34,016 - INFO - CI Verificadas: 178900 | Guardadas: 71124 | Vel: 5.14 CI/s
+2026-03-02 06:23:37,766 - INFO - CI Verificadas: 178950 | Guardadas: 71164 | Vel: 5.15 CI/s
+2026-03-02 06:23:42,109 - INFO - CI Verificadas: 179000 | Guardadas: 71183 | Vel: 5.15 CI/s
+2026-03-02 06:23:46,663 - INFO - CI Verificadas: 179050 | Guardadas: 71203 | Vel: 5.15 CI/s
+2026-03-02 06:23:51,025 - INFO - CI Verificadas: 179100 | Guardadas: 71227 | Vel: 5.15 CI/s
+2026-03-02 06:23:54,370 - INFO - CI Verificadas: 179150 | Guardadas: 71227 | Vel: 5.15 CI/s
+2026-03-02 06:23:57,681 - INFO - CI Verificadas: 179200 | Guardadas: 71263 | Vel: 5.15 CI/s
+2026-03-02 06:24:01,966 - INFO - CI Verificadas: 179250 | Guardadas: 71288 | Vel: 5.15 CI/s
+2026-03-02 06:24:05,478 - INFO - CI Verificadas: 179300 | Guardadas: 71320 | Vel: 5.15 CI/s
+2026-03-02 06:24:09,529 - INFO - CI Verificadas: 179350 | Guardadas: 71320 | Vel: 5.15 CI/s
+2026-03-02 06:24:13,720 - INFO - CI Verificadas: 179400 | Guardadas: 71343 | Vel: 5.15 CI/s
+2026-03-02 06:24:17,483 - INFO - CI Verificadas: 179450 | Guardadas: 71367 | Vel: 5.15 CI/s
+2026-03-02 06:24:21,315 - INFO - CI Verificadas: 179500 | Guardadas: 71396 | Vel: 5.16 CI/s
+2026-03-02 06:24:25,005 - INFO - CI Verificadas: 179550 | Guardadas: 71396 | Vel: 5.16 CI/s
+2026-03-02 06:24:29,100 - INFO - CI Verificadas: 179600 | Guardadas: 71418 | Vel: 5.16 CI/s
+2026-03-02 06:24:33,153 - INFO - CI Verificadas: 179650 | Guardadas: 71436 | Vel: 5.16 CI/s
+2026-03-02 06:24:37,554 - INFO - CI Verificadas: 179700 | Guardadas: 71459 | Vel: 5.16 CI/s

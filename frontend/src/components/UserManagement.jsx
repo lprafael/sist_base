@@ -16,26 +16,33 @@ const UserManagement = () => {
     current_password: '', new_password: '', confirm_password: ''
   });
 
-  const roles = [
-    { value: 'admin', label: 'Administrador' },
-    { value: 'manager', label: 'Gerente' },
-    { value: 'user', label: 'Usuario' },
-    { value: 'viewer', label: 'Visualizador' }
+  // Todos los roles posibles del sistema
+  const ROLES_CONFIG = [
+    { value: 'admin', label: '🔑 Administrador', crea: [] },
+    { value: 'intendente', label: '🏛️ Candidato a Intendente', crea: ['concejal', 'caudillo'] },
+    { value: 'concejal', label: '🏙️ Candidato a Concejal', crea: ['caudillo'] },
+    { value: 'caudillo', label: '👥 Caudillo', crea: [] },
   ];
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = currentUser && currentUser.rol === 'admin';
+  const isAdmin = currentUser?.rol === 'admin';
+  const canManageUsers = ['admin', 'intendente', 'concejal'].includes(currentUser?.rol);
+
+  // Roles que el usuario actual puede asignar
+  const meRol = ROLES_CONFIG.find(r => r.value === currentUser?.rol);
+  const rolesQuePoedoCrear = isAdmin
+    ? ROLES_CONFIG.filter(r => r.value !== 'admin')
+    : ROLES_CONFIG.filter(r => meRol?.crea.includes(r.value));
 
   const fetchUsers = async () => {
     try {
-      const endpoint = isAdmin ? `/api/auth/users` : `/api/auth/me`;
+      const endpoint = canManageUsers ? `/api/auth/users` : `/api/auth/me`;
       const response = await authFetch(endpoint);
       if (response.ok) {
         const data = await response.json();
-        // /auth/me retorna un objeto simple, /auth/users retorna un array
-        setUsers(isAdmin ? data : [data]);
+        setUsers(canManageUsers ? data : [data]);
       } else {
-        setError(isAdmin ? 'No tienes permisos para ver usuarios' : 'No se pudo cargar tu perfil');
+        setError(canManageUsers ? 'No tienes permisos para ver usuarios' : 'No se pudo cargar tu perfil');
       }
     } catch (err) {
       setError('Error al cargar datos');
@@ -67,7 +74,7 @@ const UserManagement = () => {
       });
       if (response.ok) {
         setShowCreateForm(false);
-        setNewUser({ username: '', email: '', nombre_completo: '', rol: 'user' });
+        setNewUser({ username: '', email: '', nombre_completo: '', rol: rolesQuePoedoCrear[0]?.value || 'caudillo' });
         fetchUsers();
         alert('Usuario creado exitosamente.');
       } else {
@@ -158,9 +165,9 @@ const UserManagement = () => {
     <div className="fade-in">
       <div className="user-management-header">
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-          {isAdmin ? 'Gestión de Usuarios' : 'Mi Perfil'}
+          {isAdmin ? 'Gestión de Usuarios' : canManageUsers ? 'Mi Equipo' : 'Mi Perfil'}
         </h1>
-        {isAdmin && (
+        {canManageUsers && (
           <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
             ➕ Crear Usuario
           </button>
@@ -185,12 +192,12 @@ const UserManagement = () => {
                 <td style={{ fontWeight: 600 }}>{user.username}</td>
                 <td>{user.email}</td>
                 <td>{user.nombre_completo}</td>
-                <td><span className={`role-badge role-${user.rol}`}>{roles.find(r => r.value === user.rol)?.label}</span></td>
+                <td><span className={`role-badge role-${user.rol}`}>{ROLES_CONFIG.find(r => r.value === user.rol)?.label || user.rol}</span></td>
                 <td><span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="actions-cell">
                     <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
-                    {isAdmin && user.username !== 'admin' && (
+                    {canManageUsers && user.username !== 'admin' && (
                       user.activo ?
                         <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button> :
                         <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
@@ -231,9 +238,11 @@ const UserManagement = () => {
                   name="rol"
                   value={showCreateForm ? newUser.rol : editUser.rol}
                   onChange={(e) => handleChange(e, showCreateForm ? setNewUser : setEditUser)}
-                  disabled={!isAdmin}
+                  disabled={!canManageUsers}
                 >
-                  {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  {(showCreateForm ? rolesQuePoedoCrear : ROLES_CONFIG).map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
                 </select>
               </div>
               {!showCreateForm && currentUser.id === editUser?.id && (

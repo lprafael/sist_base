@@ -100,64 +100,47 @@ async def init_database():
                     {"rol_id": rol_admin.id, "permiso_id": permiso_id}
                 )
             
-            # Rol Manager - Permisos de gestión
-            rol_manager = Rol(
-                nombre="manager",
-                descripcion="Gerente con permisos de gestión y lectura"
+            # Rol Intendente - Candidato a Intendente
+            rol_intendente = Rol(
+                nombre="intendente",
+                descripcion="Candidato a Intendente: ve toda su rama (concejales + caudillos + simpatizantes)"
             )
-            session.add(rol_manager)
+            session.add(rol_intendente)
             await session.commit()
-            
-            # Permisos para manager
-            permisos_manager = [
-                "usuarios_read", "auditoria_read", "sistema_backup"
-            ]
-            
-            for permiso_nombre in permisos_manager:
+
+            permisos_intendente = ["usuarios_read"]
+            for permiso_nombre in permisos_intendente:
                 if permiso_nombre in permisos_dict:
                     await session.execute(
                         text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
-                        {"rol_id": rol_manager.id, "permiso_id": permisos_dict[permiso_nombre]}
+                        {"rol_id": rol_intendente.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
-            
-            # Rol User - Permisos básicos
-            rol_user = Rol(
-                nombre="user",
-                descripcion="Usuario con permisos básicos de lectura y escritura"
+
+            # Rol Concejal - Candidato a Concejal
+            rol_concejal = Rol(
+                nombre="concejal",
+                descripcion="Candidato a Concejal: ve sus caudillos y sus simpatizantes"
             )
-            session.add(rol_user)
+            session.add(rol_concejal)
             await session.commit()
-            
-            # Permisos para user (actualmente sin permisos específicos en base limpia)
-            permisos_user = [
-            ]
-            
-            for permiso_nombre in permisos_user:
+
+            permisos_concejal = ["usuarios_read"]
+            for permiso_nombre in permisos_concejal:
                 if permiso_nombre in permisos_dict:
                     await session.execute(
                         text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
-                        {"rol_id": rol_user.id, "permiso_id": permisos_dict[permiso_nombre]}
+                        {"rol_id": rol_concejal.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
-            
-            # Rol Viewer - Solo lectura
-            rol_viewer = Rol(
-                nombre="viewer",
-                descripcion="Visualizador con permisos de solo lectura"
+
+            # Rol Caudillo - Nivel base
+            rol_caudillo = Rol(
+                nombre="caudillo",
+                descripcion="Caudillo: solo puede agregar y ver sus propios simpatizantes"
             )
-            session.add(rol_viewer)
+            session.add(rol_caudillo)
             await session.commit()
-            
-            # Permisos para viewer
-            permisos_viewer = [
-            ]
-            
-            for permiso_nombre in permisos_viewer:
-                if permiso_nombre in permisos_dict:
-                    await session.execute(
-                        text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
-                        {"rol_id": rol_viewer.id, "permiso_id": permisos_dict[permiso_nombre]}
-                    )
-            
+            # Sin permisos adicionales (solo carga simpatizantes)
+
             await session.commit()
             
             # ===== CREAR USUARIO ADMINISTRADOR =====
@@ -293,10 +276,10 @@ async def init_database():
             print(f"   Rol: admin")
             print()
             print("Roles creados:")
-            print("   - admin: Acceso completo al sistema")
-            print("   - manager: Gestión y lectura")
-            print("   - user: Operaciones básicas")
-            print("   - viewer: Solo lectura")
+            print("   - admin:      Acceso completo al sistema")
+            print("   - intendente: Ve toda su rama (concejales + caudillos + simpatizantes)")
+            print("   - concejal:   Ve sus caudillos y sus simpatizantes")
+            print("   - caudillo:   Solo carga y ve sus propios simpatizantes")
             print()
             print("Permisos configurados para cada rol")
             print("Parámetros del sistema configurados")

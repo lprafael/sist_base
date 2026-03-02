@@ -84,21 +84,25 @@ const GeoDashboard = () => {
 
     const fetchDistritos = async (dptoId) => {
         setLoading(true);
+        // Limpiar capas anteriores ANTES de cargar las nuevas
+        setBarriosGeoJson(null);
+        setDistritoGeoJson(null);
+        setSelectedDist(null);
+        setLocales([]);
         try {
             const resp = await authFetch(`/electoral/geo/stats/distritos/${dptoId}`);
             const data = await resp.json();
             setStats(data);
             setSelectedDpto(dptoId);
-            setSelectedDist(null);
             setViewMode('distritos');
 
-            // Cargar locales del departamento completo
-            fetchLocales(dptoId);
-
-            // Cargar barrios desde la base de datos para cualquier departamento
-            const geoResp = await authFetch(`/electoral/geo/barrios/${dptoId}`);
+            // Cargar barrios y locales en paralelo
+            const [geoResp] = await Promise.all([
+                authFetch(`/electoral/geo/barrios/${dptoId}`),
+                fetchLocales(dptoId)
+            ]);
             const geoData = await geoResp.json();
-            setBarriosGeoJson(geoData);
+            setBarriosGeoJson(geoData && geoData.features?.length > 0 ? geoData : null);
         } catch (e) {
             console.error("Error fetching distritos:", e);
         } finally {
@@ -115,16 +119,18 @@ const GeoDashboard = () => {
             setLocales(data);
             if (distId) {
                 setSelectedDist(distId);
-                // Cargar la cartografía específica del distrito
+                // Limpiar capa anterior del distrito antes de cargar la nueva
+                setDistritoGeoJson(null);
                 try {
                     const geoResp = await authFetch(`/electoral/geo/cartografia/distrito/${dptoId}/${distId}`);
                     const geoData = await geoResp.json();
                     setDistritoGeoJson(geoData && geoData.features?.length > 0 ? geoData : null);
                 } catch (e) {
-                    console.warn('No se pudo cargar cartografía del distrito', e);
+                    console.warn('No se pudo cargar cartografia del distrito', e);
                     setDistritoGeoJson(null);
                 }
             } else {
+                setSelectedDist(null);
                 setDistritoGeoJson(null);
             }
         } catch (e) {
@@ -196,7 +202,7 @@ const GeoDashboard = () => {
                             {/* Capa de todo el departamento (sólo cuando NO hay distrito seleccionado) */}
                             {barriosGeoJson && !selectedDist && (
                                 <GeoJSON
-                                    key={selectedDpto}
+                                    key={`barrios-${selectedDpto}-${barriosGeoJson.features?.length}`}
                                     data={barriosGeoJson}
                                     style={barrioStyle}
                                     onEachFeature={(f, l) => {
@@ -208,7 +214,7 @@ const GeoDashboard = () => {
                             {/* Capa del distrito seleccionado (con color diferente) */}
                             {distritoGeoJson && (
                                 <GeoJSON
-                                    key={`dist-${selectedDist}`}
+                                    key={`dist-${selectedDpto}-${selectedDist}-${distritoGeoJson.features?.length}`}
                                     data={distritoGeoJson}
                                     style={{
                                         fillColor: '#e6550d',

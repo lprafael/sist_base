@@ -41,6 +41,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     nombre_completo: str
     rol: str = "user"
+    departamento_id: Optional[int] = None  # Obligatorio para intendente/concejal
+    distrito_id: Optional[int] = None      # Obligatorio para intendente/concejal
     
     @validator('username')
     def username_must_be_valid(cls, v):
@@ -66,6 +68,8 @@ class UserResponse(BaseModel):
     activo: bool
     fecha_creacion: datetime
     ultimo_acceso: Optional[datetime] = None
+    departamento_id: Optional[int] = None
+    distrito_id: Optional[int] = None
     
     class Config:
         from_attributes = True
