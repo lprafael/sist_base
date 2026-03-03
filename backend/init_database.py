@@ -103,7 +103,7 @@ async def init_database():
             # Rol Intendente - Candidato a Intendente
             rol_intendente = Rol(
                 nombre="intendente",
-                descripcion="Candidato a Intendente: ve toda su rama (concejales + caudillos + simpatizantes)"
+                descripcion="Candidato a Intendente: ve toda su rama (concejales + referentes + simpatizantes)"
             )
             session.add(rol_intendente)
             await session.commit()
@@ -119,7 +119,7 @@ async def init_database():
             # Rol Concejal - Candidato a Concejal
             rol_concejal = Rol(
                 nombre="concejal",
-                descripcion="Candidato a Concejal: ve sus caudillos y sus simpatizantes"
+                descripcion="Candidato a Concejal: ve sus referentes y sus simpatizantes"
             )
             session.add(rol_concejal)
             await session.commit()
@@ -132,12 +132,12 @@ async def init_database():
                         {"rol_id": rol_concejal.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
 
-            # Rol Caudillo - Nivel base
-            rol_caudillo = Rol(
-                nombre="caudillo",
-                descripcion="Caudillo: solo puede agregar y ver sus propios simpatizantes"
+            # Rol Referente - Nivel base
+            rol_referente = Rol(
+                nombre="referente",
+                descripcion="Referente: solo puede agregar y ver sus propios simpatizantes"
             )
-            session.add(rol_caudillo)
+            session.add(rol_referente)
             await session.commit()
             # Sin permisos adicionales (solo carga simpatizantes)
 
@@ -277,9 +277,9 @@ async def init_database():
             print()
             print("Roles creados:")
             print("   - admin:      Acceso completo al sistema")
-            print("   - intendente: Ve toda su rama (concejales + caudillos + simpatizantes)")
-            print("   - concejal:   Ve sus caudillos y sus simpatizantes")
-            print("   - caudillo:   Solo carga y ve sus propios simpatizantes")
+            print("   - intendente: Ve toda su rama (concejales + referentes + simpatizantes)")
+            print("   - concejal:   Ve sus referentes y sus simpatizantes")
+            print("   - referente:   Solo carga y ve sus propios simpatizantes")
             print()
             print("Permisos configurados para cada rol")
             print("Parámetros del sistema configurados")

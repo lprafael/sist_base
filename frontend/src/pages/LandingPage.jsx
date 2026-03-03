@@ -203,7 +203,7 @@ const LandingPage = () => {
             <h2 style={{ fontSize: '2.8rem', fontWeight: 800, marginBottom: '24px' }}>Toma decisiones basadas en datos reales</h2>
             <p style={{ fontSize: '1.2rem', opacity: 0.9, marginBottom: '40px', lineHeight: 1.6 }}>
               No dejes nada al azar. Nuestro dashboard entrega proyecciones de votos calculadas
-              mediante el factor de seguridad y el ranking de efectividad de tus caudillos.
+              mediante el factor de seguridad y el ranking de efectividad de tus referentes.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
               <div>

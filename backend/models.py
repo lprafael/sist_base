@@ -38,7 +38,7 @@ class Usuario(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     nombre_completo = Column(String(100), nullable=False)
-    rol = Column(String(20), default='user')  # admin, intendente, concejal, caudillo
+    rol = Column(String(20), default='user')  # admin, intendente, concejal, referente
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     ultimo_acceso = Column(DateTime)
@@ -46,6 +46,7 @@ class Usuario(Base):
     # Localización para filtrar datos por territorio
     departamento_id = Column(Integer, nullable=True)  # Departamento asignado (intendente/concejal)
     distrito_id = Column(Integer, nullable=True)       # Distrito asignado (intendente/concejal)
+    restriccion_equipo = Column(Boolean, default=False) # Si TRUE, solo puede entrar de equipos autorizados
     
     # Relaciones
     roles = relationship("Rol", secondary=usuario_rol, back_populates="usuarios")
@@ -53,6 +54,23 @@ class Usuario(Base):
     logs_acceso = relationship("LogAcceso", back_populates="usuario")
     logs_auditoria = relationship("LogAuditoria", back_populates="usuario")
     creador = relationship("Usuario", remote_side=[id])
+    equipos_autorizados = relationship("EquiposAutorizados", back_populates="usuario")
+
+class EquiposAutorizados(Base):
+    __tablename__ = "equipos_autorizados"
+    __table_args__ = {"schema": "sistema"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=False)
+    device_id = Column(String(255), nullable=False) # ID único generado por el navegador
+    descripcion = Column(String(100)) # "PC Oficina", "Celular Juan", etc.
+    user_agent = Column(String(255)) # Info del navegador
+    ip_solicitud = Column(String(50)) # IP desde donde intentó entrar
+    fecha_autorizacion = Column(DateTime, default=func.now())
+    activo = Column(Boolean, default=False) # Por defecto pendiente hasta que admin habilite
+    
+    # Relaciones
+    usuario = relationship("Usuario", back_populates="equipos_autorizados")
 
 class Rol(Base):
     __tablename__ = "roles"
@@ -281,16 +299,16 @@ class Candidato(Base):
     activo = Column(Boolean, default=True)
     fecha_registro = Column(DateTime, default=func.now())
 
-class Caudillo(Base):
-    __tablename__ = "caudillos"
+class Referente(Base):
+    __tablename__ = "referentes"
     __table_args__ = {"schema": "electoral"}
     
     id = Column(Integer, primary_key=True, index=True)
     id_usuario_sistema = Column(Integer, ForeignKey('sistema.usuarios.id'))
     id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'), nullable=True)
-    id_superior = Column(Integer, ForeignKey('electoral.caudillos.id'), nullable=True)  # Superior jerárquico
-    rol_electoral = Column(String(20), default='caudillo')  # intendente, concejal, caudillo
-    nombre_caudillo = Column(String(155), nullable=False)
+    id_superior = Column(Integer, ForeignKey('electoral.referentes.id'), nullable=True)  # Superior jerárquico
+    rol_electoral = Column(String(20), default='referente')  # intendente, concejal, referente
+    nombre_referente = Column(String(155), nullable=False)
     telefono = Column(String(20))
     zona_influencia = Column(Text)
     activo = Column(Boolean, default=True)
@@ -300,18 +318,20 @@ class PosibleVotante(Base):
     __table_args__ = {"schema": "electoral"}
     
     id = Column(Integer, primary_key=True, index=True)
-    id_caudillo = Column(Integer, ForeignKey('electoral.caudillos.id'))
+    id_referente = Column(Integer, ForeignKey('electoral.referentes.id'))
     cedula_votante = Column(String(20), ForeignKey('electoral.anr_padron_2026.cedula'))
 
     parentesco = Column(String(50))
     grado_seguridad = Column(Integer)
     observaciones = Column(Text)
+    domicilio = Column(String(255))
     latitud = Column(Float)
     longitud = Column(Float)
     ubicacion_captacion = Column(String) 
     fecha_captacion = Column(DateTime, default=func.now())
 
     validacion_candidato = Column(Boolean, default=False)
+    movilidad_propia = Column(Boolean, default=False)
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, Index
 
@@ -372,8 +392,9 @@ class RefLocal(Base):
     descripcion = Column(String(255))
     domicilio = Column(Text)
     
-    # Usar Geometry si está disponible, sino JSON como fallback
+    # La columna 'ubicacion' en la base de datos es jsonb
+    ubicacion = Column(JSON)
+    
+    # Campo para compatibilidad futura con PostGIS
     if Geometry:
-        ubicacion = Column(Geometry(geometry_type='POINT', srid=4326))
-    else:
-        ubicacion = Column(JSON)
+        geom_ubicacion = Column(Geometry(geometry_type='POINT', srid=4326))

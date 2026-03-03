@@ -15,4 +15,6 @@ geopandas
 geoalchemy2
 shapely
 psycopg2-binary
-
+httpx
+pandas
+openpyxl

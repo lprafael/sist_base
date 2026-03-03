@@ -2,9 +2,35 @@ import asyncio
 import os
 import requests
 import time
+import re
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from dotenv import load_dotenv
+
+def clean_name(name):
+    """Limpia el nombre del local de códigos y números para una búsqueda más humana"""
+    if not name: return ""
+    # Normalizar prefijos comunes
+    name = name.upper()
+    name = name.replace("ESC.NAC.N", "Escuela Nacional ")
+    name = name.replace("ESC. N", "Escuela ")
+    name = name.replace("ESC.", "Escuela ")
+    name = name.replace("ESCUELA N ", "Escuela ")
+    name = name.replace("COL.NAC.N", "Colegio Nacional ")
+    name = name.replace("COL.NAC.", "Colegio Nacional ")
+    
+    # Remover patrones como "N 123", "Nº 123", "N. 123", "N123"
+    name = re.sub(r'\bN(º|\.| )?\s?\d+\b', '', name)
+    # Algunos vienen pegados: EscuelaN123 -> Escuela
+    name = re.sub(r'Escuela\s?N\s?\d+', 'Escuela ', name, flags=re.IGNORECASE)
+    
+    # Limpiar abreviaturas de nombres propios comunes si son muy estrictas
+    name = name.replace("GRAL.", "General ")
+    name = name.replace("FRANCISCO CABALLERO A.", "Francisco Caballero Alvarez")
+    
+    # Limpiar espacios extra y mayúsculas/minúsculas para Nominatim
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
 
 async def setup_location_field():
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -33,7 +59,7 @@ async def setup_location_field():
             END $$;
         """))
     
-    # Obtener locales sin ubicación (o con JSON null)
+    # Obtener locales sin ubicación
     async with engine.connect() as conn:
         result = await conn.execute(text("""
             SELECT 
@@ -53,17 +79,18 @@ async def setup_location_field():
     headers = {'User-Agent': 'SIGEL-App/1.0 (lpraf@poliverso.com)'}
     
     for loc in locales:
-        # Normalizar nombres para mejor búsqueda
-        nombre = loc.nombre_local.replace("ESC.NAC.N", "Escuela Nacional ").replace("ESC. N", "Escuela ").replace("ESC.", "Escuela")
         distrito = loc.nombre_distrito
         dpto = loc.nombre_dpto
         if dpto == "CAPITAL": dpto = "Asunción"
         
-        # Estrategias de búsqueda
+        nombre_limpio = clean_name(loc.nombre_local)
+        
+        # Estrategias de búsqueda de más a menos específica
         queries = [
-            f"{nombre}, {distrito}, {dpto}, Paraguay",
-            f"{nombre}, {distrito}, Paraguay",
-            f"{nombre}, Paraguay"
+            f"{nombre_limpio}, {distrito}, {dpto}, Paraguay",
+            f"{nombre_limpio}, {distrito}, Paraguay",
+            f"{nombre_limpio}, Paraguay",
+            f"{loc.nombre_local}, {distrito}, Paraguay" # Último recurso: Nombre original
         ]
         
         found = False
@@ -73,14 +100,14 @@ async def setup_location_field():
             try:
                 url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
                 response = requests.get(url, headers=headers)
-                time.sleep(1.5) # Respetar límites
+                time.sleep(1.2) # Respetar límites (mínimo 1s)
                 
                 if response.status_code == 200:
                     data = response.json()
                     if data:
                         lat = float(data[0]['lat'])
                         lng = float(data[0]['lon'])
-                        print(f"  ✓ Encontrado: {lat}, {lng}")
+                        print(f"  ✓ Encontrado: {lat}, {lng} ({data[0].get('display_name', '')[:50]}...)")
                         
                         async with engine.begin() as conn:
                             await conn.execute(text("""

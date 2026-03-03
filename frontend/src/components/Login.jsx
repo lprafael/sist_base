@@ -23,18 +23,32 @@ const Login = ({ onLogin }) => {
     setShowPassword(!showPassword);
   };
 
+  const getDeviceId = () => {
+    let devId = localStorage.getItem('deviceId');
+    if (!devId) {
+      devId = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+      localStorage.setItem('deviceId', devId);
+    }
+    return devId;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      const payload = {
+        ...credentials,
+        device_id: getDeviceId()
+      };
+
       const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();

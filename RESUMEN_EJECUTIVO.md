@@ -100,7 +100,7 @@ El **Sistema de Catálogos VMT-CID** es una aplicación web moderna y segura dis
 
 ### **Autorización**
 - **Modelo**: RBAC (Role-Based Access Control)
-- **Roles**: admin, intendente, concejal, caudillo
+- **Roles**: admin, intendente, concejal, referente
 - **Permisos**: Granulares por módulo y acción
 
 ### **Auditoría**
@@ -115,9 +115,9 @@ El **Sistema de Catálogos VMT-CID** es una aplicación web moderna y segura dis
 | Rol | Descripción | Acceso |
 |-----|-------------|--------|
 | **admin** | Administrador del sistema | Acceso completo: todos los distritos, todos los datos |
-| **intendente** | Candidato a Intendente | Su distrito: ve concejales, sus caudillos y todos sus simpatizantes |
-| **concejal** | Candidato a Concejal | Su distrito: ve sus caudillos directos y sus simpatizantes |
-| **caudillo** | Caudillo / Referente | Solo puede agregar y ver sus propios simpatizantes |
+| **intendente** | Candidato a Intendente | Su distrito: ve concejales, sus referentes y todos sus simpatizantes |
+| **concejal** | Candidato a Concejal | Su distrito: ve sus referentes directos y sus simpatizantes |
+| **referente** | Referente | Solo puede agregar y ver sus propios simpatizantes |
 
 ---
 

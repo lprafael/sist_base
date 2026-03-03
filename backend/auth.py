@@ -13,11 +13,12 @@ from sqlalchemy.future import select
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 
-from models import Usuario, PasswordReset, LogAcceso
+from models import Usuario, PasswordReset, LogAcceso, EquiposAutorizados
 from schemas import (
     UserLogin, UserCreate, UserUpdate, UserResponse, Token, 
     PasswordChange, PasswordResetRequest, PasswordResetConfirm,
-    LogAccesoCreate, LogAccesoResponse, RoleInfo, GoogleLogin
+    LogAccesoCreate, LogAccesoResponse, RoleInfo, GoogleLogin,
+    EquipoAutorizadoResponse, EquipoAutorizadoBase
 )
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -71,13 +72,68 @@ async def login(
             detail="Usuario inactivo"
         )
     
+    # --- Verificación de Restricción de Equipo ---
+    if user.restriccion_equipo:
+        print(f"DEBUG: Checking restriction for user {user.username}, provided device: {user_credentials.device_id}")
+        if not user_credentials.device_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Este usuario requiere inicio de sesión desde un equipo autorizado, pero no se detectó el identificador del equipo."
+            )
+        
+        # Verificar si el device_id está autorizado para este usuario
+        from sqlalchemy import and_
+        res_device = await session.execute(
+            select(EquiposAutorizados).where(
+                and_(
+                    EquiposAutorizados.usuario_id == user.id,
+                    EquiposAutorizados.device_id == user_credentials.device_id
+                )
+            )
+        )
+        device_record = res_device.scalar_one_or_none()
+        print(f"DEBUG: Device record found: {device_record.id if device_record else 'NONE'}, activo: {device_record.activo if device_record else 'N/A'}")
+        
+        if not device_record or not device_record.activo:
+            if not device_record:
+                print(f"DEBUG: No record found for device {user_credentials.device_id}, creating request...")
+                # Registrar el intento como una solicitud pendiente
+                new_request = EquiposAutorizados(
+                    usuario_id=user.id,
+                    device_id=user_credentials.device_id,
+                    descripcion="Solicitud de Acceso",
+                    user_agent=request.headers.get("user-agent"),
+                    ip_solicitud=request.client.host,
+                    activo=False
+                )
+                session.add(new_request)
+                await session.commit()
+                
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Este equipo no está autorizado. Se ha enviado una solicitud de habilitación al administrador."
+                )
+            else:
+                print(f"DEBUG: Record found but NOT active. ID: {device_record.id}, Activo: {device_record.activo}")
+                # Ya existe pero está inactivo (pendiente)
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Tu solicitud de acceso para este equipo aún está pendiente de aprobación por el administrador."
+                )
+    
     # Actualizar último acceso
     user.ultimo_acceso = datetime.utcnow()
     await session.commit()
     
     # Crear token
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.rol, "user_id": user.id}
+        data={
+            "sub": user.username, 
+            "role": user.rol, 
+            "user_id": user.id,
+            "departamento_id": user.departamento_id,
+            "distrito_id": user.distrito_id
+        }
     )
     
     # Registrar log
@@ -178,7 +234,13 @@ async def google_login(
         
         # Crear token del sistema
         access_token = create_access_token(
-            data={"sub": user.username, "role": user.rol, "user_id": user.id}
+            data={
+                "sub": user.username, 
+                "role": user.rol, 
+                "user_id": user.id,
+                "departamento_id": user.departamento_id,
+                "distrito_id": user.distrito_id
+            }
         )
         
         # Registrar log de acceso
@@ -245,10 +307,10 @@ async def create_user(
     
     # Jerarquía de quién puede crear qué
     hierarchy = {
-        "admin":      ["admin", "intendente", "concejal", "caudillo"],
-        "intendente": ["concejal", "caudillo"],
-        "concejal":   ["caudillo"],
-        "caudillo":   []
+        "admin":      ["admin", "intendente", "concejal", "referente"],
+        "intendente": ["concejal", "referente"],
+        "concejal":   ["referente"],
+        "referente":   []
     }
     
     user_permissions = ROLES.get(current_role, {}).get("permissions", [])
@@ -278,19 +340,45 @@ async def create_user(
             detail="El usuario o email ya existe"
         )
     
-    # Obtener datos del creador para heredar territorio
+    # Obtener datos del creador para heredar territorio si es necesario
     creator_result = await session.execute(select(Usuario).where(Usuario.id == current_user["user_id"]))
     creator = creator_result.scalar_one_or_none()
     
-    # Determinar territorio: usar el del formulario, o heredar del creador
-    departamento_id = user_data.departamento_id or (creator.departamento_id if creator else None)
-    distrito_id = user_data.distrito_id or (creator.distrito_id if creator else None)
+    # Determinar superior:
+    # 1. Si el admin especificó un superior_usuario_id, usarlo
+    # 2. Si el creador NO es admin, él mismo es el superior
+    superior_user = None
+    if user_data.superior_usuario_id:
+        res_sup = await session.execute(select(Usuario).where(Usuario.id == user_data.superior_usuario_id))
+        superior_user = res_sup.scalar_one_or_none()
+        if not superior_user:
+            raise HTTPException(status_code=404, detail="Superior jerárquico no encontrado")
+    elif current_role != 'admin':
+        superior_user = creator
+
+    # Territorio: si hay superior, se HEREDA obligatoriamente para concejales y referentes
+    departamento_id = user_data.departamento_id
+    distrito_id = user_data.distrito_id
     
-    # Validar que intendentes y concejales tengan distrito asignado
-    if target_role in ["intendente", "concejal"] and not distrito_id:
+    if target_role in ["concejal", "referente"] and superior_user:
+        departamento_id = superior_user.departamento_id
+        distrito_id = superior_user.distrito_id
+    elif not departamento_id or not distrito_id:
+        # Fallback al creador si no se especificó y no hay superior explícito (admin creando sin superior)
+        departamento_id = departamento_id or (creator.departamento_id if creator else None)
+        distrito_id = distrito_id or (creator.distrito_id if creator else None)
+
+    # Validaciones obligatorias
+    if target_role in ["intendente", "concejal", "referente"] and not distrito_id:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"El rol '{target_role}' requiere un distrito asignado (distrito_id)"
+            detail=f"El rol '{target_role}' requiere un distrito asignado (ya sea explícito o por herencia de su superior)"
+        )
+    
+    if target_role == "referente" and not superior_user and current_role == 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Un referente siempre debe estar asociado a un Intendente o Concejal"
         )
     
     # Generar contraseña aleatoria
@@ -313,29 +401,30 @@ async def create_user(
     await session.commit()
     await session.refresh(new_user)
     
-    # Crear registro en electoral.caudillos para roles electorales
-    if target_role in ["intendente", "concejal", "caudillo"]:
-        from models import Caudillo
+    # Crear registro en electoral.referentes para roles electorales
+    if target_role in ["intendente", "concejal", "referente"]:
+        from models import Referente
         
-        # Buscar ID del caudillo superior (el creador)
-        superior_caudillo_id = None
-        if current_role in ["intendente", "concejal"]:
-            res_sup = await session.execute(
-                select(Caudillo.id).where(Caudillo.id_usuario_sistema == current_user["user_id"])
+        superior_referente_id = None
+        if superior_user:
+            res_c = await session.execute(
+                select(Referente.id).where(Referente.id_usuario_sistema == superior_user.id)
             )
-            row = res_sup.first()
+            row = res_c.first()
             if row:
-                superior_caudillo_id = row[0]
+                superior_referente_id = row[0]
         
-        nuevo_caudillo = Caudillo(
+        nuevo_referente = Referente(
             id_usuario_sistema=new_user.id,
-            nombre_caudillo=new_user.nombre_completo,
+            nombre_referente=new_user.nombre_completo,
             rol_electoral=target_role,
-            id_superior=superior_caudillo_id,
+            id_superior=superior_referente_id,
             activo=True
         )
-        session.add(nuevo_caudillo)
+        session.add(nuevo_referente)
         await session.commit()
+
+
     
     # Enviar email con credenciales
     try:
@@ -452,10 +541,10 @@ async def update_user(
     if "rol" in update_data:
         target_role = update_data["rol"]
         hierarchy = {
-            "admin": ["admin", "intendente", "concejal", "caudillo"],
-            "intendente": ["concejal", "caudillo"],
-            "concejal": ["caudillo"],
-            "caudillo": []
+            "admin": ["admin", "intendente", "concejal", "referente"],
+            "intendente": ["concejal", "referente"],
+            "concejal": ["referente"],
+            "referente": []
         }
         if target_role not in hierarchy.get(current_role, []):
             raise HTTPException(status_code=403, detail=f"No puedes asignar el rol {target_role}")
@@ -684,4 +773,109 @@ async def get_logs(
         select(LogAcceso).order_by(LogAcceso.fecha.desc()).limit(limit)
     )
     logs = result.scalars().all()
-    return [LogAccesoResponse.from_orm(log) for log in logs] 
+    return [LogAccesoResponse.from_orm(log) for log in logs]
+
+# ===== GESTIÓN DE EQUIPOS AUTORIZADOS =====
+
+@router.get("/users/{user_id}/devices", response_model=List[EquipoAutorizadoResponse])
+async def list_user_devices(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Listar equipos autorizados para un usuario"""
+    # Solo admin puede ver de otros, o el mismo usuario
+    if current_user["role"] != "admin" and current_user["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="No tienes permisos para ver estos dispositivos")
+        
+    result = await session.execute(
+        select(EquiposAutorizados).where(EquiposAutorizados.usuario_id == user_id)
+    )
+    return result.scalars().all()
+
+@router.post("/users/{user_id}/devices", response_model=EquipoAutorizadoResponse)
+async def authorize_device(
+    user_id: int,
+    device_data: EquipoAutorizadoBase,
+    current_user: dict = Depends(check_permission("manage_users")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Autorizar un nuevo equipo para un usuario"""
+    # Verificar si ya existe
+    res_exist = await session.execute(
+        select(EquiposAutorizados).where(
+            and_(
+                EquiposAutorizados.usuario_id == user_id,
+                EquiposAutorizados.device_id == device_data.device_id
+            )
+        )
+    )
+    if res_exist.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Este equipo ya está registrado para este usuario")
+        
+    new_device = EquiposAutorizados(
+        usuario_id=user_id,
+        device_id=device_data.device_id,
+        descripcion=device_data.descripcion or "Dispositivo sin nombre"
+    )
+    session.add(new_device)
+    await session.commit()
+    await session.refresh(new_device)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="equipos_autorizados",
+        record_id=new_device.id,
+        new_data={"usuario_id": user_id, "device_id": new_device.device_id},
+        details=f"Equipo autorizado para usuario_id {user_id}"
+    )
+    
+    return new_device
+
+@router.delete("/devices/{device_id}")
+async def deauthorize_device(
+    device_id: int,
+    current_user: dict = Depends(check_permission("manage_users")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Eliminar autorización de un equipo"""
+    result = await session.execute(select(EquiposAutorizados).where(EquiposAutorizados.id == device_id))
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+        
+    await session.delete(device)
+    await session.commit()
+    
+    return {"message": "Autorización eliminada correctamente"}
+@router.put("/devices/{device_id}/approve")
+async def approve_device(
+    device_id: int,
+    current_user: dict = Depends(check_permission("manage_users")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Aprobar un equipo pendiente"""
+    result = await session.execute(select(EquiposAutorizados).where(EquiposAutorizados.id == device_id))
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+        
+    device.activo = True
+    device.fecha_autorizacion = datetime.utcnow()
+    await session.commit()
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="equipos_autorizados",
+        record_id=device.id,
+        new_data={"activo": True},
+        details=f"Equipo aprobado para usuario_id {device.usuario_id}"
+    )
+    
+    return {"message": "Equipo aprobado correctamente"}

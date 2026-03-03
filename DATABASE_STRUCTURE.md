@@ -114,7 +114,7 @@ Este documento describe la estructura completa de la base de datos para el Siste
 | `email` | String(100) | Email único del usuario |
 | `hashed_password` | String(255) | Contraseña hasheada con bcrypt |
 | `nombre_completo` | String(100) | Nombre completo del usuario |
-| `rol` | String(20) | Rol: admin, intendente, concejal, caudillo |
+| `rol` | String(20) | Rol: admin, intendente, concejal, referente |
 | `activo` | Boolean | Estado activo/inactivo |
 | `fecha_creacion` | DateTime | Fecha de creación |
 | `ultimo_acceso` | DateTime | Último acceso al sistema |
@@ -401,8 +401,8 @@ Este documento describe la estructura completa de la base de datos para el Siste
 Administrador (admin)
 └── Candidato a Intendente (intendente)  → por distrito
     ├── Candidato a Concejal (concejal)   → mismo distrito
-    │   └── Caudillo (caudillo)           → referente de base
-    └── Caudillo (caudillo)               → caudillo propio del intendente
+    │   └── Referente (referente)           → referente de base
+    └── Referente (referente)               → referente propio del intendente
 ```
 
 ### Rol: `admin`
@@ -415,24 +415,24 @@ Administrador (admin)
 ### Rol: `intendente`
 **Descripción**: Candidato a Intendente — restringido a su `distrito_id`
 **Permisos**:
-- Simpatizantes: ver toda su rama (sus concejales + sus caudillos + caudillos de sus concejales)
-- Usuarios: ver su equipo (concejales + caudillos)
-- Puede crear: concejales y caudillos propios
+- Simpatizantes: ver toda su rama (sus concejales + sus referentes + referentes de sus concejales)
+- Usuarios: ver su equipo (concejales + referentes)
+- Puede crear: concejales y referentes propios
 - Panel georreferenciado: filtrado a su distrito
 
 ### Rol: `concejal`
 **Descripción**: Candidato a Concejal — restringido a su `distrito_id`
 **Permisos**:
-- Simpatizantes: su lista + los de sus caudillos directos
-- Usuarios: ver sus caudillos directos
-- Puede crear: caudillos propios
+- Simpatizantes: su lista + los de sus referentes directos
+- Usuarios: ver sus referentes directos
+- Puede crear: referentes propios
 - No ve datos de otros concejales ni del intendente
 
-### Rol: `caudillo`
-**Descripción**: Caudillo / Referente — nivel base
+### Rol: `referente`
+**Descripción**: Referente — nivel base
 **Permisos**:
 - Simpatizantes: solo puede agregar y ver los suyos propios
-- No puede ver otros caudillos ni sus simpatizantes
+- No puede ver otros referentes ni sus simpatizantes
 - No puede crear usuarios
 
 ---

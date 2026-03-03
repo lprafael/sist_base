@@ -57,24 +57,24 @@ npm run dev
 
 #### 🔑 Administrador (`admin`)
 - Acceso completo a todos los módulos y todos los distritos
-- Gestión de usuarios (crear intendentes, concejales, caudillos)
+- Gestión de usuarios (crear intendentes, concejales, referentes)
 - Auditoría, backups y configuración del sistema
 - Panel georreferenciado sin restricciones
 
 #### 🏛️ Candidato a Intendente (`intendente`)
-- Ve su equipo: concejales + caudillos de sus concejales + sus caudillos propios
+- Ve su equipo: concejales + referentes de sus concejales + sus referentes propios
 - Ve todos los simpatizantes de su estructura
-- Puede crear concejales y caudillos dentro de su distrito
+- Puede crear referentes dentro de su distrito
 - Panel georreferenciado filtrado a su distrito
 
 #### 🏙️ Candidato a Concejal (`concejal`)
-- Ve sus caudillos directos y sus propios simpatizantes
-- Puede crear caudillos propios
+- Ve sus referentes directos y sus propios simpatizantes
+- Puede crear referentes propios
 - No ve datos de otros concejales ni del intendente
 
-#### 👥 Caudillo (`caudillo`)
+#### 👥 Referente (`referente`)
 - Solo puede agregar y ver su propia lista de simpatizantes
-- No ve datos de otros caudillos ni de niveles superiores
+- No ve datos de otros referentes ni de niveles superiores
 - Sin acceso a gestión de usuarios
 
 ### Gestión de Usuarios (Admin, Intendente y Concejal)
@@ -144,7 +144,7 @@ const getRoleLabel = (role) => {
     case 'admin':      return '🔑 Administrador';
     case 'intendente': return '🏛️ Candidato a Intendente';
     case 'concejal':   return '🏙️ Candidato a Concejal';
-    case 'caudillo':   return '👥 Caudillo';
+    case 'referente':   return '👥 Referente';
     default: return role;
   }
 };

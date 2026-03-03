@@ -104,8 +104,8 @@ ROLES = {
             "manage_subordinates"
         ]
     },
-    "caudillo": {
-        "description": "Caudillo - Captación de simpatizantes",
+    "referente": {
+        "description": "Referente - Captación de simpatizantes",
         "permissions": [
             "read", "electoral_read", "electoral_write"
         ]

@@ -9,6 +9,7 @@ import AuditSystem from "./components/AuditSystem.jsx";
 import VoterRegistration from "./components/VoterRegistration.jsx";
 import CandidateDashboard from "./components/CandidateDashboard.jsx";
 import GeoDashboard from "./components/GeoDashboard.jsx";
+import HistoricalAnalysis from "./components/HistoricalAnalysis.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
@@ -34,7 +35,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
               {user.rol === 'admin' ? '🔑 Administrador' :
                 user.rol === 'intendente' ? '🏛️ Candidato Intendente' :
                   user.rol === 'concejal' ? '🏙️ Candidato Concejal' :
-                    user.rol === 'caudillo' ? '👥 Caudillo' : 'Visualizador'}
+                    user.rol === 'referente' ? '👥 Referente' : 'Visualizador'}
             </div>
           </div>
         )}
@@ -79,9 +80,10 @@ function MainDashboard({ user, onLogout }) {
     {
       title: "Gestión Electoral",
       items: [
-        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'intendente', 'concejal', 'caudillo'] },
-        { id: 'tablero', label: 'Mi Tablero', icon: '📈', roles: ['admin', 'intendente', 'concejal', 'caudillo'] },
+        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'intendente', 'concejal', 'referente'] },
+        { id: 'tablero', label: 'Mi Tablero', icon: '📈', roles: ['admin', 'intendente', 'concejal', 'referente'] },
         { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'analisis_historico', label: 'Análisis de Resultados', icon: '📊', roles: ['admin', 'intendente', 'concejal'] },
       ]
     }
   ];
@@ -150,9 +152,10 @@ function MainDashboard({ user, onLogout }) {
             {tab === "usuarios" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <UserManagement user={user} />}
             {tab === "auditoria" && user.rol === 'admin' && <AuditSystem />}
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
-            {tab === "captacion" && ['admin', 'intendente', 'concejal', 'caudillo'].includes(user.rol) && <VoterRegistration user={user} />}
-            {tab === "tablero" && ['admin', 'intendente', 'concejal', 'caudillo'].includes(user.rol) && <CandidateDashboard user={user} />}
+            {tab === "captacion" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <VoterRegistration user={user} />}
+            {tab === "tablero" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <CandidateDashboard user={user} />}
             {tab === "geografia" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <GeoDashboard user={user} />}
+            {tab === "analisis_historico" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <HistoricalAnalysis user={user} />}
           </div>
         </main>
       </div>

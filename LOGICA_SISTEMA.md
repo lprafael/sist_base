@@ -16,15 +16,15 @@ El sistema se basa en una estructura jerárquica y relacional que garantiza la i
 
 ### Estructura de Campaña (Multitenancy):
 *   **Candidatos (`candidatos`):** Son los "inquilinos" principales del sistema (concejales, intendentes, etc.). Cada uno tiene su propio universo de datos.
-*   **Caudillos (`caudillos`):** Usuarios operativos vinculados a un candidato específico. Son los encargados del "trabajo de campo" y la captación.
-*   **Posibles Votantes (`posibles_votantes`):** La relación dinámica entre un caudillo y un ciudadano del padrón. Aquí se registra el grado de compromiso, parentesco y ubicación geográfica.
+*   **Referentes (`referentes`):** Usuarios operativos vinculados a un candidato específico. Son los encargados del "trabajo de campo" y la captación.
+*   **Posibles Votantes (`posibles_votantes`):** La relación dinámica entre un referente y un ciudadano del padrón. Aquí se registra el grado de compromiso, parentesco y ubicación geográfica.
 
 ---
 
 ## 2. Funcionalidades de Inteligencia Electoral
 
 ### 👪 Algoritmo de Detección de Red Familiar
-Esta es la ventaja competitiva de SIGEL. Cuando un caudillo carga a un votante (ej. "Rafael López"), el sistema automáticamente:
+Esta es la ventaja competitiva de SIGEL. Cuando un referente carga a un votante (ej. "Rafael López"), el sistema automáticamente:
 1.  Busca en el **Padrón** a todas las personas con los mismos apellidos en el mismo distrito.
 2.  Cruza esta información con los **Posibles Votantes** ya captados.
 3.  Genera una alerta al candidato: *"Este votante tiene familiares directos (Mismo apellido/domicilio) que aún no han sido abordados"*.
@@ -32,7 +32,7 @@ Esta es la ventaja competitiva de SIGEL. Cuando un caudillo carga a un votante (
 ### 🔍 Control de "Doble Carga" (Cross-Check de Lealtad)
 El sistema permite que un **SuperAdministrador** detecte solapamientos entre candidatos.
 *   Si un ciudadano figura en la lista de dos candidatos diferentes, el sistema lo marca como un "Voto en Disputa".
-*   Permite sincerar las expectativas de voto al identificar qué caudillos están duplicando información o qué zonas están en disputa real.
+*   Permite sincerar las expectativas de voto al identificar qué referentes están duplicando información o qué zonas están en disputa real.
 
 ### 🗺️ Módulo Geo-Electoral (Heatmap)
 Integra **PostGIS** para procesar coordenadas geográficas:
@@ -44,8 +44,8 @@ Integra **PostGIS** para procesar coordenadas geográficas:
 
 ## 3. Niveles de Acceso y Seguridad
 
-1.  **Nivel Caudillo:** Solo visualiza su propia lista de captados y progreso personal.
-2.  **Nivel Candidato:** Visualiza el consolidado de todos sus caudillos, estadísticas de su local de votación y alertas de parientes sugeridos.
+1.  **Nivel Referente:** Solo visualiza su propia lista de captados y progreso personal.
+2.  **Nivel Candidato:** Visualiza el consolidado de todos sus referentes, estadísticas de su local de votación y alertas de parientes sugeridos.
 3.  **Nivel SuperAdmin:** Gestión global, control de colisiones entre candidatos y reportes macro del sistema.
 
 ---
@@ -54,4 +54,4 @@ Integra **PostGIS** para procesar coordenadas geográficas:
 *   **Backend:** FastAPI (Python) - Procesa búsquedas de parentesco de forma asíncrona y eficiente.
 *   **Base de Datos:** PostgreSQL + PostGIS - Almacenamiento robusto y análisis geográfico.
 *   **Frontend:** React (Vite) - Interfaz dinámica, premium y adaptativa.
-*   **Automatización:** n8n - Reportes diarios y alertas vía WhatsApp a los caudillos.
+*   **Automatización:** n8n - Reportes diarios y alertas vía WhatsApp a los referentes.

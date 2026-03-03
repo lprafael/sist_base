@@ -1,4 +1,4 @@
-.user-management {
+﻿.user-management {
   display: flex;
   flex-direction: column;
 }
@@ -37,6 +37,22 @@
 .role-viewer {
   background: #f1f5f9;
   color: #475569;
+}
+
+/* Nuevos roles electorales */
+.role-intendente {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.role-concejal {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.role-referente {
+  background-color: #f3f4f6;
+  color: #4b5563;
 }
 
 .status-badge {
@@ -81,9 +97,10 @@
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  overflow-y: auto;
   z-index: 1000;
-  padding: 24px;
+  padding: 40px 24px;
 }
 
 .modal {
@@ -94,7 +111,8 @@
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: calc(100vh - 80px);
+  overflow: hidden;
 }
 
 .modal-header {
@@ -124,10 +142,14 @@
 .create-user-form {
   padding: 24px;
   overflow-y: auto;
+  flex: 1;
 }
 
 .modal-actions {
-  padding: 20px 24px;
+  padding: 16px 24px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 0 0 16px 16px;
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;

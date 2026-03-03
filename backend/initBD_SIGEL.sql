@@ -46,13 +46,13 @@ CREATE TABLE electoral.candidatos (
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Tabla de Caudillos (Usuarios vinculados a un candidato)
+-- 4. Tabla de Referentes (Usuarios vinculados a un candidato)
 -- Nota: En el sistema real, esta tabla se vincula con la tabla de usuarios del sistema base
-CREATE TABLE electoral.caudillos (
+CREATE TABLE electoral.referentes (
     id SERIAL PRIMARY KEY,
     id_usuario_sistema INT, -- Enlace al ID de la tabla sistema.usuarios
     id_candidato INT REFERENCES electoral.candidatos(id) ON DELETE CASCADE,
-    nombre_caudillo VARCHAR(155) NOT NULL,
+    nombre_referente VARCHAR(155) NOT NULL,
     telefono VARCHAR(20),
     zona_influencia TEXT,
     activo BOOLEAN DEFAULT TRUE
@@ -61,7 +61,7 @@ CREATE TABLE electoral.caudillos (
 -- 5. Tabla de Posibles Votantes (Captación y Seguimiento)
 CREATE TABLE electoral.posibles_votantes (
     id SERIAL PRIMARY KEY,
-    id_caudillo INT REFERENCES electoral.caudillos(id) ON DELETE CASCADE,
+    id_referente INT REFERENCES electoral.referentes(id) ON DELETE CASCADE,
     cedula_votante VARCHAR(20) REFERENCES electoral.padron(cedula),
     parentesco VARCHAR(50), -- "Hermano", "Vecino", "Empleado", etc.
     grado_seguridad INT CHECK (grado_seguridad BETWEEN 1 AND 5), -- 1: Duda, 5: Seguro
@@ -69,7 +69,7 @@ CREATE TABLE electoral.posibles_votantes (
     ubicacion_captacion GEOGRAPHY(POINT, 4326), -- Para el Mapa de Calor
     fecha_captacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     validacion_candidato BOOLEAN DEFAULT FALSE, -- Si el candidato ya aprobó este registro
-    UNIQUE(id_caudillo, cedula_votante)
+    UNIQUE(id_referente, cedula_votante)
 );
 
 -- 6. Índices para Optimización y Búsqueda Difusa
@@ -79,5 +79,5 @@ CREATE INDEX idx_pv_ubicacion ON electoral.posibles_votantes USING GIST (ubicaci
 CREATE INDEX idx_locales_gps ON electoral.locales_votacion USING GIST (ubicacion_gps);
 
 -- Comentarios de documentación en la DB
-COMMENT ON TABLE electoral.posibles_votantes IS 'Almacena la relación entre caudillos y votantes captados, con su grado de seguridad y geolocalización.';
+COMMENT ON TABLE electoral.posibles_votantes IS 'Almacena la relación entre referentes y votantes captados, con su grado de seguridad y geolocalización.';
 COMMENT ON COLUMN electoral.posibles_votantes.grado_seguridad IS 'Escala de 1 a 5 donde 5 es compromiso total (voto seguro).';

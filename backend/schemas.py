@@ -12,7 +12,7 @@ class TipoUsuario(str, Enum):
     ADMIN = "admin"
     INTENDENTE = "intendente"
     CONCEJAL = "concejal"
-    CAUDILLO = "caudillo"
+    REFERENTE = "referente"
     VIEWER = "viewer"
 
 class TipoAccion(str, Enum):
@@ -35,6 +35,7 @@ class TipoNotificacion(str, Enum):
 class UserLogin(BaseModel):
     username: str
     password: str
+    device_id: Optional[str] = None
 
 class UserCreate(BaseModel):
     username: str
@@ -43,6 +44,8 @@ class UserCreate(BaseModel):
     rol: str = "user"
     departamento_id: Optional[int] = None  # Obligatorio para intendente/concejal
     distrito_id: Optional[int] = None      # Obligatorio para intendente/concejal
+    restriccion_equipo: Optional[bool] = False
+    superior_usuario_id: Optional[int] = None
     
     @validator('username')
     def username_must_be_valid(cls, v):
@@ -58,6 +61,7 @@ class UserUpdate(BaseModel):
     nombre_completo: Optional[str] = None
     rol: Optional[str] = None
     activo: Optional[bool] = None
+    restriccion_equipo: Optional[bool] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -70,6 +74,7 @@ class UserResponse(BaseModel):
     ultimo_acceso: Optional[datetime] = None
     departamento_id: Optional[int] = None
     distrito_id: Optional[int] = None
+    restriccion_equipo: bool = False
     
     class Config:
         from_attributes = True
@@ -93,6 +98,26 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+# ===== SCHEMAS DE EQUIPOS (DISPOSITIVOS) =====
+
+class EquipoAutorizadoBase(BaseModel):
+    device_id: str
+    descripcion: Optional[str] = None
+
+class EquipoAutorizadoCreate(EquipoAutorizadoBase):
+    usuario_id: int
+
+class EquipoAutorizadoResponse(EquipoAutorizadoBase):
+    id: int
+    usuario_id: int
+    user_agent: Optional[str] = None
+    ip_solicitud: Optional[str] = None
+    fecha_autorizacion: datetime
+    activo: bool
+
+    class Config:
+        from_attributes = True
 
 # ===== SCHEMAS DE CONTRASEÑAS =====
 
@@ -349,12 +374,23 @@ class CaptacionCreate(BaseModel):
     parentesco: Optional[str] = None
     grado_seguridad: int = 3 # 1-5
     observaciones: Optional[str] = None
+    domicilio: Optional[str] = None
     latitud: Optional[float] = None
     longitud: Optional[float] = None
+    movilidad_propia: bool = False
+
+class CaptacionUpdate(BaseModel):
+    parentesco: Optional[str] = None
+    grado_seguridad: Optional[int] = None
+    observaciones: Optional[str] = None
+    domicilio: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+    movilidad_propia: Optional[bool] = None
 
 class PosibleVotanteResponse(BaseModel):
     id: int
-    id_caudillo: int
+    id_referente: int
     cedula_votante: str
     nombre_votante: str
     apellido_votante: str
@@ -362,20 +398,33 @@ class PosibleVotanteResponse(BaseModel):
     grado_seguridad: int
     fecha_captacion: datetime
     validacion_candidato: bool
+    movilidad_propia: bool
 
     class Config:
         from_attributes = True
 
-class ResumenCaudillo(BaseModel):
-    id_caudillo: int
-    nombre_caudillo: str
+class ResumenReferente(BaseModel):
+    id_referente: int
+    nombre_referente: str
     cantidad_votantes: int
+
+class ResumenLocal(BaseModel):
+    nombre_local: str
+    cantidad: int
+
+class ResumenMesa(BaseModel):
+    nombre_local: str
+    mesa: int
+    cantidad: int
 
 class DashboardCandidatoResponse(BaseModel):
     total_votantes_unicos: int
     total_votantes_bruto: int 
-    caudillos: List[ResumenCaudillo]
+    referentes: List[ResumenReferente]
+    resumen_locales: List[ResumenLocal] = []
+    resumen_mesas: List[ResumenMesa] = []
     puntos_calor: List[Dict[str, Any]] = [] # [{lat: X, lng: Y, weight: Z}]
+    map_center: Optional[Dict[str, float]] = None
 
 class AnrPadronResponse(BaseModel):
     cedula: str

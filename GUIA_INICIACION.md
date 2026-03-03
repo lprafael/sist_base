@@ -277,28 +277,28 @@ Después del login exitoso, verás:
 
 ### **Rol: Administrador (admin)**
 - **Acceso Completo**: Todos los departamentos, distritos y datos del sistema
-- **Gestión de Usuarios**: Crear cualquier rol (intendente, concejal, caudillo)
+- **Gestión de Usuarios**: Crear cualquier rol (intendente, concejal, referente)
 - **Logs de Auditoría**: Ver todos los logs del sistema
 - **Panel Georreferenciado**: Vista global sin restricciones
 
 ### **Rol: Candidato a Intendente (intendente)**
 - **Alcance**: Limitado a su distrito asignado
-- **Ve su equipo**: Sus concejales, sus caudillos y los caudillos de sus concejales
+- **Ve su equipo**: Sus concejales, sus referentes y los referentes de sus concejales
 - **Ve simpatizantes**: De toda su estructura (rama completa)
-- **Puede crear**: Nuevos concejales y caudillos propios
+- **Puede crear**: Nuevos concejales y referentes propios
 - **Panel Georreferenciado**: Filtrado a su distrito
 
 ### **Rol: Candidato a Concejal (concejal)**
 - **Alcance**: Limitado a su distrito asignado
-- **Ve su equipo**: Solo sus caudillos directos
-- **Ve simpatizantes**: Los suyos + los de sus caudillos
-- **Puede crear**: Nuevos caudillos propios
+- **Ve su equipo**: Solo sus referentes directos
+- **Ve simpatizantes**: Los suyos + los de sus referentes
+- **Puede crear**: Nuevos referentes propios
 - **No ve**: Datos de otros concejales ni del intendente
 
-### **Rol: Caudillo (caudillo)**
+### **Rol: Referente (referente)**
 - **Acceso mínimo**: Solo puede agregar simpatizantes
 - **Ve**: Únicamente su propia lista de simpatizantes
-- **No puede**: Ver otros caudillos, concejales ni niveles superiores
+- **No puede**: Ver otros referentes, concejales ni niveles superiores
 - **No puede**: Crear otros usuarios
 
 ---

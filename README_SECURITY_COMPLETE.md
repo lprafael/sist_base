@@ -151,17 +151,17 @@ npm run dev
 #### 🟠 Candidato a Intendente (`intendente`)
 - **Permisos**: `read`, `write`, `manage_subordinates`
 - **Acceso**: Limitado a su distrito asignado
-- **Funciones**: Ve sus concejales, los caudillos de sus concejales, y todos los simpatizantes de su estructura. Puede crear concejales y caudillos propios.
+- **Funciones**: Ve sus concejales, los referentes de sus concejales, y todos los simpatizantes de su estructura. Puede crear concejales y referentes propios.
 
 #### 🟡 Candidato a Concejal (`concejal`)
 - **Permisos**: `read`, `write`, `manage_subordinates`
-- **Acceso**: Su propio registro + sus caudillos directos
-- **Funciones**: Ve y gestiona sus propios caudillos y los simpatizantes de su rama. No ve datos de otros concejales.
+- **Acceso**: Su propio registro + sus referentes directos
+- **Funciones**: Ve y gestiona sus propios referentes y los simpatizantes de su rama. No ve datos de otros concejales.
 
-#### 🟢 Caudillo (`caudillo`)
+#### 🟢 Referente (`referente`)
 - **Permisos**: `write` (solo captación)
 - **Acceso**: Solo su propia lista de simpatizantes
-- **Funciones**: Agrega simpatizantes y ve únicamente su propia lista. No puede ver datos de otros caudillos ni niveles superiores.
+- **Funciones**: Agrega simpatizantes y ve únicamente su propia lista. No puede ver datos de otros referentes ni niveles superiores.
 
 ### Implementación de Permisos
 ```python

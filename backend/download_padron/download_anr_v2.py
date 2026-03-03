@@ -63,11 +63,17 @@ DB_DSN = DATABASE_URL \
     .replace("postgresql+asyncpg://", "postgresql://") \
     .replace("postgresql+psycopg2://", "postgresql://")
 
-# Si corre fuera de Docker, apunta a localhost:5433
-if "@db:" in DB_DSN:
-    DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5433/")
-elif "@localhost:5432/" in DB_DSN:
-    DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5433/")
+# Ajuste de DSN según el entorno (Docker vs Local)
+# Si NO estamos en Docker, y vemos '@db:', cambiamos a localhost para desarrollo local
+if not os.path.exists('/.dockerenv'):
+    if "@db:" in DB_DSN:
+        DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5433/")
+    elif "@localhost:5432/" in DB_DSN:
+        DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5433/")
+else:
+    # Si estamos en Docker, nos aseguramos de usar el host 'db' interno
+    logger.info("Entorno Docker detectado, usando host 'db'")
+
 
 BASE_URL = "https://www.anr.org.py/assets/p2026"
 HEADERS = {
@@ -196,33 +202,52 @@ async def save_batch_asyncpg(pool: asyncpg.Pool, batch: list) -> int:
     return len(records)
 
 
+async def get_max_cedula(pool: asyncpg.Pool) -> int:
+    """Consulta la cedula maxima y el conteo total en la base de datos."""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT max(cedula::integer) as max_ci, count(*) as total FROM electoral.anr_padron_2026")
+        return row['max_ci'] or 0, row['total'] or 0
+
+
 async def main():
     import argparse
     parser = argparse.ArgumentParser(description="Descargador de Padron ANR v2 (optimizado)")
-    parser.add_argument("--start", type=int, default=1000001)
-    parser.add_argument("--end", type=int, default=2000000)
+    parser.add_argument("--start", type=int, default=2000001)
+    parser.add_argument("--end", type=int, default=3000000)
     parser.add_argument("--concurrency", type=int, default=50, help="Workers HTTP simultaneos")
-    parser.add_argument("--batch", type=int, default=500, help="Registros por INSERT batch")
+    parser.add_argument("--batch", type=int, default=1000, help="Registros por INSERT batch")
     parser.add_argument("--recreate", action="store_true")
     parser.add_argument("--skip-existing", action="store_true", help="Omite CIs ya descargadas")
+    parser.add_argument("--auto-resume", action="store_true", help="Inicia desde max(cedula) + 1")
     parser.add_argument("--test", action="store_true", help="Prueba con 100 CIs")
     args = parser.parse_args()
 
     pool = await asyncpg.create_pool(DB_DSN, min_size=5, max_size=20)
     await init_db(pool, args.recreate)
 
+    # Lógica de Auto-Resume
+    start_val = args.start
+    if args.auto_resume:
+        max_ci, total_db = await get_max_cedula(pool)
+        if max_ci > 0:
+            start_val = max_ci + 1
+            logger.info(f"Auto-resume activado. Max CI en DB: {max_ci:,} (Total: {total_db:,}). Iniciando desde: {start_val:,}")
+        else:
+            logger.info("Auto-resume activado pero la base de datos esta vacia. Iniciando desde el default.")
+
     if args.test:
-        cedulas = list(range(args.start, args.start + 100))
+        cedulas = list(range(start_val, start_val + 100))
     else:
-        cedulas = list(range(args.start, args.end + 1))
+        cedulas = list(range(start_val, args.end + 1))
 
     if args.skip_existing:
-        existing = await get_existing_cedulas(pool, args.start, args.end)
+        existing = await get_existing_cedulas(pool, start_val, args.end)
         cedulas = [c for c in cedulas if c not in existing]
         logger.info(f"Quedan {len(cedulas)} cedulas por descargar.")
 
     total = len(cedulas)
     logger.info(f"Iniciando descarga de {total} cedulas con concurrencia={args.concurrency}...")
+
 
     # Resetear el tiempo AQUI, despues de skip-existing
     buffer = deque()
