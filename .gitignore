@@ -36,3 +36,25 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Backups y archivos de base de datos grandes
+*.backup
+*.sql
+*.csv
+!backend/initBD_SIGEL.sql
+!backend/check_dist.sql
+!backend/fix_coords.sql
+!backend/migrate_*.sql
+
+# Logs de descarga
+*.log
+
+# Archivos temporales de debug/prueba en raiz
+test*.py
+test*.sql
+check_*.py
+check_*.sql
+verify_*.py
+sync_*.py
+dev_output.txt
+*.txt
