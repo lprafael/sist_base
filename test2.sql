@@ -1,0 +1,1 @@
+SELECT "DPTO", "DISTRITO", "DIST_DESC_" FROM cartografia.distritos WHERE "DPTO"='11' ORDER BY "DISTRITO";

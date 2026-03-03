@@ -4,7 +4,11 @@ from sqlalchemy.future import select
 from sqlalchemy import func, and_, or_, text
 import os
 import json
+import logging
 from typing import List, Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
+
 
 from database import get_session
 from models import RefDepartamento, RefDistrito, RefSeccional, RefLocal, AnrPadron
@@ -72,6 +76,37 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
     dist_code = f"{dist_id:02d}"
     
     # Intentamos traer barrios del distrito usando el código del distrito unificado
+    # Query unificada por ID de referencia (Lo más preciso)
+    barrios_ref_query = text("""
+        SELECT jsonb_build_object(
+            'type',     'FeatureCollection',
+            'features', jsonb_agg(features.feature)
+        )
+        FROM (
+          SELECT jsonb_build_object(
+            'type',       'Feature',
+            'geometry',   ST_AsGeoJSON(b.geometry)::jsonb,
+            'properties', jsonb_build_object(
+                'nombre', COALESCE(b."BARLO_DESC", b."DIST_DESC_", 'Sin nombre'),
+                'tipo', 'barrio',
+                'DIST_DESC_', b."DIST_DESC_",
+                'poblacion_total', b.poblacion_total,
+                'poblacion_hombres', b.poblacion_hombres,
+                'poblacion_mujeres', b.poblacion_mujeres,
+                'captados_count', (
+                    SELECT count(*) 
+                    FROM electoral.posibles_votantes p 
+                    WHERE p.latitud IS NOT NULL AND p.longitud IS NOT NULL 
+                    AND ST_Contains(b.geometry, ST_SetSRID(ST_Point(p.longitud, p.latitud), 4326))
+                )
+            )
+          ) AS feature
+          FROM cartografia.barrios b
+          WHERE b."DPTO" = :dpto_code
+          AND b.ref_distrito_id = :dist_id
+        ) AS features;
+    """)
+
     barrios_query = text("""
         SELECT jsonb_build_object(
             'type',     'FeatureCollection',
@@ -134,15 +169,21 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
     """)
     
     try:
-        # 1. Intentar por código (Lo más preciso)
-        result = await session.execute(barrios_query, {"dpto_code": dpto_code, "dist_code": dist_code})
+        dist_nombre = row.descripcion if row else None
+        
+        # 1. Intentar por REF_ID (Lo más preciso ahora que está unificado)
+        logger.info(f"Buscando cartografía por REF_ID: {dist_id}")
+        result = await session.execute(barrios_ref_query, {
+            "dpto_code": dpto_code, 
+            "dist_id": dist_id
+        })
         geojson = result.scalar()
         if geojson and geojson.get('features'):
             return geojson
-            
-        # 2. Si no funcionó, intentar por nombre
-        dist_nombre = row.descripcion if row else None
+
+        # 2. Intentar por NOMBRE (Fallback robusto)
         if dist_nombre:
+            logger.info(f"Buscando cartografía por nombre: {dist_nombre}")
             result = await session.execute(fallback_barrios_query, {
                 "dpto_code": dpto_code, 
                 "dist_nombre": dist_nombre
@@ -150,8 +191,15 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             geojson = result.scalar()
             if geojson and geojson.get('features'):
                 return geojson
+
+        # 3. Intentar por CÓDIGO (Último recurso)
+        result = await session.execute(barrios_query, {"dpto_code": dpto_code, "dist_code": dist_code})
+        geojson = result.scalar()
+        if geojson and geojson.get('features'):
+            return geojson
+            
     except Exception as e:
-        print(f"Error buscando barrios: {e}")
+        logger.error(f"Error buscando barrios: {e}")
     
     # Fallback Final: traer el polígono del distrito (cartografia.distritos) usando código o nombre
     distrito_query = text("""
@@ -172,7 +220,7 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
           FROM cartografia.distritos d
           WHERE d."DPTO" = :dpto_code
           AND (
-              d."DISTRITO" = :dist_code
+              d.ref_distrito_id = :dist_id
               OR (
                   CAST(:dist_nombre AS TEXT) IS NOT NULL 
                   AND unaccent(TRIM(d."DIST_DESC_")) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
@@ -185,6 +233,7 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
         result = await session.execute(distrito_query, {
             "dpto_code": dpto_code, 
             "dist_code": dist_code,
+            "dist_id": dist_id,
             "dist_nombre": dist_nombre
         })
         geojson = result.scalar()

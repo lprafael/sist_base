@@ -16,11 +16,31 @@ L.Icon.Default.mergeOptions({
 const LocalRow = ({ local, onSave, isAdmin, onPickOnMap, isPicking }) => {
     const [tempLat, setTempLat] = useState(local.ubicacion?.lat || '');
     const [tempLng, setTempLng] = useState(local.ubicacion?.lng || '');
+    const [rawInput, setRawInput] = useState(local.ubicacion ? `${local.ubicacion.lat}, ${local.ubicacion.lng}` : '');
 
     useEffect(() => {
         setTempLat(local.ubicacion?.lat || '');
         setTempLng(local.ubicacion?.lng || '');
+        setRawInput(local.ubicacion ? `${local.ubicacion.lat}, ${local.ubicacion.lng}` : '');
     }, [local.ubicacion]);
+
+    // Added logic for Google Maps pasting
+    const handleRawInputChange = (e) => {
+        const val = e.target.value;
+        setRawInput(val);
+
+        // Clean up common extra characters: spaces, quotes, brackets, parentheses
+        const cleanVal = val.replace(/["'[\]()]/g, '');
+
+        // Match "-25.2608, -57.5001" or anything with a comma
+        if (cleanVal.includes(',')) {
+            const parts = cleanVal.split(',');
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                setTempLat(parseFloat(parts[0].trim()));
+                setTempLng(parseFloat(parts[1].trim()));
+            }
+        }
+    };
 
     return (
         <tr className={isPicking ? 'picking-row' : ''}>
@@ -30,20 +50,12 @@ const LocalRow = ({ local, onSave, isAdmin, onPickOnMap, isPicking }) => {
             <td>
                 <div className="coord-inputs">
                     <input
-                        type="number"
-                        step="0.000001"
-                        placeholder="Lat"
-                        value={tempLat}
-                        onChange={e => setTempLat(e.target.value)}
+                        type="text"
+                        placeholder="Ej: -25.260, -57.500"
+                        value={rawInput}
+                        onChange={handleRawInputChange}
                         disabled={!isAdmin}
-                    />
-                    <input
-                        type="number"
-                        step="0.000001"
-                        placeholder="Lng"
-                        value={tempLng}
-                        onChange={e => setTempLng(e.target.value)}
-                        disabled={!isAdmin}
+                        style={{ width: '200px' }}
                     />
                 </div>
             </td>
@@ -255,30 +267,30 @@ const GeoDashboard = () => {
         }
     };
 
-    // Estilo para los barrios
+    // Estilo para los barrios — paleta naranja/ámbar
     const barrioStyle = (feature) => {
         const popTotal = feature.properties.poblacion_total || 0;
         const captados = feature.properties.captados_count || 0;
         const penetracion = popTotal > 0 ? (captados / popTotal) * 100 : 0;
 
-        // Escala de colores (Heatmap de Penetración)
-        let fillColor = '#cbd5e1'; // Gris azulado por defecto (sin datos censo 2022)
+        // Escala de colores naranja (Heatmap de Penetración)
+        let fillColor = '#d1c4aa'; // Gris cálido por defecto (sin datos censo 2022)
         if (popTotal > 0) {
-            if (penetracion === 0) fillColor = '#f8fafc';
-            else if (penetracion < 0.5) fillColor = '#bae6fd'; // Muy baja
-            else if (penetracion < 2) fillColor = '#7dd3fc';   // Baja
-            else if (penetracion < 5) fillColor = '#38bdf8';   // Media
-            else if (penetracion < 10) fillColor = '#0ea5e9';  // Alta
-            else fillColor = '#0369a1';                        // Muy Alta (>10%)
+            if (penetracion === 0) fillColor = '#fff3e0';       // Sin penetración — crema
+            else if (penetracion < 0.5) fillColor = '#ffe0b2';  // Muy baja — naranja muy claro
+            else if (penetracion < 2) fillColor = '#ffb74d';  // Baja — ámbar
+            else if (penetracion < 5) fillColor = '#ff9800';  // Media — naranja
+            else if (penetracion < 10) fillColor = '#f57c00';  // Alta — naranja intenso
+            else fillColor = '#e65100';  // Muy Alta (>10%) — naranja oscuro
         }
 
         return {
             fillColor: fillColor,
             weight: 1.5,
             opacity: 1,
-            color: 'white',
+            color: '#bf360c',    // Borde naranja-marrón
             dashArray: '3',
-            fillOpacity: 0.65
+            fillOpacity: 0.70
         };
     };
 
@@ -422,7 +434,7 @@ const GeoDashboard = () => {
                                                             <span style="font-weight: 800; color: #2b6cb0; font-size: 1.2rem;">${penetracion}%</span>
                                                         </div>
                                                         <div style="width: 100%; background: #edf2f7; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1;">
-                                                            <div style="width: ${Math.min(penetracion * 2, 100)}%; background: linear-gradient(90deg, #3182ce, #2b6cb0); height: 100%;"></div>
+                                                            <div style="width: ${Math.min(penetracion * 2, 100)}%; background: linear-gradient(90deg, #ff9800, #e65100); height: 100%;"></div>
                                                         </div>
                                                     </div>
                                                 </div>

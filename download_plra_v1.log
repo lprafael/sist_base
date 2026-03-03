@@ -1,0 +1,11 @@
+2026-03-03 14:30:39,566 - INFO - Tabla plra_padron verficada.
+2026-03-03 14:30:39,567 - INFO - Iniciando descarga PLRA de 6 cedulas | Concurrencia=2
+2026-03-03 14:30:50,043 - INFO - Progress: 6/6 (100.0%) | Saved: 0 | Speed: 0.6 CI/s | ETA: 0.0 min
+2026-03-03 14:33:33,647 - INFO - Tabla plra_padron verficada.
+2026-03-03 14:33:33,647 - INFO - Iniciando descarga PLRA de 5 cedulas | Concurrencia=2
+2026-03-03 14:33:34,670 - INFO - CI 3558001: Data encontrada
+2026-03-03 14:33:34,813 - INFO - CI 3558000: Data encontrada
+2026-03-03 14:33:34,860 - INFO - CI 3558002: Data encontrada
+2026-03-03 14:33:34,994 - INFO - CI 3558003: Data encontrada
+2026-03-03 14:33:35,043 - INFO - CI 3558004: Data encontrada
+2026-03-03 14:33:35,639 - INFO - Descarga PLRA finalizada. Guardadas: 5
