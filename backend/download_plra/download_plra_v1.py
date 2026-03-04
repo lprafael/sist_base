@@ -48,11 +48,20 @@ DB_DSN = DATABASE_URL \
     .replace("postgresql+asyncpg://", "postgresql://") \
     .replace("postgresql+psycopg2://", "postgresql://")
 
-if not os.path.exists('/.dockerenv'):
-    if "@db:" in DB_DSN:
-        DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5433/")
+# Ajuste de DSN según el entorno (Docker vs Local)
+# Usamos 5434 para desarrollo local según docker-compose.yml
+if not os.path.exists('/.dockerenv') and not os.path.exists('/run/.containerenv'):
+    if "@db:5432/" in DB_DSN:
+        DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5434/")
     elif "@localhost:5432/" in DB_DSN:
-        DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5433/")
+        DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5434/")
+
+# Comandos sugeridos para ejecución:
+# LOCAL (Windows):
+# python download_plra_v1.py --start 1 --end 500000 --concurrency 20 --skip-existing
+#
+# DOCKER:
+# docker exec -it SIGEL-backend python download_plra/download_plra_v1.py --start 1 --end 500000 --concurrency 20 --skip-existing
 
 BASE_URL = "https://plra.org.py/public/buscar_padron.php"
 HEADERS = {

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 # Configuración
 SOURCE_URL = "postgresql://postgres:admin@localhost:5432/SIGEL"
-TARGET_URL = "postgresql://postgres:admin@localhost:5433/SIGEL"
+TARGET_URL = "postgresql://postgres:admin@localhost:5434/SIGEL"
 
 SCHEMAS = ["sistema", "electoral"]
 

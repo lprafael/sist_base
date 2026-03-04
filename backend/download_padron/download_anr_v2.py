@@ -65,11 +65,12 @@ DB_DSN = DATABASE_URL \
 
 # Ajuste de DSN según el entorno (Docker vs Local)
 # Si NO estamos en Docker, y vemos '@db:', cambiamos a localhost para desarrollo local
-if not os.path.exists('/.dockerenv'):
-    if "@db:" in DB_DSN:
-        DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5433/")
+# Nota: Usamos 5434 que es el puerto mapeado en docker-compose.yml
+if not os.path.exists('/.dockerenv') and not os.path.exists('/run/.containerenv'):
+    if "@db:5432/" in DB_DSN:
+        DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5434/")
     elif "@localhost:5432/" in DB_DSN:
-        DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5433/")
+        DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5434/")
 else:
     # Si estamos en Docker, nos aseguramos de usar el host 'db' interno
     logger.info("Entorno Docker detectado, usando host 'db'")

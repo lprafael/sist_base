@@ -6,13 +6,13 @@ from dotenv import load_dotenv
 def upload_cartografia():
     load_dotenv()
     # Usamos el motor síncrono para geopandas (pq usa psycopg2-binary que instalamos)
-    # Importante: host db es el nombre del container de docker, pero si corremos afuera usamos localhost:5433
+    # Importante: host db es el nombre del container de docker, pero si corremos afuera usamos localhost:5434
     DB_URL = os.getenv("DATABASE_URL").replace("postgresql+asyncpg://", "postgresql://")
     
-    # Si estamos corriendo fuera de Docker, necesitamos usar localhost:5433
+    # Si estamos corriendo fuera de Docker, necesitamos usar localhost:5434
     # Si estamos dentro, DATABASE_URL ya tiene 'db:5432'
     if "localhost" in DB_URL or "127.0.0.1" in DB_URL:
-        DB_URL = DB_URL.replace(":5432", ":5433")
+        DB_URL = DB_URL.replace(":5432", ":5434")
     
     engine = create_engine(DB_URL)
     

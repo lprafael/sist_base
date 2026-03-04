@@ -11,7 +11,7 @@ services:
       - POSTGRES_PASSWORD=admin
       - POSTGRES_DB=SIGEL
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - sigel_db_data:/var/lib/postgresql/data
     networks:

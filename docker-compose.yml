@@ -11,7 +11,7 @@ services:
       - POSTGRES_PASSWORD=admin
       - POSTGRES_DB=SIGEL
     ports:
-      - "5433:5432" # Mapeado a 5433 para evitar conflicto con tu Postgres local
+      - "5434:5432" # Mapeado a 5434 para evitar conflicto con tu Postgres local o anterior
     volumes:
       - sigel_db_data:/var/lib/postgresql/data
     networks:
@@ -61,7 +61,7 @@ services:
     volumes:
       - ./frontend/public:/usr/share/nginx/html/public
     healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/" ]
       interval: 30s
       timeout: 10s
       retries: 3

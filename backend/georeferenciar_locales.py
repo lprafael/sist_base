@@ -39,7 +39,7 @@ async def setup_location_field():
     # URL para correr dentro de docker o fuera
     db_url = os.getenv("DATABASE_URL").replace("postgresql://", "postgresql+asyncpg://")
     if "db" not in db_url and "localhost" in db_url:
-        db_url = db_url.replace(":5432", ":5433")
+        db_url = db_url.replace(":5432", ":5434")
         
     engine = create_async_engine(db_url)
     
