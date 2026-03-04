@@ -333,6 +333,16 @@ class PosibleVotante(Base):
     validacion_candidato = Column(Boolean, default=False)
     movilidad_propia = Column(Boolean, default=False)
 
+    # --- Campos para Logística Día D ---
+    logistica_estado = Column(String(20), default='pendiente') # pendiente, en_camino, en_local, voto
+    chofer_id = Column(Integer, ForeignKey('electoral.choferes.id'), nullable=True)
+    veedor_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True) # El usuario que marca el voto
+    fecha_traslado = Column(DateTime)
+    fecha_voto = Column(DateTime)
+    
+    # Relaciones
+    chofer = relationship("Chofer", back_populates="traslados")
+
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, Index
 
 class AnrPadron(Base):
@@ -353,6 +363,28 @@ class AnrPadron(Base):
     mesa = Column(Integer)
     orden = Column(Integer)
     fecha_descarga = Column(DateTime, default=func.now())
+
+class Chofer(Base):
+    __tablename__ = "choferes"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), nullable=False)
+    telefono = Column(String(20))
+    vehiculo_info = Column(String(255))
+    
+    token_seguimiento = Column(String(100), unique=True, index=True)
+    latitud = Column(Float)
+    longitud = Column(Float)
+    ultima_conexion = Column(DateTime)
+    
+    activo = Column(Boolean, default=True)
+    departamento_id = Column(Integer)
+    distrito_id = Column(Integer)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    traslados = relationship("PosibleVotante", back_populates="chofer")
 
 # ===== TABLAS DE REFERENCIA (CATÁLOGOS) =====
 

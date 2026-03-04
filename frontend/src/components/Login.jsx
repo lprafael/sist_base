@@ -4,6 +4,7 @@ import './Login.css';
 
 
 const Login = ({ onLogin }) => {
+  const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -43,7 +44,7 @@ const Login = ({ onLogin }) => {
         device_id: getDeviceId()
       };
 
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +76,7 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/google-login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/google-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -198,7 +199,7 @@ const Login = ({ onLogin }) => {
               setLoading(true);
               setError('');
               try {
-                const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/notify/forgot-password`, {
+                const response = await fetch(`${API_BASE_URL}/notify/forgot-password`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ username: credentials.username })

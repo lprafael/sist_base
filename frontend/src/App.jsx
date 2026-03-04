@@ -10,6 +10,10 @@ import VoterRegistration from "./components/VoterRegistration.jsx";
 import CandidateDashboard from "./components/CandidateDashboard.jsx";
 import GeoDashboard from "./components/GeoDashboard.jsx";
 import HistoricalAnalysis from "./components/HistoricalAnalysis.jsx";
+import PadronImpresion from "./components/PadronImpresion.jsx";
+import LogisticaControlPanel from './components/LogisticaControlPanel.jsx';
+import ChoferGestion from './components/ChoferGestion.jsx';
+import ChoferTracking from './components/ChoferTracking.jsx';
 import LandingPage from "./pages/LandingPage.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
@@ -84,6 +88,9 @@ function MainDashboard({ user, onLogout }) {
         { id: 'tablero', label: 'Mi Tablero', icon: '📈', roles: ['admin', 'intendente', 'concejal', 'referente'] },
         { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin', 'intendente', 'concejal'] },
         { id: 'analisis_historico', label: 'Análisis de Resultados', icon: '📊', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'padron_impresion', label: 'Impresión de Padrón', icon: '🖨️', roles: ['admin', 'intendente', 'concejal', 'referente'] },
+        { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente'] },
+        { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente'] },
       ]
     }
   ];
@@ -156,6 +163,9 @@ function MainDashboard({ user, onLogout }) {
             {tab === "tablero" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <CandidateDashboard user={user} />}
             {tab === "geografia" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <GeoDashboard user={user} />}
             {tab === "analisis_historico" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <HistoricalAnalysis user={user} />}
+            {tab === "padron_impresion" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <PadronImpresion user={user} />}
+            {tab === "logistica" && ['admin', 'intendente'].includes(user.rol) && <LogisticaControlPanel user={user} />}
+            {tab === "choferes" && ['admin', 'intendente'].includes(user.rol) && <ChoferGestion user={user} />}
           </div>
         </main>
       </div>
@@ -215,6 +225,7 @@ export default function App() {
           path="/dashboard"
           element={user ? <MainDashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
         />
+        <Route path="/chofer/:token" element={<ChoferTracking />} />
         {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

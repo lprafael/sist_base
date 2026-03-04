@@ -332,6 +332,19 @@
     color: #4a5568;
 }
 
+.select-hint {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border: 2px dashed #bee3f8;
+    margin: 40px auto;
+    max-width: 600px;
+}
+
 @media (max-width: 768px) {
     .period-results {
         grid-template-columns: 1fr;

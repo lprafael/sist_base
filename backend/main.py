@@ -129,6 +129,7 @@ from resend_user_password import router as resend_user_password_router
 from electoral_routes import router as electoral_router
 from geo_routes import router as geo_router
 from electoral_analysis import router as electoral_analysis_router
+from logistica_routes import router as logistica_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
 app.include_router(auth_router)
@@ -139,6 +140,7 @@ app.include_router(resend_user_password_router)
 app.include_router(electoral_router)
 app.include_router(geo_router)
 app.include_router(electoral_analysis_router)
+app.include_router(logistica_router)
 
 
 
