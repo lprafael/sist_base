@@ -476,3 +476,130 @@ async def get_catalog_distritos(departamento_id: int, session: AsyncSession = De
         .order_by(RefDistrito.descripcion)
     )
     return [{"id": r[0], "descripcion": r[1]} for r in res.all()]
+
+# Nuevos endpoints para Reporte de Padrón e Impresión
+@router.get("/departamentos")
+async def list_departamentos(session: AsyncSession = Depends(get_session)):
+    res = await session.execute(select(RefDepartamento.id, RefDepartamento.descripcion).order_by(RefDepartamento.descripcion))
+    return [{"id": r[0], "nombre": r[1]} for r in res.all()]
+
+@router.get("/distritos")
+async def list_distritos(departamento_id: int, session: AsyncSession = Depends(get_session)):
+    res = await session.execute(
+        select(RefDistrito.id, RefDistrito.descripcion)
+        .where(RefDistrito.departamento_id == departamento_id)
+        .order_by(RefDistrito.descripcion)
+    )
+    return [{"id": r[0], "nombre": r[1]} for r in res.all()]
+
+@router.get("/distritos/{distrito_id}/stats")
+async def get_distrito_stats(
+    distrito_id: int, 
+    departamento_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtiene estadísticas rápidas de un distrito: votantes, locales y mesas"""
+    # Filtros base
+    filters_padron = [AnrPadron.distrito == distrito_id]
+    filters_locales = [RefLocal.distrito_id == distrito_id]
+    
+    if departamento_id:
+        filters_padron.append(AnrPadron.departamento == departamento_id)
+        filters_locales.append(RefLocal.departamento_id == departamento_id)
+
+    # Cantidad de votantes
+    stmt_voters = select(func.count(AnrPadron.cedula)).where(and_(*filters_padron))
+    voters_count = (await session.execute(stmt_voters)).scalar() or 0
+
+    # Cantidad de locales
+    stmt_locales = select(func.count(RefLocal.local_id)).where(and_(*filters_locales))
+    locales_count = (await session.execute(stmt_locales)).scalar() or 0
+
+    # Cantidad de mesas
+    stmt_mesas = select(func.count(func.distinct(AnrPadron.mesa))).where(and_(*filters_padron))
+    mesas_count = (await session.execute(stmt_mesas)).scalar() or 0
+
+    return {
+        "total_votantes": voters_count,
+        "total_locales": locales_count,
+        "total_mesas": mesas_count
+    }
+
+@router.get("/locales")
+async def list_locales(distrito_id: int, departamento_id: Optional[int] = None, session: AsyncSession = Depends(get_session)):
+    stmt = select(RefLocal.local_id, RefLocal.descripcion, RefLocal.seccional_id, RefLocal.departamento_id, RefLocal.distrito_id).where(RefLocal.distrito_id == distrito_id)
+    if departamento_id:
+        stmt = stmt.where(RefLocal.departamento_id == departamento_id)
+    res = await session.execute(stmt.order_by(RefLocal.descripcion))
+    # Para locales, el ID de cara al frontend será una clave compuesta o usaremos el local_id si es único en el distrito
+    return [{"id": f"{r[3]}_{r[4]}_{r[2]}_{r[0]}", "nombre": r[1]} for r in res.all()]
+
+@router.get("/locales/{composite_id}/mesas")
+async def list_mesas(composite_id: str, session: AsyncSession = Depends(get_session)):
+    # Descomponer la clave compuesta [dep]_[dist]_[secc]_[local]
+    try:
+        dep, dist, secc, loc = map(int, composite_id.split('_'))
+    except:
+        raise HTTPException(status_code=400, detail="Formato de ID de local inválido")
+        
+    res = await session.execute(
+        select(func.distinct(AnrPadron.mesa))
+        .where(and_(
+            AnrPadron.departamento == dep,
+            AnrPadron.distrito == dist,
+            AnrPadron.seccional == secc,
+            AnrPadron.local == loc
+        ))
+        .order_by(AnrPadron.mesa)
+    )
+    return [r[0] for r in res.all()]
+
+@router.get("/padron/reporte")
+async def get_padron_reporte(
+    distrito_id: int,
+    departamento_id: Optional[int] = None,
+    local_id: Optional[str] = None,
+    mesa: Optional[int] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene una lista filtrada del padrón para reportes o impresión"""
+    stmt = select(
+        AnrPadron.orden,
+        AnrPadron.cedula,
+        AnrPadron.nombres,
+        AnrPadron.apellidos,
+        AnrPadron.mesa,
+        RefLocal.descripcion.label("nombre_local")
+    ).outerjoin(
+        RefLocal, and_(
+            AnrPadron.departamento == RefLocal.departamento_id,
+            AnrPadron.distrito == RefLocal.distrito_id,
+            AnrPadron.seccional == RefLocal.seccional_id,
+            AnrPadron.local == RefLocal.local_id
+        )
+    ).where(AnrPadron.distrito == distrito_id)
+    
+    if departamento_id:
+        stmt = stmt.where(AnrPadron.departamento == departamento_id)
+    
+    if local_id:
+        try:
+            dep, dist, secc, loc = map(int, local_id.split('_'))
+            stmt = stmt.where(and_(
+                AnrPadron.departamento == dep,
+                AnrPadron.distrito == dist,
+                AnrPadron.seccional == secc,
+                AnrPadron.local == loc
+            ))
+        except:
+            pass
+            
+    if mesa:
+        stmt = stmt.where(AnrPadron.mesa == mesa)
+        
+    # Limitar el reporte para evitar saturación (opcional, pero recomendado para impresión)
+    stmt = stmt.order_by(AnrPadron.mesa, AnrPadron.orden).limit(5000)
+    
+    result = await session.execute(stmt)
+    return [dict(r._mapping) for r in result.all()]

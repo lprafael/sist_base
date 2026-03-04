@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: SIGEL-frontend-standalone
+    ports:
+      - "3002:80"
+    restart: unless-stopped
+    # Nota: Si el backend no está en la misma red de Docker, 
+    # asegúrate de que VITE_REACT_APP_API_URL en el .env 
+    # apunte a la IP externa o localhost:8002
