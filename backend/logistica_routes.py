@@ -190,9 +190,9 @@ async def get_control_mapa(
         JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
         LEFT JOIN electoral.ref_locales l ON p.local = l.local_id 
              AND p.departamento = l.departamento_id AND p.distrito = l.distrito_id
+             AND p.seccional = l.seccional_id
         WHERE p.departamento = :d AND p.distrito = :di
         AND (pv.logistica_estado IS NULL OR pv.logistica_estado != 'voto')
-        AND pv.latitud IS NOT NULL
     """)
     
     result_votantes = await session.execute(query_votantes, {"d": dept_id, "di": dist_id})

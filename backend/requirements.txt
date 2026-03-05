@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+geoalchemy2
+geopandas
+python-dotenv
+passlib[bcrypt]
+python-multipart
+python-jose[cryptography]
+openpyxl
+pandas
+httpx
+jinja2
+bcrypt
+aiosqlite

@@ -209,18 +209,35 @@ const UserManagement = () => {
 
   const openCreateForm = () => {
     const rolInicial = rolesQuePoedoCrear[0]?.value || 'referente';
-    setNewUser({
+    const initialData = {
       username: '', email: '', nombre_completo: '',
       rol: rolInicial,
       departamento_id: '', distrito_id: '', superior_usuario_id: ''
-    });
+    };
+
+    // Si NO es admin (es Intendente o Concejal), hereda automáticamente el territorio
+    if (!isAdmin) {
+      initialData.departamento_id = currentUser.departamento_id || '';
+      initialData.distrito_id = currentUser.distrito_id || '';
+    }
+
+    setNewUser(initialData);
     setDistritos([]);
     setSuperioresDisponibles([]);
-    if (ROLES_CANDIDATOS.includes(rolInicial)) {
+
+    // Si es Admin, debe cargar catálogos para elegir territorio
+    if (isAdmin && ROLES_CANDIDATOS.includes(rolInicial)) {
       fetchDepartamentos();
     } else if (rolInicial === 'referente' && isAdmin) {
       fetchSuperioresDisponibles('referente');
     }
+
+    // Si NO es admin, ya tenemos el territorio, pero podríamos querer cargar
+    // superiores disponibles para ese distrito específico
+    if (!isAdmin && initialData.distrito_id) {
+      fetchSuperioresDisponibles(rolInicial, initialData.distrito_id);
+    }
+
     setShowCreateForm(true);
   };
 
@@ -378,7 +395,7 @@ const UserManagement = () => {
                 <td>
                   <div className="actions-cell">
                     <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
-                    {canManageUsers && user.username !== 'admin' && (
+                    {isAdmin && user.username !== 'admin' && (
                       user.activo ?
                         <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button> :
                         <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>

@@ -364,6 +364,28 @@ class AnrPadron(Base):
     orden = Column(Integer)
     fecha_descarga = Column(DateTime, default=func.now())
 
+class PlraPadron(Base):
+    __tablename__ = "plra_padron"
+    __table_args__ = {"schema": "electoral"}
+    
+    cedula = Column(String(20), primary_key=True)
+    nombre = Column(String(255))
+    apellido = Column(String(255))
+    sexo = Column(String(5))
+    fec_nac = Column(Date)
+    fec_inscri = Column(Date)
+    direcc = Column(Text)
+    departamento_nombre = Column(String(255))
+    distrito_nombre = Column(String(255))
+    zona_nombre = Column(String(255))
+    comite_nombre = Column(String(255))
+    local_generales = Column(String(255))
+    local_interna = Column(String(255))
+    afiliaciones = Column(Text)
+    afiliacion_plra_2025 = Column(String(10))
+    voto_anr = Column(String(10))
+    fecha_descarga = Column(DateTime, default=func.now())
+
 class Chofer(Base):
     __tablename__ = "choferes"
     __table_args__ = {"schema": "electoral"}
@@ -385,6 +407,60 @@ class Chofer(Base):
     
     # Relaciones
     traslados = relationship("PosibleVotante", back_populates="chofer")
+
+class Actividad(Base):
+    __tablename__ = "actividades"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    titulo = Column(String(255), nullable=False)
+    tipo = Column(String(100)) # "Presentación", "Lanzamiento", "Caminata", etc.
+    fecha_programada = Column(DateTime)
+    fecha_prevista = Column(DateTime)
+    observaciones = Column(Text)
+    latitud = Column(Float)
+    longitud = Column(Float)
+    radio_influencia = Column(Float, default=100.0) # en metros
+    estado = Column(String(20), default='pendiente') # pendiente, en_curso, finalizada, cancelada
+    
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    participantes = relationship("ActividadParticipante", back_populates="actividad")
+    fotos = relationship("ActividadFoto", back_populates="actividad")
+
+class ActividadParticipante(Base):
+    __tablename__ = "actividad_participantes"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    actividad_id = Column(Integer, ForeignKey('electoral.actividades.id'))
+    cedula = Column(String(20), nullable=False)
+    nombre = Column(String(255))
+    apellido = Column(String(255))
+    telefono = Column(String(20))
+    observaciones = Column(Text)
+    es_simpatizante = Column(Boolean, default=False)
+    en_padron_anr = Column(Boolean, default=False)
+    en_padron_plra = Column(Boolean, default=False)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    actividad = relationship("Actividad", back_populates="participantes")
+
+class ActividadFoto(Base):
+    __tablename__ = "actividad_fotos"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    actividad_id = Column(Integer, ForeignKey('electoral.actividades.id'))
+    ruta_archivo = Column(String(500), nullable=False)
+    descripcion = Column(String(255))
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    actividad = relationship("Actividad", back_populates="fotos")
 
 # ===== TABLAS DE REFERENCIA (CATÁLOGOS) =====
 

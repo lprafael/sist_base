@@ -180,19 +180,6 @@ class RolResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class PermisoCreate(BaseModel):
-    nombre: str
-    descripcion: Optional[str] = None
-    modulo: str
-    accion: str
-
-class PermisoUpdate(BaseModel):
-    nombre: Optional[str] = None
-    descripcion: Optional[str] = None
-    modulo: Optional[str] = None
-    accion: Optional[str] = None
-    activo: Optional[bool] = None
-
 class PermisoResponse(BaseModel):
     id: int
     nombre: str
@@ -453,3 +440,80 @@ class CatalogItem(BaseModel):
     
     class Config:
         from_attributes = True
+
+class PlraPadronResponse(BaseModel):
+    cedula: str
+    nombre: str
+    apellido: str
+    sexo: Optional[str] = None
+    fec_nac: Optional[date] = None
+    fec_inscri: Optional[date] = None
+    direcc: Optional[str] = None
+    departamento_nombre: Optional[str] = None
+    distrito_nombre: Optional[str] = None
+    zona_nombre: Optional[str] = None
+    comite_nombre: Optional[str] = None
+    local_generales: Optional[str] = None
+    local_interna: Optional[str] = None
+    afiliaciones: Optional[str] = None
+    afiliacion_plra_2025: Optional[str] = None
+    voto_anr: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+# --- Esquemas para Actividades ---
+
+class ActividadFotoResponse(BaseModel):
+    id: int
+    ruta_archivo: str
+    descripcion: Optional[str] = None
+    fecha_registro: datetime
+
+    class Config:
+        from_attributes = True
+
+class ActividadParticipanteResponse(BaseModel):
+    id: int
+    cedula: str
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    telefono: Optional[str] = None
+    observaciones: Optional[str] = None
+    es_simpatizante: bool
+    en_padron_anr: bool
+    en_padron_plra: bool
+    fecha_registro: datetime
+
+    class Config:
+        from_attributes = True
+
+class ActividadBase(BaseModel):
+    titulo: str
+    tipo: Optional[str] = None
+    fecha_programada: Optional[datetime] = None
+    fecha_prevista: Optional[datetime] = None
+    observaciones: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+    radio_influencia: float = 100.0
+    estado: str = 'pendiente'
+
+class ActividadCreate(ActividadBase):
+    pass
+
+class ActividadResponse(ActividadBase):
+    id: int
+    creado_por: int
+    fecha_registro: datetime
+    fotos: List[ActividadFotoResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+class ParticipanteCreate(BaseModel):
+    cedula: str
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    telefono: Optional[str] = None
+    observaciones: Optional[str] = None

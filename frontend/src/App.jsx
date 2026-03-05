@@ -15,6 +15,8 @@ import LogisticaControlPanel from './components/LogisticaControlPanel.jsx';
 import ChoferGestion from './components/ChoferGestion.jsx';
 import ChoferTracking from './components/ChoferTracking.jsx';
 import LandingPage from "./pages/LandingPage.jsx";
+import PlraPadronConsult from "./components/PlraPadronConsult.jsx";
+import ActivitiesManagement from "./components/ActivitiesManagement.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -63,7 +65,13 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
 function MainDashboard({ user, onLogout }) {
   const [tab, setTab] = useState("usuarios");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [collapsedCategories, setCollapsedCategories] = useState({});
+  // Inicializar todas las categorías como colapsadas
+  const [collapsedCategories, setCollapsedCategories] = useState({
+    "Administración": true,
+    "Captación": true,
+    "Logística": true,
+    "Extras": true
+  });
 
   const toggleCategory = (categoryTitle) => {
     setCollapsedCategories(prev => ({
@@ -74,23 +82,35 @@ function MainDashboard({ user, onLogout }) {
 
   const menuGroups = [
     {
+      title: "Captación", // Primer subgrupo de Gestión Electoral
+      items: [
+        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'intendente', 'concejal', 'referente'] },
+        { id: 'tablero', label: 'Mi Tablero', icon: '📈', roles: ['admin', 'intendente', 'concejal', 'referente'] },
+        { id: 'actividades', label: 'Actividades', icon: '🚩', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'analisis_historico', label: 'Análisis de Resultados', icon: '📊', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'padron_impresion', label: 'Impresión de Padrón', icon: '🖨️', roles: ['admin', 'intendente', 'concejal', 'referente'] },
+      ]
+    },
+    {
+      title: "Logística", // Segundo subgrupo de Gestión Electoral
+      items: [
+        { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente'] },
+        { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente'] },
+      ]
+    },
+    {
+      title: "Extras",
+      items: [
+        { id: 'padron_plra', label: 'Padrón PLRA', icon: '🔵', roles: ['admin', 'intendente', 'concejal'] },
+      ]
+    },
+    {
       title: "Administración",
       items: [
         { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Equipo', icon: '👤', roles: ['admin', 'intendente', 'concejal'] },
         { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin'] },
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin'] },
-      ]
-    },
-    {
-      title: "Gestión Electoral",
-      items: [
-        { id: 'captacion', label: 'Cargar Simpatizantes', icon: '🗳️', roles: ['admin', 'intendente', 'concejal', 'referente'] },
-        { id: 'tablero', label: 'Mi Tablero', icon: '📈', roles: ['admin', 'intendente', 'concejal', 'referente'] },
-        { id: 'geografia', label: 'Panel Georreferenciado', icon: '🗺️', roles: ['admin', 'intendente', 'concejal'] },
-        { id: 'analisis_historico', label: 'Análisis de Resultados', icon: '📊', roles: ['admin', 'intendente', 'concejal'] },
-        { id: 'padron_impresion', label: 'Impresión de Padrón', icon: '🖨️', roles: ['admin', 'intendente', 'concejal', 'referente'] },
-        { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente'] },
-        { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente'] },
       ]
     }
   ];
@@ -161,11 +181,13 @@ function MainDashboard({ user, onLogout }) {
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
             {tab === "captacion" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <VoterRegistration user={user} />}
             {tab === "tablero" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <CandidateDashboard user={user} />}
+            {tab === "actividades" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <ActivitiesManagement user={user} />}
             {tab === "geografia" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <GeoDashboard user={user} />}
             {tab === "analisis_historico" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <HistoricalAnalysis user={user} />}
             {tab === "padron_impresion" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <PadronImpresion user={user} />}
             {tab === "logistica" && ['admin', 'intendente'].includes(user.rol) && <LogisticaControlPanel user={user} />}
             {tab === "choferes" && ['admin', 'intendente'].includes(user.rol) && <ChoferGestion user={user} />}
+            {tab === "padron_plra" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <PlraPadronConsult />}
           </div>
         </main>
       </div>

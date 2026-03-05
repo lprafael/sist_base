@@ -56,9 +56,15 @@ const LogisticaControlPanel = ({ user }) => {
 
                 // Set initial view to first chofer or voter if not set
                 if (loading && newData.choferes.length > 0) {
-                    setViewPort([newData.choferes[0].lat, newData.choferes[0].lng]);
+                    const firstChofer = newData.choferes.find(c => c.lat !== null && c.lng !== null);
+                    if (firstChofer) {
+                        setViewPort([firstChofer.lat, firstChofer.lng]);
+                    }
                 } else if (loading && newData.votantes.length > 0) {
-                    setViewPort([newData.votantes[0].lat, newData.votantes[0].lng]);
+                    const firstWithCoords = newData.votantes.find(v => v.lat !== null && v.lng !== null);
+                    if (firstWithCoords) {
+                        setViewPort([firstWithCoords.lat, firstWithCoords.lng]);
+                    }
                 }
             }
         } catch (err) {
@@ -104,8 +110,8 @@ const LogisticaControlPanel = ({ user }) => {
                     <MapContainer center={viewPort} zoom={13} style={{ height: '100%', width: '100%' }}>
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-                        {/* Choferes */}
-                        {data.choferes.map(c => (
+                        {/* Choferes con ubicación activa */}
+                        {data.choferes.filter(c => c.lat !== null && c.lng !== null).map(c => (
                             <Marker key={`c-${c.id}`} position={[c.lat, c.lng]} icon={carIcon}>
                                 <Popup>
                                     <strong>Chofer: {c.nombre}</strong><br />
@@ -115,8 +121,8 @@ const LogisticaControlPanel = ({ user }) => {
                             </Marker>
                         ))}
 
-                        {/* Votantes */}
-                        {data.votantes.map(v => (
+                        {/* Votantes con coordenadas */}
+                        {data.votantes.filter(v => v.lat !== null && v.lng !== null).map(v => (
                             <Marker
                                 key={`v-${v.id}`}
                                 position={[v.lat, v.lng]}

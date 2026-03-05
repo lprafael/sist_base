@@ -5,8 +5,8 @@ from sqlalchemy import func, and_, or_
 from typing import List, Optional
 
 from database import get_session
-from models import Padron, Referente, PosibleVotante, Candidato, Usuario, AnrPadron, RefDepartamento, RefDistrito, RefSeccional, RefLocal
-from schemas import PadronResponse, CaptacionCreate, CaptacionUpdate, PosibleVotanteResponse, DashboardCandidatoResponse, ResumenReferente, AnrPadronResponse
+from models import Padron, Referente, PosibleVotante, Candidato, Usuario, AnrPadron, RefDepartamento, RefDistrito, RefSeccional, RefLocal, PlraPadron
+from schemas import PadronResponse, CaptacionCreate, CaptacionUpdate, PosibleVotanteResponse, DashboardCandidatoResponse, ResumenReferente, AnrPadronResponse, PlraPadronResponse
 from security import get_current_user
 
 router = APIRouter(prefix="/api/electoral", tags=["Gestión Electoral"])
@@ -69,9 +69,10 @@ async def search_padron(
         filters.append(AnrPadron.cedula.ilike(f"%{search_terms[0]}%"))
     else:
         for term in search_terms:
+            search_pattern = f"%{term}%"
             filters.append(or_(
-                AnrPadron.nombres.ilike(f"%{term}%"),
-                AnrPadron.apellidos.ilike(f"%{term}%")
+                func.public.f_unaccent(func.lower(AnrPadron.nombres)).ilike(func.public.f_unaccent(func.lower(search_pattern))),
+                func.public.f_unaccent(func.lower(AnrPadron.apellidos)).ilike(func.public.f_unaccent(func.lower(search_pattern)))
             ))
 
     if departamento_id:
@@ -84,6 +85,36 @@ async def search_padron(
     
     result = await session.execute(stmt)
     return result.all()
+
+@router.get("/plra/search", response_model=List[PlraPadronResponse])
+async def search_plra(
+    query: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Busca personas en el padrón PLRA por cédula o nombre"""
+    if len(query) < 3:
+        return []
+
+    stmt = select(PlraPadron)
+    search_terms = query.strip().split()
+    if not search_terms:
+        return []
+
+    filters = []
+    if len(search_terms) == 1 and search_terms[0].isdigit():
+        filters.append(PlraPadron.cedula.ilike(f"%{search_terms[0]}%"))
+    else:
+        for term in search_terms:
+            search_pattern = f"%{term}%"
+            filters.append(or_(
+                func.public.f_unaccent(func.lower(PlraPadron.nombre)).ilike(func.public.f_unaccent(func.lower(search_pattern))),
+                func.public.f_unaccent(func.lower(PlraPadron.apellido)).ilike(func.public.f_unaccent(func.lower(search_pattern)))
+            ))
+
+    stmt = stmt.where(and_(*filters)).limit(50)
+    result = await session.execute(stmt)
+    return result.scalars().all()
 
 @router.post("/captacion")
 async def register_captacion(
