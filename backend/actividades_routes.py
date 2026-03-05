@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import joinedload
 from typing import List, Optional
 import os
 import shutil
@@ -28,13 +29,13 @@ async def list_actividades(
     session: AsyncSession = Depends(get_session),
     current_user: Usuario = Depends(get_current_user)
 ):
-    stmt = select(Actividad)
-    # Si no es admin, filtramos por las que él creó o las de su zona (podemos extender esto después)
+    stmt = select(Actividad).options(joinedload(Actividad.fotos))
+    # Si no es admin, filtramos por las que él creó o las de su zona
     if current_user.rol != 'admin':
         stmt = stmt.where(Actividad.creado_por == current_user.id)
     
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return result.unique().scalars().all()
 
 @router.post("/", response_model=ActividadResponse)
 async def create_actividad(
@@ -57,7 +58,9 @@ async def get_actividad(
     session: AsyncSession = Depends(get_session),
     current_user: Usuario = Depends(get_current_user)
 ):
-    result = await session.execute(select(Actividad).where(Actividad.id == actividad_id))
+    result = await session.execute(
+        select(Actividad).options(joinedload(Actividad.fotos)).where(Actividad.id == actividad_id)
+    )
     act = result.scalar_one_or_none()
     if not act:
         raise HTTPException(status_code=404, detail="Actividad no encontrada")
