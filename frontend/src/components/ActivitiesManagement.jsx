@@ -27,8 +27,8 @@ const ActivitiesManagement = ({ user }) => {
         fecha_programada: '',
         fecha_prevista: '',
         observaciones: '',
-        latitud: -25.33, // Default San Lorenzo approx
-        longitud: -57.52,
+        latitud: null,
+        longitud: null,
         radio_influencia: 200,
         estado: 'pendiente'
     });
