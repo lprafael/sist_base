@@ -86,19 +86,25 @@ const ActivitiesManagement = ({ user }) => {
 
     const handleCreateActivity = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        const cleanData = {
+            ...formData,
+            fecha_programada: formData.fecha_programada || null,
+            fecha_prevista: formData.fecha_prevista || null
+        };
+
         try {
             const response = await authFetch('/actividades/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(cleanData)
             });
             if (response.ok) {
                 setMessage({ type: 'success', text: 'Actividad creada correctamente.' });
                 setIsCreating(false);
                 fetchActivities();
             } else {
-                setMessage({ type: 'error', text: 'Error al crear la actividad.' });
+                const errData = await response.json();
+                setMessage({ type: 'error', text: errData.detail || 'Error al crear la actividad.' });
             }
         } catch (error) {
             setMessage({ type: 'error', text: 'Error de servidor.' });
@@ -154,18 +160,73 @@ const ActivitiesManagement = ({ user }) => {
         }
     };
 
-    // Component to handle Map click to set location
-    const LocationPicker = () => {
-        useMapEvents({
+    // Component to handle Map tools (center and radius dragging)
+    const ActivityMapTools = () => {
+        const map = useMapEvents({
             click(e) {
-                setFormData(prev => ({
-                    ...prev,
-                    latitud: e.latlng.lat,
-                    longitud: e.latlng.lng
-                }));
+                if (!formData.latitud) {
+                    setFormData(prev => ({
+                        ...prev,
+                        latitud: e.latlng.lat,
+                        longitud: e.latlng.lng
+                    }));
+                }
             },
         });
-        return formData.latitud ? <Marker position={[formData.latitud, formData.longitud]} /> : null;
+
+        if (!formData.latitud) return null;
+
+        const center = [formData.latitud, formData.longitud];
+
+        // Calculate a point at the edge of the circle to place the "radius handle"
+        // We move roughly 'radio_influencia' meters east
+        const radiusInDegrees = formData.radio_influencia / 111320; // very rough approx for SL
+        const handlePos = [formData.latitud, formData.longitud + (radiusInDegrees / Math.cos(formData.latitud * Math.PI / 180))];
+
+        return (
+            <>
+                {/* Center Marker - Draggable */}
+                <Marker
+                    position={center}
+                    draggable={true}
+                    eventHandlers={{
+                        dragend(e) {
+                            const marker = e.target;
+                            const position = marker.getLatLng();
+                            setFormData(prev => ({ ...prev, latitud: position.lat, longitud: position.lng }));
+                        },
+                    }}
+                />
+
+                {/* Geofence Circle */}
+                <Circle
+                    center={center}
+                    radius={formData.radio_influencia}
+                    pathOptions={{ color: '#2b6cb0', fillColor: '#2b6cb0', fillOpacity: 0.2 }}
+                />
+
+                {/* Radius Adjustment Handle - Draggable */}
+                <Marker
+                    position={handlePos}
+                    draggable={true}
+                    icon={L.divIcon({
+                        className: 'radius-handle',
+                        html: '<div style="background: white; border: 2px solid #2b6cb0; width: 12px; height: 12px; border-radius: 50%; cursor: ew-resize;"></div>',
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6],
+                    })}
+                    eventHandlers={{
+                        drag(e) {
+                            const marker = e.target;
+                            const newPos = marker.getLatLng();
+                            const centerLatLng = L.latLng(formData.latitud, formData.longitud);
+                            const newRadius = centerLatLng.distanceTo(newPos);
+                            setFormData(prev => ({ ...prev, radio_influencia: Math.round(newRadius) }));
+                        },
+                    }}
+                />
+            </>
+        );
     };
 
     return (
@@ -246,28 +307,30 @@ const ActivitiesManagement = ({ user }) => {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Radio de Influencia (metros)</label>
-                                        <input
-                                            type="number"
-                                            value={formData.radio_influencia}
-                                            onChange={e => setFormData({ ...formData, radio_influencia: parseInt(e.target.value) })}
-                                        />
+                                        <label>Radio de Influencia (metros): <strong>{formData.radio_influencia}m</strong></label>
+                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                            <input
+                                                type="range" min="50" max="2500" step="50"
+                                                style={{ flex: 1 }}
+                                                value={formData.radio_influencia}
+                                                onChange={e => setFormData({ ...formData, radio_influencia: parseInt(e.target.value) })}
+                                            />
+                                            <input
+                                                type="number"
+                                                style={{ width: '100px' }}
+                                                value={formData.radio_influencia}
+                                                onChange={e => setFormData({ ...formData, radio_influencia: parseInt(e.target.value) })}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="form-group">
                                     <label>Ubicación y Área de Cobertura (Haz clic en el mapa)</label>
-                                    <div style={{ height: '350px', width: '100%', marginBottom: '1.5rem', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                                    <div style={{ height: '350px', width: '100%', marginBottom: '1.2rem', borderRadius: '12px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
                                         <MapContainer center={[-25.33, -57.52]} zoom={13} style={{ height: '100%' }}>
                                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                            <LocationPicker />
-                                            {formData.latitud && (
-                                                <Circle
-                                                    center={[formData.latitud, formData.longitud]}
-                                                    radius={formData.radio_influencia}
-                                                    pathOptions={{ color: '#2b6cb0', fillColor: '#2b6cb0', fillOpacity: 0.2 }}
-                                                />
-                                            )}
+                                            <ActivityMapTools />
                                         </MapContainer>
                                     </div>
                                 </div>
