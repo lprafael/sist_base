@@ -16,7 +16,7 @@ from schemas import (
 )
 from security import get_current_user
 
-router = APIRouter(prefix="/actividades", tags=["Actividades"])
+router = APIRouter(prefix="/api/actividades", tags=["Actividades"])
 
 # Directorio para subir fotos
 UPLOAD_DIR = "uploads/actividades"
