@@ -9,7 +9,7 @@ from datetime import datetime
 import uuid
 
 from database import get_session
-from models import Actividad, ActividadParticipante, ActividadFoto, AnrPadron, PlraPadron, Usuario
+from models import Actividad, ActividadParticipante, ActividadFoto, AnrPadron, PlraPadron, Usuario, PosibleVotante
 from schemas import (
     ActividadResponse, ActividadCreate, ActividadParticipanteResponse, 
     ParticipanteCreate, ActividadFotoResponse
@@ -90,11 +90,16 @@ async def add_participante(
         res_plra = await session.execute(select(PlraPadron).where(PlraPadron.cedula == data.cedula))
         en_plra = res_plra.scalar_one_or_none() is not None
 
+    # 3. ¿Es ya nuestro simpatizante (PosibleVotante)?
+    res_simpa = await session.execute(select(PosibleVotante).where(PosibleVotante.cedula_votante == data.cedula))
+    es_simpa = res_simpa.scalar_one_or_none() is not None
+
     nuevo = ActividadParticipante(
         **data.dict(),
         actividad_id=actividad_id,
         en_padron_anr=en_anr,
-        en_padron_plra=en_plra
+        en_padron_plra=en_plra,
+        es_simpatizante=es_simpa
     )
     session.add(nuevo)
     await session.commit()
