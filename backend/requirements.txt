@@ -20,3 +20,4 @@ jinja2
 python-slugify
 google-auth
 google-api-python-client
+requests
