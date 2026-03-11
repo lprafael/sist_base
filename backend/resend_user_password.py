@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models import Usuario
@@ -17,6 +17,7 @@ class ResendPasswordRequest(BaseModel):
 @router.post("/resend-password")
 async def resend_user_password(
     data: ResendPasswordRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session)
 ):
     """Genera una nueva contraseña temporal y la envía al usuario por email"""
@@ -30,8 +31,9 @@ async def resend_user_password(
     temp_password = ''.join(secrets.choice(alphabet) for _ in range(10))
     user.hashed_password = get_password_hash(temp_password)
     await session.commit()
-    # Enviar email
-    email_service.send_welcome_email(
+    # Enviar email en segundo plano
+    background_tasks.add_task(
+        email_service.send_welcome_email,
         user.email,
         user.username,
         temp_password,

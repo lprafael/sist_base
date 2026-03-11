@@ -2,20 +2,20 @@ version: '3.8'
 
 services:
   # Base de Datos con PostGIS Integrado
-  db:
-    image: postgis/postgis:15-3.3-alpine
-    container_name: SIGEL-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
-      - POSTGRES_DB=SIGEL
-    ports:
-      - "5434:5432" # Mapeado a 5434 para evitar conflicto con tu Postgres local o anterior
-    volumes:
-      - C:\Users\support\Documents\sigel_db_data:/var/lib/postgresql/data
-    networks:
-      - SIGEL-network
+  # db:
+  #   image: postgis/postgis:15-3.3-alpine
+  #   container_name: SIGEL-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=admin
+  #     - POSTGRES_DB=SIGEL
+  #   ports:
+  #     - "5434:5432" # Mapeado a 5434 para evitar conflicto con tu Postgres local o anterior
+  #   volumes:
+  #     - C:\Users\support\Documents\sigel_db_data:/var/lib/postgresql/data
+  #   networks:
+  #     - SIGEL-network
 
   backend:
     build:
@@ -24,13 +24,14 @@ services:
     container_name: SIGEL-backend
     ports:
       - "8002:8001"
-    depends_on:
-      - db
+    # depends_on:
+    #   - db
     environment:
       - PORT=8001
       - PYTHONUNBUFFERED=1
       # Ahora apunta al contenedor 'db' interno
-      - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/SIGEL
+      # Ahora apunta al PostgreSQL de Windows
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@host.docker.internal:5432/SIGEL
     env_file:
       - ./backend/.env
     volumes:
@@ -53,8 +54,8 @@ services:
     container_name: SIGEL-frontend
     ports:
       - "3002:80"
-    depends_on:
-      - backend
+    # depends_on:
+    #   - backend
     restart: unless-stopped
     networks:
       - SIGEL-network

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const LandingPage = () => {
+const LandingPage = ({ user }) => {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -46,7 +46,7 @@ const LandingPage = () => {
         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e3a8a', letterSpacing: '-1px' }}>
           SIGEL
         </div>
-        <Link to="/login" style={{
+        <Link to={user ? "/dashboard" : "/login"} style={{
           padding: '10px 24px',
           background: '#2563eb',
           color: 'white',
@@ -56,7 +56,7 @@ const LandingPage = () => {
           transition: 'all 0.3s ease',
           boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)'
         }} className="login-nav-btn">
-          Ingresar al Sistema
+          {user ? "Ir al Panel" : "Ingresar al Sistema"}
         </Link>
       </nav>
 
@@ -93,7 +93,7 @@ const LandingPage = () => {
             Optimiza tu logística, detecta redes familiares y visualiza tu territorio en tiempo real.
           </p>
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-            <Link to="/login" className="btn-hero-primary" style={{
+            <Link to={user ? "/dashboard" : "/login"} className="btn-hero-primary" style={{
               padding: '18px 40px',
               fontSize: '1.1rem',
               fontWeight: 700,
@@ -106,7 +106,7 @@ const LandingPage = () => {
               gap: '10px',
               boxShadow: '0 10px 25px rgba(37, 99, 235, 0.4)'
             }}>
-              Empezar Ahora <ArrowRight size={20} />
+              {user ? "Ir al Panel Principal" : "Empezar Ahora"} <ArrowRight size={20} />
             </Link>
           </div>
         </motion.div>
@@ -235,7 +235,7 @@ const LandingPage = () => {
               <Database size={20} /> <span style={{ fontWeight: 600 }}>Cálculo de Red Familiar</span>
             </div>
             <div style={{ fontStyle: 'italic', marginBottom: '20px', color: 'rgba(255,255,255,0.7)' }}>
-              "El sistema ha detectado 3 parientes de Rafael López en el mismo distrito no registrados aún."
+              "El sistema ha detectado 3 parientes de Juan Pérez en el mismo distrito no registrados aún."
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} /></div>

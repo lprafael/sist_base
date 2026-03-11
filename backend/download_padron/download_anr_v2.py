@@ -218,7 +218,8 @@ async def main():
     parser.add_argument("--concurrency", type=int, default=50, help="Workers HTTP simultaneos")
     parser.add_argument("--batch", type=int, default=1000, help="Registros por INSERT batch")
     parser.add_argument("--recreate", action="store_true")
-    parser.add_argument("--skip-existing", action="store_true", help="Omite CIs ya descargadas")
+    parser.add_argument("--skip-existing", action="store_true", help="Omite CIs ya descargadas en el rango")
+    parser.add_argument("--fill-gaps", action="store_true", help="Detecta y descarga TODOS los huecos automaticamente")
     parser.add_argument("--auto-resume", action="store_true", help="Inicia desde max(cedula) + 1")
     parser.add_argument("--test", action="store_true", help="Prueba con 100 CIs")
     args = parser.parse_args()
@@ -226,23 +227,53 @@ async def main():
     pool = await asyncpg.create_pool(DB_DSN, min_size=5, max_size=20)
     await init_db(pool, args.recreate)
 
-    # Lógica de Auto-Resume
-    start_val = args.start
-    if args.auto_resume:
+    # Identificar cedulas a descargar
+    cedulas = []
+
+    if args.fill_gaps:
+        logger.info("Modo FILL-GAPS activado. Analizando faltantes en toda la base de datos...")
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT cedula::integer FROM electoral.anr_padron_2026 ORDER BY cedula::integer")
+        
+        existentes_list = [r[0] for r in rows]
+        if not existentes_list:
+            logger.warning("Base de datos vacia. Usando rango default.")
+            cedulas = list(range(args.start, args.end + 1))
+        else:
+            # Encontrar huecos entre el mínimo y el máximo actual
+            # O simplemente barrer hasta un tope razonable (ej. 9.5M)
+            max_tope = 9500000
+            existentes_set = set(existentes_list)
+            min_ci = existentes_list[0]
+            max_ci = existentes_list[-1]
+            
+            logger.info(f"Rango en DB: {min_ci:,} a {max_ci:,}. Buscando huecos...")
+            
+            # Generamos faltantes en el bloque conocido + hasta el tope
+            rango_completo = range(min_ci, max_tope + 1)
+            cedulas = [c for c in rango_completo if c not in existentes_set]
+            
+            logger.info(f"Detectados {len(cedulas):,} cedulas faltantes.")
+
+    elif args.auto_resume:
         max_ci, total_db = await get_max_cedula(pool)
         if max_ci > 0:
             start_val = max_ci + 1
             logger.info(f"Auto-resume activado. Max CI en DB: {max_ci:,} (Total: {total_db:,}). Iniciando desde: {start_val:,}")
         else:
             logger.info("Auto-resume activado pero la base de datos esta vacia. Iniciando desde el default.")
-
-    if args.test:
-        cedulas = list(range(start_val, start_val + 100))
-    else:
         cedulas = list(range(start_val, args.end + 1))
 
-    if args.skip_existing:
-        existing = await get_existing_cedulas(pool, start_val, args.end)
+    elif args.test:
+        cedulas = list(range(args.start, args.start + 100))
+    else:
+        # Modo por defecto (rango manual) si no fue llenado por fill_gaps
+        if not cedulas:
+            cedulas = list(range(args.start, args.end + 1))
+
+    # Si se pide skip-existing y NO estamos en modo gaps (que ya lo hace), filtramos
+    if args.skip_existing and not args.fill_gaps:
+        existing = await get_existing_cedulas(pool, args.start, args.end)
         cedulas = [c for c in cedulas if c not in existing]
         logger.info(f"Quedan {len(cedulas)} cedulas por descargar.")
 

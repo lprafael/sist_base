@@ -31,6 +31,7 @@ from typing import List, Dict, Any, Optional
 # ============================================
 from fastapi import FastAPI, HTTPException, Depends, Response, status, Request
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -76,11 +77,29 @@ from database import engine, SessionLocal, get_session
 # ============================================
 # 5. INICIALIZACIÓN DE FASTAPI
 # ============================================
+from fastapi.exceptions import RequestValidationError
+
 app = FastAPI(
     title="SIGEL - Sistema de Gestión Electoral",
     description="API para la gestión electoral, captación de votantes y logística de campaña",
     version="1.0.0"
 )
+
+# Definir la carpeta de subidas y asegurarse de que exista
+os.makedirs("uploads/actividades", exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+    body = await request.body()
+    logger.error(f"422 Validation Error: {exc.errors()}")
+    logger.error(f"Body: {body.decode()}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors(), "body": body.decode()},
+    )
 
 # Configuración de CORS - Debe estar antes de cualquier ruta
 app.add_middleware(
@@ -131,6 +150,8 @@ from geo_routes import router as geo_router
 from electoral_analysis import router as electoral_analysis_router
 from logistica_routes import router as logistica_router
 from actividades_routes import router as actividades_router
+from public_routes import router as public_router
+from inteligencia_routes import router as inteligencia_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
 app.include_router(auth_router)
@@ -143,8 +164,8 @@ app.include_router(geo_router)
 app.include_router(electoral_analysis_router)
 app.include_router(logistica_router)
 app.include_router(actividades_router)
-
-
+app.include_router(public_router) # Registrar Rutas publicas
+app.include_router(inteligencia_router)  # Inteligencia Territorial
 
 
 # ============================================

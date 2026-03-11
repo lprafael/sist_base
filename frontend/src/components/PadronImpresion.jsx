@@ -27,7 +27,7 @@ const PadronImpresion = ({ user }) => {
             fetchDistritos(user.departamento_id);
         }
         if (user.distrito_id) {
-            fetchLocales(user.distrito_id);
+            fetchLocales(user.distrito_id, user.departamento_id);
             fetchDistritoStats(user.distrito_id);
         }
     }, [user]);
@@ -75,9 +75,13 @@ const PadronImpresion = ({ user }) => {
         } catch (e) { console.error(e); }
     };
 
-    const fetchLocales = async (distId) => {
+    const fetchLocales = async (distId, depId = null) => {
         try {
-            const res = await authFetch(`/electoral/locales?distrito_id=${distId}`);
+            const actualDepId = depId || filters.departamento_id || user.departamento_id;
+            let url = `/electoral/locales?distrito_id=${distId}`;
+            if (actualDepId) url += `&departamento_id=${actualDepId}`;
+
+            const res = await authFetch(url);
             if (res.ok) {
                 const data = await res.json();
                 setOptions(prev => ({ ...prev, locales: data }));
@@ -105,7 +109,7 @@ const PadronImpresion = ({ user }) => {
             fetchDistritos(value);
         } else if (name === 'distrito_id') {
             setFilters(prev => ({ ...prev, local_id: '', mesa: '' }));
-            fetchLocales(value);
+            fetchLocales(value, filters.departamento_id);
             fetchDistritoStats(value);
         } else if (name === 'local_id') {
             setFilters(prev => ({ ...prev, mesa: '' }));
@@ -122,6 +126,7 @@ const PadronImpresion = ({ user }) => {
         setMessage('');
         try {
             let url = `/electoral/padron/reporte?distrito_id=${filters.distrito_id}`;
+            if (filters.departamento_id) url += `&departamento_id=${filters.departamento_id}`;
             if (filters.local_id) url += `&local_id=${filters.local_id}`;
             if (filters.mesa) url += `&mesa=${filters.mesa}`;
 

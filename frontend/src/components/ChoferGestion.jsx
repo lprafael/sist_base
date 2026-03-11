@@ -6,12 +6,14 @@ const ChoferGestion = ({ user }) => {
     const [choferes, setChoferes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const canManageDrivers = ['admin', 'intendente', 'concejal'].includes(user?.rol || user?.role);
+
     const [nuevoChofer, setNuevoChofer] = useState({
         nombre: '',
         telefono: '',
         vehiculo_info: '',
-        departamento_id: user.departamento_id || 11,
-        distrito_id: user.distrito_id || 27
+        departamento_id: user.departamento_id || '',
+        distrito_id: user.distrito_id || ''
     });
 
     useEffect(() => {
@@ -19,6 +21,10 @@ const ChoferGestion = ({ user }) => {
     }, []);
 
     const fetchChoferes = async () => {
+        if (!canManageDrivers) {
+            setLoading(false);
+            return;
+        }
         try {
             const res = await authFetch(`/api/logistica/choferes`);
             const data = await res.json();
@@ -27,6 +33,23 @@ const ChoferGestion = ({ user }) => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("¿Estás seguro de eliminar este chofer del sistema?")) return;
+        try {
+            const res = await authFetch(`/api/logistica/choferes/${id}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                fetchChoferes();
+            } else {
+                const err = await res.json();
+                alert(err.detail || "Error al eliminar");
+            }
+        } catch (err) {
+            alert("Error de conexión");
         }
     };
 
@@ -87,11 +110,11 @@ const ChoferGestion = ({ user }) => {
         `);
         printWindow.document.close();
 
-        // Esperar a que cargue la imagen antes de imprimir
+        // Esperar a que cargue la imagen
         const img = printWindow.document.querySelector('img');
         img.onload = () => {
-            printWindow.print();
-            // printWindow.close(); // Opcional
+            console.log("Ticket QR listo");
+            // printWindow.print(); // Se comenta por solicitud del usuario: Solo abrir ventana, no imprimir aún
         };
     };
 
@@ -99,9 +122,11 @@ const ChoferGestion = ({ user }) => {
         <div className="logistica-container">
             <header className="section-header">
                 <h2>📇 Gestión de Choferes</h2>
-                <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-                    {showForm ? 'Cancelar' : '+ Nuevo Chofer'}
-                </button>
+                {canManageDrivers && (
+                    <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+                        {showForm ? 'Cancelar' : '+ Nuevo Chofer'}
+                    </button>
+                )}
             </header>
 
             {showForm && (
@@ -139,48 +164,63 @@ const ChoferGestion = ({ user }) => {
                 </form>
             )}
 
-            <div className="choferes-list">
-                {loading ? <p>Cargando lista...</p> : (
-                    <table className="sigel-table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Vehículo</th>
-                                <th>Estado</th>
-                                <th>Última Conexión</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {choferes.map(c => (
-                                <tr key={c.id}>
-                                    <td>
-                                        <strong>{c.nombre}</strong><br />
-                                        <small>{c.telefono}</small>
-                                    </td>
-                                    <td>{c.vehiculo_info}</td>
-                                    <td>
-                                        <span className={`status-badge ${c.latitud ? 'online' : 'offline'}`}>
-                                            {c.latitud ? '📡 Operando' : '💤 Inactivo'}
-                                        </span>
-                                    </td>
-                                    <td>{c.ultima_conexion ? new Date(c.ultima_conexion).toLocaleString() : 'Nunca'}</td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '5px' }}>
-                                            <button className="btn-small" onClick={() => copyLink(c.token_seguimiento)}>
-                                                🔗 Copiar
-                                            </button>
-                                            <button className="btn-small" style={{ background: '#3b82f6', color: 'white', borderColor: '#3b82f6' }} onClick={() => printQR(c)}>
-                                                🖨️ Imprimir QR
-                                            </button>
-                                        </div>
-                                    </td>
+            {!canManageDrivers ? (
+                <div className="alert warning">No tienes permisos para gestionar choferes. Esta sección es exclusiva para candidatos y administradores.</div>
+            ) : (
+                <div className="choferes-list">
+                    {loading ? <p>Cargando lista...</p> : (
+                        <table className="sigel-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Vehículo</th>
+                                    <th>Responsable</th>
+                                    <th>Estado</th>
+                                    <th>Última Conexión</th>
+                                    <th>Acciones</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+                            </thead>
+                            <tbody>
+                                {choferes.map(c => (
+                                    <tr key={c.id}>
+                                        <td>
+                                            <strong>{c.nombre}</strong><br />
+                                            <small>{c.telefono}</small>
+                                        </td>
+                                        <td>{c.vehiculo_info}</td>
+                                        <td>
+                                            <span className="owner-badge" style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                                {c.creador_nombre || 'Sistema'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className={`status-badge ${c.latitud ? 'online' : 'offline'}`}>
+                                                {c.latitud ? '📡 Operando' : '💤 Inactivo'}
+                                            </span>
+                                        </td>
+                                        <td>{c.ultima_conexion ? new Date(c.ultima_conexion).toLocaleString() : 'Nunca'}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', gap: '5px' }}>
+                                                <button className="btn-small" title="Copiar enlace de seguimiento" onClick={() => copyLink(c.token_seguimiento)}>
+                                                    🔗
+                                                </button>
+                                                <button className="btn-small" title="Imprimir QR" style={{ background: '#3b82f6', color: 'white', borderColor: '#3b82f6' }} onClick={() => printQR(c)}>
+                                                    🖨️
+                                                </button>
+                                                {(['admin', 'administrador'].includes(user?.rol?.toLowerCase() || user?.role?.toLowerCase()) || c.creado_por === (user?.user_id || user?.id)) && (
+                                                    <button className="btn-small" title="Eliminar Chofer" style={{ background: '#ef4444', color: 'white', borderColor: '#ef4444' }} onClick={() => handleDelete(c.id)}>
+                                                        🗑️
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

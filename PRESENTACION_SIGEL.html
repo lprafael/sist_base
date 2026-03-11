@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGEL - Sistema de Inteligencia y Gestión Electoral</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #0f172a;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--secondary);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+        }
+
+        /* Background Elements */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.1) 0%, transparent 40%);
+            z-index: -1;
+        }
+
+        /* Header */
+        header {
+            padding: 2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: absolute;
+            width: 100%;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(to right, #fff, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 0 5%;
+            position: relative;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.4) 0%, var(--secondary) 100%);
+        }
+
+        .hero-content {
+            max-width: 600px;
+            z-index: 2;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .hero h1 {
+            font-size: 4.5rem;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 50%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            max-width: 500px;
+        }
+
+        .hero-image-container {
+            position: absolute;
+            right: -100px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50vw;
+            height: 70vh;
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--glass-border);
+            z-index: 1;
+        }
+
+        .hero-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.8);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 10rem 5%;
+            background: var(--secondary);
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 5rem;
+        }
+
+        .section-title h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-title p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 3rem;
+            border-radius: 30px;
+            backdrop-filter: blur(20px);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: var(--accent);
+        }
+
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Day D Logistics Section */
+        .logistics {
+            padding: 8rem 5%;
+            background: linear-gradient(rgba(15, 23, 42, 1), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&q=80&w=2070') center/cover;
+            border-radius: 50px;
+            margin: 0 2rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .logistics-content {
+            display: flex;
+            align-items: center;
+            gap: 5rem;
+        }
+
+        .logistics-text {
+            flex: 1;
+        }
+
+        .logistics-stats {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .stat-item {
+            background: var(--glass);
+            padding: 2rem;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .stat-val {
+            display: block;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        /* Footer */
+        footer {
+            padding: 5rem 5% 2rem;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero {
+                flex-direction: column;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .hero-image-container {
+                position: relative;
+                right: 0;
+                top: 0;
+                transform: none;
+                width: 90vw;
+                height: 40vh;
+                margin-top: 3rem;
+            }
+
+            .hero h1 {
+                font-size: 3rem;
+            }
+
+            .logistics-content {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-glow"></div>
+
+    <header>
+        <div class="logo">SIGEL</div>
+        <nav>
+            <a href="#" class="btn" style="padding: 0.7rem 1.5rem; font-size: 0.9rem;">Solicitar Demo</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <span class="hero-badge">Tecnología Electoral Avanzada</span>
+            <h1>Campaña Ganadora Basada en Datos</h1>
+            <p>SIGEL es la plataforma definitiva diseñada para transformar su estrategia electoral. Inteligencia
+                artificial y análisis territorial al servicio de su victoria.</p>
+            <div class="hero-btns">
+                <a href="#funcionalidades" class="btn">Explorar Funcionalidades</a>
+            </div>
+        </div>
+        <div class="hero-image-container">
+            <img src="./sigel_hero_presentation.png" alt="SIGEL Interface Dashboard">
+        </div>
+    </section>
+
+    <section id="funcionalidades" class="features">
+        <div class="section-title">
+            <h2>Ecosistema de Gestión Total</h2>
+            <p>Herramientas modulares integradas para cada fase de la campaña electoral.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon">🤝</div>
+                <h3>Captación Inteligente</h3>
+                <p>Integración directa con el padrón ANR 2026. Registre grados de confianza, ubicación exacta y
+                    necesidades de movilidad de sus simpatizantes.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🗺️</div>
+                <h3>Inteligencia GIS</h3>
+                <p>Identifique zonas de mayor densidad de adherentes con mapas de calor interactivos. Análisis detallado
+                    por barrio, local y mesa de votación.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🛡️</div>
+                <h3>Jerarquía de Referentes</h3>
+                <p>Estructura Multinivel segura. Bloquee la visibilidad entre listas de referentes y centralice toda la
+                    información en tiempo real para el candidato.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🚀</div>
+                <h3>Control de Actividades</h3>
+                <p>Agenda proselitista dinámica con registro multimedia y geocercas para identificar áreas desatendidas
+                    y maximizar el impacto territorial.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🌐</div>
+                <h3>Página Web Automática</h3>
+                <p>Genere la Landing Page oficial del candidato sincronizada automáticamente con las actividades y
+                    logros de la campaña.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🔐</div>
+                <h3>Seguridad de Datos</h3>
+                <p>Auditoría total de acciones, cifrado de información sensible y cumplimiento de estándares de
+                    privacidad para proteger su estrategia.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="logistics">
+        <div class="logistics-content">
+            <div class="logistics-text">
+                <span class="hero-badge">Operativa Día D</span>
+                <h2 style="font-size: 2.5rem; margin-bottom: 2rem;">Logística en Tiempo Real</h2>
+                <p style="margin-bottom: 2rem;">Controle cada movimiento el día de las elecciones. Choferes conectados
+                    mediante códigos QR, rutas optimizadas y seguimiento GPS en vivo de movilizadores y votantes.</p>
+                <ul style="list-style: none; color: var(--text-muted);">
+                    <li style="margin-bottom: 0.8rem;">✓ Priorización de votantes inseguros a primera hora.</li>
+                    <li style="margin-bottom: 0.8rem;">✓ Reporte instantáneo de recolección de adherentes.</li>
+                    <li style="margin-bottom: 0.8rem;">✓ Gestión de flota y choferes dinámica.</li>
+                </ul>
+            </div>
+            <div class="logistics-stats">
+                <div class="stat-item">
+                    <span class="stat-val">100%</span>
+                    <span style="color: var(--text-muted);">Trazabilidad</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val">Real</span>
+                    <span style="color: var(--text-muted);">Time GPS</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val">QR</span>
+                    <span style="color: var(--text-muted);">Protocol</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val">Zero</span>
+                    <span style="color: var(--text-muted);">Duplicates</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="logo" style="margin-bottom: 2rem;">SIGEL 2026</div>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">Liderazgo, Inteligencia y Estrategia Territorial.</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">© 2026 SIGEL. Todos los derechos reservados.</p>
+    </footer>
+
+</body>
+
+</html>

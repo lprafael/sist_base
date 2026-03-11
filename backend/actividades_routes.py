@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, or_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 import os
 import shutil
@@ -10,9 +10,9 @@ from datetime import datetime
 import uuid
 
 from database import get_session
-from models import Actividad, ActividadParticipante, ActividadFoto, AnrPadron, PlraPadron, Usuario, PosibleVotante
+from models import Actividad, ActividadParticipante, ActividadFoto, AnrPadron, PlraPadron, Usuario
 from schemas import (
-    ActividadResponse, ActividadCreate, ActividadParticipanteResponse, 
+    ActividadResponse, ActividadCreate, ActividadUpdate, ActividadParticipanteResponse, 
     ParticipanteCreate, ActividadFotoResponse
 )
 from security import get_current_user
@@ -29,13 +29,13 @@ async def list_actividades(
     session: AsyncSession = Depends(get_session),
     current_user: Usuario = Depends(get_current_user)
 ):
-    stmt = select(Actividad).options(joinedload(Actividad.fotos))
+    stmt = select(Actividad).options(selectinload(Actividad.fotos))
     # Si no es admin, filtramos por las que él creó o las de su zona
-    if current_user.rol != 'admin':
-        stmt = stmt.where(Actividad.creado_por == current_user.id)
+    if current_user.get('role') != 'admin':
+        stmt = stmt.where(Actividad.creado_por == current_user.get('user_id'))
     
     result = await session.execute(stmt)
-    return result.unique().scalars().all()
+    return result.scalars().all()
 
 @router.post("/", response_model=ActividadResponse)
 async def create_actividad(
@@ -45,11 +45,12 @@ async def create_actividad(
 ):
     nueva = Actividad(
         **actividad.dict(),
-        creado_por=current_user.id
+        creado_por=current_user.get('user_id')
     )
     session.add(nueva)
     await session.commit()
     await session.refresh(nueva)
+    nueva.fotos = [] # Durante creación siempre es vacío, lo seteamos manual para evitar lazy-load error
     return nueva
 
 @router.get("/{actividad_id}", response_model=ActividadResponse)
@@ -58,13 +59,57 @@ async def get_actividad(
     session: AsyncSession = Depends(get_session),
     current_user: Usuario = Depends(get_current_user)
 ):
-    result = await session.execute(
-        select(Actividad).options(joinedload(Actividad.fotos)).where(Actividad.id == actividad_id)
-    )
+    stmt = select(Actividad).where(Actividad.id == actividad_id).options(selectinload(Actividad.fotos))
+    result = await session.execute(stmt)
     act = result.scalar_one_or_none()
     if not act:
         raise HTTPException(status_code=404, detail="Actividad no encontrada")
     return act
+
+@router.put("/{actividad_id}", response_model=ActividadResponse)
+async def update_actividad(
+    actividad_id: int,
+    actividad: ActividadUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    stmt = select(Actividad).where(Actividad.id == actividad_id).options(selectinload(Actividad.fotos))
+    result = await session.execute(stmt)
+    act = result.scalar_one_or_none()
+    if not act:
+        raise HTTPException(status_code=404, detail="Actividad no encontrada")
+
+    # Solo admin o el creador pueden editar
+    if current_user.get('role') != 'admin' and act.creado_por != current_user.get('user_id'):
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar esta actividad")
+
+    update_data = actividad.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(act, key, value)
+
+    await session.commit()
+    await session.refresh(act)
+    return act
+
+@router.delete("/{actividad_id}")
+async def delete_actividad(
+    actividad_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    stmt = select(Actividad).where(Actividad.id == actividad_id)
+    result = await session.execute(stmt)
+    act = result.scalar_one_or_none()
+    if not act:
+        raise HTTPException(status_code=404, detail="Actividad no encontrada")
+
+    # Solo admin o el creador pueden eliminar
+    if current_user.get('role') != 'admin' and act.creado_por != current_user.get('user_id'):
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta actividad")
+
+    await session.delete(act)
+    await session.commit()
+    return {"message": "Actividad eliminada"}
 
 @router.post("/{actividad_id}/participantes", response_model=ActividadParticipanteResponse)
 async def add_participante(
@@ -93,16 +138,11 @@ async def add_participante(
         res_plra = await session.execute(select(PlraPadron).where(PlraPadron.cedula == data.cedula))
         en_plra = res_plra.scalar_one_or_none() is not None
 
-    # 3. ¿Es ya nuestro simpatizante (PosibleVotante)?
-    res_simpa = await session.execute(select(PosibleVotante).where(PosibleVotante.cedula_votante == data.cedula))
-    es_simpa = res_simpa.scalar_one_or_none() is not None
-
     nuevo = ActividadParticipante(
         **data.dict(),
         actividad_id=actividad_id,
         en_padron_anr=en_anr,
-        en_padron_plra=en_plra,
-        es_simpatizante=es_simpa
+        en_padron_plra=en_plra
     )
     session.add(nuevo)
     await session.commit()

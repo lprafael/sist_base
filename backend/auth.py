@@ -6,12 +6,15 @@ import string
 import os
 from datetime import datetime, timedelta
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 from sqlalchemy.future import select
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
+
+logger = logging.getLogger(__name__)
 
 from models import Usuario, PasswordReset, LogAcceso, EquiposAutorizados
 from schemas import (
@@ -155,6 +158,7 @@ async def login(
 async def google_login(
     data: GoogleLogin,
     request: Request,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session)
 ):
     """Inicio de sesión con Google OAuth2"""
@@ -204,7 +208,8 @@ async def google_login(
             # Usaremos el email configurado en el .env como remitente para recibir también la notificación
             admin_email = os.getenv("EMAIL_FROM")
             if admin_email:
-                email_service.send_admin_notification_email(
+                background_tasks.add_task(
+                    email_service.send_admin_notification_email,
                     admin_email=admin_email,
                     new_user_email=email,
                     new_user_name=full_name
@@ -295,6 +300,7 @@ async def logout(
 @router.post("/users", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
@@ -356,20 +362,31 @@ async def create_user(
     elif current_role != 'admin':
         superior_user = creator
 
-    # Territorio: si hay superior, se HEREDA obligatoriamente para concejales y referentes
+    # Gestión de Territorio:
+    # Prioridad 1: Si hay superior proporcionado/forzado, se HEREDA su territorio
+    # Prioridad 2: Si no hay superior, se usan los datos enviados en el request
+    # Prioridad 3: Fallback al territorio del creador (si tiene)
+    
     departamento_id = user_data.departamento_id
     distrito_id = user_data.distrito_id
-    
+
     if target_role in ["concejal", "referente"] and superior_user:
-        departamento_id = superior_user.departamento_id
-        distrito_id = superior_user.distrito_id
-    elif not departamento_id or not distrito_id:
-        # Fallback al creador si no se especificó y no hay superior explícito (admin creando sin superior)
-        departamento_id = departamento_id or (creator.departamento_id if creator else None)
-        distrito_id = distrito_id or (creator.distrito_id if creator else None)
+        # Solo sobreescribimos si el superior tiene territorio asignado
+        if superior_user.departamento_id is not None:
+            departamento_id = superior_user.departamento_id
+        if superior_user.distrito_id is not None:
+            distrito_id = superior_user.distrito_id
+    
+    # Si falta territorio, intentar fallback al creador (solo si no es admin)
+    if departamento_id is None or distrito_id is None:
+        if creator and (departamento_id is None or distrito_id is None):
+            if departamento_id is None:
+                departamento_id = creator.departamento_id
+            if distrito_id is None:
+                distrito_id = creator.distrito_id
 
     # Validaciones obligatorias
-    if target_role in ["intendente", "concejal", "referente"] and not distrito_id:
+    if target_role in ["intendente", "concejal", "referente"] and distrito_id is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"El rol '{target_role}' requiere un distrito asignado (ya sea explícito o por herencia de su superior)"
@@ -413,6 +430,8 @@ async def create_user(
             row = res_c.first()
             if row:
                 superior_referente_id = row[0]
+            else:
+                print(f"DEBUG: superior_user {superior_user.username} no tiene registro en electoral.referentes")
         
         nuevo_referente = Referente(
             id_usuario_sistema=new_user.id,
@@ -422,20 +441,24 @@ async def create_user(
             activo=True
         )
         session.add(nuevo_referente)
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception as e:
+            print(f"Error creando registro de referente: {str(e)}")
+            await session.rollback()
+            # No lanzamos error aquí porque el usuario ya se creó bien en sistema.usuarios
+            # pero es algo a investigar
 
 
     
-    # Enviar email con credenciales
-    try:
-        email_service.send_welcome_email(
-            user_data.email, 
-            user_data.username, 
-            password, 
-            user_data.rol
-        )
-    except Exception as e:
-         print(f"Error enviando email: {str(e)}")
+    # Enviar email con credenciales en segundo plano
+    background_tasks.add_task(
+        email_service.send_welcome_email,
+        user_data.email, 
+        user_data.username, 
+        password, 
+        user_data.rol
+    )
     
     await log_access(session, LogAccesoCreate(
         usuario_id=current_user["user_id"],
@@ -636,6 +659,115 @@ async def delete_user(
     )
     return {"message": "Usuario desactivado exitosamente"}
 
+@router.post("/users/{user_id}/reactivate")
+async def reactivate_user(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Reactivar un usuario desactivado"""
+    if current_user.get("role") != 'admin':
+        raise HTTPException(status_code=403, detail="Solo un administrador puede reactivar usuarios")
+        
+    result = await session.execute(select(Usuario).where(Usuario.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    user.activo = True
+    await session.commit()
+    
+    return {"message": "Usuario reactivado exitosamente"}
+
+@router.delete("/users/{user_id}/hard")
+async def hard_delete_user(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Eliminar usuario DEFINITIVAMENTE con todas sus dependencias"""
+    from models import (
+        Usuario, LogAcceso, LogAuditoria, EquiposAutorizados, 
+        SesionUsuario, Notificacion, Reporte, Referente, 
+        PosibleVotante, Actividad, ActividadParticipante, ActividadFoto
+    )
+    from sqlalchemy import delete, update
+    
+    if current_user.get("role") != 'admin':
+        raise HTTPException(status_code=403, detail="Solo un administrador puede realizar esta acción")
+    
+    # Buscar el usuario
+    result = await session.execute(select(Usuario).where(Usuario.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    if user.username == 'admin':
+        raise HTTPException(status_code=403, detail="No se puede eliminar el usuario principal admin")
+
+    try:
+        # 0. Desvincular de tablas donde es referenciado pero no queremos borrar el registro (Audit/Logs)
+        await session.execute(update(LogAcceso).where(LogAcceso.usuario_id == user_id).values(usuario_id=None))
+        await session.execute(update(LogAuditoria).where(LogAuditoria.usuario_id == user_id).values(usuario_id=None))
+        await session.execute(update(PosibleVotante).where(PosibleVotante.veedor_id == user_id).values(veedor_id=None))
+        
+        # 1. Limpiar jerarquía (otros usuarios que lo tengan como creador)
+        await session.execute(
+            update(Usuario).where(Usuario.creado_por == user_id).values(creado_por=None)
+        )
+        
+        # 2. Reasignar o limpiar Referentes hijos
+        res_ref = await session.execute(select(Referente).where(Referente.id_usuario_sistema == user_id))
+        user_referente = res_ref.scalar_one_or_none()
+        
+        if user_referente:
+            # Reasignar subordinados al superior del que se borra
+            await session.execute(
+                update(Referente).where(Referente.id_superior == user_referente.id).values(id_superior=user_referente.id_superior)
+            )
+            # Borrar votantes captados por este referente
+            await session.execute(delete(PosibleVotante).where(PosibleVotante.id_referente == user_referente.id))
+            # Borrar el registro de referente
+            await session.execute(delete(Referente).where(Referente.id == user_referente.id))
+
+        # 3. Borrar registros de actividades creadas por el usuario
+        res_acts = await session.execute(select(Actividad.id).where(Actividad.creado_por == user_id))
+        act_ids = [row[0] for row in res_acts.all()]
+        if act_ids:
+            await session.execute(delete(ActividadParticipante).where(ActividadParticipante.actividad_id.in_(act_ids)))
+            await session.execute(delete(ActividadFoto).where(ActividadFoto.actividad_id.in_(act_ids)))
+            await session.execute(delete(Actividad).where(Actividad.id.in_(act_ids)))
+
+        # 4. Borrar dependencias del sistema de segundo plano
+        from models import usuario_rol
+        await session.execute(delete(usuario_rol).where(usuario_rol.c.usuario_id == user_id))
+        await session.execute(delete(SesionUsuario).where(SesionUsuario.usuario_id == user_id))
+        await session.execute(delete(EquiposAutorizados).where(EquiposAutorizados.usuario_id == user_id))
+        await session.execute(delete(Notificacion).where(Notificacion.usuario_id == user_id))
+        await session.execute(delete(Reporte).where(Reporte.creado_por == user_id))
+        
+        # 5. Otros (catálogos, etc.)
+        from models import Rol, ParametroSistema, ConfiguracionEmail, BackupSistema
+        await session.execute(update(Rol).where(Rol.creado_por == user_id).values(creado_por=None))
+        await session.execute(update(ParametroSistema).where(ParametroSistema.modificado_por == user_id).values(modificado_por=None))
+        await session.execute(update(ConfiguracionEmail).where(ConfiguracionEmail.creado_por == user_id).values(creado_por=None))
+        await session.execute(update(BackupSistema).where(BackupSistema.creado_por == user_id).values(creado_por=None))
+
+        # 6. Borrar el usuario finalmente
+        await session.execute(delete(Usuario).where(Usuario.id == user_id))
+        
+        await session.commit()
+        
+        # Log final de auditoría
+        logger.info(f"Usuario {user.username} (ID: {user_id}) eliminado físicamente con éxito por {current_user['sub']}")
+        
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error en hard delete del usuario {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error durante la eliminación definitiva: {str(e)}")
+
+    return {"message": "Usuario y todas sus dependencias eliminados permanentemente"}
+
 @router.post("/change-password")
 async def change_password(
     password_data: PasswordChange,
@@ -669,6 +801,7 @@ async def change_password(
 @router.post("/reset-password-request")
 async def request_password_reset(
     reset_request: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session)
 ):
     """Solicitar restablecimiento de contraseña"""
@@ -694,8 +827,9 @@ async def request_password_reset(
     session.add(reset_record)
     await session.commit()
     
-    # Enviar email
-    email_service.send_password_reset_email(
+    # Enviar email en segundo plano
+    background_tasks.add_task(
+        email_service.send_password_reset_email,
         reset_request.email, 
         user.username, 
         token

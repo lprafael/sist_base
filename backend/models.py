@@ -5,7 +5,9 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Foreign
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
+
 
 Base = declarative_base()
 
@@ -47,6 +49,8 @@ class Usuario(Base):
     departamento_id = Column(Integer, nullable=True)  # Departamento asignado (intendente/concejal)
     distrito_id = Column(Integer, nullable=True)       # Distrito asignado (intendente/concejal)
     restriccion_equipo = Column(Boolean, default=False) # Si TRUE, solo puede entrar de equipos autorizados
+    public_slug = Column(String(100), unique=True, index=True, nullable=True)
+    public_config = Column(JSONB, nullable=True) # JSON para guardar Ejes y bio
     
     # Relaciones
     roles = relationship("Rol", secondary=usuario_rol, back_populates="usuarios")
@@ -362,6 +366,7 @@ class AnrPadron(Base):
     local = Column(Integer)
     mesa = Column(Integer)
     orden = Column(Integer)
+    direccion = Column(Text)
     fecha_descarga = Column(DateTime, default=func.now())
 
 class PlraPadron(Base):
@@ -403,6 +408,7 @@ class Chofer(Base):
     activo = Column(Boolean, default=True)
     departamento_id = Column(Integer)
     distrito_id = Column(Integer)
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
     fecha_registro = Column(DateTime, default=func.now())
     
     # Relaciones

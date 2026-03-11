@@ -21,21 +21,89 @@ async def list_choferes(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    query = select(Chofer)
-    if dept_id:
-        query = query.where(Chofer.departamento_id == dept_id)
-    if dist_id:
-        query = query.where(Chofer.distrito_id == dist_id)
+    from hierarchy_utils import get_visible_user_ids
+    user_id = current_user["user_id"]
+    user_role = current_user.get("role", "referente")
     
-    result = await session.execute(query)
-    return result.scalars().all()
+    if user_role == "referente":
+        return []
+
+    # Obtener usuarios subordinados
+    visible_user_ids = await get_visible_user_ids(user_id, user_role, session)
+    visible_user_ids.append(user_id)
+    
+    # Query con JOIN para traer el nombre del creador
+    stmt = (
+        select(
+            Chofer.id,
+            Chofer.nombre,
+            Chofer.telefono,
+            Chofer.vehiculo_info,
+            Chofer.token_seguimiento,
+            Chofer.latitud,
+            Chofer.longitud,
+            Chofer.ultima_conexion,
+            Chofer.activo,
+            Chofer.departamento_id,
+            Chofer.distrito_id,
+            Chofer.creado_por,
+            Usuario.nombre_completo.label("creador_nombre")
+        )
+        .outerjoin(Usuario, Chofer.creado_por == Usuario.id)
+        .where(Chofer.activo == True)
+    )
+    
+    if user_role != "admin":
+        stmt = stmt.where(Chofer.creado_por.in_(visible_user_ids))
+    
+    if dept_id:
+        stmt = stmt.where(Chofer.departamento_id == dept_id)
+    if dist_id:
+        stmt = stmt.where(Chofer.distrito_id == dist_id)
+    
+    result = await session.execute(stmt.order_by(Chofer.nombre))
+    
+    # Convertir filas a diccionarios
+    return [dict(r._mapping) for r in result.all()]
+
+@router.delete("/choferes/{chofer_id}")
+async def delete_chofer(
+    chofer_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = current_user["user_id"]
+    user_role = current_user.get("role", "referente")
+    
+    if user_role not in ["admin", "intendente", "concejal"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar choferes")
+        
+    result = await session.execute(select(Chofer).where(Chofer.id == chofer_id))
+    chofer = result.scalar_one_or_none()
+    
+    if not chofer:
+        raise HTTPException(status_code=404, detail="Chofer no encontrado")
+        
+    # Verificar propiedad (solo el creador o un admin puede borrarlo)
+    if user_role != "admin" and chofer.creado_por != user_id:
+        raise HTTPException(status_code=403, detail="Solo puedes borrar tus propios choferes")
+        
+    chofer.activo = False
+    await session.commit()
+    return {"message": "Chofer eliminado correctamente"}
 
 @router.post("/choferes")
 async def create_chofer(
     data: Dict[str, Any],
     session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(check_permission("electoral_write"))
+    current_user: dict = Depends(get_current_user)
 ):
+    user_id = current_user["user_id"]
+    user_role = current_user.get("role")
+    
+    if user_role not in ["admin", "intendente", "concejal"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para crear choferes")
+
     nuevo_chofer = Chofer(
         nombre=data.get("nombre"),
         telefono=data.get("telefono"),
@@ -43,6 +111,7 @@ async def create_chofer(
         token_seguimiento=str(uuid.uuid4()),
         departamento_id=data.get("departamento_id"),
         distrito_id=data.get("distrito_id"),
+        creado_por=user_id,
         activo=True
     )
     session.add(nuevo_chofer)
@@ -168,8 +237,19 @@ async def get_control_mapa(
     current_user: dict = Depends(get_current_user)
 ):
     # 1. Obtener choferes activos en la zona
-    result_choferes = await session.execute(
-        select(Chofer).where(
+    # 1. Obtener choferes activos en la zona con el nombre de su creador
+    stmt_choferes = (
+        select(
+            Chofer.id,
+            Chofer.nombre,
+            Chofer.latitud,
+            Chofer.longitud,
+            Chofer.ultima_conexion,
+            Chofer.vehiculo_info,
+            Usuario.nombre_completo.label("creador_nombre")
+        )
+        .outerjoin(Usuario, Chofer.creado_por == Usuario.id)
+        .where(
             and_(
                 Chofer.departamento_id == dept_id,
                 Chofer.distrito_id == dist_id,
@@ -178,12 +258,13 @@ async def get_control_mapa(
             )
         )
     )
-    choferes = result_choferes.scalars().all()
+    result_choferes = await session.execute(stmt_choferes)
+    choferes = result_choferes.all()
     
     # 2. Obtener simpatizantes que NO han votado
     # Hacemos join con Padron para tener nombre/apellido y local de votación
     query_votantes = text("""
-        SELECT pv.id, pv.latitud, pv.longitud, pv.logistica_estado, 
+        SELECT pv.id, pv.latitud, pv.longitud, pv.logistica_estado, pv.grado_seguridad,
                p.nombres, p.apellidos, p.cedula,
                l.descripcion as local_nombre
         FROM electoral.posibles_votantes pv
@@ -205,7 +286,8 @@ async def get_control_mapa(
             "estado": r.logistica_estado or 'pendiente',
             "nombre": f"{r.nombres} {r.apellidos}",
             "cedula": r.cedula,
-            "local": r.local_nombre
+            "local": r.local_nombre,
+            "grado_seguridad": r.grado_seguridad
         })
         
     return {
@@ -216,7 +298,8 @@ async def get_control_mapa(
                 "lat": c.latitud,
                 "lng": c.longitud,
                 "ultima_conexion": c.ultima_conexion,
-                "vehiculo": c.vehiculo_info
+                "vehiculo": c.vehiculo_info,
+                "creador_nombre": c.creador_nombre
             } for c in choferes
         ],
         "votantes": votantes

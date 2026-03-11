@@ -37,10 +37,16 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Backups y archivos de base de datos grandes
 *.backup
 *.sql
 *.csv
+*.dump
+*.filepart
+*.docx
+*.jpeg
+*.png
+*.jpg
+*.pdf
 !backend/initBD_SIGEL.sql
 !backend/check_dist.sql
 !backend/fix_coords.sql
@@ -58,5 +64,3 @@ verify_*.py
 sync_*.py
 dev_output.txt
 *.txt
-*.dump
-*.tmp

@@ -605,9 +605,22 @@
     border: 1px solid #c6f6d5;
 }
 
+.cerca-reason-badge.familia-directa {
+    background: #fff5f5;
+    color: #9b2c2c;
+    border: 1px solid #feb2b2;
+}
+
 .cerca-details {
     font-size: 0.75rem;
     color: #718096;
+}
+
+.cerca-address {
+    font-size: 0.7rem;
+    color: #4a5568;
+    font-style: italic;
+    margin-top: 2px;
 }
 
 .cerca-add-btn {

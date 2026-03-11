@@ -183,7 +183,8 @@ const VoterRegistration = () => {
             setCercaniasResults(data);
             setShowCercaniasModal(true);
         } catch (error) {
-            setMessage({ type: 'error', text: 'Error al buscar cercanías.' });
+            console.error('Error en búsqueda de cercanías:', error);
+            setMessage({ type: 'error', text: `Error al buscar cercanías: ${error.message}` });
         } finally {
             setLoadingCercanias(false);
         }
@@ -249,17 +250,18 @@ const VoterRegistration = () => {
         <div key={p.cedula} className="cerca-item">
             <div className="cerca-person">
                 <div className="cerca-name">
-                    {p.nombres} {p.apellidos}
-                    <span className={`cerca-reason-badge ${label.toLowerCase()}`}>{label}</span>
+                    {(p.nombres || '').trim()} {(p.apellidos || '').trim()}
+                    <span className={`cerca-reason-badge ${label.toLowerCase().trim().replace(/\s+/g, '-')}`}>{label}</span>
                 </div>
-                <div className="cerca-details">CI: {p.cedula} | 📍 {p.nombre_local} - Mesa: {p.mesa}</div>
+                <div className="cerca-details">CI: {p.cedula} | 📍 {p.nombre_local || 'S/L'} - Mesa: {p.mesa || 'S/M'}</div>
+                {p.direccion && <div className="cerca-address">🏠 {p.direccion}</div>}
             </div>
             <button className="cerca-add-btn" title={`Agregar como ${label}`} onClick={() => {
                 handleSelectPerson(p);
                 setFormData(prev => ({
                     ...prev,
                     parentesco: label,
-                    observaciones: `Captado por cercanía a ${selectedForCercania?.nombre_votante} ${selectedForCercania?.apellido_votante}`
+                    observaciones: `Captado por cercanía a ${selectedForCercania?.nombre_votante || ''} ${selectedForCercania?.apellido_votante || ''}`
                 }));
                 setShowCercaniasModal(false);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -607,26 +609,53 @@ const VoterRegistration = () => {
                         </div>
                         <div className="cerca-body">
                             {(() => {
-                                const parientes = cercaniasResults.filter(p =>
-                                    p.apellidos.split(' ')[0] === (selectedForCercania?.apellido_votante || '').split(' ')[0]
-                                );
+                                const baseVoter = selectedForCercania;
+                                if (!baseVoter || !Array.isArray(cercaniasResults)) return null;
+
+                                const baseCedula = parseInt(baseVoter.cedula_votante);
+                                const baseApellidos = (baseVoter.apellido_votante || "").toLowerCase().trim();
+
+                                // 1) Parientes por Cédula Contigua
+                                const parientesCedula = cercaniasResults.filter(p => {
+                                    const pCedula = parseInt(p.cedula);
+                                    if (isNaN(pCedula) || isNaN(baseCedula)) return false;
+                                    return Math.abs(pCedula - baseCedula) <= 3 && pCedula !== baseCedula;
+                                });
+
+                                // 2) Parientes por Apellido Idéntico
+                                const parientesApellido = cercaniasResults.filter(p => {
+                                    const pApellidos = (p.apellidos || "").toLowerCase().trim();
+                                    return pApellidos === baseApellidos &&
+                                        !parientesCedula.some(pc => pc.cedula === p.cedula);
+                                });
+
+                                // 3) Vecinos por Dirección o Mesa (el resto)
                                 const vecinos = cercaniasResults.filter(p =>
-                                    p.apellidos.split(' ')[0] !== (selectedForCercania?.apellido_votante || '').split(' ')[0]
+                                    !parientesCedula.some(pc => pc.cedula === p.cedula) &&
+                                    !parientesApellido.some(pa => pa.cedula === p.cedula)
                                 );
 
                                 return (
                                     <>
-                                        {parientes.length > 0 && (
+                                        {parientesCedula.length > 0 && (
                                             <div className="cerca-section">
-                                                <h4>👨‍👩‍👧 Posibles Parientes (Mismo Apellido)</h4>
+                                                <h4>👨‍👩‍👧 Parientes por C.I. (Contiguos)</h4>
                                                 <div className="cerca-results-list">
-                                                    {parientes.map(p => renderCercaItem(p, 'Pariente'))}
+                                                    {parientesCedula.map(p => renderCercaItem(p, 'Familia Directa'))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {parientesApellido.length > 0 && (
+                                            <div className="cerca-section">
+                                                <h4>👥 Posibles Parientes (Mismos Apellidos)</h4>
+                                                <div className="cerca-results-list">
+                                                    {parientesApellido.map(p => renderCercaItem(p, 'Pariente'))}
                                                 </div>
                                             </div>
                                         )}
                                         {vecinos.length > 0 && (
                                             <div className="cerca-section">
-                                                <h4>🏠 Vecinos (Misma Mesa de Votación)</h4>
+                                                <h4>🏠 Vecinos (Ubicación o Mesa Cercana)</h4>
                                                 <div className="cerca-results-list">
                                                     {vecinos.map(p => renderCercaItem(p, 'Vecino'))}
                                                 </div>

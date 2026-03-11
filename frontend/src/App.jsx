@@ -17,6 +17,8 @@ import ChoferTracking from './components/ChoferTracking.jsx';
 import LandingPage from "./pages/LandingPage.jsx";
 import PlraPadronConsult from "./components/PlraPadronConsult.jsx";
 import ActivitiesManagement from "./components/ActivitiesManagement.jsx";
+import CandidatePublicPage from "./components/CandidatePublicPage.jsx";
+import InteligenciaTerritorial from "./components/InteligenciaTerritorial.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -63,7 +65,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
 }
 
 function MainDashboard({ user, onLogout }) {
-  const [tab, setTab] = useState("usuarios");
+  const [tab, setTab] = useState("captacion");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Inicializar todas las categorías como colapsadas
   const [collapsedCategories, setCollapsedCategories] = useState({
@@ -103,6 +105,7 @@ function MainDashboard({ user, onLogout }) {
       title: "Extras",
       items: [
         { id: 'padron_plra', label: 'Padrón PLRA', icon: '🔵', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'inteligencia_territorial', label: 'Inteligencia Territorial', icon: '🧠', roles: ['admin', 'intendente', 'concejal'] },
       ]
     },
     {
@@ -188,6 +191,7 @@ function MainDashboard({ user, onLogout }) {
             {tab === "logistica" && ['admin', 'intendente'].includes(user.rol) && <LogisticaControlPanel user={user} />}
             {tab === "choferes" && ['admin', 'intendente'].includes(user.rol) && <ChoferGestion user={user} />}
             {tab === "padron_plra" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <PlraPadronConsult />}
+            {tab === "inteligencia_territorial" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <InteligenciaTerritorial user={user} />}
           </div>
         </main>
       </div>
@@ -238,7 +242,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<LandingPage user={user} />} />
         <Route
           path="/login"
           element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
@@ -247,6 +251,7 @@ export default function App() {
           path="/dashboard"
           element={user ? <MainDashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
         />
+        <Route path="/candidato/:slug" element={<CandidatePublicPage />} />
         <Route path="/chofer/:token" element={<ChoferTracking />} />
         {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />

@@ -21,8 +21,20 @@ CARTOGRAFIA_PATH = os.path.join(os.path.dirname(__file__), "cartografia")
 
 @router.get("/barrios/{dpto_id}")
 async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)):
-    """Retorna el GeoJSON de barrios de un departamento desde PostGIS"""
+    """Retorna el GeoJSON de barrios de un departamento desde PostGIS con conteo optimizado"""
     query = text("""
+        WITH points AS (
+            SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
+            FROM electoral.posibles_votantes
+            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+        ),
+        counts AS (
+            SELECT b.ctid as barrio_id, count(p.geom) as total_captados
+            FROM cartografia.barrios b
+            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
+            WHERE b.dpto_id_ref = :dpto_id
+            GROUP BY b.ctid
+        )
         SELECT jsonb_build_object(
             'type',     'FeatureCollection',
             'features', jsonb_agg(features.feature)
@@ -30,7 +42,7 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
         FROM (
           SELECT jsonb_build_object(
             'type',       'Feature',
-            'geometry',   ST_AsGeoJSON(geometry)::jsonb,
+            'geometry',   ST_AsGeoJSON(b.geometry)::jsonb,
             'properties', jsonb_build_object(
                 'nombre', COALESCE(b."BARLO_DESC", b."DIST_DESC_", 'Sin nombre'),
                 'tipo', 'barrio',
@@ -38,15 +50,11 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
-                'captados_count', (
-                    SELECT count(*) 
-                    FROM electoral.posibles_votantes p 
-                    WHERE p.latitud IS NOT NULL AND p.longitud IS NOT NULL 
-                    AND ST_Contains(b.geometry, ST_SetSRID(ST_Point(p.longitud, p.latitud), 4326))
-                )
+                'captados_count', COALESCE(c.total_captados, 0)
             )
           ) AS feature
           FROM cartografia.barrios b
+          LEFT JOIN counts c ON b.ctid = c.barrio_id
           WHERE b.dpto_id_ref = :dpto_id
         ) AS features;
     """)
@@ -57,7 +65,7 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
             return {"type": "FeatureCollection", "features": []}
         return geojson
     except Exception as e:
-        print(f"Error querying PostGIS barrios: {e}")
+        logger.error(f"Error querying PostGIS barrios: {e}")
         raise HTTPException(status_code=500, detail="Error al recuperar cartografía de la base de datos")
 
 @router.get("/cartografia/distrito/{dpto_id}/{dist_id}")
@@ -78,6 +86,18 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
     # Intentamos traer barrios del distrito usando el código del distrito unificado
     # Query unificada por ID de referencia (Lo más preciso)
     barrios_ref_query = text("""
+        WITH points AS (
+            SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
+            FROM electoral.posibles_votantes
+            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+        ),
+        counts AS (
+            SELECT b.ctid as barrio_id, count(p.geom) as total_captados
+            FROM cartografia.barrios b
+            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
+            WHERE b."DPTO" = :dpto_code AND b.ref_distrito_id = :dist_id
+            GROUP BY b.ctid
+        )
         SELECT jsonb_build_object(
             'type',     'FeatureCollection',
             'features', jsonb_agg(features.feature)
@@ -93,21 +113,29 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
-                'captados_count', (
-                    SELECT count(*) 
-                    FROM electoral.posibles_votantes p 
-                    WHERE p.latitud IS NOT NULL AND p.longitud IS NOT NULL 
-                    AND ST_Contains(b.geometry, ST_SetSRID(ST_Point(p.longitud, p.latitud), 4326))
-                )
+                'captados_count', COALESCE(c.total_captados, 0)
             )
           ) AS feature
           FROM cartografia.barrios b
+          LEFT JOIN counts c ON b.ctid = c.barrio_id
           WHERE b."DPTO" = :dpto_code
           AND b.ref_distrito_id = :dist_id
         ) AS features;
     """)
 
     barrios_query = text("""
+        WITH points AS (
+            SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
+            FROM electoral.posibles_votantes
+            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+        ),
+        counts AS (
+            SELECT b.ctid as barrio_id, count(p.geom) as total_captados
+            FROM cartografia.barrios b
+            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
+            WHERE b."DPTO" = :dpto_code AND b."DISTRITO" = :dist_code
+            GROUP BY b.ctid
+        )
         SELECT jsonb_build_object(
             'type',     'FeatureCollection',
             'features', jsonb_agg(features.feature)
@@ -123,15 +151,11 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
-                'captados_count', (
-                    SELECT count(*) 
-                    FROM electoral.posibles_votantes p 
-                    WHERE p.latitud IS NOT NULL AND p.longitud IS NOT NULL 
-                    AND ST_Contains(b.geometry, ST_SetSRID(ST_Point(p.longitud, p.latitud), 4326))
-                )
+                'captados_count', COALESCE(c.total_captados, 0)
             )
           ) AS feature
           FROM cartografia.barrios b
+          LEFT JOIN counts c ON b.ctid = c.barrio_id
           WHERE b."DPTO" = :dpto_code
           AND b."DISTRITO" = :dist_code
         ) AS features;
@@ -139,6 +163,19 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
     
     # Fallback: Si no hay barrios por código, probar por nombre (robusto)
     fallback_barrios_query = text("""
+        WITH points AS (
+            SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
+            FROM electoral.posibles_votantes
+            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
+        ),
+        counts AS (
+            SELECT b.ctid as barrio_id, count(p.geom) as total_captados
+            FROM cartografia.barrios b
+            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
+            WHERE b."DPTO" = :dpto_code 
+            AND unaccent(TRIM(b."DIST_DESC_")) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
+            GROUP BY b.ctid
+        )
         SELECT jsonb_build_object(
             'type',     'FeatureCollection',
             'features', jsonb_agg(features.feature)
@@ -154,15 +191,11 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
-                'captados_count', (
-                    SELECT count(*) 
-                    FROM electoral.posibles_votantes p 
-                    WHERE p.latitud IS NOT NULL AND p.longitud IS NOT NULL 
-                    AND ST_Contains(b.geometry, ST_SetSRID(ST_Point(p.longitud, p.latitud), 4326))
-                )
+                'captados_count', COALESCE(c.total_captados, 0)
             )
           ) AS feature
           FROM cartografia.barrios b
+          LEFT JOIN counts c ON b.ctid = c.barrio_id
           WHERE b."DPTO" = :dpto_code
           AND unaccent(TRIM(b."DIST_DESC_")) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
         ) AS features;
@@ -247,17 +280,24 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
 
 @router.get("/stats/departamentos")
 async def get_stats_departamentos(session: AsyncSession = Depends(get_session)):
-    """Obtiene cantidad de votantes por departamento"""
-    # Join con RefDepartamento para tener los nombres
-    stmt = (
+    """Obtiene cantidad de votantes por departamento (Optimizado)"""
+    # Usamos una subconsulta para contar primero (más rápido con índices) y luego el join para el nombre
+    subq = (
         select(
             AnrPadron.departamento,
-            RefDepartamento.descripcion,
             func.count(AnrPadron.cedula).label("total")
         )
-        .outerjoin(RefDepartamento, AnrPadron.departamento == RefDepartamento.id)
-        .group_by(AnrPadron.departamento, RefDepartamento.descripcion)
-        .order_by(func.count(AnrPadron.cedula).desc())
+        .group_by(AnrPadron.departamento)
+    ).subquery()
+
+    stmt = (
+        select(
+            subq.c.departamento,
+            RefDepartamento.descripcion,
+            subq.c.total
+        )
+        .outerjoin(RefDepartamento, subq.c.departamento == RefDepartamento.id)
+        .order_by(subq.c.total.desc())
     )
     
     result = await session.execute(stmt)
@@ -265,17 +305,24 @@ async def get_stats_departamentos(session: AsyncSession = Depends(get_session)):
 
 @router.get("/stats/distritos/{dpto_id}")
 async def get_stats_distritos(dpto_id: int, session: AsyncSession = Depends(get_session)):
-    """Obtiene cantidad de votantes por distrito en un departamento"""
-    stmt = (
+    """Obtiene cantidad de votantes por distrito en un departamento (Optimizado)"""
+    subq = (
         select(
             AnrPadron.distrito,
-            RefDistrito.descripcion,
             func.count(AnrPadron.cedula).label("total")
         )
-        .outerjoin(RefDistrito, and_(AnrPadron.departamento == RefDistrito.departamento_id, AnrPadron.distrito == RefDistrito.id))
         .where(AnrPadron.departamento == dpto_id)
-        .group_by(AnrPadron.distrito, RefDistrito.descripcion)
-        .order_by(func.count(AnrPadron.cedula).desc())
+        .group_by(AnrPadron.distrito)
+    ).subquery()
+
+    stmt = (
+        select(
+            subq.c.distrito,
+            RefDistrito.descripcion,
+            subq.c.total
+        )
+        .outerjoin(RefDistrito, and_(RefDistrito.departamento_id == dpto_id, subq.c.distrito == RefDistrito.id))
+        .order_by(subq.c.total.desc())
     )
     
     result = await session.execute(stmt)

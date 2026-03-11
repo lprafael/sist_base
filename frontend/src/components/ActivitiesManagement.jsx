@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../utils/authFetch';
-import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents, GeoJSON, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './ActivitiesManagement.css';
@@ -19,6 +19,8 @@ const ActivitiesManagement = ({ user }) => {
     const [isCreating, setIsCreating] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const [geoData, setGeoData] = useState(null);
+    const [mapCenter, setMapCenter] = useState([-25.33, -57.52]);
 
     // Form state for NEW/EDIT Activity
     const [formData, setFormData] = useState({
@@ -27,8 +29,8 @@ const ActivitiesManagement = ({ user }) => {
         fecha_programada: '',
         fecha_prevista: '',
         observaciones: '',
-        latitud: null,
-        longitud: null,
+        latitud: -25.33, // Default San Lorenzo approx
+        longitud: -57.52,
         radio_influencia: 200,
         estado: 'pendiente'
     });
@@ -48,7 +50,24 @@ const ActivitiesManagement = ({ user }) => {
 
     useEffect(() => {
         fetchActivities();
-    }, []);
+        if (user?.departamento_id && user?.distrito_id) {
+            fetchCartografia(user.departamento_id, user.distrito_id);
+        }
+    }, [user]);
+
+    const fetchCartografia = async (dptoId, distId) => {
+        try {
+            const response = await authFetch(`/electoral/geo/cartografia/distrito/${dptoId}/${distId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.features && data.features.length > 0) {
+                    setGeoData(data);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching cartografia", error);
+        }
+    };
 
     useEffect(() => {
         if (selectedActivity) {
@@ -86,28 +105,91 @@ const ActivitiesManagement = ({ user }) => {
 
     const handleCreateActivity = async (e) => {
         e.preventDefault();
-        const cleanData = {
-            ...formData,
-            fecha_programada: formData.fecha_programada || null,
-            fecha_prevista: formData.fecha_prevista || null
-        };
-
+        setLoading(true);
         try {
-            const response = await authFetch('/actividades/', {
-                method: 'POST',
+            const payload = {
+                ...formData,
+                fecha_programada: formData.fecha_programada || null,
+                fecha_prevista: formData.fecha_prevista || null
+            };
+            const isEdit = !!selectedActivity;
+            const method = isEdit ? 'PUT' : 'POST';
+            const url = isEdit ? `/actividades/${selectedActivity.id}` : '/actividades/';
+
+            const response = await authFetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cleanData)
+                body: JSON.stringify(payload)
             });
             if (response.ok) {
-                setMessage({ type: 'success', text: 'Actividad creada correctamente.' });
+                const actData = await response.json();
+                setMessage({ type: 'success', text: isEdit ? 'Actividad actualizada.' : 'Actividad creada correctamente.' });
                 setIsCreating(false);
+                if (isEdit) setSelectedActivity(actData);
                 fetchActivities();
             } else {
-                const errData = await response.json();
-                setMessage({ type: 'error', text: errData.detail || 'Error al crear la actividad.' });
+                setMessage({ type: 'error', text: 'Error al crear la actividad.' });
             }
         } catch (error) {
             setMessage({ type: 'error', text: 'Error de servidor.' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEditClick = () => {
+        if (!selectedActivity) return;
+        setFormData({
+            titulo: selectedActivity.titulo,
+            tipo: selectedActivity.tipo || 'Caminata',
+            fecha_programada: selectedActivity.fecha_programada ? selectedActivity.fecha_programada.slice(0, 16) : '',
+            fecha_prevista: selectedActivity.fecha_prevista ? selectedActivity.fecha_prevista.slice(0, 16) : '',
+            observaciones: selectedActivity.observaciones || '',
+            latitud: selectedActivity.latitud || -25.33,
+            longitud: selectedActivity.longitud || -57.52,
+            radio_influencia: selectedActivity.radio_influencia || 200,
+            estado: selectedActivity.estado || 'pendiente'
+        });
+        setIsCreating(true);
+    };
+
+    const handleDeleteActivity = async () => {
+        if (!selectedActivity) return;
+        if (!window.confirm('¿Estás seguro de que deseas eliminar esta actividad?')) return;
+        setLoading(true);
+        try {
+            const response = await authFetch(`/actividades/${selectedActivity.id}`, { method: 'DELETE' });
+            if (response.ok) {
+                setMessage({ type: 'success', text: 'Actividad eliminada correctamente.' });
+                setSelectedActivity(null);
+                fetchActivities();
+            } else {
+                setMessage({ type: 'error', text: 'Error al eliminar actividad.' });
+            }
+        } catch (error) {
+            setMessage({ type: 'error', text: 'Error de servidor.' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStatusChange = async (newStatus) => {
+        if (!selectedActivity) return;
+        setLoading(true);
+        try {
+            const payload = { estado: newStatus };
+            const response = await authFetch(`/actividades/${selectedActivity.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                const updatedAct = await response.json();
+                setSelectedActivity(updatedAct);
+                fetchActivities();
+            }
+        } catch (error) {
+            console.error("Error updating status", error);
         } finally {
             setLoading(false);
         }
@@ -147,109 +229,120 @@ const ActivitiesManagement = ({ user }) => {
         formDataFile.append('descripcion', 'Foto de actividad');
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/actividades/${selectedActivity.id}/fotos`, {
+            const response = await fetch(`/api/actividades/${selectedActivity.id}/fotos`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: formDataFile
             });
             if (response.ok) {
                 setMessage({ type: 'success', text: 'Foto subida correctamente.' });
+                // Re-fetch to update photos list
+                const actResponse = await authFetch(`/actividades/${selectedActivity.id}`);
+                if (actResponse.ok) {
+                    const updatedAct = await actResponse.json();
+                    setSelectedActivity(updatedAct);
+                    fetchActivities();
+                }
             }
         } catch (error) {
             console.error("Error uploading photo", error);
         }
     };
 
-    // Component to handle Map tools (center and radius dragging)
-    const ActivityMapTools = () => {
-        const map = useMapEvents({
+    // Component to handle Map click to set location
+    const LocationPicker = () => {
+        useMapEvents({
             click(e) {
-                if (!formData.latitud) {
-                    setFormData(prev => ({
-                        ...prev,
-                        latitud: e.latlng.lat,
-                        longitud: e.latlng.lng
-                    }));
-                }
+                setFormData(prev => ({
+                    ...prev,
+                    latitud: e.latlng.lat,
+                    longitud: e.latlng.lng
+                }));
             },
         });
-
-        if (!formData.latitud) return null;
-
-        const center = [formData.latitud, formData.longitud];
-
-        // Calculate a point at the edge of the circle to place the "radius handle"
-        // We move roughly 'radio_influencia' meters east
-        const radiusInDegrees = formData.radio_influencia / 111320; // very rough approx for SL
-        const handlePos = [formData.latitud, formData.longitud + (radiusInDegrees / Math.cos(formData.latitud * Math.PI / 180))];
-
-        return (
-            <>
-                {/* Center Marker - Draggable */}
-                <Marker
-                    position={center}
-                    draggable={true}
-                    eventHandlers={{
-                        dragend(e) {
-                            const marker = e.target;
-                            const position = marker.getLatLng();
-                            setFormData(prev => ({ ...prev, latitud: position.lat, longitud: position.lng }));
-                        },
-                    }}
-                />
-
-                {/* Geofence Circle */}
-                <Circle
-                    center={center}
-                    radius={formData.radio_influencia}
-                    pathOptions={{ color: '#2b6cb0', fillColor: '#2b6cb0', fillOpacity: 0.2 }}
-                />
-
-                {/* Radius Adjustment Handle - Draggable */}
-                <Marker
-                    position={handlePos}
-                    draggable={true}
-                    icon={L.divIcon({
-                        className: 'radius-handle',
-                        html: '<div style="background: white; border: 2px solid #2b6cb0; width: 12px; height: 12px; border-radius: 50%; cursor: ew-resize;"></div>',
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6],
-                    })}
-                    eventHandlers={{
-                        drag(e) {
-                            const marker = e.target;
-                            const newPos = marker.getLatLng();
-                            const centerLatLng = L.latLng(formData.latitud, formData.longitud);
-                            const newRadius = centerLatLng.distanceTo(newPos);
-                            setFormData(prev => ({ ...prev, radio_influencia: Math.round(newRadius) }));
-                        },
-                    }}
-                />
-            </>
-        );
+        return formData.latitud ? <Marker position={[formData.latitud, formData.longitud]} /> : null;
     };
 
     return (
-        <div className="activities-management">
+        <div className="activities-container">
             <header className="section-header">
                 <h2>🚩 Gestión de Actividades de Captación</h2>
-                <p>Organiza eventos, define zonas de influencia y registra la concurrencia en tiempo real.</p>
+                <div className="header-actions">
+                    <button className="primary-btn" onClick={() => { setIsCreating(true); setSelectedActivity(null); }}>
+                        ➕ Nueva Actividad
+                    </button>
+                    <button className="secondary-btn" onClick={fetchActivities}>🔄 Actualizar</button>
+                </div>
             </header>
 
             {message.text && <div className={`message ${message.type}`}>{message.text}</div>}
 
-            <div className="activities-grid">
-                {/* List of Activities Sidebar */}
+            <div className="global-map-view card" style={{ position: 'relative', zIndex: 1 }}>
+                <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                    {geoData && (
+                        <GeoJSON
+                            data={geoData}
+                            key={JSON.stringify(geoData)}
+                            style={() => ({
+                                fillColor: '#cbd5e1',
+                                weight: 2,
+                                opacity: 0.8,
+                                color: '#64748b',
+                                dashArray: '3',
+                                fillOpacity: 0.15
+                            })}
+                            onEachFeature={(feature, layer) => {
+                                if (feature.properties && feature.properties.nombre) {
+                                    const popTotal = feature.properties.poblacion_total || 0;
+                                    const captados = feature.properties.captados_count || 0;
+                                    layer.bindTooltip(
+                                        `<strong>${feature.properties.nombre}</strong><br/>
+                                        <em>Población: ${popTotal}</em><br/>
+                                        <em>Captados Votantes: ${captados}</em>`,
+                                        { sticky: true }
+                                    );
+                                }
+                            }}
+                        />
+                    )}
+
+                    {activities.filter(a => a.latitud != null && a.longitud != null).map(act => (
+                        <React.Fragment key={act.id}>
+                            <Marker position={[act.latitud, act.longitud]}>
+                                <Tooltip>
+                                    <strong>{act.titulo}</strong><br />
+                                    <em>{act.tipo}</em><br />
+                                    <span>Estado: {act.estado}</span>
+                                </Tooltip>
+                            </Marker>
+                            <Circle
+                                center={[act.latitud, act.longitud]}
+                                radius={act.radio_influencia || 200}
+                                pathOptions={{
+                                    color: act.estado === 'concluída' ? '#10b981' : (act.estado === 'en_curso' ? '#3b82f6' : (act.estado === 'cancelada' ? '#ef4444' : '#f59e0b')),
+                                    fillColor: act.estado === 'concluída' ? '#10b981' : (act.estado === 'en_curso' ? '#3b82f6' : (act.estado === 'cancelada' ? '#ef4444' : '#f59e0b')),
+                                    fillOpacity: 0.25
+                                }}
+                            />
+                        </React.Fragment>
+                    ))}
+                </MapContainer>
+                <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(255,255,255,0.9)', padding: '0.5rem', borderRadius: '8px', zIndex: 1000, fontSize: '0.85rem' }}>
+                    <strong>Leyenda de Estados:</strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#f59e0b', borderRadius: '50%' }}></span> Pendiente/Agendada</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3b82f6', borderRadius: '50%' }}></span> En Curso</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#10b981', borderRadius: '50%' }}></span> Concluida</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#ef4444', borderRadius: '50%' }}></span> Cancelada</div>
+                </div>
+            </div>
+
+            <div className="activities-content">
+                {/* List of Activities */}
                 <aside className="activities-sidebar card">
-                    <h3>
-                        Lista de Actividades
-                        <button className="primary-btn" onClick={() => { setIsCreating(true); setSelectedActivity(null); }}>
-                            ➕ Nueva
-                        </button>
-                    </h3>
-
-                    {loading && <p>Cargando actividades...</p>}
-
+                    <h3>Lista de Actividades</h3>
+                    {loading && <p>Cargando...</p>}
                     <div className="activity-list">
                         {activities.map(act => (
                             <div
@@ -260,24 +353,18 @@ const ActivitiesManagement = ({ user }) => {
                                 <span className="act-icon">📍</span>
                                 <div className="act-info">
                                     <strong>{act.titulo}</strong>
-                                    <span>📅 {new Date(act.fecha_programada).toLocaleDateString()}</span>
+                                    <span>{new Date(act.fecha_programada).toLocaleDateString()}</span>
                                     <span className={`status-badge ${act.estado}`}>{act.estado}</span>
                                 </div>
                             </div>
                         ))}
                     </div>
-
-                    {!loading && activities.length === 0 && (
-                        <div className="empty-state">
-                            <p>No hay actividades registradas.</p>
-                        </div>
-                    )}
                 </aside>
 
                 <main className="activity-detail-view card">
                     {isCreating ? (
                         <div className="create-activity-form">
-                            <h3>🆕 Crear Nueva Actividad</h3>
+                            <h3>{selectedActivity ? 'Editar Actividad' : 'Crear Nueva Actividad'}</h3>
                             <form onSubmit={handleCreateActivity}>
                                 <div className="form-grid">
                                     <div className="form-group">
@@ -290,7 +377,7 @@ const ActivitiesManagement = ({ user }) => {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Tipo de Evento</label>
+                                        <label>Tipo</label>
                                         <select value={formData.tipo} onChange={e => setFormData({ ...formData, tipo: e.target.value })}>
                                             <option value="Caminata">Caminata</option>
                                             <option value="Lanzamiento">Lanzamiento</option>
@@ -299,87 +386,66 @@ const ActivitiesManagement = ({ user }) => {
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Fecha y Hora Programada</label>
-                                        <input
-                                            type="datetime-local"
-                                            value={formData.fecha_programada}
-                                            onChange={e => setFormData({ ...formData, fecha_programada: e.target.value })}
-                                        />
+                                        <label>Fecha Programada</label>
+                                        <input type="datetime-local" value={formData.fecha_programada} onChange={e => setFormData({ ...formData, fecha_programada: e.target.value })} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Radio de Influencia (metros): <strong>{formData.radio_influencia}m</strong></label>
-                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                            <input
-                                                type="range" min="50" max="2500" step="50"
-                                                style={{ flex: 1 }}
-                                                value={formData.radio_influencia}
-                                                onChange={e => setFormData({ ...formData, radio_influencia: parseInt(e.target.value) })}
-                                            />
-                                            <input
-                                                type="number"
-                                                style={{ width: '100px' }}
-                                                value={formData.radio_influencia}
-                                                onChange={e => setFormData({ ...formData, radio_influencia: parseInt(e.target.value) })}
-                                            />
-                                        </div>
+                                        <label>Radio de Influencia (metros)</label>
+                                        <input type="number" value={formData.radio_influencia} onChange={e => setFormData({ ...formData, radio_influencia: parseInt(e.target.value) })} />
                                     </div>
                                 </div>
-
                                 <div className="form-group">
-                                    <label>Ubicación y Área de Cobertura (Haz clic en el mapa)</label>
-                                    <div style={{ height: '350px', width: '100%', marginBottom: '1.2rem', borderRadius: '12px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                                    <label>Ubicación y Zona de Influencia (Haz clic en el mapa)</label>
+                                    <div style={{ height: '300px', width: '100%', marginBottom: '1rem' }}>
                                         <MapContainer center={[-25.33, -57.52]} zoom={13} style={{ height: '100%' }}>
                                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                            <ActivityMapTools />
+                                            <LocationPicker />
+                                            {formData.latitud && (
+                                                <Circle center={[formData.latitud, formData.longitud]} radius={formData.radio_influencia} />
+                                            )}
                                         </MapContainer>
                                     </div>
                                 </div>
-
-                                <div className="form-group">
-                                    <label>Observaciones Iniciales</label>
-                                    <textarea
-                                        value={formData.observaciones}
-                                        onChange={e => setFormData({ ...formData, observaciones: e.target.value })}
-                                        placeholder="Descripción de la actividad..."
-                                        rows="3"
-                                    />
-                                </div>
-
                                 <div className="form-actions">
-                                    <button type="submit" className="save-btn" disabled={loading}>
-                                        {loading ? 'Guardando...' : 'Guardar Actividad'}
-                                    </button>
-                                    <button type="button" className="cancel-btn" onClick={() => setIsCreating(false)}>
-                                        Cancelar
-                                    </button>
+                                    <button type="submit" className="save-btn" disabled={loading}>Guardar Actividad</button>
+                                    <button type="button" className="cancel-btn" onClick={() => setIsCreating(false)}>Cancelar</button>
                                 </div>
                             </form>
                         </div>
                     ) : selectedActivity ? (
                         <div className="selected-activity-view">
-                            <div className="act-header">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div>
-                                        <h3>{selectedActivity.titulo}</h3>
-                                        <p style={{ color: '#718096', marginTop: '-10px' }}>
-                                            📅 {new Date(selectedActivity.fecha_programada).toLocaleString()} | 🚩 {selectedActivity.tipo}
-                                        </p>
+                            <div className="act-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div>
+                                    <h3>{selectedActivity.titulo}</h3>
+                                    <p>{selectedActivity.observaciones}</p>
+                                    <div style={{ marginTop: '0.5rem' }}>
+                                        <select
+                                            value={selectedActivity.estado}
+                                            onChange={(e) => handleStatusChange(e.target.value)}
+                                            style={{ padding: '0.3rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                                        >
+                                            <option value="pendiente">Pendiente</option>
+                                            <option value="agendada">Agendada</option>
+                                            <option value="en_curso">En Curso</option>
+                                            <option value="concluída">Concluida</option>
+                                            <option value="cancelada">Cancelada</option>
+                                            <option value="reprogramada">Reprogramada</option>
+                                        </select>
                                     </div>
-                                    <span className={`status-badge ${selectedActivity.estado}`}>{selectedActivity.estado}</span>
                                 </div>
-                                {selectedActivity.observaciones && (
-                                    <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', fontSize: '0.9rem', marginBottom: '20px' }}>
-                                        {selectedActivity.observaciones}
-                                    </div>
-                                )}
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button className="secondary-btn" onClick={handleEditClick}>🖊️ Editar</button>
+                                    <button className="secondary-btn" onClick={handleDeleteActivity} style={{ color: 'red', borderColor: 'red' }}>🗑️ Borrar</button>
+                                </div>
                             </div>
 
                             <div className="activity-tabs">
+                                {/* Tab: Registro de Personas */}
                                 <section className="register-participants-section">
-                                    <h4>👥 Registro de Concurrencia (Check-in)</h4>
+                                    <h4>👥 Registro de Concurrencia</h4>
                                     <form className="quick-add-form" onSubmit={handleAddParticipant}>
                                         <input
-                                            type="text" placeholder="Cédula (C.I. nro)" required
+                                            type="text" placeholder="Cédula" required
                                             value={newParticipant.cedula}
                                             onChange={e => setNewParticipant({ ...newParticipant, cedula: e.target.value })}
                                         />
@@ -393,55 +459,45 @@ const ActivitiesManagement = ({ user }) => {
                                             value={newParticipant.apellido}
                                             onChange={e => setNewParticipant({ ...newParticipant, apellido: e.target.value })}
                                         />
-                                        <button type="submit" disabled={loading}>
-                                            {loading ? '...' : 'Registrar'}
-                                        </button>
+                                        <button type="submit" disabled={loading}>Registrar</button>
                                     </form>
 
                                     <div className="participants-table-container">
                                         <table className="participants-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Cédula</th>
-                                                    <th>Nombre Completo</th>
-                                                    <th>ANR 🔴</th>
-                                                    <th>PLRA 🔵</th>
-                                                    <th>Registro</th>
+                                                    <th>CI</th>
+                                                    <th>Nombre</th>
+                                                    <th>ANR</th>
+                                                    <th>PLRA</th>
+                                                    <th>Fecha</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {participants.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#a0aec0' }}>
-                                                            Aún no hay participantes registrados en esta actividad.
-                                                        </td>
+                                                {participants.map(p => (
+                                                    <tr key={p.id}>
+                                                        <td>{parseInt(p.cedula).toLocaleString('es-PY')}</td>
+                                                        <td>{p.nombre} {p.apellido}</td>
+                                                        <td>{p.en_padron_anr ? '✅' : '❌'}</td>
+                                                        <td>{p.en_padron_plra ? '🔵' : '⚪'}</td>
+                                                        <td>{new Date(p.fecha_registro).toLocaleTimeString()}</td>
                                                     </tr>
-                                                ) : (
-                                                    participants.map(p => (
-                                                        <tr key={p.id}>
-                                                            <td style={{ fontWeight: 'bold' }}>{parseInt(p.cedula).toLocaleString('es-PY')}</td>
-                                                            <td>{p.nombre} {p.apellido}</td>
-                                                            <td style={{ textAlign: 'center', fontSize: '1.2rem' }}>{p.en_padron_anr ? '🔴' : '⚪'}</td>
-                                                            <td style={{ textAlign: 'center', fontSize: '1.2rem' }}>{p.en_padron_plra ? '🔵' : '⚪'}</td>
-                                                            <td style={{ fontSize: '0.8rem', color: '#718096' }}>{new Date(p.fecha_registro).toLocaleTimeString()}</td>
-                                                        </tr>
-                                                    ))
-                                                )}
+                                                ))}
                                             </tbody>
                                         </table>
                                     </div>
                                 </section>
 
+                                {/* Tab: Fotos */}
                                 <section className="photos-section">
-                                    <h4>📸 Evidencia Fotográfica / Fotos del Evento</h4>
+                                    <h4>📸 Evidencia Fotográfica</h4>
                                     <div
                                         className="drop-zone"
                                         onDragOver={(e) => e.preventDefault()}
                                         onDrop={(e) => { e.preventDefault(); handleFileUpload(e); }}
                                         onClick={() => fileInputRef.current.click()}
                                     >
-                                        <div style={{ fontSize: '2rem', marginBottom: '10px' }}>📷</div>
-                                        <p>Arrastra fotos aquí, toma una captura con la cámara o haz clic para seleccionar</p>
+                                        <p>Arrastra fotos aquí o haz clic para subir</p>
                                         <input
                                             type="file" accept="image/*" capture="environment"
                                             style={{ display: 'none' }}
@@ -449,16 +505,26 @@ const ActivitiesManagement = ({ user }) => {
                                             onChange={handleFileUpload}
                                         />
                                     </div>
+
+                                    {/* Photo Collage */}
+                                    {selectedActivity.fotos && selectedActivity.fotos.length > 0 && (
+                                        <div className="photo-collage">
+                                            {selectedActivity.fotos.map(foto => (
+                                                <div key={foto.id} className="photo-item">
+                                                    <img
+                                                        src={`/api/${foto.ruta_archivo}`}
+                                                        alt={foto.descripcion || "Foto de actividad"}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </section>
                             </div>
                         </div>
                     ) : (
                         <div className="empty-state">
-                            <div style={{ fontSize: '4rem', opacity: 0.2 }}>🚩</div>
-                            <p>Selecciona una actividad del listado lateral para ver su detalle y registrar personas.</p>
-                            <button className="primary-btn" style={{ marginTop: '20px' }} onClick={() => setIsCreating(true)}>
-                                Crear Primera Actividad
-                            </button>
+                            <p>Selecciona una actividad de la lista, o crea una nueva.</p>
                         </div>
                     )}
                 </main>

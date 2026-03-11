@@ -47,7 +47,7 @@ const UserManagement = () => {
   // Roles que el usuario actual puede asignar
   const meRol = ROLES_CONFIG.find(r => r.value === currentUser?.rol);
   const rolesQuePoedoCrear = isAdmin
-    ? ROLES_CONFIG.filter(r => r.value !== 'admin')
+    ? ROLES_CONFIG
     : ROLES_CONFIG.filter(r => meRol?.crea.includes(r.value));
 
   const fetchDepartamentos = async () => {
@@ -60,7 +60,7 @@ const UserManagement = () => {
   };
 
   const fetchDistritos = async (departamentoId) => {
-    if (!departamentoId) { setDistritos([]); return; }
+    if (departamentoId === undefined || departamentoId === null || departamentoId === '') { setDistritos([]); return; }
     setLoadingDists(true);
     try {
       const res = await authFetch(`/api/electoral/catalogos/distritos/${departamentoId}`);
@@ -86,9 +86,13 @@ const UserManagement = () => {
           filtrados = todos.filter(u => u.rol === 'intendente' || u.rol === 'concejal');
         }
 
-        // Si hay distrito seleccionado, filtrar por él
+        // Si hay distrito seleccionado, filtrar por él y por el departamento para evitar colisiones
+        const targetDptoId = newUser.departamento_id || editUser?.departamento_id;
         if (distritoId) {
-          filtrados = filtrados.filter(u => u.distrito_id === parseInt(distritoId));
+          filtrados = filtrados.filter(u =>
+            u.distrito_id === parseInt(distritoId) &&
+            (!targetDptoId || u.departamento_id === parseInt(targetDptoId))
+          );
         }
 
         setSuperioresDisponibles(filtrados);
@@ -217,8 +221,8 @@ const UserManagement = () => {
 
     // Si NO es admin (es Intendente o Concejal), hereda automáticamente el territorio
     if (!isAdmin) {
-      initialData.departamento_id = currentUser.departamento_id || '';
-      initialData.distrito_id = currentUser.distrito_id || '';
+      initialData.departamento_id = (currentUser.departamento_id !== undefined && currentUser.departamento_id !== null) ? currentUser.departamento_id : '';
+      initialData.distrito_id = (currentUser.distrito_id !== undefined && currentUser.distrito_id !== null) ? currentUser.distrito_id : '';
     }
 
     setNewUser(initialData);
@@ -246,10 +250,10 @@ const UserManagement = () => {
     e.preventDefault();
 
     // Validaciones de negocio
-    if (newUser.rol === 'intendente' && (!newUser.departamento_id || !newUser.distrito_id)) {
+    if (newUser.rol === 'intendente' && (newUser.departamento_id === '' || newUser.distrito_id === '')) {
       alert('El Intendente debe tener un Departamento y Distrito.'); return;
     }
-    if (newUser.rol === 'concejal' && (!newUser.departamento_id || !newUser.distrito_id)) {
+    if (newUser.rol === 'concejal' && (newUser.departamento_id === '' || newUser.distrito_id === '')) {
       alert('El Concejal debe tener un Distrito asignado.'); return;
     }
     if (newUser.rol === 'referente' && isAdmin && !newUser.superior_usuario_id) {
@@ -264,9 +268,9 @@ const UserManagement = () => {
         nombre_completo: newUser.nombre_completo,
         rol: newUser.rol,
       };
-      if (newUser.departamento_id) payload.departamento_id = parseInt(newUser.departamento_id);
-      if (newUser.distrito_id) payload.distrito_id = parseInt(newUser.distrito_id);
-      if (newUser.superior_usuario_id) payload.superior_usuario_id = parseInt(newUser.superior_usuario_id);
+      if (newUser.departamento_id !== '') payload.departamento_id = parseInt(newUser.departamento_id);
+      if (newUser.distrito_id !== '') payload.distrito_id = parseInt(newUser.distrito_id);
+      if (newUser.superior_usuario_id !== '') payload.superior_usuario_id = parseInt(newUser.superior_usuario_id);
       payload.restriccion_equipo = newUser.restriccion_equipo;
 
       const response = await authFetch(`/api/auth/users`, {
@@ -329,7 +333,12 @@ const UserManagement = () => {
       ? `/api/auth/users/${user.id}/reactivate`
       : `/api/auth/users/${user.id}${action === 'hard' ? '/hard' : ''}`;
 
-    if (!window.confirm(`¿Seguro que deseas ${action} a ${user.username}?`)) return;
+    let confirmMsg = `¿Seguro que deseas ${action === 'soft' ? 'desactivar' : action === 'hard' ? 'ELIMINAR DEFINITIVAMENTE (con todos sus datos)' : 'reactivar'} a ${user.username}?`;
+    if (action === 'hard') {
+      confirmMsg += "\n\nESTA ACCIÓN NO SE PUEDE DESHACER Y BORRARÁ TODOS LOS REGISTROS VINCULADOS.";
+    }
+
+    if (!window.confirm(confirmMsg)) return;
 
     try {
       await authFetch(url, { method: action === 'reactivate' ? 'POST' : 'DELETE' });
@@ -396,9 +405,14 @@ const UserManagement = () => {
                   <div className="actions-cell">
                     <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
                     {isAdmin && user.username !== 'admin' && (
-                      user.activo ?
-                        <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button> :
-                        <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {user.activo ? (
+                          <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button>
+                        ) : (
+                          <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
+                        )}
+                        <button className="action-btn action-btn-delete" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }} onClick={() => handleStatusChange(user, 'hard')} title="ELIMINAR DEFINITIVAMENTE">🗑️</button>
+                      </div>
                     )}
                   </div>
                 </td>
@@ -445,6 +459,19 @@ const UserManagement = () => {
                   ))}
                 </select>
               </div>
+
+              {isAdmin && ROLES_CANDIDATOS.includes(showCreateForm ? newUser.rol : editUser.rol) && (
+                <div className="form-group" style={{ background: '#fef2f2', padding: '10px', borderRadius: '8px', border: '1px solid #fca5a5' }}>
+                  <label className="form-label" style={{ color: '#b91c1c' }}>🌐 URL Página Pública (Opcional)</label>
+                  <input
+                    name="public_slug"
+                    value={showCreateForm ? (newUser.public_slug || '') : (editUser.public_slug || '')}
+                    onChange={(e) => (showCreateForm ? handleChange(e, setNewUser) : handleChange(e, setEditUser))}
+                    placeholder="ej: juan-perez"
+                  />
+                  <small style={{ color: '#ef4444' }}>Si asignas esto, la web pública será: /candidato/slug</small>
+                </div>
+              )}
 
               <div className="form-group-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '15px 0', padding: '10px', background: '#fff7ed', borderRadius: '8px', border: '1px solid #ffedd5' }}>
                 <input

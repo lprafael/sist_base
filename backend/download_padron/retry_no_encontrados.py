@@ -1,8 +1,8 @@
 """
 retry_no_encontrados.py
 Lee el archivo PADRON_SAN_LORENZO_COTEJADO.xlsx, extrae los CIs con 
-observación "No encontrado" en la columna P, e intenta descargarlos 
-nuevamente de la API de la ANR.
+observación "No encontrado" en la columna 'observacion_sigel', e intenta 
+descargarlos nuevamente de la API de la ANR.
 Si los encuentra, los inserta en la BD y actualiza el Excel.
 """
 import os
@@ -12,20 +12,10 @@ import logging
 import time
 from datetime import datetime
 from collections import deque
-
-try:
-    import httpx
-except ImportError:
-    print("Instala httpx: pip install httpx")
-    sys.exit(1)
-
-try:
-    import openpyxl
-    import asyncpg
-    from dotenv import load_dotenv
-except ImportError as e:
-    print(f"Dependencia faltante: {e} — instala con pip install openpyxl asyncpg python-dotenv")
-    sys.exit(1)
+import pandas as pd
+import httpx
+import asyncpg
+from dotenv import load_dotenv
 
 # Logging
 logging.basicConfig(
@@ -57,45 +47,21 @@ HEADERS = {
     "Accept": "application/json",
     "Referer": "https://www.anr.org.py/pre-padron-2026/"
 }
-CONCURRENCY = 20
-TIMEOUT = 15.0
+CONCURRENCY = 30
+TIMEOUT = 10.0
 
 EXCEL_FILE = os.path.join(os.path.dirname(__file__), "PADRON_SAN_LORENZO_COTEJADO.xlsx")
-# Columna P = índice 16 (0-based) o columna 16 en openpyxl (1-based)
-COL_CI = 8          # Columna H tiene el CI (numero_ced)
-COL_OBS = 16        # Columna P (observacion_sigel)
-
 
 def build_url(cedula: str) -> str:
-    ci = cedula.strip().lstrip("0")
-    if not ci:
+    ci = str(cedula).strip().lstrip("0")
+    if not ci or not ci.isdigit():
         return None
-    # La URL usa los dígitos del CI divididos en carpetas
     parts = list(ci)
-    # URL format: BASE/d1/d2/d3/d4/FULLCI.json
     if len(parts) < 4:
-        return None
+        # Pad with zeros if less than 4 digits (unlikely for CI, but safe)
+        parts = (['0'] * (4 - len(parts))) + parts
     path = "/".join(parts[:4])
     return f"{BASE_URL}/{path}/{ci}.json"
-
-
-def read_no_encontrados(filepath: str):
-    """Lee el Excel y retorna una lista de (nro_fila, cedula)."""
-    logger.info(f"Leyendo archivo: {filepath}")
-    wb = openpyxl.load_workbook(filepath, read_only=True)
-    ws = wb.active
-    
-    no_encontrados = []
-    for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-        ci = row[COL_CI - 1]      # Columna A
-        obs = row[COL_OBS - 1]    # Columna P
-        if ci and obs and str(obs).strip().lower() == "no encontrado":
-            no_encontrados.append((i, str(ci).strip()))
-    
-    wb.close()
-    logger.info(f"Encontrados {len(no_encontrados)} CIs con 'No encontrado'")
-    return no_encontrados
-
 
 async def fetch_one(client: httpx.AsyncClient, cedula: str):
     url = build_url(cedula)
@@ -108,7 +74,6 @@ async def fetch_one(client: httpx.AsyncClient, cedula: str):
         return cedula, None
     except Exception:
         return cedula, None
-
 
 async def fetch_batch(cedulas: list):
     sem = asyncio.Semaphore(CONCURRENCY)
@@ -125,30 +90,19 @@ async def fetch_batch(cedulas: list):
             results[ci] = data
     return results
 
-
 async def save_found(conn, found_records: list):
     """Inserta los registros encontrados en la BD."""
     if not found_records:
         return 0
     
-    # Verificar qué columnas tiene la tabla
-    cols_sql = """
-        SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'electoral' AND table_name = 'anr_padron_2026'
-    """
-    cols = await conn.fetch(cols_sql)
-    col_names = [r['column_name'] for r in cols]
-    logger.info(f"Columnas de la tabla: {col_names}")
-
     inserted = 0
     for ci, data in found_records:
         try:
-            # Mapear campos del JSON a la tabla (ajustar según estructura real de la API)
             record = {
                 "cedula": str(ci),
                 "nombres": data.get("nombres") or data.get("nombre") or "",
                 "apellidos": data.get("apellidos") or data.get("apellido") or "",
-                "nacimiento": data.get("fechaNacimiento") or data.get("fecha_nac") or None,
+                "nacimiento": data.get("nacimiento") or data.get("fechaNacimiento") or None,
                 "departamento": data.get("departamento") or None,
                 "distrito": data.get("distrito") or None,
                 "seccional": data.get("seccional") or None,
@@ -173,43 +127,55 @@ async def save_found(conn, found_records: list):
     
     return inserted
 
+def read_no_encontrados(filepath: str):
+    logger.info(f"Leyendo archivo con pandas: {filepath}")
+    df = pd.read_excel(filepath, dtype=str)
+    col_ci = 'numero_ced'
+    col_obs = 'observacion_sigel'
+    
+    if col_ci not in df.columns or col_obs not in df.columns:
+        logger.error(f"Columnas no encontradas. Columnas disponibles: {df.columns.tolist()}")
+        return [], df
 
-def update_excel(filepath: str, row_updates: dict):
-    """Abre el Excel en modo escritura y actualiza la columna P de las filas indicadas."""
-    logger.info("Actualizando el Excel con los nuevos datos...")
-    wb = openpyxl.load_workbook(filepath)
-    ws = wb.active
-    for row_num, obs_value in row_updates.items():
-        ws.cell(row=row_num, column=COL_OBS, value=obs_value)
-    wb.save(filepath)
-    wb.close()
-    logger.info("Excel actualizado.")
+    mask = df[col_obs].str.strip().str.lower() == "no encontrado"
+    no_encontrados_df = df[mask]
+    
+    results = []
+    for idx, row in no_encontrados_df.iterrows():
+        results.append((idx, str(row[col_ci]).strip()))
+    
+    logger.info(f"Encontrados {len(results)} CIs con 'No encontrado'")
+    return results, df
 
+def update_excel_pandas(filepath: str, df: pd.DataFrame, results_map: dict):
+    logger.info("Actualizando el DataFrame...")
+    col_obs = 'observacion_sigel'
+    for idx, found in results_map.items():
+        if found:
+            df.at[idx, col_obs] = "Coincide (Recuperado)"
+        else:
+            # Marcamos que ya se reintentó
+            df.at[idx, col_obs] = "No encontrado (Reintentado)"
+            
+    logger.info(f"Guardando Excel: {filepath}")
+    df.to_excel(filepath, index=False)
+    logger.info("Excel guardado correctamente.")
 
 async def main():
-    # Paso 1: Leer CIs "No encontrado"
-    no_enc = read_no_encontrados(EXCEL_FILE)
+    no_enc, df_full = read_no_encontrados(EXCEL_FILE)
     if not no_enc:
-        logger.info("No hay CIs con 'No encontrado'. ¡Nada que procesar!")
+        logger.info("No hay CIs con 'No encontrado'.")
         return
 
     cedulas = [ci for _, ci in no_enc]
-    row_map = {ci: row for row, ci in no_enc}
+    idx_map = {ci: idx for idx, ci in no_enc}
 
-    logger.info(f"Procesando {len(cedulas)} CIs en lotes de {CONCURRENCY}...")
-
-    # Paso 2: Descargar desde la API
-    start = time.time()
+    logger.info(f"Descargando {len(cedulas)} registros...")
     results = await fetch_batch(cedulas)
-    elapsed = time.time() - start
-    logger.info(f"Descarga completada en {elapsed:.1f}s")
 
     found = [(ci, data) for ci, data in results.items() if data]
-    not_found = [ci for ci, data in results.items() if not data]
+    logger.info(f"Encontrados: {len(found)}")
 
-    logger.info(f"Encontrados ahora: {len(found)} | Siguen sin encontrar: {len(not_found)}")
-
-    # Paso 3: Guardar en BD
     if found:
         conn = await asyncpg.connect(DB_DSN)
         try:
@@ -218,22 +184,8 @@ async def main():
         finally:
             await conn.close()
 
-    # Paso 4: Actualizar el Excel
-    row_updates = {}
-    for ci, data in results.items():
-        row = row_map[ci]
-        if data:
-            row_updates[row] = "Encontrado (reintento)"
-        else:
-            row_updates[row] = "No encontrado (reintento)"
-
-    update_excel(EXCEL_FILE, row_updates)
-
-    logger.info("=== RESUMEN ===")
-    logger.info(f"  Total 'No encontrado' procesados : {len(cedulas)}")
-    logger.info(f"  Encontrados ahora                : {len(found)}")
-    logger.info(f"  Siguen sin encontrarse           : {len(not_found)}")
-
+    update_results = {idx_map[ci]: (data is not None) for ci, data in results.items()}
+    update_excel_pandas(EXCEL_FILE, df_full, update_results)
 
 if __name__ == "__main__":
     asyncio.run(main())

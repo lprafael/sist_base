@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models import Usuario
@@ -14,6 +14,7 @@ class ForgotPasswordRequest(BaseModel):
 @router.post("/forgot-password")
 async def notify_admin_forgot_password(
     data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session)
 ):
     """Notifica al admin que un usuario olvidó su contraseña"""
@@ -23,8 +24,9 @@ async def notify_admin_forgot_password(
     admin = result.scalar_one_or_none()
     if not admin:
         raise HTTPException(status_code=404, detail="No se encontró el usuario admin")
-    # Enviar email
-    email_service.send_email(
+    # Enviar email en segundo plano
+    background_tasks.add_task(
+        email_service.send_email,
         to_email=admin.email,
         subject="Solicitud de restablecimiento de contraseña",
         body=f"El usuario '{username}' ha solicitado recuperar su contraseña. Favor de contactarlo para asistirlo."

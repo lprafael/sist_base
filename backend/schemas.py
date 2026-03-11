@@ -62,6 +62,8 @@ class UserUpdate(BaseModel):
     rol: Optional[str] = None
     activo: Optional[bool] = None
     restriccion_equipo: Optional[bool] = None
+    public_slug: Optional[str] = None
+    public_config: Optional[Dict[str, Any]] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -75,6 +77,8 @@ class UserResponse(BaseModel):
     departamento_id: Optional[int] = None
     distrito_id: Optional[int] = None
     restriccion_equipo: bool = False
+    public_slug: Optional[str] = None
+    public_config: Optional[Dict[str, Any]] = None
     
     class Config:
         from_attributes = True
@@ -424,6 +428,7 @@ class AnrPadronResponse(BaseModel):
     local: Optional[int] = None
     mesa: Optional[int] = None
     orden: Optional[int] = None
+    direccion: Optional[str] = None
     
     # Campos descriptivos (opcionales)
     nombre_departamento: Optional[str] = None
@@ -499,8 +504,32 @@ class ActividadBase(BaseModel):
     radio_influencia: float = 100.0
     estado: str = 'pendiente'
 
+    @validator('fecha_programada', 'fecha_prevista', pre=True)
+    def empty_string_to_none(cls, v):
+        if v == "":
+            return None
+        return v
+
 class ActividadCreate(ActividadBase):
     pass
+
+class ActividadUpdate(BaseModel):
+    titulo: Optional[str] = None
+    tipo: Optional[str] = None
+    fecha_programada: Optional[datetime] = None
+    fecha_prevista: Optional[datetime] = None
+    observaciones: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+    radio_influencia: Optional[float] = None
+    estado: Optional[str] = None
+
+    @validator('fecha_programada', 'fecha_prevista', pre=True)
+    def empty_string_to_none(cls, v):
+        if v == "":
+            return None
+        return v
+
 
 class ActividadResponse(ActividadBase):
     id: int

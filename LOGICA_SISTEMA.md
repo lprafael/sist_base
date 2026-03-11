@@ -24,7 +24,7 @@ El sistema se basa en una estructura jerárquica y relacional que garantiza la i
 ## 2. Funcionalidades de Inteligencia Electoral
 
 ### 👪 Algoritmo de Detección de Red Familiar
-Esta es la ventaja competitiva de SIGEL. Cuando un referente carga a un votante (ej. "Rafael López"), el sistema automáticamente:
+Esta es la ventaja competitiva de SIGEL. Cuando un referente carga a un votante (ej. "Juan Pérez"), el sistema automáticamente:
 1.  Busca en el **Padrón** a todas las personas con los mismos apellidos en el mismo distrito.
 2.  Cruza esta información con los **Posibles Votantes** ya captados.
 3.  Genera una alerta al candidato: *"Este votante tiene familiares directos (Mismo apellido/domicilio) que aún no han sido abordados"*.

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, Integer, cast
 from typing import List, Optional
 
 from database import get_session
@@ -35,6 +35,7 @@ async def search_padron(
         AnrPadron.local,
         AnrPadron.mesa,
         AnrPadron.orden,
+        AnrPadron.direccion,
         RefDepartamento.descripcion.label("nombre_departamento"),
         RefDistrito.descripcion.label("nombre_distrito"),
         RefSeccional.descripcion.label("nombre_seccional"),
@@ -193,6 +194,7 @@ async def get_mis_votantes(
         AnrPadron.apellidos.label("apellido_votante"),
         PosibleVotante.parentesco,
         PosibleVotante.domicilio,
+        AnrPadron.direccion.label("direccion_padron"),
         PosibleVotante.grado_seguridad,
         PosibleVotante.fecha_captacion,
         PosibleVotante.validacion_candidato,
@@ -211,7 +213,7 @@ async def get_mis_votantes(
             "nombre_votante": row.nombre_votante or "Sin Nombre",
             "apellido_votante": row.apellido_votante or "",
             "parentesco": row.parentesco,
-            "domicilio": row.domicilio,
+            "domicilio": row.domicilio or row.direccion_padron,
             "grado_seguridad": row.grado_seguridad,
             "fecha_captacion": row.fecha_captacion,
             "validacion_candidato": row.validacion_candidato,
@@ -318,7 +320,9 @@ async def get_cercanias_padron(
     if not base:
         raise HTTPException(status_code=404, detail="Votante base no encontrado en el padrón")
 
-    apellidos = base.apellidos.strip().split()
+    apellidos_original = (base.apellidos or "").strip()
+    cedula_int = int(base.cedula) if (base.cedula and base.cedula.strip().isdigit()) else None
+    direccion_original = (base.direccion or "").strip()
     
     stmt = select(
         AnrPadron.cedula,
@@ -331,6 +335,7 @@ async def get_cercanias_padron(
         AnrPadron.local,
         AnrPadron.mesa,
         AnrPadron.orden,
+        AnrPadron.direccion,
         RefLocal.descripcion.label("nombre_local")
     ).outerjoin(
         RefLocal, and_(
@@ -339,17 +344,40 @@ async def get_cercanias_padron(
             AnrPadron.seccional == RefLocal.seccional_id,
             AnrPadron.local == RefLocal.local_id
         )
-    ).where(AnrPadron.cedula != cedula)
+    ).where(AnrPadron.cedula != base.cedula)
 
     criterios = []
-    if apellidos:
+    
+    # 1) Cédulas contiguas (Rango de +/- 3) - Usamos trim para asegurar el match
+    if cedula_int:
+        cedulas_busqueda = [str(cedula_int + i) for i in range(-3, 4) if i != 0]
+        criterios.append(
+            func.trim(AnrPadron.cedula).in_(cedulas_busqueda)
+        )
+    
+    # 2) Apellidos idénticos (Mismo distrito, ignorando espacios/acentos)
+    if apellidos_original:
         criterios.append(
             and_(
                 AnrPadron.distrito == base.distrito,
-                or_(*[AnrPadron.apellidos.ilike(f"%{a}%") for a in apellidos])
+                func.public.f_unaccent(func.trim(AnrPadron.apellidos)).ilike(
+                    func.public.f_unaccent(func.trim(apellidos_original))
+                )
             )
         )
     
+    # 3) Direcciones similares
+    if direccion_original and len(direccion_original) > 6:
+        # Buscamos coincidencias de los primeros 12 caracteres significativos
+        prefix = direccion_original[:12]
+        criterios.append(
+            and_(
+                AnrPadron.distrito == base.distrito,
+                AnrPadron.direccion.ilike(f"%{prefix}%")
+            )
+        )
+    
+    # Criterio base: Misma Mesa
     criterios.append(
         and_(
             AnrPadron.local == base.local,
@@ -357,9 +385,9 @@ async def get_cercanias_padron(
         )
     )
 
-    stmt = stmt.where(or_(*criterios)).limit(15)
+    stmt = stmt.where(and_(func.trim(AnrPadron.cedula) != base.cedula.strip(), or_(*criterios))).limit(60)
     result = await session.execute(stmt)
-    return result.all()
+    return [dict(r._mapping) for r in result.all()]
 
 @router.get("/dashboard/candidato", response_model=DashboardCandidatoResponse)
 async def get_dashboard_candidato(
