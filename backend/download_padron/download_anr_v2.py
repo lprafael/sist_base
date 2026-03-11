@@ -64,16 +64,18 @@ DB_DSN = DATABASE_URL \
     .replace("postgresql+psycopg2://", "postgresql://")
 
 # Ajuste de DSN según el entorno (Docker vs Local)
-# Si NO estamos en Docker, y vemos '@db:', cambiamos a localhost para desarrollo local
-# Nota: Usamos 5434 que es el puerto mapeado en docker-compose.yml
 if not os.path.exists('/.dockerenv') and not os.path.exists('/run/.containerenv'):
-    if "@db:5432/" in DB_DSN:
-        DB_DSN = DB_DSN.replace("@db:5432/", "@localhost:5434/")
-    elif "@localhost:5432/" in DB_DSN:
-        DB_DSN = DB_DSN.replace("@localhost:5432/", "@localhost:5434/")
+    # Si estamos en Windows, cambiamos 'host.docker.internal' o 'db' por 'localhost'
+    DB_DSN = DB_DSN.replace("@host.docker.internal:", "@localhost:")
+    DB_DSN = DB_DSN.replace("@db:", "@localhost:")
+    
+    # Nos aseguramos de usar el puerto 5432 si antes forzábamos el 5434
+    if ":5434/" in DB_DSN:
+        DB_DSN = DB_DSN.replace(":5434/", ":5432/")
+    
+    logger.info(f"Entorno local detectado. Usando DSN: {DB_DSN.split('@')[1]}") # Logueamos solo host:port/db por seguridad
 else:
-    # Si estamos en Docker, nos aseguramos de usar el host 'db' interno
-    logger.info("Entorno Docker detectado, usando host 'db'")
+    logger.info("Entorno Docker detectado, usando host definido en .env")
 
 
 BASE_URL = "https://www.anr.org.py/assets/p2026"
