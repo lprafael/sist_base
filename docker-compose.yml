@@ -13,7 +13,7 @@ services:
     ports:
       - "5434:5432" # Mapeado a 5434 para evitar conflicto con tu Postgres local o anterior
     volumes:
-      - sigel_db_data:/var/lib/postgresql/data
+      - C:\Users\support\Documents\sigel_db_data:/var/lib/postgresql/data
     networks:
       - SIGEL-network
 
