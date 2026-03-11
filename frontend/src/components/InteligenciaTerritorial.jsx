@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./InteligenciaTerritorial.css";
 
-const API = import.meta.env.VITE_REACT_APP_API_URL;
+// Vacío = rutas relativas (/api/...) para que nginx haga proxy al backend en Docker
+const API = import.meta.env.VITE_REACT_APP_API_URL ?? "";
 
 // ── Helpers ──────────────────────────────────────────────────
 const authHeaders = () => ({
@@ -101,10 +102,12 @@ export default function InteligenciaTerritorial({ user }) {
     setLoading(true);
     setError(null);
     try {
-      const url = new URL(`${API}/api/inteligencia/estadisticas`);
-      url.searchParams.set("departamento_id", selDepto);
-      url.searchParams.set("distrito_id", selDistrito);
-      url.searchParams.set("dias_atras", diasAtras);
+      const params = new URLSearchParams({
+        departamento_id: selDepto,
+        distrito_id: selDistrito,
+        dias_atras: String(diasAtras),
+      });
+      const url = `${API}/api/inteligencia/estadisticas?${params.toString()}`;
       const r = await fetch(url, { headers: authHeaders() });
       if (!r.ok) throw new Error(await r.text());
       setStats(await r.json());
@@ -120,11 +123,13 @@ export default function InteligenciaTerritorial({ user }) {
     if (!selDepto || !selDistrito) return;
     setLoading(true);
     try {
-      const url = new URL(`${API}/api/inteligencia/insights`);
-      url.searchParams.set("departamento_id", selDepto);
-      url.searchParams.set("distrito_id", selDistrito);
-      url.searchParams.set("dias_atras", diasAtras);
-      url.searchParams.set("limit", 30);
+      const params = new URLSearchParams({
+        departamento_id: selDepto,
+        distrito_id: selDistrito,
+        dias_atras: String(diasAtras),
+        limit: "30",
+      });
+      const url = `${API}/api/inteligencia/insights?${params.toString()}`;
       const r = await fetch(url, { headers: authHeaders() });
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
@@ -140,9 +145,11 @@ export default function InteligenciaTerritorial({ user }) {
   const cargarGuiones = useCallback(async () => {
     if (!selDepto || !selDistrito) return;
     try {
-      const url = new URL(`${API}/api/inteligencia/guiones`);
-      url.searchParams.set("departamento_id", selDepto);
-      url.searchParams.set("distrito_id", selDistrito);
+      const params = new URLSearchParams({
+        departamento_id: selDepto,
+        distrito_id: selDistrito,
+      });
+      const url = `${API}/api/inteligencia/guiones?${params.toString()}`;
       const r = await fetch(url, { headers: authHeaders() });
       const data = await r.json();
       setGuiones(Array.isArray(data) ? data : []);
