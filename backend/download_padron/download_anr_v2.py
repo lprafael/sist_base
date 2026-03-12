@@ -1,13 +1,13 @@
 """
 download_anr_v2.py - Versión optimizada del descargador de Padrón ANR.
 
-Mejoras respecto a v1:
-- httpx AsyncClient para peticiones HTTP 100% async (sin threads)
-- deque en vez de list para el buffer de resultados (O(1) vs O(n))
-- Tabla SQLAlchemy pre-cacheada fuera del loop de guardado
-- INSERT con COPY via asyncpg para máxima velocidad de escritura
-- Semaphore agresivo (hasta 100 concurrent requests)
-- Skip inteligente: descarga bloques por rango y evita re-descargar
+Optimizaciones de rendimiento:
+- httpx AsyncClient + HTTP/2 (opcional: pip install 'httpx[http2]') para más requests por conexión
+- COPY a tabla staging + INSERT ... ON CONFLICT desde staging (mucho más rápido que executemany)
+- Saver despierta al instante cuando hay un batch completo (Event en vez de poll cada 1s)
+- fill_gaps por chunks (500k) para no cargar millones de filas en RAM
+- Semáforo compartido para limitar requests HTTP simultáneos
+- Skip inteligente (--skip-existing / --fill-gaps) para no re-descargar
 
 Comandos de ejemplo:
 --------------------
@@ -111,7 +111,22 @@ async def init_db(pool: asyncpg.Pool, force_recreate: bool = False):
                 fecha_descarga TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
-    logger.info("Tabla anr_padron_2026 verficada.")
+        # Tabla staging para COPY masivo (mucho más rápido que INSERT fila a fila)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS electoral.anr_padron_2026_staging (
+                cedula VARCHAR(20),
+                nombres VARCHAR(255),
+                apellidos VARCHAR(255),
+                nacimiento DATE,
+                departamento INTEGER,
+                distrito INTEGER,
+                seccional INTEGER,
+                local INTEGER,
+                mesa INTEGER,
+                orden INTEGER
+            );
+        """)
+    logger.info("Tabla anr_padron_2026 y staging verificadas.")
 
 
 async def get_existing_cedulas(pool: asyncpg.Pool, start: int, end: int) -> set:
@@ -167,41 +182,54 @@ async def fetch_single(client: httpx.AsyncClient, cedula: int, semaphore: asynci
     return None
 
 
+def _record_to_tuple(r: dict) -> tuple:
+    return (
+        r["cedula"], r["nombres"], r["apellidos"], r["nacimiento"],
+        r["departamento"], r["distrito"], r["seccional"],
+        r["local"], r["mesa"], r["orden"]
+    )
+
+
 async def save_batch_asyncpg(pool: asyncpg.Pool, batch: list) -> int:
     """
-    Guarda un lote usando executemany con asyncpg — mucho más rápido que SQLAlchemy upsert.
+    Guarda un lote usando COPY a tabla staging + INSERT ... ON CONFLICT desde staging.
+    Mucho más rápido que executemany (menos round-trips y protocolo COPY nativo).
     """
     if not batch:
         return 0
-    
-    sql = """
-        INSERT INTO electoral.anr_padron_2026 
-            (cedula, nombres, apellidos, nacimiento, departamento, distrito, seccional, local, mesa, orden)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (cedula) DO UPDATE SET
-            nombres = EXCLUDED.nombres,
-            apellidos = EXCLUDED.apellidos,
-            nacimiento = EXCLUDED.nacimiento,
-            departamento = EXCLUDED.departamento,
-            distrito = EXCLUDED.distrito,
-            seccional = EXCLUDED.seccional,
-            local = EXCLUDED.local,
-            mesa = EXCLUDED.mesa,
-            orden = EXCLUDED.orden,
-            fecha_descarga = CURRENT_TIMESTAMP
-    """
-    records = [
-        (
-            r["cedula"], r["nombres"], r["apellidos"], r["nacimiento"],
-            r["departamento"], r["distrito"], r["seccional"],
-            r["local"], r["mesa"], r["orden"]
-        )
-        for r in batch
+
+    columns = [
+        "cedula", "nombres", "apellidos", "nacimiento",
+        "departamento", "distrito", "seccional", "local", "mesa", "orden"
     ]
-    
+    records = [_record_to_tuple(r) for r in batch]
+
     async with pool.acquire() as conn:
-        await conn.executemany(sql, records)
-    
+        await conn.copy_records_to_table(
+            "anr_padron_2026_staging",
+            records=records,
+            columns=columns,
+            schema_name="electoral",
+        )
+        await conn.execute("""
+            INSERT INTO electoral.anr_padron_2026
+                (cedula, nombres, apellidos, nacimiento, departamento, distrito, seccional, local, mesa, orden)
+            SELECT cedula, nombres, apellidos, nacimiento, departamento, distrito, seccional, local, mesa, orden
+            FROM electoral.anr_padron_2026_staging
+            ON CONFLICT (cedula) DO UPDATE SET
+                nombres = EXCLUDED.nombres,
+                apellidos = EXCLUDED.apellidos,
+                nacimiento = EXCLUDED.nacimiento,
+                departamento = EXCLUDED.departamento,
+                distrito = EXCLUDED.distrito,
+                seccional = EXCLUDED.seccional,
+                local = EXCLUDED.local,
+                mesa = EXCLUDED.mesa,
+                orden = EXCLUDED.orden,
+                fecha_descarga = CURRENT_TIMESTAMP
+        """)
+        await conn.execute("TRUNCATE electoral.anr_padron_2026_staging")
+
     return len(records)
 
 
@@ -233,29 +261,44 @@ async def main():
     cedulas = []
 
     if args.fill_gaps:
-        logger.info("Modo FILL-GAPS activado. Analizando faltantes en toda la base de datos...")
+        logger.info("Modo FILL-GAPS activado. Analizando faltantes por chunks (sin cargar toda la tabla en RAM)...")
+        CHUNK_SIZE = 500_000
+        max_tope = 9500000
+
         async with pool.acquire() as conn:
-            rows = await conn.fetch("SELECT cedula::integer FROM electoral.anr_padron_2026 ORDER BY cedula::integer")
-        
-        existentes_list = [r[0] for r in rows]
-        if not existentes_list:
+            row = await conn.fetchrow(
+                "SELECT min(cedula::integer) as mn, max(cedula::integer) as mx FROM electoral.anr_padron_2026"
+            )
+        min_ci = row["mn"] if row and row["mn"] is not None else None
+        max_ci = row["mx"] if row and row["mx"] is not None else None
+
+        if min_ci is None or max_ci is None:
             logger.warning("Base de datos vacia. Usando rango default.")
             cedulas = list(range(args.start, args.end + 1))
         else:
-            # Encontrar huecos entre el mínimo y el máximo actual
-            # O simplemente barrer hasta un tope razonable (ej. 9.5M)
-            max_tope = 9500000
-            existentes_set = set(existentes_list)
-            min_ci = existentes_list[0]
-            max_ci = existentes_list[-1]
-            
-            logger.info(f"Rango en DB: {min_ci:,} a {max_ci:,}. Buscando huecos...")
-            
-            # Generamos faltantes en el bloque conocido + hasta el tope
-            rango_completo = range(min_ci, max_tope + 1)
-            cedulas = [c for c in rango_completo if c not in existentes_set]
-            
-            logger.info(f"Detectados {len(cedulas):,} cedulas faltantes.")
+            cedulas = []
+            # Barrer por chunks: en cada chunk consultamos solo las CI existentes en ese rango
+            range_end = min(max_ci, max_tope)
+            chunk_start = min_ci
+            while chunk_start <= range_end:
+                chunk_end = min(chunk_start + CHUNK_SIZE - 1, range_end)
+                async with pool.acquire() as conn:
+                    rows = await conn.fetch(
+                        "SELECT cedula::integer FROM electoral.anr_padron_2026 WHERE cedula::integer BETWEEN $1 AND $2",
+                        chunk_start, chunk_end
+                    )
+                existentes_chunk = {r[0] for r in rows}
+                faltantes = [c for c in range(chunk_start, chunk_end + 1) if c not in existentes_chunk]
+                cedulas.extend(faltantes)
+                logger.info(f"  Chunk {chunk_start:,}-{chunk_end:,}: {len(faltantes):,} faltantes (total acum: {len(cedulas):,})")
+                chunk_start = chunk_end + 1
+
+            # Opcional: desde max_ci+1 hasta max_tope (nuevas CI nunca descargadas)
+            if max_ci < max_tope:
+                cedulas.extend(range(max_ci + 1, max_tope + 1))
+                logger.info(f"  Rango nuevo {max_ci+1:,}-{max_tope:,}: {max_tope - max_ci:,} cedulas anadidas.")
+
+            logger.info(f"Detectados {len(cedulas):,} cedulas faltantes en total.")
 
     elif args.auto_resume:
         max_ci, total_db = await get_max_cedula(pool)
@@ -286,15 +329,22 @@ async def main():
     # Resetear el tiempo AQUI, despues de skip-existing
     buffer = deque()
     stats = {"checked": 0, "saved": 0, "start_time": time.time(), "done": False}
+    buffer_ready = asyncio.Event()  # Se señala cuando buffer >= batch para reaccionar al instante
+    semaphore = asyncio.Semaphore(args.concurrency)  # Limite global de requests HTTP simultaneos
 
-    # --- Saver task ---
+    # --- Saver task: despierta en cuanto hay un batch completo (o cada 1s por si acaso) ---
     async def saver_task():
         while not stats["done"] or buffer:
             if len(buffer) >= args.batch:
                 batch = [buffer.popleft() for _ in range(min(args.batch, len(buffer)))]
                 saved = await save_batch_asyncpg(pool, batch)
                 stats["saved"] += saved
-            await asyncio.sleep(1)
+            else:
+                try:
+                    await asyncio.wait_for(buffer_ready.wait(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    pass
+                buffer_ready.clear()
         if buffer:
             batch = list(buffer)
             buffer.clear()
@@ -331,17 +381,21 @@ async def main():
                 queue.task_done()
                 break
             try:
-                result = await fetch_single(client, cedula, asyncio.Semaphore(1))
+                result = await fetch_single(client, cedula, semaphore)
                 stats["checked"] += 1
                 if result:
                     buffer.append(result)
+                    if len(buffer) >= args.batch:
+                        buffer_ready.set()
             finally:
                 queue.task_done()
 
     saver = asyncio.create_task(saver_task())
     progress = asyncio.create_task(progress_task())
 
-    async with httpx.AsyncClient(headers=HEADERS, limits=limits) as client:
+    async with httpx.AsyncClient(
+        headers=HEADERS, limits=limits, http2=True
+    ) as client:
         # Lanzar workers
         workers = [asyncio.create_task(worker(client)) for _ in range(args.concurrency)]
 

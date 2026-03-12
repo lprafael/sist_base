@@ -93,7 +93,7 @@
 .it-territory-select label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--it-text-muted);
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -102,12 +102,18 @@
   background: var(--it-surface2);
   border: 1px solid var(--it-border);
   border-radius: var(--it-radius-sm);
-  color: var(--it-text);
+  color: #ffffff;
   padding: 9px 12px;
   font-size: 0.9rem;
   outline: none;
   cursor: pointer;
   transition: border-color 0.2s;
+}
+
+.it-territory-select select option {
+  background: #232738;
+  color: #ffffff;
+  padding: 8px 12px;
 }
 
 .it-territory-select select:focus {
@@ -117,6 +123,79 @@
 .it-territory-select select:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Dropdown custom: texto claro sobre fondo oscuro siempre visible */
+.it-custom-select { position: relative; }
+
+.it-custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--it-surface2);
+  border: 1px solid var(--it-border);
+  border-radius: var(--it-radius-sm);
+  color: #ffffff;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  text-align: left;
+}
+
+.it-custom-select-trigger:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.it-custom-select-trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.it-custom-select-value { flex: 1; }
+.it-custom-select-arrow {
+  margin-left: 8px;
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+
+.it-custom-select-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 6px 0;
+  list-style: none;
+  background: #232738;
+  border: 1px solid var(--it-border);
+  border-radius: var(--it-radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.it-custom-select-option {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.it-custom-select-option:hover {
+  background: rgba(99, 102, 241, 0.25);
+  color: #fff;
 }
 
 .it-territory-badge {

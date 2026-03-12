@@ -1,7 +1,7 @@
 // InteligenciaTerritorial.jsx
 // Módulo de Inteligencia Territorial con Social Listening e IA
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import "./InteligenciaTerritorial.css";
 
 // Vacío = rutas relativas (/api/...) para que nginx haga proxy al backend en Docker
@@ -36,6 +36,57 @@ function UrgenciaBar({ valor }) {
         style={{ width: `${valor * 10}%`, background: color }}
       />
       <span className="urgencia-label">{valor}/10</span>
+    </div>
+  );
+}
+
+// Dropdown custom para que las opciones se vean con fondo oscuro y texto claro
+function CustomTerritorySelect({ label, value, options, onChange, disabled, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = options.find(o => String(o.id) === String(value));
+  const labelText = selected ? selected.descripcion : placeholder;
+
+  useEffect(() => {
+    const close = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
+
+  return (
+    <div className="it-territory-select it-custom-select" ref={ref}>
+      <label>{label}</label>
+      <button
+        type="button"
+        className="it-custom-select-trigger"
+        onClick={() => !disabled && setOpen((o) => !o)}
+        disabled={disabled}
+      >
+        <span className="it-custom-select-value">{labelText}</span>
+        <span className="it-custom-select-arrow">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <ul className="it-custom-select-list">
+          <li>
+            <button type="button" className="it-custom-select-option" onClick={() => { onChange(""); setOpen(false); }}>
+              {placeholder}
+            </button>
+          </li>
+          {options.map((d) => (
+            <li key={d.id}>
+              <button
+                type="button"
+                className="it-custom-select-option"
+                onClick={() => { onChange(d.id); setOpen(false); }}
+              >
+                {d.descripcion}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -298,22 +349,23 @@ export default function InteligenciaTerritorial({ user }) {
         </div>
       </div>
 
-      {/* SELECTOR DE TERRITORIO */}
+      {/* SELECTOR DE TERRITORIO - dropdowns custom para texto visible en tema oscuro */}
       <div className="it-territory-bar">
-        <div className="it-territory-select">
-          <label>📍 Departamento</label>
-          <select value={selDepto} onChange={e => { setSelDepto(e.target.value); setSelDistrito(""); }}>
-            <option value="">— Seleccionar —</option>
-            {deptos.map(d => <option key={d.id} value={d.id}>{d.descripcion}</option>)}
-          </select>
-        </div>
-        <div className="it-territory-select">
-          <label>🏘️ Distrito</label>
-          <select value={selDistrito} onChange={e => setSelDistrito(e.target.value)} disabled={!selDepto}>
-            <option value="">— Seleccionar —</option>
-            {distritos.map(d => <option key={d.id} value={d.id}>{d.descripcion}</option>)}
-          </select>
-        </div>
+        <CustomTerritorySelect
+          label="📍 Departamento"
+          value={selDepto}
+          options={deptos}
+          onChange={(id) => { setSelDepto(id); setSelDistrito(""); }}
+          placeholder="— Seleccionar —"
+        />
+        <CustomTerritorySelect
+          label="🏘️ Distrito"
+          value={selDistrito}
+          options={distritos}
+          onChange={setSelDistrito}
+          disabled={!selDepto}
+          placeholder="— Seleccionar —"
+        />
         <div className="it-territory-select">
           <label>📅 Período</label>
           <select value={diasAtras} onChange={e => setDiasAtras(Number(e.target.value))}>

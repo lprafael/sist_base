@@ -14,15 +14,16 @@ import logging
 from typing import List, Optional, Any
 from datetime import datetime, date, timedelta
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select, desc
 from dotenv import load_dotenv
 
 from database import get_session
-from security import get_current_user
+from security import get_current_user, verify_token
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -58,6 +59,53 @@ class GuionRequest(BaseModel):
     distrito_id: int
     zona: Optional[str] = None
     dias_atras: int = 30          # cuántos días de insights considerar
+
+# ──────────────────────────────────────────────
+# AUTH INGEST: API Key (N8N/servicios) o Bearer (usuario)
+# ──────────────────────────────────────────────
+
+_http_bearer_optional = HTTPBearer(auto_error=False)
+INGEST_API_KEY_ENV = "INTELIGENCIA_INGEST_API_KEY"
+INGEST_USER_ID_ENV = "INTELIGENCIA_INGEST_USER_ID"
+
+
+async def get_ingest_auth(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_http_bearer_optional),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Acepta autenticación por X-API-Key (para N8N/cron) o Bearer JWT (usuario).
+    Devuelve {"user_id": int} para usar en creado_por.
+    """
+    api_key = request.headers.get("X-API-Key")
+    env_key = os.getenv(INGEST_API_KEY_ENV, "").strip()
+    if api_key and env_key and api_key == env_key:
+        uid = os.getenv(INGEST_USER_ID_ENV, "1").strip()
+        try:
+            return {"user_id": int(uid)}
+        except ValueError:
+            return {"user_id": 1}
+    if credentials:
+        try:
+            payload = verify_token(credentials.credentials)
+            username = payload.get("sub")
+            if username:
+                r = await session.execute(
+                    text("SELECT id FROM sistema.usuarios WHERE username = :u"),
+                    {"u": username}
+                )
+                row = r.fetchone()
+                if row:
+                    return {"user_id": row[0]}
+        except HTTPException:
+            pass
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Requiere X-API-Key válida o Authorization: Bearer <token>",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
 
 # ──────────────────────────────────────────────
 # UTILIDAD: LLAMAR A OPENAI
@@ -261,6 +309,57 @@ async def analizar_y_guardar(
 
 
 # ──────────────────────────────────────────────
+# ENDPOINT 1b: Ingestión desde redes (API Key o Bearer) — para N8N/cron
+# ──────────────────────────────────────────────
+
+@router.post("/ingest", summary="Ingestar texto desde redes (API Key o JWT)")
+async def ingest_social(
+    body: InsightAnalyzeRequest,
+    session: AsyncSession = Depends(get_session),
+    auth: dict = Depends(get_ingest_auth),
+):
+    """
+    Mismo flujo que POST /analizar: analiza el texto con IA y guarda el insight.
+    Acepta autenticación por header X-API-Key (configurar INTELIGENCIA_INGEST_API_KEY
+    y opcionalmente INTELIGENCIA_INGEST_USER_ID en .env) o por Bearer JWT.
+    Pensado para N8N, Zapier, cron jobs, etc.
+    """
+    user_id = auth["user_id"]
+    analisis = await analizar_con_openai(body.texto)
+    result = await session.execute(
+        text("""
+            INSERT INTO electoral.territorial_insights
+                (departamento_id, distrito_id, zona, fuente, texto_original,
+                 categoria, sentimiento, urgencia, temas_clave, resumen_ia, creado_por)
+            VALUES
+                (:dep, :dis, :zona, :fuente, :texto,
+                 :cat, :sent, :urg, :temas::jsonb, :resumen, :uid)
+            RETURNING id
+        """),
+        {
+            "dep": body.departamento_id,
+            "dis": body.distrito_id,
+            "zona": body.zona,
+            "fuente": body.fuente,
+            "texto": body.texto,
+            "cat": analisis.get("categoria"),
+            "sent": analisis.get("sentimiento"),
+            "urg": analisis.get("urgencia"),
+            "temas": json.dumps(analisis.get("temas_clave", []), ensure_ascii=False),
+            "resumen": analisis.get("resumen_ia"),
+            "uid": user_id,
+        }
+    )
+    new_id = result.fetchone()[0]
+    await session.commit()
+    return {
+        "id": new_id,
+        "mensaje": "Insight ingerido exitosamente",
+        "analisis": analisis,
+    }
+
+
+# ──────────────────────────────────────────────
 # ENDPOINT 2: Crear insight manual (sin IA)
 # ──────────────────────────────────────────────
 
@@ -334,12 +433,9 @@ async def listar_insights(
     """
     Devuelve insights filtrados por territorio, categoría, sentimiento y rango de fechas.
     """
-    filtros = ["ti.activo = TRUE", "ti.fecha_insight >= :desde"]
-    params: dict[str, Any] = {
-        "desde": str(date.today() - timedelta(days=dias_atras)),
-        "limit": limit,
-        "offset": offset
-    }
+    desde_iso = (date.today() - timedelta(days=dias_atras)).isoformat()
+    filtros = ["ti.activo = TRUE", f"ti.fecha_insight >= '{desde_iso}'"]
+    params: dict[str, Any] = {"limit": limit, "offset": offset}
 
     if departamento_id:
         filtros.append("ti.departamento_id = :dep")
@@ -411,9 +507,9 @@ async def estadisticas_territorio(
     Retorna: distribución de categorías, sentimientos, urgencia promedio y
     hallazgos por zona para el período indicado.
     """
-    desde = str(date.today() - timedelta(days=dias_atras))
-    filtros = ["activo = TRUE", "fecha_insight >= :desde"]
-    params: dict[str, Any] = {"desde": desde}
+    desde_iso = (date.today() - timedelta(days=dias_atras)).isoformat()
+    filtros = ["activo = TRUE", f"fecha_insight >= '{desde_iso}'"]
+    params: dict[str, Any] = {}
 
     if departamento_id:
         filtros.append("departamento_id = :dep")
@@ -637,10 +733,10 @@ async def listar_guiones(
     filtros = []
     params: dict[str, Any] = {"limit": limit}
     if departamento_id:
-        filtros.append("departamento_id = :dep")
+        filtros.append("g.departamento_id = :dep")
         params["dep"] = departamento_id
     if distrito_id:
-        filtros.append("distrito_id = :dis")
+        filtros.append("g.distrito_id = :dis")
         params["dis"] = distrito_id
 
     where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
