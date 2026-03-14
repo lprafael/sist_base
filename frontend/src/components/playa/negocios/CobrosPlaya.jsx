@@ -210,6 +210,19 @@ const CobrosPlaya = () => {
             console.log('Pagarés con información completa:', pagaresConInfo.length, 'de', pagaresWithInfo.length);
             console.log('Pagarés con pagos:', pagaresWithInfo.filter(p => p.pagos && p.pagos.length > 0).length);
 
+            // DEBUG: imprimir datos exactos de MILCIADES (1110978) como texto plano
+            pagaresWithInfo
+                .filter(p => p.numero_documento === '1110978')
+                .forEach(p => {
+                    const pago0 = (p.pagos || [])[0];
+                    console.log(
+                        `[MILCIADES] cuota=${p.numero_cuota} | cancelado=${p.cancelado} (tipo: ${typeof p.cancelado})` +
+                        ` | estado=${p.estado} | monto_int_mora=${p.monto_int_mora} | periodo=${p.periodo_int_mora}` +
+                        ` | id_venta=${p.id_venta} | pagos_count=${(p.pagos || []).length}` +
+                        (pago0 ? ` | pago0: monto=${pago0.monto_pagado}, mora=${pago0.mora_aplicada}` : '')
+                    );
+                });
+
             // Calcular total de cuotas por venta (solo tipo CUOTA, excluyendo ENTREGA_INICIAL)
             const ventasCuotas = {};
             pagaresWithInfo.forEach(p => {
@@ -301,52 +314,36 @@ const CobrosPlaya = () => {
     const calcularMora = (pagare, fechaPagoStr) => {
         if (!pagare || !pagare.fecha_vencimiento) return 0;
 
-        // Parsear fechas manualmente para evitar problemas de zona horaria (YYYY-MM-DD)
+        // Parsear fechas (YYYY-MM-DD)
         const [yV, mV, dV] = pagare.fecha_vencimiento.split('-').map(Number);
         const [yP, mP, dP] = fechaPagoStr.split('-').map(Number);
 
         const fecVenc = new Date(yV, mV - 1, dV);
-        const fecPago = new Date(yP, mP - 1, dP);
+        const fecRef = new Date(yP, mP - 1, dP);
 
-        if (fecPago <= fecVenc) return 0;
+        // Si la fecha de referencia es anterior o igual al vencimiento, no hay mora
+        if (fecRef <= fecVenc) return 0;
 
-        const diffTime = fecPago.getTime() - fecVenc.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        const diasGracia = parseInt(pagare.dias_gracia || 0);
-
-        // Si el atraso no supera los días de gracia, no se cobra mora
-        if (diffDays <= diasGracia) return 0;
-
-        const periodo = pagare.periodo_int_mora || 'D';
         const montoIntMora = parseFloat(pagare.monto_int_mora || 0);
-        const tasaIntMora = parseFloat(pagare.tasa_interes || 0);
-        const saldoPendiente = parseFloat(pagare.saldo_pendiente || 0);
+        const diasGracia = parseInt(pagare.dias_gracia || 0);
+        const periodo = pagare.periodo_int_mora || 'D';
 
-        let interesCalculado = 0;
+        // Diferencia total en días naturales (24h)
+        const diffDaysTotal = Math.floor((fecRef.getTime() - fecVenc.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // REGLA DE GRACIA: Si el atraso no supera los días de gracia, 0 interés.
+        if (diffDaysTotal <= diasGracia) return 0;
 
-        if (periodo === 'D') {
-            // Cálculo Diario: Días de atraso * montoIntMora
-            interesCalculado = diffDays * montoIntMora;
-        } else {
-            // Otros periodos (Semanal, Mensual, Anual) - Por periodos transcurridos
-            let diasPorPeriodo = 1;
-            if (periodo === 'S') diasPorPeriodo = 7;
-            else if (periodo === 'M') diasPorPeriodo = 30;
-            else if (periodo === 'A') diasPorPeriodo = 365;
+        // REGLA DE CÁLCULO: Si supera los días de gracia, se cobra por TODOS los días de atraso.
+        // Ejemplo: Venc 04, Hoy 14 -> 10 días de atraso. Si gracia es 5, 10 > 5 -> 10 * interes_diario.
+        let diasPorPeriodo = 1;
+        if (periodo === 'S') diasPorPeriodo = 7;
+        else if (periodo === 'M') diasPorPeriodo = 30;
+        else if (periodo === 'A') diasPorPeriodo = 365;
 
-            const numPeriodos = Math.floor(diffDays / diasPorPeriodo);
-            interesCalculado = numPeriodos * montoIntMora;
-        }
+        const moraGenerada = (diffDaysTotal / diasPorPeriodo) * montoIntMora;
 
-        // Si hay una tasa de interés configurada, sumarla al proporcional (opcional según el usuario, pero lo mantenemos si existe)
-        if (tasaIntMora > 0) {
-            interesCalculado += (saldoPendiente * (tasaIntMora / 100));
-        }
-
-        console.log(`Cálculo de mora: Días atraso: ${diffDays}, Periodo: ${periodo}, Monto Mora: ${montoIntMora}, Interés: ${interesCalculado}`);
-
-        return Math.floor(interesCalculado);
+        return Math.floor(moraGenerada);
     };
 
     const handleFechaPagoChange = (e) => {
@@ -458,7 +455,10 @@ const CobrosPlaya = () => {
     };
 
     const sortedPagares = () => {
-        const source = includeCancelados ? allPagares : pagares;
+        // ✅ IMPORTANTE: Usar siempre allPagares porque esta lista ya está enriquecida con 
+        // la configuración de intereses (monto_int_mora, tasa_interes, etc.) de las ventas.
+        // La lista 'pagares' (pendientes) viene cruda del backend sin esos parámetros.
+        const source = includeCancelados ? allPagares : allPagares.filter(p => !p.cancelado);
         const search = searchTerm.toLowerCase().trim();
         const searchClean = search.replace(/[-\s]/g, '');
 
@@ -682,7 +682,11 @@ const CobrosPlaya = () => {
                                         cliente: clienteNombre || 'N/A',
                                         numero_documento: clienteDoc,
                                         vehiculo: vehiculoInfo || 'N/A',
-                                        chasis: venta.producto?.chasis || ''
+                                        chasis: venta.producto?.chasis || '',
+                                        periodo_int_mora: venta.periodo_int_mora,
+                                        monto_int_mora: venta.monto_int_mora,
+                                        tasa_interes: venta.tasa_interes,
+                                        dias_gracia: venta.dias_gracia
                                     };
                                 }
                             });
@@ -1147,19 +1151,29 @@ const CobrosPlaya = () => {
             let totalSaldoReal = 0;
 
             ventaData.pagares.forEach(p => {
-                const m = calcularMora(p, todayStr);
-                const tp = (p.pagos || []).reduce((acc, pg) => acc + parseFloat(pg.monto_pagado || 0), 0);
+                // ✅ Usar la misma lógica que en la tabla principal
+                const esPagado = p.cancelado === true;
                 const mc = parseFloat(p.monto_cuota || 0);
-                const sr = Math.max(0, mc + m - tp);
 
-                // Estos valores se usarán dentro del loop del map de abajo
-                p._moraActual = m;
+                const payments = p.pagos || [];
+                const capitalPagado = payments.reduce((acc, pg) => acc + parseFloat(pg.monto_pagado || 0), 0);
+                const interesesPagados = payments.reduce((acc, pg) => acc + parseFloat(pg.mora_aplicada || 0), 0);
+                
+                const capitalRestante = Math.max(0, mc - capitalPagado);
+                const m = calcularMora(p, todayStr);
+                const interesesPendientes = Math.max(0, m - interesesPagados);
+                
+                const sr = esPagado ? 0 : Math.max(0, capitalRestante + interesesPendientes);
+
+                p._moraActual = esPagado ? interesesPagados : m;
                 p._saldoReal = sr;
+                p._interesesPendientes = interesesPendientes;
 
                 totalMonto += mc;
-                totalMora += m;
+                totalMora += p._moraActual;
                 totalSaldoReal += sr;
             });
+
 
             return `
         <div class="venta-group">
@@ -1209,8 +1223,12 @@ const CobrosPlaya = () => {
                         <tr class="${isOverdue ? 'overdue' : ''}">
                             <td>${p.tipo_pagare === 'ENTREGA_INICIAL' ? 'Entrega Inicial' : `${p.numero_cuota}/${p.total_cuotas || p.numero_cuota}`}</td>
                             <td>Gs. ${Math.round(parseFloat(p.monto_cuota || 0)).toLocaleString('es-PY')}</td>
-                            <td>Gs. ${Math.round(p._moraActual).toLocaleString('es-PY')}</td>
+                            <td style="color: ${p._interesesPendientes > 0 && !p.cancelado ? '#dc2626' : '#000'}">
+                                Gs. ${Math.round(p._moraActual).toLocaleString('es-PY')}
+                                ${p._interesesPendientes > 0 && !p.cancelado ? `<br/><small style="color: #dc2626">(Pend: Gs. ${Math.round(p._interesesPendientes).toLocaleString('es-PY')})</small>` : ''}
+                            </td>
                             <td>Gs. ${Math.round(p._saldoReal).toLocaleString('es-PY')}</td>
+
                             <td>${fechaVencFormat}</td>
                             <td>
                                 <span class="status-badge ${p.estado.toLowerCase()}">${p.estado}</span>
@@ -1323,7 +1341,7 @@ const CobrosPlaya = () => {
                                         <tr className={isOverdue ? 'overdue-row' : ''}>
                                             <td>
                                                 <span className={`date-badge ${isOverdue ? 'danger' : ''}`}>
-                                                    {p.fecha_vencimiento}
+                                                    {p.fecha_vencimiento ? p.fecha_vencimiento.split('-').reverse().join('-') : '-'}
                                                 </span>
                                             </td>
                                             <td>
@@ -1342,20 +1360,49 @@ const CobrosPlaya = () => {
                                                     : `${p.numero_cuota}/${p.total_cuotas || p.numero_cuota}`}
                                             </td>
                                             <td>Gs. {Math.round(parseFloat(p.monto_cuota)).toLocaleString('es-PY')}</td>
-                                            {(() => {
-                                                const today = new Date().toISOString().split('T')[0];
-                                                const mora = calcularMora(p, today);
-                                                const totalPagado = (p.pagos || []).reduce((acc, pg) => acc + parseFloat(pg.monto_pagado || 0), 0);
-                                                const saldoReal = Math.max(0, parseFloat(p.monto_cuota || 0) + mora - totalPagado);
-                                                return (
-                                                    <>
-                                                        <td style={{ color: mora > 0 ? '#dc2626' : '#6b7280', fontWeight: mora > 0 ? '600' : 'normal' }}>
-                                                            {mora > 0 ? `Gs. ${Math.round(mora).toLocaleString('es-PY')}` : '—'}
-                                                        </td>
-                                                        <td><strong>Gs. {Math.round(saldoReal).toLocaleString('es-PY')}</strong></td>
-                                                    </>
-                                                );
-                                            })()}
+                                             {(() => {
+                                                 // ✅ Lógica mejorada: se considera pagado SÓLO si está cancelado explícitamente.
+                                                 // Si el capital se pagó pero quedan intereses, p.cancelado será false.
+                                                 const esPagado = p.cancelado === true;
+                                                 const today = new Date().toISOString().split('T')[0];
+
+                                                 const totalCuota = parseFloat(p.monto_cuota || 0);
+
+                                                 // Calcular lo pagado acumulado (de todos los pagos de este pagaré)
+                                                 const payments = p.pagos || [];
+                                                 const capitalPagado = payments.reduce((acc, pg) => acc + parseFloat(pg.monto_pagado || 0), 0);
+                                                 const interesesPagados = payments.reduce((acc, pg) => acc + parseFloat(pg.mora_aplicada || 0), 0);
+
+                                                 const capitalRestante = Math.max(0, totalCuota - capitalPagado);
+                                                 
+                                                 // ✅ Mora Total Generada: se calcula siempre para ver el histórico, 
+                                                 // pero el saldo real dependerá de si está cancelado.
+                                                 const moraTotalGenerada = calcularMora(p, today);
+                                                 const interesesPendientes = Math.max(0, moraTotalGenerada - interesesPagados);
+                                                 
+                                                 // ✅ El saldo es la suma de ambos, a menos que esté marcado como cancelado
+                                                 const saldoReal = esPagado ? 0 : Math.max(0, capitalRestante + interesesPendientes);
+
+                                                 // Para mostrar en la columna de interés, usamos la mora total generada o 0 si está pagado
+                                                 const interesMostrar = esPagado ? interesesPagados : moraTotalGenerada;
+
+                                                 return (
+                                                     <>
+                                                         <td style={{ 
+                                                             color: (interesesPendientes > 0 && !esPagado) ? '#dc2626' : '#6b7280', 
+                                                             fontWeight: (interesesPendientes > 0 && !esPagado) ? '600' : 'normal' 
+                                                         }}>
+                                                             {interesMostrar > 0 ? `Gs. ${Math.round(interesMostrar).toLocaleString('es-PY')}` : '—'}
+                                                             {interesesPendientes > 0 && !esPagado && (
+                                                                 <div style={{ fontSize: '0.65rem', color: '#dc2626' }}>
+                                                                     (Pend: Gs. {Math.round(interesesPendientes).toLocaleString('es-PY')})
+                                                                 </div>
+                                                             )}
+                                                         </td>
+                                                         <td><strong>Gs. {Math.round(saldoReal).toLocaleString('es-PY')}</strong></td>
+                                                     </>
+                                                 );
+                                             })()}
                                             <td>
                                                 <span className={`status-label ${(p.estado_rel?.nombre || p.estado || '').toLowerCase()} ${isOverdue && (p.estado_rel?.nombre || p.estado) !== 'PAGADO' ? 'vencido' : ''}`}>
                                                     {(p.estado_rel?.nombre || p.estado) === 'PAGADO'
@@ -1365,15 +1412,17 @@ const CobrosPlaya = () => {
                                                             : (isOverdue ? 'VENCIDO' : 'PENDIENTE')}
                                                 </span>
                                             </td>
-                                            {includeCancelados && (
-                                                <td>
-                                                    {p.fecha_pago ? (
-                                                        <span className="date-badge success">
-                                                            {p.fecha_pago.split('T')[0]}
-                                                        </span>
-                                                    ) : '-'}
-                                                </td>
-                                            )}
+                                            {
+                                                includeCancelados && (
+                                                    <td>
+                                                        {p.fecha_pago ? (
+                                                            <span className="date-badge success">
+                                                                {p.fecha_pago.split('T')[0].split('-').reverse().join('-')}
+                                                            </span>
+                                                        ) : '-'}
+                                                    </td>
+                                                )
+                                            }
                                             <td>
                                                 <div className="action-buttons">
                                                     <button className="btn-expand" onClick={() => toggleRow(p.id_pagare)} title="Ver detalles de pagos">
@@ -1411,7 +1460,7 @@ const CobrosPlaya = () => {
                                                                 <tbody>
                                                                     {p.pagos.map(pg => (
                                                                         <tr key={pg.id_pago}>
-                                                                            <td>{pg.fecha_pago}</td>
+                                                                            <td>{pg.fecha_pago ? pg.fecha_pago.split('T')[0].split('-').reverse().join('-') : '-'}</td>
                                                                             <td>{pg.numero_recibo}</td>
                                                                             <td>{pg.forma_pago}</td>
                                                                             <td>Gs. {Math.round(pg.mora_aplicada).toLocaleString('es-PY')}</td>
@@ -1572,9 +1621,9 @@ const CobrosPlaya = () => {
                                                         </thead>
                                                         <tbody>
                                                             {selectedPagos.map((p) => (
-                                                                <tr key={p.id_pago}>
-                                                                    <td>{p.fecha_pago.split('T')[0]}</td>
-                                                                    <td>{p.numero_recibo}</td>
+                                                                    <tr key={p.id_pago}>
+                                                                        <td>{p.fecha_pago.split('T')[0].split('-').reverse().join('-')}</td>
+                                                                        <td>{p.numero_recibo}</td>
                                                                     <td>Gs. {Math.round(p.monto_pagado).toLocaleString('es-PY')}</td>
                                                                 </tr>
                                                             ))}

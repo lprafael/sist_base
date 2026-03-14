@@ -417,11 +417,39 @@ CREATE TABLE IF NOT EXISTS usuarios (
 );
 
 -- ============================================
+-- TABLA: CUENTAS (Caja/Bancos)
+-- ============================================
+CREATE TABLE IF NOT EXISTS cuentas (
+    id_cuenta SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    tipo VARCHAR(50), -- CAJA, BANCO
+    banco VARCHAR(100),
+    numero_cuenta VARCHAR(100),
+    saldo_actual DECIMAL(15,2) DEFAULT 0,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- TABLA: MOVIMIENTOS DE CUENTA
+-- ============================================
+CREATE TABLE IF NOT EXISTS movimientos (
+    id_movimiento SERIAL PRIMARY KEY,
+    id_cuenta_origen INTEGER REFERENCES cuentas(id_cuenta),
+    id_cuenta_destino INTEGER REFERENCES cuentas(id_cuenta),
+    monto DECIMAL(15,2) NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    concepto TEXT,
+    id_usuario INTEGER,
+    referencia VARCHAR(100)
+);
+
+-- ============================================
 -- TABLA: AUDITORÍA (Nota: Redundante si se usa schema 'sistema')
 -- ============================================
 CREATE TABLE IF NOT EXISTS auditoria (
     id_auditoria SERIAL PRIMARY KEY,
-    id_usuario INTEGER REFERENCES usuarios(id_usuario),
+    id_usuario INTEGER,
     tabla_afectada VARCHAR(100),
     accion VARCHAR(50), -- INSERT, UPDATE, DELETE
     id_registro INTEGER,
@@ -429,6 +457,11 @@ CREATE TABLE IF NOT EXISTS auditoria (
     datos_nuevos JSONB,
     fecha_accion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Modificaciones a tablas existentes para vincular con cuentas
+ALTER TABLE gastos_productos ADD COLUMN IF NOT EXISTS id_cuenta INTEGER REFERENCES cuentas(id_cuenta);
+ALTER TABLE gastos_empresa ADD COLUMN IF NOT EXISTS id_cuenta INTEGER REFERENCES cuentas(id_cuenta);
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS id_cuenta INTEGER REFERENCES cuentas(id_cuenta);
 
 -- ============================================
 -- ÍNDICES PARA MEJORAR RENDIMIENTO
@@ -483,6 +516,14 @@ CREATE INDEX IF NOT EXISTS idx_gastos_empresa_tipo ON gastos_empresa(id_tipo_gas
 
 -- Imágenes productos: por producto
 CREATE INDEX IF NOT EXISTS idx_imagenes_productos_producto ON imagenes_productos(id_producto);
+
+-- Cuentas y movimientos
+CREATE INDEX IF NOT EXISTS idx_movimientos_cta_orig ON movimientos(id_cuenta_origen);
+CREATE INDEX IF NOT EXISTS idx_movimientos_cta_dest ON movimientos(id_cuenta_destino);
+CREATE INDEX IF NOT EXISTS idx_movimientos_fecha ON movimientos(fecha);
+CREATE INDEX IF NOT EXISTS idx_gastos_prod_cuenta ON gastos_productos(id_cuenta);
+CREATE INDEX IF NOT EXISTS idx_gastos_emp_cuenta ON gastos_empresa(id_cuenta);
+CREATE INDEX IF NOT EXISTS idx_pagos_cuenta ON pagos(id_cuenta);
 
 -- ============================================
 -- DATOS INICIALES (INSERT solo si no existe por nombre, evita depender de UNIQUE)
@@ -631,39 +672,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION actualizar_estado_pagare()
-RETURNS TRIGGER AS $$
-DECLARE
-    total_pagado_monto DECIMAL(15,2);
-    monto_pagare_monto DECIMAL(15,2);
-BEGIN
-    SELECT monto_cuota INTO monto_pagare_monto
-    FROM pagares
-    WHERE id_pagare = NEW.id_pagare;
-    
-    SELECT COALESCE(SUM(monto_pagado), 0) INTO total_pagado_monto
-    FROM pagos
-    WHERE id_pagare = NEW.id_pagare;
-    
-    IF total_pagado_monto >= monto_pagare_monto THEN
-        UPDATE pagares 
-        SET estado = 'PAGADO', saldo_pendiente = 0
-        WHERE id_pagare = NEW.id_pagare;
-    ELSE
-        UPDATE pagares 
-        SET estado = 'PARCIAL', saldo_pendiente = monto_pagare_monto - total_pagado_monto
-        WHERE id_pagare = NEW.id_pagare;
-    END IF;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_actualizar_estado_pagare ON pagos;
-CREATE TRIGGER trg_actualizar_estado_pagare
-AFTER INSERT ON pagos
-FOR EACH ROW
-EXECUTE FUNCTION actualizar_estado_pagare();
+-- TRIGGER: Actualizar estado de pagaré (ELIMINADO - Se maneja desde la aplicación)
+-- La lógica de actualización de estados de pagarés ahora se realiza directamente
+-- en el código de la aplicación para permitir mayor flexibilidad con cuotas abiertas/cerradas.
+
 
 CREATE OR REPLACE FUNCTION actualizar_calificacion_cliente()
 RETURNS TRIGGER AS $$

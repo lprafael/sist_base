@@ -31,7 +31,7 @@ from models_playa import (
     TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
     ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
     UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania,
-    ImagenProducto, HistorialCalificacion, Refuerzo
+    ImagenProducto, HistorialCalificacion, Refuerzo, GastoAdicional
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
@@ -51,7 +51,8 @@ from schemas_playa import (
     MovimientoCreate, MovimientoResponse,
     DocumentoImportacionResponse, AnalizarDocumentosResponse, VinculacionProducto,
     EscribaniaCreate, EscribaniaResponse,
-    ImagenProductoCreate, ImagenProductoUpdate, ImagenProductoResponse
+    ImagenProductoCreate, ImagenProductoUpdate, ImagenProductoResponse,
+    GastoAdicionalCreate, GastoAdicionalResponse
 )
 from security import get_current_user, check_permission
 from audit_utils import log_audit_action
@@ -1853,6 +1854,131 @@ async def anular_venta(
     return {"ok": True, "message": f"Venta {old_data['numero_venta']} eliminada correctamente."}
 
 
+@router.post("/ventas/{venta_id}/finiquito")
+async def finiquitar_venta(
+    venta_id: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Aplica un FINIQUITO a una venta:
+    - NO elimina la venta ni sus pagos ya registrados.
+    - Elimina únicamente los pagarés que NO tienen ningún pago asociado.
+    - Pone cancelado=True en TODOS los pagarés restantes (los que tenían pago).
+    - Pone id_estado=ANULADO en los pagarés sin pago (antes de eliminarlos, para el log).
+    - Marca la venta como estado_venta='FINIQUITADO'.
+    - Revierte el vehículo a estado_disponibilidad='DISPONIBLE'.
+    Útil para casos como: el cliente devuelve el auto sin poder seguir pagando.
+    """
+    # 1. Traer la venta con todos sus pagarés y pagos
+    result = await session.execute(
+        select(Venta)
+        .options(
+            selectinload(Venta.pagares).selectinload(Pagare.pagos),
+            selectinload(Venta.refuerzos),
+        )
+        .where(Venta.id_venta == venta_id)
+    )
+    venta = result.unique().scalar_one_or_none()
+
+    if not venta:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+
+    if venta.estado_venta == 'FINIQUITADO':
+        raise HTTPException(status_code=400, detail="Esta venta ya tiene un finiquito aplicado.")
+
+    if venta.estado_venta == 'ANULADA':
+        raise HTTPException(status_code=400, detail="No se puede aplicar finiquito a una venta anulada.")
+
+    # 2. Obtener el id del estado ANULADO dinámicamente
+    res_st = await session.execute(select(Estado))
+    all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
+    id_anulado = all_states.get('ANULADO')
+    id_cancelado_estado = all_states.get('CANCELADO') or all_states.get('PAGADO')  # fallback
+
+    if not id_anulado:
+        raise HTTPException(status_code=500, detail="No se encontró el estado ANULADO en la base de datos.")
+
+    # 3. Separar pagarés en: con pago y sin pago
+    pagares_con_pago = []
+    pagares_sin_pago = []
+    for pagare in (venta.pagares or []):
+        # El pagaré de ENTREGA_INICIAL siempre tiene cancelado=True; también lo incluimos
+        tiene_pagos = bool(pagare.pagos)
+        if tiene_pagos or pagare.tipo_pagare == 'ENTREGA_INICIAL':
+            pagares_con_pago.append(pagare)
+        else:
+            pagares_sin_pago.append(pagare)
+
+    cuotas_sin_pago = len(pagares_sin_pago)
+    cuotas_con_pago = len(pagares_con_pago)
+
+    # 4. Eliminar refuerzos asociados a pagarés sin pago
+    ids_pagares_sin_pago = [p.id_pagare for p in pagares_sin_pago]
+    if ids_pagares_sin_pago:
+        await session.execute(
+            delete(Refuerzo).where(Refuerzo.id_pagare.in_(ids_pagares_sin_pago))
+        )
+
+    # 5. Eliminar pagarés sin pago
+    for pagare in pagares_sin_pago:
+        await session.delete(pagare)
+
+    # 6. Marcar todos los pagarés restantes (con pago) como cancelado=True
+    for pagare in pagares_con_pago:
+        pagare.cancelado = True
+        # Si el pagaré aún estaba PENDIENTE (no hay razón, pero por si acaso), lo marcamos PAGADO
+        # Los que ya estaban PAGADO se quedan igual.
+
+    # 7. Marcar estado de la venta como FINIQUITADO
+    venta.estado_venta = 'FINIQUITADO'
+
+    # Agregar observación al campo de la venta
+    obs_finiquito = f"[FINIQUITO {date.today().isoformat()}] Aplicado por {current_user['sub']}. " \
+                    f"{cuotas_con_pago} pagaré(s) con pago conservados, {cuotas_sin_pago} pagaré(s) sin pago eliminados."
+    venta.observaciones = (venta.observaciones or '') + '\n' + obs_finiquito if venta.observaciones else obs_finiquito
+
+    # 8. Revertir vehículo a DISPONIBLE
+    if venta.id_producto:
+        res_v = await session.execute(
+            select(Producto).where(Producto.id_producto == venta.id_producto)
+        )
+        vehiculo = res_v.scalar_one_or_none()
+        if vehiculo:
+            vehiculo.estado_disponibilidad = 'DISPONIBLE'
+
+    await session.commit()
+
+    # 9. Auditoría
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="ventas",
+        record_id=venta_id,
+        previous_data={"estado_venta": "ACTIVA"},
+        new_data={
+            "estado_venta": "FINIQUITADO",
+            "pagares_eliminados": cuotas_sin_pago,
+            "pagares_conservados": cuotas_con_pago
+        },
+        details=f"Finiquito aplicado a venta {venta.numero_venta}: {cuotas_sin_pago} pagaré(s) eliminados, {cuotas_con_pago} conservados. Vehículo devuelto a DISPONIBLE."
+    )
+
+    return {
+        "ok": True,
+        "message": (
+            f"Finiquito aplicado correctamente a la venta {venta.numero_venta}.\n"
+            f"• {cuotas_con_pago} pagaré(s) con pago conservados (marcados como cancelados).\n"
+            f"• {cuotas_sin_pago} pagaré(s) sin pago eliminados.\n"
+            f"• El vehículo fue devuelto al inventario como DISPONIBLE."
+        ),
+        "pagares_eliminados": cuotas_sin_pago,
+        "pagares_conservados": cuotas_con_pago
+    }
+
+
 @router.put("/ventas/{venta_id}", response_model=VentaResponse)
 async def update_venta(
     venta_id: int,
@@ -1939,7 +2065,7 @@ async def update_venta(
                 "numero_cuota": p.numero_cuota,
                 "monto_cuota": float(p.monto_cuota) if p.monto_cuota is not None else None,
                 "fecha_vencimiento": p.fecha_vencimiento.isoformat() if p.fecha_vencimiento else None,
-                "estado": p.estado,
+                "estado": p.estado_rel.nombre if p.estado_rel else None,
                 "saldo_pendiente": float(p.saldo_pendiente) if p.saldo_pendiente is not None else None,
             }
             for p in (venta.pagares or [])
@@ -1955,6 +2081,9 @@ async def update_venta(
         else:
             setattr(venta, field, value)
 
+    pagares_eliminados = 0
+    pagares_generados = 0
+
     if is_structural_change:
         # Eliminar detalles antiguos y crear nuevos
         for d in (venta.detalles or []):
@@ -1964,12 +2093,10 @@ async def update_venta(
             nuevo_detalle = DetalleVenta(id_venta=venta.id_venta, **det)
             session.add(nuevo_detalle)
 
-        pagares_eliminados = 0
         for pagare in (venta.pagares or []):
             await session.delete(pagare)
             pagares_eliminados += 1
 
-        pagares_generados = 0
         base_date = venta.fecha_venta or date.today()
 
         # Obtener estados para asignar el ID correcto
@@ -2314,24 +2441,63 @@ async def create_pago(
             if dias_afectivos > 0:
                 # Calcular periodos según configuración de la venta
                 periodo = venta.periodo_int_mora or 'D'
-                
                 dias_por_periodo = 1
                 if periodo == 'S': dias_por_periodo = 7
                 elif periodo == 'M': dias_por_periodo = 30
                 elif periodo == 'A': dias_por_periodo = 365
                 
-                # Cantidad de periodos (proporcional)
-                num_periodos = Decimal(str(dias_afectivos)) / Decimal(str(dias_por_periodo))
+                # REGLA: Tasa % es una multa única sobre el saldo, Cargo Fijo es acumulativo por tramos.
+                tasa_fine = venta.tasa_interes or Decimal("0.00")
+                cargo_fijo_periodo = venta.monto_int_mora or Decimal("0.00")
+                gracia = venta.dias_gracia or 0
                 
-                # NUEVA FÓRMULA SOLICITADA POR EL USUARIO:
-                # Mora = Saldo Pendiente * (Tasa % / 100) + (Cantidad de Periodos de Atraso * monto_int_mora)
-                tasa_porc = venta.tasa_interes or Decimal("0.00")
-                cargo_fijo = venta.monto_int_mora or Decimal("0.00")
+                # 1. Multa del % sobre el saldo inicial atrasado (o actual si es el primer cobro)
+                # Para ser consistentes con la solicitud "basándose en el saldo", usamos el saldo_pendiente actual.
+                interes_fine = (pagare.saldo_pendiente or pagare.monto_cuota) * (tasa_fine / Decimal("100"))
                 
-                interes_al_saldo = pagare.saldo_pendiente * (tasa_porc / Decimal("100"))
-                multa_periodica = num_periodos * cargo_fijo
+                # 2. Acumulación trameada del cargo fijo
+                mora_fija_acumulada = Decimal("0.00")
                 
-                mora_calculada = interes_al_saldo + multa_periodica
+                # REGLA DE NEGOCIO: Si superó los días de gracia, la mora corre desde el vencimiento original.
+                # (El chequeo anterior if dias_afectivos > ... ya asegura que no cobramos si está en gracia)
+                fec_inicio_calculo = pagare.fecha_vencimiento
+                
+                if pago_data.fecha_pago > fec_inicio_calculo:
+                    # Tramos de capital (basado en historial de pagos)
+                    eventos = []
+                    for h_pago in (pagare.pagos or []):
+                        if h_pago.fecha_pago > fec_inicio_calculo and h_pago.fecha_pago < pago_data.fecha_pago:
+                            eventos.append({'fecha': h_pago.fecha_pago, 'monto': h_pago.monto_pagado})
+                    
+                    eventos.sort(key=lambda x: x['fecha'])
+                    
+                    # Capital inicial al inicio del cálculo
+                    cap_tramo = Decimal(str(pagare.monto_cuota))
+                    for h_pago in (pagare.pagos or []):
+                        if h_pago.fecha_pago <= fec_inicio_calculo:
+                            cap_tramo -= Decimal(str(h_pago.monto_pagado))
+                    
+                    last_f = fec_inicio_calculo
+                    for ev in eventos:
+                        if cap_tramo <= 0: break
+                        diff_dias = (ev['fecha'] - last_f).days
+                        num_p = Decimal(str(diff_dias)) / Decimal(str(dias_por_periodo))
+                        mora_fija_acumulada += num_p * cargo_fijo_periodo
+                        cap_tramo -= Decimal(str(ev['monto']))
+                        last_f = ev['fecha']
+                    
+                    # Tramo final hasta hoy
+                    if cap_tramo > 0:
+                        diff_dias = (pago_data.fecha_pago - last_f).days
+                        num_p = Decimal(str(diff_dias)) / Decimal(str(dias_por_periodo))
+                        mora_fija_acumulada += num_p * cargo_fijo_periodo
+
+                # 3. Restar lo que ya se pagó por concepto de mora en pagos anteriores
+                intereses_ya_pagados = sum(Decimal(str(p.mora_aplicada or 0)) for p in (pagare.pagos or []))
+                
+                generado_total = interes_fine + mora_fija_acumulada
+                mora_calculada = max(Decimal("0.00"), generado_total - intereses_ya_pagados)
+
     elif pago_data.mora_aplicada is not None:
         # Incluso si no hay atraso, si el usuario forzó un interés, lo guardamos
         mora_calculada = Decimal(str(pago_data.mora_aplicada))
@@ -2354,15 +2520,18 @@ async def create_pago(
     )
     session.add(new_pago)
     
-    # 3.1 Actualizar saldo de la cuenta si se especificó
+    # 3.1 Actualizar saldo de la cuenta si se especificó (Capital + Interés)
     if id_cuenta:
         res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cuenta))
         cuenta = res_c.scalar_one_or_none()
         if cuenta:
             if cuenta.saldo_actual is None: cuenta.saldo_actual = 0
-            cuenta.saldo_actual += Decimal(str(pago_data.monto_pagado))
+            # IMPORTANTE: El ingreso total a la cuenta incluye el capital y el interés (mora)
+            total_ingreso = Decimal(str(pago_data.monto_pagado)) + mora_calculada
+            cuenta.saldo_actual += total_ingreso
 
     # 4. Actualizar estado del pagaré (SOPORTE PAGOS PARCIALES)
+    # NOTA: El trigger de base de datos fue eliminado. Esta es la lógica oficial.
     monto_a_aplicar = Decimal(str(pago_data.monto_pagado))
     
     if pagare.saldo_pendiente is None:
@@ -2475,19 +2644,24 @@ async def update_pago(
     new_monto = Decimal(str(data.monto_pagado))
     diff_monto = new_monto - old_monto
 
-    # 3. Actualizar cuenta si cambió el monto o la cuenta
+    # 3. Actualizar cuenta si cambió el monto o la cuenta (Incluyendo interés)
+    old_interest = pago.mora_aplicada or Decimal("0.00")
+    new_interest = Decimal(str(data.mora_aplicada or 0))
+    
     if pago.id_cuenta:
         res_c_old = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == pago.id_cuenta))
         cuenta_old = res_c_old.scalar_one_or_none()
         if cuenta_old:
-            cuenta_old.saldo_actual -= old_monto
+            # Revertir total anterior
+            cuenta_old.saldo_actual -= (old_monto + old_interest)
 
     if data.id_cuenta:
         res_c_new = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta))
         cuenta_new = res_c_new.scalar_one_or_none()
         if cuenta_new:
             if cuenta_new.saldo_actual is None: cuenta_new.saldo_actual = 0
-            cuenta_new.saldo_actual += new_monto
+            # Aplicar nuevo total
+            cuenta_new.saldo_actual += (new_monto + new_interest)
 
     # 4. Actualizar saldo del pagaré
     if pagare.saldo_pendiente is None:
@@ -2550,12 +2724,13 @@ async def delete_pago(
 
     monto_a_revertir = pago.monto_pagado
 
-    # 3. Revertir saldo en la cuenta
+    # 3. Revertir saldo en la cuenta (Capital + Interés)
     if pago.id_cuenta:
         res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == pago.id_cuenta))
         cuenta = res_c.scalar_one_or_none()
         if cuenta:
-            cuenta.saldo_actual -= monto_a_revertir
+            total_a_revertir = monto_a_revertir + (pago.mora_aplicada or 0)
+            cuenta.saldo_actual -= total_a_revertir
 
     # 4. Revertir saldo del pagaré
     if pagare.saldo_pendiente is None:
@@ -2720,6 +2895,31 @@ async def create_gasto_vehiculo(
 ):
     new_gasto = GastoProducto(**gasto_data.dict())
     session.add(new_gasto)
+    
+    # Si se especificó cuenta, registrar el movimiento y actualizar saldo
+    if gasto_data.id_cuenta:
+        res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == gasto_data.id_cuenta))
+        cuenta = res_c.scalar_one_or_none()
+        if cuenta:
+            if cuenta.saldo_actual is None: cuenta.saldo_actual = 0
+            cuenta.saldo_actual -= Decimal(str(gasto_data.monto))
+            
+            # Obtener info del producto para el concepto
+            res_p = await session.execute(select(Producto).where(Producto.id_producto == gasto_data.id_producto))
+            prod = res_p.scalar_one_or_none()
+            prod_info = f"{prod.marca} {prod.modelo} (Chasis: {prod.chasis})" if prod else f"Producto {gasto_data.id_producto}"
+            
+            # Registrar Movimiento
+            new_mov = Movimiento(
+                id_cuenta_origen=gasto_data.id_cuenta,
+                monto=gasto_data.monto,
+                fecha=datetime.combine(gasto_data.fecha_gasto, datetime.min.time()),
+                concepto=f"Gasto Vehículo: {gasto_data.descripcion or 'Sin descripción'} - {prod_info}",
+                referencia="Gasto Vehículo",
+                id_usuario=current_user.get("user_id")
+            )
+            session.add(new_mov)
+
     await session.commit()
     await session.refresh(new_gasto)
     
@@ -3023,6 +3223,26 @@ async def create_gasto_empresa(
 ):
     new_gasto = GastoEmpresa(**data.dict())
     session.add(new_gasto)
+    
+    # Si se especificó cuenta, registrar el movimiento y actualizar saldo
+    if data.id_cuenta:
+        res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta))
+        cuenta = res_c.scalar_one_or_none()
+        if cuenta:
+            if cuenta.saldo_actual is None: cuenta.saldo_actual = 0
+            cuenta.saldo_actual -= Decimal(str(data.monto))
+            
+            # Registrar Movimiento
+            new_mov = Movimiento(
+                id_cuenta_origen=data.id_cuenta,
+                monto=data.monto,
+                fecha=datetime.combine(data.fecha_gasto, datetime.min.time()),
+                concepto=f"Gasto Empresa: {data.descripcion or 'Sin descripción'}",
+                referencia="Gasto Empresa",
+                id_usuario=current_user.get("user_id")
+            )
+            session.add(new_mov)
+
     await session.commit()
     await session.refresh(new_gasto)
     
@@ -3162,6 +3382,185 @@ async def delete_gasto_empresa(
     await session.commit()
     
     return {"message": "Gasto eliminado correctamente"}
+
+
+# ===== GASTOS ADICIONALES (INGRESOS/EGRESOS VARIOS) =====
+@router.get("/gastos-adicionales", response_model=List[GastoAdicionalResponse])
+async def list_gastos_adicionales(
+    desde: Optional[date] = None,
+    hasta: Optional[date] = None,
+    id_cuenta: Optional[int] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(GastoAdicional).options(joinedload(GastoAdicional.cuenta_rel)).order_by(GastoAdicional.fecha.desc())
+    if desde:
+        query = query.where(GastoAdicional.fecha >= desde)
+    if hasta:
+        query = query.where(GastoAdicional.fecha <= hasta)
+    if id_cuenta:
+        query = query.where(GastoAdicional.id_cuenta == id_cuenta)
+    
+    result = await session.execute(query)
+    return result.scalars().all()
+
+@router.post("/gastos-adicionales", response_model=GastoAdicionalResponse)
+async def create_gasto_adicional(
+    data: GastoAdicionalCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    new_item = GastoAdicional(**data.model_dump())
+    session.add(new_item)
+    
+    # Actualizar saldo de la cuenta
+    res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta))
+    cuenta = res_c.scalar_one_or_none()
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    
+    monto = Decimal(str(data.monto))
+    if data.tipo == 'INGRESO':
+        cuenta.saldo_actual = (cuenta.saldo_actual or 0) + monto
+    else:
+        cuenta.saldo_actual = (cuenta.saldo_actual or 0) - monto
+        
+    # Registrar Movimiento para el extracto
+    new_mov = Movimiento(
+        id_cuenta_destino=data.id_cuenta if data.tipo == 'INGRESO' else None,
+        id_cuenta_origen=data.id_cuenta if data.tipo == 'EGRESO' else None,
+        monto=monto,
+        fecha=datetime.combine(data.fecha, datetime.min.time()),
+        concepto=f"Registro Vario ({data.tipo}): {data.concepto}",
+        referencia=f"Gasto Adicional",
+        id_usuario=current_user.get("user_id")
+    )
+    session.add(new_mov)
+    
+    await session.commit()
+    await session.refresh(new_item)
+    
+    # RE-FETCH with relations
+    result = await session.execute(
+        select(GastoAdicional).options(joinedload(GastoAdicional.cuenta_rel)).where(GastoAdicional.id_gasto_adicional == new_item.id_gasto_adicional)
+    )
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="gastos_adicionales",
+        record_id=new_item.id_gasto_adicional,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Gasto adicional registrado: {data.tipo} {data.monto} - {data.concepto}"
+    )
+    
+    return result.scalar_one()
+
+@router.put("/gastos-adicionales/{id_gasto_adicional}", response_model=GastoAdicionalResponse)
+async def update_gasto_adicional(
+    id_gasto_adicional: int,
+    data: GastoAdicionalCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(GastoAdicional).where(GastoAdicional.id_gasto_adicional == id_gasto_adicional))
+    item = res.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    
+    old_data = {
+        "tipo": item.tipo,
+        "monto": float(item.monto),
+        "fecha": item.fecha.isoformat(),
+        "concepto": item.concepto,
+        "id_cuenta": item.id_cuenta,
+        "observaciones": item.observaciones
+    }
+    
+    # Revertir saldo anterior
+    res_c_old = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == item.id_cuenta))
+    cuenta_old = res_c_old.scalar_one_or_none()
+    if cuenta_old:
+        if item.tipo == 'INGRESO':
+            cuenta_old.saldo_actual -= item.monto
+        else:
+            cuenta_old.saldo_actual += item.monto
+            
+    # Aplicar nuevos datos
+    item.tipo = data.tipo
+    item.monto = data.monto
+    item.fecha = data.fecha
+    item.concepto = data.concepto
+    item.id_cuenta = data.id_cuenta
+    item.observaciones = data.observaciones
+    
+    # Aplicar nuevo saldo
+    res_c_new = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta))
+    cuenta_new = res_c_new.scalar_one_or_none()
+    if cuenta_new:
+        if data.tipo == 'INGRESO':
+            cuenta_new.saldo_actual += data.monto
+        else:
+            cuenta_new.saldo_actual -= data.monto
+
+    await session.commit()
+    await session.refresh(item)
+    
+    # RE-FETCH
+    result = await session.execute(
+        select(GastoAdicional).options(joinedload(GastoAdicional.cuenta_rel)).where(GastoAdicional.id_gasto_adicional == id_gasto_adicional)
+    )
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="gastos_adicionales",
+        record_id=id_gasto_adicional,
+        previous_data=old_data,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Gasto adicional actualizado: {data.tipo} {data.monto} - {data.concepto}"
+    )
+    
+    return result.scalar_one()
+
+@router.delete("/gastos-adicionales/{id_gasto_adicional}")
+async def delete_gasto_adicional(
+    id_gasto_adicional: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(GastoAdicional).where(GastoAdicional.id_gasto_adicional == id_gasto_adicional))
+    item = res.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    
+    # Revertir saldo
+    res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == item.id_cuenta))
+    cuenta = res_c.scalar_one_or_none()
+    if cuenta:
+        monto = Decimal(str(item.monto))
+        if item.tipo == 'INGRESO':
+            cuenta.saldo_actual = (cuenta.saldo_actual or 0) - monto
+        else:
+            cuenta.saldo_actual = (cuenta.saldo_actual or 0) + monto
+            
+    await session.delete(item)
+    await session.commit()
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="delete",
+        table="gastos_adicionales",
+        record_id=id_gasto_adicional,
+        details=f"Gasto adicional eliminado: {item.tipo} {item.monto} - {item.concepto}"
+    )
+    
+    return {"message": "Registro eliminado correctamente"}
 
 
 # ===== DASHBOARD FINANCIERO =====
@@ -4632,60 +5031,11 @@ async def actualizar_trigger_estado(
         raise HTTPException(status_code=403, detail="No tiene permisos para esta operación")
     
     try:
-        # Obtener los IDs de los estados
-        res_st = await session.execute(select(Estado))
-        all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
-        
-        id_pagado = all_states.get('PAGADO')
-        id_parcial = all_states.get('PARCIAL')
-        
-        if not id_pagado or not id_parcial:
-            raise HTTPException(status_code=500, detail="No se encontraron los estados PAGADO o PARCIAL en la base de datos")
-        
-        # Crear nueva función actualizada
-        await session.execute(text(f"""
-            CREATE OR REPLACE FUNCTION playa.actualizar_estado_pagare()
-            RETURNS TRIGGER AS $$
-            DECLARE
-                total_pagado_monto DECIMAL(15,2);
-                monto_pagare_monto DECIMAL(15,2);
-            BEGIN
-                -- Obtiene el monto total de la cuota
-                SELECT monto_cuota INTO monto_pagare_monto
-                FROM playa.pagares WHERE id_pagare = NEW.id_pagare;
-                
-                -- Suma todos los pagos realizados
-                SELECT COALESCE(SUM(monto_pagado), 0) INTO total_pagado_monto
-                FROM playa.pagos WHERE id_pagare = NEW.id_pagare;
-                
-                -- Si el total pagado >= monto de la cuota → PAGADO
-                IF total_pagado_monto >= monto_pagare_monto THEN
-                    UPDATE playa.pagares 
-                    SET id_estado = {id_pagado}, 
-                        saldo_pendiente = 0,
-                        cancelado = TRUE
-                    WHERE id_pagare = NEW.id_pagare;
-                -- Si no, estado PARCIAL
-                ELSE
-                    UPDATE playa.pagares 
-                    SET id_estado = {id_parcial}, 
-                        saldo_pendiente = monto_pagare_monto - total_pagado_monto,
-                        cancelado = FALSE
-                    WHERE id_pagare = NEW.id_pagare;
-                END IF;
-                
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-        """))
-        
-        # Recrear el trigger
+        # ELIMINACIÓN DEFINITIVA DEL TRIGGER
+        # La lógica ahora se maneja 100% en el código de la aplicación (create_pago)
         await session.execute(text("""
             DROP TRIGGER IF EXISTS trg_actualizar_estado_pagare ON playa.pagos;
-            CREATE TRIGGER trg_actualizar_estado_pagare
-            AFTER INSERT ON playa.pagos
-            FOR EACH ROW
-            EXECUTE FUNCTION playa.actualizar_estado_pagare();
+            DROP FUNCTION IF EXISTS playa.actualizar_estado_pagare() CASCADE;
         """))
         
         await session.commit()
@@ -4695,18 +5045,18 @@ async def actualizar_trigger_estado(
             session=session,
             username=current_user["sub"],
             user_id=current_user["user_id"],
-            action="update",
+            action="delete",
             table="pg_trigger",
             record_id=None,
-            previous_data={"trigger_name": "trg_actualizar_estado_pagare", "version": "antigua"},
-            new_data={"trigger_name": "trg_actualizar_estado_pagare", "version": "actualizada", "usa_id_estado": True},
-            details="Trigger actualizado para usar id_estado en lugar de estado VARCHAR"
+            previous_data={"trigger_name": "trg_actualizar_estado_pagare"},
+            new_data=None,
+            details="Trigger eliminado permanentemente. La lógica de estados se maneja desde la aplicación."
         )
         
         return {
             "success": True,
-            "mensaje": "Trigger actualizado exitosamente",
-            "detalles": "El trigger ahora usa 'id_estado' y 'cancelado' correctamente. Sin embargo, se recomienda eliminar el trigger y manejar la lógica desde el código de la aplicación."
+            "mensaje": "Trigger eliminado exitosamente",
+            "detalles": "El trigger 'trg_actualizar_estado_pagare' ha sido eliminado. La lógica de actualización de estados ahora es controlada totalmente por el código de la aplicación."
         }
         
     except Exception as e:

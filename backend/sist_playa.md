@@ -502,44 +502,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ============================================
--- TRIGGER: Actualizar estado de pagaré al registrar pago
--- ============================================
-CREATE OR REPLACE FUNCTION actualizar_estado_pagare()
-RETURNS TRIGGER AS $$
-DECLARE
-    total_pagado DECIMAL(15,2);
-    monto_pagare DECIMAL(15,2);
-BEGIN
-    -- Obtener el monto del pagaré
-    SELECT monto_cuota INTO monto_pagare
-    FROM pagares
-    WHERE id_pagare = NEW.id_pagare;
-    
-    -- Calcular total pagado
-    SELECT COALESCE(SUM(monto_pagado), 0) INTO total_pagado
-    FROM pagos
-    WHERE id_pagare = NEW.id_pagare;
-    
-    -- Actualizar estado del pagaré
-    IF total_pagado >= monto_pagare THEN
-        UPDATE pagares 
-        SET estado = 'PAGADO', saldo_pendiente = 0
-        WHERE id_pagare = NEW.id_pagare;
-    ELSE
-        UPDATE pagares 
-        SET estado = 'PARCIAL', saldo_pendiente = monto_pagare - total_pagado
-        WHERE id_pagare = NEW.id_pagare;
-    END IF;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_actualizar_estado_pagare
-AFTER INSERT ON pagos
-FOR EACH ROW
-EXECUTE FUNCTION actualizar_estado_pagare();
+-- NOTE: El trigger 'trg_actualizar_estado_pagare' ha sido ELIMINADO.
+-- La lógica de actualización de estados de pagarés ahora se maneja 100% desde el código
+-- de la aplicación para permitir que el usuario decida cuándo dar por cancelada una cuota.
+
 
 -- ============================================
 -- TRIGGER: Actualizar calificación del cliente
