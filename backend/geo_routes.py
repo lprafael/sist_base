@@ -22,6 +22,15 @@ CARTOGRAFIA_PATH = os.path.join(os.path.dirname(__file__), "cartografia")
 @router.get("/barrios/{dpto_id}")
 async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)):
     """Retorna el GeoJSON de barrios de un departamento desde PostGIS con conteo optimizado"""
+    # Verificación preventiva: si no hay PostGIS, no intentamos la query pesada
+    try:
+        check_postgis = await session.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'postgis'"))
+        if not check_postgis.scalar():
+            logger.warning("PostGIS no está instalado. Retornando colección de barrios vacía.")
+            return {"type": "FeatureCollection", "features": []}
+    except Exception:
+        pass
+
     query = text("""
         WITH points AS (
             SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
@@ -66,25 +75,39 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
         return geojson
     except Exception as e:
         logger.error(f"Error querying PostGIS barrios: {e}")
-        raise HTTPException(status_code=500, detail="Error al recuperar cartografía de la base de datos")
+        # Retornamos vacío en lugar de 500 para no romper el frontend
+        return {"type": "FeatureCollection", "features": []}
 
 @router.get("/cartografia/distrito/{dpto_id}/{dist_id}")
 async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSession = Depends(get_session)):
     """Retorna el GeoJSON del polígono de un distrito específico con sus barrios/localidades"""
+    # Verificación preventiva de PostGIS
+    try:
+        check_postgis = await session.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'postgis'"))
+        if not check_postgis.scalar():
+            logger.warning("PostGIS no está instalado. No se puede recuperar cartografía.")
+            return {"type": "FeatureCollection", "features": []}
+    except Exception:
+        pass
+
     # Primero buscamos el nombre del distrito en el catálogo
-    nombre_query = text("""
-        SELECT descripcion FROM electoral.ref_distritos 
-        WHERE departamento_id = :dpto_id AND id = :dist_id
-    """)
-    res = await session.execute(nombre_query, {"dpto_id": dpto_id, "dist_id": dist_id})
-    row = res.fetchone()
+    try:
+        nombre_query = text("""
+            SELECT descripcion FROM electoral.ref_distritos 
+            WHERE departamento_id = :dpto_id AND id = :dist_id
+        """)
+        res = await session.execute(nombre_query, {"dpto_id": dpto_id, "dist_id": dist_id})
+        row = res.fetchone()
+    except Exception as e:
+        logger.error(f"Error buscando nombre de distrito: {e}")
+        return {"type": "FeatureCollection", "features": []}
     
     # Formateamos los códigos como texto de 2 dígitos ('01', '02'...) para coincidir con la cartografía
     dpto_code = f"{dpto_id:02d}"
     dist_code = f"{dist_id:02d}"
+    dist_nombre = row.descripcion if row else None
     
-    # Intentamos traer barrios del distrito usando el código del distrito unificado
-    # Query unificada por ID de referencia (Lo más preciso)
+    # Queries unificadas
     barrios_ref_query = text("""
         WITH points AS (
             SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
@@ -123,45 +146,6 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
         ) AS features;
     """)
 
-    barrios_query = text("""
-        WITH points AS (
-            SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
-            FROM electoral.posibles_votantes
-            WHERE latitud IS NOT NULL AND longitud IS NOT NULL
-        ),
-        counts AS (
-            SELECT b.ctid as barrio_id, count(p.geom) as total_captados
-            FROM cartografia.barrios b
-            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
-            WHERE b."DPTO" = :dpto_code AND b."DISTRITO" = :dist_code
-            GROUP BY b.ctid
-        )
-        SELECT jsonb_build_object(
-            'type',     'FeatureCollection',
-            'features', jsonb_agg(features.feature)
-        )
-        FROM (
-          SELECT jsonb_build_object(
-            'type',       'Feature',
-            'geometry',   ST_AsGeoJSON(b.geometry)::jsonb,
-            'properties', jsonb_build_object(
-                'nombre', COALESCE(b."BARLO_DESC", b."DIST_DESC_", 'Sin nombre'),
-                'tipo', 'barrio',
-                'DIST_DESC_', b."DIST_DESC_",
-                'poblacion_total', b.poblacion_total,
-                'poblacion_hombres', b.poblacion_hombres,
-                'poblacion_mujeres', b.poblacion_mujeres,
-                'captados_count', COALESCE(c.total_captados, 0)
-            )
-          ) AS feature
-          FROM cartografia.barrios b
-          LEFT JOIN counts c ON b.ctid = c.barrio_id
-          WHERE b."DPTO" = :dpto_code
-          AND b."DISTRITO" = :dist_code
-        ) AS features;
-    """)
-    
-    # Fallback: Si no hay barrios por código, probar por nombre (robusto)
     fallback_barrios_query = text("""
         WITH points AS (
             SELECT ST_SetSRID(ST_Point(longitud, latitud), 4326) as geom
@@ -202,39 +186,22 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
     """)
     
     try:
-        dist_nombre = row.descripcion if row else None
-        
-        # 1. Intentar por REF_ID (Lo más preciso ahora que está unificado)
-        logger.info(f"Buscando cartografía por REF_ID: {dist_id}")
-        result = await session.execute(barrios_ref_query, {
-            "dpto_code": dpto_code, 
-            "dist_id": dist_id
-        })
+        # 1. Intentar por REF_ID
+        result = await session.execute(barrios_ref_query, {"dpto_code": dpto_code, "dist_id": dist_id})
         geojson = result.scalar()
         if geojson and geojson.get('features'):
             return geojson
 
-        # 2. Intentar por NOMBRE (Fallback robusto)
+        # 2. Intentar por NOMBRE
         if dist_nombre:
-            logger.info(f"Buscando cartografía por nombre: {dist_nombre}")
-            result = await session.execute(fallback_barrios_query, {
-                "dpto_code": dpto_code, 
-                "dist_nombre": dist_nombre
-            })
+            result = await session.execute(fallback_barrios_query, {"dpto_code": dpto_code, "dist_nombre": dist_nombre})
             geojson = result.scalar()
             if geojson and geojson.get('features'):
                 return geojson
-
-        # 3. Intentar por CÓDIGO (Último recurso)
-        result = await session.execute(barrios_query, {"dpto_code": dpto_code, "dist_code": dist_code})
-        geojson = result.scalar()
-        if geojson and geojson.get('features'):
-            return geojson
-            
     except Exception as e:
-        logger.error(f"Error buscando barrios: {e}")
+        logger.error(f"Error procesando barrios: {e}")
     
-    # Fallback Final: traer el polígono del distrito (cartografia.distritos) usando código o nombre
+    # Fallback Final: polígono del distrito
     distrito_query = text("""
         SELECT jsonb_build_object(
             'type',     'FeatureCollection',
@@ -262,20 +229,18 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
         ) AS features;
     """)
     try:
-        dist_nombre = row.descripcion if row else None
         result = await session.execute(distrito_query, {
             "dpto_code": dpto_code, 
-            "dist_code": dist_code,
             "dist_id": dist_id,
             "dist_nombre": dist_nombre
         })
         geojson = result.scalar()
         if geojson and geojson.get('features'):
             return geojson
-        return {"type": "FeatureCollection", "features": []}
     except Exception as e:
-        print(f"Error querying PostGIS distrito: {e}")
-        raise HTTPException(status_code=500, detail="Error al recuperar cartografía del distrito")
+        logger.error(f"Error final de cartografía: {e}")
+        
+    return {"type": "FeatureCollection", "features": []}
 
 
 @router.get("/stats/departamentos")
@@ -336,20 +301,51 @@ async def list_locales(
     distrito_id: Optional[int] = None,
     session: AsyncSession = Depends(get_session)
 ):
-    # Seleccionamos explícitamente las columnas para evitar el error de mapeo de tipos
-    # Ya que 'ubicacion' es JSONB en la DB pero el modelo dice Geometry
-    stmt = text("""
-        SELECT 
-            departamento_id, distrito_id, seccional_id, local_id, 
-            descripcion, domicilio, ubicacion,
-            ST_AsGeoJSON(geom_ubicacion)::jsonb as geom
-        FROM electoral.ref_locales
-        WHERE (CAST(:d AS INTEGER) IS NULL OR departamento_id = CAST(:d AS INTEGER))
-        AND (CAST(:di AS INTEGER) IS NULL OR distrito_id = CAST(:di AS INTEGER))
-    """)
+    # Verificación dinámica: ¿Existe la columna geom_ubicacion y funciona PostGIS?
+    has_postgis = False
+    has_geom_col = False
+    try:
+        ext_check = await session.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'postgis'"))
+        has_postgis = ext_check.scalar() == 1
+        
+        col_check = await session.execute(text("""
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = 'electoral' AND table_name = 'ref_locales' 
+            AND column_name = 'geom_ubicacion'
+        """))
+        has_geom_col = col_check.scalar() == 1
+    except Exception:
+        pass
+
+    if has_postgis and has_geom_col:
+        # Query completa con PostGIS
+        stmt = text("""
+            SELECT 
+                departamento_id, distrito_id, seccional_id, local_id, 
+                descripcion, domicilio, ubicacion,
+                ST_AsGeoJSON(geom_ubicacion)::jsonb as geom
+            FROM electoral.ref_locales
+            WHERE (CAST(:d AS INTEGER) IS NULL OR departamento_id = CAST(:d AS INTEGER))
+            AND (CAST(:di AS INTEGER) IS NULL OR distrito_id = CAST(:di AS INTEGER))
+        """)
+    else:
+        # Query simple sin PostGIS
+        stmt = text("""
+            SELECT 
+                departamento_id, distrito_id, seccional_id, local_id, 
+                descripcion, domicilio, ubicacion,
+                NULL as geom
+            FROM electoral.ref_locales
+            WHERE (CAST(:d AS INTEGER) IS NULL OR departamento_id = CAST(:d AS INTEGER))
+            AND (CAST(:di AS INTEGER) IS NULL OR distrito_id = CAST(:di AS INTEGER))
+        """)
     
-    result = await session.execute(stmt, {"d": departamento_id, "di": distrito_id})
-    rows = result.fetchall()
+    try:
+        result = await session.execute(stmt, {"d": departamento_id, "di": distrito_id})
+        rows = result.fetchall()
+    except Exception as e:
+        logger.error(f"Error listing locales: {e}")
+        return []
     
     items = []
     for row in rows:
@@ -365,8 +361,8 @@ async def list_locales(
         count_res = await session.execute(count_stmt)
         votantes = count_res.scalar() or 0
         
-        # Procesar ubicación (priorizar geom de PostGIS)
-        coord = row.ubicacion # Fallback
+        # Procesar ubicación (priorizar geom de PostGIS si existe)
+        coord = row.ubicacion # Fallback JSON
         if row.geom:
             geom_data = row.geom
             coord = {"lat": geom_data['coordinates'][1], "lng": geom_data['coordinates'][0]}
@@ -394,13 +390,36 @@ async def update_local_ubicacion(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("electoral_admin"))
 ):
-    """Actualiza la ubicación GPS de un local de votación en ambos campos"""
-    stmt = text("""
-        UPDATE electoral.ref_locales 
-        SET ubicacion = :json_val,
-            geom_ubicacion = ST_SetSRID(ST_Point(:lng, :lat), 4326)
-        WHERE departamento_id = :d AND distrito_id = :di AND seccional_id = :s AND local_id = :l
-    """)
+    """Actualiza la ubicación GPS de un local de votación en ambos campos si es posible"""
+    # Verificación dinámica
+    has_postgis = False
+    has_geom_col = False
+    try:
+        ext_check = await session.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'postgis'"))
+        has_postgis = ext_check.scalar() == 1
+        
+        col_check = await session.execute(text("""
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = 'electoral' AND table_name = 'ref_locales' 
+            AND column_name = 'geom_ubicacion'
+        """))
+        has_geom_col = col_check.scalar() == 1
+    except Exception:
+        pass
+
+    if has_postgis and has_geom_col:
+        stmt = text("""
+            UPDATE electoral.ref_locales 
+            SET ubicacion = :json_val,
+                geom_ubicacion = ST_SetSRID(ST_Point(:lng, :lat), 4326)
+            WHERE departamento_id = :d AND distrito_id = :di AND seccional_id = :s AND local_id = :l
+        """)
+    else:
+        stmt = text("""
+            UPDATE electoral.ref_locales 
+            SET ubicacion = :json_val
+            WHERE departamento_id = :d AND distrito_id = :di AND seccional_id = :s AND local_id = :l
+        """)
     
     try:
         await session.execute(stmt, {
@@ -412,4 +431,5 @@ async def update_local_ubicacion(
         return {"message": "Ubicación actualizada correctamente"}
     except Exception as e:
         await session.rollback()
+        logger.error(f"Error updating location: {e}")
         raise HTTPException(status_code=500, detail=f"Error al actualizar ubicación: {str(e)}")

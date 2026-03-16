@@ -12,8 +12,15 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("No se encontró DATABASE_URL en el archivo .env")
 
-# Motores asíncronos
-engine = create_async_engine(DATABASE_URL, echo=False)  
+# Motores asíncronos con pooling optimizado para evitar desconexiones
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=False,
+    pool_size=10, 
+    max_overflow=20,
+    pool_recycle=3600,  # Reciclar conexiones cada hora
+    pool_pre_ping=True   # Verificar conexión antes de usarla
+)
 
 # Fábricas de sesiones
 SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)

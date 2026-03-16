@@ -29,7 +29,7 @@ services:
       - PYTHONUNBUFFERED=1
       # Ahora apunta al contenedor 'db' interno
       # Ahora apunta al PostgreSQL de Windows
-      - DATABASE_URL=postgresql+asyncpg://postgres:admin@host.docker.internal:5432/SIGEL
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@host.docker.internal:5433/SIGEL
     env_file:
       - ./backend/.env
     volumes:
