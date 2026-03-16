@@ -20,18 +20,18 @@ if (-not $env:PGPASSWORD) { $env:PGPASSWORD = "admin" }
 $ruta = (Resolve-Path $Archivo).Path
 $nombre = [System.IO.Path]::GetFileName($ruta)
 
-Write-Host "Restaurando: $nombre en localhost:5432, base SIGEL..." -ForegroundColor Cyan
+Write-Host "Restaurando: $nombre en localhost:5433, base SIGEL..." -ForegroundColor Cyan
 
 # Crear BD si no existe (pg_restore no crea la BD). Si ya existe, se ignora el error.
-docker run --rm -e PGPASSWORD=$env:PGPASSWORD postgres:18-alpine psql -h host.docker.internal -p 5432 -U postgres -d postgres -c "CREATE DATABASE SIGEL;" 2>$null
+docker run --rm -e PGPASSWORD=$env:PGPASSWORD postgres:16-alpine psql -h host.docker.internal -p 5433 -U postgres -d postgres -c "CREATE DATABASE SIGEL;" 2>$null
 $null = $LASTEXITCODE
 
 # Restaurar (el archivo debe estar accesible; montamos la carpeta actual)
-docker run --rm -e PGPASSWORD=$env:PGPASSWORD -v "${PWD}:/backup" postgres:18-alpine sh -c "pg_restore -h host.docker.internal -p 5432 -U postgres -d SIGEL -v --no-owner --no-acl /backup/$nombre"
+docker run --rm -e PGPASSWORD=$env:PGPASSWORD -v "${PWD}:/backup" postgres:16-alpine sh -c "pg_restore -h host.docker.internal -p 5433 -U postgres -d SIGEL -v --no-owner --no-acl /backup/$nombre"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Restauración completada." -ForegroundColor Green
 } else {
-    Write-Host "Revisa que PostgreSQL esté en 5432 y que el archivo sea correcto." -ForegroundColor Red
+    Write-Host "Revisa que PostgreSQL esté en 5433 y que el archivo sea correcto." -ForegroundColor Red
     exit 1
 }
