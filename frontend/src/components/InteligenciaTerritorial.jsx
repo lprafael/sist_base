@@ -45,7 +45,7 @@ function CustomTerritorySelect({ label, value, options, onChange, disabled, plac
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const selected = options.find(o => String(o.id) === String(value));
-  const labelText = selected ? selected.descripcion : placeholder;
+  const labelText = selected ? (selected.descripcion || selected.nombre) : placeholder;
 
   useEffect(() => {
     const close = (e) => {
@@ -81,7 +81,7 @@ function CustomTerritorySelect({ label, value, options, onChange, disabled, plac
                 className="it-custom-select-option"
                 onClick={() => { onChange(d.id); setOpen(false); }}
               >
-                {d.descripcion}
+                {d.descripcion || d.nombre}
               </button>
             </li>
           ))}
@@ -126,30 +126,37 @@ export default function InteligenciaTerritorial({ user }) {
 
   // Cargar departamentos
   useEffect(() => {
-    fetch(`${API}/api/electoral/departamentos`, { headers: authHeaders() })
+    fetch(`${API}/api/electoral/catalogos/departamentos`, { headers: authHeaders() })
       .then(r => r.json())
       .then(d => setDeptos(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .catch((err) => console.error("Error cargando departamentos:", err));
   }, []);
 
   // Cargar distritos cuando cambia depto
   useEffect(() => {
-    if (!selDepto) return;
-    fetch(`${API}/api/electoral/distritos?departamento_id=${selDepto}`, { headers: authHeaders() })
+    if (selDepto === "" || selDepto === undefined || selDepto === null) {
+      setDistritos([]);
+      return;
+    }
+    fetch(`${API}/api/electoral/catalogos/distritos/${selDepto}`, { headers: authHeaders() })
       .then(r => r.json())
       .then(d => setDistritos(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .catch((err) => console.error("Error cargando distritos:", err));
   }, [selDepto]);
 
   // Pre-seleccionar del perfil de usuario
   useEffect(() => {
-    if (user?.departamento_id) setSelDepto(user.departamento_id);
-    if (user?.distrito_id) setSelDistrito(user.distrito_id);
+    if (user?.departamento_id !== undefined && user?.departamento_id !== null) {
+      setSelDepto(user.departamento_id);
+    }
+    if (user?.distrito_id !== undefined && user?.distrito_id !== null) {
+      setSelDistrito(user.distrito_id);
+    }
   }, [user]);
 
   // ── Cargar estadísticas ──────────────────────────────────────
   const cargarStats = useCallback(async () => {
-    if (!selDepto || !selDistrito) return;
+    if (selDepto === "" || selDistrito === "") return;
     setLoading(true);
     setError(null);
     try {
@@ -171,7 +178,7 @@ export default function InteligenciaTerritorial({ user }) {
 
   // ── Cargar insights ──────────────────────────────────────────
   const cargarInsights = useCallback(async () => {
-    if (!selDepto || !selDistrito) return;
+    if (selDepto === "" || selDistrito === "") return;
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -194,7 +201,7 @@ export default function InteligenciaTerritorial({ user }) {
 
   // ── Cargar guiones ───────────────────────────────────────────
   const cargarGuiones = useCallback(async () => {
-    if (!selDepto || !selDistrito) return;
+    if (selDepto === "" || selDistrito === "") return;
     try {
       const params = new URLSearchParams({
         departamento_id: selDepto,
@@ -217,7 +224,7 @@ export default function InteligenciaTerritorial({ user }) {
   const handleAnalizar = async (e) => {
     e.preventDefault();
     if (!textoAnalisis.trim()) return;
-    if (!selDepto || !selDistrito) {
+    if (selDepto === "" || selDistrito === "") {
       setError("Seleccioná un departamento y distrito primero.");
       return;
     }
@@ -251,7 +258,7 @@ export default function InteligenciaTerritorial({ user }) {
   // ── Crear manuel ─────────────────────────────────────────────
   const handleManual = async (e) => {
     e.preventDefault();
-    if (!selDepto || !selDistrito) {
+    if (selDepto === "" || selDistrito === "") {
       setError("Seleccioná departamento y distrito.");
       return;
     }
@@ -293,7 +300,7 @@ export default function InteligenciaTerritorial({ user }) {
   // ── Generar guion ─────────────────────────────────────────────
   const handleGenerarGuion = async (e) => {
     e.preventDefault();
-    if (!selDepto || !selDistrito) {
+    if (selDepto === "" || selDistrito === "") {
       setError("Seleccioná departamento y distrito.");
       return;
     }
@@ -335,8 +342,10 @@ export default function InteligenciaTerritorial({ user }) {
   };
 
   // ── UI ──────────────────────────────────────────────────────
-  const nombreDepto = deptos.find(d => String(d.id) === String(selDepto))?.descripcion || "";
-  const nombreDistrito = distritos.find(d => String(d.id) === String(selDistrito))?.descripcion || "";
+  const nombreDepto = deptos.find(d => String(d.id) === String(selDepto))?.descripcion || 
+                      deptos.find(d => String(d.id) === String(selDepto))?.nombre || "";
+  const nombreDistrito = distritos.find(d => String(d.id) === String(selDistrito))?.descripcion || 
+                         distritos.find(d => String(d.id) === String(selDistrito))?.nombre || "";
 
   return (
     <div className="it-container">
@@ -363,7 +372,7 @@ export default function InteligenciaTerritorial({ user }) {
           value={selDistrito}
           options={distritos}
           onChange={setSelDistrito}
-          disabled={!selDepto}
+          disabled={selDepto === ""}
           placeholder="— Seleccionar —"
         />
         <div className="it-territory-select">
@@ -410,7 +419,7 @@ export default function InteligenciaTerritorial({ user }) {
       {tab === "dashboard" && (
         <div className="it-dashboard">
           {loading && <div className="it-loading"><div className="it-spinner" />Cargando datos...</div>}
-          {!selDepto || !selDistrito ? (
+          {selDepto === "" || selDistrito === "" ? (
             <div className="it-empty-state">
               <span>🗺️</span>
               <p>Seleccioná un departamento y distrito para ver la inteligencia territorial.</p>

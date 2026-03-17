@@ -111,16 +111,17 @@ async def get_ingest_auth(
 # UTILIDAD: LLAMAR A OPENAI
 # ──────────────────────────────────────────────
 
-async def analizar_con_openai(texto: str) -> dict:
+async def analizar_con_ia(texto: str) -> dict:
     """
-    Llama a la API de OpenAI con un prompt estructurado y devuelve
-    una categoría, sentimiento, urgencia y temas clave.
-    Requiere OPENAI_API_KEY en el .env del backend.
-    Devuelve un diccionario incluso si la clave no está configurada (modo demo).
+    Intenta analizar el texto usando la IA (priorizando Gemini, luego OpenAI).
+    Si no hay llaves configuradas, usa el modo demo.
     """
-    api_key = os.getenv("OPENAI_API_KEY", "")
+    # 1. Verificar si hay Gemini API Key (Gratis y Preferida)
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    # 2. Verificar OpenAI (Opcional)
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
 
-    if not api_key:
+    if not gemini_key and not openai_key:
         # Modo demo: análisis simulado sin API
         return {
             "categoria": "Infraestructura",
@@ -128,122 +129,161 @@ async def analizar_con_openai(texto: str) -> dict:
             "urgencia": 7,
             "temas_clave": ["raudales", "baches", "iluminación"],
             "resumen_ia": (
-                "[MODO DEMO - Configure OPENAI_API_KEY en el .env para análisis real] "
+                "[MODO DEMO - Configure GEMINI_API_KEY en el .env para análisis real gratuito] "
                 f"Texto recibido: {texto[:120]}..."
             )
         }
 
     prompt = f"""Analiza el siguiente texto en español y extrae la información en formato JSON estricto.
+    
+    Texto:
+    \"\"\"
+    {texto}
+    \"\"\"
 
-Texto:
-\"\"\"
-{texto}
-\"\"\"
+    Responde ÚNICAMENTE con este JSON (sin texto extra, sin markdown, solo el objeto):
+    {{
+      "categoria": "<una de: Salud, Seguridad, Infraestructura, Educación, Empleo, Medio Ambiente, Transporte, Corrupción, Servicios Públicos, Otro>",
+      "sentimiento": "<uno de: Positivo, Neutro, Negativo>",
+      "urgencia": <número entero del 1 al 10>,
+      "temas_clave": ["<tema1>", "<tema2>", "<tema3>"],
+      "resumen_ia": "<resumen en 1-2 oraciones de la queja o hallazgo>"
+    }}"""
 
-Responde ÚNICAMENTE con este JSON (sin texto extra):
-{{
-  "categoria": "<una de: Salud, Seguridad, Infraestructura, Educación, Empleo, Medio Ambiente, Transporte, Corrupción, Servicios Públicos, Otro>",
-  "sentimiento": "<uno de: Positivo, Neutro, Negativo>",
-  "urgencia": <número entero del 1 al 10>,
-  "temas_clave": ["<tema1>", "<tema2>", "<tema3>"],
-  "resumen_ia": "<resumen en 1-2 oraciones de la queja o hallazgo>"
-}}"""
-
-    try:
+    # --- FLUJO GEMINI ---
+    if gemini_key:
         import httpx
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.2
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
-            # Limpiar posibles bloques de código markdown
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-            return json.loads(content)
-    except Exception as e:
-        logger.error(f"Error llamando a OpenAI: {e}")
-        raise HTTPException(status_code=502, detail=f"Error al contactar la IA: {str(e)}")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    url,
+                    json={
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        "generationConfig": {
+                            "response_mime_type": "application/json"
+                        }
+                    }
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                return json.loads(content)
+        except Exception as e:
+            logger.error(f"Error en Gemini API: {e}")
+            # Si falla Gemini y hay OpenAI, intentar con OpenAI
+            if not openai_key:
+                raise HTTPException(status_code=502, detail=f"Error al contactar Gemini: {str(e)}")
 
+    # --- FLUJO OPENAI (Fallback) ---
+    if openai_key:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.2
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                content = data["choices"][0]["message"]["content"].strip()
+                if "```json" in content:
+                    content = content.replace("```json", "").replace("```", "").strip()
+                return json.loads(content)
+        except Exception as e:
+            logger.error(f"Error llamando a OpenAI: {e}")
+            raise HTTPException(status_code=502, detail=f"Error al contactar OpenAI: {str(e)}")
 
-async def generar_guion_openai(insights: list, perfil: dict, zona: str) -> dict:
+async def generar_guion_ia(insights: list, perfil: dict, zona: str) -> dict:
     """
-    Genera 3 puntos clave de discurso para una visita a la zona indicada,
-    basándose en los insights recientes y el perfil de adherentes.
+    Genera 3 puntos clave de discurso para la zona indicada usando Gemini u OpenAI.
     """
-    api_key = os.getenv("OPENAI_API_KEY", "")
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
 
     resumen_insights = "\n".join([
         f"- [{i.get('categoria','?')}] {i.get('resumen_ia') or i.get('texto_original','')[:120]} (Urgencia: {i.get('urgencia','?')}/10)"
         for i in insights[:10]
     ])
 
-    if not api_key:
+    if not gemini_key and not openai_key:
         return {
             "punto_1": f"[MODO DEMO] Abordar la preocupación principal de {zona}: {insights[0].get('categoria','infraestructura') if insights else 'infraestructura'} deficiente.",
             "punto_2": "[MODO DEMO] Propuesta concreta que conecte con la audiencia local.",
             "punto_3": "[MODO DEMO] Mensaje de cierre empático hacia la comunidad.",
-            "nota": "Configure OPENAI_API_KEY en el .env para guiones reales."
+            "nota": "Configure GEMINI_API_KEY en el .env para guiones reales."
         }
 
     prompt = f"""Sos un estratega político de campaña en Paraguay. Basándote en los siguientes hallazgos de inteligencia territorial para la zona "{zona}":
 
-PROBLEMAS DETECTADOS:
-{resumen_insights}
+    PROBLEMAS DETECTADOS:
+    {resumen_insights}
 
-PERFIL DE ADHERENTES EN LA ZONA:
-- Total de simpatizantes registrados: {perfil.get('total_adherentes', 0)}
-- Grado de seguridad promedio: {perfil.get('seguridad_promedio', 0)}/5
+    PERFIL DE ADHERENTES EN LA ZONA:
+    - Total de simpatizantes registrados: {perfil.get('total_adherentes', 0)}
+    - Grado de seguridad promedio: {perfil.get('seguridad_promedio', 0)}/5
 
-Redacta 3 PUNTOS CLAVE que el candidato debe mencionar en su visita para conectar emocionalmente con esta audiencia.
-Sé específico, empático y orientado a propuestas concretas.
+    Redacta 3 PUNTOS CLAVE que el candidato debe mencionar en su visita para conectar emocionalmente con esta audiencia.
+    Sé específico, empático y orientado a propuestas concretas.
 
-Responde ÚNICAMENTE con este JSON:
-{{
-  "punto_1": "<primer punto clave>",
-  "punto_2": "<segundo punto clave>",
-  "punto_3": "<tercer punto clave>",
-  "nota": "<observación estratégica opcional>"
-}}"""
+    Responde ÚNICAMENTE con este JSON estricto (sin markdown):
+    {{
+      "punto_1": "<primer punto clave>",
+      "punto_2": "<segundo punto clave>",
+      "punto_3": "<tercer punto clave>",
+      "nota": "<observación estratégica opcional>"
+    }}"""
 
-    try:
+    # --- FLUJO GEMINI ---
+    if gemini_key:
         import httpx
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.5
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-            return json.loads(content)
-    except Exception as e:
-        logger.error(f"Error generando guion: {e}")
-        raise HTTPException(status_code=502, detail=f"Error al generar guion: {str(e)}")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    url,
+                    json={
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        "generationConfig": {"response_mime_type": "application/json"}
+                    }
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                return json.loads(content)
+        except Exception as e:
+            logger.error(f"Error en Gemini API (Guion): {e}")
+            if not openai_key:
+                raise HTTPException(status_code=502, detail=f"Error al generar guion con Gemini: {str(e)}")
+
+    # --- FLUJO OPENAI ---
+    if openai_key:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.5
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                content = data["choices"][0]["message"]["content"].strip()
+                if "```json" in content:
+                    content = content.replace("```json", "").replace("```", "").strip()
+                return json.loads(content)
+        except Exception as e:
+            logger.error(f"Error generando guion con OpenAI: {e}")
+            raise HTTPException(status_code=502, detail=f"Error al generar guion: {str(e)}")
 
 
 # ──────────────────────────────────────────────
@@ -271,7 +311,7 @@ async def analizar_y_guardar(
     user_id = row[0]
 
     # Analizar con IA
-    analisis = await analizar_con_openai(body.texto)
+    analisis = await analizar_con_ia(body.texto)
 
     # Insertar en BD
     result = await session.execute(
@@ -325,7 +365,7 @@ async def ingest_social(
     Pensado para N8N, Zapier, cron jobs, etc.
     """
     user_id = auth["user_id"]
-    analisis = await analizar_con_openai(body.texto)
+    analisis = await analizar_con_ia(body.texto)
     result = await session.execute(
         text("""
             INSERT INTO electoral.territorial_insights
@@ -437,10 +477,10 @@ async def listar_insights(
     filtros = ["ti.activo = TRUE", f"ti.fecha_insight >= '{desde_iso}'"]
     params: dict[str, Any] = {"limit": limit, "offset": offset}
 
-    if departamento_id:
+    if departamento_id is not None:
         filtros.append("ti.departamento_id = :dep")
         params["dep"] = departamento_id
-    if distrito_id:
+    if distrito_id is not None:
         filtros.append("ti.distrito_id = :dis")
         params["dis"] = distrito_id
     if zona:
@@ -511,10 +551,10 @@ async def estadisticas_territorio(
     filtros = ["activo = TRUE", f"fecha_insight >= '{desde_iso}'"]
     params: dict[str, Any] = {}
 
-    if departamento_id:
+    if departamento_id is not None:
         filtros.append("departamento_id = :dep")
         params["dep"] = departamento_id
-    if distrito_id:
+    if distrito_id is not None:
         filtros.append("distrito_id = :dis")
         params["dis"] = distrito_id
 
@@ -667,7 +707,7 @@ async def generar_guion_visita(
     }
 
     zona_label = body.zona or "el distrito"
-    guion = await generar_guion_openai(insights_data, perfil, zona_label)
+    guion = await generar_guion_ia(insights_data, perfil, zona_label)
 
     # Guardar el guion generado
     await session.execute(
@@ -732,10 +772,10 @@ async def listar_guiones(
 ):
     filtros = []
     params: dict[str, Any] = {"limit": limit}
-    if departamento_id:
+    if departamento_id is not None:
         filtros.append("g.departamento_id = :dep")
         params["dep"] = departamento_id
-    if distrito_id:
+    if distrito_id is not None:
         filtros.append("g.distrito_id = :dis")
         params["dis"] = distrito_id
 
