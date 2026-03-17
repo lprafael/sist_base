@@ -53,9 +53,9 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
             'type',       'Feature',
             'geometry',   ST_AsGeoJSON(b.geometry)::jsonb,
             'properties', jsonb_build_object(
-                'nombre', COALESCE(b."BARLO_DESC", b."DIST_DESC_", 'Sin nombre'),
+                'nombre', COALESCE(b.barlo_desc, b.dist_desc_, 'Sin nombre'),
                 'tipo', 'barrio',
-                'DIST_DESC_', b."DIST_DESC_",
+                'dist_desc_', b.dist_desc_,
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
@@ -118,7 +118,8 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             SELECT b.ctid as barrio_id, count(p.geom) as total_captados
             FROM cartografia.barrios b
             LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
-            WHERE b."DPTO" = :dpto_code AND b.ref_distrito_id = :dist_id
+            WHERE b.dpto_id_ref = :dpto_id
+              AND b.ref_distrito_id = :dist_id_str
             GROUP BY b.ctid
         )
         SELECT jsonb_build_object(
@@ -130,9 +131,10 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             'type',       'Feature',
             'geometry',   ST_AsGeoJSON(b.geometry)::jsonb,
             'properties', jsonb_build_object(
-                'nombre', COALESCE(b."BARLO_DESC", b."DIST_DESC_", 'Sin nombre'),
+                'nombre', COALESCE(b.barlo_desc, b.dist_desc_, 'Sin nombre'),
                 'tipo', 'barrio',
-                'DIST_DESC_', b."DIST_DESC_",
+                'dist_desc_', b.dist_desc_,
+                'barlo_desc', b.barlo_desc,
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
@@ -141,8 +143,8 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
           ) AS feature
           FROM cartografia.barrios b
           LEFT JOIN counts c ON b.ctid = c.barrio_id
-          WHERE b."DPTO" = :dpto_code
-          AND b.ref_distrito_id = :dist_id
+          WHERE b.dpto_id_ref = :dpto_id
+            AND b.ref_distrito_id = :dist_id_str
         ) AS features;
     """)
 
@@ -156,8 +158,8 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             SELECT b.ctid as barrio_id, count(p.geom) as total_captados
             FROM cartografia.barrios b
             LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
-            WHERE b."DPTO" = :dpto_code 
-            AND unaccent(TRIM(b."DIST_DESC_")) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
+            WHERE b.dpto_id_ref = :dpto_id
+              AND unaccent(TRIM(b.dist_desc_)) = unaccent(TRIM(:dist_nombre))
             GROUP BY b.ctid
         )
         SELECT jsonb_build_object(
@@ -169,9 +171,10 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             'type',       'Feature',
             'geometry',   ST_AsGeoJSON(b.geometry)::jsonb,
             'properties', jsonb_build_object(
-                'nombre', COALESCE(b."BARLO_DESC", b."DIST_DESC_", 'Sin nombre'),
+                'nombre', COALESCE(b.barlo_desc, b.dist_desc_, 'Sin nombre'),
                 'tipo', 'barrio',
-                'DIST_DESC_', b."DIST_DESC_",
+                'dist_desc_', b.dist_desc_,
+                'barlo_desc', b.barlo_desc,
                 'poblacion_total', b.poblacion_total,
                 'poblacion_hombres', b.poblacion_hombres,
                 'poblacion_mujeres', b.poblacion_mujeres,
@@ -180,24 +183,36 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
           ) AS feature
           FROM cartografia.barrios b
           LEFT JOIN counts c ON b.ctid = c.barrio_id
-          WHERE b."DPTO" = :dpto_code
-          AND unaccent(TRIM(b."DIST_DESC_")) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
+          WHERE b.dpto_id_ref = :dpto_id
+            AND unaccent(TRIM(b.dist_desc_)) = unaccent(TRIM(:dist_nombre))
         ) AS features;
     """)
     
+    dist_id_str = str(dist_id)  # Ensure text comparison
+
     try:
-        # 1. Intentar por REF_ID
-        result = await session.execute(barrios_ref_query, {"dpto_code": dpto_code, "dist_id": dist_id})
+        # 1. Intentar por REF_ID (principal)
+        result = await session.execute(barrios_ref_query, {
+            "dpto_id": dpto_id,
+            "dist_id_str": dist_id_str
+        })
         geojson = result.scalar()
         if geojson and geojson.get('features'):
+            logger.info(f"Barrios encontrados por ref_id para dpto={dpto_id}, dist={dist_id}: {len(geojson['features'])}")
             return geojson
 
-        # 2. Intentar por NOMBRE
+        # 2. Fallback por NOMBRE del distrito
         if dist_nombre:
-            result = await session.execute(fallback_barrios_query, {"dpto_code": dpto_code, "dist_nombre": dist_nombre})
+            result = await session.execute(fallback_barrios_query, {
+                "dpto_id": dpto_id,
+                "dist_nombre": dist_nombre
+            })
             geojson = result.scalar()
             if geojson and geojson.get('features'):
+                logger.info(f"Barrios encontrados por nombre='{dist_nombre}': {len(geojson['features'])}")
                 return geojson
+
+        logger.warning(f"Sin barrios para dpto_id={dpto_id}, dist_id={dist_id}, nombre='{dist_nombre}'");
     except Exception as e:
         logger.error(f"Error procesando barrios: {e}")
     
@@ -212,25 +227,25 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             'type',       'Feature',
             'geometry',   ST_AsGeoJSON(d.geometry)::jsonb,
             'properties', jsonb_build_object(
-                'nombre', d."DIST_DESC_",
-                'dpto', d."DPTO_DESC",
+                'nombre', d.dist_desc_,
+                'dpto', d.dpto_desc,
                 'tipo', 'distrito'
             )
           ) AS feature
           FROM cartografia.distritos d
-          WHERE d."DPTO" = :dpto_code
+          WHERE d.dpto_id_ref = :dpto_id
           AND (
-              d.ref_distrito_id = :dist_id
+              d.ref_distrito_id = CAST(:dist_id AS TEXT)
               OR (
                   CAST(:dist_nombre AS TEXT) IS NOT NULL 
-                  AND unaccent(TRIM(d."DIST_DESC_")) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
+                  AND unaccent(TRIM(d.dist_desc_)) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
               )
           )
         ) AS features;
     """)
     try:
         result = await session.execute(distrito_query, {
-            "dpto_code": dpto_code, 
+            "dpto_id": dpto_id, 
             "dist_id": dist_id,
             "dist_nombre": dist_nombre
         })

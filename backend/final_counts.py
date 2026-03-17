@@ -1,0 +1,16 @@
+import os
+from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
+
+load_dotenv()
+db_url = os.getenv('DATABASE_URL').replace('postgresql+asyncpg://', 'postgresql://')
+if 'localhost' in db_url or '127.0.0.1' in db_url:
+    db_url = db_url.replace(':5432', ':5434')
+engine = create_engine(db_url)
+with engine.connect() as conn:
+    for table in ['departamentos', 'distritos', 'barrios']:
+        try:
+            count = conn.execute(text(f"SELECT count(*) FROM cartografia.{table}")).scalar()
+            print(f"Table '{table}': {count} records")
+        except Exception as e:
+            print(f"Table '{table}' error: {e}")

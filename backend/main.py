@@ -152,6 +152,8 @@ from logistica_routes import router as logistica_router
 from actividades_routes import router as actividades_router
 from public_routes import router as public_router
 from inteligencia_routes import router as inteligencia_router
+from financiamiento_routes import router as financiamiento_router
+from dia_d_routes import router as dia_d_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
 app.include_router(auth_router)
@@ -166,6 +168,8 @@ app.include_router(logistica_router)
 app.include_router(actividades_router)
 app.include_router(public_router) # Registrar Rutas publicas
 app.include_router(inteligencia_router)  # Inteligencia Territorial
+app.include_router(financiamiento_router) # Financiamiento Político
+app.include_router(dia_d_router) # Escrutinio Día D
 
 
 # ============================================

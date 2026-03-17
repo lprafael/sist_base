@@ -81,3 +81,49 @@ CREATE INDEX idx_locales_gps ON electoral.locales_votacion USING GIST (ubicacion
 -- Comentarios de documentación en la DB
 COMMENT ON TABLE electoral.posibles_votantes IS 'Almacena la relación entre referentes y votantes captados, con su grado de seguridad y geolocalización.';
 COMMENT ON COLUMN electoral.posibles_votantes.grado_seguridad IS 'Escala de 1 a 5 donde 5 es compromiso total (voto seguro).';
+
+-- 7. TABLAS DE FINANCIAMIENTO POLÍTICO
+CREATE TABLE electoral.financiamiento_egresos (
+    id SERIAL PRIMARY KEY,
+    id_candidato INT REFERENCES electoral.candidatos(id) ON DELETE CASCADE,
+    tipo_financiamiento VARCHAR(50) NOT NULL, -- 'Aporte Estatal', 'Subsidio Electoral'
+    monto NUMERIC(15,2) NOT NULL,
+    fecha DATE NOT NULL,
+    categoria VARCHAR(100),
+    descripcion TEXT,
+    proveedor_nombre VARCHAR(255),
+    proveedor_ruc VARCHAR(50),
+    factura_nro VARCHAR(100),
+    creado_por INT, -- Enlace a sistema.usuarios
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE electoral.financiamiento_ingresos (
+    id SERIAL PRIMARY KEY,
+    id_candidato INT REFERENCES electoral.candidatos(id) ON DELETE CASCADE,
+    tipo_financiamiento VARCHAR(50) NOT NULL,
+    monto NUMERIC(15,2) NOT NULL,
+    fecha DATE NOT NULL,
+    origen VARCHAR(100),
+    nombre_aportante VARCHAR(255),
+    ci_ruc_aportante VARCHAR(50),
+    descripcion TEXT,
+    comprobante_nro VARCHAR(100),
+    creado_por INT,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE electoral.financiamiento_cumplimiento (
+    id SERIAL PRIMARY KEY,
+    id_candidato INT REFERENCES electoral.candidatos(id) ON DELETE CASCADE,
+    tipo_financiamiento VARCHAR(50) NOT NULL,
+    requisito_nombre VARCHAR(255) NOT NULL,
+    completado BOOLEAN DEFAULT FALSE,
+    observaciones TEXT,
+    archivo_url VARCHAR(500),
+    fecha_cumplimiento TIMESTAMP
+);
+
+CREATE INDEX idx_fin_egresos_cand ON electoral.financiamiento_egresos(id_candidato);
+CREATE INDEX idx_fin_ingresos_cand ON electoral.financiamiento_ingresos(id_candidato);
+CREATE INDEX idx_fin_cumplimiento_cand ON electoral.financiamiento_cumplimiento(id_candidato);

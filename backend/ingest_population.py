@@ -4,7 +4,13 @@ import unicodedata
 import re
 import os
 
-file_path = '/app/cartografia/Dpto Central_Población_Barrios_CNPV 2022 - 1916.xlsx'
+from dotenv import load_dotenv
+load_dotenv()
+
+# Path local si estamos en Windows
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(BASE_DIR, "cartografia", "Dpto Central_Población_Barrios_CNPV 2022 - 1916.xlsx")
+
 db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgresql+asyncpg://"):
     db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
@@ -52,21 +58,28 @@ try:
             mujeres = int(row.iloc[4]) if pd.notna(row.iloc[4]) else 0
         except: continue
         
-        if total < 10: continue # Evitar ruidos
+        if total < 5: continue # Evitar ruidos mínimos
         
         barrio = clean_name(val)
         if any(x in barrio for x in ["TOTAL", "AREA URBANA", "AREA RURAL"]): continue
 
+        # Normalizamos para SQL (quitamos acentos y caracteres raros)
+        def sql_clean(text):
+            return re.sub(r'[^A-Z0-9]', '', clean_name(text))
+
+        dist_match = f"%{sql_clean(current_dist)}%"
+        barrio_match = sql_clean(barrio)
+        
         cur.execute("""
             UPDATE cartografia.barrios 
             SET poblacion_total = %s, poblacion_hombres = %s, poblacion_mujeres = %s
-            WHERE unaccent(trim(upper("DIST_DESC_"))) ILIKE %s 
+            WHERE regexp_replace(unaccent(upper(dist_desc_)), '[^A-Z0-9]', '', 'g') ILIKE %s 
             AND (
-                unaccent(trim(upper("BARLO_DESC"))) = %s
-                OR unaccent(trim(upper("BARLO_DESC"))) ILIKE %s
-                OR %s ILIKE '%%' || unaccent(trim(upper("BARLO_DESC"))) || '%%'
+                regexp_replace(unaccent(upper(barlo_desc)), '[^A-Z0-9]', '', 'g') = %s
+                OR regexp_replace(unaccent(upper(barlo_desc)), '[^A-Z0-9]', '', 'g') ILIKE '%%' || %s || '%%'
+                OR %s ILIKE '%%' || regexp_replace(unaccent(upper(barlo_desc)), '[^A-Z0-9]', '', 'g') || '%%'
             )
-        """, (total, hombres, mujeres, f"%{current_dist}%", barrio, f"%{barrio}%", barrio))
+        """, (total, hombres, mujeres, dist_match, barrio_match, barrio_match, barrio_match))
         
         if cur.rowcount > 0:
             updated += cur.rowcount

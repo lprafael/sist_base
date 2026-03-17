@@ -27,9 +27,8 @@ services:
     environment:
       - PORT=8001
       - PYTHONUNBUFFERED=1
-      # Ahora apunta al contenedor 'db' interno
-      # Ahora apunta al PostgreSQL de Windows
-      - DATABASE_URL=postgresql+asyncpg://postgres:admin@host.docker.internal:5433/SIGEL
+      # Usa la misma BD local de Windows en el puerto 5432 (como en backend/.env)
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@host.docker.internal:5432/SIGEL
     env_file:
       - ./backend/.env
     volumes:

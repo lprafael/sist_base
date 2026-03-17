@@ -263,6 +263,41 @@ const ActivitiesManagement = ({ user }) => {
         return formData.latitud ? <Marker position={[formData.latitud, formData.longitud]} /> : null;
     };
 
+    // Component to handle radius resizing interactively
+    const RadiusHandle = () => {
+        if (!formData.latitud || !formData.longitud) return null;
+        
+        // Calculate handle position (East side of the circle)
+        // 1 degree lat is ~111,111 meters. 1 degree lon is ~111,111 * cos(lat)
+        const lat = formData.latitud;
+        const lng = formData.longitud;
+        const radiusMeters = formData.radio_influencia;
+        
+        const deltaLng = radiusMeters / (111111 * Math.cos(lat * Math.PI / 180));
+        const handlePos = [lat, lng + deltaLng];
+
+        return (
+            <Marker 
+                position={handlePos}
+                draggable={true}
+                eventHandlers={{
+                    drag: (e) => {
+                        const newPos = e.target.getLatLng();
+                        const center = L.latLng(lat, lng);
+                        const newRadius = center.distanceTo(newPos);
+                        setFormData(prev => ({ ...prev, radio_influencia: Math.round(newRadius) }));
+                    }
+                }}
+                icon={L.divIcon({
+                    className: 'radius-handle-icon',
+                    html: '<div style="background: white; border: 2px solid #4f46e5; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.4);"></div>',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                })}
+            />
+        );
+    };
+
     return (
         <div className="activities-container">
             <header className="section-header">
@@ -397,11 +432,18 @@ const ActivitiesManagement = ({ user }) => {
                                 <div className="form-group">
                                     <label>Ubicación y Zona de Influencia (Haz clic en el mapa)</label>
                                     <div style={{ height: '300px', width: '100%', marginBottom: '1rem' }}>
-                                        <MapContainer center={[-25.33, -57.52]} zoom={13} style={{ height: '100%' }}>
+                                        <MapContainer center={[formData.latitud || -25.33, formData.longitud || -57.52]} zoom={13} style={{ height: '100%' }}>
                                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                                             <LocationPicker />
                                             {formData.latitud && (
-                                                <Circle center={[formData.latitud, formData.longitud]} radius={formData.radio_influencia} />
+                                                <>
+                                                    <Circle 
+                                                        center={[formData.latitud, formData.longitud]} 
+                                                        radius={formData.radio_influencia} 
+                                                        pathOptions={{ color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 0.2 }}
+                                                    />
+                                                    <RadiusHandle />
+                                                </>
                                             )}
                                         </MapContainer>
                                     </div>

@@ -485,6 +485,121 @@ class ActividadParticipanteResponse(BaseModel):
     apellido: Optional[str] = None
     telefono: Optional[str] = None
     observaciones: Optional[str] = None
+
+class ResultadoMesaBase(BaseModel):
+    departamento_id: int
+    distrito_id: int
+    seccional_id: int
+    local_id: int
+    nro_mesa: int
+    id_candidato: int
+    votos_obtenidos: int = 0
+    votos_blancos: int = 0
+    votos_nulos: int = 0
+    total_votantes_acta: int = 0
+    observaciones: Optional[str] = None
+    foto_acta_url: Optional[str] = None
+
+class ResultadoMesaCreate(ResultadoMesaBase):
+    pass
+
+class ResultadoMesaResponse(ResultadoMesaBase):
+    id: int
+    auditado: bool = False
+    creado_por: int
+    fecha_registro: datetime
+
+    class Config:
+        from_attributes = True
+
+class ResumenMesaComparativo(BaseModel):
+    departamento_id: int
+    distrito_id: int
+    seccional_id: int
+    local_id: int
+    nombre_local: str
+    nro_mesa: int
+    votos_reales: int
+    simpatizantes_esperados: int
+    diferencia: int
+    efectividad_porcentaje: float
+
+# --- Esquemas para Financiamiento Político ---
+
+class FinanciamientoEgresoBase(BaseModel):
+    id_candidato: int
+    tipo_financiamiento: str
+    monto: float
+    fecha: date
+    categoria: Optional[str] = None
+    descripcion: Optional[str] = None
+    proveedor_nombre: Optional[str] = None
+    proveedor_ruc: Optional[str] = None
+    factura_nro: Optional[str] = None
+    tipo_comprobante: str = "Factura"
+    timbrado: Optional[str] = None
+
+class FinanciamientoEgresoCreate(FinanciamientoEgresoBase):
+    pass
+
+class FinanciamientoEgresoResponse(FinanciamientoEgresoBase):
+    id: int
+    creado_por: int
+    fecha_registro: datetime
+
+    class Config:
+        from_attributes = True
+
+class FinanciamientoIngresoBase(BaseModel):
+    id_candidato: int
+    tipo_financiamiento: str
+    monto: float
+    fecha: date
+    origen: Optional[str] = None
+    nombre_aportante: Optional[str] = None
+    ci_ruc_aportante: Optional[str] = None
+    descripcion: Optional[str] = None
+    comprobante_nro: Optional[str] = None
+    tipo_comprobante: str = "Recibo"
+    timbrado: Optional[str] = None
+
+class FinanciamientoIngresoCreate(FinanciamientoIngresoBase):
+    pass
+
+class FinanciamientoIngresoResponse(FinanciamientoIngresoBase):
+    id: int
+    creado_por: int
+    fecha_registro: datetime
+
+    class Config:
+        from_attributes = True
+
+class FinanciamientoCumplimientoBase(BaseModel):
+    id_candidato: int
+    tipo_financiamiento: str
+    requisito_nombre: str
+    completado: bool = False
+    observaciones: Optional[str] = None
+    archivo_url: Optional[str] = None
+
+class FinanciamientoCumplimientoUpdate(BaseModel):
+    completado: Optional[bool] = None
+    observaciones: Optional[str] = None
+    archivo_url: Optional[str] = None
+    fecha_cumplimiento: Optional[datetime] = None
+
+class FinanciamientoCumplimientoResponse(FinanciamientoCumplimientoBase):
+    id: int
+    fecha_cumplimiento: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class FinanciamientoResumen(BaseModel):
+    total_ingresos: float
+    total_egresos: float
+    balance: float
+    cumplimiento_porcentaje: float
     es_simpatizante: bool
     en_padron_anr: bool
     en_padron_plra: bool

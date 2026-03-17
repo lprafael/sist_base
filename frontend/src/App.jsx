@@ -19,6 +19,8 @@ import PlraPadronConsult from "./components/PlraPadronConsult.jsx";
 import ActivitiesManagement from "./components/ActivitiesManagement.jsx";
 import CandidatePublicPage from "./components/CandidatePublicPage.jsx";
 import InteligenciaTerritorial from "./components/InteligenciaTerritorial.jsx";
+import FinanciamientoPolitico from "./components/FinanciamientoPolitico.jsx";
+import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -99,6 +101,7 @@ function MainDashboard({ user, onLogout }) {
       items: [
         { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente'] },
         { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente'] },
+        { id: 'escrutinio_dia_d', label: 'Escrutinio Día D', icon: '🗳️', roles: ['admin', 'intendente', 'concejal'] },
       ]
     },
     {
@@ -106,6 +109,7 @@ function MainDashboard({ user, onLogout }) {
       items: [
         { id: 'padron_plra', label: 'Padrón PLRA', icon: '🔵', roles: ['admin', 'intendente', 'concejal'] },
         { id: 'inteligencia_territorial', label: 'Inteligencia Territorial', icon: '🧠', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'financiamiento', label: 'Financiamiento Político', icon: '⚖️', roles: ['admin', 'intendente', 'concejal'] },
       ]
     },
     {
@@ -192,6 +196,8 @@ function MainDashboard({ user, onLogout }) {
             {tab === "choferes" && ['admin', 'intendente'].includes(user.rol) && <ChoferGestion user={user} />}
             {tab === "padron_plra" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <PlraPadronConsult />}
             {tab === "inteligencia_territorial" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <InteligenciaTerritorial user={user} />}
+            {tab === "financiamiento" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <FinanciamientoPolitico user={user} />}
+            {tab === "escrutinio_dia_d" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <EscrutinioDiaD user={user} />}
           </div>
         </main>
       </div>

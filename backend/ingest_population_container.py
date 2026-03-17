@@ -78,10 +78,10 @@ try:
         cur.execute("""
             UPDATE cartografia.barrios 
             SET poblacion_total = %s, poblacion_hombres = %s, poblacion_mujeres = %s
-            WHERE unaccent(trim(upper("DIST_DESC_"))) ILIKE %s 
+            WHERE unaccent(trim(upper(dist_desc_))) ILIKE %s 
             AND (
-                unaccent(trim(upper("BARLO_DESC"))) = %s
-                OR unaccent(trim(upper("BARLO_DESC"))) ILIKE %s
+                unaccent(trim(upper(barlo_desc))) = %s
+                OR unaccent(trim(upper(barlo_desc))) ILIKE %s
             )
         """, (total, hombres, mujeres, f"%{current_dist}%", lugar_clean, f"%{lugar_clean}%"))
         

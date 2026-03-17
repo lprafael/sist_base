@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap, useMapEvents, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { authFetch } from '../utils/authFetch';
@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const LocalRow = ({ local, onSave, isAdmin, onPickOnMap, isPicking }) => {
+const LocalRow = ({ local, onSave, isAdmin, onPickOnMap, isPicking, inside }) => {
     const [tempLat, setTempLat] = useState(local.ubicacion?.lat || '');
     const [tempLng, setTempLng] = useState(local.ubicacion?.lng || '');
     const [rawInput, setRawInput] = useState(local.ubicacion ? `${local.ubicacion.lat}, ${local.ubicacion.lng}` : '');
@@ -42,8 +42,13 @@ const LocalRow = ({ local, onSave, isAdmin, onPickOnMap, isPicking }) => {
         }
     };
 
+    const rowClass =
+        inside === true ? 'local-row-inside' :
+        inside === false ? 'local-row-outside' :
+        '';
+
     return (
-        <tr className={isPicking ? 'picking-row' : ''}>
+        <tr className={`${isPicking ? 'picking-row' : ''} ${rowClass}`}>
             <td>{local.descripcion}</td>
             <td className="addr-cell">{local.domicilio || 'Sin dirección'}</td>
             <td className="count-cell">{local.votantes.toLocaleString()}</td>
@@ -267,6 +272,24 @@ const GeoDashboard = () => {
         }
     };
 
+    // Centroide y bounds del área actual (distrito o departamento) para ubicar y validar locales
+    const { centroidDistrito, boundsArea } = useMemo(() => {
+        const geojson = distritoGeoJson?.features?.length
+            ? distritoGeoJson
+            : (barriosGeoJson?.features?.length ? barriosGeoJson : null);
+        if (!geojson) return { centroidDistrito: null, boundsArea: null };
+        try {
+            const layer = L.geoJSON(geojson);
+            const bounds = layer.getBounds();
+            if (bounds.isValid()) {
+                return { centroidDistrito: bounds.getCenter(), boundsArea: bounds };
+            }
+        } catch (e) {
+            console.warn('Centroide geo:', e);
+        }
+        return { centroidDistrito: null, boundsArea: null };
+    }, [distritoGeoJson, barriosGeoJson]);
+
     // Estilo para los barrios — paleta naranja/ámbar
     const barrioStyle = (feature) => {
         const popTotal = feature.properties.poblacion_total || 0;
@@ -322,7 +345,12 @@ const GeoDashboard = () => {
                                 className={`stat-item ${selectedDist === item.id ? 'active' : ''} ${isRestricted ? 'no-click' : ''}`}
                                 onClick={() => {
                                     if (isRestricted) return;
-                                    viewMode === 'dptos' ? fetchDistritos(item.id) : fetchLocales(selectedDpto, item.id);
+                                    if (viewMode === 'dptos') {
+                                        fetchDistritos(item.id);
+                                    } else {
+                                        // Click en un distrito: cargar sus barrios Y sus locales (FILTRADO por dist_id)
+                                        fetchLocales(selectedDpto, item.id);
+                                    }
                                 }}
                             >
                                 <span className="item-name">{item.nombre}</span>
@@ -335,10 +363,24 @@ const GeoDashboard = () => {
                 <div className="geo-content">
                     <div className={`map-container card ${pickingLocal ? 'map-picking' : ''}`}>
                         <MapContainer center={[-25.4, -57.4]} zoom={selectedDpto === 11 ? 10 : 7} style={{ height: '500px', width: '100%', borderRadius: '8px' }}>
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <LayersControl position="topright">
+                                <LayersControl.BaseLayer checked name="Mapa estándar">
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        attribution="&copy; OpenStreetMap contributors"
+                                    />
+                                </LayersControl.BaseLayer>
+                                <LayersControl.BaseLayer name="Satélite (Esri)">
+                                    <TileLayer
+                                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                                        attribution="Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics"
+                                    />
+                                </LayersControl.BaseLayer>
+                            </LayersControl>
+
                             <AutoCenter data={barriosGeoJson} priority={distritoGeoJson} />
 
-                            {/* Capas de barrios (SÓLO cuando no hay un distrito específico seleccionado) */}
+                            {/* Barrios del DEPARTAMENTO completo (cuando no hay distito seleccionado) */}
                             {barriosGeoJson && selectedDist === null && (
                                 <GeoJSON
                                     key={`barrios-dpto-${selectedDpto}`}
@@ -346,95 +388,68 @@ const GeoDashboard = () => {
                                     interactive={!pickingLocal}
                                     style={barrioStyle}
                                     onEachFeature={(f, l) => {
-                                        const distName = f.properties.DIST_DESC_ || 'Desconocido';
-                                        const barName = f.properties.BARLO_DESC || f.properties.nombre || 'N/A';
+                                        const distName = f.properties.dist_desc_ || 'Desconocido';
+                                        const barName = f.properties.barlo_desc || f.properties.nombre || 'N/A';
                                         const popTotal = f.properties.poblacion_total || 0;
                                         const captados = f.properties.captados_count || 0;
                                         const penetracion = popTotal > 0 ? ((captados / popTotal) * 100).toFixed(2) : 0;
-
-                                        const popupContent = `
+                                        l.bindPopup(`
                                             <div class="penetration-popup">
-                                                <h4 style="margin:0 0 8px 0; color:#2b6cb0;">📊 Análisis de Penetración</h4>
-                                                <div style="font-size: 1.1rem; margin-bottom: 5px;"><strong>Barrio:</strong> ${barName}</div>
+                                                <h4 style="margin:0 0 8px 0; color:#2b6cb0;">📊 Barrio</h4>
+                                                <div style="font-size: 1.1rem; margin-bottom: 5px;"><strong>${barName}</strong></div>
                                                 <div style="font-size: 0.9rem; color: #4a5568; margin-bottom: 10px;">Distrito: ${distName}</div>
-                                                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 10px 0;"/>
-                                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                                    <span>Población (Censo 2022):</span>
-                                                    <strong>${popTotal.toLocaleString()}</strong>
-                                                </div>
-                                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                                    <span>Simpatizantes:</span>
-                                                    <strong style="color: #276749;">${captados.toLocaleString()}</strong>
-                                                </div>
-                                                <div style="margin-top: 15px;">
-                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                                        <span style="font-weight: bold; color: #2d3748;">Grado de Penetración:</span>
-                                                        <span style="font-weight: 800; color: #2b6cb0; font-size: 1.2rem;">${penetracion}%</span>
-                                                    </div>
-                                                    <div style="width: 100%; background: #edf2f7; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1;">
-                                                        <div style="width: ${Math.min(penetracion * 2, 100)}%; background: linear-gradient(90deg, #3182ce, #2b6cb0); height: 100%; transition: width 0.5s ease-out;"></div>
-                                                    </div>
-                                                    <p style="font-size: 0.75rem; color: #718096; margin-top: 5px; font-style: italic;">
-                                                        * El porcentaje se calcula sobre la población total del barrio.
-                                                    </p>
-                                                </div>
+                                                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 8px 0;"/>
+                                                <div>Población: <strong>${popTotal.toLocaleString()}</strong></div>
+                                                <div>Simpatizantes: <strong style="color:#276749">${captados.toLocaleString()}</strong></div>
+                                                ${popTotal > 0 ? `<div>Penetración: <strong>${penetracion}%</strong></div>` : ''}
                                             </div>
-                                        `;
-                                        l.bindPopup(popupContent, { minWidth: 250 });
+                                        `, { minWidth: 220 });
                                     }}
                                 />
                             )}
 
-                            <MapPicker active={!!pickingLocal} onPick={handleMapPick} />
-
-                            {/* Capa del distrito seleccionado (con color diferente) */}
-                            {distritoGeoJson && (
+                            {/* Barrios del DISTRITO seleccionado (vista detallada por barrio) */}
+                            {distritoGeoJson && selectedDist !== null && (
                                 <GeoJSON
                                     key={`dist-${selectedDpto}-${selectedDist}-${distritoGeoJson.features?.length}`}
                                     data={distritoGeoJson}
                                     interactive={!pickingLocal}
                                     style={(f) => {
-                                        if (f.properties.tipo === 'barrio') {
-                                            return barrioStyle(f);
-                                        }
+                                        if (f.properties.tipo === 'barrio') return barrioStyle(f);
                                         return {
-                                            fillColor: '#e6550d',
-                                            weight: 2,
-                                            opacity: 1,
-                                            color: '#fd8d3c',
-                                            fillOpacity: 0.25
+                                            fillColor: '#e6550d', weight: 2,
+                                            opacity: 1, color: '#fd8d3c', fillOpacity: 0.25
                                         };
                                     }}
                                     onEachFeature={(f, l) => {
-                                        const distName = f.properties.DIST_DESC_ || f.properties.dpto || 'Desconocido';
-                                        const barName = f.properties.BARLO_DESC || f.properties.nombre || 'N/A';
+                                        const distName = f.properties.dist_desc_ || 'Desconocido';
+                                        const barName = f.properties.barlo_desc || f.properties.nombre || 'N/A';
+                                        const popTotal = f.properties.poblacion_total || 0;
+                                        const captados = f.properties.captados_count || 0;
+                                        const penetracion = popTotal > 0 ? ((captados / popTotal) * 100).toFixed(2) : 0;
 
                                         if (f.properties.tipo === 'barrio') {
-                                            const popTotal = f.properties.poblacion_total || 0;
-                                            const captados = f.properties.captados_count || 0;
-                                            const penetracion = popTotal > 0 ? ((captados / popTotal) * 100).toFixed(2) : 0;
-
                                             l.bindPopup(`
                                                 <div class="penetration-popup">
                                                     <h4 style="margin:0 0 8px 0; color:#2b6cb0;">📊 Análisis de Penetración</h4>
-                                                    <div style="font-size: 1.1rem; margin-bottom: 5px;"><strong>Barrio:</strong> ${barName}</div>
-                                                    <div style="font-size: 0.9rem; color: #4a5568; margin-bottom: 10px;">Distrito: ${distName}</div>
-                                                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 10px 0;"/>
-                                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                                    <div style="font-size:1.1rem;margin-bottom:5px;"><strong>Barrio:</strong> ${barName}</div>
+                                                    <div style="font-size:0.9rem;color:#4a5568;margin-bottom:10px;">Distrito: ${distName}</div>
+                                                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:10px 0;"/>
+                                                    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
                                                         <span>Población (2022):</span>
                                                         <strong>${popTotal.toLocaleString()}</strong>
                                                     </div>
-                                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                                    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
                                                         <span>Simpatizantes:</span>
-                                                        <strong style="color: #276749;">${captados.toLocaleString()}</strong>
+                                                        <strong style="color:#276749">${captados.toLocaleString()}</strong>
                                                     </div>
-                                                    <div style="margin-top: 15px;">
-                                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                                            <span style="font-weight: bold; color: #2d3748;">Grado de Penetración:</span>
-                                                            <span style="font-weight: 800; color: #2b6cb0; font-size: 1.2rem;">${penetracion}%</span>
+                                                    <div style="margin-top:12px;">
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                                            <span style="font-weight:bold;">Penetración:</span>
+                                                            <span style="font-weight:800;color:#2b6cb0;font-size:1.2rem;">${penetracion}%</span>
                                                         </div>
-                                                        <div style="width: 100%; background: #edf2f7; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1;">
-                                                            <div style="width: ${Math.min(penetracion * 2, 100)}%; background: linear-gradient(90deg, #ff9800, #e65100); height: 100%;"></div>
+                                                        <div style="width:100%;background:#edf2f7;height:10px;border-radius:5px;overflow:hidden;">
+                                                            <div style="width:${Math.min(penetracion * 2, 100)}%;background:linear-gradient(90deg,#ff9800,#e65100);height:100%;"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -446,13 +461,30 @@ const GeoDashboard = () => {
                                 />
                             )}
 
-                            {locales.map((loc, idx) => (
-                                loc.ubicacion && (
+                            <MapPicker active={!!pickingLocal} onPick={handleMapPick} />
+
+                            {/* Locales de votación: verde si caen dentro del área (bounds), rojo si están fuera, gris si sin coords (aprox) */}
+                            {locales.map((loc, idx) => {
+                                const hasCoords = loc.ubicacion && typeof loc.ubicacion.lat === 'number' && typeof loc.ubicacion.lng === 'number';
+                                const fallbackPos = !!centroidDistrito;
+                                const position = hasCoords
+                                    ? [loc.ubicacion.lat, loc.ubicacion.lng]
+                                    : (fallbackPos ? [centroidDistrito.lat, centroidDistrito.lng] : null);
+                                if (!position) return null;
+                                const isApprox = !hasCoords;
+                                const isInside =
+                                    hasCoords && boundsArea
+                                        ? boundsArea.contains(L.latLng(loc.ubicacion.lat, loc.ubicacion.lng))
+                                        : null;
+                                return (
                                     <Marker
-                                        key={`${loc.local_id}-${idx}-${loc.ubicacion?.lat}`}
-                                        position={[loc.ubicacion.lat, loc.ubicacion.lng]}
+                                        key={`loc-${loc.departamento_id}-${loc.distrito_id}-${loc.seccional_id}-${loc.local_id}-${idx}`}
+                                        position={position}
                                         icon={new L.Icon({
-                                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                                            iconUrl: isApprox
+                                                ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png'
+                                                : (isInside ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
+                                                            : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'),
                                             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
                                             iconSize: [25, 41],
                                             iconAnchor: [12, 41],
@@ -462,12 +494,15 @@ const GeoDashboard = () => {
                                     >
                                         <Popup>
                                             <strong>{loc.descripcion}</strong><br />
-                                            {loc.domicilio}<br />
-                                            Votantes: <strong>{loc.votantes}</strong>
+                                            {loc.domicilio && <>{loc.domicilio}<br /></>}
+                                            Votantes: <strong>{loc.votantes?.toLocaleString() ?? loc.votantes}</strong>
+                                            {isApprox && (
+                                                <><br /><em style={{ color: '#718096', fontSize: '0.85em' }}>Sin coordenadas — posición aproximada (centro del distrito)</em></>
+                                            )}
                                         </Popup>
                                     </Marker>
-                                )
-                            ))}
+                                );
+                            })}
                         </MapContainer>
                     </div>
 
@@ -497,16 +532,24 @@ const GeoDashboard = () => {
                                             </td>
                                         </tr>
                                     )}
-                                    {locales.map((loc, idx) => (
-                                        <LocalRow
-                                            key={`${loc.local_id}-${idx}-${loc.ubicacion?.lat}`}
-                                            local={loc}
-                                            isAdmin={isAdmin}
-                                            onSave={handleUpdateUbicacion}
-                                            onPickOnMap={(l) => setPickingLocal(pickingLocal?.local_id === l.local_id ? null : l)}
-                                            isPicking={pickingLocal?.local_id === loc.local_id}
-                                        />
-                                    ))}
+                            {locales.map((loc, idx) => {
+                                const hasCoords = loc.ubicacion && typeof loc.ubicacion.lat === 'number' && typeof loc.ubicacion.lng === 'number';
+                                const insideRow =
+                                    hasCoords && boundsArea
+                                        ? boundsArea.contains(L.latLng(loc.ubicacion.lat, loc.ubicacion.lng))
+                                        : null;
+                                return (
+                                    <LocalRow
+                                        key={`${loc.local_id}-${idx}-${loc.ubicacion?.lat}`}
+                                        local={loc}
+                                        isAdmin={isAdmin}
+                                        onSave={handleUpdateUbicacion}
+                                        onPickOnMap={(l) => setPickingLocal(pickingLocal?.local_id === l.local_id ? null : l)}
+                                        isPicking={pickingLocal?.local_id === loc.local_id}
+                                        inside={insideRow}
+                                    />
+                                );
+                            })}
                                 </tbody>
                             </table>
                         </div>

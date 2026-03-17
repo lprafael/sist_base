@@ -49,12 +49,12 @@
 }
 
 .global-map-view {
-    height: 220px !important;
-    /* Reducido aún más para dar prioridad a la gestión */
+    height: 180px !important;
     flex-shrink: 0;
     margin-bottom: 1rem;
     border-radius: var(--radius);
     overflow: hidden;
+    box-shadow: var(--shadow-md);
 }
 
 /* --- BOTONES PREMIUM --- */
@@ -363,11 +363,10 @@
     display: block;
 }
 
-.global-map-view {
-    height: 300px !important;
-    /* Reducido de 400px a 300px */
-    flex-shrink: 0;
-    margin-bottom: 1.5rem;
+/* Marker for radius resizing */
+.radius-handle-icon div {
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    cursor: ew-resize;
 }
 
 .drop-zone {

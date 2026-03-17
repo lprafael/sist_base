@@ -512,3 +512,83 @@ class RefLocal(Base):
     # Campo para compatibilidad futura con PostGIS
     if Geometry:
         geom_ubicacion = Column(Geometry(geometry_type='POINT', srid=4326))
+
+# ===== SISTEMA DE FINANCIAMIENTO POLÍTICO =====
+
+class FinanciamientoEgreso(Base):
+    __tablename__ = "financiamiento_egresos"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'))
+    tipo_financiamiento = Column(String(50)) # "Aporte Estatal", "Subsidio Electoral"
+    monto = Column(Float, nullable=False)
+    fecha = Column(Date, nullable=False)
+    categoria = Column(String(100))
+    descripcion = Column(Text)
+    proveedor_nombre = Column(String(255))
+    proveedor_ruc = Column(String(50))
+    factura_nro = Column(String(100))
+    tipo_comprobante = Column(String(50), default="Factura") # "Factura", "Recibo", etc.
+    timbrado = Column(String(13)) # 13 dígitos obligatorios en Py
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
+    fecha_registro = Column(DateTime, default=func.now())
+
+    # Relación (opcional si se requiere navegación)
+    # candidato = relationship("Candidato", back_populates="egresos")
+
+class FinanciamientoIngreso(Base):
+    __tablename__ = "financiamiento_ingresos"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'))
+    tipo_financiamiento = Column(String(50)) # "Aporte Estatal", "Subsidio Electoral"
+    monto = Column(Float, nullable=False)
+    fecha = Column(Date, nullable=False)
+    origen = Column(String(100)) # "Contribución", "Donación", "Aporte Propio"
+    nombre_aportante = Column(String(255))
+    ci_ruc_aportante = Column(String(50))
+    descripcion = Column(Text)
+    comprobante_nro = Column(String(100))
+    tipo_comprobante = Column(String(50), default="Recibo")
+    timbrado = Column(String(13))
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
+    fecha_registro = Column(DateTime, default=func.now())
+
+class FinanciamientoCumplimiento(Base):
+    """Para seguir el checklist de documentos requeridos por el TSJE"""
+    __tablename__ = "financiamiento_cumplimiento"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'))
+    tipo_financiamiento = Column(String(50)) # "Aporte Estatal", "Subsidio Electoral"
+    requisito_nombre = Column(String(255))
+    completado = Column(Boolean, default=False)
+    observaciones = Column(Text)
+    archivo_url = Column(String(500))
+    fecha_cumplimiento = Column(DateTime)
+
+class ResultadoMesa(Base):
+    """Resultados por mesa para el Día D (Escrutinio)"""
+    __tablename__ = "resultados_mesas"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    departamento_id = Column(Integer, nullable=False)
+    distrito_id = Column(Integer, nullable=False)
+    seccional_id = Column(Integer, nullable=False)
+    local_id = Column(Integer, nullable=False)
+    nro_mesa = Column(Integer, nullable=False)
+    
+    id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'))
+    votos_obtenidos = Column(Integer, default=0)
+    votos_blancos = Column(Integer, default=0)
+    votos_nulos = Column(Integer, default=0)
+    total_votantes_acta = Column(Integer, default=0)
+    observaciones = Column(Text)
+    foto_acta_url = Column(String(500))
+    auditado = Column(Boolean, default=False)
+    creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
+    fecha_registro = Column(DateTime, default=func.now())

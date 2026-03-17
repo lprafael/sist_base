@@ -16,14 +16,19 @@ def clean_name(name):
     return name
 
 async def main():
-    load_dotenv(os.path.join("backend", ".env"))
+    env_path = os.path.join(os.path.dirname(__file__), "backend", ".env")
+    if not os.path.exists(env_path):
+        env_path = os.path.join(os.path.dirname(__file__), "..", "backend", ".env")
+    load_dotenv(env_path)
     db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        print(f"Error: DATABASE_URL not found in {env_path}")
+        return
     dsn = db_url.replace("postgresql+asyncpg://", "postgresql://")
     
-    if "@db:" in dsn:
-        dsn = dsn.replace("@db:5432/", "@localhost:5433/")
-    elif "@localhost:5432/" in dsn:
-         dsn = dsn.replace("@localhost:5432/", "@localhost:5433/")
+    # Check if we can connect to 5432 (default)
+    # The original script had logic to switch to 5433, likely for local vs docker, 
+    # but based on .env it should be 5432.
     
     conn = await asyncpg.connect(dsn)
     
@@ -46,7 +51,7 @@ async def main():
         # Get Carto Distritos for this Dpto
         # We try to match DPTO column strings. Ref id 1 -> '01', 11 -> '11'
         dpto_code = str(dpto_id).zfill(2)
-        carto_dists = await conn.fetch('SELECT "DISTRITO", "DIST_DESC_" FROM cartografia.distritos WHERE "DPTO" = $1', dpto_code)
+        carto_dists = await conn.fetch('SELECT distrito, dist_desc_ FROM cartografia.distritos WHERE dpto = $1', dpto_code)
         
         mapped_count = 0
         for r in ref_dists:
@@ -56,24 +61,25 @@ async def main():
             # Find match in carto
             match_code = None
             for c in carto_dists:
-                c_name = clean_name(c['DIST_DESC_'])
+                c_name = clean_name(c['dist_desc_'])
                 if r_name == c_name or (r_name in c_name) or (c_name in r_name):
-                    match_code = c['DISTRITO']
+                    match_code = c['distrito']
                     break
             
             if match_code:
                 await conn.execute("""
                     UPDATE cartografia.distritos 
                     SET ref_distrito_id = $1 
-                    WHERE "DPTO" = $2 AND "DISTRITO" = $3
-                """, r_id, dpto_code, match_code)
+                    WHERE dpto = $2 AND distrito = $3
+                """, str(r_id), dpto_code, match_code)
                 
                 # Also update barrios table if possible
                 await conn.execute("""
                     UPDATE cartografia.barrios 
-                    SET dpto_id_ref = $1 
-                    WHERE "DPTO" = $2 AND "DISTRITO" = $3
-                """, dpto_id, dpto_code, match_code)
+                    SET dpto_id_ref = $1,
+                        ref_distrito_id = $2
+                    WHERE dpto = $3 AND distrito = $4
+                """, dpto_id, str(r_id), dpto_code, match_code)
                 
                 mapped_count += 1
         
