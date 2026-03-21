@@ -117,7 +117,7 @@ const LandingPage = ({ user }) => {
           transition={{ delay: 0.4, duration: 1 }}
           style={{ marginTop: '60px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.15)', maxWidth: '1100px', margin: '60px auto 0' }}
         >
-          <img src="/imágenes/sigel_election_hero_1772311729224.png" alt="SIGEL Dashboard" style={{ width: '100%', height: 'auto', display: 'block' }} />
+          <img src="/imagenes/sigel_election_hero_1772311729224.png" alt="SIGEL Dashboard" style={{ width: '100%', height: 'auto', display: 'block' }} />
         </motion.div>
       </section>
 

@@ -51,7 +51,7 @@ const CandidatePublicPage = () => {
     // Default configuration if config is missing parts
     const config = candidate.config || {};
     const heroImage = config.hero_image || 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80';
-    const profileImage = config.profile_image || '/imágenes/default_avatar.png';
+    const profileImage = config.profile_image || '/imagenes/default_avatar.png';
     const bioText = config.bio || `Soy ${candidate.nombre_completo}, un ciudadano comprometido con nuestra ciudad y los valores de nuestro partido. Trabajaré incansablemente para llevar el progreso y bienestar a todas las familias de nuestra comunidad.`;
     const ejes = config.ejes || [
         { titulo: 'Seguridad', descripcion: 'Mayor presencia policial y cámaras inteligentes.' },
@@ -131,7 +131,7 @@ const CandidatePublicPage = () => {
                         <div className="equipo-grid">
                             {concejales.map((miembro, idx) => (
                                 <Link to={`/candidato/${miembro.slug}`} className="equipo-card" key={idx}>
-                                    <img src={miembro.foto || '/imágenes/default_avatar.png'} alt={miembro.nombre} />
+                                    <img src={miembro.foto || '/imagenes/default_avatar.png'} alt={miembro.nombre} />
                                     <h4>{miembro.nombre}</h4>
                                     <span>Candidato a Concejal</span>
                                 </Link>

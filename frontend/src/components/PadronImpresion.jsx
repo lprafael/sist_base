@@ -234,7 +234,7 @@ const PadronImpresion = ({ user }) => {
                 <div className="printable-report">
                     <div className="report-header">
                         <div className="report-logo">
-                            <img src="/imágenes/Logo_chico.PNG" alt="SIGEL" />
+                            <img src="/imagenes/Logo_chico.PNG" alt="SIGEL" />
                         </div>
                         <div className="report-title">
                             <h3>PADRÓN ELECTORAL - SIGEL</h3>

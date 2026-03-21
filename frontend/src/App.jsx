@@ -51,7 +51,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
         )}
         <div className="logo-container" style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
           <img
-            src="/imágenes/Logo_chico.PNG"
+            src="/imagenes/Logo_chico.PNG"
             alt="Logo SIGEL"
             style={{ height: 40 }}
           />
