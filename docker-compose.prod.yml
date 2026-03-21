@@ -1,7 +1,22 @@
 version: '3.8'
 
 services:
-  # Base de Datos con PostGIS Integrado
+  # --- Nginx Proxy Manager ---
+  nginx-proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: SIGEL-proxy
+    restart: unless-stopped
+    ports:
+      - '80:80'   # HTTP público
+      - '443:443' # HTTPS público
+      - '81:81'   # Panel de control de Nginx (lo cerraremos después)
+    volumes:
+      - ./proxy/data:/data
+      - ./proxy/letsencrypt:/etc/letsencrypt
+    networks:
+      - SIGEL-network
+
+  # --- Base de Datos con PostGIS Integrado ---
   db:
     image: postgis/postgis:15-3.3-alpine
     container_name: SIGEL-db
@@ -17,7 +32,11 @@ services:
     networks:
       - SIGEL-network
 
+  # --- Backend ---
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: sigel-backend:latest
     container_name: SIGEL-backend
     ports:
@@ -31,7 +50,6 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      # Solo exponemos los logs hacia afuera, no machacamos el código interno
       - ./backend/logs:/app/logs
     restart: unless-stopped
     networks:
@@ -43,7 +61,11 @@ services:
       retries: 3
       start_period: 40s
 
+  # --- Frontend ---
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     image: sigel-frontend:latest
     container_name: SIGEL-frontend
     ports:
@@ -53,7 +75,6 @@ services:
     restart: unless-stopped
     networks:
       - SIGEL-network
-    # Sin volumen montado para que Nginx sirva solo lo de adentro del contenedor
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
       interval: 30s
