@@ -599,14 +599,6 @@ const UserManagement = () => {
                     </div>
                   )}
 
-                  {/* Mensaje herencia automática para no-admins */}
-                  {!isAdmin && (
-                    <div style={{ fontSize: '0.8125rem', color: '#1e40af', background: '#dbeafe', padding: '10px', borderRadius: '8px' }}>
-                      ℹ️ El nuevo usuario colgará directamente de ti y heredará automáticamente tu departamento y distrito.
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* SEGURIDAD */}
               {!showCreateForm && currentUser.id === editUser?.id && (
