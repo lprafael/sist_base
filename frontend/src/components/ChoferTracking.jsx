@@ -101,6 +101,19 @@ const ChoferTracking = () => {
         }
     };
 
+    const cancelarTraslado = async (vid) => {
+        if (!window.confirm("¿Seguró que deseas cancelar este traslado? El votante volverá a estar pendiente.")) return;
+        const res = await fetch(`/api/logistica/cancelar-traslado`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, votante_id: vid })
+        });
+        if (res.ok) {
+            alert("Traslado cancelado");
+            fetchVotantes();
+        }
+    };
+
     useEffect(() => {
         // Intentar mantener la pantalla encendida para el tracking
         let wakeLock = null;
@@ -176,6 +189,9 @@ const ChoferTracking = () => {
                                             <button className="btn-destino" onClick={() => marcarDestino(v.id)}>
                                                 Ya Llegué 🏁
                                             </button>
+                                            <button className="btn-cancel" onClick={() => cancelarTraslado(v.id)}>
+                                                Cancelar ❌
+                                            </button>
                                         </div>
                                     ) : (
                                         <span className="status-label delivered">🏁 En destino</span>
@@ -212,6 +228,8 @@ const ChoferTracking = () => {
                 .btn-recoger { background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
                 .btn-destino { background: #38a169; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
                 .btn-nav { background: #805ad5; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
+                .btn-cancel { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
+                .btn-cancel:hover { background: #fecaca;}
                 .status-label { font-size: 0.8rem; color: #b7791f; font-weight: 600; }
                 .status-label.delivered { color: #2f855a; }
                 .empty-state { text-align: center; color: #999; padding-top: 50px; }

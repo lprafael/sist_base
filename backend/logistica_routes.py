@@ -249,6 +249,35 @@ async def marcar_destino(data: Dict[str, Any], session: AsyncSession = Depends(g
 
 # --- ACCIONES DEL VEEDOR (Voto) ---
 
+@router.post("/cancelar-traslado")
+async def cancelar_traslado(
+    data: Dict[str, Any],
+    session: AsyncSession = Depends(get_session)
+):
+    """Cancela un traslado en curso, devolviendo al votante a estado pendiente"""
+    token = data.get("token")
+    votante_id = data.get("votante_id")
+    
+    # Validar que el chofer con ese token existe (si viene token)
+    if token:
+        chofer_res = await session.execute(select(Chofer).where(Chofer.token_seguimiento == token))
+        if not chofer_res.scalar_one_or_none():
+            raise HTTPException(status_code=401, detail="Token de chofer inválido")
+
+    result = await session.execute(select(PosibleVotante).where(PosibleVotante.id == votante_id))
+    votante = result.scalar_one_or_none()
+    
+    if not votante:
+        raise HTTPException(status_code=404, detail="Votante no encontrado")
+        
+    votante.logistica_estado = 'pendiente'
+    votante.chofer_id = None
+    votante.fecha_traslado = None
+    votante.fecha_destino = None
+    
+    await session.commit()
+    return {"status": "ok", "message": "Traslado cancelado correctamente"}
+
 @router.post("/marcar-voto")
 async def marcar_voto(
     data: Dict[str, Any], 
