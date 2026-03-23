@@ -18,6 +18,8 @@ import LandingPage from "./pages/LandingPage.jsx";
 import PlraPadronConsult from "./components/PlraPadronConsult.jsx";
 import ActivitiesManagement from "./components/ActivitiesManagement.jsx";
 import CandidatePublicPage from "./components/CandidatePublicPage.jsx";
+import VeedorGestion from "./components/VeedorGestion.jsx";
+import VeedorLocalPanel from "./components/VeedorLocalPanel.jsx";
 import InteligenciaTerritorial from "./components/InteligenciaTerritorial.jsx";
 import FinanciamientoPolitico from "./components/FinanciamientoPolitico.jsx";
 import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
@@ -101,6 +103,8 @@ function MainDashboard({ user, onLogout }) {
       items: [
         { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente'] },
         { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente'] },
+        { id: 'veedores', label: 'Gestión de Veedores', icon: '👥', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'veedor_panel', label: 'Mi Mesa (Veedor)', icon: '📋', roles: ['admin', 'intendente', 'concejal', 'referente'] },
         { id: 'escrutinio_dia_d', label: 'Escrutinio Día D', icon: '🗳️', roles: ['admin', 'intendente', 'concejal'] },
       ]
     },
@@ -194,6 +198,8 @@ function MainDashboard({ user, onLogout }) {
             {tab === "padron_impresion" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <PadronImpresion user={user} />}
             {tab === "logistica" && ['admin', 'intendente'].includes(user.rol) && <LogisticaControlPanel user={user} />}
             {tab === "choferes" && ['admin', 'intendente'].includes(user.rol) && <ChoferGestion user={user} />}
+            {tab === "veedores" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <VeedorGestion user={user} />}
+            {tab === "veedor_panel" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <VeedorLocalPanel user={user} />}
             {tab === "padron_plra" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <PlraPadronConsult />}
             {tab === "inteligencia_territorial" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <InteligenciaTerritorial user={user} />}
             {tab === "financiamiento" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <FinanciamientoPolitico user={user} />}

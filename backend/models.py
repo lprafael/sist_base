@@ -52,6 +52,11 @@ class Usuario(Base):
     public_slug = Column(String(100), unique=True, index=True, nullable=True)
     public_config = Column(JSONB, nullable=True) # JSON para guardar Ejes y bio
     
+    # --- Configuración de Veedores ---
+    veedor_local_id = Column(Integer, nullable=True)
+    veedor_seccional_id = Column(Integer, nullable=True)
+    veedor_mesas = Column(JSONB, nullable=True) # Lista de números de mesa [1, 2, 5]
+    
     # Relaciones
     roles = relationship("Rol", secondary=usuario_rol, back_populates="usuarios")
     sesiones = relationship("SesionUsuario", back_populates="usuario")

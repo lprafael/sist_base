@@ -347,3 +347,117 @@ async def get_control_mapa(
         ],
         "votantes": votantes
     }
+
+# --- GESTIÓN DE VEEDORES ---
+
+@router.get("/veedores")
+async def list_veedores(
+    dept_id: Optional[int] = None,
+    dist_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Lista usuarios que tienen asignaciones de veedor"""
+    stmt = (
+        select(Usuario.id, Usuario.nombre_completo, Usuario.username, 
+               Usuario.veedor_local_id, Usuario.veedor_seccional_id, Usuario.veedor_mesas)
+        .where(or_(Usuario.veedor_local_id.isnot(None), Usuario.rol == 'referente'))
+    )
+    # Filtro opcional por territorio si el usuario no es admin
+    if current_user.get("role") != "admin":
+        stmt = stmt.where(Usuario.departamento_id == current_user.get("departamento_id"))
+        if current_user.get("distrito_id"):
+            stmt = stmt.where(Usuario.distrito_id == current_user.get("distrito_id"))
+            
+    result = await session.execute(stmt)
+    return [dict(r._mapping) for r in result.all()]
+
+@router.get("/locales")
+async def get_locales(
+    dept_id: int,
+    dist_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """Lista locales de un distrito para asignación de veedores"""
+    stmt = text("""
+        SELECT local_id as id, descripcion, seccional_id
+        FROM electoral.ref_locales
+        WHERE departamento_id = :d AND distrito_id = :di
+        ORDER BY descripcion
+    """)
+    result = await session.execute(stmt, {"d": dept_id, "di": dist_id})
+    return [dict(r._mapping) for r in result.all()]
+
+@router.post("/veedores/asignar")
+async def asignar_veedor(
+    data: Dict[str, Any],
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Asigna un local y mesas a un usuario"""
+    if current_user.get("role") not in ["admin", "intendente", "concejal"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos")
+        
+    user_id = data.get("user_id")
+    local_id = data.get("local_id")
+    seccional_id = data.get("seccional_id")
+    mesas = data.get("mesas") # List[int]
+    
+    result = await session.execute(select(Usuario).where(Usuario.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    user.veedor_local_id = local_id
+    user.veedor_seccional_id = seccional_id
+    user.veedor_mesas = mesas
+    
+    await session.commit()
+    return {"status": "ok", "message": "Veedor asignado correctamente"}
+
+@router.get("/veedor/mis-votantes")
+async def get_mis_votantes_veedor(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retorna los votantes asignados al veedor según su local y mesas"""
+    # Recargar usuario para tener los campos de veedor
+    result = await session.execute(select(Usuario).where(Usuario.id == current_user["user_id"]))
+    user = result.scalar_one_or_none()
+    
+    if not user.veedor_local_id or not user.veedor_mesas:
+        return []
+
+    # Mesas es una lista [1, 2, 3] en JSONB
+    query = text("""
+        SELECT pv.id, p.nombres, p.apellidos, p.cedula, p.mesa, pv.logistica_estado,
+               c.nombre as chofer_nombre, c.telefono as chofer_telefono
+        FROM electoral.posibles_votantes pv
+        JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
+        LEFT JOIN electoral.choferes c ON pv.chofer_id = c.id
+        WHERE p.departamento = :dept AND p.distrito = :dist AND p.seccional = :sec AND p.local = :loc
+        AND p.mesa = ANY(:mesas)
+        ORDER BY p.mesa ASC, p.apellidos ASC
+    """)
+    
+    # En PostgreSQL, ANY lo espera como un array literal o similar. 
+    # SQLAlchemy maneja listas como arrays de PG en ANY.
+    result_votantes = await session.execute(query, {
+        "dept": user.departamento_id,
+        "dist": user.distrito_id,
+        "sec": user.veedor_seccional_id,
+        "loc": user.veedor_local_id,
+        "mesas": user.veedor_mesas
+    })
+    
+    return [
+        {
+            "id": r.id,
+            "nombre": f"{r.nombres} {r.apellidos}",
+            "cedula": r.cedula,
+            "mesa": r.mesa,
+            "estado": r.logistica_estado or 'pendiente',
+            "chofer": {"nombre": r.chofer_nombre, "telefono": r.chofer_telefono} if r.chofer_nombre else None
+        } for r in result_votantes.fetchall()
+    ]

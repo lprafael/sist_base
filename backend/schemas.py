@@ -46,6 +46,9 @@ class UserCreate(BaseModel):
     distrito_id: Optional[int] = None      # Obligatorio para intendente/concejal
     restriccion_equipo: Optional[bool] = False
     superior_usuario_id: Optional[int] = None
+    veedor_local_id: Optional[int] = None
+    veedor_seccional_id: Optional[int] = None
+    veedor_mesas: Optional[List[int]] = None
     
     @validator('username')
     def username_must_be_valid(cls, v):
@@ -68,6 +71,9 @@ class UserUpdate(BaseModel):
     superior_usuario_id: Optional[int] = None
     public_slug: Optional[str] = None
     public_config: Optional[Dict[str, Any]] = None
+    veedor_local_id: Optional[int] = None
+    veedor_seccional_id: Optional[int] = None
+    veedor_mesas: Optional[List[int]] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -83,6 +89,9 @@ class UserResponse(BaseModel):
     restriccion_equipo: bool = False
     public_slug: Optional[str] = None
     public_config: Optional[Dict[str, Any]] = None
+    veedor_local_id: Optional[int] = None
+    veedor_seccional_id: Optional[int] = None
+    veedor_mesas: Optional[List[int]] = None
     
     class Config:
         from_attributes = True
