@@ -112,6 +112,10 @@ const Login = ({ onLogin }) => {
         <div className="login-header">
           <h2>SIGEL - Gestión Electoral</h2>
           <p>Inicia sesión para continuar</p>
+          <p className="trial-notice">
+            Puede realizar una prueba gratuita si el administrador lo autoriza. 
+            Solicite la autorización vinculando su cuenta de Google.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">

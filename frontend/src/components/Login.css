@@ -36,6 +36,14 @@
   font-size: 0.95rem;
 }
 
+.trial-notice {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 12px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
