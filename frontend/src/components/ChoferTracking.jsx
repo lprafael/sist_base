@@ -9,10 +9,15 @@ const ChoferTracking = () => {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('Iniciando...');
     const [coords, setCoords] = useState(null);
+    const [installPrompt, setInstallPrompt] = useState(null);
     const watchId = useRef(null);
 
     useEffect(() => {
         validateToken();
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            setInstallPrompt(e);
+        });
     }, [token]);
 
     const validateToken = async () => {
@@ -114,6 +119,16 @@ const ChoferTracking = () => {
         }
     };
 
+    const handleInstallClick = () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        installPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                setInstallPrompt(null);
+            }
+        });
+    };
+
     useEffect(() => {
         // Intentar mantener la pantalla encendida para el tracking
         let wakeLock = null;
@@ -152,6 +167,11 @@ const ChoferTracking = () => {
                 <div className={`status-pill ${coords ? 'active' : 'inactive'}`}>
                     {status}
                 </div>
+                {installPrompt && (
+                    <button className="btn-install-app" onClick={handleInstallClick}>
+                        📲 Instalar App SIGEL
+                    </button>
+                )}
             </header>
 
             <main className="driver-content">
@@ -230,6 +250,8 @@ const ChoferTracking = () => {
                 .btn-nav { background: #805ad5; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
                 .btn-cancel { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
                 .btn-cancel:hover { background: #fecaca;}
+                .btn-install-app { background: #2b6cb0; color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: 700; cursor: pointer; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; }
+                .btn-install-app:hover { background: #2c5282; }
                 .status-label { font-size: 0.8rem; color: #b7791f; font-weight: 600; }
                 .status-label.delivered { color: #2f855a; }
                 .empty-state { text-align: center; color: #999; padding-top: 50px; }

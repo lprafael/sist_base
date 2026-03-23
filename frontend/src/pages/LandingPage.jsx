@@ -8,7 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Smartphone,
-  Search,
+  Database,
   Truck,
   ClipboardCheck,
   Sparkles,
