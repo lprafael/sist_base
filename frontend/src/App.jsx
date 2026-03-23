@@ -287,8 +287,9 @@ export default function App() {
 
   const handleAcceptTerms = async () => {
     try {
+      const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/accept-terms`, {
+      const res = await fetch(`${API_URL}/auth/accept-terms`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
