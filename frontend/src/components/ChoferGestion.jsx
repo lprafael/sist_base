@@ -198,7 +198,7 @@ const ChoferGestion = ({ user }) => {
                                                 {c.latitud ? '📡 Operando' : '💤 Inactivo'}
                                             </span>
                                         </td>
-                                        <td>{c.ultima_conexion ? new Date(c.ultima_conexion).toLocaleString() : 'Nunca'}</td>
+                                        <td>{c.ultima_conexion ? new Date(c.ultima_conexion.endsWith('Z') ? c.ultima_conexion : c.ultima_conexion + 'Z').toLocaleString('es-PY') : 'Nunca'}</td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '5px' }}>
                                                 <button className="btn-small" title="Copiar enlace de seguimiento" onClick={() => copyLink(c.token_seguimiento)}>

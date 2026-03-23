@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
+import { Link } from 'react-router-dom';
 import './Login.css';
 
 
@@ -233,6 +234,11 @@ const Login = ({ onLogin }) => {
           >
             ¿Olvidaste tu contraseña?
           </button>
+          <div style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+            <Link to="/" style={{ color: '#1e3a8a', fontWeight: 600, textDecoration: 'none', fontSize: '0.9rem' }}>
+              🏠 Volver a la pantalla principal
+            </Link>
+          </div>
         </div>
       </div>
     </div>

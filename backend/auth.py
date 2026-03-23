@@ -1099,3 +1099,17 @@ async def approve_device(
     )
     
     return {"message": "Equipo aprobado correctamente"}
+@router.post("/accept-terms")
+async def accept_terms(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = current_user["user_id"]
+    result = await session.execute(select(Usuario).where(Usuario.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    user.terminos_aceptados = True
+    await session.commit()
+    return {"status": "ok", "message": "Términos aceptados correctamente"}

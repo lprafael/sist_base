@@ -24,6 +24,44 @@ import InteligenciaTerritorial from "./components/InteligenciaTerritorial.jsx";
 import FinanciamientoPolitico from "./components/FinanciamientoPolitico.jsx";
 import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
 
+const TermsAcceptanceModal = ({ onAccept, onLogout }) => {
+  return (
+    <div className="modal-overlay terminos-overlay" style={{ zIndex: 3000 }}>
+      <div className="modal fade-in" style={{ maxWidth: '800px' }}>
+        <div className="modal-header">
+          <h3>📜 Términos de Uso y Confidencialidad</h3>
+        </div>
+        <div className="modal-body" style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto', textAlign: 'left', lineHeight: '1.6' }}>
+          <p>Bienvenido al <strong>Sistema Integral de Gestión Electoral (SIGEL)</strong>. Para continuar, debe aceptar los siguientes términos sobre el uso de la información:</p>
+          
+          <section style={{ marginBottom: '20px' }}>
+            <h4 style={{ color: '#1e3a8a' }}>1. Confidencialidad de la Información</h4>
+            <p>Toda la información contenida en este sistema, incluyendo datos de votantes, números de cédula, ubicaciones y preferencias políticas, tiene carácter <strong>estrictamente confidencial</strong>. Usted se compromete a no divulgar, copiar, publicar ni transferir estos datos a personas ajenas a la organización política autorizada.</p>
+          </section>
+
+          <section style={{ marginBottom: '20px' }}>
+            <h4 style={{ color: '#1e3a8a' }}>2. Uso Adecuado de los Datos</h4>
+            <p>El uso de la base de datos es exclusivamente para fines de coordinación logística y comunicación política legítima. Queda prohibido el uso de esta información para fines comerciales, de acoso, o cualquier actividad que vulnere la integridad de las personas o las leyes electorales vigentes.</p>
+          </section>
+
+          <section style={{ marginBottom: '20px' }}>
+            <h4 style={{ color: '#1e3a8a' }}>3. Responsabilidad Personal</h4>
+            <p>Usted es responsable de la custodia de sus credenciales de acceso. Cualquier acción realizada con su usuario será atribuida a su persona. El sistema registra cada acceso y acción realizada para fines de auditoría.</p>
+          </section>
+
+          <section style={{ border: '1px solid #fee2e2', padding: '15px', borderRadius: '8px', background: '#fef2f2' }}>
+            <p style={{ margin: 0, fontWeight: 'bold', color: '#dc2626' }}>⚠️ AVISO LEGAL: La vulneración de la confidencialidad de datos personales puede acarrear sanciones legales civiles y penales según la legislación vigente.</p>
+          </section>
+        </div>
+        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', padding: '20px', borderTop: '1px solid #eee' }}>
+          <button onClick={onLogout} className="btn-secondary" style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>No Acepto / Salir</button>
+          <button onClick={onAccept} className="btn-primary" style={{ background: '#1e3a8a', color: 'white', border: 'none', padding: '10px 30px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>ACEPTO LOS TÉRMINOS</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
     <header className="main-header">
@@ -247,6 +285,25 @@ export default function App() {
     }
   };
 
+  const handleAcceptTerms = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/accept-terms`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const updatedUser = { ...user, terminos_aceptados: true };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (err) {
+      console.error("Error al aceptar términos", err);
+    }
+  };
+
   if (loading) {
     return <div className="loading-screen"><div className="loader">Cargando SIGEL...</div></div>;
   }
@@ -261,7 +318,14 @@ export default function App() {
         />
         <Route
           path="/dashboard"
-          element={user ? <MainDashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
+          element={
+            user ? (
+              <>
+                {!user.terminos_aceptados && <TermsAcceptanceModal onAccept={handleAcceptTerms} onLogout={handleLogout} />}
+                <MainDashboard user={user} onLogout={handleLogout} />
+              </>
+            ) : <Navigate to="/login" />
+          }
         />
         <Route path="/candidato/:slug" element={<CandidatePublicPage />} />
         <Route path="/chofer/:token" element={<ChoferTracking />} />

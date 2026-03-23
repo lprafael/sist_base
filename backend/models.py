@@ -44,6 +44,7 @@ class Usuario(Base):
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     ultimo_acceso = Column(DateTime)
+    terminos_aceptados = Column(Boolean, default=False)
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     # Localización para filtrar datos por territorio
     departamento_id = Column(Integer, nullable=True)  # Departamento asignado (intendente/concejal)

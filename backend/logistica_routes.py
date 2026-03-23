@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import text, func, and_, or_
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import json
 
@@ -139,7 +139,7 @@ async def update_tracking(data: Dict[str, Any], session: AsyncSession = Depends(
         
     chofer.latitud = lat
     chofer.longitud = lng
-    chofer.ultima_conexion = datetime.now()
+    chofer.ultima_conexion = datetime.now(timezone.utc)
     
     await session.commit()
     return {"status": "ok", "chofer_nombre": chofer.nombre}

@@ -18,6 +18,57 @@ import {
 import { Link } from 'react-router-dom';
 
 const LandingPage = ({ user }) => {
+  const [modal, setModal] = React.useState({ show: false, title: '', content: '' });
+
+  const showLegal = (type) => {
+    let title = '';
+    let content = null;
+
+    if (type === 'terminos') {
+      title = 'Términos y Condiciones de Uso';
+      content = (
+        <div style={modalContentStyle}>
+          <p>Al utilizar el Sistema Integral de Gestión Electoral (SIGEL), usted acepta los siguientes términos:</p>
+          <ul>
+            <li><strong>Uso Profesional:</strong> La plataforma está diseñada exclusivamente para la gestión de campañas electorales lícitas.</li>
+            <li><strong>Veracidad de Datos:</strong> El usuario es responsable de la exactitud de la información cargada en el sistema.</li>
+            <li><strong>Propiedad Intelectual:</strong> El software y su estructura son propiedad de Poliverso y su uso está sujeto a la licencia contratada.</li>
+            <li><strong>Restricciones:</strong> Queda terminantemente prohibido el acceso no autorizado o el intento de vulnerar la seguridad del sistema.</li>
+          </ul>
+        </div>
+      );
+    } else if (type === 'privacidad') {
+      title = 'Política de Privacidad y Manejo de Datos';
+      content = (
+        <div style={modalContentStyle}>
+          <p>SIGEL se compromete con la protección de los datos electorales:</p>
+          <ul>
+            <li><strong>Confidencialidad:</strong> Los datos de votantes y simpatizantes no son compartidos con terceros ajenos a la campaña contratante.</li>
+            <li><strong>Seguridad:</strong> Implementamos cifrado SSL y auditoría de accesos para proteger la información sensible.</li>
+            <li><strong>Uso de Cookies:</strong> Utilizamos cookies técnicas esenciales para mantener la sesión activa y mejorar la experiencia de usuario.</li>
+            <li><strong>Derechos ARCO:</strong> El administrador de cada campaña es responsable de gestionar las solicitudes de acceso o rectificación de sus datos cargados.</li>
+          </ul>
+        </div>
+      );
+    } else if (type === 'soporte') {
+      title = 'Soporte Técnico y Consultas';
+      content = (
+        <div style={modalContentStyle}>
+          <p>Si necesita asistencia técnica o demostraciones personalizadas, puede contactarnos a través de:</p>
+          <div style={{ marginTop: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', textAlign: 'left' }}>
+            <p>📧 <strong>Email:</strong> soporte@sigel.in</p>
+            <p>📱 <strong>WhatsApp:</strong> +595 9XX XXX XXX</p>
+            <p>⏰ <strong>Horario:</strong> Lunes a Viernes 08:00 - 18:00 (Hora Paraguay)</p>
+          </div>
+          <p style={{ marginTop: '20px', fontSize: '0.9rem', color: '#64748b' }}>
+            Para incidentes críticos durante el Día D, el soporte estará activo 24 horas.
+          </p>
+        </div>
+      );
+    }
+
+    setModal({ show: true, title, content });
+  };
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -345,11 +396,34 @@ const LandingPage = ({ user }) => {
         </div>
         <p style={{ color: '#64748b', marginBottom: '30px' }}>© 2026 Sistema de Gestión Electoral Profesional. Todos los derechos reservados.</p>
         <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-          <a href="#" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Términos</a>
-          <a href="#" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Privacidad</a>
-          <a href="#" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Soporte</a>
+          <button onClick={() => showLegal('terminos')} style={footerLinkStyle}>Términos</button>
+          <button onClick={() => showLegal('privacidad')} style={footerLinkStyle}>Privacidad</button>
+          <button onClick={() => showLegal('soporte')} style={footerLinkStyle}>Soporte</button>
         </div>
       </footer>
+
+      {/* Modal para Legal/Soporte */}
+      {modal.show && (
+        <div style={overlayStyle} onClick={() => setModal({ ...modal, show: false })}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            style={modalStyle} 
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
+              <h3 style={{ margin: 0, color: '#1e3a8a', fontSize: '1.5rem', fontWeight: 800 }}>{modal.title}</h3>
+              <button onClick={() => setModal({ ...modal, show: false })} style={closeBtnStyle}>×</button>
+            </div>
+            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {modal.content}
+            </div>
+            <div style={{ marginTop: '30px', textAlign: 'right' }}>
+              <button onClick={() => setModal({ ...modal, show: false })} style={acceptBtnStyle}>Cerrar</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
@@ -410,6 +484,69 @@ const benefitStyle = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center'
+};
+
+const footerLinkStyle = {
+  background: 'none',
+  border: 'none',
+  color: '#2563eb',
+  fontWeight: 600,
+  cursor: 'pointer',
+  padding: 0,
+  fontSize: '1rem'
+};
+
+const overlayStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  background: 'rgba(0,0,0,0.5)',
+  backdropFilter: 'blur(4px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 2000,
+  padding: '20px'
+};
+
+const modalStyle = {
+  background: 'white',
+  padding: '40px',
+  borderRadius: '24px',
+  maxWidth: '700px',
+  width: '100%',
+  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+  maxHeight: '90vh',
+  overflow: 'hidden',
+  position: 'relative'
+};
+
+const modalContentStyle = {
+  lineHeight: 1.6,
+  color: '#475569',
+  textAlign: 'left'
+};
+
+const closeBtnStyle = {
+  background: 'none',
+  border: 'none',
+  fontSize: '2rem',
+  color: '#94a3b8',
+  cursor: 'pointer',
+  lineHeight: 1,
+  padding: '0 10px'
+};
+
+const acceptBtnStyle = {
+  padding: '12px 30px',
+  background: '#1e3a8a',
+  color: 'white',
+  border: 'none',
+  borderRadius: '8px',
+  fontWeight: 700,
+  cursor: 'pointer'
 };
 
 export default LandingPage;
