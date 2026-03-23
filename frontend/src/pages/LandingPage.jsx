@@ -57,7 +57,7 @@ const LandingPage = ({ user }) => {
           <p>Si necesita asistencia técnica o demostraciones personalizadas, puede contactarnos a través de:</p>
           <div style={{ marginTop: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', textAlign: 'left' }}>
             <p>📧 <strong>Email:</strong> soporte@sigel.in</p>
-            <p>📱 <strong>WhatsApp:</strong> +595 9XX XXX XXX</p>
+            <p>📱 <strong>WhatsApp:</strong> +595 984 165 807</p>
             <p>⏰ <strong>Horario:</strong> Lunes a Viernes 08:00 - 18:00 (Hora Paraguay)</p>
           </div>
           <p style={{ marginTop: '20px', fontSize: '0.9rem', color: '#64748b' }}>
@@ -334,9 +334,9 @@ const LandingPage = ({ user }) => {
       </section>
 
       {/* CTA: Prueba Gratuita y Capacitación */}
-      <section style={{ 
-        padding: '100px 20px', 
-        background: '#f1f5f9', 
+      <section style={{
+        padding: '100px 20px',
+        background: '#f1f5f9',
         textAlign: 'center',
         borderTop: '1px solid #e2e8f0'
       }}>
@@ -348,9 +348,9 @@ const LandingPage = ({ user }) => {
             Ofrecemos planes adaptados a cada necesidad, incluyendo opciones para nuevos candidatos.
           </p>
 
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '30px',
             marginBottom: '60px'
           }}>
@@ -405,10 +405,10 @@ const LandingPage = ({ user }) => {
       {/* Modal para Legal/Soporte */}
       {modal.show && (
         <div style={overlayStyle} onClick={() => setModal({ ...modal, show: false })}>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            style={modalStyle} 
+            style={modalStyle}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
