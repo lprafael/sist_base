@@ -21,18 +21,18 @@
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.75); /* Más transparente */
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.6); /* Más transparente aún */
+  backdrop-filter: blur(14px); /* Un poco más de blur para legibilidad */
+  -webkit-backdrop-filter: blur(14px);
   padding: 40px;
   border-radius: 20px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
   width: 100%;
-  max-width: 440px;
+  max-width: 500px; /* Un poco más ancho */
   animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 2;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .login-header {
