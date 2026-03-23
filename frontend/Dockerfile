@@ -13,6 +13,10 @@ RUN npm install
 # Copiar el código fuente
 COPY . .
 
+# Argumentos de construcción para Vite
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 # Construir la aplicación
 RUN npm run build
 

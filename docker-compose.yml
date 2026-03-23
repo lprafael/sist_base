@@ -48,6 +48,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_GOOGLE_CLIENT_ID=1052650611016-o42m62srbuc0o76r40tjg26ue1i9e4m9.apps.googleusercontent.com
+        - VITE_REACT_APP_API_URL=/api
     container_name: SIGEL-frontend
     ports:
       - "3002:80"
