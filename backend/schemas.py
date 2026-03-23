@@ -55,6 +55,7 @@ class UserCreate(BaseModel):
 
 class GoogleLogin(BaseModel):
     credential: str
+    device_id: Optional[str] = None
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None

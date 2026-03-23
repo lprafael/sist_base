@@ -81,7 +81,10 @@ const Login = ({ onLogin }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ credential: credentialResponse.credential }),
+        body: JSON.stringify({ 
+          credential: credentialResponse.credential,
+          device_id: getDeviceId()
+        }),
       });
 
       const data = await response.json();

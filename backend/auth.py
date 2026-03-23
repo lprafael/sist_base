@@ -204,7 +204,8 @@ async def google_login(
                 hashed_password=get_password_hash(secrets.token_urlsafe(16)), # Password random inutilizable
                 nombre_completo=full_name,
                 rol="user",
-                activo=False # El usuario se crea inactivo por defecto
+                activo=False, # El usuario se crea inactivo por defecto
+                restriccion_equipo=True # Activar restricción por defecto para nuevos usuarios de Google
             )
             session.add(new_user)
             await session.commit()
@@ -239,6 +240,51 @@ async def google_login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Su cuenta está pendiente de aprobación por un administrador"
             )
+        
+        # --- Verificación de Restricción de Equipo ---
+        if user.restriccion_equipo:
+            if not data.device_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Este usuario requiere inicio de sesión desde un equipo autorizado, pero no se detectó el identificador del equipo."
+                )
+            
+            # Verificar si el device_id está autorizado para este usuario
+            from sqlalchemy import and_
+            res_device = await session.execute(
+                select(EquiposAutorizados).where(
+                    and_(
+                        EquiposAutorizados.usuario_id == user.id,
+                        EquiposAutorizados.device_id == data.device_id
+                    )
+                )
+            )
+            device_record = res_device.scalar_one_or_none()
+            
+            if not device_record or not device_record.activo:
+                if not device_record:
+                    # Registrar el intento como una solicitud pendiente
+                    new_request = EquiposAutorizados(
+                        usuario_id=user.id,
+                        device_id=data.device_id,
+                        descripcion="Solicitud de Acceso (Google Login)",
+                        user_agent=request.headers.get("user-agent"),
+                        ip_solicitud=request.client.host,
+                        activo=False
+                    )
+                    session.add(new_request)
+                    await session.commit()
+                    
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Este equipo no está autorizado. Se ha enviado una solicitud de habilitación al administrador."
+                    )
+                else:
+                    # Ya existe pero está inactivo (pendiente)
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Tu solicitud de acceso para este equipo aún está pendiente de aprobación por el administrador."
+                    )
         
         # Actualizar último acceso
         user.ultimo_acceso = datetime.utcnow()
