@@ -298,9 +298,14 @@ export default function App() {
         const updatedUser = { ...user, terminos_aceptados: true };
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
+        window.location.reload(); // Recargar para asegurar estado limpio
+      } else {
+        const errData = await res.json();
+        alert("Error al guardar aceptación: " + (errData.detail || "Error desconocido"));
       }
     } catch (err) {
       console.error("Error al aceptar términos", err);
+      alert("Error de conexión al servidor");
     }
   };
 
