@@ -131,9 +131,29 @@ async def register_captacion(
     result = await session.execute(stmt)
     referente = result.scalar_one_or_none()
     
+    # Si no tiene perfil de referente pero es Intendente, Concejal o Admin, se lo creamos automáticamente
+    if not referente and current_user.get("role") in ["intendente", "concejal", "admin"]:
+        print(f"DEBUG: Auto-creando perfil de referente para {current_user['role']} {current_user['user_id']}")
+        
+        # Obtener los datos completos del usuario
+        stmt_user = select(Usuario).where(Usuario.id == current_user["user_id"])
+        res_user = await session.execute(stmt_user)
+        user_db = res_user.scalar_one_or_none()
+        
+        if user_db:
+            referente = Referente(
+                id_usuario_sistema=user_db.id,
+                rol_electoral=user_db.rol,
+                nombre_referente=user_db.nombre_completo,
+                activo=True
+            )
+            session.add(referente)
+            await session.flush() # Para obtener el ID sin commitear aún
+            print(f"DEBUG: Perfil de referente creado temporalmente con id={referente.id}")
+    
     if not referente:
         print(f"DEBUG: ERROR - Referente no encontrado para usuario_id={current_user['user_id']}")
-        raise HTTPException(status_code=403, detail="El usuario no tiene un perfil de referente asignado")
+        raise HTTPException(status_code=403, detail="El usuario no tiene un perfil de referente asignado y su rol no permite auto-creación.")
 
     print(f"DEBUG: Referente encontrado: id={referente.id}, nombre={referente.nombre_referente}")
     # Verificar si ya existe en su lista
