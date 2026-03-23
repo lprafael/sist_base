@@ -49,9 +49,11 @@ async def create_actividad(
     )
     session.add(nueva)
     await session.commit()
-    await session.refresh(nueva)
-    nueva.fotos = [] # Durante creación siempre es vacío, lo seteamos manual para evitar lazy-load error
-    return nueva
+    
+    # Volvemos a consultar para devolver el objeto con sus relaciones (fotos) cargadas para el response_model
+    stmt = select(Actividad).where(Actividad.id == nueva.id).options(selectinload(Actividad.fotos))
+    result = await session.execute(stmt)
+    return result.scalar_one()
 
 @router.get("/{actividad_id}", response_model=ActividadResponse)
 async def get_actividad(
