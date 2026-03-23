@@ -484,7 +484,21 @@ class ActividadFotoResponse(BaseModel):
 
 class ActividadParticipanteResponse(BaseModel):
     id: int
+    actividad_id: int
     cedula: str
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    telefono: Optional[str] = None
+    observaciones: Optional[str] = None
+    es_simpatizante: bool = False
+    en_padron_anr: bool = False
+    en_padron_plra: bool = False
+    fecha_registro: datetime
+
+    class Config:
+        from_attributes = True
+
+class ParticipanteUpdate(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
     telefono: Optional[str] = None

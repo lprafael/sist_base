@@ -200,14 +200,20 @@ const ActivitiesManagement = ({ user }) => {
         if (!selectedActivity) return;
         setLoading(true);
         try {
-            const response = await authFetch(`/actividades/${selectedActivity.id}/participantes`, {
-                method: 'POST',
+            const method = editingParticipant ? 'PUT' : 'POST';
+            const url = editingParticipant 
+                ? `/actividades/${selectedActivity.id}/participantes/${editingParticipant.id}`
+                : `/actividades/${selectedActivity.id}/participantes`;
+
+            const response = await authFetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newParticipant)
             });
             if (response.ok) {
-                setMessage({ type: 'success', text: 'Persona registrada con éxito.' });
+                setMessage({ type: 'success', text: editingParticipant ? 'Datos actualizados.' : 'Persona registrada con éxito.' });
                 setNewParticipant({ cedula: '', nombre: '', apellido: '', telefono: '', observaciones: '' });
+                setEditingParticipant(null);
                 fetchParticipants(selectedActivity.id);
             } else {
                 const err = await response.json();
@@ -218,6 +224,55 @@ const ActivitiesManagement = ({ user }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDeleteParticipant = async (partId) => {
+        if (!selectedActivity || !window.confirm('¿Eliminar este participante?')) return;
+        setLoading(true);
+        try {
+            const response = await authFetch(`/actividades/${selectedActivity.id}/participantes/${partId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                setMessage({ type: 'success', text: 'Participante eliminado.' });
+                fetchParticipants(selectedActivity.id);
+            }
+        } catch (error) {
+            console.error("Error deleting participant", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const [editingParticipant, setEditingParticipant] = useState(null);
+
+    const handleEditParticipant = (p) => {
+        setEditingParticipant(p);
+        setNewParticipant({
+            cedula: p.cedula,
+            nombre: p.nombre || '',
+            apellido: p.apellido || '',
+            telefono: p.telefono || '',
+            observaciones: p.observaciones || ''
+        });
+    };
+
+    const addToGoogleCalendar = () => {
+        if (!selectedActivity) return;
+        const title = encodeURIComponent(selectedActivity.titulo);
+        const details = encodeURIComponent(selectedActivity.observaciones || '');
+        
+        // Format dates: YYYYMMDDTHHMMSSZ
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            return new Date(dateStr).toISOString().replace(/-|:|\.\d\d\d/g, "");
+        };
+
+        const start = formatDate(selectedActivity.fecha_programada);
+        const end = formatDate(selectedActivity.fecha_prevista || new Date(new Date(selectedActivity.fecha_programada).getTime() + 3600000));
+        
+        const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&sf=true&output=xml`;
+        window.open(url, '_blank');
     };
 
     const handleFileUpload = async (e) => {
@@ -476,6 +531,7 @@ const ActivitiesManagement = ({ user }) => {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button className="primary-btn calendar-btn" onClick={addToGoogleCalendar} style={{ background: '#4285F4' }}>📅 Google Calendar</button>
                                     <button className="secondary-btn" onClick={handleEditClick}>🖊️ Editar</button>
                                     <button className="secondary-btn" onClick={handleDeleteActivity} style={{ color: 'red', borderColor: 'red' }}>🗑️ Borrar</button>
                                 </div>
@@ -488,20 +544,29 @@ const ActivitiesManagement = ({ user }) => {
                                     <form className="quick-add-form" onSubmit={handleAddParticipant}>
                                         <input
                                             type="text" placeholder="Cédula" required
+                                            disabled={!!editingParticipant}
                                             value={newParticipant.cedula}
                                             onChange={e => setNewParticipant({ ...newParticipant, cedula: e.target.value })}
                                         />
                                         <input
-                                            type="text" placeholder="Nombre"
+                                            type="text" placeholder="Nombre (Auto)"
                                             value={newParticipant.nombre}
                                             onChange={e => setNewParticipant({ ...newParticipant, nombre: e.target.value })}
                                         />
                                         <input
-                                            type="text" placeholder="Apellido"
+                                            type="text" placeholder="Apellido (Auto)"
                                             value={newParticipant.apellido}
                                             onChange={e => setNewParticipant({ ...newParticipant, apellido: e.target.value })}
                                         />
-                                        <button type="submit" disabled={loading}>Registrar</button>
+                                        <button type="submit" className={editingParticipant ? 'edit-mode-btn' : ''} disabled={loading}>
+                                            {editingParticipant ? 'Actualizar' : 'Registrar'}
+                                        </button>
+                                        {editingParticipant && (
+                                            <button type="button" className="cancel-small-btn" onClick={() => {
+                                                setEditingParticipant(null);
+                                                setNewParticipant({ cedula: '', nombre: '', apellido: '', telefono: '', observaciones: '' });
+                                            }}>✖</button>
+                                        )}
                                     </form>
 
                                     <div className="participants-table-container">
@@ -520,9 +585,13 @@ const ActivitiesManagement = ({ user }) => {
                                                     <tr key={p.id}>
                                                         <td>{parseInt(p.cedula).toLocaleString('es-PY')}</td>
                                                         <td>{p.nombre} {p.apellido}</td>
-                                                        <td>{p.en_padron_anr ? '✅' : '❌'}</td>
-                                                        <td>{p.en_padron_plra ? '🔵' : '⚪'}</td>
-                                                        <td>{new Date(p.fecha_registro).toLocaleTimeString()}</td>
+                                                        <td style={{ textAlign: 'center' }}>{p.en_padron_anr ? '🔴' : ''}</td>
+                                                        <td style={{ textAlign: 'center' }}>{p.en_padron_plra ? '🔵' : ''}</td>
+                                                        <td>{p.fecha_registro ? new Date(p.fecha_registro).toLocaleTimeString() : '-'}</td>
+                                                        <td className="table-actions">
+                                                            <button onClick={() => handleEditParticipant(p)} title="Editar">🖊️</button>
+                                                            <button onClick={() => handleDeleteParticipant(p.id)} title="Eliminar" style={{ color: 'red' }}>🗑️</button>
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>

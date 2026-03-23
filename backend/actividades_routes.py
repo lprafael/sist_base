@@ -13,7 +13,7 @@ from database import get_session
 from models import Actividad, ActividadParticipante, ActividadFoto, AnrPadron, PlraPadron, Usuario
 from schemas import (
     ActividadResponse, ActividadCreate, ActividadUpdate, ActividadParticipanteResponse, 
-    ParticipanteCreate, ActividadFotoResponse
+    ParticipanteCreate, ParticipanteUpdate, ActividadFotoResponse
 )
 from security import get_current_user
 
@@ -129,19 +129,33 @@ async def add_participante(
     if check.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="El participante ya está registrado en esta actividad")
 
-    # Verificar situación electoral
+    # Verificar situación electoral y RESCATAR nombres si están vacíos
     # 1. ANR
     res_anr = await session.execute(select(AnrPadron).where(AnrPadron.cedula == data.cedula))
-    en_anr = res_anr.scalar_one_or_none() is not None
+    person_anr = res_anr.scalar_one_or_none()
     
-    # 2. PLRA (solo si no está en ANR o siempre para tener el dato?) El user dice "y de los que no están, consultar si están en el padrón del PLRA"
+    en_anr = person_anr is not None
     en_plra = False
-    if not en_anr:
+    
+    final_nombre = data.nombre
+    final_apellido = data.apellido
+
+    if en_anr:
+        if not final_nombre: final_nombre = person_anr.nombres
+        if not final_apellido: final_apellido = person_anr.apellidos
+    else:
+        # 2. PLRA
         res_plra = await session.execute(select(PlraPadron).where(PlraPadron.cedula == data.cedula))
-        en_plra = res_plra.scalar_one_or_none() is not None
+        person_plra = res_plra.scalar_one_or_none()
+        if person_plra:
+            en_plra = True
+            if not final_nombre: final_nombre = person_plra.nombre
+            if not final_apellido: final_apellido = person_plra.apellido
 
     nuevo = ActividadParticipante(
-        **data.dict(),
+        **data.dict(exclude={"nombre", "apellido"}),
+        nombre=final_nombre,
+        apellido=final_apellido,
         actividad_id=actividad_id,
         en_padron_anr=en_anr,
         en_padron_plra=en_plra
@@ -150,6 +164,49 @@ async def add_participante(
     await session.commit()
     await session.refresh(nuevo)
     return nuevo
+
+@router.put("/{actividad_id}/participantes/{participante_id}", response_model=ActividadParticipanteResponse)
+async def update_participante(
+    actividad_id: int,
+    participante_id: int,
+    data: ParticipanteUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    stmt = select(ActividadParticipante).where(
+        and_(ActividadParticipante.id == participante_id, ActividadParticipante.actividad_id == actividad_id)
+    )
+    result = await session.execute(stmt)
+    part = result.scalar_one_or_none()
+    if not part:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+
+    update_data = data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(part, key, value)
+
+    await session.commit()
+    await session.refresh(part)
+    return part
+
+@router.delete("/{actividad_id}/participantes/{participante_id}")
+async def delete_participante(
+    actividad_id: int,
+    participante_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    stmt = select(ActividadParticipante).where(
+        and_(ActividadParticipante.id == participante_id, ActividadParticipante.actividad_id == actividad_id)
+    )
+    result = await session.execute(stmt)
+    part = result.scalar_one_or_none()
+    if not part:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+
+    await session.delete(part)
+    await session.commit()
+    return {"message": "Participante eliminado"}
 
 @router.get("/{actividad_id}/participantes", response_model=List[ActividadParticipanteResponse])
 async def list_participantes(
