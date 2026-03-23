@@ -269,9 +269,10 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
       const token = localStorage.getItem('token');
       if (token) {
-        await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/logout`, {
+        await fetch(`${API_URL}/auth/logout`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
