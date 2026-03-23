@@ -9,7 +9,9 @@ import {
   CheckCircle2,
   Smartphone,
   Search,
-  Database
+  Database,
+  Truck,
+  ClipboardCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -185,6 +187,36 @@ const LandingPage = ({ user }) => {
               <li><CheckCircle2 size={16} color="#10b981" /> Ubicación GPS por captación</li>
               <li><CheckCircle2 size={16} color="#10b981" /> Densidad zonal de votos</li>
               <li><CheckCircle2 size={16} color="#10b981" /> Gestión de locales y secciones</li>
+            </ul>
+          </motion.div>
+
+          {/* Logística Choferes */}
+          <motion.div variants={itemVariants} className="feature-card" style={cardStyle}>
+            <div style={iconContainerStyle}><Truck color="#2563eb" size={32} /></div>
+            <h3 style={cardTitleStyle}>Logística de Traslado</h3>
+            <p style={cardTextStyle}>
+              Control de flota en tiempo real. Los choferes reciben sus listas de tareas por token y navegan
+              hacia los locales mediante GPS, informando la llegada de cada votante.
+            </p>
+            <ul style={listStyle}>
+              <li><CheckCircle2 size={16} color="#10b981" /> App PWA para Choferes</li>
+              <li><CheckCircle2 size={16} color="#10b981" /> Navegación GPS integrada</li>
+              <li><CheckCircle2 size={16} color="#10b981" /> Tracking de ubicación en vivo</li>
+            </ul>
+          </motion.div>
+
+          {/* Veedores */}
+          <motion.div variants={itemVariants} className="feature-card" style={cardStyle}>
+            <div style={iconContainerStyle}><ClipboardCheck color="#2563eb" size={32} /></div>
+            <h3 style={cardTitleStyle}>Control de Mesa (Veedores)</h3>
+            <p style={cardTextStyle}>
+              Sincronización total entre el transporte y la mesa. El veedor visualiza quién está en camino
+              y quién ya llegó al local, registrando el voto al instante.
+            </p>
+            <ul style={listStyle}>
+              <li><CheckCircle2 size={16} color="#10b981" /> Monitoreo de arribos</li>
+              <li><CheckCircle2 size={16} color="#10b981" /> Registro de voto en un clic</li>
+              <li><CheckCircle2 size={16} color="#10b981" /> Reporte de participación real</li>
             </ul>
           </motion.div>
         </motion.div>
