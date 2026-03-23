@@ -342,6 +342,7 @@ class PosibleVotante(Base):
     chofer_id = Column(Integer, ForeignKey('electoral.choferes.id'), nullable=True)
     veedor_id = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True) # El usuario que marca el voto
     fecha_traslado = Column(DateTime)
+    fecha_destino = Column(DateTime)
     fecha_voto = Column(DateTime)
     
     # Relaciones

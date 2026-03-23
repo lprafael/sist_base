@@ -5,6 +5,7 @@ from sqlalchemy import text, func, and_, or_
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
+import json
 
 from database import get_session
 from models import Chofer, PosibleVotante, Usuario, AnrPadron
@@ -151,13 +152,17 @@ async def get_votantes_para_chofer(token: str, session: AsyncSession = Depends(g
     if not chofer:
         raise HTTPException(status_code=404, detail="Chofer no encontrado")
         
-    # Buscar votantes pendientes en el mismo distrito del chofer
+    # Buscar votantes pendientes en el mismo distrito del chofer, trayendo la info del local
     query = text("""
-        SELECT pv.id, p.nombres, p.apellidos, pv.domicilio, pv.latitud, pv.longitud, pv.logistica_estado
+        SELECT pv.id, p.nombres, p.apellidos, pv.domicilio, pv.latitud, pv.longitud, pv.logistica_estado,
+               l.descripcion as local_nombre, l.ubicacion as local_coords
         FROM electoral.posibles_votantes pv
         JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
+        LEFT JOIN electoral.ref_locales l ON p.local = l.local_id 
+             AND p.departamento = l.departamento_id AND p.distrito = l.distrito_id
+             AND p.seccional = l.seccional_id
         WHERE p.departamento = :d AND p.distrito = :di
-        AND (pv.logistica_estado = 'pendiente' OR (pv.logistica_estado = 'en_camino' AND pv.chofer_id = :cid))
+        AND (pv.logistica_estado = 'pendiente' OR (pv.logistica_estado IN ('en_camino', 'en_destino') AND pv.chofer_id = :cid))
         ORDER BY pv.logistica_estado DESC, p.apellidos ASC
     """)
     
@@ -167,16 +172,31 @@ async def get_votantes_para_chofer(token: str, session: AsyncSession = Depends(g
         "cid": chofer.id
     })
     
-    return [
-        {
+    votantes = []
+    for r in result_votantes.fetchall():
+        # Procesar coordenadas del local que vienen en JSON
+        l_lat, l_lng = None, None
+        if r.local_coords:
+            try:
+                # Si es string (PostgreSQL JSON) o dict
+                coords = r.local_coords if isinstance(r.local_coords, dict) else json.loads(r.local_coords)
+                l_lat = coords.get('lat')
+                l_lng = coords.get('lng')
+            except: pass
+
+        votantes.append({
             "id": r.id,
             "nombre": f"{r.nombres} {r.apellidos}",
             "domicilio": r.domicilio,
             "lat": r.latitud,
             "lng": r.longitud,
-            "estado": r.logistica_estado
-        } for r in result_votantes.fetchall()
-    ]
+            "estado": r.logistica_estado,
+            "local_nombre": r.local_nombre,
+            "local_lat": l_lat,
+            "local_lng": l_lng
+        })
+    
+    return votantes
 
 # --- ACCIONES DEL CHOFER (Traslado) ---
 
@@ -203,6 +223,29 @@ async def marcar_traslado(data: Dict[str, Any], session: AsyncSession = Depends(
     
     await session.commit()
     return {"status": "ok", "message": "Votante marcado como en camino"}
+
+@router.post("/marcar-destino")
+async def marcar_destino(data: Dict[str, Any], session: AsyncSession = Depends(get_session)):
+    token = data.get("token")
+    votante_id = data.get("votante_id")
+    
+    result = await session.execute(select(Chofer).where(Chofer.token_seguimiento == token))
+    chofer = result.scalar_one_or_none()
+    
+    if not chofer:
+        raise HTTPException(status_code=404, detail="Acceso denegado")
+        
+    result = await session.execute(select(PosibleVotante).where(PosibleVotante.id == votante_id))
+    votante = result.scalar_one_or_none()
+    
+    if not votante:
+        raise HTTPException(status_code=404, detail="Votante no encontrado")
+        
+    votante.logistica_estado = 'en_destino'
+    votante.fecha_destino = datetime.now()
+    
+    await session.commit()
+    return {"status": "ok", "message": "Votante marcado como llegó a destino"}
 
 # --- ACCIONES DEL VEEDOR (Voto) ---
 

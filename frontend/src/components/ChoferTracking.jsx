@@ -89,6 +89,46 @@ const ChoferTracking = () => {
         }
     };
 
+    const marcarDestino = async (vid) => {
+        const res = await fetch(`/api/logistica/marcar-destino`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, votante_id: vid })
+        });
+        if (res.ok) {
+            alert("Llegada confirmada");
+            fetchVotantes();
+        }
+    };
+
+    useEffect(() => {
+        // Intentar mantener la pantalla encendida para el tracking
+        let wakeLock = null;
+        const requestWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.error("Wake Lock error:", err);
+            }
+        };
+        requestWakeLock();
+        return () => {
+            if (wakeLock !== null) wakeLock.release();
+        }
+    }, []);
+
+    const abrirNavegacion = (v) => {
+        if (!v.local_lat || !v.local_lng) {
+            alert("No hay coordenadas registradas para este local de votación.");
+            return;
+        }
+        // Preferir Google Maps por ser el estándar más común, pero Waze es muy usado en Latam
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${v.local_lat},${v.local_lng}`;
+        window.open(url, '_blank');
+    };
+
     if (loading) return <div className="p-4">Cargando...</div>;
 
     return (
@@ -121,14 +161,24 @@ const ChoferTracking = () => {
                                 <div key={v.id} className={`voter-card ${v.estado}`}>
                                     <div className="voter-info">
                                         <strong>{v.nombre}</strong>
-                                        <p>{v.domicilio || 'Sin dirección registrada'}</p>
+                                        <p>🏠 {v.domicilio || 'Sin dirección registrada'}</p>
+                                        <p>📍 Local: {v.local_nombre || 'No asignado'}</p>
                                     </div>
                                     {v.estado === 'pendiente' ? (
                                         <button className="btn-recoger" onClick={() => marcarTraslado(v.id)}>
                                             Recoger 🚕
                                         </button>
+                                    ) : v.estado === 'en_camino' ? (
+                                        <div className="btn-group-vertical">
+                                            <button className="btn-nav" onClick={() => abrirNavegacion(v)}>
+                                                Ir a Local 🗺️
+                                            </button>
+                                            <button className="btn-destino" onClick={() => marcarDestino(v.id)}>
+                                                Ya Llegué 🏁
+                                            </button>
+                                        </div>
                                     ) : (
-                                        <span className="status-label">🚕 En camino</span>
+                                        <span className="status-label delivered">🏁 En destino</span>
                                     )}
                                 </div>
                             ))
@@ -137,7 +187,12 @@ const ChoferTracking = () => {
                 </section>
 
                 <div className="instruction-box">
-                    💡 Mantén esta ventana abierta para que el centro de control pueda verte en el mapa.
+                    💡 <strong>Para seguimiento continuo:</strong>
+                    <ul>
+                        <li>Mantén esta ventana abierta.</li>
+                        <li>No bloquees la pantalla (el sistema intentará mantenerla encendida).</li>
+                        <li>En teléfonos, puedes usar "Agregar a pantalla de inicio" para mejor rendimiento.</li>
+                    </ul>
                 </div>
             </main>
 
@@ -151,11 +206,17 @@ const ChoferTracking = () => {
                 .tasks-section { background: white; padding: 15px; border-radius: 12px; min-height: 200px; }
                 .voter-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
                 .voter-card.en_camino { background: #fffcea; }
+                .voter-card.en_destino { background: #f0fff4; }
                 .voter-info p { margin: 0; font-size: 0.8rem; color: #666; }
+                .btn-group-vertical { display: flex; flexDirection: column; gap: 8px; }
                 .btn-recoger { background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
+                .btn-destino { background: #38a169; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
+                .btn-nav { background: #805ad5; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer;}
                 .status-label { font-size: 0.8rem; color: #b7791f; font-weight: 600; }
+                .status-label.delivered { color: #2f855a; }
                 .empty-state { text-align: center; color: #999; padding-top: 50px; }
-                .instruction-box { margin-top: 20px; padding: 15px; background: #fff3cd; color: #856404; border-radius: 8px; font-size: 0.9rem;}
+                .instruction-box { margin-top: 20px; padding: 15px; background: #fff3cd; color: #856404; border-radius: 8px; font-size: 0.8rem;}
+                .instruction-box ul { margin: 5px 0 0 15px; padding: 0; }
             `}</style>
         </div>
     );

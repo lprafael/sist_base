@@ -35,8 +35,16 @@ const voterYellowIcon = L.divIcon({
     iconAnchor: [12, 25]
 });
 
+const voterBlueIcon = L.divIcon({
+    html: '<div style="color: #2563eb; font-size: 20px; filter: drop-shadow(0 0 2px white);">📍</div>',
+    className: 'custom-div-icon',
+    iconSize: [25, 25],
+    iconAnchor: [12, 25]
+});
+
 const getVoterIcon = (grado, estado) => {
     if (estado === 'en_camino') return voterYellowIcon;
+    if (estado === 'en_destino') return voterBlueIcon;
     const color = grado <= 2 ? '#ef4444' : grado <= 4 ? '#f59e0b' : '#22c55e';
     return L.divIcon({
         html: `<div style="color: ${color}; font-size: 20px; filter: drop-shadow(0 0 2px white);">📍</div>`,
@@ -112,6 +120,7 @@ const LogisticaControlPanel = ({ user }) => {
         mostrados: filteredVotantes.length,
         choferesActivos: data.choferes.length,
         enTraslado: filteredVotantes.filter(v => v.estado === 'en_camino').length,
+        enDestino: filteredVotantes.filter(v => v.estado === 'en_destino').length,
         pendientes: filteredVotantes.filter(v => v.estado === 'pendiente').length
     };
 
@@ -158,7 +167,7 @@ const LogisticaControlPanel = ({ user }) => {
                                                 🛡️ Nivel {v.grado_seguridad || 1}
                                             </span>
                                         </div>
-                                        Estado: {v.estado === 'en_camino' ? '🚕 En traslado' : '🔴 Pendiente'}<br />
+                                        Estado: {v.estado === 'en_camino' ? '🚕 En traslado' : v.estado === 'en_destino' ? '🏁 En destino' : '🔴 Pendiente'}}<br />
                                         Local: {v.local}<br />
                                         <button
                                             className="btn-small"
@@ -215,6 +224,10 @@ const LogisticaControlPanel = ({ user }) => {
                         <h4>En Camino</h4>
                         <div className="value">{stats.enTraslado}</div>
                     </div>
+                    <div className="stat-card" style={{ borderColor: '#2563eb' }}>
+                        <h4>En Destino</h4>
+                        <div className="value">{stats.enDestino}</div>
+                    </div>
 
                     <div className="legend-box" style={{ background: 'white', padding: '15px', borderRadius: '12px' }}>
                         <h5>Leyenda</h5>
@@ -224,6 +237,7 @@ const LogisticaControlPanel = ({ user }) => {
                             <li>🟠 Seguridad 3-4 (Dudoso)</li>
                             <li>🟢 Seguridad 5 (Comprometido)</li>
                             <li>🚕 Traslado en proceso (Amarillo)</li>
+                            <li>🏁 En destino (Azul)</li>
                         </ul>
                     </div>
                 </div>
