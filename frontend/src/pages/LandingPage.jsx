@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   Smartphone,
   Search,
-  Database,
   Truck,
-  ClipboardCheck
+  ClipboardCheck,
+  Sparkles,
+  Presentation,
+  GraduationCap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -280,6 +282,62 @@ const LandingPage = ({ user }) => {
         </div>
       </section>
 
+      {/* CTA: Prueba Gratuita y Capacitación */}
+      <section style={{ 
+        padding: '100px 20px', 
+        background: '#f1f5f9', 
+        textAlign: 'center',
+        borderTop: '1px solid #e2e8f0'
+      }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#1e3a8a', marginBottom: '24px' }}>
+            ¿Listo para llevar tu campaña al siguiente nivel?
+          </h2>
+          <p style={{ fontSize: '1.2rem', color: '#475569', marginBottom: '50px' }}>
+            Ofrecemos planes adaptados a cada necesidad, incluyendo opciones para nuevos candidatos.
+          </p>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+            gap: '30px',
+            marginBottom: '60px'
+          }}>
+            <div style={benefitStyle}>
+              <Sparkles color="#2563eb" size={32} style={{ marginBottom: '15px' }} />
+              <h4 style={{ fontWeight: 700 }}>Prueba Gratuita</h4>
+              <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Acceso de cortesía previa autorización del administrador.</p>
+            </div>
+            <div style={benefitStyle}>
+              <Presentation color="#2563eb" size={32} style={{ marginBottom: '15px' }} />
+              <h4 style={{ fontWeight: 700 }}>Demostración</h4>
+              <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Presentación personalizada de todas las funciones.</p>
+            </div>
+            <div style={benefitStyle}>
+              <GraduationCap color="#2563eb" size={32} style={{ marginBottom: '15px' }} />
+              <h4 style={{ fontWeight: 700 }}>Capacitación</h4>
+              <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Entrenamiento completo para tus referentes y choferes.</p>
+            </div>
+          </div>
+
+          <Link to="/login" style={{
+            padding: '20px 50px',
+            background: '#1e3a8a',
+            color: 'white',
+            borderRadius: '12px',
+            fontSize: '1.2rem',
+            fontWeight: 700,
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 10px 30px rgba(30, 58, 138, 0.3)'
+          }}>
+            Solicitar Acceso <ArrowRight size={20} />
+          </Link>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{ padding: '60px 50px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e3a8a', marginBottom: '20px' }}>
@@ -342,6 +400,16 @@ const listStyle = {
   fontSize: '0.9rem',
   color: '#475569',
   fontWeight: 500
+};
+
+const benefitStyle = {
+  background: 'white',
+  padding: '30px',
+  borderRadius: '20px',
+  boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center'
 };
 
 export default LandingPage;
