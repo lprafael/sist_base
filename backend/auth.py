@@ -208,8 +208,22 @@ async def google_login(
                 restriccion_equipo=True # Activar restricción por defecto para nuevos usuarios de Google
             )
             session.add(new_user)
+            await session.flush() # Obtener ID antes del commit
+
+            if data.device_id:
+                # CREACIÓN AUTOMÁTICA DE SOLICITUD DE EQUIPO PARA USUARIO NUEVO
+                new_device_request = EquiposAutorizados(
+                    usuario_id=new_user.id,
+                    device_id=data.device_id,
+                    descripcion="Solicitud inicial de equipo (Google Signup)",
+                    user_agent=request.headers.get("user-agent"),
+                    ip_solicitud=request.client.host,
+                    activo=False
+                )
+                session.add(new_device_request)
+            
             await session.commit()
-            await session.refresh(new_user)
+            print(f"DEBUG: Usuario nuevo {username} creado exitosamente vía Google Login con solicitud de equipo")
             user = new_user
 
             # Enviar notificación al administrador
@@ -235,13 +249,7 @@ async def google_login(
                 details=f"Usuario creado vía Google Login: {user.username}"
             )
 
-        if not user.activo:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Su cuenta está pendiente de aprobación por un administrador"
-            )
-        
-        # --- Verificación de Restricción de Equipo ---
+        # --- Verificación de Restricción de Equipo --- (Movida antes de 'activo')
         if user.restriccion_equipo:
             if not data.device_id:
                 raise HTTPException(
@@ -285,6 +293,13 @@ async def google_login(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Tu solicitud de acceso para este equipo aún está pendiente de aprobación por el administrador."
                     )
+        
+        # --- Verificación de Usuario Activo ---
+        if not user.activo:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Su cuenta está pendiente de aprobación por un administrador"
+            )
         
         # Actualizar último acceso
         user.ultimo_acceso = datetime.utcnow()
