@@ -48,7 +48,14 @@ async def log_access(session: AsyncSession, log_data: LogAccesoCreate):
     """Registra un log de acceso"""
     log = LogAcceso(**log_data.dict())
     session.add(log)
-    await session.commit()
+    
+async def check_table_exists(session: AsyncSession, schema: str, table: str) -> bool:
+    """Verifica si una tabla existe en el esquema dado"""
+    from sqlalchemy import text
+    result = await session.execute(text(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = :schema AND table_name = :table)"
+    ), {"schema": schema, "table": table})
+    return result.scalar()
 
 @router.post("/login", response_model=Token)
 async def login(
@@ -707,28 +714,30 @@ async def hard_delete_user(
         raise HTTPException(status_code=403, detail="No se puede eliminar el usuario principal admin")
 
     try:
-        # 0. Desvincular de tablas donde es referenciado (Audit/Logs/Audit-like)
-        # Usamos try-except parcial para cada tabla por si no existen aún en la DB
-        try: await session.execute(update(LogAcceso).where(LogAcceso.usuario_id == user_id).values(usuario_id=None))
-        except: pass
-        try: await session.execute(update(LogAuditoria).where(LogAuditoria.usuario_id == user_id).values(usuario_id=None))
-        except: pass
-        try: await session.execute(update(PosibleVotante).where(PosibleVotante.veedor_id == user_id).values(veedor_id=None))
-        except: pass
+        # Preparamos una lista de (esquema, tabla, columna_fk, es_update) para limpiar
+        # Solo las tablas que queremos "anular" (no borrar)
+        to_nullify = [
+            ('sistema', 'logs_acceso', 'usuario_id'),
+            ('sistema', 'logs_auditoria', 'usuario_id'),
+            ('sistema', 'usuarios', 'creado_por'),
+            ('sistema', 'roles', 'creado_por'),
+            ('sistema', 'parametros_sistema', 'modificado_por'),
+            ('sistema', 'configuracion_email', 'creado_por'),
+            ('sistema', 'backups_sistema', 'creado_por'),
+            ('electoral', 'choferes', 'creado_por'),
+            ('electoral', 'posibles_votantes', 'veedor_id'),
+            ('electoral', 'financiamiento_egresos', 'creado_por'),
+            ('electoral', 'financiamiento_ingresos', 'creado_por'),
+            ('electoral', 'resultados_mesas', 'creado_por'),
+        ]
         
-        # Choferes
-        try: await session.execute(update(Chofer).where(Chofer.creado_por == user_id).values(creado_por=None))
-        except: pass
-        
-        # Financiamiento y Resultados mesa (pueden no existir todavía)
-        try: await session.execute(update(FinanciamientoEgreso).where(FinanciamientoEgreso.creado_por == user_id).values(creado_por=None))
-        except: pass
-        try: await session.execute(update(FinanciamientoIngreso).where(FinanciamientoIngreso.creado_por == user_id).values(creado_por=None))
-        except: pass
-        try: await session.execute(update(ResultadoMesa).where(ResultadoMesa.creado_por == user_id).values(creado_por=None))
-        except: pass
+        from sqlalchemy import text
+        for schema, table, col in to_nullify:
+            if await check_table_exists(session, schema, table):
+                # Usamos SQL puro para evitar problemas de mapeo de modelos si hay desincronización
+                await session.execute(text(f"UPDATE {schema}.{table} SET {col} = NULL WHERE {col} = :uid"), {"uid": user_id})
 
-        await session.flush() # Forzar que las desvinculaciones se procesen antes de borrar el usuario
+        await session.flush()
         
         # 1. Limpiar jerarquía (otros usuarios que lo tengan como creador)
         await session.execute(
@@ -759,23 +768,14 @@ async def hard_delete_user(
 
         # 4. Borrar dependencias del sistema de segundo plano
         from models import usuario_rol
-        await session.execute(delete(usuario_rol).where(usuario_rol.c.usuario_id == user_id))
+        if await check_table_exists(session, 'sistema', 'usuario_rol'):
+            await session.execute(delete(usuario_rol).where(usuario_rol.c.usuario_id == user_id))
+        
         await session.execute(delete(SesionUsuario).where(SesionUsuario.usuario_id == user_id))
         await session.execute(delete(EquiposAutorizados).where(EquiposAutorizados.usuario_id == user_id))
         await session.execute(delete(Notificacion).where(Notificacion.usuario_id == user_id))
         await session.execute(delete(Reporte).where(Reporte.creado_por == user_id))
         
-        # 5. Otros (catálogos, etc.)
-        from models import Rol, ParametroSistema, ConfiguracionEmail, BackupSistema
-        try: await session.execute(update(Rol).where(Rol.creado_por == user_id).values(creado_por=None))
-        except: pass
-        try: await session.execute(update(ParametroSistema).where(ParametroSistema.modificado_por == user_id).values(modificado_por=None))
-        except: pass
-        try: await session.execute(update(ConfiguracionEmail).where(ConfiguracionEmail.creado_por == user_id).values(creado_por=None))
-        except: pass
-        try: await session.execute(update(BackupSistema).where(BackupSistema.creado_por == user_id).values(creado_por=None))
-        except: pass
-
         await session.flush()
 
         # 6. Borrar el usuario finalmente

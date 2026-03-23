@@ -121,6 +121,8 @@ const UserManagement = () => {
 
   const handleRolChange = (e, setter) => {
     const nuevoRol = e.target.value;
+    const isEdit = setter === setEditUser;
+    
     setter(prev => ({
       ...prev,
       rol: nuevoRol,
@@ -134,7 +136,6 @@ const UserManagement = () => {
     if (ROLES_CANDIDATOS.includes(nuevoRol)) {
       fetchDepartamentos();
     } else if (nuevoRol === 'referente' && isAdmin) {
-      // El admin debe elegir un superior para el referente
       fetchSuperioresDisponibles('referente');
     }
   };
@@ -181,6 +182,17 @@ const UserManagement = () => {
     setPasswordFields({ current_password: '', new_password: '', confirm_password: '' });
     setShowCreateForm(false);
     setShowEditModal(true);
+    
+    // Cargar catálogos si el rol los necesita
+    if (ROLES_CANDIDATOS.includes(user.rol)) {
+      fetchDepartamentos();
+      if (user.departamento_id) {
+        fetchDistritos(user.departamento_id);
+      }
+    } else if (user.rol === 'referente' && isAdmin) {
+      fetchSuperioresDisponibles('referente', user.distrito_id);
+    }
+
     if (user.restriccion_equipo) {
       fetchUserDevices(user.id);
     }
@@ -316,7 +328,11 @@ const UserManagement = () => {
           email: editUser.email,
           nombre_completo: editUser.nombre_completo,
           rol: editUser.rol,
-          restriccion_equipo: editUser.restriccion_equipo
+          restriccion_equipo: editUser.restriccion_equipo,
+          departamento_id: editUser.departamento_id ? parseInt(editUser.departamento_id) : null,
+          distrito_id: editUser.distrito_id ? parseInt(editUser.distrito_id) : null,
+          superior_usuario_id: editUser.superior_usuario_id ? parseInt(editUser.superior_usuario_id) : null,
+          public_slug: editUser.public_slug || null
         })
       });
       if (response.ok) {
@@ -451,8 +467,8 @@ const UserManagement = () => {
                 <select
                   name="rol"
                   value={showCreateForm ? newUser.rol : editUser.rol}
-                  onChange={showCreateForm ? (e) => handleRolChange(e, setNewUser) : (e) => handleChange(e, setEditUser)}
-                  disabled={!canManageUsers}
+                  onChange={showCreateForm ? (e) => handleRolChange(e, setNewUser) : (e) => handleRolChange(e, setEditUser)}
+                  disabled={!canManageUsers || (editUser?.username === 'admin')}
                 >
                   {(showCreateForm ? rolesQuePoedoCrear : ROLES_CONFIG).map(r => (
                     <option key={r.value} value={r.value}>{r.label}</option>
@@ -490,65 +506,94 @@ const UserManagement = () => {
                 </label>
               </div>
 
-              {/* SECCIÓN DE JERARQUÍA Y TERRITORIO (Solo creación) */}
-              {showCreateForm && ROLES_CON_DISTRITO.includes(newUser.rol) && (
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
-                  borderRadius: '12px',
-                  border: '1px solid #bfdbfe'
-                }}>
-                  <p style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '12px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    🏛️ Estructura Política
-                  </p>
+                  {/* SECCIÓN DE JERARQUÍA Y TERRITORIO */}
+                  {ROLES_CON_DISTRITO.includes(showCreateForm ? newUser.rol : editUser.rol) && (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '16px',
+                      background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid #bfdbfe'
+                    }}>
+                      <p style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '12px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        🏛️ Estructura Política
+                      </p>
 
-                  {/* PARA INTENDENTE Y CONCEJAL: Selección de distrito */}
-                  {ROLES_CANDIDATOS.includes(newUser.rol) && isAdmin && (
-                    <>
-                      <div className="form-group">
-                        <label className="form-label">Departamento</label>
-                        <select name="departamento_id" value={newUser.departamento_id} onChange={(e) => handleDepartamentoChange(e, setNewUser)} required>
-                          <option value="">— Seleccionar —</option>
-                          {departamentos.map(d => <option key={d.id} value={d.id}>{d.descripcion}</option>)}
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Distrito</label>
-                        <select name="distrito_id" value={newUser.distrito_id} onChange={(e) => handleDistritoChange(e, setNewUser, newUser.rol)} required disabled={!newUser.departamento_id}>
-                          <option value="">— Primero elige departamento —</option>
-                          {distritos.map(d => <option key={d.id} value={d.id}>{d.descripcion}</option>)}
-                        </select>
-                      </div>
-                    </>
-                  )}
+                      {/* PARA INTENDENTE Y CONCEJAL: Selección de distrito */}
+                      {ROLES_CANDIDATOS.includes(showCreateForm ? newUser.rol : editUser.rol) && isAdmin && (
+                        <>
+                          <div className="form-group">
+                            <label className="form-label">Departamento</label>
+                            <select 
+                              name="departamento_id" 
+                              value={showCreateForm ? newUser.departamento_id : (editUser.departamento_id || '')} 
+                              onChange={(e) => handleDepartamentoChange(e, showCreateForm ? setNewUser : setEditUser)} 
+                              required
+                            >
+                              <option value="">— Seleccionar —</option>
+                              {departamentos.map(d => <option key={d.id} value={d.id}>{d.descripcion}</option>)}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Distrito</label>
+                            <select 
+                              name="distrito_id" 
+                              value={showCreateForm ? newUser.distrito_id : (editUser.distrito_id || '')} 
+                              onChange={(e) => handleDistritoChange(e, showCreateForm ? setNewUser : setEditUser, showCreateForm ? newUser.rol : editUser.rol)} 
+                              required 
+                              disabled={showCreateForm ? !newUser.departamento_id : !editUser.departamento_id}
+                            >
+                              <option value="">— Primero elige departamento —</option>
+                              {distritos.map(d => <option key={d.id} value={d.id}>{d.descripcion}</option>)}
+                            </select>
+                          </div>
+                        </>
+                      )}
 
-                  {/* PARA CONCEJAL: Superior (Intendente) Opcional */}
-                  {newUser.rol === 'concejal' && isAdmin && newUser.distrito_id && (
-                    <div className="form-group">
-                      <label className="form-label">Intendente Superior (Opcional)</label>
-                      <select name="superior_usuario_id" value={newUser.superior_usuario_id} onChange={(e) => handleChange(e, setNewUser)}>
-                        <option value="">— Ninguno —</option>
-                        {superioresDisponibles.map(s => <option key={s.id} value={s.id}>{s.nombre_completo} ({s.username})</option>)}
-                      </select>
-                    </div>
-                  )}
+                      {/* PARA CONCEJAL: Superior (Intendente) Opcional */}
+                      {(showCreateForm ? newUser.rol : editUser.rol) === 'concejal' && isAdmin && (showCreateForm ? newUser.distrito_id : editUser.distrito_id) && (
+                        <div className="form-group">
+                          <label className="form-label">Intendente Superior (Opcional)</label>
+                          <select 
+                            name="superior_usuario_id" 
+                            value={showCreateForm ? newUser.superior_usuario_id : (editUser.superior_usuario_id || '')} 
+                            onChange={(e) => handleChange(e, showCreateForm ? setNewUser : setEditUser)}
+                          >
+                            <option value="">— Ninguno —</option>
+                            {superioresDisponibles.map(s => <option key={s.id} value={s.id}>{s.nombre_completo} ({s.username})</option>)}
+                          </select>
+                        </div>
+                      )}
 
-                  {/* PARA REFERENTE: Superior Obligatorio */}
-                  {newUser.rol === 'referente' && isAdmin && (
-                    <div className="form-group">
-                      <label className="form-label">Pertenece al Candidato / Intendente</label>
-                      <select name="superior_usuario_id" value={newUser.superior_usuario_id} onChange={(e) => handleSuperiorChange(e, setNewUser)} required>
-                        <option value="">— Seleccionar Superior —</option>
-                        {superioresDisponibles.map(s => (
-                          <option key={s.id} value={s.id}>
-                            {s.nombre_completo} ({getRolLabel(s.rol)})
-                          </option>
-                        ))}
-                      </select>
-                      {newUser.superior_usuario_id && (
-                        <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '4px', fontWeight: 500 }}>
-                          ✅ Heredará el distrito del superior seleccionado.
+                      {/* PARA REFERENTE: Superior Obligatorio */}
+                      {(showCreateForm ? newUser.rol : editUser.rol) === 'referente' && isAdmin && (
+                        <div className="form-group">
+                          <label className="form-label">Pertenece al Candidato / Intendente</label>
+                          <select 
+                            name="superior_usuario_id" 
+                            value={showCreateForm ? newUser.superior_usuario_id : (editUser.superior_usuario_id || '')} 
+                            onChange={(e) => handleSuperiorChange(e, showCreateForm ? setNewUser : setEditUser)} 
+                            required
+                          >
+                            <option value="">— Seleccionar Superior —</option>
+                            {superioresDisponibles.map(s => (
+                              <option key={s.id} value={s.id}>
+                                {s.nombre_completo} ({getRolLabel(s.rol)})
+                              </option>
+                            ))}
+                          </select>
+                          {(showCreateForm ? newUser.superior_usuario_id : editUser.superior_usuario_id) && (
+                            <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '4px', fontWeight: 500 }}>
+                              ✅ Heredará el distrito del superior seleccionado.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mensaje herencia automática para no-admins */}
+                      {!isAdmin && (
+                        <div style={{ fontSize: '0.8125rem', color: '#1e40af', background: '#dbeafe', padding: '10px', borderRadius: '8px' }}>
+                          ℹ️ El usuario colgará directamente de ti y heredará tu territorio.
                         </div>
                       )}
                     </div>

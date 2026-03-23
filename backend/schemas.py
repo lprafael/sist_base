@@ -62,6 +62,9 @@ class UserUpdate(BaseModel):
     rol: Optional[str] = None
     activo: Optional[bool] = None
     restriccion_equipo: Optional[bool] = None
+    departamento_id: Optional[int] = None
+    distrito_id: Optional[int] = None
+    superior_usuario_id: Optional[int] = None
     public_slug: Optional[str] = None
     public_config: Optional[Dict[str, Any]] = None
 
