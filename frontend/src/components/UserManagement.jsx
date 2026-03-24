@@ -420,7 +420,7 @@ const UserManagement = () => {
                 <td>
                   <div className="actions-cell">
                     <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
-                    {isAdmin && user.username !== 'admin' && (
+                    {(isAdmin || currentUser.id === user.creado_por) && user.username !== 'admin' && (
                       <div style={{ display: 'flex', gap: '4px' }}>
                         {user.activo ? (
                           <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button>
@@ -609,8 +609,8 @@ const UserManagement = () => {
                   <div className="form-group"><input type="password" name="confirm_password" placeholder="Confirmar" onChange={(e) => handleChange(e, setPasswordFields)} /></div>
                 </div>
               )}
-              {/* REENVIAR CREDENCIALES (Solo para Admins editando a otros) */}
-              {!showCreateForm && isAdmin && currentUser.id !== editUser?.id && (
+              {/* REENVIAR CREDENCIALES (Para Admins o creadores del usuario) */}
+              {!showCreateForm && canManageUsers && currentUser.id !== editUser?.id && (
                 <div style={{ marginTop: '20px', padding: '16px', border: '1px dashed #3b82f6', borderRadius: '12px', textAlign: 'center' }}>
                   <p style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '10px' }}>
                     Si el usuario no recibió su contraseña o la olvidó, puedes generar una nueva.

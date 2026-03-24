@@ -93,6 +93,7 @@ class UserResponse(BaseModel):
     veedor_seccional_id: Optional[int] = None
     veedor_mesas: Optional[List[int]] = None
     terminos_aceptados: bool = False
+    creado_por: Optional[int] = None
     
     class Config:
         from_attributes = True

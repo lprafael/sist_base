@@ -20,6 +20,7 @@ class EmailService:
 
     def send_email(self, to_email: str, subject: str, body: str, is_html: bool = False) -> bool:
         """Envía un email"""
+        print(f"INFO: Intentando enviar email a {to_email} con asunto '{subject}'")
         try:
             msg = MIMEMultipart()
             msg['From'] = self.from_email
@@ -37,9 +38,10 @@ class EmailService:
             text = msg.as_string()
             server.sendmail(self.from_email, to_email, text)
             server.quit()
+            print(f"SUCCESS: Email enviado exitosamente a {to_email}")
             return True
         except Exception as e:
-            print(f"Error enviando email: {e}")
+            print(f"ERROR: Fallo al enviar email a {to_email}: {e}")
             return False
 
     def send_welcome_email(self, to_email: str, username: str, password: str, role: str) -> bool:

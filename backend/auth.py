@@ -37,10 +37,9 @@ from audit_utils import log_audit_action, get_client_ip, get_user_agent
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
 
-# Función para generar contraseña aleatoria
-def generate_random_password(length: int = 12) -> str:
-    """Genera una contraseña aleatoria segura"""
-    characters = string.ascii_letters + string.digits + "!@#$%^&*"
+def generate_random_password(length: int = 10) -> str:
+    """Genera una contraseña aleatoria de letras y números para mayor compatibilidad"""
+    characters = string.ascii_letters + string.digits
     return ''.join(secrets.choice(characters) for _ in range(length))
 
 # Función para registrar logs de acceso
@@ -373,9 +372,6 @@ async def create_user(
     session: AsyncSession = Depends(get_session)
 ):
     """Crear nuevo usuario con validación de jerarquía y propagación de territorio"""
-    from security import ROLES
-    from hierarchy_utils import inherit_territory
-    
     current_role = current_user.get("role")
     target_role = user_data.rol
     
