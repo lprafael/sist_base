@@ -36,8 +36,16 @@ async def resend_user_password(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
     # Verificación de Jerarquía: Solo admin o el creador pueden reenviar contraseña
-    if current_role != "admin" and user.creado_por != current_user["user_id"]:
-        raise HTTPException(status_code=403, detail="Solo puedes gestionar contraseñas de usuarios creados por ti")
+    creator_id = current_user.get("user_id")
+    print(f"DEBUG RESEND: user_id={user.id}, username={user.username}, creado_por={user.creado_por}, current_user_id={creator_id}")
+    
+    if current_role != "admin":
+        if user.creado_por is None or creator_id is None or int(user.creado_por) != int(creator_id):
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Solo puedes gestionar contraseñas de usuarios creados por ti. (Tu ID: {creator_id}, Creado por: {user.creado_por})"
+            )
+
     
     # Generar contraseña temporal
     alphabet = string.ascii_letters + string.digits
