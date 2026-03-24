@@ -103,8 +103,11 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
         return {"type": "FeatureCollection", "features": []}
     
     # Formateamos los códigos como texto de 2 dígitos ('01', '02'...) para coincidir con la cartografía
-    dpto_code = f"{dpto_id:02d}"
-    dist_code = f"{dist_id:02d}"
+    # Los códigos de departamento en cartografía suelen ser '01', '02'...
+    # Pero el ref_distrito_id puede ser el ID numérico como texto ('0', '1'...) o con padding.
+    dist_code = str(dist_id) # Usamos el ID plano como primera opción 
+    dist_code_padded = f"{dist_id:02d}" # Y el padded como fallback indirecto si fuera necesario
+
     dist_nombre = row.descripcion if row else None
     
     # Queries unificadas
@@ -119,7 +122,7 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             FROM cartografia.barrios b
             LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
             WHERE b.dpto_id_ref = :dpto_id
-              AND b.ref_distrito_id = :dist_id_str
+              AND (b.ref_distrito_id = :dist_id_str OR b.ref_distrito_id = :dist_id_padded)
             GROUP BY b.ctid
         )
         SELECT jsonb_build_object(
@@ -144,7 +147,7 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
           FROM cartografia.barrios b
           LEFT JOIN counts c ON b.ctid = c.barrio_id
           WHERE b.dpto_id_ref = :dpto_id
-            AND b.ref_distrito_id = :dist_id_str
+            AND (b.ref_distrito_id = :dist_id_str OR b.ref_distrito_id = :dist_id_padded)
         ) AS features;
     """)
 
@@ -188,14 +191,15 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
         ) AS features;
     """)
     
-    dist_id_str = str(dist_id)  # Ensure text comparison
+
 
     try:
         # 1. Intentar por REF_ID (principal)
         result = await session.execute(barrios_ref_query, {
-            "dpto_id": dpto_id,
-            "dist_id_str": dist_id_str
-        })
+                "dpto_id": dpto_id,
+                "dist_id_str": dist_code,
+                "dist_id_padded": dist_code_padded
+            })
         geojson = result.scalar()
         if geojson and geojson.get('features'):
             logger.info(f"Barrios encontrados por ref_id para dpto={dpto_id}, dist={dist_id}: {len(geojson['features'])}")
@@ -333,7 +337,19 @@ async def get_stats_distritos(dpto_id: int, session: AsyncSession = Depends(get_
     # Executing subqueries or preparing a more complex SQL
     # Simplificamos trayendo primero los barrios_count
     barrios_res = await session.execute(barrios_subq, {"dpto_id": dpto_id})
-    barrios_map = {str(r[0]): r[1] for r in barrios_res.fetchall()}
+    # Normalizamos el mapa de barrios para que acepte tanto IDs planos como padded ('1', '01'...)
+    barrios_map = {}
+    for r in barrios_res.fetchall():
+        rid = str(r[0])
+        count = r[1]
+        barrios_map[rid] = count
+        # Si es un solo dígito, agregamos la versión con padding
+        if len(rid) == 1:
+            barrios_map[f"0{rid}"] = count
+        # Si es '01', grabamos '1'
+        if rid.startswith('0') and len(rid) == 2:
+            barrios_map[rid[1]] = count
+
 
     stmt = (
         select(

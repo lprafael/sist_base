@@ -220,7 +220,7 @@ const GeoDashboard = () => {
     const fetchLocales = async (dptoId, distId = null) => {
         try {
             let url = `/electoral/geo/locales?departamento_id=${dptoId}`;
-            if (distId) url += `&distrito_id=${distId}`;
+            if (distId !== null) url += `&distrito_id=${distId}`;
             const resp = await authFetch(url);
             const data = await resp.json();
             setLocales(data);
@@ -327,7 +327,7 @@ const GeoDashboard = () => {
                     {!isRestricted && (
                         <button onClick={fetchDptos} className={viewMode === 'dptos' ? 'active' : ''}>📍 Departamentos</button>
                     )}
-                    {(selectedDpto || isRestricted) && (
+                    {(selectedDpto !== null || isRestricted) && (
                         <button className="active">
                             🏙️ {isRestricted ? (stats[0]?.nombre || 'Cargando...') : (viewMode === 'distritos' ? 'Distritos' : 'Barrios')}
                         </button>
