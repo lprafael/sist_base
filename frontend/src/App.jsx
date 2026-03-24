@@ -62,7 +62,125 @@ const TermsAcceptanceModal = ({ onAccept, onLogout }) => {
   );
 };
 
-function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
+const PasswordChangeModal = ({ onClose }) => {
+  const [passwords, setPasswords] = useState({
+    current: "",
+    new: "",
+    confirm: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleChange = (e) => {
+    setPasswords({ ...passwords, [e.target.name]: e.target.value });
+    setError("");
+    setSuccess("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (passwords.new !== passwords.confirm) {
+      setError("La nueva contraseña y la confirmación no coinciden.");
+      return;
+    }
+    if (passwords.new.length < 8) {
+      setError("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          current_password: passwords.current,
+          new_password: passwords.new
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess("Contraseña cambiada exitosamente.");
+        setTimeout(() => onClose(), 2000);
+      } else {
+        setError(data.detail || "Error al cambiar la contraseña.");
+      }
+    } catch (err) {
+      setError("Error de conexión con el servidor.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 3001 }}>
+      <div className="modal" style={{ maxWidth: '400px' }}>
+        <div className="modal-header">
+          <h3>🔐 Cambiar Contraseña</h3>
+          <button onClick={onClose} className="close-btn">×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="modal-body">
+          <div className="form-group" style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Contraseña Actual:</label>
+            <input
+              type="password"
+              name="current"
+              value={passwords.current}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Nueva Contraseña:</label>
+            <input
+              type="password"
+              name="new"
+              value={passwords.new}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Confirmar Nueva Contraseña:</label>
+            <input
+              type="password"
+              name="confirm"
+              value={passwords.confirm}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+            />
+          </div>
+          
+          {error && <div style={{ color: '#dc2626', fontSize: '0.9rem', marginBottom: '10px' }}>{error}</div>}
+          {success && <div style={{ color: '#16a34a', fontSize: '0.9rem', marginBottom: '10px' }}>{success}</div>}
+          
+          <div className="modal-footer" style={{ borderTop: 'none', padding: '10px 0 0 0' }}>
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              disabled={isSubmitting}
+              style={{ width: '100%', padding: '10px', background: '#1e3a8a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+            >
+              {isSubmitting ? "Cambiando..." : "Actualizar Contraseña"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+function CabeceradePagina({ user, onLogout, onChangePassword, onToggleSidebar, isSidebarCollapsed }) {
   return (
     <header className="main-header">
       <div className="header-title">
@@ -97,9 +215,14 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
           />
         </div>
         {user && (
-          <button onClick={onLogout} className="logout-btn">
-            Cerrar Sesión
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={onChangePassword} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.9rem' }}>
+              🔑 Cambiar Clave
+            </button>
+            <button onClick={onLogout} className="logout-btn">
+              Cerrar Sesión
+            </button>
+          </div>
         )}
       </div>
     </header>
@@ -109,6 +232,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
 function MainDashboard({ user, onLogout }) {
   const [tab, setTab] = useState("captacion");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   // Inicializar todas las categorías como colapsadas
   const [collapsedCategories, setCollapsedCategories] = useState({
     "Administración": true,
@@ -169,9 +293,12 @@ function MainDashboard({ user, onLogout }) {
       <CabeceradePagina
         user={user}
         onLogout={onLogout}
+        onChangePassword={() => setShowPasswordModal(true)}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         isSidebarCollapsed={sidebarCollapsed}
       />
+
+      {showPasswordModal && <PasswordChangeModal onClose={() => setShowPasswordModal(false)} />}
 
       <div className="content-wrapper">
         <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
