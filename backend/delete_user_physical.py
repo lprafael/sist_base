@@ -28,11 +28,17 @@ async def delete_user_physical(
 
     # VALIDACIÓN DE JERARQUÍA: Solo admin o el creador de este usuario pueden eliminarlo físicamente
     # Un intendente o concejal solo puede eliminar a quienes él mismo haya creado (sus referentes)
-    if current_role != "admin" and user.creado_por != current_user["user_id"]:
-        raise HTTPException(
-            status_code=403, 
-            detail="No tienes permisos para eliminar físicamente a este usuario. Solo puedes eliminar a los miembros de tu propio equipo que tú mismo creaste."
-        )
+    creator_id = current_user.get("user_id")
+    print(f"DEBUG DELETE: user_id={user.id}, creado_por={user.creado_por}, current_user_id={creator_id}, role={current_role}")
+    
+    if current_role != "admin":
+        if user.creado_por is None or creator_id is None or int(user.creado_por) != int(creator_id):
+            raise HTTPException(
+                status_code=403, 
+                detail=f"No tienes permisos para eliminar físicamente a este usuario. (Tu ID: {creator_id}, Creado por: {user.creado_por})"
+            )
+
+
 
     # 1. Buscar si tiene un registro de referente asociado
     res_ref = await session.execute(select(Referente).where(Referente.id_usuario_sistema == user_id))
