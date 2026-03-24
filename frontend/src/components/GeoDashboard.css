@@ -95,6 +95,35 @@
 
 .item-name {
     color: #2d3748;
+    font-weight: 600;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.item-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.detail-tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    background: #edf2f7;
+    border-radius: 4px;
+    color: #4a5568;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.stat-item.active .detail-tag {
+    background: rgba(255, 255, 255, 0.4);
+    color: #1a365d;
 }
 
 .item-value {

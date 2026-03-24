@@ -218,8 +218,8 @@ const LandingPage = ({ user }) => {
             <div style={iconContainerStyle}><ShieldCheck color="#2563eb" size={32} /></div>
             <h3 style={cardTitleStyle}>Control de Colisión</h3>
             <p style={cardTextStyle}>
-              ¿Múltiples candidatos trabajando para el mismo objetivo? El SuperAdministrador puede
-              verificar si un votante ha sido prometido a más de un concejal.
+              ¿Múltiples referentes trabajando para el mismo objetivo? El candidato puede
+              verificar si un votante ha sido prometido a más de un referente.
             </p>
             <ul style={listStyle}>
               <li><CheckCircle2 size={16} color="#10b981" /> Auditoría de "Doble Carga"</li>

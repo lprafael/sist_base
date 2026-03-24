@@ -260,53 +260,104 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
 
 @router.get("/stats/departamentos")
 async def get_stats_departamentos(session: AsyncSession = Depends(get_session)):
-    """Obtiene cantidad de votantes por departamento (Optimizado)"""
-    # Usamos una subconsulta para contar primero (más rápido con índices) y luego el join para el nombre
-    subq = (
-        select(
-            AnrPadron.departamento,
-            func.count(AnrPadron.cedula).label("total")
-        )
+    """Obtiene cantidad de votantes, distritos y locales por departamento"""
+    # 1. Conteo de votantes (Padron)
+    votantes_subq = (
+        select(AnrPadron.departamento, func.count(AnrPadron.cedula).label("total"))
         .group_by(AnrPadron.departamento)
+    ).subquery()
+
+    # 2. Conteo de distritos
+    distritos_subq = (
+        select(RefDistrito.departamento_id, func.count(RefDistrito.id).label("total_distritos"))
+        .group_by(RefDistrito.departamento_id)
+    ).subquery()
+
+    # 3. Conteo de locales
+    locales_subq = (
+        select(RefLocal.departamento_id, func.count(RefLocal.local_id).label("total_locales"))
+        .group_by(RefLocal.departamento_id)
     ).subquery()
 
     stmt = (
         select(
-            subq.c.departamento,
+            RefDepartamento.id,
             RefDepartamento.descripcion,
-            subq.c.total
+            func.coalesce(votantes_subq.c.total, 0),
+            func.coalesce(distritos_subq.c.total_distritos, 0),
+            func.coalesce(locales_subq.c.total_locales, 0)
         )
-        .outerjoin(RefDepartamento, subq.c.departamento == RefDepartamento.id)
-        .order_by(subq.c.total.desc())
+        .outerjoin(votantes_subq, RefDepartamento.id == votantes_subq.c.departamento)
+        .outerjoin(distritos_subq, RefDepartamento.id == distritos_subq.c.departamento_id)
+        .outerjoin(locales_subq, RefDepartamento.id == locales_subq.c.departamento_id)
+        .order_by(votantes_subq.c.total.desc().nulls_last())
     )
     
     result = await session.execute(stmt)
-    return [{"id": r[0], "nombre": r[1] or f"ID {r[0]}", "votantes": r[2]} for r in result.all()]
+    return [
+        {
+            "id": r[0], 
+            "nombre": r[1] or f"ID {r[0]}", 
+            "votantes": r[2], 
+            "distritos_count": r[3],
+            "locales_count": r[4]
+        } for r in result.all()
+    ]
 
 @router.get("/stats/distritos/{dpto_id}")
 async def get_stats_distritos(dpto_id: int, session: AsyncSession = Depends(get_session)):
-    """Obtiene cantidad de votantes por distrito en un departamento (Optimizado)"""
-    subq = (
-        select(
-            AnrPadron.distrito,
-            func.count(AnrPadron.cedula).label("total")
-        )
+    """Obtiene cantidad de votantes, barrios y locales por distrito en un departamento"""
+    # 1. Conteo de votantes (Padron)
+    votantes_subq = (
+        select(AnrPadron.distrito, func.count(AnrPadron.cedula).label("total"))
         .where(AnrPadron.departamento == dpto_id)
         .group_by(AnrPadron.distrito)
     ).subquery()
 
+    # 2. Conteo de barrios (Cartografía)
+    # Nota: ref_distrito_id es string en BD segun queries anteriores o compatible con dpto_id
+    barrios_subq = text("""
+        SELECT ref_distrito_id, count(*) as total_barrios 
+        FROM cartografia.barrios 
+        WHERE dpto_id_ref = :dpto_id AND ref_distrito_id IS NOT NULL 
+        GROUP BY ref_distrito_id
+    """)
+
+    # 3. Conteo de locales
+    locales_subq = (
+        select(RefLocal.distrito_id, func.count(RefLocal.local_id).label("total_locales"))
+        .where(RefLocal.departamento_id == dpto_id)
+        .group_by(RefLocal.distrito_id)
+    ).subquery()
+
+    # Executing subqueries or preparing a more complex SQL
+    # Simplificamos trayendo primero los barrios_count
+    barrios_res = await session.execute(barrios_subq, {"dpto_id": dpto_id})
+    barrios_map = {str(r[0]): r[1] for r in barrios_res.fetchall()}
+
     stmt = (
         select(
-            subq.c.distrito,
+            RefDistrito.id,
             RefDistrito.descripcion,
-            subq.c.total
+            func.coalesce(votantes_subq.c.total, 0),
+            func.coalesce(locales_subq.c.total_locales, 0)
         )
-        .outerjoin(RefDistrito, and_(RefDistrito.departamento_id == dpto_id, subq.c.distrito == RefDistrito.id))
-        .order_by(subq.c.total.desc())
+        .where(RefDistrito.departamento_id == dpto_id)
+        .outerjoin(votantes_subq, RefDistrito.id == votantes_subq.c.distrito)
+        .outerjoin(locales_subq, RefDistrito.id == locales_subq.c.distrito_id)
+        .order_by(votantes_subq.c.total.desc().nulls_last())
     )
     
     result = await session.execute(stmt)
-    return [{"id": r[0], "nombre": r[1] or f"ID {r[0]}", "votantes": r[2]} for r in result.all()]
+    return [
+        {
+            "id": r[0], 
+            "nombre": r[1] or f"ID {r[0]}", 
+            "votantes": r[2], 
+            "locales_count": r[3],
+            "barrios_count": barrios_map.get(str(r[0]), 0)
+        } for r in result.all()
+    ]
 
 # --- CRUD PARA LOCALES DE VOTACION ---
 

@@ -44,8 +44,8 @@ const LocalRow = ({ local, onSave, isAdmin, onPickOnMap, isPicking, inside }) =>
 
     const rowClass =
         inside === true ? 'local-row-inside' :
-        inside === false ? 'local-row-outside' :
-        '';
+            inside === false ? 'local-row-outside' :
+                '';
 
     return (
         <tr className={`${isPicking ? 'picking-row' : ''} ${rowClass}`}>
@@ -322,7 +322,7 @@ const GeoDashboard = () => {
     return (
         <div className="geo-dashboard">
             <header className="geo-header">
-                <h2>{isRestricted ? '� Mi Distrito - Panel Geográfico' : '�🗺️ Panel Georreferenciado Administrativo'}</h2>
+                <h2>{isRestricted ? '� Mi Distrito - Panel Geográfico' : '🗺️ Panel Georreferenciado Administrativo'}</h2>
                 <div className="geo-tabs">
                     {!isRestricted && (
                         <button onClick={fetchDptos} className={viewMode === 'dptos' ? 'active' : ''}>📍 Departamentos</button>
@@ -353,8 +353,18 @@ const GeoDashboard = () => {
                                     }
                                 }}
                             >
-                                <span className="item-name">{item.nombre}</span>
-                                <span className="item-value">{item.votantes.toLocaleString()}</span>
+                                <div className="stat-content">
+                                    <span className="item-name">{item.nombre}</span>
+                                    <div className="item-details">
+                                        <span className="detail-tag">{item.votantes.toLocaleString()} Electores</span>
+                                        <span className="detail-tag">
+                                            {viewMode === 'dptos' 
+                                                ? `${item.distritos_count} Distritos` 
+                                                : `${item.barrios_count} Barrios`}
+                                        </span>
+                                        <span className="detail-tag">{item.locales_count} Locales</span>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -484,7 +494,7 @@ const GeoDashboard = () => {
                                             iconUrl: isApprox
                                                 ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png'
                                                 : (isInside ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
-                                                            : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'),
+                                                    : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'),
                                             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
                                             iconSize: [25, 41],
                                             iconAnchor: [12, 41],
@@ -532,24 +542,24 @@ const GeoDashboard = () => {
                                             </td>
                                         </tr>
                                     )}
-                            {locales.map((loc, idx) => {
-                                const hasCoords = loc.ubicacion && typeof loc.ubicacion.lat === 'number' && typeof loc.ubicacion.lng === 'number';
-                                const insideRow =
-                                    hasCoords && boundsArea
-                                        ? boundsArea.contains(L.latLng(loc.ubicacion.lat, loc.ubicacion.lng))
-                                        : null;
-                                return (
-                                    <LocalRow
-                                        key={`${loc.local_id}-${idx}-${loc.ubicacion?.lat}`}
-                                        local={loc}
-                                        isAdmin={isAdmin}
-                                        onSave={handleUpdateUbicacion}
-                                        onPickOnMap={(l) => setPickingLocal(pickingLocal?.local_id === l.local_id ? null : l)}
-                                        isPicking={pickingLocal?.local_id === loc.local_id}
-                                        inside={insideRow}
-                                    />
-                                );
-                            })}
+                                    {locales.map((loc, idx) => {
+                                        const hasCoords = loc.ubicacion && typeof loc.ubicacion.lat === 'number' && typeof loc.ubicacion.lng === 'number';
+                                        const insideRow =
+                                            hasCoords && boundsArea
+                                                ? boundsArea.contains(L.latLng(loc.ubicacion.lat, loc.ubicacion.lng))
+                                                : null;
+                                        return (
+                                            <LocalRow
+                                                key={`${loc.local_id}-${idx}-${loc.ubicacion?.lat}`}
+                                                local={loc}
+                                                isAdmin={isAdmin}
+                                                onSave={handleUpdateUbicacion}
+                                                onPickOnMap={(l) => setPickingLocal(pickingLocal?.local_id === l.local_id ? null : l)}
+                                                isPicking={pickingLocal?.local_id === loc.local_id}
+                                                inside={insideRow}
+                                            />
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
