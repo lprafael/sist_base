@@ -489,22 +489,24 @@ const UserManagement = () => {
                 </div>
               )}
 
-              <div className="form-group-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '15px 0', padding: '10px', background: '#fff7ed', borderRadius: '8px', border: '1px solid #ffedd5' }}>
-                <input
-                  type="checkbox"
-                  id="restriccion_equipo"
-                  name="restriccion_equipo"
-                  checked={showCreateForm ? newUser.restriccion_equipo : editUser.restriccion_equipo}
-                  onChange={(e) => {
-                    const val = e.target.checked;
-                    if (showCreateForm) setNewUser(prev => ({ ...prev, restriccion_equipo: val }));
-                    else setEditUser(prev => ({ ...prev, restriccion_equipo: val }));
-                  }}
-                />
-                <label htmlFor="restriccion_equipo" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#9a3412', cursor: 'pointer' }}>
-                  🛡️ Restringir acceso solo a equipos habilitados
-                </label>
-              </div>
+              {(showCreateForm ? newUser.rol : editUser.rol) !== 'referente' && (
+                <div className="form-group-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '15px 0', padding: '10px', background: '#fff7ed', borderRadius: '8px', border: '1px solid #ffedd5' }}>
+                  <input
+                    type="checkbox"
+                    id="restriccion_equipo"
+                    name="restriccion_equipo"
+                    checked={showCreateForm ? newUser.restriccion_equipo : editUser.restriccion_equipo}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      if (showCreateForm) setNewUser(prev => ({ ...prev, restriccion_equipo: val }));
+                      else setEditUser(prev => ({ ...prev, restriccion_equipo: val }));
+                    }}
+                  />
+                  <label htmlFor="restriccion_equipo" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#9a3412', cursor: 'pointer' }}>
+                    🛡️ Restringir acceso solo a equipos habilitados
+                  </label>
+                </div>
+              )}
 
                   {/* SECCIÓN DE JERARQUÍA Y TERRITORIO */}
                   {ROLES_CON_DISTRITO.includes(showCreateForm ? newUser.rol : editUser.rol) && (

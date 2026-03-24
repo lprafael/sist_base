@@ -475,7 +475,8 @@ async def create_user(
         rol=user_data.rol,
         creado_por=current_user["user_id"],
         departamento_id=departamento_id,
-        distrito_id=distrito_id
+        distrito_id=distrito_id,
+        restriccion_equipo=False if target_role == "referente" else user_data.restriccion_equipo
     )
     
     session.add(new_user)
