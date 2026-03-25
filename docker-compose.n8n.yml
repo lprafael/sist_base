@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: SIGEL-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=n8n.sigel.in
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://n8n.sigel.in/
+      - GENERIC_TIMEZONE=America/Asuncion
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - SIGEL-network
+
+networks:
+  SIGEL-network:
+    external: true
+
+volumes:
+  n8n_data:

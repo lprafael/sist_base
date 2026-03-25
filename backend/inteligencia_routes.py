@@ -153,7 +153,7 @@ async def analizar_con_ia(texto: str) -> dict:
     # --- FLUJO GEMINI ---
     if gemini_key:
         import httpx
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
@@ -242,7 +242,7 @@ async def generar_guion_ia(insights: list, perfil: dict, zona: str) -> dict:
     # --- FLUJO GEMINI ---
     if gemini_key:
         import httpx
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
