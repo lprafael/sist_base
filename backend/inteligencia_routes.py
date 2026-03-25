@@ -159,10 +159,7 @@ async def analizar_con_ia(texto: str) -> dict:
                 resp = await client.post(
                     url,
                     json={
-                        "contents": [{"parts": [{"text": prompt}]}],
-                        "generationConfig": {
-                            "response_mime_type": "application/json"
-                        }
+                        "contents": [{"parts": [{"text": prompt}]}]
                     }
                 )
                 if resp.status_code != 200:
@@ -250,8 +247,7 @@ async def generar_guion_ia(insights: list, perfil: dict, zona: str) -> dict:
                 resp = await client.post(
                     url,
                     json={
-                        "contents": [{"parts": [{"text": prompt}]}],
-                        "generationConfig": {"response_mime_type": "application/json"}
+                        "contents": [{"parts": [{"text": prompt}]}]
                     }
                 )
                 if resp.status_code != 200:
