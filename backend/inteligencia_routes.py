@@ -153,7 +153,7 @@ async def analizar_con_ia(texto: str) -> dict:
     # --- FLUJO GEMINI ---
     if gemini_key:
         import httpx
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={gemini_key}"
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
@@ -165,6 +165,8 @@ async def analizar_con_ia(texto: str) -> dict:
                         }
                     }
                 )
+                if resp.status_code != 200:
+                    logger.error(f"Error Gemini API (Status {resp.status_code}): {resp.text}")
                 resp.raise_for_status()
                 data = resp.json()
                 content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -242,7 +244,7 @@ async def generar_guion_ia(insights: list, perfil: dict, zona: str) -> dict:
     # --- FLUJO GEMINI ---
     if gemini_key:
         import httpx
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={gemini_key}"
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
@@ -252,6 +254,8 @@ async def generar_guion_ia(insights: list, perfil: dict, zona: str) -> dict:
                         "generationConfig": {"response_mime_type": "application/json"}
                     }
                 )
+                if resp.status_code != 200:
+                    logger.error(f"Error Gemini Guion (Status {resp.status_code}): {resp.text}")
                 resp.raise_for_status()
                 data = resp.json()
                 content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
