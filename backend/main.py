@@ -142,8 +142,6 @@ app.include_router(resend_user_password_router)
 app.include_router(playa_router)
 app.include_router(reports_router)
 
-
-
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================

@@ -15,7 +15,6 @@ requests
 pymupdf
 # Extracción con IA opcional para documentos de importación (ligero)
 openai
-# OCR para PDFs escaneados: descomenta si lo necesitas (instala PyTorch ~1GB, build Docker lento)
-# easyocr
-# numpy
+# Procesamiento de imágenes para marca de agua
+Pillow
 

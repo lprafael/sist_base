@@ -1,4 +1,4 @@
-# Backend (FastAPI) + Frontend (Nginx). La base de datos es externa (configurar DATABASE_URL en backend/.env).
+# Backend (FastAPI) + Frontend (Nginx). La base de datos es externa (local en el host).
 # Uso: docker compose up -d
 # Frontend: http://localhost:3002  |  API: http://localhost:8002
 
@@ -17,11 +17,12 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
+      - ./backend/static/uploads:/app/static/uploads
     restart: unless-stopped
     networks:
       - sist-playa-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/backup/ping" ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -91,7 +91,7 @@ const PublicCatalog = ({ user }) => {
 
     const handleWhatsApp = (vehicle) => {
         const message = `Hola! Estoy interesado en el ${vehicle.marca} ${vehicle.modelo} (${vehicle.anho_fabricacion}) que vi en su web.`;
-        const phone = "595981123456";
+        const phone = "595981431983";
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
     };
 
@@ -183,9 +183,9 @@ const PublicCatalog = ({ user }) => {
                     </div>
                     <div className="footer-contact">
                         <h4>Contacto</h4>
-                        <p>📍 Av. Principal 123, Ciudad</p>
-                        <p>📞 +595 981 123 456</p>
-                        <p>✉️ ventas@peraltaautomotores.com.py</p>
+                        <p>📍 Avda. Ingavi 1165 c/ 6 de enero, Fdo de la Mora</p>
+                        <p>📞 +595 981 431 983</p>
+                        <p>✉️ peraltaautomotores@hotmail.com.py</p>
                     </div>
                     <div className="footer-social">
                         <h4>Síguenos</h4>
@@ -201,7 +201,12 @@ const PublicCatalog = ({ user }) => {
                 </div>
             </footer>
 
-            <a href="https://wa.me/595981123456" className="whatsapp-float" target="_blank" rel="noopener noreferrer">
+            <a 
+                href={`https://wa.me/595981431983?text=${encodeURIComponent("Hola, estuve mirando desde la web algunos vehículos de la flota que tienen en playa y quería conocer más detalles sobre algunos modelos.")}`} 
+                className="whatsapp-float" 
+                target="_blank" 
+                rel="noopener noreferrer"
+            >
                 <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" />
             </a>
         </div>

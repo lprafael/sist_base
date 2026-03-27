@@ -16,8 +16,47 @@ const ReportesPlaya = () => {
     const [ordenMora, setOrdenMora] = useState('cliente'); // 'cliente', 'dias_mora' o 'vencimiento'
     const [vistaStock, setVistaStock] = useState('administracion'); // 'administracion' o 'vendedor'
     const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
+    const [filtroTipoExtracto, setFiltroTipoExtracto] = useState('AMBOS'); // 'AMBOS', 'INGRESO', 'EGRESO'
+    const [ordenStock, setOrdenStock] = useState({ campo: 'vehiculo', direccion: 'asc' });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+
+    const handleSortStock = (campo) => {
+        let direccion = 'asc';
+        if (ordenStock.campo === campo && ordenStock.direccion === 'asc') {
+            direccion = 'desc';
+        }
+        setOrdenStock({ campo, direccion });
+    };
+
+    const datosStockOrdenados = React.useMemo(() => {
+        if (reporteSeleccionado !== 'stock_disponible') return datos;
+        if (!Array.isArray(datos)) return [];
+
+        return [...datos].sort((a, b) => {
+            let valA, valB;
+            switch (ordenStock.campo) {
+                case 'vehiculo':
+                    valA = `${a.marca} ${a.modelo}`.toLowerCase();
+                    valB = `${b.marca} ${b.modelo}`.toLowerCase();
+                    break;
+                case 'dias':
+                    valA = parseInt(a.dias_en_stock) || 0;
+                    valB = parseInt(b.dias_en_stock) || 0;
+                    break;
+                case 'entrega':
+                    valA = parseFloat(a.entrega_inicial_sugerida) || 0;
+                    valB = parseFloat(b.entrega_inicial_sugerida) || 0;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return ordenStock.direccion === 'asc' ? -1 : 1;
+            if (valA > valB) return ordenStock.direccion === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [datos, ordenStock, reporteSeleccionado]);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -207,6 +246,20 @@ const ReportesPlaya = () => {
                                             ))}
                                         </div>
                                     </div>
+                                </div>
+                            )}
+                            {reporteSeleccionado === 'extracto_cuenta' && (
+                                <div className="filter-group">
+                                    <label>Mostrar:</label>
+                                    <select
+                                        className="date-input"
+                                        value={filtroTipoExtracto}
+                                        onChange={(e) => setFiltroTipoExtracto(e.target.value)}
+                                    >
+                                        <option value="AMBOS">Todos (Ingresos y Egresos)</option>
+                                        <option value="INGRESO">Solo Ingresos</option>
+                                        <option value="EGRESO">Solo Egresos</option>
+                                    </select>
                                 </div>
                             )}
                             <div className="filter-group">
@@ -432,9 +485,10 @@ const ReportesPlaya = () => {
                     </table>
                 ) : reporteSeleccionado === 'extracto_cuenta' ? (
                     <div className="extracto-section">
-                        <div style={{ marginBottom: '10px', fontSize: '0.9rem', textAlign: 'right' }}>
-                            <strong>Saldo Anterior:</strong> Gs. {Math.round(datosExtracto?.saldo_anterior || 0).toLocaleString('es-PY')}
-                        </div>
+                        {/* <div style={{ marginBottom: '10px', fontSize: '1rem', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '20px' }}>
+                            <div><strong>Saldo Anterior:</strong> Gs. {Math.round(datosExtracto?.saldo_anterior || 0).toLocaleString('es-PY')}</div>
+                            <div style={{ color: '#16a34a' }}><strong>Saldo Final:</strong> Gs. {Math.round(datosExtracto?.saldo_final || 0).toLocaleString('es-PY')}</div>
+                        </div> */}
                         <table className="reporte-table formal-table">
                             <thead>
                                 <tr>
@@ -443,30 +497,43 @@ const ReportesPlaya = () => {
                                     <th>Referencia</th>
                                     <th style={{ textAlign: 'right' }}>Ingreso</th>
                                     <th style={{ textAlign: 'right' }}>Egreso</th>
-                                    <th style={{ textAlign: 'right' }}>Saldo Acumulado</th>
+                                    {/* Ocultado por solicitud de usuario */}
+                                    {/* <th style={{ textAlign: 'right' }}>Saldo Acumulado</th> */}
                                 </tr>
                             </thead>
                             <tbody>
                                 {datosExtracto?.movimientos?.length > 0 ? (
-                                    datosExtracto.movimientos.map((row, index) => (
-                                        <tr key={index}>
-                                            <td>{new Date(row.fecha).toLocaleDateString('es-PY')}</td>
-                                            <td style={{ fontSize: '0.85em' }}>{row.concepto}</td>
-                                            <td>{row.referencia || '-'}</td>
-                                            <td style={{ textAlign: 'right', color: '#16a34a' }}>
-                                                {row.tipo === 'INGRESO' ? `Gs. ${Math.round(row.monto).toLocaleString('es-PY')}` : '-'}
-                                            </td>
-                                            <td style={{ textAlign: 'right', color: '#dc2626' }}>
-                                                {row.tipo === 'EGRESO' ? `Gs. ${Math.round(row.monto).toLocaleString('es-PY')}` : '-'}
-                                            </td>
-                                            <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                    datosExtracto.movimientos
+                                        .filter(m => filtroTipoExtracto === 'AMBOS' || m.tipo === filtroTipoExtracto)
+                                        .map((row, index) => (
+                                            <tr key={index}>
+                                                <td>{new Date(row.fecha).toLocaleDateString('es-PY')}</td>
+                                                <td style={{ fontSize: '0.85em' }}>{row.concepto}</td>
+                                                <td>{row.referencia || '-'}</td>
+                                                <td style={{ textAlign: 'right', color: '#16a34a' }}>
+                                                    {row.tipo === 'INGRESO' ? (
+                                                        <>
+                                                            <div style={{ fontWeight: 'bold' }}>Gs. {Math.round(row.monto).toLocaleString('es-PY')}</div>
+                                                            {row.monto_interes > 0 && (
+                                                                <div style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'normal' }}>
+                                                                    (Cap: {Math.round(row.monto_capital || 0).toLocaleString('es-PY')} + Int: {Math.round(row.monto_interes).toLocaleString('es-PY')})
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : '-'}
+                                                </td>
+                                                <td style={{ textAlign: 'right', color: '#dc2626' }}>
+                                                    {row.tipo === 'EGRESO' ? `Gs. ${Math.round(row.monto).toLocaleString('es-PY')}` : '-'}
+                                                </td>
+                                                {/* Ocultado por solicitud de usuario */}
+                                                {/* <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                                                 Gs. {Math.round(row.saldo_acumulado).toLocaleString('es-PY')}
-                                            </td>
-                                        </tr>
-                                    ))
+                                            </td> */}
+                                            </tr>
+                                        ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No hay movimientos en este periodo para esta cuenta.</td>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No hay movimientos que coincidan con el filtro en este periodo.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -475,13 +542,29 @@ const ReportesPlaya = () => {
                                     <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
                                         <td colSpan="3" style={{ textAlign: 'right' }}>TOTAL DEL PERIODO:</td>
                                         <td style={{ textAlign: 'right', color: '#16a34a' }}>
-                                            Gs. {Math.round(datosExtracto.movimientos.filter(m => m.tipo === 'INGRESO').reduce((acc, curr) => acc + curr.monto, 0)).toLocaleString('es-PY')}
+                                            <div style={{ fontSize: '1.1em' }}>
+                                                Gs. {Math.round(datosExtracto.movimientos
+                                                    .filter(m => m.tipo === 'INGRESO' && (filtroTipoExtracto === 'AMBOS' || filtroTipoExtracto === 'INGRESO'))
+                                                    .reduce((acc, curr) => acc + curr.monto, 0)).toLocaleString('es-PY')}
+                                            </div>
+                                            {datosExtracto.movimientos.some(m => m.monto_interes > 0) && (filtroTipoExtracto === 'AMBOS' || filtroTipoExtracto === 'INGRESO') && (
+                                                <div style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#666', marginTop: '4px' }}>
+                                                    (Cap: {Math.round(datosExtracto.movimientos
+                                                        .filter(m => m.tipo === 'INGRESO')
+                                                        .reduce((acc, curr) => acc + (curr.monto_capital || 0), 0)).toLocaleString('es-PY')} +
+                                                    Int: {Math.round(datosExtracto.movimientos
+                                                        .filter(m => m.tipo === 'INGRESO')
+                                                        .reduce((acc, curr) => acc + (curr.monto_interes || 0), 0)).toLocaleString('es-PY')})
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ textAlign: 'right', color: '#dc2626' }}>
-                                            Gs. {Math.round(datosExtracto.movimientos.filter(m => m.tipo === 'EGRESO').reduce((acc, curr) => acc + curr.monto, 0)).toLocaleString('es-PY')}
+                                            Gs. {Math.round(datosExtracto.movimientos
+                                                .filter(m => m.tipo === 'EGRESO' && (filtroTipoExtracto === 'AMBOS' || filtroTipoExtracto === 'EGRESO'))
+                                                .reduce((acc, curr) => acc + curr.monto, 0)).toLocaleString('es-PY')}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
-                                            Gs. {Math.round(datosExtracto.saldo_final).toLocaleString('es-PY')}
+                                            {/* Espacio reservado para mantener estructura si se decide mostrar saldo final aquí */}
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -533,20 +616,39 @@ const ReportesPlaya = () => {
                     <table className="reporte-table formal-table">
                         <thead>
                             <tr>
-                                <th>VEHÍCULO</th>
+                                <th 
+                                    className={`sortable ${ordenStock.campo === 'vehiculo' ? 'active' : ''}`}
+                                    onClick={() => handleSortStock('vehiculo')}
+                                >
+                                    VEHÍCULO {ordenStock.campo === 'vehiculo' && <span className="sort-indicator">{ordenStock.direccion === 'asc' ? '▲' : '▼' }</span>}
+                                </th>
                                 <th>CHASIS</th>
                                 <th>COLOR</th>
                                 {vistaStock === 'administracion' && <th>UBICACIÓN</th>}
-                                {vistaStock === 'administracion' && <th style={{ textAlign: 'center' }}>DÍAS EN STOCK</th>}
+                                {vistaStock === 'administracion' && (
+                                    <th 
+                                        style={{ textAlign: 'center' }}
+                                        className={`sortable ${ordenStock.campo === 'dias' ? 'active' : ''}`}
+                                        onClick={() => handleSortStock('dias')}
+                                    >
+                                        DÍAS EN STOCK {ordenStock.campo === 'dias' && <span className="sort-indicator">{ordenStock.direccion === 'asc' ? '▲' : '▼' }</span>}
+                                    </th>
+                                )}
                                 {vistaStock === 'administracion' && <th style={{ textAlign: 'right' }}>COSTO</th>}
                                 <th style={{ textAlign: 'right' }}>PRECIO CONTADO</th>
                                 <th style={{ textAlign: 'right' }}>PRECIO FINANCIADO</th>
-                                <th style={{ background: '#fef3c7', textAlign: 'right' }}>ENTREGA INICIAL</th>
+                                <th 
+                                    style={{ background: '#fef3c7', textAlign: 'right' }}
+                                    className={`sortable ${ordenStock.campo === 'entrega' ? 'active' : ''}`}
+                                    onClick={() => handleSortStock('entrega')}
+                                >
+                                    ENTREGA INICIAL {ordenStock.campo === 'entrega' && <span className="sort-indicator">{ordenStock.direccion === 'asc' ? '▲' : '▼' }</span>}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {datos.length > 0 ? (
-                                datos.map((row, index) => (
+                            {datosStockOrdenados.length > 0 ? (
+                                datosStockOrdenados.map((row, index) => (
                                     <tr key={index}>
                                         <td>
                                             <strong>{row.marca} {row.modelo}</strong><br />
@@ -586,6 +688,27 @@ const ReportesPlaya = () => {
                                 </tr>
                             )}
                         </tbody>
+                        {datosStockOrdenados.length > 0 && (
+                            <tfoot>
+                                <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                                    <td colSpan={vistaStock === 'administracion' ? 5 : 4} style={{ textAlign: 'right', borderTop: '2px solid #000' }}>TOTALES Gs.:</td>
+                                    {vistaStock === 'administracion' && (
+                                        <td style={{ textAlign: 'right', borderTop: '2px solid #000' }}>
+                                            {Math.round(datosStockOrdenados.reduce((acc, row) => acc + (parseFloat(row.costo_final) || 0), 0)).toLocaleString('es-PY')}
+                                        </td>
+                                    )}
+                                    <td style={{ textAlign: 'right', borderTop: '2px solid #000' }}>
+                                        {Math.round(datosStockOrdenados.reduce((acc, row) => acc + (parseFloat(row.precio_contado_sugerido) || 0), 0)).toLocaleString('es-PY')}
+                                    </td>
+                                    <td style={{ textAlign: 'right', borderTop: '2px solid #000' }}>
+                                        {Math.round(datosStockOrdenados.reduce((acc, row) => acc + (parseFloat(row.precio_financiado_sugerido) || 0), 0)).toLocaleString('es-PY')}
+                                    </td>
+                                    <td style={{ textAlign: 'right', borderTop: '2px solid #000' }}>
+                                        {Math.round(datosStockOrdenados.reduce((acc, row) => acc + (parseFloat(row.entrega_inicial_sugerida) || 0), 0)).toLocaleString('es-PY')}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        )}
                     </table>
                 )}
 

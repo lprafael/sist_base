@@ -244,3 +244,49 @@
     color: #64748b;
     font-style: italic;
 }
+
+.btn-delete-small {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-delete-small:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.1);
+}
+
+.table-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-edit-small {
+    background: #e0f2fe;
+    color: #0284c7;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-edit-small:hover {
+    background: #0284c7;
+    color: white;
+    transform: scale(1.1);
+}

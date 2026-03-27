@@ -1,11 +1,67 @@
 import React, { useState, useEffect } from "react";
 import "./Catalog.css";
 
-const VehicleCard = ({ vehicle, onWhatsApp }) => {
+const ImageModal = ({ vehicle, onClose }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const images = (vehicle?.imagenes || []).filter(img => img.imagen_con_marca);
+
+    const getFullImageUrl = (img) => {
+        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
+        return `${baseUrl}${img.imagen_con_marca}`;
+    };
+
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.keyCode === 27) onClose();
+        };
+        window.addEventListener('keydown', handleEsc);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+            document.body.style.overflow = 'unset';
+        };
+    }, [onClose]);
+
+    if (!vehicle) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <button className="modal-close" onClick={onClose}>&times;</button>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-thumbnails">
+                    {images.map((img, idx) => (
+                        <div
+                            key={idx}
+                            className={`thumb-item ${currentIndex === idx ? 'active' : ''}`}
+                            onClick={() => setCurrentIndex(idx)}
+                        >
+                            <img src={getFullImageUrl(img)} alt={`Thumbnail ${idx}`} />
+                        </div>
+                    ))}
+                </div>
+                <div className="modal-main-image">
+                    {images.length > 1 && (
+                        <button className="modal-nav-btn prev" onClick={() => setCurrentIndex((currentIndex - 1 + images.length) % images.length)}>
+                            &#10094;
+                        </button>
+                    )}
+                    <img src={getFullImageUrl(images[currentIndex])} alt={vehicle.modelo} />
+                    {images.length > 1 && (
+                        <button className="modal-nav-btn next" onClick={() => setCurrentIndex((currentIndex + 1) % images.length)}>
+                            &#10095;
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const VehicleCard = ({ vehicle, onWhatsApp, onPhotoClick }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
 
-    const images = vehicle.imagenes || [];
+    const images = (vehicle.imagenes || []).filter(img => img.imagen_con_marca);
     const hasImages = images.length > 0;
 
     useEffect(() => {
@@ -26,22 +82,25 @@ const VehicleCard = ({ vehicle, onWhatsApp }) => {
 
     const getImageUrl = () => {
         if (!hasImages) return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
-        
+
         const img = images[currentImageIndex] || images[0];
         const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
-        return `${baseUrl}${img.ruta_archivo}`;
+        return `${baseUrl}${img.imagen_con_marca}`;
     };
 
     return (
-        <div 
+        <div
             className="vehicle-card glass"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
             <div className="card-image-wrapper">
                 <img src={getImageUrl()} alt={`${vehicle.marca} ${vehicle.modelo}`} />
-                <div className="card-overlay">
-                    <button onClick={() => onWhatsApp(vehicle)}>WhatsApp</button>
+                <div className="card-overlay" onClick={() => onPhotoClick(vehicle)}>
+                    <button onClick={(e) => {
+                        e.stopPropagation();
+                        onWhatsApp(vehicle);
+                    }}>WhatsApp</button>
                     {hasImages && images.length > 1 && isHovered && (
                         <div className="image-counter">
                             {currentImageIndex + 1} / {images.length}
@@ -55,6 +114,24 @@ const VehicleCard = ({ vehicle, onWhatsApp }) => {
                     <span>{vehicle.anho_fabricacion || vehicle.año}</span>
                     <span>•</span>
                     <span>{vehicle.color}</span>
+                    {vehicle.motor && (
+                        <>
+                            <span>•</span>
+                            <span>{vehicle.motor}</span>
+                        </>
+                    )}
+                    {vehicle.transmision && (
+                        <>
+                            <span>•</span>
+                            <span style={{ textTransform: 'capitalize' }}>{vehicle.transmision.toLowerCase()}</span>
+                        </>
+                    )}
+                    {vehicle.combustible && (
+                        <>
+                            <span>•</span>
+                            <span>{vehicle.combustible}</span>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -69,6 +146,8 @@ const PublicCatalog = ({ user }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [categories, setCategories] = useState([]);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [selectedVehicleForModal, setSelectedVehicleForModal] = useState(null);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || "/api";
 
@@ -119,10 +198,18 @@ const PublicCatalog = ({ user }) => {
         if (featuredVehicles.length > 1) {
             const interval = setInterval(() => {
                 setFeaturedIndex((prev) => (prev + 1) % featuredVehicles.length);
-            }, 5000);
+            }, 6000);
             return () => clearInterval(interval);
         }
-    }, [featuredVehicles]);
+    }, [featuredVehicles, featuredIndex]); // Reset interval if index changes manually
+
+    const nextFeatured = () => {
+        setFeaturedIndex((prev) => (prev + 1) % featuredVehicles.length);
+    };
+
+    const prevFeatured = () => {
+        setFeaturedIndex((prev) => (prev - 1 + featuredVehicles.length) % featuredVehicles.length);
+    };
 
     const fetchCategories = async () => {
         try {
@@ -135,17 +222,21 @@ const PublicCatalog = ({ user }) => {
     };
 
     const getImageUrl = (vehicle) => {
-        if (vehicle.imagenes && vehicle.imagenes.length > 0) {
-            const principal = vehicle.imagenes.find(img => img.es_principal) || vehicle.imagenes[0];
+        const watermarkedImages = (vehicle.imagenes || []).filter(img => img.imagen_con_marca);
+        if (watermarkedImages.length > 0) {
+            const principal = watermarkedImages.find(img => img.es_principal) || watermarkedImages[0];
             const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
-            return `${baseUrl}${principal.ruta_archivo}`;
+            return `${baseUrl}${principal.imagen_con_marca}`;
         }
         // Imagen estándar en caso de no tener fotos (Unsplash)
         return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
     };
 
     const filteredVehicles = vehicles.filter(v => {
-        const matchesSearch = (v.marca + " " + v.modelo).toLowerCase().includes(searchTerm.toLowerCase());
+        const searchInput = searchTerm.toLowerCase();
+        const matchesSearch = (v.marca + " " + v.modelo).toLowerCase().includes(searchInput) ||
+            (v.chasis || "").toLowerCase().includes(searchInput);
+
         const matchesCategory = selectedCategory === "all" || v.id_categoria === parseInt(selectedCategory);
         return matchesSearch && matchesCategory;
     });
@@ -155,23 +246,57 @@ const PublicCatalog = ({ user }) => {
     };
 
     const handleWhatsApp = (vehicle) => {
-        const message = `Hola! Estoy interesado en el ${vehicle.marca} ${vehicle.modelo} (${vehicle.anho_fabricacion}) que vi en su web.`;
-        const phone = "595981123456";
+        const message = `Hola! Estoy interesado en el ${vehicle.marca} ${vehicle.modelo} (${vehicle.anho_fabricacion || vehicle.año}) que vi en su web.`;
+        const phone = "595981431983";
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
     };
 
     if (loading) {
-        return <div className="public-loader">Cargando catálogo...</div>;
+        return (
+            <div className="public-loader">
+                <div className="loader-spinner"></div>
+                <p>Cargando catálogo...</p>
+            </div>
+        );
     }
 
     return (
         <div className="catalog-container">
             <nav className="catalog-nav">
+                <div className="benefits-banner">
+                    <div className="benefits-content">
+                        <div className="benefit-item">
+                            <span className="benefit-icon">💳</span>
+                            <span>Financiación Propia</span>
+                        </div>
+                        <span className="separator">|</span>
+                        <div className="benefit-item">
+                            <span className="benefit-icon">📋</span>
+                            <span>Mínimos Requisitos</span>
+                        </div>
+                        <span className="separator">|</span>
+                        <div className="benefit-item">
+                            <span className="benefit-icon">⚡</span>
+                            <span>Aprobación Inmediata</span>
+                        </div>
+                    </div>
+                </div>
                 <div className="nav-content">
                     <img src="/imágenes/Logo_moderno2.png" alt="Peralta Automotores" className="nav-logo" />
-                    <div className="nav-links">
-                        <a href="#inventario">Inventario</a>
-                        <a href="#contacto">Contacto</a>
+
+                    <button
+                        className={`mobile-menu-toggle ${mobileMenuOpen ? 'open' : ''}`}
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        aria-label="Menu"
+                    >
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+
+                    <div className={`nav-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+                        <a href="#inventario" onClick={() => setMobileMenuOpen(false)}>Inventario</a>
+                        <a href="#contacto" onClick={() => setMobileMenuOpen(false)}>Contacto</a>
                         {user ? (
                             <button className="btn-admin-link" onClick={() => window.location.href = "/admin"}>Ir al Sistema</button>
                         ) : (
@@ -182,19 +307,56 @@ const PublicCatalog = ({ user }) => {
             </nav>
 
             {featuredVehicles.length > 0 && (
-                <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url(${getImageUrl(featuredVehicles[featuredIndex])})` }}>
+                <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url(${getImageUrl(featuredVehicles[featuredIndex])})` }}>
+                    {featuredVehicles.length > 1 && (
+                        <>
+                            <button className="hero-nav-btn prev" onClick={prevFeatured} aria-label="Anterior">
+                                &#10094;
+                            </button>
+                            <button className="hero-nav-btn next" onClick={nextFeatured} aria-label="Siguiente">
+                                &#10095;
+                            </button>
+                        </>
+                    )}
+
                     <div className="hero-content">
-                        <span className="badge">Destacado {featuredVehicles.length > 1 ? `(${featuredIndex + 1}/${featuredVehicles.length})` : ''}</span>
+                        <div className="hero-badge-container">
+                            <span className="badge">Destacado</span>
+                        </div>
                         <h1>{featuredVehicles[featuredIndex].marca} {featuredVehicles[featuredIndex].modelo}</h1>
                         <div className="hero-details">
-                            <span>📅 {featuredVehicles[featuredIndex].anho_fabricacion || featuredVehicles[featuredIndex].año}</span>
-                            <span>🎨 {featuredVehicles[featuredIndex].color}</span>
-                            <span>⛽ {featuredVehicles[featuredIndex].tipo_combustible || featuredVehicles[featuredIndex].combustible || 'Nafta'}</span>
+                            <div className="detail-item">
+                                <span className="detail-icon">📅</span>
+                                <span>{featuredVehicles[featuredIndex].anho_fabricacion || featuredVehicles[featuredIndex].año}</span>
+                            </div>
+                            <div className="detail-item">
+                                <span className="detail-icon">🎨</span>
+                                <span>{featuredVehicles[featuredIndex].color}</span>
+                            </div>
+                            <div className="detail-item">
+                                <span className="detail-icon">⛽</span>
+                                <span>{featuredVehicles[featuredIndex].tipo_combustible || featuredVehicles[featuredIndex].combustible || 'Nafta'}</span>
+                            </div>
                         </div>
-                        <button className="cta-button" onClick={() => handleWhatsApp(featuredVehicles[featuredIndex])}>
-                            Consultar Ahora
-                        </button>
+                        <div className="hero-actions">
+                            <button className="cta-button" onClick={() => handleWhatsApp(featuredVehicles[featuredIndex])}>
+                                Consultar Ahora
+                            </button>
+                        </div>
                     </div>
+
+                    {featuredVehicles.length > 1 && (
+                        <div className="hero-dots">
+                            {featuredVehicles.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    className={`dot ${featuredIndex === idx ? 'active' : ''}`}
+                                    onClick={() => setFeaturedIndex(idx)}
+                                    aria-label={`Ir a destacado ${idx + 1}`}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </section>
             )}
 
@@ -219,10 +381,11 @@ const PublicCatalog = ({ user }) => {
 
                 <div className="vehicle-grid">
                     {filteredVehicles.map(vehicle => (
-                        <VehicleCard 
-                            key={vehicle.id_producto} 
-                            vehicle={vehicle} 
-                            onWhatsApp={handleWhatsApp} 
+                        <VehicleCard
+                            key={vehicle.id_producto}
+                            vehicle={vehicle}
+                            onWhatsApp={handleWhatsApp}
+                            onPhotoClick={setSelectedVehicleForModal}
                         />
                     ))}
                 </div>
@@ -237,16 +400,19 @@ const PublicCatalog = ({ user }) => {
                     </div>
                     <div className="footer-contact">
                         <h4>Contacto</h4>
-                        <p>📍 Av. Principal 123, Ciudad</p>
-                        <p>📞 +595 981 123 456</p>
-                        <p>✉️ ventas@peraltaautomotores.com.py</p>
+                        <p>📍 Avda. Ingavi 1165 c/ 6 de enero, Fdo de la Mora</p>
+                        <p>📞 +595 981 431 983</p>
+                        <p>✉️ peraltaautomotores@hotmail.com.py</p>
                     </div>
                     <div className="footer-social">
                         <h4>Síguenos</h4>
                         <div className="social-icons">
-                            <span>FB</span>
-                            <span>IG</span>
-                            <span>TT</span>
+                            <a href="https://www.facebook.com/peraltaautomotores" target="_blank" rel="noopener noreferrer" className="social-link" title="Facebook">
+                                FB
+                            </a>
+                            <a href="https://www.instagram.com/peraltaautomotores1/?hl=es" target="_blank" rel="noopener noreferrer" className="social-link" title="Instagram">
+                                IG
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -255,9 +421,21 @@ const PublicCatalog = ({ user }) => {
                 </div>
             </footer>
 
-            <a href="https://wa.me/595981123456" className="whatsapp-float" target="_blank" rel="noopener noreferrer">
+            <a 
+                href={`https://wa.me/595981431983?text=${encodeURIComponent("Hola, estuve mirando desde la web algunos vehículos de la flota que tienen en playa y quería conocer más detalles sobre algunos modelos.")}`} 
+                className="whatsapp-float" 
+                target="_blank" 
+                rel="noopener noreferrer"
+            >
                 <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" />
             </a>
+
+            {selectedVehicleForModal && (
+                <ImageModal
+                    vehicle={selectedVehicleForModal}
+                    onClose={() => setSelectedVehicleForModal(null)}
+                />
+            )}
         </div>
     );
 };

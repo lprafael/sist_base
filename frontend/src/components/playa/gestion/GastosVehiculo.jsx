@@ -15,6 +15,7 @@ const GastosVehiculo = () => {
     const [editingGasto, setEditingGasto] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [vendedores, setVendedores] = useState([]);
+    const [cuentas, setCuentas] = useState([]);
 
     const [newGasto, setNewGasto] = useState({
         id_producto: '',
@@ -23,7 +24,8 @@ const GastosVehiculo = () => {
         monto: '',
         fecha_gasto: new Date().toISOString().split('T')[0],
         proveedor: '',
-        numero_factura: ''
+        numero_factura: '',
+        id_cuenta: ''
     });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -35,14 +37,16 @@ const GastosVehiculo = () => {
     const fetchInitialData = async () => {
         try {
             const token = sessionStorage.getItem('token');
-            const [vRes, tRes, vendRes] = await Promise.all([
+            const [vRes, tRes, vendRes, cRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/tipos-gastos`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/playa/vendedores?active_only=true`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/playa/vendedores?active_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/cuentas`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setVehiculos(vRes.data);
             setTiposGastos(tRes.data);
             setVendedores(vendRes.data);
+            setCuentas(cRes.data);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching initial data:', error);
@@ -73,6 +77,7 @@ const GastosVehiculo = () => {
         try {
             const token = sessionStorage.getItem('token');
             const payload = { ...newGasto, id_producto: selectedVehiculo.id_producto };
+            // if (payload.id_cuenta === '') payload.id_cuenta = null; // Eliminado por pedido del usuario: siempre debe afectar a una cuenta
 
             if (editingGasto) {
                 await axios.put(`${API_URL}/playa/gastos/${editingGasto.id_gasto_producto}`, payload, {
@@ -94,7 +99,8 @@ const GastosVehiculo = () => {
                 monto: '',
                 fecha_gasto: new Date().toISOString().split('T')[0],
                 proveedor: '',
-                numero_factura: ''
+                numero_factura: '',
+                id_cuenta: ''
             });
         } catch (error) {
             alert('Error al guardar gasto: ' + (error.response?.data?.detail || error.message));
@@ -110,7 +116,8 @@ const GastosVehiculo = () => {
             monto: gasto.monto,
             fecha_gasto: gasto.fecha_gasto,
             proveedor: gasto.proveedor || '',
-            numero_factura: gasto.numero_factura || ''
+            numero_factura: gasto.numero_factura || '',
+            id_cuenta: gasto.id_cuenta || ''
         });
         setShowModal(true);
     };
@@ -138,7 +145,8 @@ const GastosVehiculo = () => {
             monto: '',
             fecha_gasto: new Date().toISOString().split('T')[0],
             proveedor: '',
-            numero_factura: ''
+            numero_factura: '',
+            id_cuenta: ''
         });
     };
 
@@ -196,6 +204,17 @@ const GastosVehiculo = () => {
                                     (v.cliente_documento?.toLowerCase() || '').includes(search);
 
                                 return vehicleMatch || clientMatch;
+                            })
+                            .sort((a, b) => {
+                                // DISPONIBLE primero
+                                const aDisp = a.estado_disponibilidad === 'DISPONIBLE';
+                                const bDisp = b.estado_disponibilidad === 'DISPONIBLE';
+                                if (aDisp && !bDisp) return -1;
+                                if (!aDisp && bDisp) return 1;
+                                // Luego alfabético
+                                const nameA = `${a.marca} ${a.modelo}`.toLowerCase();
+                                const nameB = `${b.marca} ${b.modelo}`.toLowerCase();
+                                return nameA.localeCompare(nameB);
                             })
                             .map(v => (
                                 <div
@@ -295,63 +314,83 @@ const GastosVehiculo = () => {
                     <div className="modal-content">
                         <h3>{editingGasto ? 'Editar Gasto del Vehículo' : 'Registrar Gasto del Vehículo'}</h3>
                         <form onSubmit={handleSaveGasto}>
-                            <div className="form-group">
-                                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    Tipo de Gasto
-                                    <button type="button" className="btn-link" onClick={() => setShowTypesModal(true)}>+ Crear Concepto</button>
-                                </label>
-                                <select
-                                    required
-                                    value={newGasto.id_tipo_gasto}
-                                    onChange={(e) => setNewGasto({ ...newGasto, id_tipo_gasto: e.target.value })}
-                                >
-                                    <option value="">Seleccione tipo...</option>
-                                    {tiposGastos.map(t => <option key={t.id_tipo_gasto} value={t.id_tipo_gasto}>{t.nombre}</option>)}
-                                </select>
-                            </div>
-                            <div className="form-row">
+                            <div className="modal-body">
                                 <div className="form-group">
-                                    <label>Monto (Gs.)</label>
-                                    <input type="number" step="1" required value={newGasto.monto} onChange={(e) => setNewGasto({ ...newGasto, monto: e.target.value })} />
+                                    <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        Tipo de Gasto
+                                        <button type="button" className="btn-link" onClick={() => setShowTypesModal(true)}>+ Crear Concepto</button>
+                                    </label>
+                                    <select
+                                        required
+                                        value={newGasto.id_tipo_gasto}
+                                        onChange={(e) => setNewGasto({ ...newGasto, id_tipo_gasto: e.target.value })}
+                                    >
+                                        <option value="">Seleccione tipo...</option>
+                                        {tiposGastos.map(t => <option key={t.id_tipo_gasto} value={t.id_tipo_gasto}>{t.nombre}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Monto (Gs.)</label>
+                                        <input type="number" step="1" required value={newGasto.monto} onChange={(e) => setNewGasto({ ...newGasto, monto: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Fecha</label>
+                                        <input type="date" required value={newGasto.fecha_gasto} onChange={(e) => setNewGasto({ ...newGasto, fecha_gasto: e.target.value })} />
+                                    </div>
                                 </div>
                                 <div className="form-group">
-                                    <label>Fecha</label>
-                                    <input type="date" required value={newGasto.fecha_gasto} onChange={(e) => setNewGasto({ ...newGasto, fecha_gasto: e.target.value })} />
+                                    <label>Descripción / Concepto</label>
+                                    <input type="text" value={newGasto.descripcion} onChange={(e) => setNewGasto({ ...newGasto, descripcion: e.target.value })} />
                                 </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Descripción / Concepto</label>
-                                <input type="text" value={newGasto.descripcion} onChange={(e) => setNewGasto({ ...newGasto, descripcion: e.target.value })} />
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Proveedor</label>
-                                    {isCommissionGasto() ? (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Proveedor</label>
+                                        {isCommissionGasto() ? (
+                                            <select
+                                                value={newGasto.proveedor}
+                                                onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })}
+                                                required
+                                            >
+                                                <option value="">Seleccione vendedor...</option>
+                                                {vendedores.map(v => (
+                                                    <option key={v.id_vendedor} value={`${v.nombre} ${v.apellido}`}>
+                                                        {v.nombre} {v.apellido}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={newGasto.proveedor}
+                                                onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })}
+                                                placeholder="Escriba el proveedor..."
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>N° Factura</label>
+                                        <input type="text" value={newGasto.numero_factura} onChange={(e) => setNewGasto({ ...newGasto, numero_factura: e.target.value })} />
+                                    </div>
+                                </div>
+                                {!editingGasto && (
+                                    <div className="form-group">
+                                        <label>Pagar con Cuenta</label>
                                         <select
-                                            value={newGasto.proveedor}
-                                            onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })}
+                                            value={newGasto.id_cuenta}
+                                            onChange={(e) => setNewGasto({ ...newGasto, id_cuenta: e.target.value })}
                                             required
                                         >
-                                            <option value="">Seleccione vendedor...</option>
-                                            {vendedores.map(v => (
-                                                <option key={v.id_vendedor} value={`${v.nombre} ${v.apellido}`}>
-                                                    {v.nombre} {v.apellido}
+                                            <option value="">Seleccione una cuenta...</option>
+                                            {cuentas.map(c => (
+                                                <option key={c.id_cuenta} value={c.id_cuenta}>
+                                                    {c.nombre} (Saldo: Gs. {Math.round(c.saldo_actual).toLocaleString('es-PY')})
                                                 </option>
                                             ))}
                                         </select>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            value={newGasto.proveedor}
-                                            onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })}
-                                            placeholder="Escriba el proveedor..."
-                                        />
-                                    )}
-                                </div>
-                                <div className="form-group">
-                                    <label>N° Factura</label>
-                                    <input type="text" value={newGasto.numero_factura} onChange={(e) => setNewGasto({ ...newGasto, numero_factura: e.target.value })} />
-                                </div>
+                                        <p className="form-help">Se descontará el monto y aparecerá en el movimiento de cuenta seleccionado.</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
@@ -368,13 +407,15 @@ const GastosVehiculo = () => {
                     <div className="modal-content">
                         <h3>Gestionar Conceptos de Gasto</h3>
                         <form onSubmit={handleCreateType}>
-                            <div className="form-group">
-                                <label>Nombre del Concepto (Ej: Flete, Chapería)</label>
-                                <input type="text" required value={newType.nombre} onChange={(e) => setNewType({ ...newType, nombre: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Descripción (Opcional)</label>
-                                <input type="text" value={newType.descripcion} onChange={(e) => setNewType({ ...newType, descripcion: e.target.value })} />
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Nombre del Concepto (Ej: Flete, Chapería)</label>
+                                    <input type="text" required value={newType.nombre} onChange={(e) => setNewType({ ...newType, nombre: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Descripción (Opcional)</label>
+                                    <input type="text" value={newType.descripcion} onChange={(e) => setNewType({ ...newType, descripcion: e.target.value })} />
+                                </div>
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={() => setShowTypesModal(false)}>Cerrar</button>

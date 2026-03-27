@@ -151,18 +151,20 @@
 
 .selection-overlay {
     position: absolute;
-    top: 5px;
-    right: 5px;
-    background: #3b82f6;
+    top: 8px;
+    right: 8px;
+    background: #2563eb;
     color: white;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 0.7rem;
-    font-weight: bold;
+    font-size: 0.85rem;
+    font-weight: 800;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    border: 2px solid white;
 }
 
 .modal-redes-footer {

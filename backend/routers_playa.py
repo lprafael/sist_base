@@ -1,7 +1,17 @@
-import logging
 import os
-import shutil
 import uuid
+import shutil
+import json
+import io
+import requests
+import httpx
+import asyncio
+import logging
+from datetime import datetime, date
+from typing import List, Optional
+
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -13,6 +23,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 import calendar
 from database import get_session
+from PIL import Image
 
 def add_months(sourcedate: date, months: int) -> date:
     """
@@ -31,7 +42,7 @@ from models_playa import (
     TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
     ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
     UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania,
-    ImagenProducto, HistorialCalificacion, Refuerzo, GastoAdicional
+    ImagenProducto, HistorialCalificacion, Refuerzo, GastoAdicional, HistorialPropietario
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
@@ -52,7 +63,8 @@ from schemas_playa import (
     DocumentoImportacionResponse, AnalizarDocumentosResponse, VinculacionProducto,
     EscribaniaCreate, EscribaniaResponse,
     ImagenProductoCreate, ImagenProductoUpdate, ImagenProductoResponse,
-    GastoAdicionalCreate, GastoAdicionalResponse
+    GastoAdicionalCreate, GastoAdicionalResponse,
+    HistorialPropietarioCreate, HistorialPropietarioUpdate, HistorialPropietarioResponse
 )
 from security import get_current_user, check_permission
 from audit_utils import log_audit_action
@@ -210,6 +222,89 @@ async def delete_categoria(
     await session.commit()
 
     return {"message": "Categoría eliminada correctamente"}
+
+# ===== HISTORIAL DE PROPIETARIOS =====
+@router.get("/propietarios", response_model=List[HistorialPropietarioResponse])
+async def list_propietarios(
+    id_producto: Optional[int] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(HistorialPropietario).order_by(HistorialPropietario.fecha_registro.desc())
+    if id_producto:
+        query = query.where(HistorialPropietario.id_producto == id_producto)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+@router.post("/propietarios", response_model=HistorialPropietarioResponse)
+async def create_propietario(
+    data: HistorialPropietarioCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    new_propietario = HistorialPropietario(**data.model_dump())
+    session.add(new_propietario)
+    await session.commit()
+    await session.refresh(new_propietario)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="historial_propietarios",
+        record_id=new_propietario.id_historial,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Historial de propietario creado para {new_propietario.nombre_propietario}"
+    )
+    return new_propietario
+
+@router.put("/propietarios/{id_historial}", response_model=HistorialPropietarioResponse)
+async def update_propietario(
+    id_historial: int,
+    data: HistorialPropietarioUpdate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(HistorialPropietario).where(HistorialPropietario.id_historial == id_historial))
+    propietario = res.scalar_one_or_none()
+    if not propietario:
+        raise HTTPException(status_code=404, detail="Registro de propietario no encontrado")
+    
+    old_data = {c.name: getattr(propietario, c.name) for c in propietario.__table__.columns}
+    
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(propietario, field, value)
+    
+    await session.commit()
+    await session.refresh(propietario)
+    
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="historial_propietarios",
+        record_id=id_historial,
+        previous_data=old_data,
+        new_data=data.model_dump(exclude_none=True),
+        details=f"Historial de propietario actualizado para {propietario.nombre_propietario}"
+    )
+    return propietario
+
+@router.delete("/propietarios/{id_historial}")
+async def delete_propietario(
+    id_historial: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res = await session.execute(select(HistorialPropietario).where(HistorialPropietario.id_historial == id_historial))
+    propietario = res.scalar_one_or_none()
+    if not propietario:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    
+    await session.delete(propietario)
+    await session.commit()
+    return {"message": "Registro eliminado correctamente"}
 
 # ===== VENDEDORES =====
 @router.get("/vendedores", response_model=List[VendedorResponse])
@@ -775,6 +870,8 @@ async def upload_imagenes(
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
 
     new_records = []
+    watermark_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "marca_agua.png")
+    
     for img in imagenes:
         # Validar tipo de archivo
         if not img.content_type.startswith("image/"):
@@ -782,19 +879,67 @@ async def upload_imagenes(
             
         ext = os.path.splitext(img.filename or "")[1]
         if not ext: ext = ".jpg"
-        filename = f"{uuid.uuid4()}{ext}"
+        unique_id = uuid.uuid4()
+        filename = f"{unique_id}{ext}"
+        filename_wm = f"wm_{unique_id}{ext}"
         filepath = os.path.join(UPLOAD_DIR, filename)
+        filepath_wm = os.path.join(UPLOAD_DIR, filename_wm)
         
-        # Asegurarse de que el directorio existe (por si acaso)
+        # Asegurarse de que el directorio existe
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         
+        # Guardar imagen original
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(img.file, buffer)
             
+        # Leer contenido para DB
+        img.file.seek(0)
+        imagen_bytes = img.file.read()
+        
+        # Generar marca de agua en memoria
+        imagen_wm_bytes = None
+        if os.path.exists(watermark_path):
+            try:
+                base_img = Image.open(io.BytesIO(imagen_bytes)).convert("RGBA")
+                wm_img = Image.open(watermark_path).convert("RGBA")
+                
+                # Redimensionar marca de agua (ej: 40% del ancho de la imagen para el centro)
+                base_w, base_h = base_img.size
+                wm_w, wm_h = wm_img.size
+                new_wm_w = int(base_w * 0.4)
+                new_wm_h = int(wm_h * (new_wm_w / wm_w))
+                wm_img = wm_img.resize((new_wm_w, new_wm_h), Image.Resampling.LANCZOS)
+                
+                # Hacer semitransparente (50% de opacidad)
+                r, g, b, a = wm_img.split()
+                a = a.point(lambda p: p * 0.5) # Ajustar el factor (0.5 = 50%) según se desee
+                wm_img = Image.merge('RGBA', (r, g, b, a))
+                
+                # Posición (CENTRO)
+                pos = ((base_w - new_wm_w) // 2, (base_h - new_wm_h) // 2)
+                
+                # Combinar
+                transparent = Image.new('RGBA', base_img.size, (0,0,0,0))
+                transparent.paste(base_img, (0,0))
+                transparent.paste(wm_img, pos, mask=wm_img)
+                
+                # Convertir a bytes (JPEG)
+                final_img = transparent.convert("RGB")
+                buffered = io.BytesIO()
+                final_img.save(buffered, format="JPEG", quality=90)
+                imagen_wm_bytes = buffered.getvalue()
+                
+                # También guardar en disco para ruta_archivo (compatibilidad)
+                final_img.save(filepath_wm, "JPEG", quality=90)
+            except Exception as e:
+                logger.error(f"Error al aplicar marca de agua: {e}")
+        
         new_img = ImagenProducto(
             id_producto=id_producto,
             nombre_archivo=img.filename,
             ruta_archivo=f"/static/uploads/imagenes_productos/{filename}",
+            imagen=imagen_bytes,
+            imagen_con_marca=f"/static/uploads/imagenes_productos/{filename_wm}",
             es_principal=False,
             orden=0
         )
@@ -812,8 +957,7 @@ async def delete_imagen(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    res = await session.execute(select(ImagenProducto).where(ImagenProducto.id_imagen == id_imagen))
-    img = res.scalar_one_or_none()
+    img = await session.get(ImagenProducto, id_imagen)
     if not img:
         raise HTTPException(status_code=404, detail="Imagen no encontrada")
         
@@ -826,6 +970,15 @@ async def delete_imagen(
                 os.remove(abs_path)
             except Exception as e:
                 logging.warning(f"No se pudo eliminar el archivo {abs_path}: {e}")
+                
+    if img.imagen_con_marca and isinstance(img.imagen_con_marca, str):
+        filename_wm = os.path.basename(img.imagen_con_marca)
+        abs_path_wm = os.path.join(UPLOAD_DIR, filename_wm)
+        if os.path.exists(abs_path_wm):
+            try:
+                os.remove(abs_path_wm)
+            except Exception as e:
+                logging.warning(f"No se pudo eliminar el archivo con marca {abs_path_wm}: {e}")
             
     await session.delete(img)
     await session.commit()
@@ -837,8 +990,7 @@ async def set_principal(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    res = await session.execute(select(ImagenProducto).where(ImagenProducto.id_imagen == id_imagen))
-    img = res.scalar_one_or_none()
+    img = await session.get(ImagenProducto, id_imagen)
     if not img:
         raise HTTPException(status_code=404, detail="Imagen no encontrada")
         
@@ -851,7 +1003,7 @@ async def set_principal(
     
     img.es_principal = True
     await session.commit()
-    return {"message": "Imagen principal actualizada"}
+    return {"message": "Imagen establecida como principal"}
 
 # ===== PUBLICACIÓN EN REDES SOCIALES =====
 class SocialPostRequest(BaseModel):
@@ -859,6 +1011,7 @@ class SocialPostRequest(BaseModel):
     texto: str
     redes: List[str]
     imagenes: List[int]
+    con_marca_agua: bool = True
 
 @router.get("/vehiculos/{id_producto}/generar-texto-redes")
 async def generar_texto_redes(
@@ -1004,13 +1157,13 @@ RESPONDER ÚNICAMENTE CON EL TEXTO FINAL DE LA PUBLICACIÓN.
             if "/v1" in base_url:
                 url = base_url + "/chat/completions"
                 payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False}
-                r = requests.post(url, json=payload, timeout=120)
+                r = requests.post(url, json=payload, timeout=180) # Aumentado a 180s
                 r.raise_for_status()
                 content = r.json().get("choices", [{}])[0].get("message", {}).get("content", "")
             else:
                 url = base_url + "/api/chat"
                 payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "options": {"temperature": 0.7}}
-                r = requests.post(url, json=payload, timeout=120)
+                r = requests.post(url, json=payload, timeout=180) # Aumentado a 180s
                 r.raise_for_status()
                 content = r.json().get("message", {}).get("content", "")
         else:
@@ -1030,7 +1183,9 @@ RESPONDER ÚNICAMENTE CON EL TEXTO FINAL DE LA PUBLICACIÓN.
         logger.error(f"Error al generar texto con IA ({model}): {e}")
         # Fallback por error con más info
         error_info = ""
-        if "404" in str(e):
+        if "timeout" in str(e).lower():
+            error_info = "\n\n(Nota: La IA tardó demasiado en responder. Verifica que Ollama esté activo y tenga recursos suficientes)"
+        elif "404" in str(e):
             error_info = "\n\n(Nota: El modelo 'llama3.2' no está en tu Ollama. Ejecuta 'ollama pull llama3.2' en tu terminal)"
         elif "Connection" in str(e) or "Max retries" in str(e):
             error_info = "\n\n(Nota: No se pudo conectar con Ollama. Asegúrate de que esté abierto y con OLLAMA_HOST=0.0.0.0)"
@@ -1047,6 +1202,10 @@ async def social_post(
     Endpoint para publicar contenido en redes sociales.
     Aquí se integrarán las APIs de Facebook, Instagram, X, etc.
     """
+    # 0. Reforzar validación de marca de agua solo para el usuario "admin" real
+    if not data.con_marca_agua and current_user.get("sub") != "admin":
+        data.con_marca_agua = True
+
     try:
         # 1. Obtener info del vehículo e imágenes
         res_veh = await session.execute(select(Producto).where(Producto.id_producto == data.id_producto))
@@ -1056,29 +1215,129 @@ async def social_post(
             raise HTTPException(status_code=404, detail="Vehículo no encontrado")
 
         res_img = await session.execute(select(ImagenProducto).where(ImagenProducto.id_imagen.in_(data.imagenes)))
-        imagenes_obj = res_img.scalars().all()
+        imagenes_existentes = res_img.scalars().all()
+        # Respetar el orden de selección enviado desde el frontend
+        id_to_img = {img.id_imagen: img for img in imagenes_existentes}
+        imagenes_obj = [id_to_img[id_img] for id_img in data.imagenes if id_img in id_to_img]
 
-        # 2. Lógica por cada red social (Placeholder)
+        # 2. Lógica de publicación (Async/Parallel)
         results = {}
+        fb_token = os.getenv("FACEBOOK_ACCESS_TOKEN")
+        fb_page_id = os.getenv("FACEBOOK_PAGE_ID")
+        ig_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
+        public_url = os.getenv("PUBLIC_BASE_URL")
         
-        for red in data.redes:
-            if red == 'facebook':
-                # token = os.getenv("FACEBOOK_ACCESS_TOKEN")
-                # Lógica de publicación usando facebook-sdk o request directo a Graph API
-                results['facebook'] = "Simulado: Publicado en Facebook"
-            
-            elif red == 'instagram':
-                # id_ig = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
-                # Lógica de publicación usando Instagram Graph API
-                results['instagram'] = "Simulado: Publicado en Instagram"
-            
-            elif red == 'twitter':
-                # Lógica usando tweepy o API v2 de X
-                results['twitter'] = "Simulado: Publicado en X (Twitter)"
-            
-            elif red == 'whatsapp':
-                # Lógica usando WhatsApp Business API o gateway
-                results['whatsapp'] = "Simulado: Enviado vía WhatsApp"
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            for red in data.redes:
+                if red == 'facebook' and fb_token and fb_page_id != "PONER_ID_AQUI":
+                    try:
+                        base_url = public_url.rstrip("/")
+                        if len(imagenes_obj) > 0 and public_url and "PONER_URL" not in public_url:
+                            if len(imagenes_obj) == 1:
+                                # Caso 1: Imagen única
+                                img = imagenes_obj[0]
+                                filename = os.path.basename(img.ruta_archivo)
+                                ruta_wm = img.ruta_archivo.replace(filename, f"wm_{filename}")
+                                abs_path_wm = os.path.join(UPLOAD_DIR, f"wm_{filename}")
+                                ruta_a_usar = ruta_wm if (data.con_marca_agua and os.path.exists(abs_path_wm)) else img.ruta_archivo
+                                img_url = f"{base_url}/static{ruta_a_usar}" if not ruta_a_usar.startswith("/static") else f"{base_url}{ruta_a_usar}"
+                                
+                                resp = await client.post(
+                                    f"https://graph.facebook.com/v22.0/{fb_page_id}/photos",
+                                    params={"access_token": fb_token},
+                                    data={"url": img_url, "caption": data.texto}
+                                )
+                                fb_res_json = resp.json()
+                            else:
+                                # Caso 2: Múltiples imágenes (PARALELO)
+                                upload_tasks = []
+                                for img in imagenes_obj:
+                                    filename = os.path.basename(img.ruta_archivo)
+                                    ruta_wm = img.ruta_archivo.replace(filename, f"wm_{filename}")
+                                    abs_path_wm = os.path.join(UPLOAD_DIR, f"wm_{filename}")
+                                    ruta_a_usar = ruta_wm if (data.con_marca_agua and os.path.exists(abs_path_wm)) else img.ruta_archivo
+                                    img_url = f"{base_url}/static{ruta_a_usar}" if not ruta_a_usar.startswith("/static") else f"{base_url}{ruta_a_usar}"
+                                    
+                                    upload_tasks.append(client.post(
+                                        f"https://graph.facebook.com/v22.0/{fb_page_id}/photos",
+                                        params={"access_token": fb_token},
+                                        data={"url": img_url, "published": "false"}
+                                    ))
+                                
+                                # Ejecutar todas las subidas en paralelo
+                                upload_responses = await asyncio.gather(*upload_tasks)
+                                media_ids = []
+                                for r in upload_responses:
+                                    r_json = r.json()
+                                    if "id" in r_json:
+                                        media_ids.append({"media_fbid": r_json["id"]})
+                                
+                                # Publicar el post final con todas las fotos
+                                resp = await client.post(
+                                    f"https://graph.facebook.com/v22.0/{fb_page_id}/feed",
+                                    params={"access_token": fb_token},
+                                    data={
+                                        "message": data.texto,
+                                        "attached_media": json.dumps(media_ids)
+                                    }
+                                )
+                                fb_res_json = resp.json()
+                        else:
+                            # Caso 3: Solo texto
+                            resp = await client.post(
+                                f"https://graph.facebook.com/v22.0/{fb_page_id}/feed",
+                                params={"access_token": fb_token},
+                                data={"message": data.texto}
+                            )
+                            fb_res_json = resp.json()
+
+                        if resp.status_code == 200:
+                            results['facebook'] = f"Publicado exitosamente ID: {fb_res_json.get('id')}"
+                        else:
+                            results['facebook'] = f"Error: {fb_res_json.get('error', {}).get('message', 'Desconocido')}"
+                    except Exception as e:
+                        results['facebook'] = f"Error de conexión: {str(e)}"
+
+                elif red == 'instagram' and fb_token and ig_id != "PONER_ID_AQUI":
+                    try:
+                        if not imagenes_obj:
+                            results['instagram'] = "Error: Instagram requiere imagen."
+                            continue
+                        
+                        # Instagram solo permite una imagen en este flujo simplificado
+                        img = imagenes_obj[0]
+                        filename = os.path.basename(img.ruta_archivo)
+                        ruta_wm = img.ruta_archivo.replace(filename, f"wm_{filename}")
+                        abs_path_wm = os.path.join(UPLOAD_DIR, f"wm_{filename}")
+                        ruta_a_usar = ruta_wm if (data.con_marca_agua and os.path.exists(abs_path_wm)) else img.ruta_archivo
+                        img_url = f"{public_url}{ruta_a_usar}"
+                        
+                        # 1. Crear contenedor
+                        resp = await client.post(f"https://graph.facebook.com/v19.0/{ig_id}/media", data={
+                            "image_url": img_url,
+                            "caption": data.texto,
+                            "access_token": fb_token
+                        })
+                        if resp.status_code == 200:
+                            creation_id = resp.json().get('id')
+                            # 2. Publicar
+                            resp_pub = await client.post(f"https://graph.facebook.com/v19.0/{ig_id}/media_publish", data={
+                                "creation_id": creation_id,
+                                "access_token": fb_token
+                            })
+                            if resp_pub.status_code == 200:
+                                results['instagram'] = f"Publicado exitosamente ID: {resp_pub.json().get('id')}"
+                            else:
+                                results['instagram'] = f"Error al publicar: {resp_pub.text}"
+                        else:
+                            results['instagram'] = f"Error al crear contenedor: {resp.text}"
+                    except Exception as e:
+                        results['instagram'] = f"Error: {str(e)}"
+
+                elif red == 'twitter':
+                    results['twitter'] = "Simulado: Twitter"
+                elif red == 'whatsapp':
+                    results['whatsapp'] = "Simulado: WhatsApp"
 
         # 3. Registrar en auditoría
         await log_audit_action(
@@ -1088,19 +1347,15 @@ async def social_post(
             action="social_publish",
             table="productos",
             record_id=vehiculo.id_producto,
-            new_data={"redes": data.redes, "texto": data.texto},
-            details=f"Publicación en redes ({', '.join(data.redes)}) para vehículo {vehiculo.marca} {vehiculo.modelo}"
+            new_data={"redes": data.redes, "texto": data.texto, "con_marca_agua": data.con_marca_agua},
+            details=f"Publicación en redes para {vehiculo.marca} {vehiculo.modelo}"
         )
 
-        return {
-            "status": "success",
-            "message": "Proceso de publicación completado",
-            "details": results
-        }
+        return {"status": "success", "message": "Proceso completado", "details": results}
 
     except Exception as e:
-        logging.exception("Error en social_post") # Changed logger.exception to logging.exception
-        raise HTTPException(status_code=500, detail=f"Error al publicar: {str(e)}")
+        logger.exception(f"Error crítico en social_post: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
 # ===== CLIENTES =====
@@ -1601,6 +1856,8 @@ async def create_venta(
     # 2. Crear la venta
     venta_dict = venta_data.dict()
     detalles_data = venta_dict.pop('detalles', [])
+    id_cuenta_pago = venta_dict.pop('id_cuenta', None)
+    pagos_cuentas_items = venta_dict.pop('pagos_cuentas', []) # Extraer antes de crear Venta
     new_venta = Venta(**venta_dict)
     session.add(new_venta)
     await session.flush() # Para obtener el ID de la venta
@@ -1621,7 +1878,7 @@ async def create_venta(
     all_states = {s.nombre: s.id_estado for s in res_st.scalars().all()}
     id_pendiente = all_states.get('PENDIENTE')
 
-    # 4.1 Pagaré de Entrega Inicial (Aplica para Contado y Financiado si hay entrega)
+        # 4.1 Pagaré de Entrega Inicial (Aplica para Contado y Financiado si hay entrega)
     if (new_venta.entrega_inicial or 0) > 0:
         id_pagado = all_states.get('PAGADO')
         pagare_ei = Pagare(
@@ -1630,7 +1887,7 @@ async def create_venta(
             numero_cuota=0,
             monto_cuota=new_venta.entrega_inicial,
             fecha_vencimiento=hoy,
-            tipo_pagare='ENTREGA_INICIAL',
+            tipo_pagare='ENTREGA_CONTADO' if new_venta.tipo_venta == 'CONTADO' else 'ENTREGA_INICIAL',
             id_estado=id_pagado,  # Se registra directamente como PAGADO
             saldo_pendiente=0,     # Saldo cero al estar pagado
             cancelado=True
@@ -1638,20 +1895,72 @@ async def create_venta(
         session.add(pagare_ei)
         await session.flush()  # Para obtener el id_pagare
 
-        # Crear el pago automático de la entrega inicial
-        pago_ei = Pago(
-            id_pagare=pagare_ei.id_pagare,
-            id_venta=new_venta.id_venta,
-            numero_recibo=f"REC-EI-{new_venta.numero_venta}",
-            fecha_pago=hoy,
-            monto_pagado=new_venta.entrega_inicial,
-            forma_pago='EFECTIVO',
-            dias_atraso=0,
-            mora_aplicada=0,
-            descuento_aplicado=0,
-            observaciones='Pago de entrega inicial registrado automáticamente al crear la venta'
-        )
-        session.add(pago_ei)
+        # 4.1.1 Determinar pagos a realizar
+        pagos_a_procesar = []
+        pagos_cuentas_data = pagos_cuentas_items
+        
+        if pagos_cuentas_data:
+            for p_dict in pagos_cuentas_data:
+                # p_dict es una instancia de PagoDistribucion (o dict si viene de model_dump)
+                # Si viene de dict() del modelo, puede ser un dict
+                monto_val = p_dict.get('monto') if isinstance(p_dict, dict) else getattr(p_dict, 'monto')
+                id_cta_val = p_dict.get('id_cuenta') if isinstance(p_dict, dict) else getattr(p_dict, 'id_cuenta')
+                forma_val = p_dict.get('forma_pago', 'EFECTIVO') if isinstance(p_dict, dict) else getattr(p_dict, 'forma_pago', 'EFECTIVO')
+                ref_val = p_dict.get('numero_referencia') if isinstance(p_dict, dict) else getattr(p_dict, 'numero_referencia', None)
+                
+                pagos_a_procesar.append({
+                    "id_cuenta": id_cta_val,
+                    "monto": monto_val,
+                    "forma_pago": forma_val,
+                    "referencia": ref_val
+                })
+        elif id_cuenta_pago:
+            pagos_a_procesar.append({
+                "id_cuenta": id_cuenta_pago,
+                "monto": new_venta.entrega_inicial,
+                "forma_pago": 'EFECTIVO',
+                "referencia": None
+            })
+
+        # 4.1.2 Procesar cada pago
+        for i, pago_data in enumerate(pagos_a_procesar):
+            monto_pago = Decimal(str(pago_data["monto"]))
+            id_cta = pago_data["id_cuenta"]
+            
+            pago_ei = Pago(
+                id_pagare=pagare_ei.id_pagare,
+                id_venta=new_venta.id_venta,
+                id_cuenta=id_cta,
+                numero_recibo=f"REC-EI-{new_venta.numero_venta}-{i+1}" if len(pagos_a_procesar) > 1 else f"REC-EI-{new_venta.numero_venta}",
+                fecha_pago=hoy,
+                monto_pagado=monto_pago,
+                forma_pago=pago_data["forma_pago"],
+                numero_referencia=pago_data["referencia"],
+                dias_atraso=0,
+                mora_aplicada=0,
+                descuento_aplicado=0,
+                observaciones='Pago (distribuido) registrado automáticamente al crear la venta'
+            )
+            session.add(pago_ei)
+
+            # Impacto en cuenta si se especificó
+            if id_cta:
+                res_c = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == id_cta))
+                cuenta = res_c.scalar_one_or_none()
+                if cuenta:
+                    if cuenta.saldo_actual is None: cuenta.saldo_actual = 0
+                    cuenta.saldo_actual += monto_pago
+                    
+                    # Registrar movimiento
+                    movimiento = Movimiento(
+                        id_cuenta_destino=id_cta,
+                        monto=monto_pago,
+                        fecha=datetime.now(),
+                        concepto=f"Ingreso por {'Venta al Contado' if new_venta.tipo_venta == 'CONTADO' else 'Entrega Inicial'} - Venta {new_venta.numero_venta}",
+                        id_usuario=current_user.get("user_id"),
+                        referencia=f"PAGO-{pago_ei.numero_recibo}"
+                    )
+                    session.add(movimiento)
 
     # 4.2 Pagarés de Financiación
     if venta_data.tipo_venta == 'FINANCIADO':
@@ -1905,7 +2214,7 @@ async def finiquitar_venta(
     for pagare in (venta.pagares or []):
         # El pagaré de ENTREGA_INICIAL siempre tiene cancelado=True; también lo incluimos
         tiene_pagos = bool(pagare.pagos)
-        if tiene_pagos or pagare.tipo_pagare == 'ENTREGA_INICIAL':
+        if tiene_pagos or pagare.tipo_pagare in ['ENTREGA_INICIAL', 'ENTREGA_CONTADO']:
             pagares_con_pago.append(pagare)
         else:
             pagares_sin_pago.append(pagare)
@@ -2112,7 +2421,7 @@ async def update_venta(
                 numero_cuota=0,
                 monto_cuota=venta.entrega_inicial,
                 fecha_vencimiento=base_date,
-                tipo_pagare='ENTREGA_INICIAL',
+                tipo_pagare='ENTREGA_CONTADO' if venta.tipo_venta == 'CONTADO' else 'ENTREGA_INICIAL',
                 id_estado=id_pendiente,
                 saldo_pendiente=venta.entrega_inicial
             ))
@@ -2234,7 +2543,7 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
     data = []
     for p, v, c, prod, est in pagares_list: # Unpack est (Estado)
         # Para ENTREGA_INICIAL mostrar 0/0, para el resto el total de cuotas del tipo CUOTA
-        if p.tipo_pagare == 'ENTREGA_INICIAL':
+        if p.tipo_pagare in ['ENTREGA_INICIAL', 'ENTREGA_CONTADO']:
             total_cuotas = 0
         else:
             total_cuotas = ventas_cuotas.get(v.id_venta, 0)
@@ -2527,8 +2836,19 @@ async def create_pago(
         if cuenta:
             if cuenta.saldo_actual is None: cuenta.saldo_actual = 0
             # IMPORTANTE: El ingreso total a la cuenta incluye el capital y el interés (mora)
-            total_ingreso = Decimal(str(pago_data.monto_pagado)) + mora_calculada
+            total_ingreso = Decimal(str(pago_data.monto_pagado)) + (mora_calculada or 0)
             cuenta.saldo_actual += total_ingreso
+
+            # Registrar movimiento de cuenta
+            movimiento = Movimiento(
+                id_cuenta_destino=id_cuenta,
+                monto=total_ingreso,
+                fecha=datetime.now(),
+                concepto=f"Cobro de {pagare.tipo_pagare} {pagare.numero_pagare} - Venta {venta.numero_venta}",
+                id_usuario=current_user.get("user_id"),
+                referencia=f"PAGO-{new_pago.numero_recibo}"
+            )
+            session.add(movimiento)
 
     # 4. Actualizar estado del pagaré (SOPORTE PAGOS PARCIALES)
     # NOTA: El trigger de base de datos fue eliminado. Esta es la lógica oficial.
@@ -2731,6 +3051,11 @@ async def delete_pago(
         if cuenta:
             total_a_revertir = monto_a_revertir + (pago.mora_aplicada or 0)
             cuenta.saldo_actual -= total_a_revertir
+
+            # Eliminar movimiento asociado
+            await session.execute(
+                delete(Movimiento).where(Movimiento.referencia == f"PAGO-{pago.numero_recibo}")
+            )
 
     # 4. Revertir saldo del pagaré
     if pagare.saldo_pendiente is None:
@@ -3209,10 +3534,18 @@ async def delete_tipo_gasto_empresa(
     return {"message": "Concepto eliminado correctamente"}
 
 @router.get("/gastos-empresa", response_model=List[GastoEmpresaResponse])
-async def list_gastos_empresa(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(GastoEmpresa).options(joinedload(GastoEmpresa.tipo_gasto)).order_by(GastoEmpresa.fecha_gasto.desc())
-    )
+async def list_gastos_empresa(
+    desde: Optional[date] = None,
+    hasta: Optional[date] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(GastoEmpresa).options(joinedload(GastoEmpresa.tipo_gasto)).order_by(GastoEmpresa.fecha_gasto.desc())
+    if desde:
+        query = query.where(GastoEmpresa.fecha_gasto >= desde)
+    if hasta:
+        query = query.where(GastoEmpresa.fecha_gasto <= hasta)
+        
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.post("/gastos-empresa", response_model=GastoEmpresaResponse)
@@ -3435,6 +3768,9 @@ async def create_gasto_adicional(
         id_usuario=current_user.get("user_id")
     )
     session.add(new_mov)
+    await session.flush() # Para obtener id_movimiento
+    
+    new_item.id_movimiento = new_mov.id_movimiento
     
     await session.commit()
     await session.refresh(new_item)
@@ -3500,9 +3836,35 @@ async def update_gasto_adicional(
     cuenta_new = res_c_new.scalar_one_or_none()
     if cuenta_new:
         if data.tipo == 'INGRESO':
-            cuenta_new.saldo_actual += data.monto
+            cuenta_new.saldo_actual += Decimal(str(data.monto))
         else:
-            cuenta_new.saldo_actual -= data.monto
+            cuenta_new.saldo_actual -= Decimal(str(data.monto))
+
+    # Actualizar Movimiento asociado
+    if item.id_movimiento:
+        res_m = await session.execute(select(Movimiento).where(Movimiento.id_movimiento == item.id_movimiento))
+        mov = res_m.scalar_one_or_none()
+        if mov:
+            mov.id_cuenta_destino = data.id_cuenta if data.tipo == 'INGRESO' else None
+            mov.id_cuenta_origen = data.id_cuenta if data.tipo == 'EGRESO' else None
+            mov.monto = Decimal(str(data.monto))
+            mov.fecha = datetime.combine(data.fecha, datetime.min.time())
+            mov.concepto = f"Registro Vario ({data.tipo}): {data.concepto}"
+            mov.id_usuario = current_user.get("user_id")
+    else:
+        # Por si no tenía movimiento previo (datos antiguos)
+        new_mov = Movimiento(
+            id_cuenta_destino=data.id_cuenta if data.tipo == 'INGRESO' else None,
+            id_cuenta_origen=data.id_cuenta if data.tipo == 'EGRESO' else None,
+            monto=Decimal(str(data.monto)),
+            fecha=datetime.combine(data.fecha, datetime.min.time()),
+            concepto=f"Registro Vario ({data.tipo}): {data.concepto}",
+            referencia=f"Gasto Adicional",
+            id_usuario=current_user.get("user_id")
+        )
+        session.add(new_mov)
+        await session.flush()
+        item.id_movimiento = new_mov.id_movimiento
 
     await session.commit()
     await session.refresh(item)
@@ -3546,6 +3908,13 @@ async def delete_gasto_adicional(
             cuenta.saldo_actual = (cuenta.saldo_actual or 0) - monto
         else:
             cuenta.saldo_actual = (cuenta.saldo_actual or 0) + monto
+            
+    # Eliminar Movimiento asociado
+    if item.id_movimiento:
+        res_m = await session.execute(select(Movimiento).where(Movimiento.id_movimiento == item.id_movimiento))
+        mov = res_m.scalar_one_or_none()
+        if mov:
+            await session.delete(mov)
             
     await session.delete(item)
     await session.commit()
@@ -4229,6 +4598,99 @@ async def create_movimiento(
         .where(Movimiento.id_movimiento == new_mov.id_movimiento)
     )
     return result.scalar_one()
+
+@router.put("/movimientos/{id_movimiento}")
+async def update_movimiento(
+    id_movimiento: int,
+    data: MovimientoCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    # 1. Obtener movimiento actual
+    res = await session.execute(
+        select(Movimiento).where(Movimiento.id_movimiento == id_movimiento)
+    )
+    movimiento = res.scalar_one_or_none()
+    if not movimiento:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+        
+    # 2. Revertir saldos anteriores
+    if movimiento.id_cuenta_origen:
+        res_o = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == movimiento.id_cuenta_origen))
+        origen = res_o.scalar_one_or_none()
+        if origen:
+            if origen.saldo_actual is None: origen.saldo_actual = 0
+            origen.saldo_actual += movimiento.monto
+            
+    if movimiento.id_cuenta_destino:
+        res_d = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == movimiento.id_cuenta_destino))
+        destino = res_d.scalar_one_or_none()
+        if destino:
+            if destino.saldo_actual is None: destino.saldo_actual = 0
+            destino.saldo_actual -= movimiento.monto
+            
+    # 3. Aplicar nuevos saldos
+    if data.id_cuenta_origen:
+        res_o = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta_origen))
+        origen_new = res_o.scalar_one_or_none()
+        if not origen_new:
+            raise HTTPException(status_code=404, detail="Nueva cuenta origen no encontrada")
+        if origen_new.saldo_actual is None: origen_new.saldo_actual = 0
+        origen_new.saldo_actual -= data.monto
+        
+    if data.id_cuenta_destino:
+        res_d = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta_destino))
+        destino_new = res_d.scalar_one_or_none()
+        if not destino_new:
+            raise HTTPException(status_code=404, detail="Nueva cuenta destino no encontrada")
+        if destino_new.saldo_actual is None: destino_new.saldo_actual = 0
+        destino_new.saldo_actual += data.monto
+        
+    # 4. Actualizar datos del movimiento
+    update_data = data.model_dump()
+    for key, value in update_data.items():
+        setattr(movimiento, key, value)
+    
+    if not data.fecha:
+        movimiento.fecha = datetime.now()
+        
+    await session.commit()
+    return {"message": "Movimiento actualizado correctamente"}
+
+@router.delete("/movimientos/{id_movimiento}")
+async def delete_movimiento(
+    id_movimiento: int,
+    session: AsyncSession = Depends(get_session)
+):
+    # Buscar el movimiento
+    res = await session.execute(
+        select(Movimiento).where(Movimiento.id_movimiento == id_movimiento)
+    )
+    movimiento = res.scalar_one_or_none()
+    if not movimiento:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+    
+    # Revertir saldos de las cuentas involucradas
+    if movimiento.id_cuenta_origen:
+        res_o = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == movimiento.id_cuenta_origen))
+        origen = res_o.scalar_one_or_none()
+        if origen:
+            if origen.saldo_actual is None: 
+                origen.saldo_actual = 0
+            # Si el dinero salió de aquí, al borrarlo, tiene que volver (suma)
+            origen.saldo_actual += movimiento.monto
+            
+    if movimiento.id_cuenta_destino:
+        res_d = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == movimiento.id_cuenta_destino))
+        destino = res_d.scalar_one_or_none()
+        if destino:
+            if destino.saldo_actual is None: 
+                destino.saldo_actual = 0
+            # Si el dinero llegó aquí, al borrarlo, tiene que irse (resta)
+            destino.saldo_actual -= movimiento.monto
+            
+    await session.delete(movimiento)
+    await session.commit()
+    return {"message": "Movimiento eliminado correctamente"}
 
 
 # ===== DOCUMENTOS DE IMPORTACIÓN =====

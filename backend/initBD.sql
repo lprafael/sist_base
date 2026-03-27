@@ -99,34 +99,25 @@ CREATE TABLE IF NOT EXISTS categorias_vehiculos (
 -- ============================================
 -- TABLA: PRODUCTOS (VEHÍCULOS)
 -- ============================================
-CREATE TABLE IF NOT EXISTS productos (
-    id_producto SERIAL PRIMARY KEY,
-    id_categoria INTEGER REFERENCES categorias_vehiculos(id_categoria),
-    codigo_interno VARCHAR(50) UNIQUE,
-    tipo_vehiculo VARCHAR(50), -- Auto, Camioneta, Moto, etc
-    marca VARCHAR(100) NOT NULL,
-    modelo VARCHAR(100) NOT NULL,
-    año INTEGER,
-    color VARCHAR(50),
-    chasis VARCHAR(100) UNIQUE,
-    motor VARCHAR(100),
-    kilometraje INTEGER,
-    combustible VARCHAR(50), -- Nafta, Diesel, Eléctrico, Híbrido
-    transmision VARCHAR(50), -- Manual, Automática
-    numero_puertas INTEGER,
-    capacidad_pasajeros INTEGER,
-    estado VARCHAR(50), -- Nuevo, Usado, Seminuevo
-    procedencia VARCHAR(100), -- Nacional, Importado
-    ubicacion_actual VARCHAR(200),
-    costo_base DECIMAL(15,2) NOT NULL,
-    precio_contado_sugerido DECIMAL(15,2),
-    precio_financiado_sugerido DECIMAL(15,2),
-    precio_venta_minimo DECIMAL(15,2),
-    estado_disponibilidad VARCHAR(50) DEFAULT 'DISPONIBLE', -- DISPONIBLE, RESERVADO, VENDIDO, EN_REPARACION
-    observaciones TEXT,
-    fecha_ingreso DATE DEFAULT CURRENT_DATE,
-    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     activo BOOLEAN DEFAULT TRUE
+);
+
+-- ============================================
+-- TABLA: HISTORIAL DE PROPIETARIOS
+-- ============================================
+CREATE TABLE IF NOT EXISTS historial_propietarios (
+    id_historial SERIAL PRIMARY KEY,
+    id_producto INTEGER REFERENCES productos(id_producto),
+    nombre_propietario VARCHAR(200) NOT NULL,
+    documento VARCHAR(50), -- Cédula / RUC
+    matricula VARCHAR(20), -- Chapa
+    tipo_documentacion VARCHAR(100), -- Contrato, Título, Cesión, etc.
+    documentacion_detalle TEXT,
+    observaciones TEXT,
+    fecha_adquisicion DATE,
+    fecha_venta DATE,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================

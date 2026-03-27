@@ -8,6 +8,7 @@ const GastosEmpresa = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [showTypesModal, setShowTypesModal] = useState(false);
+    const [cuentas, setCuentas] = useState([]);
 
     const [newGasto, setNewGasto] = useState({
         id_tipo_gasto_empresa: '',
@@ -15,7 +16,8 @@ const GastosEmpresa = () => {
         monto: '',
         fecha_gasto: new Date().toISOString().split('T')[0],
         proveedor: '',
-        numero_factura: ''
+        numero_factura: '',
+        id_cuenta: ''
     });
 
     const [editingGasto, setEditingGasto] = useState(null);
@@ -28,22 +30,33 @@ const GastosEmpresa = () => {
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
+    const firstDayOfMonth = () => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    };
+
+    const [dateFrom, setDateFrom] = useState(firstDayOfMonth());
+    const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [dateFrom, dateTo]);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const token = sessionStorage.getItem('token');
-            const [gRes, tRes] = await Promise.all([
-                axios.get(`${API_URL}/playa/gastos-empresa`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/playa/tipos-gastos-empresa`, { headers: { Authorization: `Bearer ${token}` } })
+            const [gRes, tRes, cRes] = await Promise.all([
+                axios.get(`${API_URL}/playa/gastos-empresa?desde=${dateFrom}&hasta=${dateTo}`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/tipos-gastos-empresa`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/cuentas`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
             setGastos(gRes.data);
             setTipos(tRes.data);
-            setLoading(false);
+            setCuentas(cRes.data);
         } catch (error) {
             console.error('Error fetching data:', error);
+        } finally {
             setLoading(false);
         }
     };
@@ -52,12 +65,15 @@ const GastosEmpresa = () => {
         e.preventDefault();
         try {
             const token = sessionStorage.getItem('token');
+            const payload = { ...newGasto };
+            // if (payload.id_cuenta === '') payload.id_cuenta = null; // Eliminado por pedido del usuario: siempre debe afectar a una cuenta
+
             if (editingGasto) {
-                await axios.put(`${API_URL}/playa/gastos-empresa/${editingGasto.id_gasto_empresa}`, newGasto, {
+                await axios.put(`${API_URL}/playa/gastos-empresa/${editingGasto.id_gasto_empresa}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             } else {
-                await axios.post(`${API_URL}/playa/gastos-empresa`, newGasto, {
+                await axios.post(`${API_URL}/playa/gastos-empresa`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             }
@@ -70,7 +86,8 @@ const GastosEmpresa = () => {
                 monto: '',
                 fecha_gasto: new Date().toISOString().split('T')[0],
                 proveedor: '',
-                numero_factura: ''
+                numero_factura: '',
+                id_cuenta: ''
             });
         } catch (error) {
             alert('Error: ' + (error.response?.data?.detail || error.message));
@@ -85,7 +102,8 @@ const GastosEmpresa = () => {
             monto: gasto.monto,
             fecha_gasto: gasto.fecha_gasto,
             proveedor: gasto.proveedor || '',
-            numero_factura: gasto.numero_factura || ''
+            numero_factura: gasto.numero_factura || '',
+            id_cuenta: gasto.id_cuenta || ''
         });
         setShowModal(true);
     };
@@ -112,7 +130,8 @@ const GastosEmpresa = () => {
             monto: '',
             fecha_gasto: new Date().toISOString().split('T')[0],
             proveedor: '',
-            numero_factura: ''
+            numero_factura: '',
+            id_cuenta: ''
         });
     };
 
@@ -147,8 +166,18 @@ const GastosEmpresa = () => {
             </div>
 
             <div className="summary-banner">
+                <div className="date-filters">
+                    <div className="filter-group">
+                        <label>Desde:</label>
+                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                    </div>
+                    <div className="filter-group">
+                        <label>Hasta:</label>
+                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                    </div>
+                </div>
                 <div className="summary-item">
-                    <span>Total Egresos Operativos</span>
+                    <span>Total Egresos en el periodo</span>
                     <h3>Gs. {Math.round(totalAcumulado).toLocaleString('es-PY')}</h3>
                 </div>
             </div>
@@ -202,40 +231,60 @@ const GastosEmpresa = () => {
                     <div className="modal-content">
                         <h3>{editingGasto ? 'Editar Gasto Administrativo' : 'Registrar Nuevo Gasto Administrativo'}</h3>
                         <form onSubmit={handleSaveGasto}>
-                            <div className="form-group">
-                                <label>Concepto de Gasto</label>
-                                <select
-                                    required
-                                    value={newGasto.id_tipo_gasto_empresa}
-                                    onChange={(e) => setNewGasto({ ...newGasto, id_tipo_gasto_empresa: e.target.value })}
-                                >
-                                    <option value="">Seleccione concepto...</option>
-                                    {tipos.map(t => <option key={t.id_tipo_gasto_empresa} value={t.id_tipo_gasto_empresa}>{t.nombre}</option>)}
-                                </select>
-                            </div>
-                            <div className="form-row">
+                            <div className="modal-body">
                                 <div className="form-group">
-                                    <label>Monto (Gs.)</label>
-                                    <input type="number" required value={newGasto.monto} onChange={(e) => setNewGasto({ ...newGasto, monto: e.target.value })} />
+                                    <label>Concepto de Gasto</label>
+                                    <select
+                                        required
+                                        value={newGasto.id_tipo_gasto_empresa}
+                                        onChange={(e) => setNewGasto({ ...newGasto, id_tipo_gasto_empresa: e.target.value })}
+                                    >
+                                        <option value="">Seleccione concepto...</option>
+                                        {tipos.map(t => <option key={t.id_tipo_gasto_empresa} value={t.id_tipo_gasto_empresa}>{t.nombre}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Monto (Gs.)</label>
+                                        <input type="number" required value={newGasto.monto} onChange={(e) => setNewGasto({ ...newGasto, monto: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Fecha</label>
+                                        <input type="date" required value={newGasto.fecha_gasto} onChange={(e) => setNewGasto({ ...newGasto, fecha_gasto: e.target.value })} />
+                                    </div>
                                 </div>
                                 <div className="form-group">
-                                    <label>Fecha</label>
-                                    <input type="date" required value={newGasto.fecha_gasto} onChange={(e) => setNewGasto({ ...newGasto, fecha_gasto: e.target.value })} />
+                                    <label>Descripción / Observación</label>
+                                    <input type="text" value={newGasto.descripcion} onChange={(e) => setNewGasto({ ...newGasto, descripcion: e.target.value })} placeholder="Ej: Pago mes de Febrero" />
                                 </div>
-                            </div>
-                            <div className="form-group">
-                                <label>Descripción / Observación</label>
-                                <input type="text" value={newGasto.descripcion} onChange={(e) => setNewGasto({ ...newGasto, descripcion: e.target.value })} placeholder="Ej: Pago mes de Febrero" />
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Proveedor / Beneficiario</label>
-                                    <input type="text" value={newGasto.proveedor} onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })} />
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Proveedor / Beneficiario</label>
+                                        <input type="text" value={newGasto.proveedor} onChange={(e) => setNewGasto({ ...newGasto, proveedor: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>N° Comprobante</label>
+                                        <input type="text" value={newGasto.numero_factura} onChange={(e) => setNewGasto({ ...newGasto, numero_factura: e.target.value })} />
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>N° Comprobante</label>
-                                    <input type="text" value={newGasto.numero_factura} onChange={(e) => setNewGasto({ ...newGasto, numero_factura: e.target.value })} />
-                                </div>
+                                {!editingGasto && (
+                                    <div className="form-group">
+                                        <label>Pagar con Cuenta</label>
+                                        <select
+                                            value={newGasto.id_cuenta}
+                                            onChange={(e) => setNewGasto({ ...newGasto, id_cuenta: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Seleccione una cuenta...</option>
+                                            {cuentas.map(c => (
+                                                <option key={c.id_cuenta} value={c.id_cuenta}>
+                                                    {c.nombre} (Saldo: Gs. {Math.round(c.saldo_actual).toLocaleString('es-PY')})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="form-help">Se descontará el monto y aparecerá en el movimiento de cuenta seleccionado.</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={handleCloseModal}>Cancelar</button>
@@ -252,13 +301,15 @@ const GastosEmpresa = () => {
                     <div className="modal-content">
                         <h3>Configurar Conceptos Operativos</h3>
                         <form onSubmit={handleSaveType}>
-                            <div className="form-group">
-                                <label>Nombre del Concepto</label>
-                                <input type="text" required value={newType.nombre} onChange={(e) => setNewType({ ...newType, nombre: e.target.value })} placeholder="Ej: Alquiler Local" />
-                            </div>
-                            <div className="form-group">
-                                <label>Descripción Corta</label>
-                                <input type="text" value={newType.descripcion} onChange={(e) => setNewType({ ...newType, descripcion: e.target.value })} />
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Nombre del Concepto</label>
+                                    <input type="text" required value={newType.nombre} onChange={(e) => setNewType({ ...newType, nombre: e.target.value })} placeholder="Ej: Alquiler Local" />
+                                </div>
+                                <div className="form-group">
+                                    <label>Descripción Corta</label>
+                                    <input type="text" value={newType.descripcion} onChange={(e) => setNewType({ ...newType, descripcion: e.target.value })} />
+                                </div>
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={() => setShowTypesModal(false)}>Cerrar</button>

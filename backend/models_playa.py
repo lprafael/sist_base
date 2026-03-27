@@ -1,8 +1,8 @@
 # models_playa.py
 # Modelos de base de datos para el sistema de Playa de Vehículos
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, DECIMAL, LargeBinary
-from sqlalchemy.orm import relationship, foreign # Added foreign
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Date, Numeric, LargeBinary, DECIMAL
+from sqlalchemy.orm import relationship, foreign, deferred # Added deferred
 from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Optional
@@ -46,8 +46,8 @@ class DocumentoImportacion(Base):
     fecha_despacho = Column(Date)
     cantidad_vehiculos = Column(Integer)
     monto_pagado = Column(DECIMAL(15, 2))
-    pdf_despacho = Column(LargeBinary)
-    pdf_certificados = Column(LargeBinary)
+    pdf_despacho = deferred(Column(LargeBinary))
+    pdf_certificados = deferred(Column(LargeBinary))
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
 
@@ -96,6 +96,7 @@ class Producto(Base):
     imagenes = relationship("ImagenProducto", back_populates="producto")
     ventas = relationship("Venta", back_populates="producto")
     documento_importacion = relationship("DocumentoImportacion", back_populates="productos", foreign_keys=[nro_despacho])
+    historial_propietarios = relationship("HistorialPropietario", back_populates="producto")
 
     @property
     def cliente_nombre(self) -> Optional[str]:
@@ -113,6 +114,26 @@ class Producto(Base):
             if venta_activa and venta_activa.cliente:
                 return venta_activa.cliente.numero_documento
         return None
+        
+class HistorialPropietario(Base):
+    __tablename__ = "historial_propietarios"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_historial = Column(Integer, primary_key=True, index=True)
+    id_producto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.productos.id_producto'))
+    nombre_propietario = Column(String(200), nullable=False)
+    documento = Column(String(50)) # Cédula / RUC
+    matricula = Column(String(20)) # Matrícula / Chapa
+    tipo_documentacion = Column(String(100)) # Contrato, Título, Cesión, etc.
+    documentacion_detalle = Column(Text) # Información relevante o detalle de la documentación
+    observaciones = Column(Text)
+    fecha_adquisicion = Column(Date)
+    fecha_venta = Column(Date)
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    producto = relationship("Producto", back_populates="historial_propietarios")
 
 class Cliente(Base):
     __tablename__ = "clientes"
@@ -249,12 +270,14 @@ class GastoProducto(Base):
     fecha_gasto = Column(Date, nullable=False)
     proveedor = Column(String(200))
     numero_factura = Column(String(100))
+    id_cuenta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'), nullable=True)
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
     
     # Relaciones
     producto = relationship("Producto", back_populates="gastos")
     tipo_gasto = relationship("TipoGastoProducto", back_populates="gastos")
+    cuenta_rel = relationship("Cuenta")
 
 class TipoGastoEmpresa(Base):
     __tablename__ = "tipos_gastos_empresa"
@@ -281,11 +304,13 @@ class GastoEmpresa(Base):
     periodo = Column(String(50))
     proveedor = Column(String(200))
     numero_factura = Column(String(100))
+    id_cuenta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'), nullable=True)
     observaciones = Column(Text)
     fecha_registro = Column(DateTime, default=func.now())
     
     # Relaciones
     tipo_gasto = relationship("TipoGastoEmpresa", back_populates="gastos")
+    cuenta_rel = relationship("Cuenta")
 
 class Escribania(Base):
     __tablename__ = "escribanias"
@@ -508,6 +533,8 @@ class ImagenProducto(Base):
     id_producto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.productos.id_producto'))
     nombre_archivo = Column(String(200))
     ruta_archivo = Column(String(500))
+    imagen = deferred(Column(LargeBinary))
+    imagen_con_marca = Column(String(500))
     es_principal = Column(Boolean, default=False)
     orden = Column(Integer, default=0)
     fecha_registro = Column(DateTime, default=func.now())
@@ -562,3 +589,20 @@ class Movimiento(Base):
     # Relaciones
     cuenta_origen = relationship("Cuenta", foreign_keys=[id_cuenta_origen], back_populates="movimientos_origen")
     cuenta_destino = relationship("Cuenta", foreign_keys=[id_cuenta_destino], back_populates="movimientos_destino")
+
+class GastoAdicional(Base):
+    __tablename__ = "gastos_adicionales"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+    
+    id_gasto_adicional = Column(Integer, primary_key=True, index=True)
+    tipo = Column(String(20), nullable=False) # INGRESO, EGRESO
+    monto = Column(DECIMAL(15, 2), nullable=False)
+    fecha = Column(Date, nullable=False)
+    concepto = Column(String(200), nullable=False)
+    id_cuenta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'), nullable=False)
+    id_movimiento = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.movimientos.id_movimiento'), nullable=True)
+    observaciones = Column(Text)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    cuenta_rel = relationship("Cuenta")

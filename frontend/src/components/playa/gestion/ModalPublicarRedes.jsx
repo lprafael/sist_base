@@ -11,11 +11,6 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
-    React.useEffect(() => {
-        if (isOpen && vehiculoInfo && !postText) {
-            generateAIText();
-        }
-    }, [isOpen, vehiculoInfo]);
 
     const generateAIText = async () => {
         setIsGeneratingText(true);
@@ -74,23 +69,36 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
         setIsPublishing(true);
         try {
             const token = sessionStorage.getItem('token');
+            const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
+            const con_marca_agua = userData.username !== 'admin';
+
             const data = {
                 id_producto: vehiculoInfo.id_producto,
                 texto: postText,
                 redes: selectedNetworks,
-                imagenes: selectedImages
+                imagenes: selectedImages,
+                con_marca_agua: con_marca_agua
             };
 
             // Llamada al backend
-            await axios.post(`${API_URL}/playa/social-post`, data, {
+            const response = await axios.post(`${API_URL}/playa/social-post`, data, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            alert('¡Publicación enviada exitosamente!');
-            onClose();
+            const details = response.data.details || {};
+            let feedback = 'Proceso completado:\n';
+            Object.keys(details).forEach(red => {
+                feedback += `- ${red.toUpperCase()}: ${details[red]}\n`;
+            });
+
+            alert(feedback);
+            if (response.data.status === "success") {
+                onClose();
+            }
         } catch (error) {
             console.error('Error al publicar:', error);
-            alert('Hubo un error al intentar publicar. Verifica la configuración en el backend.');
+            const detailMsg = error.response?.data?.detail || 'Error desconocido';
+            alert(`Hubo un error al intentar publicar: ${detailMsg}`);
         } finally {
             setIsPublishing(false);
         }
@@ -126,9 +134,10 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
                                 className="btn-regenerate"
                                 onClick={generateAIText}
                                 disabled={isGeneratingText}
-                                title="Regenerar con IA"
+                                title="Generar con IA"
+                                style={{ width: 'auto', padding: '0 15px' }}
                             >
-                                {isGeneratingText ? '⌛...' : '🔄 Re-generar'}
+                                {isGeneratingText ? '⌛ Generando...' : '✨ Generar con IA'}
                             </button>
                         </div>
                         <textarea
@@ -151,7 +160,9 @@ const ModalPublicarRedes = ({ isOpen, onClose, imagenes, vehiculoInfo, getImageU
                                 >
                                     <img src={getImageUrl(img.ruta_archivo)} alt="Vehículo" />
                                     {selectedImages.includes(img.id_imagen) && (
-                                        <div className="selection-overlay">✓</div>
+                                        <div className="selection-overlay">
+                                            {selectedImages.indexOf(img.id_imagen) + 1}
+                                        </div>
                                     )}
                                 </div>
                             ))}

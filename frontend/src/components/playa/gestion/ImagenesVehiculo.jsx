@@ -48,10 +48,16 @@ const ImagenesVehiculo = ({ id_producto }) => {
             const response = await axios.get(`${API_URL}/playa/vehiculos`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // Ordenar por marca y modelo
-            const sorted = response.data.sort((a, b) =>
-                `${a.marca} ${a.modelo}`.localeCompare(`${b.marca} ${b.modelo}`)
-            );
+            // Ordenar: Disponibles primero, luego por marca y modelo
+            const sorted = response.data.sort((a, b) => {
+                // Primero por disponibilidad
+                const aDisp = a.estado_disponibilidad === 'DISPONIBLE' ? 0 : 1;
+                const bDisp = b.estado_disponibilidad === 'DISPONIBLE' ? 0 : 1;
+                if (aDisp !== bDisp) return aDisp - bDisp;
+                
+                // Luego por marca y modelo
+                return `${a.marca} ${a.modelo}`.localeCompare(`${b.marca} ${b.modelo}`);
+            });
             setVehiculos(sorted);
         } catch (error) {
             console.error('Error fetching vehiculos:', error);
@@ -98,66 +104,7 @@ const ImagenesVehiculo = ({ id_producto }) => {
         }
     };
 
-    const addWatermark = async (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // Establecer dimensiones del canvas
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    // Dibujar imagen original
-                    ctx.drawImage(img, 0, 0);
-
-                    // Cargar logo para marca de agua
-                    const logo = new Image();
-                    logo.onload = () => {
-                        // Calcular tamaño del logo para que sea grande y centrado
-                        const targetScale = 0.8; // Ocupar el 80% de la imagen
-                        const scale = Math.min((canvas.width * targetScale) / logo.width, (canvas.height * targetScale) / logo.height);
-                        const logoWidth = logo.width * scale;
-                        const logoHeight = logo.height * scale;
-
-                        // Centrar el logo
-                        const x = (canvas.width - logoWidth) / 2;
-                        const y = (canvas.height - logoHeight) / 2;
-
-                        // Dibujar logo con opacidad baja (semitransparente)
-                        ctx.globalAlpha = 0.35;
-                        ctx.drawImage(logo, x, y, logoWidth, logoHeight);
-                        ctx.globalAlpha = 1.0;
-
-                        // Convertir canvas a blob
-                        canvas.toBlob((blob) => {
-                            if (blob) {
-                                // Crear un nuevo archivo a partir del blob
-                                const watermarkedFile = new File([blob], file.name, {
-                                    type: 'image/jpeg',
-                                    lastModified: Date.now(),
-                                });
-                                resolve(watermarkedFile);
-                            } else {
-                                reject(new Error('Error al procesar la imagen'));
-                            }
-                        }, 'image/jpeg', 0.9);
-                    };
-                    logo.onerror = () => {
-                        console.warn('No se pudo cargar el logo de la marca de agua, subiendo original.');
-                        resolve(file); // Continuar con el original si falla el logo
-                    };
-                    logo.src = '/imágenes/logo_micoche.png'; // Ruta desde public
-                };
-                img.onerror = () => reject(new Error('Error al cargar la imagen original'));
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-    };
+    // Watermarking is now handled by the backend
 
     const handleUpload = async (files) => {
         if (!selectedVehiculoId) {
@@ -168,19 +115,11 @@ const ImagenesVehiculo = ({ id_producto }) => {
         setLoading(true);
         try {
             const formData = new FormData();
-            const processPromises = Array.from(files).map(async (file) => {
+            Array.from(files).forEach((file) => {
                 if (file.type.startsWith('image/')) {
-                    try {
-                        const watermarkedFile = await addWatermark(file);
-                        formData.append('imagenes', watermarkedFile);
-                    } catch (err) {
-                        console.error('Error watermarking file:', file.name, err);
-                        formData.append('imagenes', file); // Fallback al original
-                    }
+                    formData.append('imagenes', file);
                 }
             });
-
-            await Promise.all(processPromises);
 
             if (formData.getAll('imagenes').length === 0) {
                 alert('No se procesaron imágenes válidas.');
@@ -364,14 +303,29 @@ const ImagenesVehiculo = ({ id_producto }) => {
                                             style={{
                                                 padding: '10px',
                                                 cursor: 'pointer',
-                                                borderBottom: '1px solid #eee'
+                                                borderBottom: '1px solid #eee',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px'
                                             }}
-                                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-                                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                                         >
-                                            <strong>{v.marca} {v.modelo} ({v.color || 'Sin color'})</strong>
-                                            <div style={{ fontSize: '0.85em', color: '#666' }}>
-                                                Chasis: {v.chasis} | Año: {v.año}
+                                            <div style={{ fontSize: '1.2rem', minWidth: '24px' }}>
+                                                {v.estado_disponibilidad === 'DISPONIBLE' ? '✅' : '❌'}
+                                            </div>
+                                             <div style={{ flex: 1 }}>
+                                                 <strong>
+                                                     {v.marca} {v.modelo} ({v.color || 'Sin color'})
+                                                     {v.imagenes && v.imagenes.length > 0 && <span style={{ marginLeft: '8px' }} title="Tiene fotos">📸</span>}
+                                                 </strong>
+                                                <div style={{ fontSize: '0.85em', color: '#666' }}>
+                                                    Chasis: {v.chasis} | Año: {v.año} | <span style={{ 
+                                                        color: v.estado_disponibilidad === 'DISPONIBLE' ? '#16a34a' : '#dc2626',
+                                                        fontWeight: '600',
+                                                        fontSize: '0.75rem'
+                                                    }}>{v.estado_disponibilidad}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     ))
@@ -433,6 +387,11 @@ const ImagenesVehiculo = ({ id_producto }) => {
                                     onClick={() => setPreviewImage(getImageUrl(img.ruta_archivo))}
                                     style={{ cursor: 'pointer' }}
                                 />
+                                {img.imagen_con_marca && (
+                                    <div className="watermark-indicator" title="Tiene versión con marca de agua">
+                                        💡
+                                    </div>
+                                )}
                                 <div className="image-actions">
                                     <button
                                         className="btn-set-principal"

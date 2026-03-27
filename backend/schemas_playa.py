@@ -251,13 +251,21 @@ class VentaBase(BaseModel):
     id_escribania: Optional[int] = None
     tipo_documento_propiedad: Optional[str] = None # prendado, transferencia, etc.
     observaciones: Optional[str] = None
+    id_cuenta: Optional[int] = None
     periodo_int_mora: Optional[str] = None # D, S, M, A
     monto_int_mora: Optional[Decimal] = 0
     tasa_interes: Optional[Decimal] = 0
     dias_gracia: Optional[int] = 0
 
+class PagoDistribucion(BaseModel):
+    id_cuenta: int
+    monto: Decimal
+    forma_pago: Optional[str] = "EFECTIVO"
+    numero_referencia: Optional[str] = None
+
 class VentaCreate(VentaBase):
     detalles: Optional[List['DetalleVentaCreate']] = []
+    pagos_cuentas: Optional[List[PagoDistribucion]] = []
 
     @model_validator(mode="before")
     @classmethod
@@ -267,7 +275,7 @@ class VentaCreate(VentaBase):
             return data
         
         # IDs que deben ser None si son ""
-        for key in ("id_vendedor", "id_escribania"):
+        for key in ("id_vendedor", "id_escribania", "id_cuenta"):
             if key in data and (data[key] == "" or data[key] is None):
                 data = {**data, key: None}
         
@@ -432,10 +440,11 @@ class GastoProductoBase(BaseModel):
     fecha_gasto: date
     proveedor: Optional[str] = None
     numero_factura: Optional[str] = None
+    id_cuenta: Optional[int] = None
     observaciones: Optional[str] = None
 
 class GastoProductoCreate(GastoProductoBase):
-    pass
+    id_cuenta: int
 
 class GastoProductoResponse(GastoProductoBase):
     id_gasto_producto: int
@@ -470,10 +479,11 @@ class GastoEmpresaBase(BaseModel):
     periodo: Optional[str] = None
     proveedor: Optional[str] = None
     numero_factura: Optional[str] = None
+    id_cuenta: Optional[int] = None
     observaciones: Optional[str] = None
 
 class GastoEmpresaCreate(GastoEmpresaBase):
-    pass
+    id_cuenta: int
 
 class GastoEmpresaResponse(GastoEmpresaBase):
     id_gasto_empresa: int
@@ -625,6 +635,7 @@ class MovimientoBase(BaseModel):
     id_cuenta_origen: Optional[int] = None
     id_cuenta_destino: Optional[int] = None
     monto: Decimal
+    fecha: Optional[datetime] = None
     concepto: Optional[str] = None
     referencia: Optional[str] = None
 
@@ -644,6 +655,7 @@ class ImagenProductoBase(BaseModel):
     id_producto: int
     nombre_archivo: Optional[str] = None
     ruta_archivo: Optional[str] = None
+    imagen_con_marca: Optional[str] = None
     es_principal: Optional[bool] = False
     orden: Optional[int] = 0
 
@@ -658,5 +670,58 @@ class ImagenProductoResponse(ImagenProductoBase):
     id_imagen: int
     fecha_registro: Optional[datetime] = None
 
+    class Config:
+        from_attributes = True
+
+# ===== GASTOS ADICIONALES (Ingresos/Egresos Varios) =====
+class GastoAdicionalBase(BaseModel):
+    tipo: str # INGRESO, EGRESO
+    monto: Decimal
+    fecha: date
+    concepto: str
+    id_cuenta: int
+    observaciones: Optional[str] = None
+
+class GastoAdicionalCreate(GastoAdicionalBase):
+    pass
+
+class GastoAdicionalResponse(GastoAdicionalBase):
+    id_gasto_adicional: int
+    fecha_registro: Optional[datetime] = None
+    cuenta_rel: Optional[CuentaResponse] = None
+    class Config:
+        from_attributes = True
+
+# ===== HISTORIAL DE PROPIETARIOS =====
+class HistorialPropietarioBase(BaseModel):
+    id_producto: Optional[int] = None
+    nombre_propietario: str
+    documento: Optional[str] = None
+    matricula: Optional[str] = None
+    tipo_documentacion: Optional[str] = None
+    documentacion_detalle: Optional[str] = None
+    observaciones: Optional[str] = None
+    fecha_adquisicion: Optional[date] = None
+    fecha_venta: Optional[date] = None
+    activo: Optional[bool] = True
+
+class HistorialPropietarioCreate(HistorialPropietarioBase):
+    pass
+
+class HistorialPropietarioUpdate(BaseModel):
+    id_producto: Optional[int] = None
+    nombre_propietario: Optional[str] = None
+    documento: Optional[str] = None
+    matricula: Optional[str] = None
+    tipo_documentacion: Optional[str] = None
+    documentacion_detalle: Optional[str] = None
+    observaciones: Optional[str] = None
+    fecha_adquisicion: Optional[date] = None
+    fecha_venta: Optional[date] = None
+    activo: Optional[bool] = None
+
+class HistorialPropietarioResponse(HistorialPropietarioBase):
+    id_historial: int
+    fecha_registro: Optional[datetime] = None
     class Config:
         from_attributes = True

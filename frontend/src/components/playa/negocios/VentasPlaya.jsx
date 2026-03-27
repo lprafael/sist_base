@@ -7,7 +7,12 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const [vehiculos, setVehiculos] = useState([]);
     const [clientes, setClientes] = useState([]);
     const [escribanias, setEscribanias] = useState([]);
+    const [vendedores, setVendedores] = useState([]);
+    const [cuentas, setCuentas] = useState([]); // New state for accounts
     const [loading, setLoading] = useState(true);
+    const [showVendedorPopup, setShowVendedorPopup] = useState(false);
+    const [vendedorSearch, setVendedorSearch] = useState('');
+    const vendedorRef = useRef(null);
     const [showModal, setShowModal] = useState(false);
     const [editingVenta, setEditingVenta] = useState(null);
     const [activeTab, setActiveTab] = useState('datos'); // 'datos' o 'financiamiento'
@@ -18,6 +23,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         startDate: '',
         endDate: ''
     });
+    const [filterEstado, setFilterEstado] = useState('');
     const [clientSearch, setClientSearch] = useState('');
     const [showClientDropdown, setShowClientDropdown] = useState(false);
     const [vehicleSearch, setVehicleSearch] = useState('');
@@ -46,8 +52,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         dias_gracia: 0,
         id_vendedor: '',
         id_escribania: '',
+        id_cuenta: '', // Account ID
         tipo_documento_propiedad: '',
-        observaciones: ''
+        observaciones: '',
+        pagos_cuentas: []
     });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -59,6 +67,9 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             }
             if (vehicleDropdownRef.current && !vehicleDropdownRef.current.contains(event.target)) {
                 setShowVehicleDropdown(false);
+            }
+            if (vendedorRef.current && !vendedorRef.current.contains(event.target)) {
+                setShowVendedorPopup(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -72,11 +83,13 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
     const fetchData = async () => {
         try {
             const token = sessionStorage.getItem('token');
-            const [vRes, cRes, vntRes, eRes] = await Promise.all([
+            const [vRes, cRes, vntRes, eRes, vndRes, accountsRes] = await Promise.all([
                 axios.get(`${API_URL}/playa/vehiculos?available_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/clientes`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_URL}/playa/ventas`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/playa/escribanias?active_only=true`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(`${API_URL}/playa/escribanias?active_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/vendedores?active_only=true`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/playa/cuentas?active_only=true`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
             const fetchedVehiculos = vRes.data;
@@ -84,6 +97,8 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             setClientes(cRes.data);
             setVentas(vntRes.data);
             setEscribanias(eRes.data);
+            setVendedores(vndRes.data);
+            setCuentas(accountsRes.data);
             setLoading(false);
 
             // Manejar pre-selección desde inventario
@@ -128,6 +143,35 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             fetchData();
         } catch (error) {
             alert('Error al eliminar venta: ' + (error.response?.data?.detail || error.message));
+        }
+    };
+
+    const handleFiniquitarVenta = async (ventaId, numeroVenta, pagares) => {
+        const cuotasSinPago = (pagares || []).filter(p =>
+            p.tipo_pagare !== 'ENTREGA_INICIAL' && (!p.pagos || p.pagos.length === 0)
+        ).length;
+        const cuotasConPago = (pagares || []).filter(p =>
+            p.tipo_pagare === 'ENTREGA_INICIAL' || (p.pagos && p.pagos.length > 0)
+        ).length;
+
+        const confirmMsg =
+            `¿Aplicar FINIQUITO a la venta ${numeroVenta || ventaId}?\n\n` +
+            `Esta acción:\n` +
+            `• Conserva la venta y los ${cuotasConPago} pagaré(s) con pago registrado.\n` +
+            `• Elimina los ${cuotasSinPago} pagaré(s) que NO fueron pagados.\n` +
+            `• Marca la venta como FINIQUITADA.\n` +
+            `• Devuelve el vehículo al inventario como DISPONIBLE.\n\n` +
+            `Esta acción NO se puede deshacer.`;
+        if (!confirm(confirmMsg)) return;
+        try {
+            const token = sessionStorage.getItem('token');
+            const res = await axios.post(`${API_URL}/playa/ventas/${ventaId}/finiquito`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert(res.data?.message || 'Finiquito aplicado correctamente.');
+            fetchData();
+        } catch (error) {
+            alert('Error al aplicar finiquito: ' + (error.response?.data?.detail || error.message));
         }
     };
 
@@ -211,6 +255,7 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             dias_gracia: 0,
             id_vendedor: '',
             id_escribania: '',
+            id_cuenta: '',
             tipo_documento_propiedad: '',
             observaciones: ''
         });
@@ -223,12 +268,12 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
             const precio = newVenta.tipo_venta === 'FINANCIADO' && v.precio_financiado_sugerido
                 ? parseFloat(v.precio_financiado_sugerido)
                 : parseFloat(v.precio_contado_sugerido);
-            setNewVenta({
+            setNewVenta(calculateFinancing({
                 ...newVenta,
                 id_producto: id,
                 precio_venta: precio,
                 precio_final: precio - newVenta.descuento
-            });
+            }));
         }
     };
 
@@ -262,11 +307,20 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
         try {
             const token = sessionStorage.getItem('token');
 
+            // Validar distribución de pagos
+            if (newVenta.entrega_inicial > 0) {
+                const totalDistribuido = (newVenta.pagos_cuentas || []).reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+                if (Math.abs(totalDistribuido - newVenta.entrega_inicial) >= 1) {
+                    alert(`La distribución de pagos (Gs. ${totalDistribuido.toLocaleString('es-PY')}) no coincide con el total de la entrega inicial / contado (Gs. ${newVenta.entrega_inicial.toLocaleString('es-PY')}).`);
+                    return;
+                }
+            }
+
             // Construir detalles
             const detalles = [];
             if (newVenta.entrega_inicial > 0 || newVenta.tipo_venta === 'CONTADO') {
                 detalles.push({
-                    concepto: 'Entrega Inicial',
+                    concepto: newVenta.tipo_venta === 'CONTADO' ? 'Entrega Contado' : 'Entrega Inicial',
                     monto_unitario: newVenta.entrega_inicial,
                     cantidad: 1,
                     subtotal: newVenta.entrega_inicial
@@ -371,6 +425,18 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                 <div className="loading">Cargando...</div>
             )}
 
+            <div className="vnt-estado-filters">
+                {['', 'ACTIVA', 'ANULADA', 'FINIQUITADO'].map(est => (
+                    <button
+                        key={est || 'TODAS'}
+                        className={`vnt-filter-pill ${filterEstado === est ? 'active' : ''} ${est ? est.toLowerCase() : 'todas'}`}
+                        onClick={() => setFilterEstado(est)}
+                    >
+                        {est || 'Todas'}
+                    </button>
+                ))}
+            </div>
+
             <div className="ventas-grid">
                 {ventas.filter(v => {
                     const ventaFecha = v.fecha_venta;
@@ -389,7 +455,10 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                         vehicleInfo.includes(textSearch) ||
                         ventaNum.includes(textSearch);
 
-                    return matchesDate && matchesText;
+                    const estadoVenta = v.estado_venta || 'ACTIVA';
+                    const matchesEstado = !filterEstado || estadoVenta === filterEstado;
+
+                    return matchesDate && matchesText && matchesEstado;
                 }).map(v => (
                     <div key={v.id_venta} className="venta-card">
                         <div className="card-header">
@@ -436,10 +505,19 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                             <button
                                 type="button"
                                 className="btn-edit-venta"
-                                disabled={(v.estado_venta || 'ACTIVA') === 'ANULADA'}
+                                disabled={['ANULADA', 'FINIQUITADO'].includes(v.estado_venta)}
                                 onClick={() => handleEditVenta(v)}
                             >
                                 Editar
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-finiquito"
+                                disabled={['ANULADA', 'FINIQUITADO'].includes(v.estado_venta)}
+                                onClick={() => handleFiniquitarVenta(v.id_venta, v.numero_venta, v.pagares)}
+                                title="Aplica finiquito: elimina cuotas no pagadas, marca la venta como finalizada y libera el vehículo"
+                            >
+                                ✂ Finiquito
                             </button>
                             <button
                                 type="button"
@@ -635,12 +713,164 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                                 </div>
                                                 <div className="form-group">
                                                     <label>Precio Venta (Gs.)</label>
-                                                    <input type="number" readOnly value={newVenta.precio_venta} />
+                                                    <input
+                                                        type="number"
+                                                        value={newVenta.precio_venta}
+                                                        readOnly={newVenta.tipo_venta === 'FINANCIADO'}
+                                                        className={newVenta.tipo_venta === 'FINANCIADO' ? 'readonly-input' : ''}
+                                                        onChange={(e) => {
+                                                            const precio = parseFloat(e.target.value) || 0;
+                                                            const updated = {
+                                                                ...newVenta,
+                                                                precio_venta: precio,
+                                                                precio_final: precio - (newVenta.descuento || 0)
+                                                            };
+                                                            setNewVenta(calculateFinancing(updated));
+                                                        }}
+                                                    />
                                                 </div>
                                                 <div className="form-group">
                                                     <label>Precio Final (Gs.)</label>
                                                     <input type="number" readOnly value={newVenta.precio_final} />
                                                 </div>
+                                            </div>
+
+                                             <div className="payment-distribution-section">
+                                                <div className="section-header">
+                                                    <h3>Distribución de Ingreso (Entrega Inicial / Contado)</h3>
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn-add-payment"
+                                                        onClick={() => {
+                                                            const currentDistrib = newVenta.pagos_cuentas || [];
+                                                            const totalMontoEnDistrib = currentDistrib.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+                                                            const pendiente = newVenta.entrega_inicial - totalMontoEnDistrib;
+                                                            
+                                                            setNewVenta({
+                                                                ...newVenta,
+                                                                pagos_cuentas: [
+                                                                    ...currentDistrib,
+                                                                    { id_cuenta: '', monto: pendiente > 0 ? pendiente : 0, forma_pago: 'EFECTIVO', numero_referencia: '' }
+                                                                ]
+                                                            });
+                                                        }}
+                                                    >
+                                                        + Añadir Cuenta
+                                                    </button>
+                                                </div>
+
+                                                {newVenta.pagos_cuentas?.length > 0 ? (
+                                                    <div className="payment-rows">
+                                                        {newVenta.pagos_cuentas.map((pago, index) => (
+                                                            <div key={index} className="payment-row">
+                                                                <div className="form-group flex-2">
+                                                                    <label>Cuenta</label>
+                                                                    <select
+                                                                        value={pago.id_cuenta}
+                                                                        required
+                                                                        onChange={(e) => {
+                                                                            const updated = [...newVenta.pagos_cuentas];
+                                                                            updated[index].id_cuenta = e.target.value;
+                                                                            setNewVenta({ ...newVenta, pagos_cuentas: updated });
+                                                                        }}
+                                                                    >
+                                                                        <option value="">-- Seleccionar Cuenta --</option>
+                                                                        {cuentas.map(cta => (
+                                                                            <option key={cta.id_cuenta} value={cta.id_cuenta}>
+                                                                                {cta.nombre} (Gs. {cta.saldo_actual?.toLocaleString('es-PY')})
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="form-group flex-1">
+                                                                    <label>Monto (Gs.)</label>
+                                                                    <input 
+                                                                        type="number" 
+                                                                        value={pago.monto} 
+                                                                        onChange={(e) => {
+                                                                            const updated = [...newVenta.pagos_cuentas];
+                                                                            updated[index].monto = parseFloat(e.target.value) || 0;
+                                                                            setNewVenta({ ...newVenta, pagos_cuentas: updated });
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="form-group flex-1">
+                                                                    <label>Forma</label>
+                                                                    <select
+                                                                        value={pago.forma_pago}
+                                                                        onChange={(e) => {
+                                                                            const updated = [...newVenta.pagos_cuentas];
+                                                                            updated[index].forma_pago = e.target.value;
+                                                                            setNewVenta({ ...newVenta, pagos_cuentas: updated });
+                                                                        }}
+                                                                    >
+                                                                        <option value="EFECTIVO">Efectivo</option>
+                                                                        <option value="TRANSFERENCIA">Transferencia</option>
+                                                                        <option value="CHEQUE">Cheque</option>
+                                                                        <option value="TARJETA">Tarjeta</option>
+                                                                        <option value="GIRO">Giro / Billetera</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div className="form-group flex-1">
+                                                                    <label>Ref/Boleta</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={pago.numero_referencia} 
+                                                                        placeholder="Opcional"
+                                                                        onChange={(e) => {
+                                                                            const updated = [...newVenta.pagos_cuentas];
+                                                                            updated[index].numero_referencia = e.target.value;
+                                                                            setNewVenta({ ...newVenta, pagos_cuentas: updated });
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <button 
+                                                                    type="button" 
+                                                                    className="btn-remove-payment"
+                                                                    onClick={() => {
+                                                                        const updated = newVenta.pagos_cuentas.filter((_, i) => i !== index);
+                                                                        setNewVenta({ ...newVenta, pagos_cuentas: updated });
+                                                                    }}
+                                                                >
+                                                                    &times;
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        <div className="distribution-summary">
+                                                            <div className={`summary-item ${Math.abs(newVenta.entrega_inicial - newVenta.pagos_cuentas.reduce((s, p) => s + (p.monto || 0), 0)) < 1 ? 'matching' : 'mismatch'}`}>
+                                                                Total Distribuido: <strong>Gs. {newVenta.pagos_cuentas.reduce((s, p) => s + (p.monto || 0), 0).toLocaleString('es-PY')}</strong>
+                                                                {Math.abs(newVenta.entrega_inicial - newVenta.pagos_cuentas.reduce((s, p) => s + (p.monto || 0), 0)) >= 1 && (
+                                                                    <span className="diff-warning"> (Faltan: Gs. {(newVenta.entrega_inicial - newVenta.pagos_cuentas.reduce((s, p) => s + (p.monto || 0), 0)).toLocaleString('es-PY')})</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="no-payments-placeholder">
+                                                        <p>Selecciona una cuenta para el ingreso de la venta (Total: Gs. {newVenta.entrega_inicial.toLocaleString('es-PY')})</p>
+                                                        <select
+                                                            value={newVenta.id_cuenta || ''}
+                                                            onChange={(e) => {
+                                                                const id = e.target.value;
+                                                                if (id) {
+                                                                    setNewVenta({ 
+                                                                        ...newVenta, 
+                                                                        id_cuenta: id,
+                                                                        pagos_cuentas: [{ id_cuenta: id, monto: newVenta.entrega_inicial, forma_pago: 'EFECTIVO', numero_referencia: '' }]
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <option value="">-- Seleccionar Cuenta Principal --</option>
+                                                            {cuentas.map(cta => (
+                                                                <option key={cta.id_cuenta} value={cta.id_cuenta}>
+                                                                    {cta.nombre} (Saldo: Gs. {(cta.saldo_actual || 0).toLocaleString('es-PY')})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="form-row">
@@ -671,6 +901,100 @@ const VentasPlaya = ({ setTab, preselectedVehicleId, setPreselectedVehicleId }) 
                                                         <option value="CONTRATO_SIMPLE">Contrato Simple</option>
                                                         <option value="OTRO">Otro</option>
                                                     </select>
+                                                </div>
+                                            </div>
+
+                                            {/* ── Vendedor ── */}
+                                            <div className="form-row">
+                                                <div className="form-group vendedor-selector-group" ref={vendedorRef}>
+                                                    <label>Vendedor</label>
+                                                    <div className="vendedor-selector">
+                                                        {newVenta.id_vendedor ? (
+                                                            <div className="vendedor-selected-badge">
+                                                                <span className="vendedor-icon">👤</span>
+                                                                <span className="vendedor-nombre">
+                                                                    {(() => {
+                                                                        const v = vendedores.find(vnd => vnd.id_vendedor === parseInt(newVenta.id_vendedor));
+                                                                        return v ? `${v.nombre} ${v.apellido}` : 'Vendedor seleccionado';
+                                                                    })()}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="vendedor-clear-btn"
+                                                                    onClick={() => setNewVenta({ ...newVenta, id_vendedor: '' })}
+                                                                    title="Quitar vendedor"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="vendedor-change-btn"
+                                                                    onClick={() => { setVendedorSearch(''); setShowVendedorPopup(true); }}
+                                                                    title="Cambiar vendedor"
+                                                                >
+                                                                    ✏️
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                className="vendedor-picker-btn"
+                                                                onClick={() => { setVendedorSearch(''); setShowVendedorPopup(true); }}
+                                                            >
+                                                                <span className="vendedor-picker-icon">👤</span>
+                                                                <span>Asignar Vendedor</span>
+                                                            </button>
+                                                        )}
+
+                                                        {showVendedorPopup && (
+                                                            <div className="vendedor-popup">
+                                                                <div className="vendedor-popup-header">
+                                                                    <span>Seleccionar Vendedor</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="vendedor-popup-close"
+                                                                        onClick={() => setShowVendedorPopup(false)}
+                                                                    >×</button>
+                                                                </div>
+                                                                <input
+                                                                    type="text"
+                                                                    className="vendedor-search-input"
+                                                                    placeholder="Buscar por nombre..."
+                                                                    value={vendedorSearch}
+                                                                    onChange={(e) => setVendedorSearch(e.target.value)}
+                                                                    autoFocus
+                                                                />
+                                                                <div className="vendedor-list">
+                                                                    {vendedores
+                                                                        .filter(v => {
+                                                                            const s = vendedorSearch.toLowerCase();
+                                                                            return `${v.nombre} ${v.apellido}`.toLowerCase().includes(s);
+                                                                        })
+                                                                        .map(v => (
+                                                                            <div
+                                                                                key={v.id_vendedor}
+                                                                                className={`vendedor-list-item ${parseInt(newVenta.id_vendedor) === v.id_vendedor ? 'selected' : ''}`}
+                                                                                onClick={() => {
+                                                                                    setNewVenta({ ...newVenta, id_vendedor: v.id_vendedor });
+                                                                                    setShowVendedorPopup(false);
+                                                                                }}
+                                                                            >
+                                                                                <span className="vnd-avatar">{v.nombre[0]}{v.apellido[0]}</span>
+                                                                                <span className="vnd-name">{v.nombre} {v.apellido}</span>
+                                                                                {parseInt(newVenta.id_vendedor) === v.id_vendedor && <span className="vnd-check">✓</span>}
+                                                                            </div>
+                                                                        ))
+                                                                    }
+                                                                    {vendedores.filter(v => {
+                                                                        const s = vendedorSearch.toLowerCase();
+                                                                        return `${v.nombre} ${v.apellido}`.toLowerCase().includes(s);
+                                                                    }).length === 0 && (
+                                                                            <div className="vendedor-no-results">No se encontraron vendedores</div>
+                                                                        )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 

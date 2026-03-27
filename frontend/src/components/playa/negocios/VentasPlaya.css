@@ -108,6 +108,138 @@
     cursor: not-allowed;
 }
 
+.btn-finiquito {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn-finiquito:hover:not(:disabled) {
+    background: #ffedd5;
+    transform: translateY(-1px);
+}
+
+/* Payment Distribution Styles */
+.payment-distribution-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.payment-distribution-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.payment-distribution-section h3 {
+    font-size: 1rem;
+    color: #1e293b;
+    font-weight: 600;
+    margin: 0;
+}
+
+.btn-add-payment {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add-payment:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.payment-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 12px;
+    background: white;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+}
+
+.payment-row .form-group {
+    margin: 0;
+    flex: 1;
+}
+
+.payment-row .flex-2 { flex: 2; }
+.payment-row .flex-1 { flex: 1; }
+
+.btn-remove-payment {
+    background: #fee2e2;
+    color: #ef4444;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.25rem;
+    transition: all 0.2s;
+}
+
+.btn-remove-payment:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.distribution-summary {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px dashed #e2e8f0;
+}
+
+.summary-item {
+    font-size: 0.95rem;
+    color: #475569;
+}
+
+.summary-item.matching strong { color: #166534; }
+.summary-item.mismatch strong { color: #ef4444; }
+
+.diff-warning {
+    color: #ef4444;
+    font-weight: 500;
+    margin-left: 10px;
+}
+
+.no-payments-placeholder {
+    text-align: center;
+    padding: 15px;
+    color: #64748b;
+}
+
+.no-payments-placeholder select {
+    margin-top: 10px;
+    width: 100%;
+}
+
+
+.btn-finiquito:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .card-body p {
     margin: 6px 0;
     color: #475569;
@@ -136,6 +268,11 @@
 .vnt-status.anulada {
     background: #fee2e2;
     color: #991b1b;
+}
+
+.vnt-status.finiquitado {
+    background: #fff7ed;
+    color: #9a3412;
 }
 
 .card-header {
@@ -208,11 +345,11 @@
     background: rgba(0, 0, 0, 0.75);
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    z-index: 1000;
-    backdrop-filter: blur(10px);
-    overflow-y: auto;
+    align-items: flex-start; 
+    z-index: 5000;
+    backdrop-filter: blur(8px);
     padding: 40px 20px;
+    overflow-y: auto;
 }
 
 .modal-content {
@@ -334,6 +471,12 @@
     border-color: #2563eb;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
     outline: none;
+}
+
+.readonly-input {
+    background-color: #f1f5f9 !important;
+    color: #64748b !important;
+    cursor: default;
 }
 
 .btn-cancel {
@@ -526,6 +669,13 @@
     overflow: visible !important;
 }
 
+/* El form-row del vendedor necesita overflow visible para mostrar el popup */
+.form-row:has(.vendedor-selector-group) {
+    overflow: visible;
+    position: relative;
+    z-index: 10;
+}
+
 .observaciones-textarea {
     width: 100%;
     min-height: 80px;
@@ -546,4 +696,282 @@
 
 .full-width {
     flex: 1 1 100% !important;
+}
+
+/* ══════════════════════════════
+   SELECTOR DE VENDEDOR
+══════════════════════════════ */
+.vendedor-selector-group {
+    position: relative;
+}
+
+.vendedor-selector {
+    position: relative;
+}
+
+/* Botón para abrir el picker cuando no hay vendedor */
+.vendedor-picker-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    background: #f8fafc;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 12px;
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.vendedor-picker-btn:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #2563eb;
+}
+
+.vendedor-picker-icon {
+    font-size: 1.2rem;
+}
+
+/* Badge cuando ya hay un vendedor seleccionado */
+.vendedor-selected-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #eff6ff;
+    border: 1.5px solid #bfdbfe;
+    border-radius: 12px;
+    color: #1d4ed8;
+}
+
+.vendedor-icon {
+    font-size: 1.1rem;
+}
+
+.vendedor-nombre {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.vendedor-clear-btn,
+.vendedor-change-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.vendedor-clear-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.vendedor-change-btn:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+/* Popup flotante de selección */
+.vendedor-popup {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+    z-index: 3000;
+    overflow: hidden;
+    min-width: 280px;
+}
+
+.vendedor-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #1e293b;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.vendedor-popup-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.vendedor-popup-close:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.vendedor-search-input {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    outline: none;
+    font-size: 0.9rem;
+    color: #1e293b;
+    background: #f8fafc;
+    box-sizing: border-box;
+}
+
+.vendedor-search-input:focus {
+    background: white;
+    border-bottom-color: #3b82f6;
+}
+
+.vendedor-list {
+    max-height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.vendedor-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.vendedor-list-item:hover {
+    background: #f1f5f9;
+}
+
+.vendedor-list-item.selected {
+    background: #eff6ff;
+}
+
+.vnd-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.vnd-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.vnd-check {
+    color: #2563eb;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.vendedor-no-results {
+    padding: 20px 16px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* ══════════════════════════════
+   FILTROS POR ESTADO DE VENTA
+══════════════════════════════ */
+.vnt-estado-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.vnt-filter-pill {
+    padding: 6px 18px;
+    border-radius: 999px;
+    border: 1.5px solid transparent;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f1f5f9;
+    color: #64748b;
+    letter-spacing: 0.03em;
+}
+
+.vnt-filter-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px -2px rgba(0,0,0,0.1);
+}
+
+/* Todas */
+.vnt-filter-pill.todas {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+.vnt-filter-pill.todas.active {
+    background: #1e293b;
+    color: #fff;
+    border-color: #1e293b;
+}
+
+/* Activa */
+.vnt-filter-pill.activa {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+.vnt-filter-pill.activa.active {
+    background: #16a34a;
+    color: #fff;
+    border-color: #16a34a;
+}
+
+/* Anulada */
+.vnt-filter-pill.anulada {
+    background: #fff1f2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+.vnt-filter-pill.anulada.active {
+    background: #dc2626;
+    color: #fff;
+    border-color: #dc2626;
+}
+
+/* Finiquitado */
+.vnt-filter-pill.finiquitado {
+    background: #fff7ed;
+    color: #9a3412;
+    border-color: #fed7aa;
+}
+.vnt-filter-pill.finiquitado.active {
+    background: #ea580c;
+    color: #fff;
+    border-color: #ea580c;
 }

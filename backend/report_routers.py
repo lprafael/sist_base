@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case, text, or_
+from sqlalchemy import select, func, case, text, or_, and_, not_
 from database import get_session
 from typing import List, Optional
 from datetime import date, datetime, timedelta
@@ -18,7 +18,11 @@ from models_playa import (
     Estado,
     Cuenta,
     Pago,
-    Movimiento
+    Movimiento,
+    GastoProducto,
+    GastoEmpresa,
+    TipoGastoProducto,
+    TipoGastoEmpresa
 )
 from security import get_current_user
 
@@ -103,7 +107,35 @@ class ReporteExtractoResponse(BaseModel):
     saldo_final: float
     resumen_cuentas: List[ResumenCuenta] = []
 
+class MovimientoDetalladoResponse(BaseModel):
+    fecha: datetime
+    concepto: str
+    referencia: Optional[str] = None
+    id_cuenta: int
+    cuenta_nom: str
+    
+    # Ingresos desglosados
+    ingreso_entrega: float = 0
+    ingreso_cuota: float = 0
+    ingreso_interes: float = 0
+    ingreso_otros: float = 0
+    
+    # Egresos desglosados
+    egreso_vehiculo: float = 0
+    egreso_empresa: float = 0
+    egreso_otros: float = 0
+    
+    monto_total: float = 0
+    tipo: str # 'INGRESO', 'EGRESO'
+
+class ReporteMovimientoDetalladoResponse(BaseModel):
+    movimientos: List[MovimientoDetalladoResponse]
+    totales: dict
+
 # --- Endpoints ---
+
+# ID del tipo de gasto que representa comisión por venta
+ID_TIPO_GASTO_COMISION = 13
 
 @router.get("/playa/reportes/ventas", response_model=List[VentaReporteResponse])
 async def get_reporte_ventas(
@@ -114,10 +146,23 @@ async def get_reporte_ventas(
 ):
     """
     Obtiene el listado de ventas realizadas en un rango determinado.
+    La columna 'comision' muestra la suma de gastos de tipo 'Comisión por venta'
+    (id_tipo_gasto=13) registrados para el vehículo de cada venta.
     """
     date_from = desde or date(2020, 1, 1)
     date_to = hasta or date.today()
-    
+
+    # Subquery: suma de gastos de tipo comisión por producto
+    subq_comision = (
+        select(
+            GastoProducto.id_producto,
+            func.sum(GastoProducto.monto).label('total_comision')
+        )
+        .where(GastoProducto.id_tipo_gasto == ID_TIPO_GASTO_COMISION)
+        .group_by(GastoProducto.id_producto)
+        .subquery()
+    )
+
     query = (
         select(
             Venta.id_venta,
@@ -135,19 +180,21 @@ async def get_reporte_ventas(
             Cliente.nombre,
             Cliente.apellido,
             Vendedor.nombre.label('vend_nom'),
-            Vendedor.apellido.label('vend_ape')
+            Vendedor.apellido.label('vend_ape'),
+            func.coalesce(subq_comision.c.total_comision, 0).label('comision')
         )
         .join(Producto, Venta.id_producto == Producto.id_producto)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .outerjoin(Vendedor, Venta.id_vendedor == Vendedor.id_vendedor)
+        .outerjoin(subq_comision, Producto.id_producto == subq_comision.c.id_producto)
         .where(Venta.fecha_venta >= date_from)
         .where(Venta.fecha_venta <= date_to)
         .order_by(Venta.fecha_venta.desc())
     )
-    
+
     result = await session.execute(query)
     rows = result.all()
-    
+
     reporte = []
     for r in rows:
         reporte.append({
@@ -161,9 +208,9 @@ async def get_reporte_ventas(
             "precio_final": float(r.precio_final),
             "entrega_inicial": float(r.entrega_inicial or 0),
             "vendedor_nombre": f"{r.vend_nom} {r.vend_ape}" if r.vend_nom else "Sin asignar",
-            "comision": 0 # TODO: Implementar lógica de comisión si existe
+            "comision": float(r.comision or 0)
         })
-        
+
     return reporte
 
 @router.get("/playa/reportes/clientes-mora", response_model=List[ClienteMoraResponse])
@@ -220,7 +267,8 @@ async def get_clientes_en_mora(
 
     reporte = []
     for row in rows:
-        dias_atraso = (date_to - (row.fecha_mas_antigua or date_to)).days
+        today = date.today()
+        dias_atraso = (today - (row.fecha_mas_antigua or today)).days
         
         reporte.append({
             "cliente_id": row.id_cliente,
@@ -336,7 +384,8 @@ async def get_cuotas_mora_detalle(
             running_balance -= float(row.saldo_pendiente or 0)
             
             if is_in_mora:
-                dias_mora = (date_to - row.fecha_vencimiento).days
+                today = date.today()
+                dias_mora = (today - row.fecha_vencimiento).days
                 monto_s = float(row.saldo_pendiente or 0)
                 
                 # Nueva lógica de interés fijo por periodo
@@ -575,33 +624,79 @@ async def get_reporte_extracto_cuenta(
     if len(cuentas) > 3:
         cuenta_nombres = f"{len(cuentas)} cuentas seleccionadas"
 
-    # 2. Calcular Saldo Anterior (antes de la fecha 'desde')
-    # Sumar pagos
-    q_pagos_ant = select(func.sum(Pago.monto_pagado)).where(Pago.id_cuenta.in_(id_cuentas)).where(Pago.fecha_pago < date_from)
+    # 2. Obtener Saldos Anteriores (antes de la fecha 'desde')
+    # Sumar pagos (Capital + Interés)
+    q_pagos_ant = select(func.sum(Pago.monto_pagado + func.coalesce(Pago.mora_aplicada, 0))).where(Pago.id_cuenta.in_(id_cuentas)).where(Pago.fecha_pago < date_from)
     res_pagos_ant = await session.execute(q_pagos_ant)
     pagos_ant = float(res_pagos_ant.scalar() or 0)
 
     # Sumar movimientos destino (Entregas a las cuentas seleccionadas)
-    # IMPORTANTE: Si es transferencia entre dos cuentas del mismo grupo (ambas seleccionadas), se netea.
-    # Pero aquí calculamos saldo anterior, así que solo nos importa lo que entró desde fuera del grupo.
-    # En realidad, el saldo anterior es la suma de saldos de cada cuenta.
-    
-    # Movimientos que entran a alguna de estas cuentas
-    q_mov_in_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_destino.in_(id_cuentas)).where(Movimiento.fecha < datetime_from)
+    # IMPORTANTE: Excluir movimientos que ya son pagos (referencia PAGO-*) para evitar doble suma
+    q_mov_in_ant = (
+        select(func.sum(Movimiento.monto))
+        .where(Movimiento.id_cuenta_destino.in_(id_cuentas))
+        .where(Movimiento.fecha < datetime_from)
+        .where(or_(
+            Movimiento.referencia.is_(None),
+            and_(
+                not_(Movimiento.referencia.like('PAGO-%')),
+                not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+            )
+        ))
+    )
     res_mov_in_ant = await session.execute(q_mov_in_ant)
     mov_in_ant = float(res_mov_in_ant.scalar() or 0)
 
     # Movimientos que salen de alguna de estas cuentas
-    q_mov_out_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_origen.in_(id_cuentas)).where(Movimiento.fecha < datetime_from)
+    # IMPORTANTE: Excluir gastos que se sumarán por separado (Gasto Empresa / Producto)
+    q_mov_out_ant = (
+        select(func.sum(Movimiento.monto))
+        .where(Movimiento.id_cuenta_origen.in_(id_cuentas))
+        .where(Movimiento.fecha < datetime_from)
+        .where(or_(
+            Movimiento.referencia.is_(None),
+            and_(
+                not_(Movimiento.referencia.like('PAGO-%')),
+                not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+            )
+        ))
+    )
     res_mov_out_ant = await session.execute(q_mov_out_ant)
     mov_out_ant = float(res_mov_out_ant.scalar() or 0)
 
-    saldo_anterior = pagos_ant + mov_in_ant - mov_out_ant
+    # Gastos de producto anteriores
+    q_gastos_prod_ant = (
+        select(func.sum(GastoProducto.monto))
+        .where(GastoProducto.id_cuenta.in_(id_cuentas))
+        .where(GastoProducto.fecha_gasto < date_from)
+    )
+    res_gastos_prod_ant = await session.execute(q_gastos_prod_ant)
+    gastos_prod_ant = float(res_gastos_prod_ant.scalar() or 0)
+
+    # Gastos de empresa anteriores
+    q_gastos_emp_ant = (
+        select(func.sum(GastoEmpresa.monto))
+        .where(GastoEmpresa.id_cuenta.in_(id_cuentas))
+        .where(GastoEmpresa.fecha_gasto < date_from)
+    )
+    res_gastos_emp_ant = await session.execute(q_gastos_emp_ant)
+    gastos_emp_ant = float(res_gastos_emp_ant.scalar() or 0)
+
+    saldo_anterior = pagos_ant + mov_in_ant - mov_out_ant - gastos_prod_ant - gastos_emp_ant
 
     # 3. Obtener Movimientos del periodo
     # Pagos (Ingresos) - Unimos con Pagare para saber el tipo (CUOTA, ENTREGA, REFUERZO)
     q_pagos = (
-        select(Pago, Cliente.nombre, Cliente.apellido, Cuenta.nombre.label('cuenta_nom'), Pagare.tipo_pagare)
+        select(
+            Pago, 
+            Cliente.nombre, 
+            Cliente.apellido, 
+            Cuenta.nombre.label('cuenta_nom'), 
+            Pagare.tipo_pagare,
+            Pagare.numero_cuota,
+            Venta.cantidad_cuotas,
+            Venta.cantidad_refuerzos
+        )
         .join(Venta, Pago.id_venta == Venta.id_venta)
         .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
         .join(Cuenta, Pago.id_cuenta == Cuenta.id_cuenta)
@@ -612,30 +707,58 @@ async def get_reporte_extracto_cuenta(
     )
     res_pagos = await session.execute(q_pagos)
     movs_pydantic = []
-    for p, nom, ape, cta_nom, tipo_pg in res_pagos.all():
+    for p, nom, ape, cta_nom, tipo_pg, num_c, tot_c, tot_r in res_pagos.all():
         # Traducir tipo_pagare
         ref_text = "Entrega"
-        if tipo_pg == 'ENTREGA': ref_text = "Entrega"
-        elif tipo_pg == 'CUOTA': ref_text = "Cuota"
-        elif tipo_pg == 'REFUERZO': ref_text = "Refuerzo"
+        info_cuota = ""
+        if tipo_pg == 'ENTREGA_CONTADO':
+            ref_text = "Entrega Contado"
+        elif tipo_pg in ['ENTREGA', 'ENTREGA_INICIAL']: 
+            ref_text = "Entrega Inicial"
+        elif tipo_pg == 'CUOTA': 
+            ref_text = "Cuota"
+            info_cuota = f" {num_c}/{tot_c}"
+        elif tipo_pg == 'REFUERZO': 
+            ref_text = "Refuerzo"
+            info_cuota = f" {num_c}/{tot_r}"
+        
+        capital = float(p.monto_pagado)
+        interes = float(p.mora_aplicada or 0)
+        total = capital + interes
+        
+        # Determinar prefijo (Cobro o Venta)
+        prefijo = "Venta:" if "Entrega" in ref_text else "Cobro"
+        
+        concepto = f"[{cta_nom}] {prefijo} {ref_text}{info_cuota} - Cliente: {nom} {ape}"
+        if interes > 0:
+            concepto += f" (Cap: {int(capital):,} + Int: {int(interes):,})".replace(",", ".")
         
         movs_pydantic.append({
             "fecha": datetime.combine(p.fecha_pago, datetime.min.time()),
-            "concepto": f"[{cta_nom}] Cobro Cuota - Cliente: {nom} {ape}",
+            "concepto": concepto,
             "referencia": ref_text,
             "tipo": "INGRESO",
-            "monto": float(p.monto_pagado),
-            "id_cuenta": p.id_cuenta # Útil para el resumen por cuenta en el front
+            "monto": total,
+            "monto_capital": capital,
+            "monto_interes": interes,
+            "id_cuenta": p.id_cuenta
         })
 
     # Movimientos del periodo
-    # Entregas a alguna cuenta del grupo
+    # Entregas a alguna cuenta del grupo (Excluyendo PAGO-* y Gastos)
     q_mov_in = (
         select(Movimiento, Cuenta.nombre.label('cta_dest_nom'), Cuenta.id_cuenta.label('cta_dest_id'))
         .join(Cuenta, Movimiento.id_cuenta_destino == Cuenta.id_cuenta)
         .where(Movimiento.id_cuenta_destino.in_(id_cuentas))
         .where(Movimiento.fecha >= datetime_from)
         .where(Movimiento.fecha <= datetime_to)
+        .where(or_(
+            Movimiento.referencia.is_(None),
+            and_(
+                not_(Movimiento.referencia.like('PAGO-%')),
+                not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+            )
+        ))
     )
     res_mov_in = await session.execute(q_mov_in)
     for m, cta_dest_nom, cta_dest_id in res_mov_in.all():
@@ -650,15 +773,43 @@ async def get_reporte_extracto_cuenta(
             "id_cuenta": cta_dest_id
         })
 
-    # Salidas de alguna de estas cuentas
+    # Salidas de alguna de estas cuentas (Excluyendo PAGO-* y Gastos)
     q_mov_out = (
         select(Movimiento, Cuenta.nombre.label('cta_orig_nom'), Cuenta.id_cuenta.label('cta_orig_id'))
         .join(Cuenta, Movimiento.id_cuenta_origen == Cuenta.id_cuenta)
         .where(Movimiento.id_cuenta_origen.in_(id_cuentas))
         .where(Movimiento.fecha >= datetime_from)
         .where(Movimiento.fecha <= datetime_to)
+        .where(or_(
+            Movimiento.referencia.is_(None),
+            and_(
+                not_(Movimiento.referencia.like('PAGO-%')),
+                not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+            )
+        ))
+    )
+    
+    # NUEVO: Incluir gastos registrados directamente en las tablas de gastos que tengan id_cuenta
+    q_gastos_prod = (
+        select(GastoProducto, TipoGastoProducto.nombre.label('tipo_nom'), Producto.marca, Producto.modelo, Producto.chasis)
+        .join(TipoGastoProducto, GastoProducto.id_tipo_gasto == TipoGastoProducto.id_tipo_gasto)
+        .join(Producto, GastoProducto.id_producto == Producto.id_producto)
+        .where(GastoProducto.id_cuenta.in_(id_cuentas))
+        .where(GastoProducto.fecha_gasto >= date_from)
+        .where(GastoProducto.fecha_gasto <= date_to)
+    )
+    
+    q_gastos_emp = (
+        select(GastoEmpresa, TipoGastoEmpresa.nombre.label('tipo_nom'))
+        .join(TipoGastoEmpresa, GastoEmpresa.id_tipo_gasto_empresa == TipoGastoEmpresa.id_tipo_gasto_empresa)
+        .where(GastoEmpresa.id_cuenta.in_(id_cuentas))
+        .where(GastoEmpresa.fecha_gasto >= date_from)
+        .where(GastoEmpresa.fecha_gasto <= date_to)
     )
     res_mov_out = await session.execute(q_mov_out)
+    res_gastos_prod = await session.execute(q_gastos_prod)
+    res_gastos_emp = await session.execute(q_gastos_emp)
+    
     for m, cta_orig_nom, cta_orig_id in res_mov_out.all():
         is_internal = m.id_cuenta_destino in id_cuentas
         
@@ -682,36 +833,89 @@ async def get_reporte_extracto_cuenta(
             "id_cuenta": cta_orig_id
         })
 
+    # Procesar Gastos Productos
+    for g, tipo_nom, marca, modelo, chasis in res_gastos_prod.all():
+        movs_pydantic.append({
+            "fecha": datetime.combine(g.fecha_gasto, datetime.min.time()),
+            "concepto": f"(Gasto Directo) {tipo_nom}: {g.descripcion or ''} - {marca} {modelo} ({chasis})",
+            "referencia": "Gasto Vehículo",
+            "tipo": "EGRESO",
+            "monto": float(g.monto),
+            "id_cuenta": g.id_cuenta
+        })
+
+    # Procesar Gastos Empresa
+    for g, tipo_nom in res_gastos_emp.all():
+        movs_pydantic.append({
+            "fecha": datetime.combine(g.fecha_gasto, datetime.min.time()),
+            "concepto": f"(Gasto Directo) {tipo_nom}: {g.descripcion or ''}",
+            "referencia": "Gasto Empresa",
+            "tipo": "EGRESO",
+            "monto": float(g.monto),
+            "id_cuenta": g.id_cuenta
+        })
+
     # 4. Calcular Resumen por Cuenta
     resumen_cuentas = []
     for cta in cuentas:
         # Saldo anterior por cuenta
-        q_p_ant = select(func.sum(Pago.monto_pagado)).where(Pago.id_cuenta == cta.id_cuenta).where(Pago.fecha_pago < date_from)
+        q_p_ant = select(func.sum(Pago.monto_pagado + func.coalesce(Pago.mora_aplicada, 0))).where(Pago.id_cuenta == cta.id_cuenta).where(Pago.fecha_pago < date_from)
         res_p_ant = await session.execute(q_p_ant)
         p_ant = float(res_p_ant.scalar() or 0)
 
-        q_mi_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_destino == cta.id_cuenta).where(Movimiento.fecha < datetime_from)
+        q_mi_ant = (
+            select(func.sum(Movimiento.monto))
+            .where(Movimiento.id_cuenta_destino == cta.id_cuenta)
+            .where(Movimiento.fecha < datetime_from)
+            .where(or_(
+                Movimiento.referencia.is_(None),
+                and_(
+                    not_(Movimiento.referencia.like('PAGO-%')),
+                    not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+                )
+            ))
+        )
         res_mi_ant = await session.execute(q_mi_ant)
         mi_ant = float(res_mi_ant.scalar() or 0)
 
-        q_mo_ant = select(func.sum(Movimiento.monto)).where(Movimiento.id_cuenta_origen == cta.id_cuenta).where(Movimiento.fecha < datetime_from)
+        q_mo_ant = (
+            select(func.sum(Movimiento.monto))
+            .where(Movimiento.id_cuenta_origen == cta.id_cuenta)
+            .where(Movimiento.fecha < datetime_from)
+            .where(or_(
+                Movimiento.referencia.is_(None),
+                and_(
+                    not_(Movimiento.referencia.like('PAGO-%')),
+                    not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+                )
+            ))
+        )
         res_mo_ant = await session.execute(q_mo_ant)
         mo_ant = float(res_mo_ant.scalar() or 0)
 
-        s_ant_cta = p_ant + mi_ant - mo_ant
+        # Gastos directos por cuenta
+        q_gp_ant = select(func.sum(GastoProducto.monto)).where(GastoProducto.id_cuenta == cta.id_cuenta).where(GastoProducto.fecha_gasto < date_from)
+        res_gp_ant = await session.execute(q_gp_ant)
+        gp_ant = float(res_gp_ant.scalar() or 0)
+
+        q_ge_ant = select(func.sum(GastoEmpresa.monto)).where(GastoEmpresa.id_cuenta == cta.id_cuenta).where(GastoEmpresa.fecha_gasto < date_from)
+        res_ge_ant = await session.execute(q_ge_ant)
+        ge_ant = float(res_ge_ant.scalar() or 0)
+
+        s_ant_cta = p_ant + mi_ant - mo_ant - gp_ant - ge_ant
         
         # Movimientos del periodo por cuenta
-        movs_cta = [m for m in movs_pydantic if m.get("id_cuenta") == cta.id_cuenta]
-        ing_cta = sum(m["monto"] for m in movs_cta if m["tipo"] == "INGRESO")
-        egr_cta = sum(m["monto"] for m in movs_cta if m["tipo"] == "EGRESO")
+        m_cta = [m for m in movs_pydantic if m["id_cuenta"] == cta.id_cuenta]
+        total_in = sum(m["monto"] for m in m_cta if m["tipo"] == "INGRESO")
+        total_out = sum(m["monto"] for m in m_cta if m["tipo"] == "EGRESO")
 
         resumen_cuentas.append({
             "id_cuenta": cta.id_cuenta,
             "nombre": cta.nombre,
             "saldo_anterior": s_ant_cta,
-            "ingresos": ing_cta,
-            "egresos": egr_cta,
-            "saldo_final": s_ant_cta + ing_cta - egr_cta
+            "ingresos": total_in,
+            "egresos": total_out,
+            "saldo_final": s_ant_cta + total_in - total_out
         })
 
     # 5. Ordenar por fecha y calcular saldo acumulado global
@@ -731,4 +935,241 @@ async def get_reporte_extracto_cuenta(
         "movimientos": movs_pydantic,
         "saldo_final": current_balance,
         "resumen_cuentas": resumen_cuentas
+    }
+
+@router.get("/playa/reportes/movimiento-detallado", response_model=ReporteMovimientoDetalladoResponse)
+async def get_reporte_movimiento_detallado(
+    id_cuentas: List[int] = Query(...),
+    desde: Optional[date] = Query(None),
+    hasta: Optional[date] = Query(None),
+    tipo_filtro: str = Query('AMBOS'), # 'AMBOS', 'INGRESO', 'EGRESO'
+    subcategorias: List[str] = Query(None), # Filtro opcional por subcategoría
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Genera un extracto detallado/desglosado de movimientos.
+    Ingresos: Entrega, Cuota, Interés, Otros.
+    Egresos: Vehículo, Empresa, Otros.
+    """
+    date_from = desde or date(2020, 1, 1)
+    date_to = hasta or date.today()
+    datetime_from = datetime.combine(date_from, datetime.min.time())
+    datetime_to = datetime.combine(date_to, datetime.max.time())
+
+    movs = []
+
+    # --- 1. INGRESOS (PAGOS) ---
+    if tipo_filtro in ['AMBOS', 'INGRESO']:
+        q_pagos = (
+            select(
+                Pago, 
+                Cliente.nombre, 
+                Cliente.apellido, 
+                Cuenta.nombre.label('cuenta_nom'), 
+                Pagare.tipo_pagare,
+                Pagare.numero_cuota,
+                Venta.cantidad_cuotas,
+                Venta.cantidad_refuerzos
+            )
+            .join(Venta, Pago.id_venta == Venta.id_venta)
+            .join(Cliente, Venta.id_cliente == Cliente.id_cliente)
+            .join(Cuenta, Pago.id_cuenta == Cuenta.id_cuenta)
+            .join(Pagare, Pago.id_pagare == Pagare.id_pagare)
+            .where(Pago.id_cuenta.in_(id_cuentas))
+            .where(Pago.fecha_pago >= date_from)
+            .where(Pago.fecha_pago <= date_to)
+        )
+        res_pagos = await session.execute(q_pagos)
+        for p, nom, ape, cta_nom, tipo_pg, num_c, tot_c, tot_r in res_pagos.all():
+            m_cap = float(p.monto_pagado)
+            m_int = float(p.mora_aplicada or 0)
+            
+            det = {
+                "fecha": datetime.combine(p.fecha_pago, datetime.min.time()),
+                "id_cuenta": p.id_cuenta,
+                "cuenta_nom": cta_nom,
+                "tipo": "INGRESO",
+                "concepto": f"Cobro {tipo_pg} - {nom} {ape}",
+                "referencia": tipo_pg,
+                "monto_total": m_cap + m_int,
+                "ingreso_entrega": 0,
+                "ingreso_cuota": 0,
+                "ingreso_interes": m_int,
+                "ingreso_otros": 0,
+                "egreso_vehiculo": 0,
+                "egreso_empresa": 0,
+                "egreso_otros": 0
+            }
+            
+            if tipo_pg == 'ENTREGA_CONTADO':
+                det["ingreso_entrega"] = m_cap
+                det["referencia"] = "Entrega Contado"
+                det["concepto"] = f"Venta: Entrega Contado - {nom} {ape}"
+            elif tipo_pg in ['ENTREGA', 'ENTREGA_INICIAL']:
+                det["ingreso_entrega"] = m_cap
+                det["referencia"] = "Entrega Inicial"
+                det["concepto"] = f"Venta: Entrega Inicial - {nom} {ape}"
+            elif tipo_pg == 'CUOTA':
+                det["ingreso_cuota"] = m_cap
+                det["concepto"] = f"Cuota {num_c}/{tot_c} - {nom} {ape}"
+                det["referencia"] = "Cuota"
+            elif tipo_pg == 'REFUERZO':
+                det["ingreso_cuota"] = m_cap
+                det["concepto"] = f"Cobro Refuerzo {num_c}/{tot_r} - {nom} {ape}"
+                det["referencia"] = "Refuerzo"
+            
+            movs.append(det)
+
+    # --- 2. INGRESOS (TRANSFERENCIAS / OTROS) ---
+    if tipo_filtro in ['AMBOS', 'INGRESO']:
+        q_mov_in = (
+            select(Movimiento, Cuenta.nombre.label('cta_dest_nom'), Cuenta.id_cuenta.label('cta_dest_id'))
+            .join(Cuenta, Movimiento.id_cuenta_destino == Cuenta.id_cuenta)
+            .where(Movimiento.id_cuenta_destino.in_(id_cuentas))
+            .where(Movimiento.fecha >= datetime_from)
+            .where(Movimiento.fecha <= datetime_to)
+            .where(or_(
+                Movimiento.referencia.is_(None),
+                and_(
+                    not_(Movimiento.referencia.like('PAGO-%')),
+                    not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+                )
+            ))
+        )
+        res_mov_in = await session.execute(q_mov_in)
+        for m, cta_dest_nom, cta_dest_id in res_mov_in.all():
+            if m.id_cuenta_origen in id_cuentas: continue # Omitir internas para evitar duplicar
+            
+            movs.append({
+                "fecha": m.fecha,
+                "id_cuenta": cta_dest_id,
+                "cuenta_nom": cta_dest_nom,
+                "concepto": m.concepto or "Ingreso Externo",
+                "referencia": "Transferencia",
+                "tipo": "INGRESO",
+                "monto_total": float(m.monto),
+                "ingreso_entrega": 0,
+                "ingreso_cuota": 0,
+                "ingreso_interes": 0,
+                "ingreso_otros": float(m.monto),
+                "egreso_vehiculo": 0,
+                "egreso_empresa": 0,
+                "egreso_otros": 0
+            })
+
+    # --- 3. EGRESOS (GASTOS VEHICULO) ---
+    if tipo_filtro in ['AMBOS', 'EGRESO']:
+        q_gastos_prod = (
+            select(GastoProducto, TipoGastoProducto.nombre.label('tipo_nom'), Producto.marca, Producto.modelo, Cuenta.nombre.label('cta_nom'))
+            .join(TipoGastoProducto, GastoProducto.id_tipo_gasto == TipoGastoProducto.id_tipo_gasto)
+            .join(Producto, GastoProducto.id_producto == Producto.id_producto)
+            .join(Cuenta, GastoProducto.id_cuenta == Cuenta.id_cuenta)
+            .where(GastoProducto.id_cuenta.in_(id_cuentas))
+            .where(GastoProducto.fecha_gasto >= date_from)
+            .where(GastoProducto.fecha_gasto <= date_to)
+        )
+        res_gp = await session.execute(q_gastos_prod)
+        for g, tipo_nom, marca, modelo, cta_nom in res_gp.all():
+            movs.append({
+                "fecha": datetime.combine(g.fecha_gasto, datetime.min.time()),
+                "id_cuenta": g.id_cuenta,
+                "cuenta_nom": cta_nom,
+                "concepto": f"{tipo_nom}: {g.descripcion or ''} - {marca} {modelo}",
+                "referencia": "Gasto Vehículo",
+                "tipo": "EGRESO",
+                "monto_total": float(g.monto),
+                "ingreso_entrega": 0, "ingreso_cuota": 0, "ingreso_interes": 0, "ingreso_otros": 0,
+                "egreso_vehiculo": float(g.monto), "egreso_empresa": 0, "egreso_otros": 0
+            })
+
+    # --- 4. EGRESOS (GASTOS EMPRESA) ---
+    if tipo_filtro in ['AMBOS', 'EGRESO']:
+        q_gastos_emp = (
+            select(GastoEmpresa, TipoGastoEmpresa.nombre.label('tipo_nom'), Cuenta.nombre.label('cta_nom'))
+            .join(TipoGastoEmpresa, GastoEmpresa.id_tipo_gasto_empresa == TipoGastoEmpresa.id_tipo_gasto_empresa)
+            .join(Cuenta, GastoEmpresa.id_cuenta == Cuenta.id_cuenta)
+            .where(GastoEmpresa.id_cuenta.in_(id_cuentas))
+            .where(GastoEmpresa.fecha_gasto >= date_from)
+            .where(GastoEmpresa.fecha_gasto <= date_to)
+        )
+        res_ge = await session.execute(q_gastos_emp)
+        for g, tipo_nom, cta_nom in res_ge.all():
+            movs.append({
+                "fecha": datetime.combine(g.fecha_gasto, datetime.min.time()),
+                "id_cuenta": g.id_cuenta,
+                "cuenta_nom": cta_nom,
+                "concepto": f"{tipo_nom}: {g.descripcion or ''}",
+                "referencia": "Gasto Empresa",
+                "tipo": "EGRESO",
+                "monto_total": float(g.monto),
+                "ingreso_entrega": 0, "ingreso_cuota": 0, "ingreso_interes": 0, "ingreso_otros": 0,
+                "egreso_vehiculo": 0, "egreso_empresa": float(g.monto), "egreso_otros": 0
+            })
+
+    # --- 5. EGRESOS (TRANSFERENCIAS SALIENTES / OTROS) ---
+    if tipo_filtro in ['AMBOS', 'EGRESO']:
+        q_mov_out = (
+            select(Movimiento, Cuenta.nombre.label('cta_orig_nom'), Cuenta.id_cuenta.label('cta_orig_id'))
+            .join(Cuenta, Movimiento.id_cuenta_origen == Cuenta.id_cuenta)
+            .where(Movimiento.id_cuenta_origen.in_(id_cuentas))
+            .where(Movimiento.fecha >= datetime_from)
+            .where(Movimiento.fecha <= datetime_to)
+            .where(or_(
+                Movimiento.referencia.is_(None),
+                and_(
+                    not_(Movimiento.referencia.like('PAGO-%')),
+                    not_(Movimiento.referencia.in_(['Gasto Empresa', 'Gasto Vehículo']))
+                )
+            ))
+        )
+        res_mov_out = await session.execute(q_mov_out)
+        for m, cta_orig_nom, cta_orig_id in res_mov_out.all():
+            if m.id_cuenta_destino in id_cuentas: continue
+            
+            movs.append({
+                "fecha": m.fecha,
+                "id_cuenta": cta_orig_id,
+                "cuenta_nom": cta_orig_nom,
+                "concepto": m.concepto or "Egreso Externo",
+                "referencia": "Transferencia",
+                "tipo": "EGRESO",
+                "monto_total": float(m.monto),
+                "ingreso_entrega": 0, "ingreso_cuota": 0, "ingreso_interes": 0, "ingreso_otros": 0,
+                "egreso_vehiculo": 0, "egreso_empresa": 0, "egreso_otros": float(m.monto)
+            })
+
+    # --- 6. FILTRADO POR SUBCATEGORÍAS ---
+    if subcategorias and len(subcategorias) > 0:
+        filtered_movs = []
+        for m in movs:
+            keep = False
+            for sc in subcategorias:
+                if sc == 'ENTREGA' and m['ingreso_entrega'] > 0: keep = True
+                elif sc == 'CUOTA' and m['ingreso_cuota'] > 0: keep = True
+                elif sc == 'INTERES' and m['ingreso_interes'] > 0: keep = True
+                elif sc == 'OTROS_IN' and m['ingreso_otros'] > 0: keep = True
+                elif sc == 'GASTO_VEHICULO' and m['egreso_vehiculo'] > 0: keep = True
+                elif sc == 'GASTO_EMPRESA' and m['egreso_empresa'] > 0: keep = True
+                elif sc == 'OTROS_EG' and m['egreso_otros'] > 0: keep = True
+            if keep:
+                filtered_movs.append(m)
+        movs = filtered_movs
+
+    # Totales Finales
+    totales = {
+        "entregas": sum(m["ingreso_entrega"] for m in movs),
+        "cuotas": sum(m["ingreso_cuota"] for m in movs),
+        "interes": sum(m["ingreso_interes"] for m in movs),
+        "ingreso_otros": sum(m["ingreso_otros"] for m in movs),
+        "egreso_vehiculo": sum(m["egreso_vehiculo"] for m in movs),
+        "egreso_empresa": sum(m["egreso_empresa"] for m in movs),
+        "egreso_otros": sum(m["egreso_otros"] for m in movs),
+        "total_ingreso": sum(m["monto_total"] for m in movs if m["tipo"] == "INGRESO"),
+        "total_egreso": sum(m["monto_total"] for m in movs if m["tipo"] == "EGRESO"),
+    }
+
+    return {
+        "movimientos": sorted(movs, key=lambda x: x["fecha"]),
+        "totales": totales
     }

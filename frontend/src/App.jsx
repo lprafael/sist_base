@@ -20,6 +20,7 @@ import ConfigCalificacionesPlaya from "./components/playa/parametros/ConfigCalif
 import TiposGastosEmpresa from "./components/playa/parametros/TiposGastosEmpresa.jsx";
 import TiposGastosProductos from "./components/playa/parametros/TiposGastosProductos.jsx";
 import ReportesPlaya from "./components/playa/reportes/ReportesPlaya.jsx";
+import MovimientoDetallado from "./components/playa/reportes/MovimientoDetallado.jsx";
 import VendedoresPlaya from "./components/playa/parametros/VendedoresPlaya.jsx";
 import EstadosPlaya from "./components/playa/parametros/EstadosPlaya.jsx";
 import CuentasPlaya from "./components/playa/parametros/CuentasPlaya.jsx";
@@ -27,6 +28,8 @@ import MovimientosCuentas from "./components/playa/negocios/MovimientosCuentas.j
 import EscribaniasPlaya from "./components/playa/parametros/EscribaniasPlaya.jsx";
 import ImagenesVehiculo from "./components/playa/gestion/ImagenesVehiculo.jsx";
 import DiagnosticoPagares from "./components/playa/negocios/DiagnosticoPagares.jsx";
+import HistorialPropietarios from "./components/playa/parametros/HistorialPropietarios.jsx";
+import GastosAdicionales from "./components/playa/negocios/GastosAdicionales.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed, isMobileOpen, onMobileToggle }) {
   const handleToggle = () => {
@@ -242,6 +245,7 @@ export default function App() {
       icon: "📋",
       items: [
         { id: "reportes_mora", label: "Reportes", icon: "📋", roles: ['admin', 'manager', 'user'] },
+        { id: "movimiento_detallado", label: "Movimiento Detallado", icon: "📊", roles: ['admin', 'manager'] },
       ]
     },
     {
@@ -251,6 +255,7 @@ export default function App() {
         { id: "ventas_playa", label: "Ventas", icon: "🤝", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "pagares_playa", label: "Pagarés", icon: "📝", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "cobros_playa", label: "Cobros", icon: "💵", roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: "gastos_adicionales", label: "Gastos Adicionales", icon: "➕", roles: ['admin', 'manager', 'user'] },
         { id: "movimientos_cuentas", label: "Movimientos", icon: "💸", roles: ['admin', 'manager'] },
       ]
     },
@@ -265,6 +270,7 @@ export default function App() {
         { id: "escribanias_playa", label: "Escribanías", icon: "⚖️", roles: ['admin', 'manager'] },
         { id: "estados_playa", label: "Estados Pagarés", icon: "🔖", roles: ['admin', 'manager'] },
         { id: "cuentas_playa", label: "Cuentas/Cajas", icon: "🏦", roles: ['admin', 'manager'] },
+        { id: "historial_propietarios", label: "Historial Propietarios", icon: "📜", roles: ['admin', 'manager', 'user'] },
       ]
     },
     {
@@ -400,10 +406,13 @@ export default function App() {
             {tab === "gastos_playa" && <GastosVehiculo />}
             {tab === "gastos_empresa_playa" && <GastosEmpresa />}
             {tab === "reportes_mora" && <ReportesPlaya />}
+            {tab === "movimiento_detallado" && <MovimientoDetallado />}
             {tab === "estados_playa" && <EstadosPlaya />}
             {tab === "cuentas_playa" && <CuentasPlaya />}
             {tab === "movimientos_cuentas" && <MovimientosCuentas />}
+            {tab === "gastos_adicionales" && <GastosAdicionales />}
             {tab === "escribanias_playa" && <EscribaniasPlaya />}
+            {tab === "historial_propietarios" && <HistorialPropietarios />}
           </div>
 
         </main>

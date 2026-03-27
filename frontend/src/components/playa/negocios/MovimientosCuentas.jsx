@@ -14,8 +14,11 @@ const MovimientosCuentas = () => {
         id_cuenta_destino: '',
         monto: '',
         concepto: '',
-        referencia: ''
+        referencia: '',
+        fecha: new Date().toISOString().split('T')[0]
     });
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState(null);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
@@ -45,8 +48,11 @@ const MovimientosCuentas = () => {
             id_cuenta_destino: '',
             monto: '',
             concepto: '',
-            referencia: ''
+            referencia: '',
+            fecha: new Date().toISOString().split('T')[0]
         });
+        setIsEditing(false);
+        setEditId(null);
         setShowModal(true);
     };
 
@@ -71,10 +77,47 @@ const MovimientosCuentas = () => {
                 id_cuenta_destino: formData.id_cuenta_destino || null,
                 monto: parseFloat(formData.monto)
             };
-            await axios.post(`${API_URL}/playa/movimientos`, dataToSubmit, {
+
+            if (isEditing) {
+                await axios.put(`${API_URL}/playa/movimientos/${editId}`, dataToSubmit, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${API_URL}/playa/movimientos`, dataToSubmit, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+            closeModal();
+            fetchData();
+        } catch (error) {
+            alert('Error: ' + (error.response?.data?.detail || error.message));
+        }
+    };
+
+    const handleEdit = (mov) => {
+        setFormData({
+            id_cuenta_origen: mov.id_cuenta_origen || '',
+            id_cuenta_destino: mov.id_cuenta_destino || '',
+            monto: mov.monto,
+            concepto: mov.concepto || '',
+            referencia: mov.referencia || '',
+            fecha: mov.fecha ? mov.fecha.split('T')[0] : new Date().toISOString().split('T')[0]
+        });
+        setEditId(mov.id_movimiento);
+        setIsEditing(true);
+        setShowModal(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('¿Está seguro de que desea eliminar este movimiento? Los saldos de las cuentas se revertirán.')) {
+            return;
+        }
+
+        try {
+            const token = sessionStorage.getItem('token');
+            await axios.delete(`${API_URL}/playa/movimientos/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            closeModal();
             fetchData();
         } catch (error) {
             alert('Error: ' + (error.response?.data?.detail || error.message));
@@ -125,6 +168,7 @@ const MovimientosCuentas = () => {
                                 <th style={{ textAlign: 'right' }}>Monto</th>
                                 <th>Concepto</th>
                                 <th>Ref.</th>
+                                <th style={{ textAlign: 'center' }}>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -136,6 +180,24 @@ const MovimientosCuentas = () => {
                                     <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(m.monto)}</td>
                                     <td>{m.concepto}</td>
                                     <td style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{m.referencia}</td>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <div className="table-actions">
+                                            <button
+                                                className="btn-edit-small"
+                                                onClick={() => handleEdit(m)}
+                                                title="Editar movimiento"
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button
+                                                className="btn-delete-small"
+                                                onClick={() => handleDelete(m.id_movimiento)}
+                                                title="Eliminar movimiento"
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -147,10 +209,10 @@ const MovimientosCuentas = () => {
                 <div className="modal-overlay" onClick={closeModal}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>Nuevo Movimiento</h3>
+                            <h3>{isEditing ? 'Editar Movimiento' : 'Nuevo Movimiento'}</h3>
                             <button className="btn-close-modal-top" onClick={closeModal}>&times;</button>
                         </div>
-                        
+
                         <form onSubmit={handleSubmit}>
                             <div className="modal-body">
                                 <div className="form-group">
@@ -177,6 +239,16 @@ const MovimientosCuentas = () => {
                                             <option key={c.id_cuenta} value={c.id_cuenta}>{c.nombre} (Sald: {formatCurrency(c.saldo_actual)})</option>
                                         ))}
                                     </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Fecha del Movimiento</label>
+                                    <input
+                                        type="date"
+                                        value={formData.fecha}
+                                        onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                                        required
+                                    />
                                 </div>
 
                                 <div className="form-group">
@@ -215,7 +287,7 @@ const MovimientosCuentas = () => {
 
                             <div className="modal-actions">
                                 <button type="button" className="btn-cancel" onClick={closeModal}>Cancelar</button>
-                                <button type="submit" className="btn-save">Registrar Movimiento</button>
+                                <button type="submit" className="btn-save">{isEditing ? 'Guardar Cambios' : 'Registrar Movimiento'}</button>
                             </div>
                         </form>
                     </div>
