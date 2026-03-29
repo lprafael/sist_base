@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrato MiCoche - Gestión y Comercialización</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        :root {
+            --primary: #1a237e;
+            --secondary: #0d47a1;
+            --text: #333;
+            --light-bg: #f4f7f9;
+            --border: #d1d9e6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: var(--light-bg);
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .contract-container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 60px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+
+        .logo-placeholder {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .contract-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--secondary);
+            margin: 0;
+        }
+
+        .clause {
+            margin-bottom: 25px;
+            text-align: justify;
+        }
+
+        .clause-title {
+            font-weight: 700;
+            color: var(--primary);
+            display: block;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-size: 14px;
+            border-left: 4px solid var(--primary);
+            padding-left: 10px;
+        }
+
+        .parties-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+
+        .highlight-box {
+            background: rgba(26, 35, 126, 0.05);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px dashed var(--primary);
+            margin: 20px 0;
+        }
+
+        .signatures {
+            margin-top: 60px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 80px;
+            text-align: center;
+            padding-top: 10px;
+            font-size: 14px;
+        }
+
+        small {
+            color: #777;
+            display: block;
+            margin-top: 5px;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .contract-container { box-shadow: none; width: 100%; border: none; padding: 20px; }
+            .no-print { display: none; }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="contract-container">
+        <div class="header">
+            <div class="logo-placeholder">www.micoche.com.py</div>
+            <p class="contract-title">CONTRATO DE LICENCIA DE SOFTWARE Y GESTIÓN COMERCIAL MULTI-PLAYA</p>
+        </div>
+
+        <div class="parties-section">
+            <p><strong>REUNIDOS:</strong></p>
+            <p>De una parte, <strong>[NOMBRE DE TU EMPRESA]</strong>, en adelante denominada "LA PROVEEDORA", titular del portal <em>MiCoche.com.py</em>.</p>
+            <p>De otra parte, <strong>[NOMBRE DE LA PLAYA / EMPRESA]</strong>, con RUC <strong>[_________]</strong>, representada por <strong>[NOMBRE DEL RESPONSABLE]</strong>, en adelante denominada "LA PLAYA AFILIADA".</p>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Primera: Objeto del Servicio</span>
+            <p>LA PROVEEDORA otorga a LA PLAYA AFILIADA una licencia de uso no exclusiva del Sistema de Gestión de Vehículos (SaaS), permitiendo la administración de stock, clientes y ventas. Asimismo, LA PROVEEDORA integrará automáticamente dicho stock en el Marketplace público <strong>www.micoche.com.py</strong>.</p>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Segunda: Modelo de Comisión por Ventas</span>
+            <p>Por cada vehículo cuya venta sea concretada o referenciada a través de la plataforma <em>MiCoche.com.py</em>, LA PLAYA AFILIADA se compromete a abonar a LA PROVEEDORA una comisión comercial equivalente al:</p>
+            <div class="highlight-box">
+                <strong>COMISIÓN PACTADA: _______ %</strong> del valor final de venta del vehículo.
+            </div>
+            <p>Dicha comisión será liquidada en un plazo máximo de 48 horas posteriores al cierre de la operación y entrega del vehículo.</p>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Tercera: Ventas Cruzadas y Servicios Periféricos</span>
+            <p>LA PLAYA AFILIADA acepta que LA PROVEEDORA ofrezca a los compradores, de manera directa o a través del portal, productos y servicios complementarios como: <strong>seguimiento GPS, alarmas, polarizados, seguros, equipamiento técnico y financiamiento externo</strong>. Los ingresos generados por estos servicios periféricos pertenecen exclusivamente a LA PROVEEDORA, salvo acuerdo específico de colaboración por instalación.</p>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Cuarta: Publicidad y Espacios Destacados</span>
+            <p>LA PROVEEDORA se reserva el derecho de comercializar espacios publicitarios dentro de la plataforma, incluyendo banners de terceros y "Vehículos Destacados". LA PLAYA AFILIADA podrá contratar visibilidad preferencial mediante tarifario vigente independiente a la comisión por venta.</p>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Quinta: Uso de Datos e Inventario</span>
+            <p>LA PLAYA AFILIADA autoriza a LA PROVEEDORA a consumir mediante API o acceso directo los datos de su stock (fotos, precio, detalles técnicos) para su difusión en redes sociales, Google Ads y otros canales digitales con el fin de maximizar la exposición de los vehículos.</p>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Sexta: Obligaciones de "LA PLAYA"</span>
+            <ul>
+                <li>Mantener el stock actualizado obligatoriamente. Vehículo vendido debe ser marcado como tal en el sistema en menos de 12 horas.</li>
+                <li>Garantizar que los precios publicados en el sistema sean respetados para los clientes que lleguen vía <em>MiCoche.com.py</em>.</li>
+                <li>Proveer fotografías de alta calidad que no dañen la estética del portal global.</li>
+            </ul>
+        </div>
+
+        <div class="clause">
+            <span class="clause-title">Séptima: Duración y Rescisión</span>
+            <p>El presente contrato tiene una duración de <strong>[12 meses]</strong> prorrogables. Cualquiera de las partes podrá rescindirlo con un preaviso de 30 días, siempre que no existan comisiones pendientes de liquidación.</p>
+        </div>
+
+        <div class="signatures">
+            <div class="signature-line">
+                <strong>POR LA PROVEEDORA</strong>
+                <small>Firma y Sello</small>
+            </div>
+            <div class="signature-line">
+                <strong>POR LA PLAYA AFILIADA</strong>
+                <small>Firma y Sello</small>
+            </div>
+        </div>
+
+        <p style="margin-top: 50px; font-size: 11px; color: #999; text-align: center;">
+            Documento generado electrónicamente para el ecosistema MiCoche - Paraguay 2026.
+        </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;" class="no-print">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #1a237e; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+            Imprimir Contrato
+        </button>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+Probando handshake con 170.51.29.84:5432...
+TCP conectado.
+Respuesta del servidor: b'E\x00\x00\x00\xb2SFATAL\x00VFATAL\x00C28000\x00Mno hay una l\xednea en pg_hba.conf para \xab181.127.138.194\xbb, usuario \xabpostgres\xbb, base de datos \xabBBDD_playa\xbb, sin cifrado\x00Fauth.c\x00L537\x00RClientAuthentication\x00\x00'
+  --> SFATAL
+  --> VFATAL
+  --> C28000
+  --> Mno hay una lnea en pg_hba.conf para 181.127.138.194, usuario postgres, base de datos BBDD_playa, sin cifrado
+  --> Fauth.c
+  --> L537
+  --> RClientAuthentication

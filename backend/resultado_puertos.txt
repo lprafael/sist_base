@@ -1,0 +1,11 @@
+RESULTADOS DE PRUEBA DE CONEXIÓN A 170.51.29.84
+========================================
+
+[PUERTO 5432] Probando: postgresql+asyncpg://postgres:adminperalta@170.51.29.84:5432/BBDD_playa
+  --> ERROR: connection was closed in the middle of operation
+
+[PUERTO 5433] Probando: postgresql+asyncpg://postgres:adminperalta@170.51.29.84:5433/BBDD_playa
+  --> ERROR: [WinError 1225] El equipo remoto rechazó la conexión de red
+
+[PUERTO 5434] Probando: postgresql+asyncpg://postgres:adminperalta@170.51.29.84:5434/BBDD_playa
+  --> ERROR: [WinError 1225] El equipo remoto rechazó la conexión de red

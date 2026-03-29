@@ -8,6 +8,24 @@
 #   VITE_PUBLIC_API_URL=https://api.tudominio.com
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: mi-playa-db
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-mi_playa}
+    volumes:
+      - mi_playa_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - mi-playa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-mi_playa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -18,10 +36,11 @@ services:
       - "${BACKEND_HOST_PORT:-8002}:8001"
     environment:
       - PORT=8001
-    env_file:
-      - ./backend/.env
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-mi_playa}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
-      # Solo datos persistentes (no se monta el código fuente)
       - mi_playa_logs:/app/logs
       - mi_playa_uploads:/app/static/uploads
     restart: unless-stopped
@@ -74,5 +93,6 @@ networks:
     driver: bridge
 
 volumes:
+  mi_playa_db_data:
   mi_playa_logs:
   mi_playa_uploads:
