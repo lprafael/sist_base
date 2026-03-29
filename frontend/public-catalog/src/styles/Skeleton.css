@@ -1,0 +1,76 @@
+.skeleton-card, .skeleton-row {
+  background: var(--mc-white);
+  border: 1px solid var(--mc-gray-100);
+  border-radius: var(--mc-radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton-img {
+  aspect-ratio: 4/3;
+  background: #eee;
+  animation: skeleton-pulse 1.5s infinite;
+}
+
+.skeleton-info, .skeleton-body {
+  padding: 1rem;
+}
+
+.skeleton-title {
+  height: 1.25rem;
+  background: #eee;
+  width: 70%;
+  margin-bottom: 0.5rem;
+  animation: skeleton-pulse 1.5s infinite;
+}
+
+.skeleton-price {
+  height: 1.5rem;
+  background: #eee;
+  width: 40%;
+  margin-bottom: 0.5rem;
+  animation: skeleton-pulse 1.5s infinite;
+}
+
+.skeleton-specs, .skeleton-meta {
+  height: 1rem;
+  background: #eee;
+  width: 90%;
+  animation: skeleton-pulse 1.5s infinite;
+}
+
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+.skeleton-thumb {
+  width: 120px;
+  height: 80px;
+  background: #eee;
+  border-radius: 8px;
+  animation: skeleton-pulse 1.5s infinite;
+}
+
+.skeleton-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.skeleton-btn {
+  width: 100px;
+  height: 32px;
+  background: #eee;
+  border-radius: 999px;
+  animation: skeleton-pulse 1.5s infinite;
+}
+
+@keyframes skeleton-pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}

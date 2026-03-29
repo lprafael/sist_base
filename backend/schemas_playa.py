@@ -1,7 +1,7 @@
 # schemas_playa.py
 # Schemas de validación Pydantic para el sistema de Playa de Vehículos
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime, date
 from decimal import Decimal
@@ -51,13 +51,66 @@ class EscribaniaResponse(EscribaniaBase):
     class Config:
         from_attributes = True
 
+
+# ===== CATÁLOGOS GLOBALES (ADMIN) =====
+class TipoVehiculoCatalogoBase(BaseModel):
+    nombre: str
+    activo: Optional[bool] = True
+
+
+class TipoVehiculoCatalogoCreate(TipoVehiculoCatalogoBase):
+    pass
+
+
+class TipoVehiculoCatalogoResponse(TipoVehiculoCatalogoBase):
+    id_tipo: int
+    class Config:
+        from_attributes = True
+
+
+class MarcaCatalogoBase(BaseModel):
+    nombre: str
+    activo: Optional[bool] = True
+
+
+class MarcaCatalogoCreate(MarcaCatalogoBase):
+    pass
+
+
+class MarcaCatalogoResponse(MarcaCatalogoBase):
+    id_marca: int
+    class Config:
+        from_attributes = True
+
+
+class ModeloCatalogoBase(BaseModel):
+    id_marca: int
+    nombre: str
+    activo: Optional[bool] = True
+
+
+class ModeloCatalogoCreate(ModeloCatalogoBase):
+    pass
+
+
+class ModeloCatalogoResponse(ModeloCatalogoBase):
+    id_modelo: int
+    class Config:
+        from_attributes = True
+
+
 # ===== VEHÍCULOS (PRODUCTOS) =====
 class ProductoBase(BaseModel):
     id_categoria: Optional[int] = None
     codigo_interno: Optional[str] = None
+    # Nuevos Campos Normalizados
+    id_tipo_vehiculo: Optional[int] = None
+    id_marca: Optional[int] = None
+    id_modelo: Optional[int] = None
+    # Mantener strings para compatibilidad parcial o inputs directos
     tipo_vehiculo: Optional[str] = None
-    marca: str
-    modelo: str
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
     año: Optional[int] = None
     color: Optional[str] = None
     chasis: str
@@ -85,6 +138,9 @@ class ProductoCreate(ProductoBase):
 class ProductoUpdate(BaseModel):
     id_categoria: Optional[int] = None
     codigo_interno: Optional[str] = None
+    id_tipo_vehiculo: Optional[int] = None
+    id_marca: Optional[int] = None
+    id_modelo: Optional[int] = None
     tipo_vehiculo: Optional[str] = None
     marca: Optional[str] = None
     modelo: Optional[str] = None
@@ -117,6 +173,14 @@ class ProductoResponseSimple(BaseModel):
     id_producto: int
     id_categoria: Optional[int] = None
     codigo_interno: Optional[str] = None
+    id_tipo_vehiculo: Optional[int] = None
+    id_marca: Optional[int] = None
+    id_modelo: Optional[int] = None
+    # Relaciones de catálogo
+    tipo_vehiculo_rel: Optional[TipoVehiculoCatalogoResponse] = None
+    marca_rel: Optional[MarcaCatalogoResponse] = None
+    modelo_rel: Optional[ModeloCatalogoResponse] = None
+    # Mantener strings para compatibilidad
     tipo_vehiculo: Optional[str] = None
     marca: Optional[str] = None
     modelo: Optional[str] = None
@@ -157,6 +221,46 @@ class ProductoResponse(ProductoResponseSimple):
     """Respuesta completa incluyendo campos calculados que pueden requerir lazy loading."""
     cliente_nombre: Optional[str] = None
     cliente_documento: Optional[str] = None
+
+
+# ===== CATÁLOGO PÚBLICO (MiCoche / todas las playas) =====
+class PlayaPublicResponse(BaseModel):
+    id: int
+    nombre: str
+    razon_social: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    email: Optional[str] = None
+    vehiculos_disponibles: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductoPublicCatalogItem(ProductoResponseSimple):
+    """Vehículo en el catálogo nacional con datos de playa o particular."""
+    id_playa: Optional[int] = None
+    nombre_playa: Optional[str] = None
+    es_particular: bool = False
+
+
+class OfertaParticularCreate(BaseModel):
+    """Payload JSON para POST /playa/public/oferta-particular-json."""
+    id_marca: Optional[int] = None
+    id_modelo: Optional[int] = None
+    id_tipo_vehiculo: Optional[int] = None
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
+    chasis: str = Field(..., min_length=5, max_length=100)
+    año: Optional[int] = None
+    color: Optional[str] = None
+    combustible: Optional[str] = None
+    transmision: Optional[str] = None
+    precio_pyg: Decimal = Field(..., gt=0)
+    telefono: str = Field(..., min_length=6, max_length=50)
+    nombre_contacto: Optional[str] = Field(None, max_length=200)
+    ciudad: Optional[str] = Field(None, max_length=100)
+    observaciones: Optional[str] = None
+
 
 # ===== DOCUMENTOS IMPORTACIÓN =====
 class DocumentoImportacionResponse(BaseModel):

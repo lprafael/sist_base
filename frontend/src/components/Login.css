@@ -1,16 +1,36 @@
 .login-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-image: url('/imágenes/fondo_página.png');
+  background-color: #0f172a;
+  background-image: url('/imágenes/Fondo_mi_playa.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  background-attachment: fixed;
   padding: 20px;
+  overflow-x: hidden;
+}
+
+/* Capa suave para que el formulario se lea bien sobre el fondo */
+.login-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(15, 23, 42, 0.55) 0%,
+    rgba(15, 23, 42, 0.2) 45%,
+    rgba(15, 23, 42, 0.5) 100%
+  );
+  pointer-events: none;
 }
 
 .login-card {
+  position: relative;
+  z-index: 1;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(15px);
   padding: 40px;

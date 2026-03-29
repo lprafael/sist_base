@@ -3,6 +3,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
+# Inyectadas en build (Vite): ajustar en docker-compose build.args
+ARG VITE_REACT_APP_API_URL=/api
+ENV VITE_REACT_APP_API_URL=$VITE_REACT_APP_API_URL
 RUN npm run build
 
 FROM nginx:alpine

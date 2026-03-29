@@ -8,22 +8,23 @@ import httpx
 import asyncio
 import logging
 from datetime import datetime, date
-from typing import List, Optional
+from typing import List, Optional, Sequence, Union
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Response, Query, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import join, and_, or_, func, case, text, delete, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
-from typing import List, Optional
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 from pydantic import BaseModel
 import calendar
 from database import get_session
 from PIL import Image
+from models import Playa
 
 def add_months(sourcedate: date, months: int) -> date:
     """
@@ -42,12 +43,16 @@ from models_playa import (
     TipoGastoProducto, GastoProducto, TipoGastoEmpresa, GastoEmpresa, 
     ConfigCalificacion, DetalleVenta, Vendedor, Gante, Referencia, 
     UbicacionCliente, Estado, Cuenta, Movimiento, DocumentoImportacion, Escribania,
-    ImagenProducto, HistorialCalificacion, Refuerzo, GastoAdicional, HistorialPropietario
+    ImagenProducto, HistorialCalificacion, Refuerzo, GastoAdicional, HistorialPropietario,
+    TipoVehiculoCatalogo, MarcaCatalogo, ModeloCatalogo,
 )
 from schemas_playa import (
     CategoriaVehiculoCreate, CategoriaVehiculoResponse,
     VendedorCreate, VendedorResponse,
     ProductoCreate, ProductoUpdate, ProductoResponse,
+    PlayaPublicResponse,
+    ProductoPublicCatalogItem,
+    OfertaParticularCreate,
     ClienteCreate, ClienteResponse,
     VentaCreate, VentaResponse,
     PagoCreate, PagoResponse,
@@ -64,18 +69,147 @@ from schemas_playa import (
     EscribaniaCreate, EscribaniaResponse,
     ImagenProductoCreate, ImagenProductoUpdate, ImagenProductoResponse,
     GastoAdicionalCreate, GastoAdicionalResponse,
-    HistorialPropietarioCreate, HistorialPropietarioUpdate, HistorialPropietarioResponse
+    HistorialPropietarioCreate, HistorialPropietarioUpdate, HistorialPropietarioResponse,
+    TipoVehiculoCatalogoCreate, TipoVehiculoCatalogoResponse,
+    MarcaCatalogoCreate, MarcaCatalogoResponse,
+    ModeloCatalogoCreate, ModeloCatalogoResponse,
 )
-from security import get_current_user, check_permission
+from security import (
+    get_current_user,
+    check_permission,
+    require_admin,
+    assert_resource_playa,
+    get_current_user_optional,
+)
 from audit_utils import log_audit_action
 
 router = APIRouter(prefix="/playa", tags=["Playa de Vehículos"])
 
+# Imágenes de productos (ruta absoluta; compartida por playa y catálogo público)
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "imagenes_productos")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+logger.info("Directorio de uploads de imágenes de productos: %s", UPLOAD_DIR)
+
+# Categoría global para publicaciones MiCoche (particulares, sin playa)
+MICOCHE_CATEGORIA_PARTICULAR_NOMBRE = "Público/Particular"
+MICOCHE_MAX_FOTOS_PARTICULAR = 8
+MICOCHE_MAX_BYTES_FOTO = 8 * 1024 * 1024
+
+
+async def get_or_create_categoria_publico_particular(session: AsyncSession) -> int:
+    res = await session.execute(
+        select(CategoriaVehiculo).where(
+            CategoriaVehiculo.nombre == MICOCHE_CATEGORIA_PARTICULAR_NOMBRE,
+            CategoriaVehiculo.id_playa.is_(None),
+        )
+    )
+    row = res.scalar_one_or_none()
+    if row:
+        return row.id_categoria
+    cat = CategoriaVehiculo(
+        nombre=MICOCHE_CATEGORIA_PARTICULAR_NOMBRE,
+        descripcion="Vehículos publicados por particulares en MiCoche (sin playa)",
+        id_playa=None,
+    )
+    session.add(cat)
+    await session.flush()
+    return cat.id_categoria
+
+
+async def persist_imagenes_desde_uploads(
+    session: AsyncSession,
+    id_producto: int,
+    imagenes: Sequence[UploadFile],
+    *,
+    aplicar_marca_agua: bool = True,
+    marcar_primera_como_principal: bool = False,
+) -> List[ImagenProducto]:
+    """Guarda archivos en disco + registros ImagenProducto. Sin commit."""
+    watermark_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "marca_agua.png")
+    new_records: List[ImagenProducto] = []
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    for idx, img in enumerate(imagenes):
+        if not img.content_type or not img.content_type.startswith("image/"):
+            continue
+        ext = os.path.splitext(img.filename or "")[1]
+        if not ext:
+            ext = ".jpg"
+        unique_id = uuid.uuid4()
+        filename = f"{unique_id}{ext}"
+        filename_wm = f"wm_{unique_id}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        filepath_wm = os.path.join(UPLOAD_DIR, filename_wm)
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(img.file, buffer)
+
+        img.file.seek(0)
+        imagen_bytes = img.file.read()
+        if len(imagen_bytes) > MICOCHE_MAX_BYTES_FOTO:
+            continue
+
+        imagen_wm_rel_path = f"/static/uploads/imagenes_productos/{filename_wm}"
+        imagen_wm_bytes = None
+
+        if aplicar_marca_agua and os.path.exists(watermark_path):
+            try:
+                base_img = Image.open(io.BytesIO(imagen_bytes)).convert("RGBA")
+                wm_img = Image.open(watermark_path).convert("RGBA")
+                base_w, base_h = base_img.size
+                wm_w, wm_h = wm_img.size
+                new_wm_w = int(base_w * 0.4)
+                new_wm_h = int(wm_h * (new_wm_w / wm_w))
+                wm_img = wm_img.resize((new_wm_w, new_wm_h), Image.Resampling.LANCZOS)
+                r, g, b, a = wm_img.split()
+                a = a.point(lambda p: p * 0.5)
+                wm_img = Image.merge("RGBA", (r, g, b, a))
+                pos = ((base_w - new_wm_w) // 2, (base_h - new_wm_h) // 2)
+                transparent = Image.new("RGBA", base_img.size, (0, 0, 0, 0))
+                transparent.paste(base_img, (0, 0))
+                transparent.paste(wm_img, pos, mask=wm_img)
+                final_img = transparent.convert("RGB")
+                buffered = io.BytesIO()
+                final_img.save(buffered, format="JPEG", quality=90)
+                imagen_wm_bytes = buffered.getvalue()
+                final_img.save(filepath_wm, "JPEG", quality=90)
+            except Exception as e:
+                logger.error("Error al aplicar marca de agua: %s", e)
+
+        if imagen_wm_bytes is None:
+            shutil.copy2(filepath, filepath_wm)
+            imagen_wm_rel_path = f"/static/uploads/imagenes_productos/{filename}"
+
+        new_row = ImagenProducto(
+            id_producto=id_producto,
+            nombre_archivo=img.filename,
+            ruta_archivo=f"/static/uploads/imagenes_productos/{filename}",
+            imagen=imagen_bytes,
+            imagen_con_marca=imagen_wm_rel_path,
+            es_principal=False,
+            orden=len(new_records),
+        )
+        session.add(new_row)
+        new_records.append(new_row)
+
+    if new_records and marcar_primera_como_principal:
+        await session.execute(
+            update(ImagenProducto)
+            .where(ImagenProducto.id_producto == id_producto)
+            .values(es_principal=False)
+        )
+        new_records[0].es_principal = True
+
+    return new_records
+
 @router.get("/vehiculos/top-vendidos")
-async def get_top_vendidos(session: AsyncSession = Depends(get_session)):
+async def get_top_vendidos(
+    id_playa: int = Query(..., description="ID de la playa (catálogo público por tenant)"),
+    session: AsyncSession = Depends(get_session),
+):
     """
-    Retorna los 5 binomios Marca/Modelo más vendidos históricamente.
-    Endpoint público para el catálogo.
+    Retorna los 5 binomios Marca/Modelo más vendidos para una playa.
+    Requiere id_playa para no mezclar estadísticas entre tenants.
     """
     res = await session.execute(
         select(
@@ -84,6 +218,8 @@ async def get_top_vendidos(session: AsyncSession = Depends(get_session)):
             func.count(Venta.id_venta).label('cantidad')
         ).join(Venta, Producto.id_producto == Venta.id_producto)
         .where(Venta.estado_venta != 'ANULADA')
+        .where(Producto.id_playa == id_playa)
+        .where(Venta.id_playa == id_playa)
         .group_by(Producto.marca, Producto.modelo)
         .order_by(text('cantidad DESC'))
         .limit(5)
@@ -93,10 +229,378 @@ async def get_top_vendidos(session: AsyncSession = Depends(get_session)):
         for row in res.all()
     ]
 
+
+# ===== CATÁLOGO PÚBLICO (MiCoche — todas las playas + particulares) =====
+@router.get("/public/playas", response_model=List[PlayaPublicResponse])
+async def public_list_playas_adheridas(session: AsyncSession = Depends(get_session)):
+    """Playas activas del sistema con conteo de vehículos disponibles en stock."""
+    count_stmt = (
+        select(Producto.id_playa, func.count(Producto.id_producto))
+        .where(Producto.activo == True)
+        .where(Producto.estado_disponibilidad == "DISPONIBLE")
+        .where(Producto.id_playa.isnot(None))
+        .group_by(Producto.id_playa)
+    )
+    count_res = await session.execute(count_stmt)
+    por_playa = {row[0]: int(row[1]) for row in count_res.all()}
+
+    res = await session.execute(
+        select(Playa).where(Playa.activo == True).order_by(Playa.nombre.asc())
+    )
+    playas = res.scalars().all()
+    return [
+        PlayaPublicResponse(
+            id=p.id,
+            nombre=p.nombre,
+            razon_social=p.razon_social,
+            telefono=p.telefono,
+            direccion=p.direccion,
+            email=p.email,
+            vehiculos_disponibles=por_playa.get(p.id, 0),
+        )
+        for p in playas
+    ]
+
+
+@router.get("/public/catalogo", response_model=List[ProductoPublicCatalogItem])
+async def public_catalogo_todas_playas(
+    session: AsyncSession = Depends(get_session),
+    q: Optional[str] = Query(None, description="Buscar en marca, modelo o chasis"),
+    id_playa: Optional[int] = Query(None, description="Filtrar por playa"),
+    solo_particulares: bool = Query(False),
+    excluir_particulares: bool = Query(False),
+    marca: Optional[str] = Query(None),
+    modelo: Optional[str] = Query(None),
+    año_desde: Optional[int] = Query(None),
+    año_hasta: Optional[int] = Query(None),
+    combustible: Optional[str] = Query(None),
+    transmision: Optional[str] = Query(None),
+    color: Optional[str] = Query(None),
+    limit: int = Query(120, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """
+    Vehículos disponibles de todas las playas adheridas y publicaciones de particulares (id_playa nulo).
+    El chasis es único a nivel global; no se mezcla stock entre playas.
+    """
+    subq_gastos = (
+        select(
+            GastoProducto.id_producto,
+            func.sum(GastoProducto.monto).label("total_gastos"),
+        )
+        .group_by(GastoProducto.id_producto)
+        .subquery()
+    )
+
+    query = (
+        select(
+            Producto,
+            func.coalesce(subq_gastos.c.total_gastos, 0).label("total_gastos"),
+            Playa.nombre.label("nombre_playa"),
+        )
+        .outerjoin(subq_gastos, Producto.id_producto == subq_gastos.c.id_producto)
+        .outerjoin(Playa, Producto.id_playa == Playa.id)
+        .options(
+            selectinload(Producto.imagenes),
+            joinedload(Producto.tipo_vehiculo_rel),
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel)
+        )
+        .where(Producto.activo == True)
+        .where(Producto.estado_disponibilidad == "DISPONIBLE")
+    )
+
+    if solo_particulares:
+        query = query.where(Producto.id_playa.is_(None))
+    elif excluir_particulares:
+        query = query.where(Producto.id_playa.isnot(None))
+    elif id_playa is not None:
+        query = query.where(Producto.id_playa == id_playa)
+
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        query = query.where(
+            or_(
+                Producto.marca.ilike(term),
+                Producto.modelo.ilike(term),
+                Producto.chasis.ilike(term),
+            )
+        )
+    if marca and marca.strip():
+        query = query.where(Producto.marca.ilike(f"%{marca.strip()}%"))
+    if modelo and modelo.strip():
+        query = query.where(Producto.modelo.ilike(f"%{modelo.strip()}%"))
+    if año_desde is not None:
+        query = query.where(Producto.año >= año_desde)
+    if año_hasta is not None:
+        query = query.where(Producto.año <= año_hasta)
+    if combustible and combustible.strip():
+        query = query.where(Producto.combustible.ilike(f"%{combustible.strip()}%"))
+    if transmision and transmision.strip():
+        query = query.where(Producto.transmision.ilike(f"%{transmision.strip()}%"))
+    if color and color.strip():
+        query = query.where(Producto.color.ilike(f"%{color.strip()}%"))
+
+    query = query.order_by(Producto.fecha_registro.desc()).limit(limit).offset(offset)
+
+    result = await session.execute(query)
+    rows = result.all()
+    out: List[ProductoPublicCatalogItem] = []
+    for p, total_gastos, nombre_playa in rows:
+        p.total_gastos = total_gastos
+        p.costo_final = (p.costo_base or 0) + total_gastos
+        base = ProductoPublicCatalogItem.model_validate(p, from_attributes=True)
+        out.append(
+            base.model_copy(
+                update={
+                    "nombre_playa": nombre_playa,
+                    "es_particular": p.id_playa is None,
+                }
+            )
+        )
+    return out
+
+
+@router.get("/public/catalogo/tipos-vehiculo", response_model=List[TipoVehiculoCatalogoResponse])
+async def public_list_catalogo_tipos_vehiculo(
+    session: AsyncSession = Depends(get_session),
+):
+    """Lista pública de tipos de vehículo para el catálogo."""
+    q = select(TipoVehiculoCatalogo).where(TipoVehiculoCatalogo.activo == True).order_by(TipoVehiculoCatalogo.nombre.asc())
+    res = await session.execute(q)
+    return res.scalars().all()
+
+
+@router.get("/public/catalogo/marcas", response_model=List[MarcaCatalogoResponse])
+async def public_list_catalogo_marcas(
+    session: AsyncSession = Depends(get_session),
+):
+    """Lista pública de marcas para el catálogo."""
+    q = select(MarcaCatalogo).where(MarcaCatalogo.activo == True).order_by(MarcaCatalogo.nombre.asc())
+    res = await session.execute(q)
+    return res.scalars().all()
+
+
+@router.get("/public/catalogo/modelos", response_model=List[ModeloCatalogoResponse])
+async def public_list_catalogo_modelos(
+    id_marca: Optional[int] = Query(None),
+    session: AsyncSession = Depends(get_session),
+):
+    """Lista pública de modelos para una marca en el catálogo."""
+    q = select(ModeloCatalogo).where(ModeloCatalogo.activo == True).order_by(ModeloCatalogo.nombre.asc())
+    if id_marca is not None:
+        q = q.where(ModeloCatalogo.id_marca == id_marca)
+    res = await session.execute(q)
+    return res.scalars().all()
+
+
+def _normalizar_lista_uploads(fotos: Union[List[UploadFile], UploadFile, None]) -> List[UploadFile]:
+    if fotos is None:
+        return []
+    if isinstance(fotos, list):
+        return [f for f in fotos if f is not None]
+    return [fotos]
+
+
+@router.post("/public/oferta-particular-json", response_model=ProductoPublicCatalogItem)
+async def public_crear_oferta_particular_json(
+    payload: OfertaParticularCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    """Misma lógica que el formulario web, sin fotos (útil para integraciones)."""
+    return await _public_crear_oferta_particular_core(session, payload, fotos=[])
+
+
+@router.post("/public/oferta-particular", response_model=ProductoPublicCatalogItem)
+async def public_crear_oferta_particular(
+    session: AsyncSession = Depends(get_session),
+    marca: str = Form(...),
+    modelo: str = Form(...),
+    chasis: str = Form(...),
+    precio_pyg: str = Form(...),
+    telefono: str = Form(...),
+    año: Optional[str] = Form(None),
+    color: Optional[str] = Form(None),
+    combustible: Optional[str] = Form(None),
+    transmision: Optional[str] = Form(None),
+    nombre_contacto: Optional[str] = Form(None),
+    id_marca: Optional[int] = Form(None),
+    id_modelo: Optional[int] = Form(None),
+    id_tipo_vehiculo: Optional[int] = Form(None),
+    ciudad: Optional[str] = Form(None),
+    observaciones: Optional[str] = Form(None),
+    fotos: Optional[List[UploadFile]] = File(None),
+):
+    """
+    Publicación de un particular (multipart): datos + fotos opcionales (máx. 8, 8 MB c/u).
+    Categoría `Público/Particular` (global, id_playa nulo). Sin tabla aparte: fila en playa.productos.
+    """
+    precio_digits = "".join(c for c in (precio_pyg or "") if c.isdigit())
+    if not precio_digits:
+        raise HTTPException(status_code=400, detail="Precio inválido.")
+    precio_dec = Decimal(precio_digits)
+    año_int = None
+    if año and str(año).strip():
+        try:
+            año_int = int(str(año).strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Año inválido.")
+
+    def _f(s: Optional[str]) -> Optional[str]:
+        if s is None:
+            return None
+        t = str(s).strip()
+        return t or None
+
+    payload = OfertaParticularCreate(
+        marca=marca.strip(),
+        modelo=modelo.strip(),
+        id_marca=id_marca,
+        id_modelo=id_modelo,
+        id_tipo_vehiculo=id_tipo_vehiculo,
+        chasis=chasis.strip(),
+        año=año_int,
+        color=_f(color),
+        combustible=_f(combustible),
+        transmision=_f(transmision),
+        precio_pyg=precio_dec,
+        telefono=telefono.strip(),
+        nombre_contacto=_f(nombre_contacto),
+        ciudad=_f(ciudad),
+        observaciones=_f(observaciones),
+    )
+    files = _normalizar_lista_uploads(fotos)
+    if len(files) > MICOCHE_MAX_FOTOS_PARTICULAR:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Máximo {MICOCHE_MAX_FOTOS_PARTICULAR} fotos.",
+        )
+    return await _public_crear_oferta_particular_core(session, payload, fotos=files)
+
+
+async def _public_crear_oferta_particular_core(
+    session: AsyncSession,
+    payload: OfertaParticularCreate,
+    fotos: List[UploadFile],
+) -> ProductoPublicCatalogItem:
+    id_cat = await get_or_create_categoria_publico_particular(session)
+    chasis_norm = payload.chasis.strip().upper()
+    dup = await session.execute(select(Producto).where(Producto.chasis == chasis_norm))
+    if dup.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe un vehículo u oferta registrada con ese número de chasis.",
+        )
+
+    partes_obs = []
+    if payload.nombre_contacto:
+        partes_obs.append(f"Contacto: {payload.nombre_contacto.strip()}")
+    partes_obs.append(f"Tel: {payload.telefono.strip()}")
+    if payload.ciudad:
+        partes_obs.append(f"Ciudad: {payload.ciudad.strip()}")
+    if payload.observaciones:
+        partes_obs.append(payload.observaciones.strip())
+    observaciones = " | ".join(partes_obs)
+
+    codigo_interno = f"MICOCHE-PUB-{uuid.uuid4().hex[:16].upper()}"
+    prod = Producto(
+        id_playa=None,
+        id_categoria=id_cat,
+        id_tipo_vehiculo=payload.id_tipo_vehiculo,
+        id_marca=payload.id_marca,
+        id_modelo=payload.id_modelo,
+        codigo_interno=codigo_interno,
+        marca=payload.marca.strip(),
+        modelo=payload.modelo.strip(),
+        año=payload.año,
+        color=payload.color.strip() if payload.color else None,
+        chasis=chasis_norm,
+        combustible=payload.combustible.strip() if payload.combustible else None,
+        transmision=payload.transmision.strip() if payload.transmision else None,
+        costo_base=payload.precio_pyg,
+        precio_contado_sugerido=payload.precio_pyg,
+        estado_disponibilidad="DISPONIBLE",
+        observaciones=observaciones or None,
+        ubicacion_actual=payload.ciudad.strip() if payload.ciudad else None,
+        activo=True,
+    )
+    session.add(prod)
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo registrar: chasis o código interno duplicado.",
+        )
+
+    # Re-cargar con relaciones para devolver objeto normalizado
+    res_merged = await session.execute(
+        select(Producto)
+        .options(
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel),
+            joinedload(Producto.tipo_vehiculo_rel)
+        )
+        .where(Producto.id_producto == prod.id_producto)
+    )
+    prod = res_merged.scalar_one()
+
+    if fotos:
+        await persist_imagenes_desde_uploads(
+            session,
+            prod.id_producto,
+            fotos,
+            aplicar_marca_agua=False,
+            marcar_primera_como_principal=True,
+        )
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo registrar: chasis o código interno duplicado.",
+        )
+    await session.refresh(prod)
+
+    res = await session.execute(
+        select(Producto)
+        .options(selectinload(Producto.imagenes))
+        .where(Producto.id_producto == prod.id_producto)
+    )
+    p = res.scalar_one()
+    p.total_gastos = Decimal(0)
+    p.costo_final = p.costo_base or Decimal(0)
+    base = ProductoPublicCatalogItem.model_validate(p, from_attributes=True)
+    return base.model_copy(update={"nombre_playa": None, "es_particular": True})
+
+
 # ===== CATEGORÍAS =====
 @router.get("/categorias", response_model=List[CategoriaVehiculoResponse])
-async def list_categorias(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(CategoriaVehiculo).order_by(CategoriaVehiculo.id_categoria.asc()))
+async def list_categorias(
+    id_playa_publico: Optional[int] = Query(None, description="Catálogo público sin token"),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+    session: AsyncSession = Depends(get_session),
+):
+    query = select(CategoriaVehiculo).order_by(CategoriaVehiculo.id_categoria.asc())
+    if current_user is None:
+        if id_playa_publico is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Autenticación requerida o indique id_playa_publico",
+            )
+        id_playa_filter = id_playa_publico
+    else:
+        uid = current_user.get("id_playa")
+        if uid is not None:
+            id_playa_filter = uid
+        else:
+            id_playa_filter = id_playa_publico
+    if id_playa_filter is not None:
+        query = query.where(CategoriaVehiculo.id_playa == id_playa_filter)
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.post("/categorias", response_model=CategoriaVehiculoResponse)
@@ -113,7 +617,9 @@ async def create_categoria(
     if res.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"La categoría '{categoria_data.nombre}' ya existe.")
 
-    new_cat = CategoriaVehiculo(**categoria_data.model_dump())
+    new_cat_data = categoria_data.model_dump()
+    new_cat_data["id_playa"] = current_user.get("id_playa")
+    new_cat = CategoriaVehiculo(**new_cat_data)
     session.add(new_cat)
     await session.commit()
     await session.refresh(new_cat)
@@ -310,9 +816,13 @@ async def delete_propietario(
 @router.get("/vendedores", response_model=List[VendedorResponse])
 async def list_vendedores(
     active_only: bool = False,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     query = select(Vendedor).order_by(Vendedor.nombre.asc())
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Vendedor.id_playa == id_playa)
     if active_only:
         query = query.where(Vendedor.activo == True)
     result = await session.execute(query)
@@ -324,7 +834,9 @@ async def create_vendedor(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    new_vendedor = Vendedor(**data.model_dump())
+    new_vendedor_data = data.model_dump()
+    new_vendedor_data["id_playa"] = current_user.get("id_playa")
+    new_vendedor = Vendedor(**new_vendedor_data)
     session.add(new_vendedor)
     await session.commit()
     await session.refresh(new_vendedor)
@@ -398,9 +910,13 @@ async def delete_vendedor(
 @router.get("/escribanias", response_model=List[EscribaniaResponse])
 async def list_escribanias(
     active_only: bool = False,
-    session: AsyncSession = Depends(get_session)
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     query = select(Escribania).order_by(Escribania.nombre.asc())
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(or_(Escribania.id_playa == id_playa, Escribania.id_playa.is_(None)))
     if active_only:
         query = query.where(Escribania.activo == True)
     result = await session.execute(query)
@@ -412,7 +928,10 @@ async def create_escribania(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    new_escribania = Escribania(**data.model_dump())
+    payload = data.model_dump()
+    if current_user.get("id_playa") is not None:
+        payload["id_playa"] = current_user.get("id_playa")
+    new_escribania = Escribania(**payload)
     session.add(new_escribania)
     await session.commit()
     await session.refresh(new_escribania)
@@ -440,6 +959,7 @@ async def update_escribania(
     escribania = res.scalar_one_or_none()
     if not escribania:
         raise HTTPException(status_code=404, detail="Escribanía no encontrada")
+    assert_resource_playa(current_user, escribania.id_playa)
     
     old_data = {c.name: getattr(escribania, c.name) for c in escribania.__table__.columns}
     
@@ -472,6 +992,7 @@ async def delete_escribania(
     escribania = res.scalar_one_or_none()
     if not escribania:
         raise HTTPException(status_code=404, detail="Escribanía no encontrada")
+    assert_resource_playa(current_user, escribania.id_playa)
     
     # Verificar si tiene ventas asociadas
     res_v = await session.execute(select(func.count(Venta.id_venta)).where(Venta.id_escribania == id_escribania))
@@ -482,10 +1003,356 @@ async def delete_escribania(
     await session.commit()
     return {"message": "Escribanía eliminada correctamente"}
 
+
+# ===== CATÁLOGOS GLOBALES (lectura: usuarios autenticados; alta/edición/baja: solo admin) =====
+@router.get("/catalogo/tipos-vehiculo", response_model=List[TipoVehiculoCatalogoResponse])
+async def list_catalogo_tipos_vehiculo(
+    todo: bool = False,
+    _user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(TipoVehiculoCatalogo).order_by(TipoVehiculoCatalogo.nombre.asc())
+    if not todo:
+        q = q.where(TipoVehiculoCatalogo.activo == True)
+    res = await session.execute(q)
+    return res.scalars().all()
+
+
+@router.post("/catalogo/tipos-vehiculo", response_model=TipoVehiculoCatalogoResponse)
+async def create_catalogo_tipo_vehiculo(
+    data: TipoVehiculoCatalogoCreate,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(
+        select(TipoVehiculoCatalogo).where(
+            func.lower(TipoVehiculoCatalogo.nombre) == func.lower(data.nombre.strip())
+        )
+    )
+    if res.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe un tipo con ese nombre.")
+    row = TipoVehiculoCatalogo(nombre=data.nombre.strip(), activo=data.activo if data.activo is not None else True)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="catalogo_tipos_vehiculo",
+        record_id=row.id_tipo,
+        new_data={"nombre": row.nombre, "activo": row.activo},
+        details=f"Catálogo tipo vehículo: {row.nombre}",
+    )
+    return row
+
+
+@router.put("/catalogo/tipos-vehiculo/{id_tipo}", response_model=TipoVehiculoCatalogoResponse)
+async def update_catalogo_tipo_vehiculo(
+    id_tipo: int,
+    data: TipoVehiculoCatalogoCreate,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(select(TipoVehiculoCatalogo).where(TipoVehiculoCatalogo.id_tipo == id_tipo))
+    row = res.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Tipo no encontrado")
+    dup = await session.execute(
+        select(TipoVehiculoCatalogo).where(
+            TipoVehiculoCatalogo.id_tipo != id_tipo,
+            func.lower(TipoVehiculoCatalogo.nombre) == func.lower(data.nombre.strip()),
+        )
+    )
+    if dup.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe otro tipo con ese nombre.")
+    old = {"nombre": row.nombre, "activo": row.activo}
+    row.nombre = data.nombre.strip()
+    row.activo = data.activo if data.activo is not None else True
+    await session.commit()
+    await session.refresh(row)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="catalogo_tipos_vehiculo",
+        record_id=id_tipo,
+        previous_data=old,
+        new_data={"nombre": row.nombre, "activo": row.activo},
+        details=f"Catálogo tipo vehículo actualizado: {row.nombre}",
+    )
+    return row
+
+
+@router.delete("/catalogo/tipos-vehiculo/{id_tipo}")
+async def delete_catalogo_tipo_vehiculo(
+    id_tipo: int,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(select(TipoVehiculoCatalogo).where(TipoVehiculoCatalogo.id_tipo == id_tipo))
+    row = res.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Tipo no encontrado")
+    await session.delete(row)
+    await session.commit()
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="delete",
+        table="catalogo_tipos_vehiculo",
+        record_id=id_tipo,
+        previous_data={"nombre": row.nombre},
+        details=f"Catálogo tipo vehículo eliminado: {row.nombre}",
+    )
+    return {"message": "Eliminado correctamente"}
+
+
+@router.get("/catalogo/marcas", response_model=List[MarcaCatalogoResponse])
+async def list_catalogo_marcas(
+    todo: bool = False,
+    _user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(MarcaCatalogo).order_by(MarcaCatalogo.nombre.asc())
+    if not todo:
+        q = q.where(MarcaCatalogo.activo == True)
+    res = await session.execute(q)
+    return res.scalars().all()
+
+
+@router.post("/catalogo/marcas", response_model=MarcaCatalogoResponse)
+async def create_catalogo_marca(
+    data: MarcaCatalogoCreate,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(
+        select(MarcaCatalogo).where(func.lower(MarcaCatalogo.nombre) == func.lower(data.nombre.strip()))
+    )
+    if res.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe una marca con ese nombre.")
+    row = MarcaCatalogo(nombre=data.nombre.strip(), activo=data.activo if data.activo is not None else True)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="catalogo_marcas",
+        record_id=row.id_marca,
+        new_data={"nombre": row.nombre},
+        details=f"Catálogo marca: {row.nombre}",
+    )
+    return row
+
+
+@router.put("/catalogo/marcas/{id_marca}", response_model=MarcaCatalogoResponse)
+async def update_catalogo_marca(
+    id_marca: int,
+    data: MarcaCatalogoCreate,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(select(MarcaCatalogo).where(MarcaCatalogo.id_marca == id_marca))
+    row = res.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+    dup = await session.execute(
+        select(MarcaCatalogo).where(
+            MarcaCatalogo.id_marca != id_marca,
+            func.lower(MarcaCatalogo.nombre) == func.lower(data.nombre.strip()),
+        )
+    )
+    if dup.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe otra marca con ese nombre.")
+    old = {"nombre": row.nombre, "activo": row.activo}
+    row.nombre = data.nombre.strip()
+    row.activo = data.activo if data.activo is not None else True
+    await session.commit()
+    await session.refresh(row)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="catalogo_marcas",
+        record_id=id_marca,
+        previous_data=old,
+        new_data={"nombre": row.nombre, "activo": row.activo},
+        details=f"Catálogo marca actualizada: {row.nombre}",
+    )
+    return row
+
+
+@router.delete("/catalogo/marcas/{id_marca}")
+async def delete_catalogo_marca(
+    id_marca: int,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(select(MarcaCatalogo).where(MarcaCatalogo.id_marca == id_marca))
+    row = res.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+    cnt = await session.execute(select(func.count()).select_from(ModeloCatalogo).where(ModeloCatalogo.id_marca == id_marca))
+    if cnt.scalar_one() > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar: existen modelos asociados a esta marca.")
+    await session.delete(row)
+    await session.commit()
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="delete",
+        table="catalogo_marcas",
+        record_id=id_marca,
+        previous_data={"nombre": row.nombre},
+        details=f"Catálogo marca eliminada: {row.nombre}",
+    )
+    return {"message": "Eliminado correctamente"}
+
+
+@router.get("/catalogo/modelos", response_model=List[ModeloCatalogoResponse])
+async def list_catalogo_modelos(
+    id_marca: Optional[int] = None,
+    todo: bool = False,
+    _user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(ModeloCatalogo).order_by(ModeloCatalogo.nombre.asc())
+    if id_marca is not None:
+        q = q.where(ModeloCatalogo.id_marca == id_marca)
+    if not todo:
+        q = q.where(ModeloCatalogo.activo == True)
+    res = await session.execute(q)
+    return res.scalars().all()
+
+
+@router.post("/catalogo/modelos", response_model=ModeloCatalogoResponse)
+async def create_catalogo_modelo(
+    data: ModeloCatalogoCreate,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    m = await session.execute(select(MarcaCatalogo).where(MarcaCatalogo.id_marca == data.id_marca))
+    if not m.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Marca no válida.")
+    res = await session.execute(
+        select(ModeloCatalogo).where(
+            ModeloCatalogo.id_marca == data.id_marca,
+            func.lower(ModeloCatalogo.nombre) == func.lower(data.nombre.strip()),
+        )
+    )
+    if res.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe ese modelo para la marca seleccionada.")
+    row = ModeloCatalogo(
+        id_marca=data.id_marca,
+        nombre=data.nombre.strip(),
+        activo=data.activo if data.activo is not None else True,
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="catalogo_modelos",
+        record_id=row.id_modelo,
+        new_data={"id_marca": row.id_marca, "nombre": row.nombre},
+        details=f"Catálogo modelo: {row.nombre}",
+    )
+    return row
+
+
+@router.put("/catalogo/modelos/{id_modelo}", response_model=ModeloCatalogoResponse)
+async def update_catalogo_modelo(
+    id_modelo: int,
+    data: ModeloCatalogoCreate,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(select(ModeloCatalogo).where(ModeloCatalogo.id_modelo == id_modelo))
+    row = res.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Modelo no encontrado")
+    m = await session.execute(select(MarcaCatalogo).where(MarcaCatalogo.id_marca == data.id_marca))
+    if not m.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Marca no válida.")
+    dup = await session.execute(
+        select(ModeloCatalogo).where(
+            ModeloCatalogo.id_modelo != id_modelo,
+            ModeloCatalogo.id_marca == data.id_marca,
+            func.lower(ModeloCatalogo.nombre) == func.lower(data.nombre.strip()),
+        )
+    )
+    if dup.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe ese modelo para la marca seleccionada.")
+    old = {"id_marca": row.id_marca, "nombre": row.nombre, "activo": row.activo}
+    row.id_marca = data.id_marca
+    row.nombre = data.nombre.strip()
+    row.activo = data.activo if data.activo is not None else True
+    await session.commit()
+    await session.refresh(row)
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="catalogo_modelos",
+        record_id=id_modelo,
+        previous_data=old,
+        new_data={"id_marca": row.id_marca, "nombre": row.nombre, "activo": row.activo},
+        details=f"Catálogo modelo actualizado: {row.nombre}",
+    )
+    return row
+
+
+@router.delete("/catalogo/modelos/{id_modelo}")
+async def delete_catalogo_modelo(
+    id_modelo: int,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(select(ModeloCatalogo).where(ModeloCatalogo.id_modelo == id_modelo))
+    row = res.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Modelo no encontrado")
+    await session.delete(row)
+    await session.commit()
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="delete",
+        table="catalogo_modelos",
+        record_id=id_modelo,
+        previous_data={"nombre": row.nombre, "id_marca": row.id_marca},
+        details=f"Catálogo modelo eliminado: {row.nombre}",
+    )
+    return {"message": "Eliminado correctamente"}
+
+
 # ===== CONFIGURACIÓN DE CALIFICACIONES =====
 @router.get("/config-calificaciones", response_model=List[ConfigCalificacionResponse])
-async def list_config_calificaciones(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(ConfigCalificacion).order_by(ConfigCalificacion.id_config.asc()))
+async def list_config_calificaciones(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    query = select(ConfigCalificacion).order_by(ConfigCalificacion.id_config.asc())
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(
+            or_(ConfigCalificacion.id_playa == id_playa, ConfigCalificacion.id_playa.is_(None))
+        )
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.post("/config-calificaciones", response_model=ConfigCalificacionResponse)
@@ -622,6 +1489,8 @@ logger = logging.getLogger(__name__)
 @router.get("/vehiculos", response_model=List[ProductoResponse])
 async def list_vehiculos(
     available_only: bool = False,
+    id_playa_publico: Optional[int] = Query(None, description="Obligatorio si no hay token (catálogo público)"),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session)
 ):
     try:
@@ -643,9 +1512,28 @@ async def list_vehiculos(
             .outerjoin(subq_gastos, Producto.id_producto == subq_gastos.c.id_producto)
             .options(
                 selectinload(Producto.ventas).selectinload(Venta.cliente),
-                selectinload(Producto.imagenes)
+                selectinload(Producto.imagenes),
+                joinedload(Producto.tipo_vehiculo_rel),
+                joinedload(Producto.marca_rel),
+                joinedload(Producto.modelo_rel)
             )
         )
+
+        if current_user is None:
+            if id_playa_publico is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Autenticación requerida o indique id_playa como query param",
+                )
+            id_playa = id_playa_publico
+        else:
+            uid = current_user.get("id_playa")
+            if uid is not None:
+                id_playa = uid
+            else:
+                id_playa = id_playa_publico
+        if id_playa is not None:
+            query = query.where(Producto.id_playa == id_playa)
 
         if available_only:
             query = query.where(Producto.estado_disponibilidad == 'DISPONIBLE')
@@ -665,18 +1553,26 @@ async def list_vehiculos(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/vehiculos/{id_producto}", response_model=ProductoResponse)
-async def get_vehiculo(id_producto: int, session: AsyncSession = Depends(get_session)):
+async def get_vehiculo(
+    id_producto: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
     result = await session.execute(
         select(Producto)
         .options(
             selectinload(Producto.ventas).selectinload(Venta.cliente),
-            selectinload(Producto.imagenes)
+            selectinload(Producto.imagenes),
+            joinedload(Producto.tipo_vehiculo_rel),
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel)
         )
         .where(Producto.id_producto == id_producto)
     )
     vehiculo = result.scalar_one_or_none()
     if not vehiculo:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    assert_resource_playa(current_user, vehiculo.id_playa)
     return vehiculo
 
 @router.post("/vehiculos", response_model=ProductoResponse)
@@ -685,12 +1581,18 @@ async def create_vehiculo(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    # Verificar chasis duplicado
-    res = await session.execute(select(Producto).where(Producto.chasis == vehiculo_data.chasis))
+    # Verificar chasis duplicado solo dentro de la misma playa
+    user_playa = current_user.get("id_playa")
+    dup_q = select(Producto).where(Producto.chasis == vehiculo_data.chasis)
+    if user_playa is not None:
+        dup_q = dup_q.where(Producto.id_playa == user_playa)
+    res = await session.execute(dup_q)
     if res.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Ya existe un vehículo registrado con el chasis '{vehiculo_data.chasis}'.")
 
-    new_vehiculo = Producto(**vehiculo_data.dict())
+    new_vehiculo_data = vehiculo_data.dict()
+    new_vehiculo_data["id_playa"] = current_user.get("id_playa")
+    new_vehiculo = Producto(**new_vehiculo_data)
     session.add(new_vehiculo)
     await session.commit()
     
@@ -711,7 +1613,10 @@ async def create_vehiculo(
         select(Producto)
         .options(
             selectinload(Producto.ventas).selectinload(Venta.cliente),
-            selectinload(Producto.imagenes)
+            selectinload(Producto.imagenes),
+            joinedload(Producto.tipo_vehiculo_rel),
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel)
         )
         .where(Producto.id_producto == new_vehiculo.id_producto)
     )
@@ -728,10 +1633,18 @@ async def update_vehiculo(
     
     if not vehiculo:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    assert_resource_playa(current_user, vehiculo.id_playa)
     
-    # Verificar chasis duplicado si cambió
+    # Verificar chasis duplicado si cambió (misma playa)
     if vehiculo_data.chasis and vehiculo_data.chasis != vehiculo.chasis:
-        res = await session.execute(select(Producto).where(Producto.chasis == vehiculo_data.chasis))
+        user_playa = current_user.get("id_playa")
+        dup_q = select(Producto).where(
+            Producto.chasis == vehiculo_data.chasis,
+            Producto.id_producto != id_producto,
+        )
+        if user_playa is not None:
+            dup_q = dup_q.where(Producto.id_playa == user_playa)
+        res = await session.execute(dup_q)
         if res.scalar_one_or_none():
             raise HTTPException(status_code=400, detail=f"Ya existe otro vehículo registrado con el chasis '{vehiculo_data.chasis}'.")
 
@@ -800,6 +1713,7 @@ async def delete_vehiculo(
     
     if not vehiculo:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    assert_resource_playa(current_user, vehiculo.id_playa)
     
     # 1. Verificar si tiene ventas relacionadas
     ventas_check = await session.execute(select(Venta).where(Venta.id_producto == id_producto).limit(1))
@@ -843,13 +1757,17 @@ async def delete_vehiculo(
     return {"message": "Vehículo eliminado correctamente"}
 
 # ===== IMÁGENES DE PRODUCTOS =====
-# Usar ruta absoluta para evitar problemas en Docker
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "imagenes_productos")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-print(f"📁 Upload directory configured at: {UPLOAD_DIR}")
-
 @router.get("/vehiculos/{id_producto}/imagenes", response_model=List[ImagenProductoResponse])
-async def list_imagenes_producto(id_producto: int, session: AsyncSession = Depends(get_session)):
+async def list_imagenes_producto(
+    id_producto: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    res_p = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    prod = res_p.scalar_one_or_none()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    assert_resource_playa(current_user, prod.id_playa)
     result = await session.execute(
         select(ImagenProducto)
         .where(ImagenProducto.id_producto == id_producto)
@@ -864,88 +1782,20 @@ async def upload_imagenes(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    # Verificar que el producto exista
+    # Verificar que el producto exista y pertenezca a la playa del usuario
     res = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
-    if not res.scalar_one_or_none():
+    prod = res.scalar_one_or_none()
+    if not prod:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    assert_resource_playa(current_user, prod.id_playa)
 
-    new_records = []
-    watermark_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "marca_agua.png")
-    
-    for img in imagenes:
-        # Validar tipo de archivo
-        if not img.content_type.startswith("image/"):
-            continue
-            
-        ext = os.path.splitext(img.filename or "")[1]
-        if not ext: ext = ".jpg"
-        unique_id = uuid.uuid4()
-        filename = f"{unique_id}{ext}"
-        filename_wm = f"wm_{unique_id}{ext}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
-        filepath_wm = os.path.join(UPLOAD_DIR, filename_wm)
-        
-        # Asegurarse de que el directorio existe
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        
-        # Guardar imagen original
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(img.file, buffer)
-            
-        # Leer contenido para DB
-        img.file.seek(0)
-        imagen_bytes = img.file.read()
-        
-        # Generar marca de agua en memoria
-        imagen_wm_bytes = None
-        if os.path.exists(watermark_path):
-            try:
-                base_img = Image.open(io.BytesIO(imagen_bytes)).convert("RGBA")
-                wm_img = Image.open(watermark_path).convert("RGBA")
-                
-                # Redimensionar marca de agua (ej: 40% del ancho de la imagen para el centro)
-                base_w, base_h = base_img.size
-                wm_w, wm_h = wm_img.size
-                new_wm_w = int(base_w * 0.4)
-                new_wm_h = int(wm_h * (new_wm_w / wm_w))
-                wm_img = wm_img.resize((new_wm_w, new_wm_h), Image.Resampling.LANCZOS)
-                
-                # Hacer semitransparente (50% de opacidad)
-                r, g, b, a = wm_img.split()
-                a = a.point(lambda p: p * 0.5) # Ajustar el factor (0.5 = 50%) según se desee
-                wm_img = Image.merge('RGBA', (r, g, b, a))
-                
-                # Posición (CENTRO)
-                pos = ((base_w - new_wm_w) // 2, (base_h - new_wm_h) // 2)
-                
-                # Combinar
-                transparent = Image.new('RGBA', base_img.size, (0,0,0,0))
-                transparent.paste(base_img, (0,0))
-                transparent.paste(wm_img, pos, mask=wm_img)
-                
-                # Convertir a bytes (JPEG)
-                final_img = transparent.convert("RGB")
-                buffered = io.BytesIO()
-                final_img.save(buffered, format="JPEG", quality=90)
-                imagen_wm_bytes = buffered.getvalue()
-                
-                # También guardar en disco para ruta_archivo (compatibilidad)
-                final_img.save(filepath_wm, "JPEG", quality=90)
-            except Exception as e:
-                logger.error(f"Error al aplicar marca de agua: {e}")
-        
-        new_img = ImagenProducto(
-            id_producto=id_producto,
-            nombre_archivo=img.filename,
-            ruta_archivo=f"/static/uploads/imagenes_productos/{filename}",
-            imagen=imagen_bytes,
-            imagen_con_marca=f"/static/uploads/imagenes_productos/{filename_wm}",
-            es_principal=False,
-            orden=0
-        )
-        session.add(new_img)
-        new_records.append(new_img)
-        
+    new_records = await persist_imagenes_desde_uploads(
+        session,
+        id_producto,
+        imagenes,
+        aplicar_marca_agua=True,
+        marcar_primera_como_principal=False,
+    )
     await session.commit()
     for rec in new_records:
         await session.refresh(rec)
@@ -1360,8 +2210,15 @@ async def social_post(
 
 # ===== CLIENTES =====
 @router.get("/clientes", response_model=List[ClienteResponse])
-async def list_clientes(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Cliente))
+async def list_clientes(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(Cliente)
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Cliente.id_playa == id_playa)
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.post("/clientes", response_model=ClienteResponse)
@@ -1375,7 +2232,9 @@ async def create_cliente(
     if check.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="El documento ya está registrado")
         
-    new_cliente = Cliente(**cliente_data.model_dump())
+    new_cliente_data = cliente_data.model_dump()
+    new_cliente_data["id_playa"] = current_user.get("id_playa")
+    new_cliente = Cliente(**new_cliente_data)
     session.add(new_cliente)
     await session.commit()
     await session.refresh(new_cliente)
@@ -1540,7 +2399,11 @@ async def delete_cliente(
 
 # ===== GARANTES =====
 @router.get("/clientes/{cliente_id}/full", response_model=ClienteResponseFull)
-async def get_cliente_full(cliente_id: int, session: AsyncSession = Depends(get_session)):
+async def get_cliente_full(
+    cliente_id: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
     result = await session.execute(
         select(Cliente)
         .options(
@@ -1553,11 +2416,19 @@ async def get_cliente_full(cliente_id: int, session: AsyncSession = Depends(get_
     cliente = result.unique().scalar_one_or_none()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    assert_resource_playa(current_user, cliente.id_playa)
     return cliente
 
 @router.get("/garantes", response_model=List[GanteResponse])
-async def list_garantes(id_cliente: Optional[int] = None, session: AsyncSession = Depends(get_session)):
+async def list_garantes(
+    id_cliente: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
     query = select(Gante).options(joinedload(Gante.referencias))
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(or_(Gante.id_playa == id_playa, Gante.id_playa.is_(None)))
     if id_cliente:
         query = query.where(Gante.id_cliente == id_cliente)
     result = await session.execute(query)
@@ -1823,21 +2694,26 @@ async def delete_ubicacion_cliente(
 
 # ===== VENTAS Y PAGARÉS =====
 @router.get("/ventas", response_model=List[VentaResponse])
-async def list_ventas(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(Venta)
-        .options(
-            joinedload(Venta.cliente),
-            joinedload(Venta.producto).selectinload(Producto.imagenes),
-            joinedload(Venta.escribania_rel),
-            joinedload(Venta.detalles),
-            selectinload(Venta.pagares).options(
-                joinedload(Pagare.estado_rel),
-                selectinload(Pagare.pagos)
-            )
+async def list_ventas(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(Venta).options(
+        joinedload(Venta.cliente),
+        joinedload(Venta.producto).selectinload(Producto.imagenes),
+        joinedload(Venta.escribania_rel),
+        joinedload(Venta.detalles),
+        selectinload(Venta.pagares).options(
+            joinedload(Pagare.estado_rel),
+            selectinload(Pagare.pagos)
         )
-        .order_by(Venta.fecha_registro.desc())
     )
+    
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Venta.id_playa == id_playa)
+        
+    result = await session.execute(query.order_by(Venta.fecha_registro.desc()))
     return result.unique().scalars().all()
 
 @router.post("/ventas", response_model=VentaResponse)
@@ -1858,7 +2734,8 @@ async def create_venta(
     detalles_data = venta_dict.pop('detalles', [])
     id_cuenta_pago = venta_dict.pop('id_cuenta', None)
     pagos_cuentas_items = venta_dict.pop('pagos_cuentas', []) # Extraer antes de crear Venta
-    new_venta = Venta(**venta_dict)
+    id_playa = current_user.get("id_playa")
+    new_venta = Venta(**venta_dict, id_playa=id_playa)
     session.add(new_venta)
     await session.flush() # Para obtener el ID de la venta
 
@@ -1890,7 +2767,8 @@ async def create_venta(
             tipo_pagare='ENTREGA_CONTADO' if new_venta.tipo_venta == 'CONTADO' else 'ENTREGA_INICIAL',
             id_estado=id_pagado,  # Se registra directamente como PAGADO
             saldo_pendiente=0,     # Saldo cero al estar pagado
-            cancelado=True
+            cancelado=True,
+            id_playa=id_playa
         )
         session.add(pagare_ei)
         await session.flush()  # Para obtener el id_pagare
@@ -1939,7 +2817,8 @@ async def create_venta(
                 dias_atraso=0,
                 mora_aplicada=0,
                 descuento_aplicado=0,
-                observaciones='Pago (distribuido) registrado automáticamente al crear la venta'
+                observaciones='Pago (distribuido) registrado automáticamente al crear la venta',
+                id_playa=id_playa
             )
             session.add(pago_ei)
 
@@ -1958,7 +2837,8 @@ async def create_venta(
                         fecha=datetime.now(),
                         concepto=f"Ingreso por {'Venta al Contado' if new_venta.tipo_venta == 'CONTADO' else 'Entrega Inicial'} - Venta {new_venta.numero_venta}",
                         id_usuario=current_user.get("user_id"),
-                        referencia=f"PAGO-{pago_ei.numero_recibo}"
+                        referencia=f"PAGO-{pago_ei.numero_recibo}",
+                        id_playa=id_playa
                     )
                     session.add(movimiento)
 
@@ -1977,7 +2857,8 @@ async def create_venta(
                     tipo_pagare='CUOTA',
                     # estado='PENDIENTE', # Removed
                     id_estado=id_pendiente,
-                    saldo_pendiente=venta_data.monto_cuota
+                    saldo_pendiente=venta_data.monto_cuota,
+                    id_playa=id_playa
                 )
                 session.add(nuevo_pagare)
         
@@ -1993,7 +2874,8 @@ async def create_venta(
                     fecha_vencimiento=vencimiento,
                     tipo_pagare='REFUERZO',
                     id_estado=id_pendiente,
-                    saldo_pendiente=venta_data.monto_refuerzo
+                    saldo_pendiente=venta_data.monto_refuerzo,
+                    id_playa=id_playa
                 )
                 session.add(nuevo_pagare)
 
@@ -2507,7 +3389,10 @@ async def update_venta(
     )
     return result.unique().scalar_one()
 @router.get("/pagares/pendientes")
-async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
+async def list_pagares_pendientes(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
     # Traer pagarés con saldo pendiente (PENDIENTE o PARCIAL)
     query = (
         select(Pagare, Venta, Cliente, Producto, Estado)
@@ -2603,9 +3488,14 @@ async def list_pagares_pendientes(session: AsyncSession = Depends(get_session)):
 async def list_pagares(
     id_venta: Optional[int] = None,
     estado: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     query = select(Pagare).options(selectinload(Pagare.pagos), joinedload(Pagare.estado_rel))
+    
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Pagare.id_playa == id_playa)
     if id_venta:
         query = query.where(Pagare.id_venta == id_venta)
     if estado:
@@ -2822,10 +3712,12 @@ async def create_pago(
     # Eliminar mora_aplicada para pasarla recalculada
     pago_dict.pop('mora_aplicada', None)
     
+    id_playa = current_user.get("id_playa")
     new_pago = Pago(
         **pago_dict,
         dias_atraso=atraso_dias,
-        mora_aplicada=mora_calculada.quantize(Decimal("1.00"))
+        mora_aplicada=mora_calculada.quantize(Decimal("1.00")),
+        id_playa=id_playa
     )
     session.add(new_pago)
     
@@ -2846,7 +3738,8 @@ async def create_pago(
                 fecha=datetime.now(),
                 concepto=f"Cobro de {pagare.tipo_pagare} {pagare.numero_pagare} - Venta {venta.numero_venta}",
                 id_usuario=current_user.get("user_id"),
-                referencia=f"PAGO-{new_pago.numero_recibo}"
+                referencia=f"PAGO-{new_pago.numero_recibo}",
+                id_playa=id_playa
             )
             session.add(movimiento)
 
@@ -2897,7 +3790,18 @@ async def create_pago(
     return new_pago
 
 @router.get("/pagares/{id_pagare}/pagos", response_model=List[PagoResponse])
-async def list_pagos_pagare(id_pagare: int, session: AsyncSession = Depends(get_session)):
+async def list_pagos_pagare(
+    id_pagare: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    res = await session.execute(
+        select(Pagare).options(joinedload(Pagare.venta)).where(Pagare.id_pagare == id_pagare)
+    )
+    pagare = res.scalar_one_or_none()
+    if not pagare or not pagare.venta:
+        raise HTTPException(status_code=404, detail="Pagaré no encontrado")
+    assert_resource_playa(current_user, pagare.venta.id_playa)
     result = await session.execute(
         select(Pago).where(Pago.id_pagare == id_pagare).order_by(Pago.fecha_pago.desc())
     )
@@ -2906,18 +3810,23 @@ async def list_pagos_pagare(id_pagare: int, session: AsyncSession = Depends(get_
 @router.get("/pagos", response_model=List[PagoResponse])
 async def list_todos_pagos(
     limit: int = 20,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Lista los últimos pagos registrados en el sistema de forma global."""
     await session.execute(text("SET LOCAL search_path TO playa, public"))
     # Necesitamos cargar el pagaré y la venta para mostrar a quién pertenece el pago
+    query = select(Pago).options(
+        joinedload(Pago.pagare).joinedload(Pagare.venta).joinedload(Venta.cliente),
+        joinedload(Pago.pagare).joinedload(Pagare.venta).joinedload(Venta.producto)
+    )
+    
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Pago.id_playa == id_playa)
+        
     result = await session.execute(
-        select(Pago)
-        .options(
-            joinedload(Pago.pagare).joinedload(Pagare.venta).joinedload(Venta.cliente),
-            joinedload(Pago.pagare).joinedload(Pagare.venta).joinedload(Venta.producto)
-        )
-        .order_by(Pago.fecha_pago.desc(), Pago.id_pago.desc())
+        query.order_by(Pago.fecha_pago.desc(), Pago.id_pago.desc())
         .limit(limit)
     )
     pagos = result.scalars().all()
@@ -3085,9 +3994,14 @@ async def delete_pago(
 @router.get("/tipos-gastos", response_model=List[TipoGastoProductoResponse])
 async def list_tipos_gastos(
     todo: bool = False,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     query = select(TipoGastoProducto)
+    
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(TipoGastoProducto.id_playa == id_playa)
     if not todo:
         query = query.where(TipoGastoProducto.activo == True)
         
@@ -3100,12 +4014,17 @@ async def create_tipo_gasto(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    # Verificar duplicado
-    res = await session.execute(select(TipoGastoProducto).where(TipoGastoProducto.nombre == data.nombre))
+    user_playa = current_user.get("id_playa")
+    dup_q = select(TipoGastoProducto).where(TipoGastoProducto.nombre == data.nombre)
+    if user_playa is not None:
+        dup_q = dup_q.where(TipoGastoProducto.id_playa == user_playa)
+    res = await session.execute(dup_q)
     if res.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"El concepto de gasto '{data.nombre}' ya está registrado.")
 
-    new_tipo = TipoGastoProducto(**data.dict())
+    new_tipo_data = data.dict()
+    new_tipo_data["id_playa"] = user_playa
+    new_tipo = TipoGastoProducto(**new_tipo_data)
     session.add(new_tipo)
     await session.commit()
     await session.refresh(new_tipo)
@@ -3218,7 +4137,8 @@ async def create_gasto_vehiculo(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    new_gasto = GastoProducto(**gasto_data.dict())
+    id_playa = current_user.get("id_playa")
+    new_gasto = GastoProducto(**gasto_data.dict(), id_playa=id_playa)
     session.add(new_gasto)
     
     # Si se especificó cuenta, registrar el movimiento y actualizar saldo
@@ -3241,7 +4161,8 @@ async def create_gasto_vehiculo(
                 fecha=datetime.combine(gasto_data.fecha_gasto, datetime.min.time()),
                 concepto=f"Gasto Vehículo: {gasto_data.descripcion or 'Sin descripción'} - {prod_info}",
                 referencia="Gasto Vehículo",
-                id_usuario=current_user.get("user_id")
+                id_usuario=current_user.get("user_id"),
+                id_playa=id_playa
             )
             session.add(new_mov)
 
@@ -3273,12 +4194,21 @@ async def create_gasto_vehiculo(
     return result.scalar_one()
 
 @router.get("/vehiculos/{id_producto}/gastos", response_model=List[GastoProductoResponse])
-async def list_gastos_por_vehiculo(id_producto: int, session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(GastoProducto)
-        .options(joinedload(GastoProducto.tipo_gasto))
-        .where(GastoProducto.id_producto == id_producto)
-    )
+async def list_gastos_por_vehiculo(
+    id_producto: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    res_p = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    prod = res_p.scalar_one_or_none()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    assert_resource_playa(current_user, prod.id_playa)
+    query = select(GastoProducto).options(joinedload(GastoProducto.tipo_gasto)).where(GastoProducto.id_producto == id_producto)
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(GastoProducto.id_playa == id_playa)
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.put("/gastos/{gasto_id}", response_model=GastoProductoResponse)
@@ -3294,6 +4224,7 @@ async def update_gasto_vehiculo(
     
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
+    assert_resource_playa(current_user, gasto.id_playa)
     
     # Guardar datos antiguos para auditoría
     old_data = {
@@ -3384,15 +4315,25 @@ async def delete_gasto_vehiculo(
 
 
 @router.get("/vehiculos/{id_producto}/costo-total")
-async def get_costo_total_vehiculo(id_producto: int, session: AsyncSession = Depends(get_session)):
+async def get_costo_total_vehiculo(
+    id_producto: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    id_playa = current_user.get("id_playa")
+    
     # Obtener costo base
-    res_v = await session.execute(select(Producto.costo_base).where(Producto.id_producto == id_producto))
+    query_v = select(Producto.costo_base).where(Producto.id_producto == id_producto)
+    if id_playa is not None:
+        query_v = query_v.where(Producto.id_playa == id_playa)
+    res_v = await session.execute(query_v)
     costo_base = res_v.scalar_one_or_none() or 0
     
     # Obtener suma de gastos
-    res_g = await session.execute(
-        select(func.sum(GastoProducto.monto)).where(GastoProducto.id_producto == id_producto)
-    )
+    query_g = select(func.sum(GastoProducto.monto)).where(GastoProducto.id_producto == id_producto)
+    if id_playa is not None:
+        query_g = query_g.where(GastoProducto.id_playa == id_playa)
+    res_g = await session.execute(query_g)
     total_gastos = res_g.scalar_one() or 0
     
     return {
@@ -3406,9 +4347,15 @@ async def get_costo_total_vehiculo(id_producto: int, session: AsyncSession = Dep
 @router.get("/tipos-gastos-empresa", response_model=List[TipoGastoEmpresaResponse])
 async def list_tipos_gastos_empresa(
     todo: bool = False,
-    session: AsyncSession = Depends(get_session)
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     query = select(TipoGastoEmpresa)
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(
+            or_(TipoGastoEmpresa.id_playa == id_playa, TipoGastoEmpresa.id_playa.is_(None))
+        )
     if not todo:
         query = query.where(TipoGastoEmpresa.activo == True)
     
@@ -3421,12 +4368,17 @@ async def create_tipo_gasto_empresa(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    # Verificar duplicado
-    res = await session.execute(select(TipoGastoEmpresa).where(TipoGastoEmpresa.nombre == data.nombre))
+    user_playa = current_user.get("id_playa")
+    dup_q = select(TipoGastoEmpresa).where(TipoGastoEmpresa.nombre == data.nombre)
+    if user_playa is not None:
+        dup_q = dup_q.where(TipoGastoEmpresa.id_playa == user_playa)
+    res = await session.execute(dup_q)
     if res.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"El concepto '{data.nombre}' ya existe en los gastos operativos.")
 
-    new_tipo = TipoGastoEmpresa(**data.dict())
+    new_data = data.dict()
+    new_data["id_playa"] = user_playa
+    new_tipo = TipoGastoEmpresa(**new_data)
     session.add(new_tipo)
     await session.commit()
     await session.refresh(new_tipo)
@@ -3457,9 +4409,17 @@ async def update_tipo_gasto_empresa(
     
     if not tipo:
         raise HTTPException(status_code=404, detail="Concepto de gasto no encontrado")
+    assert_resource_playa(current_user, tipo.id_playa)
 
     if tipo.nombre != data.nombre:
-        res = await session.execute(select(TipoGastoEmpresa).where(TipoGastoEmpresa.nombre == data.nombre))
+        user_playa = current_user.get("id_playa")
+        dup_q = select(TipoGastoEmpresa).where(
+            TipoGastoEmpresa.nombre == data.nombre,
+            TipoGastoEmpresa.id_tipo_gasto_empresa != id_tipo_gasto_empresa,
+        )
+        if user_playa is not None:
+            dup_q = dup_q.where(TipoGastoEmpresa.id_playa == user_playa)
+        res = await session.execute(dup_q)
         if res.scalar_one_or_none():
             raise HTTPException(status_code=400, detail=f"El concepto '{data.nombre}' ya existe.")
 
@@ -3504,6 +4464,7 @@ async def delete_tipo_gasto_empresa(
     
     if not tipo:
         raise HTTPException(status_code=404, detail="Concepto de gasto no encontrado")
+    assert_resource_playa(current_user, tipo.id_playa)
         
     uso = await session.execute(select(GastoEmpresa).where(GastoEmpresa.id_tipo_gasto_empresa == id_tipo_gasto_empresa).limit(1))
     if uso.first():
@@ -3537,9 +4498,14 @@ async def delete_tipo_gasto_empresa(
 async def list_gastos_empresa(
     desde: Optional[date] = None,
     hasta: Optional[date] = None,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     query = select(GastoEmpresa).options(joinedload(GastoEmpresa.tipo_gasto)).order_by(GastoEmpresa.fecha_gasto.desc())
+    
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(GastoEmpresa.id_playa == id_playa)
     if desde:
         query = query.where(GastoEmpresa.fecha_gasto >= desde)
     if hasta:
@@ -3554,7 +4520,8 @@ async def create_gasto_empresa(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    new_gasto = GastoEmpresa(**data.dict())
+    id_playa = current_user.get("id_playa")
+    new_gasto = GastoEmpresa(**data.dict(), id_playa=id_playa)
     session.add(new_gasto)
     
     # Si se especificó cuenta, registrar el movimiento y actualizar saldo
@@ -3572,7 +4539,8 @@ async def create_gasto_empresa(
                 fecha=datetime.combine(data.fecha_gasto, datetime.min.time()),
                 concepto=f"Gasto Empresa: {data.descripcion or 'Sin descripción'}",
                 referencia="Gasto Empresa",
-                id_usuario=current_user.get("user_id")
+                id_usuario=current_user.get("user_id"),
+                id_playa=id_playa
             )
             session.add(new_mov)
 
@@ -3723,9 +4691,14 @@ async def list_gastos_adicionales(
     desde: Optional[date] = None,
     hasta: Optional[date] = None,
     id_cuenta: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     query = select(GastoAdicional).options(joinedload(GastoAdicional.cuenta_rel)).order_by(GastoAdicional.fecha.desc())
+    
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(GastoAdicional.id_playa == id_playa)
     if desde:
         query = query.where(GastoAdicional.fecha >= desde)
     if hasta:
@@ -3742,7 +4715,8 @@ async def create_gasto_adicional(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    new_item = GastoAdicional(**data.model_dump())
+    id_playa = current_user.get("id_playa")
+    new_item = GastoAdicional(**data.model_dump(), id_playa=id_playa)
     session.add(new_item)
     
     # Actualizar saldo de la cuenta
@@ -3765,7 +4739,8 @@ async def create_gasto_adicional(
         fecha=datetime.combine(data.fecha, datetime.min.time()),
         concepto=f"Registro Vario ({data.tipo}): {data.concepto}",
         referencia=f"Gasto Adicional",
-        id_usuario=current_user.get("user_id")
+        id_usuario=current_user.get("user_id"),
+        id_playa=id_playa
     )
     session.add(new_mov)
     await session.flush() # Para obtener id_movimiento
@@ -3934,26 +4909,44 @@ async def delete_gasto_adicional(
 
 # ===== DASHBOARD FINANCIERO =====
 @router.get("/dashboard/stats")
-async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
+async def get_dashboard_stats(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    id_playa = current_user.get("id_playa")
+    is_superadmin = id_playa is None
+    
+    # Cantidad de Playas (Solo para SuperAdmin)
+    cant_playas = 0
+    if is_superadmin:
+        res_playas = await session.execute(select(func.count(Playa.id)).where(Playa.activo == True))
+        cant_playas = res_playas.scalar_one() or 0
+    
     # 1. Valor del Stock (Vehículos Disponibles)
     # Costo base de disponibles
-    res_stock_base = await session.execute(
-        select(func.sum(Producto.costo_base)).where(Producto.estado_disponibilidad == 'DISPONIBLE')
-    )
+    query_stock_base = select(func.sum(Producto.costo_base)).where(Producto.estado_disponibilidad == 'DISPONIBLE')
+    if id_playa is not None:
+        query_stock_base = query_stock_base.where(Producto.id_playa == id_playa)
+        
+    res_stock_base = await session.execute(query_stock_base)
     stock_base = res_stock_base.scalar_one() or 0
     
     # Gastos de vehículos disponibles
-    res_stock_gastos = await session.execute(
+    query_stock_gastos = (
         select(func.sum(GastoProducto.monto))
         .join(Producto, GastoProducto.id_producto == Producto.id_producto)
         .where(Producto.estado_disponibilidad == 'DISPONIBLE')
     )
+    if id_playa is not None:
+        query_stock_gastos = query_stock_gastos.where(GastoProducto.id_playa == id_playa)
+        
+    res_stock_gastos = await session.execute(query_stock_gastos)
     stock_gastos = res_stock_gastos.scalar_one() or 0
     
     valor_stock = stock_base + stock_gastos
 
     # 2. Cartera Pendiente (Pagarés no cobrados)
-    res_cartera = await session.execute(
+    query_cartera = (
         select(func.sum(Pagare.saldo_pendiente))
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Estado, Pagare.id_estado == Estado.id_estado) # Join Estado
@@ -3962,11 +4955,15 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
             Venta.estado_venta != 'ANULADA'
         ))
     )
+    if id_playa is not None:
+        query_cartera = query_cartera.where(Pagare.id_playa == id_playa)
+        
+    res_cartera = await session.execute(query_cartera)
     cartera_pendiente = res_cartera.scalar_one() or 0
 
     # 2b. Cartera en Mora (Pagarés vencidos)
     hoy_date = date.today()
-    res_mora = await session.execute(
+    query_mora = (
         select(func.sum(Pagare.saldo_pendiente))
         .join(Venta, Pagare.id_venta == Venta.id_venta)
         .join(Estado, Pagare.id_estado == Estado.id_estado) # Join Estado
@@ -3976,52 +4973,77 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
             Venta.estado_venta != 'ANULADA'
         ))
     )
+    if id_playa is not None:
+        query_mora = query_mora.where(Pagare.id_playa == id_playa)
+        
+    res_mora = await session.execute(query_mora)
     cartera_mora = res_mora.scalar_one() or 0
 
     # 3. Ventas y Utilidad Proyectada (De vehículos vendidos)
-    res_ventas = await session.execute(
-        select(func.sum(Venta.precio_final)).where(Venta.estado_venta != 'ANULADA')
-    )
+    query_ventas = select(func.sum(Venta.precio_final)).where(Venta.estado_venta != 'ANULADA')
+    if id_playa is not None:
+        query_ventas = query_ventas.where(Venta.id_playa == id_playa)
+    res_ventas = await session.execute(query_ventas)
     total_ventas = res_ventas.scalar_one() or 0
     
     # Para la utilidad: (Precio Venta Final) - (Costo Base + Gastos) de esos vehículos vendidos
-    res_costo_vendidos = await session.execute(
+    query_costo_vendidos = (
         select(func.sum(Producto.costo_base))
         .join(Venta, Venta.id_producto == Producto.id_producto)
         .where(Venta.estado_venta != 'ANULADA')
     )
+    if id_playa is not None:
+        query_costo_vendidos = query_costo_vendidos.where(Producto.id_playa == id_playa)
+    res_costo_vendidos = await session.execute(query_costo_vendidos)
     costo_base_vendidos = res_costo_vendidos.scalar_one() or 0
     
-    res_gastos_vendidos = await session.execute(
+    query_gastos_vendidos = (
         select(func.sum(GastoProducto.monto))
         .join(Producto, GastoProducto.id_producto == Producto.id_producto)
         .join(Venta, Venta.id_producto == Producto.id_producto)
         .where(Venta.estado_venta != 'ANULADA')
     )
+    if id_playa is not None:
+        query_gastos_vendidos = query_gastos_vendidos.where(GastoProducto.id_playa == id_playa)
+    res_gastos_vendidos = await session.execute(query_gastos_vendidos)
     gastos_totales_vendidos = res_gastos_vendidos.scalar_one() or 0
     
     utilidad_proyectada = total_ventas - (costo_base_vendidos + gastos_totales_vendidos)
 
     # 4. Conteos rápidos
-    res_cont_disp = await session.execute(select(func.count(Producto.id_producto)).where(Producto.estado_disponibilidad == 'DISPONIBLE'))
+    query_cont_disp = select(func.count(Producto.id_producto)).where(Producto.estado_disponibilidad == 'DISPONIBLE')
+    if id_playa is not None:
+        query_cont_disp = query_cont_disp.where(Producto.id_playa == id_playa)
+    res_cont_disp = await session.execute(query_cont_disp)
     cant_disponibles = res_cont_disp.scalar_one() or 0
     
-    res_cont_vend = await session.execute(select(func.count(Venta.id_venta)).where(Venta.estado_venta != 'ANULADA'))
+    query_cont_vend = select(func.count(Venta.id_venta)).where(Venta.estado_venta != 'ANULADA')
+    if id_playa is not None:
+        query_cont_vend = query_cont_vend.where(Venta.id_playa == id_playa)
+    res_cont_vend = await session.execute(query_cont_vend)
     cant_vendidos = res_cont_vend.scalar_one() or 0
 
     # 5. Gastos de Empresa (Alquiler, personal, etc)
-    res_gastos_emp = await session.execute(select(func.sum(GastoEmpresa.monto)))
+    query_gastos_emp = select(func.sum(GastoEmpresa.monto))
+    if id_playa is not None:
+        query_gastos_emp = query_gastos_emp.where(GastoEmpresa.id_playa == id_playa)
+    res_gastos_emp = await session.execute(query_gastos_emp)
     total_gastos_empresa = res_gastos_emp.scalar_one() or 0
 
     # --- REPORTES DETALLADOS PARA GRÁFICOS ---
     
     # 6. Ventas Mensuales (Últimos 6 meses)
-    res_mes = await session.execute(
+    query_mes = (
         select(
             func.date_trunc('month', Venta.fecha_venta).label('mes'),
             func.sum(Venta.precio_final).label('total')
         ).where(Venta.estado_venta != 'ANULADA')
-        .group_by(text('mes'))
+    )
+    if id_playa is not None:
+        query_mes = query_mes.where(Venta.id_playa == id_playa)
+    
+    res_mes = await session.execute(
+        query_mes.group_by(text('mes'))
         .order_by(text('mes'))
     )
     ventas_mensuales = [
@@ -4030,7 +5052,7 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
     ][-6:] # Tomamos los últimos 6
 
     # 7. Ventas por Categoría
-    res_cat = await session.execute(
+    query_cat = (
         select(
             CategoriaVehiculo.nombre,
             func.sum(Venta.precio_final).label('total'),
@@ -4038,7 +5060,12 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
         ).join(Producto, Venta.id_producto == Producto.id_producto)
         .join(CategoriaVehiculo, Producto.id_categoria == CategoriaVehiculo.id_categoria)
         .where(Venta.estado_venta != 'ANULADA')
-        .group_by(CategoriaVehiculo.nombre)
+    )
+    if id_playa is not None:
+        query_cat = query_cat.where(Venta.id_playa == id_playa)
+        
+    res_cat = await session.execute(
+        query_cat.group_by(CategoriaVehiculo.nombre)
     )
     ventas_por_categoria = [
         {"nombre": row.nombre, "total": float(row.total), "cantidad": row.cantidad} 
@@ -4061,7 +5088,8 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
         .join(Estado, Pagare.id_estado == Estado.id_estado) # Join Estado
         .where(and_(
             Estado.nombre.in_(['PENDIENTE', 'VENCIDO', 'PARCIAL']), 
-            Venta.estado_venta != 'ANULADA'
+            Venta.estado_venta != 'ANULADA',
+            Pagare.id_playa == id_playa if id_playa is not None else True
         ))
         .group_by(aging_case)
     )
@@ -4078,20 +5106,24 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
     cartera_por_vencimiento = {label: db_results.get(key, 0.0) for key, label in label_map.items()}
 
     # 9. Gastos por Tipo
-    res_gastos_tipo = await session.execute(
+    query_gastos_tipo = (
         select(
             TipoGastoEmpresa.nombre,
             func.sum(GastoEmpresa.monto).label('total')
         ).join(GastoEmpresa, TipoGastoEmpresa.id_tipo_gasto_empresa == GastoEmpresa.id_tipo_gasto_empresa)
-        .group_by(TipoGastoEmpresa.nombre)
+    )
+    if id_playa is not None:
+        query_gastos_tipo = query_gastos_tipo.where(GastoEmpresa.id_playa == id_playa)
+        
+    res_gastos_tipo = await session.execute(
+        query_gastos_tipo.group_by(TipoGastoEmpresa.nombre)
     )
     gastos_por_tipo = [
         {"nombre": row.nombre, "total": float(row.total)} 
         for row in res_gastos_tipo.all()
     ]
 
-    # 10. Mejores Vendedores
-    res_vendedores = await session.execute(
+    query_vendedores = (
         select(
             Vendedor.nombre,
             Vendedor.apellido,
@@ -4099,7 +5131,12 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
             func.sum(Venta.precio_final).label('total')
         ).join(Venta, Vendedor.id_vendedor == Venta.id_vendedor)
         .where(Venta.estado_venta != 'ANULADA')
-        .group_by(Vendedor.nombre, Vendedor.apellido)
+    )
+    if id_playa is not None:
+        query_vendedores = query_vendedores.where(Venta.id_playa == id_playa)
+        
+    res_vendedores = await session.execute(
+        query_vendedores.group_by(Vendedor.nombre, Vendedor.apellido)
         .order_by(text('cantidad DESC'))
         .limit(5)
     )
@@ -4158,7 +5195,9 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session)):
         "gastos_por_tipo": gastos_por_tipo,
         "mejores_vendedores": mejores_vendedores,
         "vehiculos_mas_vendidos": vehiculos_mas_vendidos,
-        "vehiculos_menos_vendidos": vehiculos_menos_vendidos
+        "vehiculos_menos_vendidos": vehiculos_menos_vendidos,
+        "cant_playas": cant_playas,
+        "is_superadmin": is_superadmin
     }
 
 
@@ -4206,6 +5245,9 @@ async def get_gastos_filtrados(
             TipoGastoEmpresa.nombre,
             func.sum(GastoEmpresa.monto).label('total')
         ).join(GastoEmpresa, TipoGastoEmpresa.id_tipo_gasto_empresa == GastoEmpresa.id_tipo_gasto_empresa)
+        
+        if id_playa is not None:
+            query_empresa = query_empresa.where(GastoEmpresa.id_playa == id_playa)
         
         # Aplicar filtro de fechas si existe
         condiciones_fecha_empresa = []
@@ -4373,11 +5415,15 @@ async def get_ventas_filtradas(
         condiciones_ventas.append(Venta.fecha_venta <= fecha_hasta_obj)
     
     query_ventas = select(func.sum(Venta.precio_final)).where(and_(*condiciones_ventas))
+    if id_playa is not None:
+        query_ventas = query_ventas.where(Venta.id_playa == id_playa)
     res_ventas = await session.execute(query_ventas)
     total_ventas = float(res_ventas.scalar_one() or 0)
     
     # 2. ENTREGAS INICIALES DE VENTAS REALIZADAS EN EL PERÍODO
     query_entregas = select(func.sum(Venta.entrega_inicial)).where(and_(*condiciones_ventas))
+    if id_playa is not None:
+        query_entregas = query_entregas.where(Venta.id_playa == id_playa)
     res_entregas = await session.execute(query_entregas)
     total_entregas_iniciales = float(res_entregas.scalar_one() or 0)
     
@@ -4446,8 +5492,15 @@ async def get_ventas_filtradas(
 
 # ===== ESTADOS DE PAGARÉ =====
 @router.get("/estados", response_model=List[EstadoResponse])
-async def list_estados(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Estado).order_by(Estado.id_estado.asc()))
+async def list_estados(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    query = select(Estado).order_by(Estado.id_estado.asc())
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(or_(Estado.id_playa == id_playa, Estado.id_playa.is_(None)))
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.post("/estados", response_model=EstadoResponse)
@@ -4498,8 +5551,15 @@ async def delete_estado(
 
 # ===== CUENTAS =====
 @router.get("/cuentas", response_model=List[CuentaResponse])
-async def list_cuentas(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Cuenta).order_by(Cuenta.nombre.asc()))
+async def list_cuentas(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(Cuenta)
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Cuenta.id_playa == id_playa)
+    result = await session.execute(query.order_by(Cuenta.nombre.asc()))
     return result.scalars().all()
 
 @router.post("/cuentas", response_model=CuentaResponse)
@@ -4508,7 +5568,9 @@ async def create_cuenta(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    new_cuenta = Cuenta(**data.model_dump())
+    new_cuenta_data = data.model_dump()
+    new_cuenta_data["id_playa"] = current_user.get("id_playa")
+    new_cuenta = Cuenta(**new_cuenta_data)
     session.add(new_cuenta)
     await session.commit()
     await session.refresh(new_cuenta)
@@ -4525,6 +5587,7 @@ async def update_cuenta(
     cuenta = res.scalar_one_or_none()
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    assert_resource_playa(current_user, cuenta.id_playa)
     
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(cuenta, field, value)
@@ -4543,6 +5606,7 @@ async def delete_cuenta(
     cuenta = res.scalar_one_or_none()
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    assert_resource_playa(current_user, cuenta.id_playa)
     
     await session.delete(cuenta)
     await session.commit()
@@ -4550,12 +5614,15 @@ async def delete_cuenta(
 
 # ===== MOVIMIENTOS =====
 @router.get("/movimientos", response_model=List[MovimientoResponse])
-async def list_movimientos(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(Movimiento)
-        .options(joinedload(Movimiento.cuenta_origen), joinedload(Movimiento.cuenta_destino))
-        .order_by(Movimiento.fecha.desc())
-    )
+async def list_movimientos(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = select(Movimiento).options(joinedload(Movimiento.cuenta_origen), joinedload(Movimiento.cuenta_destino))
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(Movimiento.id_playa == id_playa)
+    result = await session.execute(query.order_by(Movimiento.fecha.desc()))
     return result.scalars().all()
 
 @router.post("/movimientos", response_model=MovimientoResponse)
@@ -4564,12 +5631,14 @@ async def create_movimiento(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
+    user_playa = current_user.get("id_playa")
     # Validar cuentas si se especifican
     if data.id_cuenta_origen:
         res_o = await session.execute(select(Cuenta).where(Cuenta.id_cuenta == data.id_cuenta_origen))
         origen = res_o.scalar_one_or_none()
         if not origen:
             raise HTTPException(status_code=404, detail="Cuenta origen no encontrada")
+        assert_resource_playa(current_user, origen.id_playa)
         # Restar del origen
         if origen.saldo_actual is None: origen.saldo_actual = 0
         origen.saldo_actual -= data.monto
@@ -4579,13 +5648,16 @@ async def create_movimiento(
         destino = res_d.scalar_one_or_none()
         if not destino:
             raise HTTPException(status_code=404, detail="Cuenta destino no encontrada")
+        assert_resource_playa(current_user, destino.id_playa)
         # Sumar al destino
         if destino.saldo_actual is None: destino.saldo_actual = 0
         destino.saldo_actual += data.monto
 
+    id_playa = user_playa
     new_mov = Movimiento(
         **data.model_dump(),
-        id_usuario=current_user.get("user_id")
+        id_usuario=current_user.get("user_id"),
+        id_playa=id_playa
     )
     session.add(new_mov)
     await session.commit()
@@ -4603,6 +5675,7 @@ async def create_movimiento(
 async def update_movimiento(
     id_movimiento: int,
     data: MovimientoCreate,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     # 1. Obtener movimiento actual
@@ -4612,6 +5685,7 @@ async def update_movimiento(
     movimiento = res.scalar_one_or_none()
     if not movimiento:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+    assert_resource_playa(current_user, movimiento.id_playa)
         
     # 2. Revertir saldos anteriores
     if movimiento.id_cuenta_origen:
@@ -4634,6 +5708,7 @@ async def update_movimiento(
         origen_new = res_o.scalar_one_or_none()
         if not origen_new:
             raise HTTPException(status_code=404, detail="Nueva cuenta origen no encontrada")
+        assert_resource_playa(current_user, origen_new.id_playa)
         if origen_new.saldo_actual is None: origen_new.saldo_actual = 0
         origen_new.saldo_actual -= data.monto
         
@@ -4642,6 +5717,7 @@ async def update_movimiento(
         destino_new = res_d.scalar_one_or_none()
         if not destino_new:
             raise HTTPException(status_code=404, detail="Nueva cuenta destino no encontrada")
+        assert_resource_playa(current_user, destino_new.id_playa)
         if destino_new.saldo_actual is None: destino_new.saldo_actual = 0
         destino_new.saldo_actual += data.monto
         
@@ -4659,6 +5735,7 @@ async def update_movimiento(
 @router.delete("/movimientos/{id_movimiento}")
 async def delete_movimiento(
     id_movimiento: int,
+    current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     # Buscar el movimiento
@@ -4668,6 +5745,7 @@ async def delete_movimiento(
     movimiento = res.scalar_one_or_none()
     if not movimiento:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+    assert_resource_playa(current_user, movimiento.id_playa)
     
     # Revertir saldos de las cuentas involucradas
     if movimiento.id_cuenta_origen:
@@ -4920,38 +5998,67 @@ def _parse_certificados_text(text: str) -> dict:
 
 
 @router.get("/documentos-importacion", response_model=List[DocumentoImportacionResponse])
-async def list_documentos_importacion(session: AsyncSession = Depends(get_session)):
+async def list_documentos_importacion(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
     """Lista todos los documentos de importación."""
-    result = await session.execute(
-        select(DocumentoImportacion)
-        .options(selectinload(DocumentoImportacion.productos))
-        .order_by(DocumentoImportacion.fecha_registro.desc())
-    )
+    query = select(DocumentoImportacion).options(selectinload(DocumentoImportacion.productos))
+    id_playa = current_user.get("id_playa")
+    if id_playa is not None:
+        query = query.where(DocumentoImportacion.id_playa == id_playa)
+    result = await session.execute(query.order_by(DocumentoImportacion.fecha_registro.desc()))
     return result.scalars().all()
 
 
 @router.get("/documentos-importacion/{nro_despacho}", response_model=DocumentoImportacionResponse)
-async def get_documento_importacion(nro_despacho: str, session: AsyncSession = Depends(get_session)):
-    res = await session.execute(
-        select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == nro_despacho)
-    )
+async def get_documento_importacion(
+    nro_despacho: str,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    id_playa = current_user.get("id_playa")
+    query = select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == nro_despacho)
+    if id_playa is not None:
+        query = query.where(DocumentoImportacion.id_playa == id_playa)
+    res = await session.execute(query)
     doc = res.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento de importación no encontrado")
     return doc
 
 @router.get("/documentos-importacion/{nro_despacho}/pdf-despacho")
-async def get_pdf_despacho(nro_despacho: str, session: AsyncSession = Depends(get_session)):
+async def get_pdf_despacho(
+    nro_despacho: str,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
     """Retorna el PDF del despacho."""
-    doc = await session.get(DocumentoImportacion, nro_despacho)
+    id_playa = current_user.get("id_playa")
+    query = select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == nro_despacho)
+    if id_playa is not None:
+        query = query.where(DocumentoImportacion.id_playa == id_playa)
+    res = await session.execute(query)
+    doc = res.scalar_one_or_none()
+    
     if not doc or not doc.pdf_despacho:
         raise HTTPException(status_code=404, detail="PDF de despacho no encontrado")
     return Response(content=doc.pdf_despacho, media_type="application/pdf")
 
 @router.get("/documentos-importacion/{nro_despacho}/pdf-certificados")
-async def get_pdf_certificados(nro_despacho: str, session: AsyncSession = Depends(get_session)):
+async def get_pdf_certificados(
+    nro_despacho: str,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
     """Retorna el PDF de los certificados."""
-    doc = await session.get(DocumentoImportacion, nro_despacho)
+    id_playa = current_user.get("id_playa")
+    query = select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == nro_despacho)
+    if id_playa is not None:
+        query = query.where(DocumentoImportacion.id_playa == id_playa)
+    res = await session.execute(query)
+    doc = res.scalar_one_or_none()
+    
     if not doc or not doc.pdf_certificados:
         raise HTTPException(status_code=404, detail="PDF de certificados no encontrado")
     return Response(content=doc.pdf_certificados, media_type="application/pdf")
@@ -5002,17 +6109,20 @@ async def analizar_documentos_importacion(
     certificados_por_chasis = {clean_chasis(k): v for k, v in certificados_por_chasis.items() if k}
 
     # ¿Ya existe el despacho?
-    existing = await session.execute(
-        select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == (nro_despacho or ""))
-    )
+    id_playa = current_user.get("id_playa")
+    query_exist = select(DocumentoImportacion).where(DocumentoImportacion.nro_despacho == (nro_despacho or ""))
+    if id_playa is not None:
+        query_exist = query_exist.where(DocumentoImportacion.id_playa == id_playa)
+    existing = await session.execute(query_exist)
     ya_existe = existing.scalar_one_or_none() is not None
+    
     # Vehículos en playa que coinciden con chasis del despacho (flexibilidad con guiones)
     vehiculos_en_playa = []
     if chasis_despacho:
         # Generar variantes sin guiones ni espacios para comparar también
         chasis_clean = [c.replace("-", "").replace(" ", "").upper() for c in chasis_despacho]
         
-        result = await session.execute(
+        query_veh = (
             select(Producto).where(
                 or_(
                     func.upper(func.trim(Producto.chasis)).in_([c.upper() for c in chasis_despacho]),
@@ -5021,6 +6131,10 @@ async def analizar_documentos_importacion(
                 Producto.activo == True
             )
         )
+        if id_playa is not None:
+            query_veh = query_veh.where(Producto.id_playa == id_playa)
+            
+        result = await session.execute(query_veh)
         for p in result.scalars().all():
             chasis_norm = clean_chasis(p.chasis)
             # Buscar en certificados_por_chasis usando el chasis limpio del producto o sus variantes
@@ -5081,10 +6195,12 @@ async def create_documento_importacion(
         raise HTTPException(status_code=400, detail="vinculaciones debe ser una lista.")
     despacho_bytes = await file_despacho.read()
     certificados_bytes = await file_certificados.read()
+    id_playa = current_user.get("id_playa")
     doc = DocumentoImportacion(
         nro_despacho=nro_despacho,
         pdf_despacho=despacho_bytes,
         pdf_certificados=certificados_bytes,
+        id_playa=id_playa
     )
     session.add(doc)
     await session.flush()
@@ -5095,7 +6211,8 @@ async def create_documento_importacion(
             continue
         # Búsqueda flexible de chasis (ignorando guiones y espacios)
         chasis_norm = chasis.upper().replace("-", "").replace(" ", "")
-        res = await session.execute(
+        
+        query_prod = (
             select(Producto).where(
                 or_(
                     func.upper(func.trim(Producto.chasis)) == chasis.upper(),
@@ -5104,6 +6221,10 @@ async def create_documento_importacion(
                 Producto.activo == True
             )
         )
+        if id_playa is not None:
+            query_prod = query_prod.where(Producto.id_playa == id_playa)
+            
+        res = await session.execute(query_prod)
         prod = res.scalar_one_or_none()
         if prod:
             prod.nro_despacho = nro_despacho

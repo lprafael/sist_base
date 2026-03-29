@@ -29,11 +29,29 @@ usuario_rol = Table(
 
 # ===== SISTEMA DE SEGURIDAD Y AUDITORÍA =====
 
+class Playa(Base):
+    __tablename__ = "playas"
+    __table_args__ = {"schema": "sistema"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), unique=True, index=True, nullable=False)
+    razon_social = Column(String(200))
+    ruc = Column(String(20), unique=True, index=True)
+    direccion = Column(Text)
+    telefono = Column(String(50))
+    email = Column(String(100))
+    activo = Column(Boolean, default=True)
+    fecha_creacion = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    usuarios = relationship("Usuario", back_populates="playa")
+
 class Usuario(Base):
     __tablename__ = "usuarios"
     __table_args__ = {"schema": "sistema"}
     
     id = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, ForeignKey('sistema.playas.id'), nullable=True) # Si es null, es Admin de Sistema
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
@@ -45,6 +63,7 @@ class Usuario(Base):
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     
     # Relaciones
+    playa = relationship("Playa", back_populates="usuarios")
     roles = relationship("Rol", secondary=usuario_rol, back_populates="usuarios")
     sesiones = relationship("SesionUsuario", back_populates="usuario")
     logs_acceso = relationship("LogAcceso", back_populates="usuario")

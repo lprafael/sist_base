@@ -26,6 +26,9 @@ import EstadosPlaya from "./components/playa/parametros/EstadosPlaya.jsx";
 import CuentasPlaya from "./components/playa/parametros/CuentasPlaya.jsx";
 import MovimientosCuentas from "./components/playa/negocios/MovimientosCuentas.jsx";
 import EscribaniasPlaya from "./components/playa/parametros/EscribaniasPlaya.jsx";
+import CatalogoTiposVehiculo from "./components/playa/parametros/CatalogoTiposVehiculo.jsx";
+import CatalogoMarcas from "./components/playa/parametros/CatalogoMarcas.jsx";
+import CatalogoModelos from "./components/playa/parametros/CatalogoModelos.jsx";
 import ImagenesVehiculo from "./components/playa/gestion/ImagenesVehiculo.jsx";
 import DiagnosticoPagares from "./components/playa/negocios/DiagnosticoPagares.jsx";
 import HistorialPropietarios from "./components/playa/parametros/HistorialPropietarios.jsx";
@@ -101,6 +104,7 @@ export default function App() {
     "Negocios": true,
     "Reportes": true,
     "Parámetros": true,
+    "Parámetros generales": true,
     "Administración": true
   });
   const [preselectedVehicleId, setPreselectedVehicleId] = useState(null);
@@ -135,7 +139,11 @@ export default function App() {
     const userData = sessionStorage.getItem('user');
 
     if (token && userData) {
-      setUser(JSON.parse(userData));
+      const parsed = JSON.parse(userData);
+      setUser(parsed);
+      if (parsed.rol === 'admin') {
+        setTab('pg_tipos_vehiculos');
+      }
     }
     setLoading(false);
   }, []);
@@ -199,6 +207,11 @@ export default function App() {
     sessionStorage.setItem('loginTimestamp', Date.now().toString());
     sessionStorage.setItem('lastActivity', Date.now().toString());
     setUser(loginData.user);
+    if (loginData.user?.rol === 'admin') {
+      setTab('pg_tipos_vehiculos');
+    } else {
+      setTab('dashboard_playa');
+    }
   };
 
   const toggleCategory = (categoryTitle) => {
@@ -226,7 +239,7 @@ export default function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  const menuGroups = [
+  const baseMenuGroups = [
     {
       title: "Playa de Vehículos",
       icon: "🚗",
@@ -282,8 +295,38 @@ export default function App() {
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
       ]
     }
-
   ];
+
+  const ownerMenuGroups = baseMenuGroups.map(g => ({
+    ...g,
+    items: g.items
+      .map(it => ({ ...it, roles: it.roles.filter(r => r !== 'admin') }))
+      .filter(it => it.roles.length > 0)
+  }));
+
+  const adminMenuGroups = [
+    {
+      title: "Parámetros generales",
+      icon: "⚙️",
+      items: [
+        { id: 'pg_tipos_vehiculos', label: 'Tipos de vehículos', icon: '🚙', roles: ['admin'] },
+        { id: 'pg_marcas', label: 'Marcas', icon: '🏷️', roles: ['admin'] },
+        { id: 'pg_modelos', label: 'Modelos', icon: '📋', roles: ['admin'] },
+        { id: 'pg_escribanias', label: 'Escribanías', icon: '⚖️', roles: ['admin'] },
+      ]
+    },
+    {
+      title: "Administración",
+      items: [
+        { id: 'usuarios', label: 'Gestión de Usuarios', icon: '👤', roles: ['admin'] },
+        { id: 'diagnostico_pagares', label: 'Diagnóstico Pagarés', icon: '🔍', roles: ['admin'] },
+        { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin'] },
+        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin'] },
+      ]
+    }
+  ];
+
+  const menuGroups = user.rol === 'admin' ? adminMenuGroups : ownerMenuGroups;
 
   const handleTabChange = (newTab) => {
     setTab(newTab);
@@ -412,6 +455,10 @@ export default function App() {
             {tab === "movimientos_cuentas" && <MovimientosCuentas />}
             {tab === "gastos_adicionales" && <GastosAdicionales />}
             {tab === "escribanias_playa" && <EscribaniasPlaya />}
+            {user.rol === 'admin' && tab === "pg_tipos_vehiculos" && <CatalogoTiposVehiculo />}
+            {user.rol === 'admin' && tab === "pg_marcas" && <CatalogoMarcas />}
+            {user.rol === 'admin' && tab === "pg_modelos" && <CatalogoModelos />}
+            {user.rol === 'admin' && tab === "pg_escribanias" && <EscribaniasPlaya />}
             {tab === "historial_propietarios" && <HistorialPropietarios />}
           </div>
 

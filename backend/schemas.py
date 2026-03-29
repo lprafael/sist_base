@@ -29,6 +29,36 @@ class TipoNotificacion(str, Enum):
     ERROR = "error"
     SUCCESS = "success"
 
+# ===== SCHEMAS DE PLAYAS =====
+
+class PlayaBase(BaseModel):
+    nombre: str
+    razon_social: Optional[str] = None
+    ruc: Optional[str] = None
+    direccion: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[EmailStr] = None
+    activo: bool = True
+
+class PlayaCreate(PlayaBase):
+    pass
+
+class PlayaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    razon_social: Optional[str] = None
+    ruc: Optional[str] = None
+    direccion: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[EmailStr] = None
+    activo: Optional[bool] = None
+
+class PlayaResponse(PlayaBase):
+    id: int
+    fecha_creacion: datetime
+
+    class Config:
+        from_attributes = True
+
 # ===== SCHEMAS DE AUTENTICACIÓN =====
 
 class UserLogin(BaseModel):
@@ -39,6 +69,7 @@ class UserCreate(BaseModel):
     username: str
     email: EmailStr
     nombre_completo: str
+    id_playa: Optional[int] = None
     rol: str = "user"
     
     @validator('username')
@@ -52,6 +83,7 @@ class GoogleLogin(BaseModel):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
+    id_playa: Optional[int] = None
     nombre_completo: Optional[str] = None
     rol: Optional[str] = None
     activo: Optional[bool] = None
@@ -61,6 +93,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     nombre_completo: str
+    id_playa: Optional[int] = None
     rol: str
     activo: bool
     fecha_creacion: datetime

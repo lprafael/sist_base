@@ -16,6 +16,7 @@ class Vendedor(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
 
     id_vendedor = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True) # Referencia al sistema.playas.id
     nombre = Column(String(100), nullable=False)
     apellido = Column(String(100), nullable=False)
     telefono = Column(String(50))
@@ -31,6 +32,7 @@ class CategoriaVehiculo(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_categoria = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(100), nullable=False)
     descripcion = Column(Text)
     
@@ -43,6 +45,7 @@ class DocumentoImportacion(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
 
     nro_despacho = Column(String(100), primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     fecha_despacho = Column(Date)
     cantidad_vehiculos = Column(Integer)
     monto_pagado = Column(DECIMAL(15, 2))
@@ -60,11 +63,19 @@ class Producto(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_producto = Column(Integer, primary_key=True, index=True)
-    id_categoria = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.categorias_vehiculos.id_categoria'))
+    id_playa = Column(Integer, index=True, nullable=True)
+    id_categoria = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.categorias_vehiculos.id_categoria'), nullable=True)
     codigo_interno = Column(String(50), unique=True, index=True)
-    tipo_vehiculo = Column(String(50))
-    marca = Column(String(100), nullable=False)
-    modelo = Column(String(100), nullable=False)
+    # Nuevas Columnas Normalizadas
+    id_tipo_vehiculo = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.catalogo_tipos_vehiculo.id_tipo'), nullable=True)
+    id_marca = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.catalogo_marcas.id_marca'), nullable=True)
+    id_modelo = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.catalogo_modelos.id_modelo'), nullable=True)
+
+    # Columnas originales (Denormalizadas - Opcionales para compatibilidad)
+    tipo_vehiculo = Column(String(50), nullable=True)
+    marca = Column(String(100), nullable=True)
+    modelo = Column(String(100), nullable=True)
+
     año = Column(Integer)
     color = Column(String(50))
     chasis = Column(String(100), unique=True, index=True)
@@ -97,6 +108,11 @@ class Producto(Base):
     ventas = relationship("Venta", back_populates="producto")
     documento_importacion = relationship("DocumentoImportacion", back_populates="productos", foreign_keys=[nro_despacho])
     historial_propietarios = relationship("HistorialPropietario", back_populates="producto")
+
+    # Relaciones de Catálogo
+    tipo_vehiculo_rel = relationship("TipoVehiculoCatalogo")
+    marca_rel = relationship("MarcaCatalogo")
+    modelo_rel = relationship("ModeloCatalogo")
 
     @property
     def cliente_nombre(self) -> Optional[str]:
@@ -140,6 +156,7 @@ class Cliente(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_cliente = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     tipo_documento = Column(String(20), nullable=False)
     numero_documento = Column(String(50), unique=True, index=True, nullable=False)
     nombre = Column(String(100), nullable=False)
@@ -183,6 +200,7 @@ class UbicacionCliente(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_ubicacion = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_cliente = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.clientes.id_cliente'))
     nombre_lugar = Column(String(100), nullable=False) # Casa, Trabajo, Referencia, etc.
     tipo_ubicacion = Column(String(20)) # CASA, TRABAJO, OTRO
@@ -200,6 +218,7 @@ class Gante(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_garante = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_cliente = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.clientes.id_cliente'))
     tipo_documento = Column(String(20), nullable=False)
     numero_documento = Column(String(50), nullable=False)
@@ -234,6 +253,7 @@ class DocumentoInforconf(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_documento = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_cliente = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.clientes.id_cliente'))
     fecha_consulta = Column(Date, nullable=False)
     calificacion = Column(String(50))
@@ -251,6 +271,7 @@ class TipoGastoProducto(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_tipo_gasto = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(100), unique=True, nullable=False)
     descripcion = Column(Text)
     activo = Column(Boolean, default=True)
@@ -263,6 +284,7 @@ class GastoProducto(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_gasto_producto = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_producto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.productos.id_producto'))
     id_tipo_gasto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.tipos_gastos_productos.id_tipo_gasto'))
     descripcion = Column(Text)
@@ -284,6 +306,7 @@ class TipoGastoEmpresa(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_tipo_gasto_empresa = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(100), unique=True, nullable=False)
     descripcion = Column(Text)
     es_fijo = Column(Boolean, default=False)
@@ -297,6 +320,7 @@ class GastoEmpresa(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_gasto_empresa = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_tipo_gasto_empresa = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.tipos_gastos_empresa.id_tipo_gasto_empresa'))
     descripcion = Column(Text)
     monto = Column(DECIMAL(15, 2), nullable=False)
@@ -317,6 +341,7 @@ class Escribania(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
 
     id_escribania = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(200), nullable=False)
     telefono = Column(String(50))
     email = Column(String(100))
@@ -332,6 +357,7 @@ class Venta(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_venta = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     numero_venta = Column(String(50), unique=True, nullable=False)
     id_cliente = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.clientes.id_cliente'))
     id_producto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.productos.id_producto'))
@@ -382,6 +408,7 @@ class DetalleVenta(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_detalle_venta = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta', ondelete='CASCADE'))
     concepto = Column(String(100), nullable=False) # 'Entrega Inicial', 'Cuotas', 'Refuerzos'
     monto_unitario = Column(DECIMAL(15, 2), nullable=False)
@@ -397,6 +424,7 @@ class ContratoVenta(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_contrato = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta'))
     numero_contrato = Column(String(50), unique=True, nullable=False)
     fecha_contrato = Column(Date, nullable=False)
@@ -463,6 +491,7 @@ class HistorialCalificacion(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_historial = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_cliente = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.clientes.id_cliente'))
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta'))
     id_pago = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.pagos.id_pago'))
@@ -481,6 +510,7 @@ class Referencia(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_referencia = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_cliente = Column(Integer) # Ya no es un ForeignKey formal a nivel de modelo para permitir polimorfismo
     tipo_entidad = Column(String(20), nullable=False) # CLIENTE, GARANTE
     tipo_referencia = Column(String(20), nullable=False) # PERSONAL, LABORAL
@@ -500,6 +530,7 @@ class ConfigCalificacion(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_config = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(100), unique=True, nullable=False)
     dias_atraso_desde = Column(Integer, nullable=False)
     dias_atraso_hasta = Column(Integer)
@@ -512,6 +543,7 @@ class Refuerzo(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_refuerzo = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta'))
     numero_refuerzo = Column(Integer, nullable=False)
     monto_refuerzo = Column(DECIMAL(15, 2), nullable=False)
@@ -530,6 +562,7 @@ class ImagenProducto(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_imagen = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_producto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.productos.id_producto'))
     nombre_archivo = Column(String(200))
     ruta_archivo = Column(String(500))
@@ -547,6 +580,7 @@ class Estado(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_estado = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(50), unique=True, nullable=False)
     descripcion = Column(Text)
     color_hex = Column(String(7))
@@ -560,6 +594,7 @@ class Cuenta(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_cuenta = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     nombre = Column(String(100), unique=True, nullable=False)
     tipo = Column(String(50)) # CAJA, BANCO, etc.
     banco = Column(String(100))
@@ -578,6 +613,7 @@ class Movimiento(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_movimiento = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_cuenta_origen = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'))
     id_cuenta_destino = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'))
     monto = Column(DECIMAL(15, 2), nullable=False)
@@ -595,6 +631,7 @@ class GastoAdicional(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_gasto_adicional = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     tipo = Column(String(20), nullable=False) # INGRESO, EGRESO
     monto = Column(DECIMAL(15, 2), nullable=False)
     fecha = Column(Date, nullable=False)
@@ -606,3 +643,41 @@ class GastoAdicional(Base):
     
     # Relaciones
     cuenta_rel = relationship("Cuenta")
+
+
+class TipoVehiculoCatalogo(Base):
+    """Catálogo global de tipos de vehículo (administración central)."""
+    __tablename__ = "catalogo_tipos_vehiculo"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+
+    id_tipo = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(150), nullable=False, unique=True)
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+
+
+class MarcaCatalogo(Base):
+    """Catálogo global de marcas."""
+    __tablename__ = "catalogo_marcas"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+
+    id_marca = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(150), nullable=False, unique=True)
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+
+    modelos = relationship("ModeloCatalogo", back_populates="marca_rel")
+
+
+class ModeloCatalogo(Base):
+    """Catálogo global de modelos por marca."""
+    __tablename__ = "catalogo_modelos"
+    __table_args__ = {"schema": PLAYA_SCHEMA}
+
+    id_modelo = Column(Integer, primary_key=True, index=True)
+    id_marca = Column(Integer, ForeignKey(f"{PLAYA_SCHEMA}.catalogo_marcas.id_marca"), nullable=False)
+    nombre = Column(String(150), nullable=False)
+    activo = Column(Boolean, default=True)
+    fecha_registro = Column(DateTime, default=func.now())
+
+    marca_rel = relationship("MarcaCatalogo", back_populates="modelos")

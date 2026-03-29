@@ -7,7 +7,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sist-playa-backend
+    container_name: mi-playa-backend
     ports:
       - "8002:8001"
     environment:
@@ -20,7 +20,7 @@ services:
       - ./backend/static/uploads:/app/static/uploads
     restart: unless-stopped
     networks:
-      - sist-playa-network
+      - mi-playa-network
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/backup/ping" ]
       interval: 30s
@@ -32,14 +32,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: sist-playa-frontend
+    container_name: mi-playa-frontend
     ports:
       - "3002:80"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
-      - sist-playa-network
+      - mi-playa-network
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
       interval: 30s
@@ -50,15 +50,18 @@ services:
     build:
       context: ./frontend/public-catalog
       dockerfile: Dockerfile
-    container_name: sist-playa-public
+      args:
+        # URL de la API vista desde el navegador (catálogo nacional MiCoche)
+        VITE_REACT_APP_API_URL: /api
+    container_name: mi-playa-public
     ports:
       - "3003:80"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
-      - sist-playa-network
+      - mi-playa-network
 
 networks:
-  sist-playa-network:
+  mi-playa-network:
     driver: bridge

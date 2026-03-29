@@ -78,8 +78,8 @@ from database import engine, SessionLocal, get_session
 # 5. INICIALIZACIÓN DE FASTAPI
 # ============================================
 app = FastAPI(
-    title="API Sistema de Gestión de Vehículos",
-    description="API para la gestión base de usuarios, roles y auditoría",
+    title="Mi Playa - Sistema de Gestión de Vehículos",
+    description="Sistema de administración multitenace para playas de vehículos",
     version="1.0.0"
 )
 # Montar archivos estáticos (para imágenes de productos, etc.)

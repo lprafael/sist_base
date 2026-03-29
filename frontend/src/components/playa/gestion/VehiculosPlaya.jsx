@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './VehiculosPlaya.css';
 import ImagenesVehiculo from './ImagenesVehiculo.jsx';
+import CatalogoAutocomplete from './CatalogoAutocomplete.jsx';
+
+function resolveMarcaCatalogoId(marcaStr, marcas) {
+    if (!marcaStr || !Array.isArray(marcas)) return null;
+    const t = String(marcaStr).trim().toLowerCase();
+    const m = marcas.find((x) => x.nombre && x.nombre.toLowerCase() === t);
+    return m ? m.id_marca : null;
+}
 
 const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId, setPreselectedCategoryId, setPreselectedDespacho }) => {
     const [vehiculos, setVehiculos] = useState([]);
@@ -16,6 +24,10 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
     const [availabilityFilter, setAvailabilityFilter] = useState('DISPONIBLE'); // 'DISPONIBLE', 'TODOS'
     const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [catalogoTipos, setCatalogoTipos] = useState([]);
+    const [catalogoMarcas, setCatalogoMarcas] = useState([]);
+    const [catalogoModelosNew, setCatalogoModelosNew] = useState([]);
+    const [catalogoModelosEdit, setCatalogoModelosEdit] = useState([]);
     const [newVehiculo, setNewVehiculo] = useState({
         id_categoria: '',
         codigo_interno: '',
@@ -85,10 +97,74 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
         }
     };
 
+    const loadCatalogosVehiculo = async () => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const headers = { Authorization: `Bearer ${token}` };
+            const [tipos, marcas] = await Promise.all([
+                axios.get(`${API_URL}/playa/catalogo/tipos-vehiculo`, { headers }),
+                axios.get(`${API_URL}/playa/catalogo/marcas`, { headers }),
+            ]);
+            setCatalogoTipos(tipos.data || []);
+            setCatalogoMarcas(marcas.data || []);
+        } catch (e) {
+            console.warn('Catálogo de vehículos no disponible:', e);
+            setCatalogoTipos([]);
+            setCatalogoMarcas([]);
+        }
+    };
+
     useEffect(() => {
         fetchVehiculos();
         fetchCategorias();
+        loadCatalogosVehiculo();
     }, []);
+
+    useEffect(() => {
+        const idMarca = resolveMarcaCatalogoId(newVehiculo.marca, catalogoMarcas);
+        if (!idMarca) {
+            setCatalogoModelosNew([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/catalogo/modelos?id_marca=${idMarca}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!cancelled) setCatalogoModelosNew(res.data || []);
+            } catch {
+                if (!cancelled) setCatalogoModelosNew([]);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [newVehiculo.marca, catalogoMarcas, API_URL]);
+
+    useEffect(() => {
+        if (!selectedVehiculo) {
+            setCatalogoModelosEdit([]);
+            return;
+        }
+        const idMarca = resolveMarcaCatalogoId(selectedVehiculo.marca, catalogoMarcas);
+        if (!idMarca) {
+            setCatalogoModelosEdit([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/catalogo/modelos?id_marca=${idMarca}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!cancelled) setCatalogoModelosEdit(res.data || []);
+            } catch {
+                if (!cancelled) setCatalogoModelosEdit([]);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [selectedVehiculo?.marca, selectedVehiculo?.id_producto, catalogoMarcas, API_URL]);
 
     useEffect(() => {
         if (preselectedCategoryId) {
@@ -601,14 +677,27 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                             </div>
                                         </div>
                                         <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Marca</label>
-                                                <input type="text" required value={newVehiculo.marca} onChange={(e) => setNewVehiculo({ ...newVehiculo, marca: e.target.value })} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Modelo</label>
-                                                <input type="text" required value={newVehiculo.modelo} onChange={(e) => setNewVehiculo({ ...newVehiculo, modelo: e.target.value })} />
-                                            </div>
+                                            <CatalogoAutocomplete
+                                                id="nv-marca"
+                                                label="Marca"
+                                                required
+                                                value={newVehiculo.marca}
+                                                onChange={(v) => setNewVehiculo({ ...newVehiculo, marca: v })}
+                                                options={catalogoMarcas}
+                                                placeholder="Escriba para buscar marca…"
+                                            />
+                                            <CatalogoAutocomplete
+                                                id="nv-modelo"
+                                                label="Modelo"
+                                                required
+                                                value={newVehiculo.modelo}
+                                                onChange={(v) => setNewVehiculo({ ...newVehiculo, modelo: v })}
+                                                options={catalogoModelosNew}
+                                                placeholder="Escriba para buscar modelo…"
+                                                hint={!resolveMarcaCatalogoId(newVehiculo.marca, catalogoMarcas)
+                                                    ? 'Si escribe una marca igual al catálogo, podrá filtrar modelos.'
+                                                    : undefined}
+                                            />
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
@@ -681,10 +770,14 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                     <option value="AUT">AUT</option>
                                                 </select>
                                             </div>
-                                            <div className="form-group">
-                                                <label>Tipo Vehículo</label>
-                                                <input type="text" value={newVehiculo.tipo_vehiculo} onChange={(e) => setNewVehiculo({ ...newVehiculo, tipo_vehiculo: e.target.value })} />
-                                            </div>
+                                            <CatalogoAutocomplete
+                                                id="nv-tipo"
+                                                label="Tipo Vehículo"
+                                                value={newVehiculo.tipo_vehiculo}
+                                                onChange={(v) => setNewVehiculo({ ...newVehiculo, tipo_vehiculo: v })}
+                                                options={catalogoTipos}
+                                                placeholder="Escriba para buscar tipo…"
+                                            />
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
@@ -784,14 +877,27 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                             </div>
                                         </div>
                                         <div className="form-row">
-                                            <div className="form-group">
-                                                <label>Marca</label>
-                                                <input type="text" required value={selectedVehiculo.marca} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, marca: e.target.value })} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Modelo</label>
-                                                <input type="text" required value={selectedVehiculo.modelo} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, modelo: e.target.value })} />
-                                            </div>
+                                            <CatalogoAutocomplete
+                                                id="ed-marca"
+                                                label="Marca"
+                                                required
+                                                value={selectedVehiculo.marca}
+                                                onChange={(v) => setSelectedVehiculo({ ...selectedVehiculo, marca: v })}
+                                                options={catalogoMarcas}
+                                                placeholder="Escriba para buscar marca…"
+                                            />
+                                            <CatalogoAutocomplete
+                                                id="ed-modelo"
+                                                label="Modelo"
+                                                required
+                                                value={selectedVehiculo.modelo}
+                                                onChange={(v) => setSelectedVehiculo({ ...selectedVehiculo, modelo: v })}
+                                                options={catalogoModelosEdit}
+                                                placeholder="Escriba para buscar modelo…"
+                                                hint={!resolveMarcaCatalogoId(selectedVehiculo.marca, catalogoMarcas)
+                                                    ? 'Si escribe una marca igual al catálogo, podrá filtrar modelos.'
+                                                    : undefined}
+                                            />
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
@@ -883,10 +989,14 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                     <option value="AUT">AUT</option>
                                                 </select>
                                             </div>
-                                            <div className="form-group">
-                                                <label>Tipo Vehículo</label>
-                                                <input type="text" value={selectedVehiculo.tipo_vehiculo || ''} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, tipo_vehiculo: e.target.value })} />
-                                            </div>
+                                            <CatalogoAutocomplete
+                                                id="ed-tipo"
+                                                label="Tipo Vehículo"
+                                                value={selectedVehiculo.tipo_vehiculo || ''}
+                                                onChange={(v) => setSelectedVehiculo({ ...selectedVehiculo, tipo_vehiculo: v })}
+                                                options={catalogoTipos}
+                                                placeholder="Escriba para buscar tipo…"
+                                            />
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">

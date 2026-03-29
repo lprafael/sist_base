@@ -130,8 +130,8 @@ const Login = ({ onLogin }) => {
         <div className="login-header">
           <div className="login-logo-container">
             <img
-              src="/imágenes/Logo_actualizado2.png"
-              alt="Peralta Automotores"
+              src="/imágenes/logo_miplaya_oficial3.png"
+              alt="MiPlaya"
               className="login-logo"
             />
           </div>

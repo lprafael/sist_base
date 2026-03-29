@@ -1,443 +1,457 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import "./Catalog.css";
 
-const ImageModal = ({ vehicle, onClose }) => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const images = (vehicle?.imagenes || []).filter(img => img.imagen_con_marca);
+// Components
+import VehicleCard from "./components/VehicleCard";
+import ImageModal from "./components/ImageModal";
+import SkeletonLoader from "./components/SkeletonLoader";
+import PublishForm from "./components/PublishForm";
 
-    const getFullImageUrl = (img) => {
-        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
-        return `${baseUrl}${img.imagen_con_marca}`;
-    };
+// Utils
+import { 
+  API_URL, 
+  DEFAULT_WA, 
+  FILTROS_VACIOS, 
+  añoVehiculo, 
+  imagenesLista, 
+  telParticular,
+  getFullImageUrl,
+  precioMostrar
+} from "./utils/helpers";
 
-    useEffect(() => {
-        const handleEsc = (event) => {
-            if (event.keyCode === 27) onClose();
-        };
-        window.addEventListener('keydown', handleEsc);
-        document.body.style.overflow = 'hidden';
-        return () => {
-            window.removeEventListener('keydown', handleEsc);
-            document.body.style.overflow = 'unset';
-        };
-    }, [onClose]);
-
-    if (!vehicle) return null;
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <button className="modal-close" onClick={onClose}>&times;</button>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-thumbnails">
-                    {images.map((img, idx) => (
-                        <div
-                            key={idx}
-                            className={`thumb-item ${currentIndex === idx ? 'active' : ''}`}
-                            onClick={() => setCurrentIndex(idx)}
-                        >
-                            <img src={getFullImageUrl(img)} alt={`Thumbnail ${idx}`} />
-                        </div>
-                    ))}
-                </div>
-                <div className="modal-main-image">
-                    {images.length > 1 && (
-                        <button className="modal-nav-btn prev" onClick={() => setCurrentIndex((currentIndex - 1 + images.length) % images.length)}>
-                            &#10094;
-                        </button>
-                    )}
-                    <img src={getFullImageUrl(images[currentIndex])} alt={vehicle.modelo} />
-                    {images.length > 1 && (
-                        <button className="modal-nav-btn next" onClick={() => setCurrentIndex((currentIndex + 1) % images.length)}>
-                            &#10095;
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+const initialOferta = {
+  marca: "", modelo: "", chasis: "", año: "", color: "",
+  combustible: "", transmision: "", precio_pyg: "",
+  telefono: "", nombre_contacto: "", ciudad: "", observaciones: ""
 };
 
-const VehicleCard = ({ vehicle, onWhatsApp, onPhotoClick }) => {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [isHovered, setIsHovered] = useState(false);
+export default function PublicCatalog() {
+  const [vehicles, setVehicles] = useState([]);
+  const [playas, setPlayas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const limit = 48;
 
-    const images = (vehicle.imagenes || []).filter(img => img.imagen_con_marca);
-    const hasImages = images.length > 0;
+  // Catálogos Normalizados
+  const [catalogoTipos, setCatalogoTipos] = useState([]);
+  const [catalogoMarcas, setCatalogoMarcas] = useState([]);
+  const [catalogoModelos, setCatalogoModelos] = useState([]);
 
-    useEffect(() => {
-        if (!isHovered) {
-            const principalIndex = images.findIndex(img => img.es_principal);
-            setCurrentImageIndex(principalIndex !== -1 ? principalIndex : 0);
-            return;
-        }
+  const [qInput, setQInput] = useState("");
+  const [q, setQ] = useState("");
+  const [filtrosDraft, setFiltrosDraft] = useState(() => ({ ...FILTROS_VACIOS }));
+  const [filtros, setFiltros] = useState(() => ({ ...FILTROS_VACIOS }));
 
-        if (images.length <= 1) return;
+  const [viewMode, setViewMode] = useState("grid");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedVehicleForModal, setSelectedVehicleForModal] = useState(null);
+  
+  const [oferta, setOferta] = useState(initialOferta);
+  const [ofertaMsg, setOfertaMsg] = useState(null);
+  const [ofertaLoading, setOfertaLoading] = useState(false);
+  const [ofertaFotos, setOfertaFotos] = useState([]);
+  const ofertaFileInputRef = useRef(null);
 
-        const interval = setInterval(() => {
-            setCurrentImageIndex(prev => (prev + 1) % images.length);
-        }, 1200);
+  const vehiclesList = Array.isArray(vehicles) ? vehicles : [];
+  const playasList = Array.isArray(playas) ? playas : [];
 
-        return () => clearInterval(interval);
-    }, [isHovered, images]);
+  const featuredVehicles = useMemo(() => {
+    const withImg = vehiclesList.filter((v) => imagenesLista(v).some((i) => i.imagen_con_marca));
+    const pool = withImg.length ? withImg : vehiclesList;
+    return pool.slice(0, Math.min(5, pool.length));
+  }, [vehiclesList]);
+  
+  const [featuredIndex, setFeaturedIndex] = useState(0);
 
-    const getImageUrl = () => {
-        if (!hasImages) return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
+  useEffect(() => {
+    const t = setTimeout(() => setQ(qInput), 400);
+    return () => clearTimeout(t);
+  }, [qInput]);
 
-        const img = images[currentImageIndex] || images[0];
-        const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
-        return `${baseUrl}${img.imagen_con_marca}`;
-    };
-
-    return (
-        <div
-            className="vehicle-card glass"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            <div className="card-image-wrapper">
-                <img src={getImageUrl()} alt={`${vehicle.marca} ${vehicle.modelo}`} />
-                <div className="card-overlay" onClick={() => onPhotoClick(vehicle)}>
-                    <button onClick={(e) => {
-                        e.stopPropagation();
-                        onWhatsApp(vehicle);
-                    }}>WhatsApp</button>
-                    {hasImages && images.length > 1 && isHovered && (
-                        <div className="image-counter">
-                            {currentImageIndex + 1} / {images.length}
-                        </div>
-                    )}
-                </div>
-            </div>
-            <div className="card-info">
-                <h3>{vehicle.marca} {vehicle.modelo}</h3>
-                <div className="card-specs">
-                    <span>{vehicle.anho_fabricacion || vehicle.año}</span>
-                    <span>•</span>
-                    <span>{vehicle.color}</span>
-                    {vehicle.motor && (
-                        <>
-                            <span>•</span>
-                            <span>{vehicle.motor}</span>
-                        </>
-                    )}
-                    {vehicle.transmision && (
-                        <>
-                            <span>•</span>
-                            <span style={{ textTransform: 'capitalize' }}>{vehicle.transmision.toLowerCase()}</span>
-                        </>
-                    )}
-                    {vehicle.combustible && (
-                        <>
-                            <span>•</span>
-                            <span>{vehicle.combustible}</span>
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const PublicCatalog = ({ user }) => {
-    const [vehicles, setVehicles] = useState([]);
-    const [featuredVehicles, setFeaturedVehicles] = useState([]);
-    const [featuredIndex, setFeaturedIndex] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("all");
-    const [categories, setCategories] = useState([]);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [selectedVehicleForModal, setSelectedVehicleForModal] = useState(null);
-
-    const API_URL = import.meta.env.VITE_REACT_APP_API_URL || "/api";
-
-    useEffect(() => {
-        fetchData();
-        fetchCategories();
-
-        // Polling cada 30 segundos para que se actualice "automáticamente"
-        const interval = setInterval(() => {
-            fetchData();
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            // Obtener vehículos disponibles
-            const responseV = await fetch(`${API_URL}/playa/vehiculos?available_only=true`);
-            const vehiclesData = await responseV.json();
-            setVehicles(vehiclesData);
-
-            // Obtener los 5 más vendidos (marcas/modelos)
-            const responseT = await fetch(`${API_URL}/playa/vehiculos/top-vendidos`);
-            const topData = await responseT.json();
-
-            // Filtrar vehículos disponibles que coincidan con los más vendidos
-            let featured = vehiclesData.filter(v =>
-                topData.some(t => t.marca === v.marca && t.modelo === v.modelo)
-            );
-
-            if (featured.length === 0 && vehiclesData.length > 0) {
-                featured = [...vehiclesData].sort(() => 0.5 - Math.random()).slice(0, 5);
-            } else if (featured.length > 5) {
-                featured = featured.slice(0, 5);
-            }
-
-            setFeaturedVehicles(featured);
-        } catch (error) {
-            console.error("Error fetching vehicles:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Efecto para la rotación del vehículo destacado
-    useEffect(() => {
-        if (featuredVehicles.length > 1) {
-            const interval = setInterval(() => {
-                setFeaturedIndex((prev) => (prev + 1) % featuredVehicles.length);
-            }, 6000);
-            return () => clearInterval(interval);
-        }
-    }, [featuredVehicles, featuredIndex]); // Reset interval if index changes manually
-
-    const nextFeatured = () => {
-        setFeaturedIndex((prev) => (prev + 1) % featuredVehicles.length);
-    };
-
-    const prevFeatured = () => {
-        setFeaturedIndex((prev) => (prev - 1 + featuredVehicles.length) % featuredVehicles.length);
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const response = await fetch(`${API_URL}/playa/categorias`);
-            const data = await response.json();
-            setCategories(data);
-        } catch (error) {
-            console.error("Error fetching categories:", error);
-        }
-    };
-
-    const getImageUrl = (vehicle) => {
-        const watermarkedImages = (vehicle.imagenes || []).filter(img => img.imagen_con_marca);
-        if (watermarkedImages.length > 0) {
-            const principal = watermarkedImages.find(img => img.es_principal) || watermarkedImages[0];
-            const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
-            return `${baseUrl}${principal.imagen_con_marca}`;
-        }
-        // Imagen estándar en caso de no tener fotos (Unsplash)
-        return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
-    };
-
-    const filteredVehicles = vehicles.filter(v => {
-        const searchInput = searchTerm.toLowerCase();
-        const matchesSearch = (v.marca + " " + v.modelo).toLowerCase().includes(searchInput) ||
-            (v.chasis || "").toLowerCase().includes(searchInput);
-
-        const matchesCategory = selectedCategory === "all" || v.id_categoria === parseInt(selectedCategory);
-        return matchesSearch && matchesCategory;
-    });
-
-    const formatPrice = (price) => {
-        return new Intl.NumberFormat('es-PY', { style: 'currency', currency: 'PYG' }).format(price);
-    };
-
-    const handleWhatsApp = (vehicle) => {
-        const message = `Hola! Estoy interesado en el ${vehicle.marca} ${vehicle.modelo} (${vehicle.anho_fabricacion || vehicle.año}) que vi en su web.`;
-        const phone = "595981431983";
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
-    };
-
-    if (loading) {
-        return (
-            <div className="public-loader">
-                <div className="loader-spinner"></div>
-                <p>Cargando catálogo...</p>
-            </div>
-        );
+  const filtrosDebounceSkip = useRef(true);
+  useEffect(() => {
+    if (filtrosDebounceSkip.current) {
+      filtrosDebounceSkip.current = false;
+      return;
     }
+    const t = setTimeout(() => setFiltros(filtrosDraft), 450);
+    return () => clearTimeout(t);
+  }, [filtrosDraft]);
 
-    return (
-        <div className="catalog-container">
-            <nav className="catalog-nav">
-                <div className="benefits-banner">
-                    <div className="benefits-content">
-                        <div className="benefit-item">
-                            <span className="benefit-icon">💳</span>
-                            <span>Financiación Propia</span>
-                        </div>
-                        <span className="separator">|</span>
-                        <div className="benefit-item">
-                            <span className="benefit-icon">📋</span>
-                            <span>Mínimos Requisitos</span>
-                        </div>
-                        <span className="separator">|</span>
-                        <div className="benefit-item">
-                            <span className="benefit-icon">⚡</span>
-                            <span>Aprobación Inmediata</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="nav-content">
-                    <img src="/imágenes/Logo_moderno2.png" alt="Peralta Automotores" className="nav-logo" />
+  const fetchPlayas = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/playa/public/playas`);
+      if (!r.ok) throw new Error("No se pudieron cargar las playas");
+      const raw = await r.json();
+      setPlayas(Array.isArray(raw) ? raw : []);
+    } catch (e) { console.error(e); }
+  }, []);
 
-                    <button
-                        className={`mobile-menu-toggle ${mobileMenuOpen ? 'open' : ''}`}
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        aria-label="Menu"
-                    >
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
+  const fetchCatalogos = useCallback(async () => {
+    try {
+      const [rTipos, rMarcas] = await Promise.all([
+        fetch(`${API_URL}/playa/public/catalogo/tipos-vehiculo`),
+        fetch(`${API_URL}/playa/public/catalogo/marcas`)
+      ]);
+      if (rTipos.ok) setCatalogoTipos(await rTipos.json());
+      if (rMarcas.ok) setCatalogoMarcas(await rMarcas.json());
+    } catch (e) { console.error("Error cargando catálogos", e); }
+  }, []);
 
-                    <div className={`nav-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-                        <a href="#inventario" onClick={() => setMobileMenuOpen(false)}>Inventario</a>
-                        <a href="#contacto" onClick={() => setMobileMenuOpen(false)}>Contacto</a>
-                        {user ? (
-                            <button className="btn-admin-link" onClick={() => window.location.href = "/admin"}>Ir al Sistema</button>
-                        ) : (
-                            <button className="btn-admin-link" onClick={() => window.location.href = "/login"}>Admin</button>
-                        )}
-                    </div>
-                </div>
-            </nav>
+  useEffect(() => {
+    if (oferta.id_marca) {
+      fetch(`${API_URL}/playa/public/catalogo/modelos?id_marca=${oferta.id_marca}`)
+        .then(r => r.json())
+        .then(data => setCatalogoModelos(data))
+        .catch(e => console.error(e));
+    } else {
+      setCatalogoModelos([]);
+    }
+  }, [oferta.id_marca]);
 
-            {featuredVehicles.length > 0 && (
-                <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url(${getImageUrl(featuredVehicles[featuredIndex])})` }}>
-                    {featuredVehicles.length > 1 && (
-                        <>
-                            <button className="hero-nav-btn prev" onClick={prevFeatured} aria-label="Anterior">
-                                &#10094;
-                            </button>
-                            <button className="hero-nav-btn next" onClick={nextFeatured} aria-label="Siguiente">
-                                &#10095;
-                            </button>
-                        </>
-                    )}
+  const fetchCatalog = useCallback(
+    async (reset, offsetForPage) => {
+      if (reset) {
+        setLoading(true);
+        setError(null);
+      } else setLoadingMore(true);
+      try {
+        const off = reset ? 0 : offsetForPage;
+        const p = new URLSearchParams();
+        p.set("limit", String(limit));
+        p.set("offset", String(off));
+        if (q.trim()) p.set("q", q.trim());
+        if (filtros.marca.trim()) p.set("marca", filtros.marca.trim());
+        if (filtros.modelo.trim()) p.set("modelo", filtros.modelo.trim());
+        if (filtros.año_desde) p.set("año_desde", filtros.año_desde);
+        if (filtros.año_hasta) p.set("año_hasta", filtros.año_hasta);
+        if (filtros.combustible.trim()) p.set("combustible", filtros.combustible.trim());
+        if (filtros.transmision.trim()) p.set("transmision", filtros.transmision.trim());
+        if (filtros.color.trim()) p.set("color", filtros.color.trim());
+        if (filtros.solo_particulares) p.set("solo_particulares", "true");
+        else if (filtros.id_playa) p.set("id_playa", filtros.id_playa);
 
-                    <div className="hero-content">
-                        <div className="hero-badge-container">
-                            <span className="badge">Destacado</span>
-                        </div>
-                        <h1>{featuredVehicles[featuredIndex].marca} {featuredVehicles[featuredIndex].modelo}</h1>
-                        <div className="hero-details">
-                            <div className="detail-item">
-                                <span className="detail-icon">📅</span>
-                                <span>{featuredVehicles[featuredIndex].anho_fabricacion || featuredVehicles[featuredIndex].año}</span>
-                            </div>
-                            <div className="detail-item">
-                                <span className="detail-icon">🎨</span>
-                                <span>{featuredVehicles[featuredIndex].color}</span>
-                            </div>
-                            <div className="detail-item">
-                                <span className="detail-icon">⛽</span>
-                                <span>{featuredVehicles[featuredIndex].tipo_combustible || featuredVehicles[featuredIndex].combustible || 'Nafta'}</span>
-                            </div>
-                        </div>
-                        <div className="hero-actions">
-                            <button className="cta-button" onClick={() => handleWhatsApp(featuredVehicles[featuredIndex])}>
-                                Consultar Ahora
-                            </button>
-                        </div>
-                    </div>
+        const r = await fetch(`${API_URL}/playa/public/catalogo?${p.toString()}`);
+        const raw = await r.json();
+        if (!r.ok) throw new Error("No se pudo cargar el catálogo");
+        
+        const data = Array.isArray(raw) ? raw : [];
+        if (reset) {
+          setVehicles(data);
+          setOffset(data.length);
+        } else {
+          setVehicles((prev) => [...(Array.isArray(prev) ? prev : []), ...data]);
+          setOffset((prev) => prev + data.length);
+        }
+        setHasMore(data.length >= limit);
+      } catch (e) {
+        setError(e.message || "Error de red");
+        if (reset) setVehicles([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [q, filtros, limit]
+  );
 
-                    {featuredVehicles.length > 1 && (
-                        <div className="hero-dots">
-                            {featuredVehicles.map((_, idx) => (
-                                <button
-                                    key={idx}
-                                    className={`dot ${featuredIndex === idx ? 'active' : ''}`}
-                                    onClick={() => setFeaturedIndex(idx)}
-                                    aria-label={`Ir a destacado ${idx + 1}`}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </section>
-            )}
+  useEffect(() => {
+    fetchPlayas();
+    fetchCatalogos();
+  }, [fetchPlayas, fetchCatalogos]);
 
-            <section id="inventario" className="inventory-section">
-                <div className="section-header">
-                    <h2>Nuestra Flota</h2>
-                    <div className="filters">
-                        <input
-                            type="text"
-                            placeholder="Buscar marca o modelo..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-                            <option value="all">Todas las categorías</option>
-                            {categories.map(cat => (
-                                <option key={cat.id_categoria} value={cat.id_categoria}>{cat.nombre}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+  useEffect(() => {
+    fetchCatalog(true, 0);
+  }, [q, filtros, fetchCatalog]);
 
-                <div className="vehicle-grid">
-                    {filteredVehicles.map(vehicle => (
-                        <VehicleCard
-                            key={vehicle.id_producto}
-                            vehicle={vehicle}
-                            onWhatsApp={handleWhatsApp}
-                            onPhotoClick={setSelectedVehicleForModal}
-                        />
-                    ))}
-                </div>
-                {filteredVehicles.length === 0 && <p className="no-results">No se encontraron vehículos.</p>}
-            </section>
+  const loadMore = () => {
+    if (!hasMore || loadingMore) return;
+    fetchCatalog(false, offset);
+  };
 
-            <footer id="contacto" className="catalog-footer">
-                <div className="footer-content">
-                    <div className="footer-info">
-                        <img src="/imágenes/Logo_actualizado2.png" alt="Logo" />
-                        <p>Líderes en venta de vehículos con la mejor financiación del mercado.</p>
-                    </div>
-                    <div className="footer-contact">
-                        <h4>Contacto</h4>
-                        <p>📍 Avda. Ingavi 1165 c/ 6 de enero, Fdo de la Mora</p>
-                        <p>📞 +595 981 431 983</p>
-                        <p>✉️ peraltaautomotores@hotmail.com.py</p>
-                    </div>
-                    <div className="footer-social">
-                        <h4>Síguenos</h4>
-                        <div className="social-icons">
-                            <a href="https://www.facebook.com/peraltaautomotores" target="_blank" rel="noopener noreferrer" className="social-link" title="Facebook">
-                                FB
-                            </a>
-                            <a href="https://www.instagram.com/peraltaautomotores1/?hl=es" target="_blank" rel="noopener noreferrer" className="social-link" title="Instagram">
-                                IG
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div className="footer-bottom">
-                    <p>&copy; 2026 Peralta Automotores. Todos los derechos reservados.</p>
-                </div>
-            </footer>
+  useEffect(() => {
+    if (featuredVehicles.length > 1) {
+      const interval = setInterval(() => {
+        setFeaturedIndex((i) => (i + 1) % featuredVehicles.length);
+      }, 5500);
+      return () => clearInterval(interval);
+    }
+  }, [featuredVehicles]);
 
-            <a 
-                href={`https://wa.me/595981431983?text=${encodeURIComponent("Hola, estuve mirando desde la web algunos vehículos de la flota que tienen en playa y quería conocer más detalles sobre algunos modelos.")}`} 
-                className="whatsapp-float" 
-                target="_blank" 
-                rel="noopener noreferrer"
-            >
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" />
-            </a>
+  const handleWhatsApp = (vehicle) => {
+    const y = añoVehiculo(vehicle);
+    const msg = vehicle.es_particular
+      ? `Hola, vi su publicación en MiCoche (${vehicle.marca} ${vehicle.modelo}${y ? ` ${y}` : ""}) y quisiera más información.`
+      : `Hola, vi en MiCoche el ${vehicle.marca} ${vehicle.modelo}${y ? ` (${y})` : ""}${vehicle.nombre_playa ? ` de ${vehicle.nombre_playa}` : ""} y quisiera consultar.`;
+    const phone = vehicle.es_particular ? telParticular(vehicle) : DEFAULT_WA;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
 
-            {selectedVehicleForModal && (
-                <ImageModal
-                    vehicle={selectedVehicleForModal}
-                    onClose={() => setSelectedVehicleForModal(null)}
-                />
-            )}
+  const handleOfertaSubmit = async (e) => {
+    e.preventDefault();
+    setOfertaMsg(null);
+    setOfertaLoading(true);
+    try {
+      const precioDigits = String(oferta.precio_pyg).replace(/\D/g, "");
+      if (!precioDigits) throw new Error("Indicá un precio válido.");
+      
+      const fd = new FormData();
+      Object.entries(oferta).forEach(([k, v]) => {
+        if (v && String(v).trim()) fd.append(k, String(v).trim());
+      });
+      fd.set("precio_pyg", precioDigits);
+      ofertaFotos.forEach((file) => fd.append("fotos", file));
+
+      const r = await fetch(`${API_URL}/playa/public/oferta-particular`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || data.message || "No se pudo publicar");
+      
+      setOfertaMsg({ type: "ok", text: "¡Publicación registrada!" });
+      setVehicles((prev) => [data, ...(Array.isArray(prev) ? prev : [])]);
+      setOferta(initialOferta);
+      setOfertaFotos([]);
+      if (ofertaFileInputRef.current) ofertaFileInputRef.current.value = "";
+    } catch (err) {
+      setOfertaMsg({ type: "err", text: err.message });
+    } finally {
+      setOfertaLoading(false);
+    }
+  };
+
+  const fv = featuredVehicles[featuredIndex];
+
+  return (
+    <div className="mc-root">
+      <header className="mc-topbar">
+        <div className="mc-topbar-inner">
+          <span>🚀 Marketplace de vehículos en Paraguay · Playas y particulares</span>
+          <a href="http://localhost:3002/" className="mc-topbar-link" target="_blank" rel="noreferrer">
+            Acceso Administración →
+          </a>
         </div>
-    );
-};
+      </header>
 
-export default PublicCatalog;
+      <nav className="mc-nav">
+        <div className="mc-nav-inner">
+          <a href="#inicio" className="mc-brand">
+            <img src="/imágenes/logo_miplaya_oficial.png" alt="MiCoche" className="mc-logo" />
+            <span className="mc-brand-text">
+              <strong>MiCoche</strong>
+            </span>
+          </a>
+
+          <div className="mc-nav-links">
+            <a href="#catalogo">Explorar</a>
+            <a href="#playas">Agencias</a>
+            <a href="/login">Acceso Clientes</a>
+            <a href="#publicar" className="mc-nav-publish">Vender mi auto</a>
+          </div>
+        </div>
+      </nav>
+
+      <section id="inicio" className="mc-hero">
+        <div className="mc-hero-grid">
+          <div className="mc-hero-copy">
+            <span className="mc-eyebrow">✨ EL MARKETPLACE N°1 DE PARAGUAY</span>
+            <h1>Encontrá el auto que mejor va con vos</h1>
+            <p className="mc-lead">
+              Navegá entre cientos de opciones certificadas de las mejores playas y ofertas directas de particulares en todo el país.
+            </p>
+            <form className="mc-search glass-card" onSubmit={(e) => {
+                e.preventDefault();
+                document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth" });
+              }}>
+              <input
+                type="search"
+                placeholder="¿Qué marca o modelo buscás? (Ej. Toyota Hilux)"
+                value={qInput}
+                onChange={(e) => setQInput(e.target.value)}
+              />
+              <button type="submit" className="mc-btn mc-btn--primary">Buscar Ahora</button>
+            </form>
+          </div>
+          
+          {fv && (
+            <div className="mc-hero-spotlight"
+              style={{
+                backgroundImage: `linear-gradient(160deg, rgba(10, 31, 68, 0.7), rgba(10, 31, 68, 0.2)), url(${getFullImageUrl(imagenesLista(fv).find(i => i.es_principal) || imagenesLista(fv)[0])})`,
+                backgroundSize: 'cover', backgroundPosition: 'center'
+              }}>
+              <span className="mc-spot-badge">🔥 Recomendado</span>
+              <h2>{fv.marca} {fv.modelo}</h2>
+              <p>{añoVehiculo(fv)} · {fv.color}</p>
+              <button className="mc-btn mc-btn--accent" onClick={() => handleWhatsApp(fv)}>
+                Contactar ahora
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div id="catalogo" className="mc-layout">
+        <aside className="mc-filters glass-card">
+          <h2>Filtros Avanzados</h2>
+          <div className="mc-filters-list">
+             <div className="mc-field">
+                <span>¿Quién vende?</span>
+                <select 
+                  value={filtrosDraft.solo_particulares ? "__part" : filtrosDraft.id_playa} 
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "__part") {
+                      setFiltrosDraft((f) => ({ ...f, solo_particulares: true, id_playa: "" }));
+                    } else {
+                      setFiltrosDraft((f) => ({ ...f, solo_particulares: false, id_playa: v }));
+                    }
+                  }}
+                >
+                  <option value="">Todas las agencias y particulares</option>
+                  <option value="__part">👤 Solo Particulares</option>
+                  {playasList.map((p) => (
+                    <option key={p.id} value={String(p.id)}>
+                      🏪 {p.nombre} ({p.vehiculos_disponibles})
+                    </option>
+                  ))}
+                </select>
+             </div>
+             
+             <div className="mc-field">
+                <span>Marca</span>
+                <input placeholder="Ej. Toyota, Kia, Hyundai..." value={filtrosDraft.marca} onChange={e => setFiltrosDraft(f => ({...f, marca: e.target.value}))} />
+             </div>
+
+             <div className="mc-field">
+                <span>Modelo</span>
+                <input placeholder="Ej. Hilux, Picanto..." value={filtrosDraft.modelo} onChange={e => setFiltrosDraft(f => ({...f, modelo: e.target.value}))} />
+             </div>
+
+             <div className="mc-field">
+                <span>Rango de Año</span>
+                <div className="mc-field-row">
+                  <input placeholder="Desde" value={filtrosDraft.año_desde} onChange={e => setFiltrosDraft(f => ({...f, año_desde: e.target.value}))} />
+                  <input placeholder="Hasta" value={filtrosDraft.año_hasta} onChange={e => setFiltrosDraft(f => ({...f, año_hasta: e.target.value}))} />
+                </div>
+             </div>
+
+             <div className="mc-field">
+                <span>Especificaciones</span>
+                <input placeholder="Combustible (Nafta, Diesel...)" value={filtrosDraft.combustible} onChange={e => setFiltrosDraft(f => ({...f, combustible: e.target.value}))} />
+                <div style={{ marginTop: '0.5rem' }}></div>
+                <input placeholder="Transmisión (Auto, Mec...)" value={filtrosDraft.transmision} onChange={e => setFiltrosDraft(f => ({...f, transmision: e.target.value}))} />
+             </div>
+
+             <div className="mc-field">
+                <span>Color</span>
+                <input placeholder="Ej. Plata, Blanco, Negro..." value={filtrosDraft.color} onChange={e => setFiltrosDraft(f => ({...f, color: e.target.value}))} />
+             </div>
+
+             <button className="mc-btn mc-btn--outline" style={{ marginTop: '1rem' }} onClick={() => {
+                setFiltrosDraft(FILTROS_VACIOS);
+                setFiltros(FILTROS_VACIOS);
+             }}>
+                Limpiar Filtros
+             </button>
+          </div>
+        </aside>
+
+        <main className="mc-main">
+          <div className="mc-toolbar">
+            <p className="mc-results-count">
+              {loading ? "Buscando..." : `Se encontraron ${vehiclesList.length} vehículos`}
+            </p>
+            <div className="mc-view-toggle glass-card">
+              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")}>Grilla</button>
+              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}>Lista</button>
+            </div>
+          </div>
+
+          {loading ? (
+            <SkeletonLoader count={12} viewMode={viewMode} />
+          ) : (
+            <>
+              <div className={viewMode === "grid" ? "mc-grid" : "mc-list"}>
+                {vehiclesList.map(v => (
+                  <VehicleCard 
+                    key={v.id_producto} 
+                    vehicle={v} 
+                    viewMode={viewMode} 
+                    onWhatsApp={handleWhatsApp} 
+                    onPhotoClick={setSelectedVehicleForModal} 
+                  />
+                ))}
+              </div>
+              {vehiclesList.length === 0 && !error && (
+                <div className="mc-empty glass-card">
+                   <p>No encontramos vehículos con esos filtros.</p>
+                   <button className="mc-btn mc-btn--outline" onClick={() => {
+                     setFiltrosDraft(FILTROS_VACIOS);
+                     setFiltros(FILTROS_VACIOS);
+                   }}>Limpiar filtros</button>
+                </div>
+              )}
+            </>
+          )}
+          
+          {hasMore && !loading && vehiclesList.length > 0 && (
+            <div className="mc-more-wrap">
+              <button className="mc-btn mc-btn--outline" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? "Cargando..." : "Mostrar más resultados"}
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+
+      <section id="playas" className="mc-section">
+         <div className="mc-section-inner">
+            <h2 className="mc-section-title">Nuestras Playas Adheridas</h2>
+            <div className="mc-playas-grid">
+               {playasList.map(p => (
+                 <article key={p.id} className="mc-playa-card glass-card">
+                    <h3>{p.nombre}</h3>
+                    <p className="mc-playa-stock">{p.vehiculos_disponibles} disponibles</p>
+                    {p.direccion && <p className="mc-playa-dir">📍 {p.direccion}</p>}
+                    <button className="mc-link-btn" onClick={() => {
+                       const next = { ...FILTROS_VACIOS, id_playa: String(p.id) };
+                       setFiltrosDraft(next);
+                       setFiltros(next);
+                       document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth" });
+                    }}>Ver inventario →</button>
+                 </article>
+               ))}
+            </div>
+         </div>
+      </section>
+
+      <section id="publicar" className="mc-section">
+         <div className="mc-section-inner">
+            <div className="mc-publish-header">
+                <h2>Vende tu auto hoy</h2>
+                <p>Miles de personas buscan su próximo vehículo aquí.</p>
+            </div>
+            <PublishForm 
+               oferta={oferta} setOferta={setOferta} 
+               handleOfertaSubmit={handleOfertaSubmit}
+               ofertaMsg={ofertaMsg} ofertaLoading={ofertaLoading}
+               ofertaFotos={ofertaFotos} setOfertaFotos={setOfertaFotos}
+               ofertaFileInputRef={ofertaFileInputRef}
+               catalogoTipos={catalogoTipos}
+               catalogoMarcas={catalogoMarcas}
+               catalogoModelos={catalogoModelos}
+            />
+         </div>
+      </section>
+
+      {selectedVehicleForModal && (
+        <ImageModal vehicle={selectedVehicleForModal} onClose={() => setSelectedVehicleForModal(null)} />
+      )}
+    </div>
+  );
+}

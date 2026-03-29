@@ -673,3 +673,52 @@
         justify-content: center;
     }
 }
+
+/* Autocompletado catálogo (marca / modelo / tipo) */
+.catalog-autocomplete-wrap {
+    position: relative;
+}
+
+.catalog-autocomplete-wrap > input {
+    width: 100%;
+}
+
+.catalog-autocomplete-req {
+    color: #dc2626;
+}
+
+.catalog-autocomplete-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 4px 0 0;
+}
+
+.catalog-autocomplete-list {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    margin: 4px 0 0;
+    padding: 4px 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.catalog-autocomplete-list li {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #1e293b;
+}
+
+.catalog-autocomplete-list li:hover,
+.catalog-autocomplete-list li.is-highlight {
+    background: #eff6ff;
+    color: #1d4ed8;
+}

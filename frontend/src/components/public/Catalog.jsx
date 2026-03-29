@@ -11,6 +11,8 @@ const PublicCatalog = ({ user }) => {
     const [categories, setCategories] = useState([]);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || "/api";
+    /** ID de playa en sistema (sistema.playas.id) — obligatorio para catálogo sin sesión */
+    const PUBLIC_PLAYA_ID = import.meta.env.VITE_PUBLIC_PLAYA_ID;
 
     useEffect(() => {
         fetchData();
@@ -19,14 +21,28 @@ const PublicCatalog = ({ user }) => {
 
     const fetchData = async () => {
         try {
-            // Obtener vehículos disponibles
-            const responseV = await fetch(`${API_URL}/playa/vehiculos?available_only=true`);
-            const vehiclesData = await responseV.json();
+            if (!PUBLIC_PLAYA_ID) {
+                console.error("Defina VITE_PUBLIC_PLAYA_ID en el entorno del catálogo público.");
+                setLoading(false);
+                return;
+            }
+            const qp = new URLSearchParams({ available_only: "true", id_playa_publico: String(PUBLIC_PLAYA_ID) });
+            const responseV = await fetch(`${API_URL}/playa/vehiculos?${qp}`);
+            const rawV = await responseV.json();
+            const vehiclesData = Array.isArray(rawV) ? rawV : [];
+            if (!Array.isArray(rawV)) {
+                console.warn("playa/vehiculos: se esperaba un array; respuesta:", rawV);
+            }
+            if (!responseV.ok) {
+                setVehicles([]);
+                setFeaturedVehicles([]);
+                return;
+            }
             setVehicles(vehiclesData);
 
-            // Obtener los 5 más vendidos (marcas/modelos)
-            const responseT = await fetch(`${API_URL}/playa/vehiculos/top-vendidos`);
-            const topData = await responseT.json();
+            const responseT = await fetch(`${API_URL}/playa/vehiculos/top-vendidos?id_playa=${encodeURIComponent(PUBLIC_PLAYA_ID)}`);
+            const rawT = await responseT.json();
+            const topData = Array.isArray(rawT) ? rawT : [];
 
             // Filtrar vehículos disponibles que coincidan con los más vendidos
             // Si no hay disponibles de los más vendidos, usamos una selección aleatoria de los disponibles
@@ -44,6 +60,8 @@ const PublicCatalog = ({ user }) => {
             setFeaturedVehicles(featured);
         } catch (error) {
             console.error("Error fetching vehicles:", error);
+            setVehicles([]);
+            setFeaturedVehicles([]);
         } finally {
             setLoading(false);
         }
@@ -61,17 +79,20 @@ const PublicCatalog = ({ user }) => {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch(`${API_URL}/playa/categorias`);
-            const data = await response.json();
-            setCategories(data);
+            if (!PUBLIC_PLAYA_ID) return;
+            const response = await fetch(`${API_URL}/playa/categorias?id_playa_publico=${encodeURIComponent(PUBLIC_PLAYA_ID)}`);
+            const raw = await response.json();
+            setCategories(Array.isArray(raw) ? raw : []);
         } catch (error) {
             console.error("Error fetching categories:", error);
+            setCategories([]);
         }
     };
 
     const getImageUrl = (vehicle) => {
-        if (vehicle.imagenes && vehicle.imagenes.length > 0) {
-            const principal = vehicle.imagenes.find(img => img.es_principal) || vehicle.imagenes[0];
+        const imgs = Array.isArray(vehicle.imagenes) ? vehicle.imagenes : [];
+        if (imgs.length > 0) {
+            const principal = imgs.find(img => img.es_principal) || imgs[0];
             const baseUrl = import.meta.env.VITE_REACT_APP_API_URL?.replace("/api", "") || "";
             return `${baseUrl}${principal.ruta_archivo}`;
         }
@@ -79,7 +100,8 @@ const PublicCatalog = ({ user }) => {
         return "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000";
     };
 
-    const filteredVehicles = vehicles.filter(v => {
+    const vehiclesList = Array.isArray(vehicles) ? vehicles : [];
+    const filteredVehicles = vehiclesList.filter(v => {
         const matchesSearch = (v.marca + " " + v.modelo).toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === "all" || v.id_categoria === parseInt(selectedCategory);
         return matchesSearch && matchesCategory;

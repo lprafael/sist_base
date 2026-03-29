@@ -1,5 +1,5 @@
-# auth.py
-# Endpoints de autenticación y gestión de usuarios
+﻿# auth.py
+# Endpoints de autenticaciÃ³n y gestiÃ³n de usuarios
 
 import secrets
 import string
@@ -13,11 +13,12 @@ from sqlalchemy.future import select
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 
-from models import Usuario, PasswordReset, LogAcceso
+from models import Usuario, PasswordReset, LogAcceso, Playa
 from schemas import (
-    UserLogin, UserCreate, UserUpdate, UserResponse, Token, 
-    PasswordChange, PasswordResetRequest, PasswordResetConfirm,
-    LogAccesoCreate, LogAccesoResponse, RoleInfo, GoogleLogin
+    LogAccesoCreate, LogAccesoResponse, RoleInfo, GoogleLogin,
+    PlayaCreate, PlayaUpdate, PlayaResponse,
+    UserLogin, Token, UserResponse, UserCreate, UserUpdate,
+    PasswordChange, PasswordResetRequest, PasswordResetConfirm
 )
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -31,15 +32,15 @@ from email_service import email_service
 from database import get_session
 from audit_utils import log_audit_action, get_client_ip, get_user_agent
 
-router = APIRouter(prefix="/auth", tags=["Autenticación"])
+router = APIRouter(prefix="/auth", tags=["AutenticaciÃ³n"])
 
-# Función para generar contraseña aleatoria
+# FunciÃ³n para generar contraseÃ±a aleatoria
 def generate_random_password(length: int = 12) -> str:
-    """Genera una contraseña aleatoria segura"""
+    """Genera una contraseÃ±a aleatoria segura"""
     characters = string.ascii_letters + string.digits + "!@#$%^&*"
     return ''.join(secrets.choice(characters) for _ in range(length))
 
-# Función para registrar logs de acceso
+# FunciÃ³n para registrar logs de acceso
 async def log_access(session: AsyncSession, log_data: LogAccesoCreate):
     """Registra un log de acceso"""
     log = LogAcceso(**log_data.dict())
@@ -52,7 +53,7 @@ async def login(
     request: Request,
     session: AsyncSession = Depends(get_session)
 ):
-    """Inicio de sesión de usuario"""
+    """Inicio de sesiÃ³n de usuario"""
     # Buscar usuario
     result = await session.execute(
         select(Usuario).where(Usuario.username == user_credentials.username)
@@ -71,13 +72,13 @@ async def login(
             detail="Usuario inactivo"
         )
     
-    # Actualizar último acceso
+    # Actualizar Ãºltimo acceso
     user.ultimo_acceso = datetime.utcnow()
     await session.commit()
     
     # Crear token
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.rol, "user_id": user.id}
+        data={"sub": user.username, "role": user.rol, "user_id": user.id, "id_playa": user.id_playa}
     )
     
     # Registrar log
@@ -101,7 +102,7 @@ async def google_login(
     request: Request,
     session: AsyncSession = Depends(get_session)
 ):
-    """Inicio de sesión con Google OAuth2"""
+    """Inicio de sesiÃ³n con Google OAuth2"""
     try:
         # Verificar el token de Google
         id_info = id_token.verify_oauth2_token(
@@ -120,7 +121,7 @@ async def google_login(
         user = result.scalar_one_or_none()
         
         if not user:
-            # Si el usuario no existe, lo creamos automáticamente
+            # Si el usuario no existe, lo creamos automÃ¡ticamente
             # Generamos un username basado en el email
             username = email.split('@')[0]
             
@@ -144,8 +145,8 @@ async def google_login(
             await session.refresh(new_user)
             user = new_user
 
-            # Enviar notificación al administrador
-            # Usaremos el email configurado en el .env como remitente para recibir también la notificación
+            # Enviar notificaciÃ³n al administrador
+            # Usaremos el email configurado en el .env como remitente para recibir tambiÃ©n la notificaciÃ³n
             admin_email = os.getenv("EMAIL_FROM")
             if admin_email:
                 email_service.send_admin_notification_email(
@@ -154,7 +155,7 @@ async def google_login(
                     new_user_name=full_name
                 )
             
-            # Registrar auditoría de creación
+            # Registrar auditorÃ­a de creaciÃ³n
             await log_audit_action(
                 session=session,
                 username="SYSTEM",
@@ -163,22 +164,22 @@ async def google_login(
                 table="usuarios",
                 record_id=user.id,
                 new_data={"username": user.username, "email": user.email, "metodo": "google"},
-                details=f"Usuario creado vía Google Login: {user.username}"
+                details=f"Usuario creado vÃ­a Google Login: {user.username}"
             )
 
         if not user.activo:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Su cuenta está pendiente de aprobación por un administrador"
+                detail="Su cuenta estÃ¡ pendiente de aprobaciÃ³n por un administrador"
             )
         
-        # Actualizar último acceso
+        # Actualizar Ãºltimo acceso
         user.ultimo_acceso = datetime.utcnow()
         await session.commit()
         
         # Crear token del sistema
         access_token = create_access_token(
-            data={"sub": user.username, "role": user.rol, "user_id": user.id}
+            data={"sub": user.username, "role": user.rol, "user_id": user.id, "id_playa": user.id_playa}
         )
         
         # Registrar log de acceso
@@ -197,10 +198,10 @@ async def google_login(
         )
         
     except ValueError as e:
-        # Token inválido
+        # Token invÃ¡lido
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token de Google inválido: {str(e)}"
+            detail=f"Token de Google invÃ¡lido: {str(e)}"
         )
     except HTTPException:
         # Re-lanzar excepciones de FastAPI para que lleguen al frontend
@@ -209,7 +210,7 @@ async def google_login(
         print(f"Error en google_login: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error procesando autenticación de Google"
+            detail="Error procesando autenticaciÃ³n de Google"
         )
 
 @router.post("/logout")
@@ -218,7 +219,7 @@ async def logout(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Cerrar sesión"""
+    """Cerrar sesiÃ³n"""
     # Registrar log
     await log_access(session, LogAccesoCreate(
         usuario_id=current_user["user_id"],
@@ -228,7 +229,7 @@ async def logout(
         user_agent=request.headers.get("user-agent")
     ))
     
-    return {"message": "Sesión cerrada exitosamente"}
+    return {"message": "SesiÃ³n cerrada exitosamente"}
 
 @router.post("/users", response_model=UserResponse)
 async def create_user(
@@ -249,7 +250,7 @@ async def create_user(
             detail="El usuario o email ya existe"
         )
     
-    # Generar contraseña aleatoria
+    # Generar contraseÃ±a aleatoria
     password = generate_random_password()
     hashed_password = get_password_hash(password)
     
@@ -259,6 +260,7 @@ async def create_user(
         email=user_data.email,
         hashed_password=hashed_password,
         nombre_completo=user_data.nombre_completo,
+        id_playa=user_data.id_playa,
         rol=user_data.rol,
         creado_por=current_user["user_id"]
     )
@@ -282,7 +284,7 @@ async def create_user(
         accion="create_user",
         detalles={"mensaje": f"Usuario creado: {user_data.username}"}
     ))
-    # Registrar log de auditoría
+    # Registrar log de auditorÃ­a
     await log_audit_action(
         session=session,
         username=current_user["sub"],
@@ -347,7 +349,7 @@ async def update_user(
     except IntegrityError as e:
         await session.rollback()
         if 'email' in str(e.orig):
-            raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+            raise HTTPException(status_code=400, detail="El correo electrÃ³nico ya estÃ¡ registrado")
         raise HTTPException(status_code=400, detail="Error de integridad de datos")
     # Registrar log de acceso
     await log_access(session, LogAccesoCreate(
@@ -356,7 +358,7 @@ async def update_user(
         accion="update_user",
         detalles={"mensaje": f"Usuario actualizado: {user.username}"}
     ))
-    # Registrar log de auditoría
+    # Registrar log de auditorÃ­a
     await log_audit_action(
         session=session,
         username=current_user["sub"],
@@ -393,7 +395,7 @@ async def delete_user(
         accion="delete_user",
         detalles={"mensaje": f"Usuario desactivado: {user.username}"}
     ))
-    # Registrar log de auditoría
+    # Registrar log de auditorÃ­a
     await log_audit_action(
         session=session,
         username=current_user["sub"],
@@ -416,7 +418,7 @@ async def change_password(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Cambiar contraseña del usuario actual"""
+    """Cambiar contraseÃ±a del usuario actual"""
     result = await session.execute(
         select(Usuario).where(Usuario.id == current_user["user_id"])
     )
@@ -425,7 +427,7 @@ async def change_password(
     if not verify_password(password_data.current_password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Contraseña actual incorrecta"
+            detail="ContraseÃ±a actual incorrecta"
         )
     
     user.hashed_password = get_password_hash(password_data.new_password)
@@ -438,14 +440,14 @@ async def change_password(
         accion="change_password"
     ))
     
-    return {"message": "Contraseña cambiada exitosamente"}
+    return {"message": "ContraseÃ±a cambiada exitosamente"}
 
 @router.post("/reset-password-request")
 async def request_password_reset(
     reset_request: PasswordResetRequest,
     session: AsyncSession = Depends(get_session)
 ):
-    """Solicitar restablecimiento de contraseña"""
+    """Solicitar restablecimiento de contraseÃ±a"""
     result = await session.execute(
         select(Usuario).where(Usuario.email == reset_request.email)
     )
@@ -453,7 +455,7 @@ async def request_password_reset(
     
     if not user:
         # No revelar si el email existe o no
-        return {"message": "Si el email existe, se enviará un enlace de restablecimiento"}
+        return {"message": "Si el email existe, se enviarÃ¡ un enlace de restablecimiento"}
     
     # Generar token
     token = secrets.token_urlsafe(32)
@@ -475,14 +477,14 @@ async def request_password_reset(
         token
     )
     
-    return {"message": "Si el email existe, se enviará un enlace de restablecimiento"}
+    return {"message": "Si el email existe, se enviarÃ¡ un enlace de restablecimiento"}
 
 @router.post("/reset-password-confirm")
 async def confirm_password_reset(
     reset_confirm: PasswordResetConfirm,
     session: AsyncSession = Depends(get_session)
 ):
-    """Confirmar restablecimiento de contraseña"""
+    """Confirmar restablecimiento de contraseÃ±a"""
     result = await session.execute(
         select(PasswordReset).where(
             and_(
@@ -497,7 +499,7 @@ async def confirm_password_reset(
     if not reset_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token inválido o expirado"
+            detail="Token invÃ¡lido o expirado"
         )
     
     # Buscar usuario
@@ -509,19 +511,19 @@ async def confirm_password_reset(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
-    # Actualizar contraseña
+    # Actualizar contraseÃ±a
     user.hashed_password = get_password_hash(reset_confirm.new_password)
     reset_record.usado = True
     await session.commit()
     
-    return {"message": "Contraseña restablecida exitosamente"}
+    return {"message": "ContraseÃ±a restablecida exitosamente"}
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """Obtener información del usuario actual"""
+    """Obtener informaciÃ³n del usuario actual"""
     result = await session.execute(
         select(Usuario).where(Usuario.id == current_user["user_id"])
     )
@@ -530,7 +532,7 @@ async def get_current_user_info(
 
 @router.get("/roles", response_model=List[RoleInfo])
 async def get_roles():
-    """Obtener información de roles disponibles"""
+    """Obtener informaciÃ³n de roles disponibles"""
     return [
         RoleInfo(name=role, **info) 
         for role, info in ROLES.items()
@@ -548,3 +550,78 @@ async def get_logs(
     )
     logs = result.scalars().all()
     return [LogAccesoResponse.from_orm(log) for log in logs] 
+# ===== CRUD DE PLAYAS (Solo para Administradores del Sistema) =====
+
+@router.get("/playas", response_model=List[PlayaResponse])
+async def list_playas(
+    current_user: dict = Depends(check_permission("sistema_playas_manage")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Listar todas las playas registradas"""
+    result = await session.execute(select(Playa).order_by(Playa.nombre.asc()))
+    return result.scalars().all()
+
+@router.post("/playas", response_model=PlayaResponse)
+async def create_playa(
+    playa_data: PlayaCreate,
+    current_user: dict = Depends(check_permission("sistema_playas_manage")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Crear una nueva playa"""
+    # Verificar si ya existe
+    result = await session.execute(select(Playa).where(Playa.nombre == playa_data.nombre))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Ya existe una playa con ese nombre")
+    
+    new_playa = Playa(**playa_data.model_dump())
+    session.add(new_playa)
+    await session.commit()
+    await session.refresh(new_playa)
+    
+    # Registrar auditoría
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="playas",
+        record_id=new_playa.id,
+        new_data=playa_data.model_dump(),
+        details=f"Playa creada: {new_playa.nombre}"
+    )
+    
+    return new_playa
+
+@router.put("/playas/{playa_id}", response_model=PlayaResponse)
+async def update_playa(
+    playa_id: int,
+    playa_data: PlayaUpdate,
+    current_user: dict = Depends(check_permission("sistema_playas_manage")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Actualizar una playa"""
+    result = await session.execute(select(Playa).where(Playa.id == playa_id))
+    playa = result.scalar_one_or_none()
+    if not playa:
+        raise HTTPException(status_code=404, detail="Playa no encontrada")
+    
+    update_data = playa_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(playa, field, value)
+    
+    await session.commit()
+    await session.refresh(playa)
+    
+    # Registrar auditoría
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="update",
+        table="playas",
+        record_id=playa.id,
+        new_data=update_data,
+        details=f"Playa actualizada: {playa.nombre}"
+    )
+    
+    return playa
