@@ -37,21 +37,39 @@ En el servidor, crea `backend/.env` (copia desde tu máquina local con valores d
 
 **Nunca** commitees `.env`.
 
-## 4. Ajustes para producción
+## 4. Producción en el VPS: `docker-compose.prod.yml`
 
-- **Puertos:** En `docker-compose.yml` los servicios exponen `8002` (API), `3002` (frontend), `3003` (public-catalog). En producción suele mapearse `80:80` con un reverse proxy o cambiar los puertos publicados.
-- **Volúmenes de desarrollo:** El compose actual monta `./backend:/app` en el backend (útil en local). En el servidor puedes **comentar ese volumen** para ejecutar solo el código de la imagen construida y evitar inconsistencias.
-- **HTTPS:** Usa Caddy, Traefik o Nginx en el host (o en otro contenedor) delante de los puertos, con certificados Let’s Encrypt para tu dominio.
+En el servidor **no** uses el `docker-compose.yml` de desarrollo (monta `./backend:/app` sobre la imagen). Usa el archivo de producción:
 
-## 5. Levantar los contenedores
+```bash
+cp .env.production.example .env.production
+# Editar .env.production si cambias puertos o la URL del API del catálogo público
+```
+
+- **`backend/.env`**: obligatorio (Postgres, JWT, etc.), igual que antes.
+- **`.env.production`**: opcional; define `VITE_PUBLIC_API_URL` (por defecto `/api`) y puertos `BACKEND_HOST_PORT`, `FRONTEND_HOST_PORT`, `PUBLIC_CATALOG_HOST_PORT`.
+
+**Levantar** (con variables por defecto puedes omitir `--env-file`):
 
 ```bash
 cd /var/www/mi_playa
-docker compose pull   # si usas imágenes de registry
-docker compose build --no-cache
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# o sin archivo:  docker compose -f docker-compose.prod.yml up -d --build
+
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f backend
+```
+
+Los volúmenes con nombre `mi_playa_uploads` y `mi_playa_logs` guardan subidas y logs aunque reconstruyas la imagen.
+
+**HTTPS / dominio:** delante de los puertos suele ir Nginx o Caddy en el host (80/443) con proxy a `127.0.0.1:3002`, `:3003`, etc.
+
+## 5. Desarrollo local (opcional)
+
+Para codificar en tu PC con hot-reload del backend montado:
+
+```bash
 docker compose up -d
-docker compose ps
-docker compose logs -f backend   # ver errores de arranque
 ```
 
 ## 6. Comprobar
@@ -62,13 +80,13 @@ docker compose logs -f backend   # ver errores de arranque
 
 Si el frontend llama a la API con rutas relativas `/api`, el `nginx.conf` del contenedor `frontend` ya hace proxy a `backend:8001` dentro de la red Docker.
 
-## 7. Actualizar después de un `git pull`
+## 7. Actualizar después de un `git pull` (producción)
 
 ```bash
 cd /var/www/mi_playa
 git pull
-docker compose build
-docker compose up -d
+docker compose -f docker-compose.prod.yml --env-file .env.production build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
 ## Firewall (ufw)

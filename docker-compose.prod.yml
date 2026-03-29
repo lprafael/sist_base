@@ -1,0 +1,78 @@
+# Producción (VPS): imágenes con el código embebido, sin montar el repo sobre /app.
+# Uso en el servidor:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Crear .env.production en la raíz del proyecto (junto a este archivo) con, por ejemplo:
+#   VITE_PUBLIC_API_URL=/api
+# Si el catálogo público y la API están en dominios distintos, usa la URL absoluta del API:
+#   VITE_PUBLIC_API_URL=https://api.tudominio.com
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mi-playa-backend:prod
+    container_name: mi-playa-backend
+    ports:
+      - "${BACKEND_HOST_PORT:-8002}:8001"
+    environment:
+      - PORT=8001
+    env_file:
+      - ./backend/.env
+    volumes:
+      # Solo datos persistentes (no se monta el código fuente)
+      - mi_playa_logs:/app/logs
+      - mi_playa_uploads:/app/static/uploads
+    restart: unless-stopped
+    networks:
+      - mi-playa-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/backup/ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: mi-playa-frontend:prod
+    container_name: mi-playa-frontend
+    ports:
+      - "${FRONTEND_HOST_PORT:-3002}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - mi-playa-network
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  public-catalog:
+    build:
+      context: ./frontend/public-catalog
+      dockerfile: Dockerfile
+      args:
+        VITE_REACT_APP_API_URL: ${VITE_PUBLIC_API_URL:-/api}
+    image: mi-playa-public-catalog:prod
+    container_name: mi-playa-public
+    ports:
+      - "${PUBLIC_CATALOG_HOST_PORT:-3003}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - mi-playa-network
+
+networks:
+  mi-playa-network:
+    driver: bridge
+
+volumes:
+  mi_playa_logs:
+  mi_playa_uploads:
