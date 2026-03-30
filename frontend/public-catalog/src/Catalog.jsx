@@ -6,6 +6,8 @@ import VehicleCard from "./components/VehicleCard";
 import ImageModal from "./components/ImageModal";
 import SkeletonLoader from "./components/SkeletonLoader";
 import PublishForm from "./components/PublishForm";
+import GoogleLogin from "./components/GoogleLogin";
+import MyPublications from "./components/MyPublications";
 
 // Utils
 import { 
@@ -28,6 +30,14 @@ const initialOferta = {
 export default function PublicCatalog() {
   const [vehicles, setVehicles] = useState([]);
   const [playas, setPlayas] = useState([]);
+  const [user, setUser] = useState(() => {
+    try {
+      const u = localStorage.getItem("mc_user");
+      return u ? JSON.parse(u) : null;
+    } catch (_) { return null; }
+  });
+  const [misOfertas, setMisOfertas] = useState([]);
+  const [loadingMisOfertas, setLoadingMisOfertas] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -159,10 +169,27 @@ export default function PublicCatalog() {
     [q, filtros, limit]
   );
 
+  const fetchMyOffers = useCallback(async () => {
+    const token = localStorage.getItem("mc_token");
+    if (!token) return;
+    setLoadingMisOfertas(true);
+    try {
+      const r = await fetch(`${API_URL}/playa/public/mis-ofertas`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        setMisOfertas(data);
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoadingMisOfertas(false); }
+  }, []);
+
   useEffect(() => {
     fetchPlayas();
     fetchCatalogos();
-  }, [fetchPlayas, fetchCatalogos]);
+    if (user) fetchMyOffers();
+  }, [fetchPlayas, fetchCatalogos, user, fetchMyOffers]);
 
   useEffect(() => {
     fetchCatalog(true, 0);
@@ -206,8 +233,10 @@ export default function PublicCatalog() {
       fd.set("precio_pyg", precioDigits);
       ofertaFotos.forEach((file) => fd.append("fotos", file));
 
+      const token = localStorage.getItem("mc_token");
       const r = await fetch(`${API_URL}/playa/public/oferta-particular`, {
         method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
         body: fd,
       });
       const data = await r.json().catch(() => ({}));
@@ -218,6 +247,7 @@ export default function PublicCatalog() {
       setOferta(initialOferta);
       setOfertaFotos([]);
       if (ofertaFileInputRef.current) ofertaFileInputRef.current.value = "";
+      fetchMyOffers();
     } catch (err) {
       setOfertaMsg({ type: "err", text: err.message });
     } finally {
@@ -250,7 +280,24 @@ export default function PublicCatalog() {
           <div className="mc-nav-links">
             <a href="#catalogo">Explorar</a>
             <a href="#playas">Agencias</a>
-            <a href="/login">Acceso Clientes</a>
+            {user ? (
+              <div className="mc-user-nav">
+                <span className="mc-user-name">Hola, {user.nombre_completo.split(' ')[0]}</span>
+                <button 
+                  className="mc-link-btn mc-logout-btn" 
+                  onClick={() => {
+                    localStorage.removeItem("mc_token");
+                    localStorage.removeItem("mc_user");
+                    setUser(null);
+                    setMisOfertas([]);
+                  }}
+                >
+                  Salir
+                </button>
+              </div>
+            ) : (
+              <a href="/login">Acceso Clientes</a>
+            )}
             <a href="#publicar" className="mc-nav-publish">Vender mi auto</a>
           </div>
         </div>
@@ -433,19 +480,50 @@ export default function PublicCatalog() {
       <section id="publicar" className="mc-section">
          <div className="mc-section-inner">
             <div className="mc-publish-header">
-                <h2>Vende tu auto hoy</h2>
-                <p>Miles de personas buscan su próximo vehículo aquí.</p>
+                <h2>{user ? "Publicá un nuevo vehículo" : "Vendé tu auto hoy"}</h2>
+                <p>Miles de personas buscan su próximo vehículo aquí cada día.</p>
             </div>
-            <PublishForm 
-               oferta={oferta} setOferta={setOferta} 
-               handleOfertaSubmit={handleOfertaSubmit}
-               ofertaMsg={ofertaMsg} ofertaLoading={ofertaLoading}
-               ofertaFotos={ofertaFotos} setOfertaFotos={setOfertaFotos}
-               ofertaFileInputRef={ofertaFileInputRef}
-               catalogoTipos={catalogoTipos}
-               catalogoMarcas={catalogoMarcas}
-               catalogoModelos={catalogoModelos}
-            />
+            
+            {user ? (
+                <>
+                  <PublishForm 
+                    oferta={oferta} setOferta={setOferta} 
+                    handleOfertaSubmit={handleOfertaSubmit}
+                    ofertaMsg={ofertaMsg} ofertaLoading={ofertaLoading}
+                    ofertaFotos={ofertaFotos} setOfertaFotos={setOfertaFotos}
+                    ofertaFileInputRef={ofertaFileInputRef}
+                    catalogoTipos={catalogoTipos}
+                    catalogoMarcas={catalogoMarcas}
+                    catalogoModelos={catalogoModelos}
+                  />
+                  
+                  {misOfertas.length > 0 && (
+                    <div style={{ marginTop: '3rem' }}>
+                      <h2 className="mc-section-title" style={{ textAlign: 'left', marginBottom: '2rem' }}>Mis Publicaciones</h2>
+                      <MyPublications 
+                        publications={misOfertas} 
+                        loading={loadingMisOfertas} 
+                        onUpdate={fetchMyOffers}
+                      />
+                    </div>
+                  )}
+                </>
+            ) : (
+              <div className="mc-login-box glass-card">
+                  <span className="mc-login-icon">👤</span>
+                  <h3>Iniciá sesión para publicar</h3>
+                  <p>Accedé de forma segura con tu cuenta de Google para administrar tus publicaciones gratis.</p>
+                  <div className="mc-google-login-wrap">
+                    <GoogleLogin 
+                      onLoginSuccess={(data) => {
+                        setUser(data.user);
+                        setOfertaMsg({ type: "ok", text: "¡Sesión iniciada! Completá los datos ahora." });
+                      }}
+                      onLoginError={(err) => setOfertaMsg({ type: "err", text: err })}
+                    />
+                  </div>
+              </div>
+            )}
          </div>
       </section>
 

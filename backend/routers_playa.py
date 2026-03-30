@@ -53,6 +53,7 @@ from schemas_playa import (
     PlayaPublicResponse,
     ProductoPublicCatalogItem,
     OfertaParticularCreate,
+    OfertaParticularUpdate,
     ClienteCreate, ClienteResponse,
     VentaCreate, VentaResponse,
     PagoCreate, PagoResponse,
@@ -302,6 +303,7 @@ async def public_catalogo_todas_playas(
         .outerjoin(Playa, Producto.id_playa == Playa.id)
         .options(
             selectinload(Producto.imagenes),
+            selectinload(Producto.gastos).selectinload(GastoProducto.tipo_gasto),
             joinedload(Producto.tipo_vehiculo_rel),
             joinedload(Producto.marca_rel),
             joinedload(Producto.modelo_rel)
@@ -406,14 +408,16 @@ def _normalizar_lista_uploads(fotos: Union[List[UploadFile], UploadFile, None]) 
 async def public_crear_oferta_particular_json(
     payload: OfertaParticularCreate,
     session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """Misma lógica que el formulario web, sin fotos (útil para integraciones)."""
-    return await _public_crear_oferta_particular_core(session, payload, fotos=[])
+    return await _public_crear_oferta_particular_core(session, payload, fotos=[], id_usuario=current_user["user_id"])
 
 
 @router.post("/public/oferta-particular", response_model=ProductoPublicCatalogItem)
 async def public_crear_oferta_particular(
     session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
     marca: str = Form(...),
     modelo: str = Form(...),
     chasis: str = Form(...),
@@ -475,13 +479,122 @@ async def public_crear_oferta_particular(
             status_code=400,
             detail=f"Máximo {MICOCHE_MAX_FOTOS_PARTICULAR} fotos.",
         )
-    return await _public_crear_oferta_particular_core(session, payload, fotos=files)
+    return await _public_crear_oferta_particular_core(session, payload, fotos=files, id_usuario=current_user["user_id"])
+
+
+@router.get("/public/mis-ofertas", response_model=List[ProductoPublicCatalogItem])
+async def public_listar_mis_ofertas(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Listado de vehículos publicados por el usuario actual (particulares)."""
+    uid = current_user.get("user_id")
+    query = (
+        select(Producto)
+        .options(
+            selectinload(Producto.imagenes),
+            joinedload(Producto.tipo_vehiculo_rel),
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel)
+        )
+        .where(Producto.id_usuario == uid)
+        .order_by(Producto.fecha_registro.desc())
+    )
+    res = await session.execute(query)
+    rows = res.scalars().all()
+    
+    out: List[ProductoPublicCatalogItem] = []
+    for p in rows:
+        p.total_gastos = Decimal(0)
+        p.costo_final = p.costo_base or Decimal(0)
+        base = ProductoPublicCatalogItem.model_validate(p, from_attributes=True)
+        out.append(base.model_copy(update={"nombre_playa": None, "es_particular": True}))
+    return out
+
+
+@router.put("/public/mis-ofertas/{id_producto}", response_model=ProductoPublicCatalogItem)
+async def public_actualizar_mi_oferta(
+    id_producto: int,
+    payload: OfertaParticularUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Actualiza una publicación propia (particulares)."""
+    uid = current_user.get("user_id")
+    res = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    prod = res.scalar_one_or_none()
+    
+    if not prod:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada.")
+    
+    if prod.id_usuario != uid:
+        raise HTTPException(status_code=403, detail="No tienes permisos para editar esta publicación.")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    
+    # Mapeo de campos especiales de la oferta a Producto
+    if "precio_pyg" in update_data:
+        prod.costo_base = update_data["precio_pyg"]
+        prod.precio_contado_sugerido = update_data["precio_pyg"]
+        del update_data["precio_pyg"]
+    
+    # Ciudad mapea a ubicacion_actual
+    if "ciudad" in update_data:
+        prod.ubicacion_actual = update_data["ciudad"]
+        del update_data["ciudad"]
+        
+    for field, value in update_data.items():
+        setattr(prod, field, value)
+
+    await session.commit()
+    await session.refresh(prod)
+    
+    # Re-cargar con relaciones
+    res_merged = await session.execute(
+        select(Producto)
+        .options(
+            selectinload(Producto.imagenes),
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel),
+            joinedload(Producto.tipo_vehiculo_rel)
+        )
+        .where(Producto.id_producto == id_producto)
+    )
+    p = res_merged.scalar_one()
+    p.total_gastos = Decimal(0)
+    p.costo_final = p.costo_base or Decimal(0)
+    base = ProductoPublicCatalogItem.model_validate(p, from_attributes=True)
+    return base.model_copy(update={"nombre_playa": None, "es_particular": True})
+
+
+@router.delete("/public/mis-ofertas/{id_producto}")
+async def public_eliminar_mi_oferta(
+    id_producto: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Elimina (desactiva) una publicación propia (particulares)."""
+    uid = current_user.get("user_id")
+    res = await session.execute(select(Producto).where(Producto.id_producto == id_producto))
+    prod = res.scalar_one_or_none()
+    
+    if not prod:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada.")
+    
+    if prod.id_usuario != uid:
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar esta publicación.")
+
+    # Desactivar
+    prod.activo = False
+    await session.commit()
+    return {"message": "Publicación eliminada correctamente."}
 
 
 async def _public_crear_oferta_particular_core(
     session: AsyncSession,
     payload: OfertaParticularCreate,
     fotos: List[UploadFile],
+    id_usuario: Optional[int] = None,
 ) -> ProductoPublicCatalogItem:
     id_cat = await get_or_create_categoria_publico_particular(session)
     chasis_norm = payload.chasis.strip().upper()
@@ -523,6 +636,7 @@ async def _public_crear_oferta_particular_core(
         observaciones=observaciones or None,
         ubicacion_actual=payload.ciudad.strip() if payload.ciudad else None,
         activo=True,
+        id_usuario=id_usuario,
     )
     session.add(prod)
     try:
@@ -1513,6 +1627,7 @@ async def list_vehiculos(
             .options(
                 selectinload(Producto.ventas).selectinload(Venta.cliente),
                 selectinload(Producto.imagenes),
+                selectinload(Producto.gastos).selectinload(GastoProducto.tipo_gasto),
                 joinedload(Producto.tipo_vehiculo_rel),
                 joinedload(Producto.marca_rel),
                 joinedload(Producto.modelo_rel)
@@ -1563,6 +1678,7 @@ async def get_vehiculo(
         .options(
             selectinload(Producto.ventas).selectinload(Venta.cliente),
             selectinload(Producto.imagenes),
+            selectinload(Producto.gastos).selectinload(GastoProducto.tipo_gasto),
             joinedload(Producto.tipo_vehiculo_rel),
             joinedload(Producto.marca_rel),
             joinedload(Producto.modelo_rel)

@@ -1,4 +1,4 @@
-﻿# auth.py
+# auth.py
 # Endpoints de autenticaciÃ³n y gestiÃ³n de usuarios
 
 import secrets
@@ -138,7 +138,7 @@ async def google_login(
                 hashed_password=get_password_hash(secrets.token_urlsafe(16)), # Password random inutilizable
                 nombre_completo=full_name,
                 rol="user",
-                activo=False # El usuario se crea inactivo por defecto
+                activo=True # El usuario se crea activo para permitir publicación inmediata (MiCoche)
             )
             session.add(new_user)
             await session.commit()

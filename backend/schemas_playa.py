@@ -240,6 +240,7 @@ class ProductoPublicCatalogItem(ProductoResponseSimple):
     """Vehículo en el catálogo nacional con datos de playa o particular."""
     id_playa: Optional[int] = None
     nombre_playa: Optional[str] = None
+    id_usuario: Optional[int] = None
     es_particular: bool = False
 
 
@@ -259,6 +260,24 @@ class OfertaParticularCreate(BaseModel):
     telefono: str = Field(..., min_length=6, max_length=50)
     nombre_contacto: Optional[str] = Field(None, max_length=200)
     ciudad: Optional[str] = Field(None, max_length=100)
+    observaciones: Optional[str] = None
+
+
+class OfertaParticularUpdate(BaseModel):
+    """Payload para actualizar una oferta de particular (PUT /playa/public/mis-ofertas/{id})."""
+    id_marca: Optional[int] = None
+    id_modelo: Optional[int] = None
+    id_tipo_vehiculo: Optional[int] = None
+    marca: Optional[str] = None
+    modelo: Optional[str] = None
+    año: Optional[int] = None
+    color: Optional[str] = None
+    combustible: Optional[str] = None
+    transmision: Optional[str] = None
+    precio_pyg: Optional[Decimal] = None
+    telefono: Optional[str] = None
+    nombre_contacto: Optional[str] = None
+    ciudad: Optional[str] = None
     observaciones: Optional[str] = None
 
 

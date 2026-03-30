@@ -977,3 +977,139 @@ body {
     display: none;
   }
 }
+
+/* User Session Nav */
+.mc-user-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--mc-gray-50);
+  border-radius: 50px;
+  border: 1px solid var(--mc-gray-200);
+}
+
+.mc-user-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--mc-navy);
+}
+
+.mc-logout-btn {
+  font-size: 0.85rem !important;
+  color: var(--mc-gray-500) !important;
+  padding: 0 !important;
+}
+
+.mc-logout-btn:hover {
+  color: #ef4444 !important;
+}
+
+/* Login Box */
+.mc-login-box {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 4rem;
+  text-align: center;
+  color: var(--mc-navy);
+}
+
+.mc-login-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
+}
+
+.mc-login-box h3 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.mc-login-box p {
+  color: var(--mc-gray-500);
+  margin-bottom: 2.5rem;
+  line-height: 1.6;
+}
+
+.mc-google-login-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+/* My Publications */
+.mc-my-pubs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.mc-my-pub-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--mc-gray-200);
+}
+
+.mc-my-pub-img {
+  height: 160px;
+  overflow: hidden;
+}
+
+.mc-my-pub-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mc-my-pub-info {
+  padding: 1.5rem;
+}
+
+.mc-my-pub-info h4 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.mc-my-pub-meta {
+  font-size: 0.85rem;
+  color: var(--mc-gray-500);
+  margin-bottom: 1rem;
+}
+
+.mc-my-pub-price {
+  font-weight: 800;
+  color: var(--mc-orange);
+  margin-bottom: 1.5rem;
+}
+
+.mc-my-pub-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.mc-btn--small {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.8rem !important;
+  border-radius: 8px !important;
+}
+
+.mc-btn--err {
+  background: #fef2f2;
+  color: #ef4444 !important;
+  border: 1px solid #fee2e2;
+}
+
+.mc-btn--err:hover {
+  background: #fee2e2;
+}
+
+.mc-loading-small {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+}

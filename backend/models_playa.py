@@ -100,6 +100,7 @@ class Producto(Base):
     activo = Column(Boolean, default=True)
     nro_despacho = Column(String(100), ForeignKey(f'{PLAYA_SCHEMA}.documentos_importacion.nro_despacho'), index=True)
     nro_cert_nac = Column(String(100), index=True)
+    id_usuario = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True) # ID del usuario (particular) propietario de la publicación
     
     # Relaciones
     categoria = relationship("CategoriaVehiculo", back_populates="productos")
