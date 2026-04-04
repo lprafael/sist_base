@@ -147,26 +147,26 @@ from financiamiento_routes import router as financiamiento_router
 from dia_d_routes import router as dia_d_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
-app.include_router(auth_router, prefix="/api")
-app.include_router(reactivate_user_router, prefix="/api")
-app.include_router(delete_user_physical_router, prefix="/api")
-app.include_router(notify_admin_password_reset_router, prefix="/api")
-app.include_router(resend_user_password_router, prefix="/api")
-app.include_router(electoral_router, prefix="/api")
-app.include_router(geo_router, prefix="/api")
-app.include_router(electoral_analysis_router, prefix="/api")
-app.include_router(logistica_router, prefix="/api")
-app.include_router(actividades_router, prefix="/api")
-app.include_router(public_router, prefix="/api") # Registrar Rutas publicas
-app.include_router(inteligencia_router, prefix="/api")  # Inteligencia Territorial
-app.include_router(financiamiento_router, prefix="/api") # Financiamiento Político
-app.include_router(dia_d_router, prefix="/api") # Escrutinio Día D
+app.include_router(auth_router)
+app.include_router(reactivate_user_router)
+app.include_router(delete_user_physical_router)
+app.include_router(notify_admin_password_reset_router)
+app.include_router(resend_user_password_router)
+app.include_router(electoral_router)
+app.include_router(geo_router)
+app.include_router(electoral_analysis_router)
+app.include_router(logistica_router)
+app.include_router(actividades_router)
+app.include_router(public_router) # Registrar Rutas publicas
+app.include_router(inteligencia_router)  # Inteligencia Territorial
+app.include_router(financiamiento_router) # Financiamiento Político
+app.include_router(dia_d_router) # Escrutinio Día D
 
 
 # ============================================
-# 11. ENDPOINTS DE AUDITORÍA (Bajo /api)
+# 11. ENDPOINTS DE AUDITORÍA
 # ============================================
-@app.get("/api/auditoria/logs", summary="Obtener logs de auditoría")
+@app.get("/auditoria/logs", summary="Obtener logs de auditoría")
 async def obtener_logs_auditoria(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("auditoria_read")),
@@ -219,7 +219,7 @@ async def obtener_logs_auditoria(
     
     return logs
 
-@app.get("/api/auditoria/logs/{log_id}", summary="Obtener log de auditoría específico", response_model=LogAuditoriaResponse)
+@app.get("/auditoria/logs/{log_id}", summary="Obtener log de auditoría específico", response_model=LogAuditoriaResponse)
 async def obtener_log_auditoria(
     log_id: int,
     session: AsyncSession = Depends(get_session),
@@ -238,7 +238,7 @@ async def obtener_log_auditoria(
     
     return log
 
-@app.get("/api/auditoria/accesos", summary="Obtener logs de acceso", response_model=List[LogAccesoResponse])
+@app.get("/auditoria/accesos", summary="Obtener logs de acceso", response_model=List[LogAccesoResponse])
 async def obtener_logs_acceso(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("auditoria_read")),
@@ -267,7 +267,7 @@ async def obtener_logs_acceso(
     logs = result.scalars().all()
     return logs
 
-@app.get("/api/auditoria/sesiones", summary="Obtener sesiones de usuarios", response_model=List[SesionUsuarioResponse])
+@app.get("/auditoria/sesiones", summary="Obtener sesiones de usuarios", response_model=List[SesionUsuarioResponse])
 async def obtener_sesiones_usuarios(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("auditoria_read")),
@@ -300,7 +300,7 @@ async def obtener_sesiones_usuarios(
 # ============================================
 # 12. ENDPOINTS DE BACKUP
 # ============================================
-@app.post("/api/backup/{table_name}", summary="Crear backup de tabla específica")
+@app.post("/backup/{table_name}", summary="Crear backup de tabla específica")
 async def crear_backup_tabla(
     table_name: str,
     session: AsyncSession = Depends(get_session),
@@ -489,7 +489,7 @@ async def test_backup(
         await session.rollback()
         return {"error": str(e)}
 
-@app.post("/api/debug/simple-test", summary="Endpoint de prueba simple")
+@app.post("/debug/simple-test", summary="Endpoint de prueba simple")
 async def test_simple(
     current_user: dict = Depends(check_database_permission("sistema_backup"))
 ):
@@ -505,7 +505,7 @@ async def test_simple(
         "mensaje": "Test simple funcionando"
     }
 
-@app.get("/api/backup/ping", summary="Endpoint de ping sin autenticación")
+@app.get("/backup/ping", summary="Endpoint de ping sin autenticación")
 async def ping():
     """
     Endpoint de ping para verificar que el servidor responde
@@ -513,7 +513,7 @@ async def ping():
     print("=== PING ENDPOINT ===")
     return {"message": "pong", "status": "ok"}
 
-@app.post("/api/backup/ping-post", summary="Endpoint de ping POST sin autenticación")
+@app.post("/backup/ping-post", summary="Endpoint de ping POST sin autenticación")
 async def ping_post():
     """
     Endpoint de ping POST para verificar que el servidor responde
@@ -521,7 +521,7 @@ async def ping_post():
     print("=== PING POST ENDPOINT ===")
     return {"message": "pong post", "status": "ok"}
 
-@app.post("/api/backup/auth-test", summary="Test de autenticación básico")
+@app.post("/backup/auth-test", summary="Test de autenticación básico")
 async def auth_test(
     current_user: dict = Depends(get_current_user)
 ):
@@ -546,7 +546,7 @@ async def auth_test(
         traceback.print_exc()
         return {"error": str(e)}
 
-@app.post("/api/debug/auth-test", summary="Debug de autenticación")
+@app.post("/debug/auth-test", summary="Debug de autenticación")
 async def auth_debug(
     request: Request,
     current_user: dict = Depends(check_database_permission("sistema_backup"))
@@ -591,7 +591,7 @@ async def auth_debug(
         traceback.print_exc()
         return {"error": str(e)}
 
-@app.get("/api/backup/raw-debug", summary="Debug raw sin autenticación")
+@app.get("/backup/raw-debug", summary="Debug raw sin autenticación")
 async def raw_debug():
     """
     Endpoint completamente sin autenticación para debug
@@ -599,7 +599,7 @@ async def raw_debug():
     print(f"=== RAW DEBUG ENDPOINT ===")
     return {"message": "Raw debug funcionando", "status": "ok"}
 
-@app.post("/api/backup/raw-debug", summary="Debug raw POST sin autenticación")
+@app.post("/backup/raw-debug", summary="Debug raw POST sin autenticación")
 async def raw_debug_post():
     """
     Endpoint POST completamente sin autenticación para debug
@@ -607,7 +607,7 @@ async def raw_debug_post():
     print(f"=== RAW DEBUG POST ENDPOINT ===")
     return {"message": "Raw debug POST funcionando", "status": "ok"}
 
-@app.post("/api/system/backup", summary="Crear backup completo del sistema")
+@app.post("/system/backup", summary="Crear backup completo del sistema")
 async def crear_backup_completo(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_database_permission("sistema_backup"))
