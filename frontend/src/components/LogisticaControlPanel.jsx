@@ -167,7 +167,7 @@ const LogisticaControlPanel = ({ user }) => {
                                                 🛡️ Nivel {v.grado_seguridad || 1}
                                             </span>
                                         </div>
-                                        Estado: {v.estado === 'en_camino' ? '🚕 En traslado' : v.estado === 'en_destino' ? '🏁 En destino' : '🔴 Pendiente'}}<br />
+                                        Estado: {v.estado === 'en_camino' ? '🚕 En traslado' : v.estado === 'en_destino' ? '🏁 En destino' : '🔴 Pendiente'}<br />
                                         Local: {v.local}<br />
                                         <button
                                             className="btn-small"

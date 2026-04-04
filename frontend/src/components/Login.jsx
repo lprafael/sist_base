@@ -67,6 +67,7 @@ const Login = ({ onLogin }) => {
         setError(data.detail || 'Error en el inicio de sesión');
       }
     } catch (err) {
+      console.error("DEBUG LOGIN ERROR:", err);
       setError('Error de conexión. Verifica que el servidor esté funcionando.');
     } finally {
       setLoading(false);
@@ -101,6 +102,7 @@ const Login = ({ onLogin }) => {
         setError(data.detail || 'Error en la autenticación con Google');
       }
     } catch (err) {
+      console.error("DEBUG GOOGLE ERROR:", err);
       setError('Error de conexión con el servidor');
     } finally {
       setLoading(false);

@@ -104,16 +104,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Configuración de CORS - Debe estar antes de cualquier ruta
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://192.168.100.112:3001", 
-        "http://127.0.0.1:3001", 
-        "http://localhost:3001", 
-        "http://localhost:3002",
-        "http://127.0.0.1:3002",
-        "http://localhost:5173",  # Vite default
-        "http://192.168.100.84:3001",
-        "http://172.16.222.222:3002"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -156,20 +147,20 @@ from financiamiento_routes import router as financiamiento_router
 from dia_d_routes import router as dia_d_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
-app.include_router(auth_router)
-app.include_router(reactivate_user_router)
-app.include_router(delete_user_physical_router)
-app.include_router(notify_admin_password_reset_router)
-app.include_router(resend_user_password_router)
-app.include_router(electoral_router)
-app.include_router(geo_router)
-app.include_router(electoral_analysis_router)
-app.include_router(logistica_router)
-app.include_router(actividades_router)
-app.include_router(public_router) # Registrar Rutas publicas
-app.include_router(inteligencia_router)  # Inteligencia Territorial
-app.include_router(financiamiento_router) # Financiamiento Político
-app.include_router(dia_d_router) # Escrutinio Día D
+app.include_router(auth_router, prefix="/api")
+app.include_router(reactivate_user_router, prefix="/api")
+app.include_router(delete_user_physical_router, prefix="/api")
+app.include_router(notify_admin_password_reset_router, prefix="/api")
+app.include_router(resend_user_password_router, prefix="/api")
+app.include_router(electoral_router, prefix="/api")
+app.include_router(geo_router, prefix="/api")
+app.include_router(electoral_analysis_router, prefix="/api")
+app.include_router(logistica_router, prefix="/api")
+app.include_router(actividades_router, prefix="/api")
+app.include_router(public_router, prefix="/api") # Registrar Rutas publicas
+app.include_router(inteligencia_router, prefix="/api")  # Inteligencia Territorial
+app.include_router(financiamiento_router, prefix="/api") # Financiamiento Político
+app.include_router(dia_d_router, prefix="/api") # Escrutinio Día D
 
 
 # ============================================

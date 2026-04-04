@@ -1,14 +1,67 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CIDSA - VMT</title>
-    <script type="module" crossorigin src="/assets/index-0a3e57cc.js"></script>
-    <link rel="stylesheet" href="/assets/index-8a62e635.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    
-  </body>
+
+<head>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-TWDWZF8C');</script>
+  <!-- End Google Tag Manager -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGEL - Gestión Electoral</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/imagenes/Logo_SIGEL2.png" />
+
+  <!-- Meta etiquetas para compartir (WhatsApp, RRSS) -->
+  <meta property="og:title" content="SIGEL - Gestión Electoral" />
+  <meta property="og:description" content="Sistema Integral de Gestión Electoral - Control total de tu campaña." />
+  <meta property="og:image" content="https://sigel.in/imagenes/Logo_SIGEL2.png" />
+  <meta property="og:url" content="https://sigel.in" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SIGEL" />
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="SIGEL - Gestión Electoral" />
+  <meta name="twitter:description" content="Sistema Integral de Gestión Electoral - Control total de tu campaña." />
+  <meta name="twitter:image" content="https://sigel.in/imagenes/Logo_SIGEL2.png" />
+  
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1a365d" />
+  <script type="module" crossorigin src="/assets/index-71adfc9c.js"></script>
+  <link rel="stylesheet" href="/assets/index-91c89056.css">
+</head>
+
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TWDWZF8C"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+  <div id="root"></div>
+  
+  <script>
+    // Limpieza agresiva de Service Workers y Caché conflictivos
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          registration.unregister().then(() => {
+            console.log('SW desregistrado');
+          });
+        }
+      });
+    }
+    // Opcional: Limpiar todo el caché de la API Cache de una vez
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (let name of names) caches.delete(name);
+      });
+    }
+  </script>
+</body>
+
 </html>
