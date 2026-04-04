@@ -104,8 +104,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Configuración de CORS - Debe estar antes de cualquier ruta
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_origin_regex=r"^(https?|capacitor|ionic)://.*$",
+    allow_origin_regex=r"^(https?|capacitor|ionic)://.*$",  # Acepta Android, iOS y Web
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
