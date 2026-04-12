@@ -1185,3 +1185,248 @@ async def registrar_recepcion(data: RecepcionCombustibleCreate,
     await session.commit()
     await session.refresh(obj)
     return obj
+
+
+# ============================================================
+# CUENTAS BANCARIAS
+# ============================================================
+
+@router.get("/cuentas-bancarias", response_model=List[CuentaBancariaOut])
+async def listar_cuentas_bancarias(
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    result = await session.execute(
+        select(CuentaBancaria).where(CuentaBancaria.activo == True)
+        .order_by(CuentaBancaria.banco)
+    )
+    return result.scalars().all()
+
+
+@router.post("/cuentas-bancarias", response_model=CuentaBancariaOut, status_code=201)
+async def crear_cuenta_bancaria(
+    data: CuentaBancariaCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    obj = CuentaBancaria(**data.model_dump())
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+
+# ============================================================
+# REEMBOLSOS DE TARJETA
+# ============================================================
+
+@router.get("/reembolsos", response_model=List[ReembolsoTarjetaOut])
+async def listar_reembolsos(
+    conciliado: Optional[bool] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    q = select(ReembolsoTarjeta)
+    if conciliado is not None:
+        q = q.where(ReembolsoTarjeta.conciliado == conciliado)
+    result = await session.execute(q.order_by(ReembolsoTarjeta.fecha_deposito.desc()))
+    return result.scalars().all()
+
+
+@router.post("/reembolsos", response_model=ReembolsoTarjetaOut, status_code=201)
+async def crear_reembolso(
+    data: ReembolsoTarjetaCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    monto_neto = data.monto_bruto - (data.comision or Decimal("0"))
+    obj = ReembolsoTarjeta(
+        **data.model_dump(),
+        monto_neto=monto_neto,
+        registrado_por=current_user.id
+    )
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+
+@router.put("/ventas/{id}/asignar-reembolso", response_model=VentaOut)
+async def asignar_reembolso_venta(
+    id: int,
+    data: VentaAsignarReembolso,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Vincula una venta con tarjeta a un reembolso bancario específico."""
+    venta = await session.get(Venta, id, options=[
+        selectinload(Venta.metodo_pago),
+        selectinload(Venta.pico).selectinload(Pico.tipo_combustible)
+    ])
+    if not venta:
+        raise HTTPException(404, "Venta no encontrada")
+    if venta.estado_reembolso != "pendiente":
+        raise HTTPException(400, "La venta no está pendiente de reembolso")
+
+    venta.estado_reembolso = "reembolsado"
+    if data.nro_comprobante_banco:
+        venta.nro_comprobante = data.nro_comprobante_banco
+
+    # Marcar el reembolso como conciliado si se vincula
+    if data.reembolso_id:
+        reembolso = await session.get(ReembolsoTarjeta, data.reembolso_id)
+        if reembolso:
+            reembolso.conciliado = True
+
+    await session.commit()
+    await session.refresh(venta)
+    return venta
+
+
+@router.put("/ventas/{id}/anular", response_model=VentaOut)
+async def anular_venta(
+    id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Anula una venta y devuelve los litros al tanque."""
+    venta = await session.get(Venta, id, options=[
+        selectinload(Venta.metodo_pago),
+        selectinload(Venta.pico).selectinload(Pico.tipo_combustible)
+    ])
+    if not venta:
+        raise HTTPException(404, "Venta no encontrada")
+    if venta.anulada:
+        raise HTTPException(400, "La venta ya está anulada")
+
+    # Reintegrar stock al tanque
+    await _actualizar_stock_tanque(
+        session, venta.tanque_id, venta.litros,
+        tipo="ajuste",
+        referencia=f"anulacion_venta_{id}",
+        motivo="Anulación de venta",
+        turno_id=venta.turno_id,
+        usuario_id=current_user.id
+    )
+
+    venta.anulada = True
+
+    # Si fue en efectivo, registrar salida de caja
+    metodo = await session.get(MetodoPago, venta.metodo_pago_id)
+    if metodo and metodo.tipo == "efectivo":
+        saldo = await _saldo_caja(session)
+        caja_mov = CajaMovimiento(
+            turno_id=venta.turno_id,
+            tipo="egreso",
+            concepto=f"Anulación venta #{id}",
+            monto=venta.monto_total,
+            saldo_anterior=saldo,
+            saldo_posterior=saldo - venta.monto_total,
+            registrado_por=current_user.id
+        )
+        session.add(caja_mov)
+
+    await session.commit()
+    await session.refresh(venta)
+    return venta
+
+
+# ============================================================
+# PROYECCIÓN DE STOCK
+# ============================================================
+
+@router.get("/proyeccion-stock")
+async def proyeccion_stock(
+    dias_historial: int = Query(30, ge=7, le=365),
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Calcula la proyección de agotamiento de stock por tanque.
+    Para cada tanque activo:
+    - Calcula el promedio de litros vendidos por día en los últimos N días
+    - Estima cuántos días faltan para llegar al stock mínimo
+    - Sugiere la cantidad a pedir (capacidad - stock_actual)
+    """
+    hoy = date.today()
+    fecha_desde = hoy - timedelta(days=dias_historial)
+
+    # Obtener todos los tanques activos
+    result_tanques = await session.execute(
+        select(Tanque).options(selectinload(Tanque.tipo_combustible))
+        .where(Tanque.activo == True)
+        .order_by(Tanque.numero)
+    )
+    tanques = result_tanques.scalars().all()
+
+    proyecciones = []
+
+    for tanque in tanques:
+        # Calcular venta promedio diaria en el período
+        result_litros = await session.execute(
+            select(
+                func.coalesce(func.sum(Venta.litros), Decimal("0")).label("total_litros"),
+                func.count(func.distinct(func.date(Venta.fecha_hora))).label("dias_con_venta")
+            ).where(
+                Venta.tanque_id == tanque.id,
+                Venta.anulada == False,
+                func.date(Venta.fecha_hora) >= fecha_desde,
+                func.date(Venta.fecha_hora) <= hoy
+            )
+        )
+        row = result_litros.one()
+        total_litros = float(row.total_litros)
+        dias_con_venta = row.dias_con_venta
+
+        # Promedio: usar días con venta o el período completo (el mayor es más conservador)
+        # Usamos días del período para ser más conservadores
+        promedio_diario = total_litros / dias_historial if dias_historial > 0 else 0
+
+        stock_actual = float(tanque.stock_actual_litros)
+        stock_minimo = float(tanque.stock_minimo_litros)
+        capacidad = float(tanque.capacidad_litros)
+
+        # Días hasta llegar al stock mínimo
+        stock_disponible_util = stock_actual - stock_minimo
+        if promedio_diario > 0 and stock_disponible_util > 0:
+            dias_hasta_minimo = stock_disponible_util / promedio_diario
+            fecha_minimo = hoy + timedelta(days=dias_hasta_minimo)
+        elif stock_actual <= stock_minimo:
+            dias_hasta_minimo = 0
+            fecha_minimo = hoy
+        else:
+            dias_hasta_minimo = None  # Sin historial de venta
+            fecha_minimo = None
+
+        # Litros a pedir: llenar hasta capacidad máxima
+        litros_a_pedir = max(0, capacidad - stock_actual)
+
+        # ¿Se requiere pedido? Sí si está bajo el mínimo o faltan menos de 7 días
+        se_requiere_pedido = (
+            stock_actual <= stock_minimo or
+            (dias_hasta_minimo is not None and dias_hasta_minimo <= 7)
+        )
+
+        proyecciones.append({
+            "tanque_id": tanque.id,
+            "nombre_tanque": tanque.nombre,
+            "tipo_combustible": tanque.tipo_combustible.nombre if tanque.tipo_combustible else "—",
+            "stock_actual": round(stock_actual, 1),
+            "stock_minimo": round(stock_minimo, 1),
+            "capacidad": round(capacidad, 1),
+            "venta_promedio_diaria": round(promedio_diario, 1),
+            "dias_historial_analizado": dias_historial,
+            "dias_con_datos": dias_con_venta,
+            "dias_hasta_minimo": round(dias_hasta_minimo, 1) if dias_hasta_minimo is not None else None,
+            "fecha_minimo_estimada": fecha_minimo.isoformat() if fecha_minimo else None,
+            "litros_a_pedir": round(litros_a_pedir, 1),
+            "se_requiere_pedido": se_requiere_pedido,
+        })
+
+    # Ordenar: críticos primero, luego por días hasta mínimo
+    proyecciones.sort(key=lambda p: (
+        not p["se_requiere_pedido"],
+        p["dias_hasta_minimo"] if p["dias_hasta_minimo"] is not None else 9999
+    ))
+
+    return proyecciones

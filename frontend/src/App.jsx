@@ -7,6 +7,9 @@ import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import ConfigSurtidor from "./components/ConfigSurtidor.jsx";
+import VentasTurno from "./components/VentasTurno.jsx";
+import ConciliacionTarjetas from "./components/ConciliacionTarjetas.jsx";
+import ProyeccionStock from "./components/ProyeccionStock.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -142,7 +145,7 @@ export default function App() {
     }
   ];
 
-  const PENDING_MODULES = ["turnos","ventas","stock","mediciones","pedidos","recepciones","proyeccion","caja","conciliacion","cuentas","personal"];
+  const PENDING_MODULES = ["turnos","stock","mediciones","pedidos","recepciones","caja","cuentas","personal"];
 
   return (
     <div className="app-container">
@@ -195,6 +198,10 @@ export default function App() {
             {tab === "usuarios" && <UserManagement />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
+
+              {tab === "ventas" && <VentasTurno />}
+            {tab === "conciliacion" && (user.rol === 'admin' || user.rol === 'manager') && <ConciliacionTarjetas />}
+            {tab === "proyeccion" && <ProyeccionStock />}
 
             {PENDING_MODULES.includes(tab) && (
               <div style={{ textAlign: 'center', padding: '80px 20px' }}>
