@@ -1,11 +1,12 @@
-// App.js
-// Frontend principal del Sistema Base
-// Sistema de autenticación integrado
+// App.jsx
+// Frontend principal del Sistema de Gestión de Surtidor (SGS)
 import React, { useState, useEffect } from "react";
 import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
+import Dashboard from "./components/Dashboard.jsx";
+import ConfigSurtidor from "./components/ConfigSurtidor.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -20,7 +21,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
             {isSidebarCollapsed ? "➡️" : "⬅️"}
           </button>
         )}
-        <h1>Sistema Base - Poliverso</h1>
+        <h1>⛽ SGS — Sistema de Gestión de Surtidor</h1>
       </div>
       <div className="header-user-info">
         {user && (
@@ -34,16 +35,10 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
           </div>
         )}
         <div className="logo-container" style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
-          <img
-            src="/imágenes/Logo_chico.PNG"
-            alt="Logo RDS"
-            style={{ height: 40 }}
-          />
+          <img src="/imágenes/Logo_chico.PNG" alt="Logo RDS" style={{ height: 40 }} />
         </div>
         {user && (
-          <button onClick={onLogout} className="logout-btn">
-            Cerrar Sesión
-          </button>
+          <button onClick={onLogout} className="logout-btn">Cerrar Sesión</button>
         )}
       </div>
     </header>
@@ -51,7 +46,7 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed 
 }
 
 export default function App() {
-  const [tab, setTab] = useState("usuarios");
+  const [tab, setTab] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -60,22 +55,14 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
+    if (token && userData) setUser(JSON.parse(userData));
     setLoading(false);
   }, []);
 
-  const handleLogin = (loginData) => {
-    setUser(loginData.user);
-  };
+  const handleLogin = (loginData) => setUser(loginData.user);
 
   const toggleCategory = (categoryTitle) => {
-    setCollapsedCategories(prev => ({
-      ...prev,
-      [categoryTitle]: !prev[categoryTitle]
-    }));
+    setCollapsedCategories(prev => ({ ...prev, [categoryTitle]: !prev[categoryTitle] }));
   };
 
   const handleLogout = async () => {
@@ -84,9 +71,7 @@ export default function App() {
       if (token) {
         await fetch(`${import.meta.env.VITE_REACT_APP_API_URL}/auth/logout`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
       }
     } catch (error) {
@@ -100,32 +85,64 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="loading-screen" style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'var(--background-color)'
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--background-color)' }}>
         <div className="loader">Cargando...</div>
       </div>
     );
   }
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
+  if (!user) return <Login onLogin={handleLogin} />;
 
   const menuGroups = [
     {
+      title: "Principal",
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['admin', 'manager', 'user', 'viewer'] },
+      ]
+    },
+    {
+      title: "Operaciones",
+      items: [
+        { id: 'turnos', label: 'Gestión de Turnos', icon: '🔄', roles: ['admin', 'manager', 'user'] },
+        { id: 'ventas', label: 'Ventas', icon: '💰', roles: ['admin', 'manager', 'user'] },
+        { id: 'stock', label: 'Control de Stock', icon: '🛢️', roles: ['admin', 'manager', 'user', 'viewer'] },
+        { id: 'mediciones', label: 'Mediciones Manuales', icon: '📏', roles: ['admin', 'manager', 'user'] },
+      ]
+    },
+    {
+      title: "Adquisiciones",
+      items: [
+        { id: 'pedidos', label: 'Pedidos de Combustible', icon: '📦', roles: ['admin', 'manager'] },
+        { id: 'recepciones', label: 'Recepciones', icon: '🚚', roles: ['admin', 'manager', 'user'] },
+        { id: 'proyeccion', label: 'Proyección de Stock', icon: '📈', roles: ['admin', 'manager', 'viewer'] },
+      ]
+    },
+    {
+      title: "Finanzas",
+      items: [
+        { id: 'caja', label: 'Caja', icon: '💵', roles: ['admin', 'manager'] },
+        { id: 'conciliacion', label: 'Conciliación Tarjetas', icon: '💳', roles: ['admin', 'manager'] },
+        { id: 'cuentas', label: 'Cuentas Bancarias', icon: '🏦', roles: ['admin', 'manager'] },
+      ]
+    },
+    {
+      title: "Personal",
+      items: [
+        { id: 'personal', label: 'Personal / Playeros', icon: '👷', roles: ['admin', 'manager'] },
+      ]
+    },
+    {
       title: "Administración",
       items: [
+        { id: 'config-surtidor', label: 'Config. Surtidor', icon: '⚙️', roles: ['admin'] },
         { id: 'usuarios', label: user.rol === 'admin' ? 'Gestión de Usuarios' : 'Mi Perfil', icon: '👤', roles: ['admin', 'manager', 'user', 'viewer'] },
-        { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin', 'manager'] },
-        { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin', 'manager'] },
+        { id: 'auditoria', label: 'Auditoría', icon: '📋', roles: ['admin', 'manager'] },
+        { id: 'backup', label: 'Backup', icon: '🗃️', roles: ['admin'] },
       ]
     }
   ];
+
+  const PENDING_MODULES = ["turnos","ventas","stock","mediciones","pedidos","recepciones","proyeccion","caja","conciliacion","cuentas","personal"];
 
   return (
     <div className="app-container">
@@ -144,23 +161,18 @@ export default function App() {
             {menuGroups.map((group, gIdx) => {
               const visibleItems = group.items.filter(item => item.roles.includes(user.rol));
               if (visibleItems.length === 0) return null;
-
               const isCollapsed = collapsedCategories[group.title];
-
               return (
                 <div key={gIdx} className="sidebar-category">
-                  <div
-                    className="category-title"
-                    onClick={() => toggleCategory(group.title)}
-                  >
+                  <div className="category-title" onClick={() => toggleCategory(group.title)}>
                     <span>{group.title}</span>
                     <span className={`category-arrow ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
                   </div>
-
                   <div className={`category-items ${isCollapsed ? 'collapsed' : ''}`}>
                     {visibleItems.map(item => (
                       <button
                         key={item.id}
+                        id={`menu-${item.id}`}
                         className={`sidebar-tab${tab === item.id ? " active" : ""}`}
                         onClick={() => setTab(item.id)}
                         title={sidebarCollapsed ? item.label : ""}
@@ -174,30 +186,26 @@ export default function App() {
               );
             })}
           </nav>
-
-          <div style={{ marginTop: 'auto', padding: '0 12px', marginBottom: '12px' }}>
-            <button
-              className="sidebar-tab"
-              style={{
-                width: '100%',
-                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                border: '1px solid var(--border-color)',
-                padding: sidebarCollapsed ? '10px' : '10px 16px'
-              }}
-              onClick={() => window.open('/ficha_tecnica_sistema.html', '_blank')}
-              title={sidebarCollapsed ? "Ficha del Sistema" : ""}
-            >
-              <span className="icon">📄</span>
-              {!sidebarCollapsed && <span className="label">Ficha del Sistema</span>}
-            </button>
-          </div>
         </aside>
 
         <main className="main-content">
           <div className="fade-in">
+            {tab === "dashboard" && <Dashboard />}
+            {tab === "config-surtidor" && user.rol === 'admin' && <ConfigSurtidor />}
             {tab === "usuarios" && <UserManagement />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
-            {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
+            {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
+
+            {PENDING_MODULES.includes(tab) && (
+              <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🚧</div>
+                <h3 style={{ color: '#1e293b', marginBottom: '8px', fontSize: '1.2rem' }}>Módulo en construcción</h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto' }}>
+                  El backend de este módulo ya está implementado y los endpoints están disponibles.<br />
+                  El componente visual se integrará en la siguiente fase.
+                </p>
+              </div>
+            )}
           </div>
         </main>
       </div>

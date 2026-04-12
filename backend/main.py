@@ -77,9 +77,9 @@ from database import engine, SessionLocal, get_session
 # 5. INICIALIZACIÓN DE FASTAPI
 # ============================================
 app = FastAPI(
-    title="API Sistema Base - Poliverso",
-    description="API para la gestión base de usuarios, roles y auditoría",
-    version="1.0.0"
+    title="API Sistema de Gestión de Surtidor (SGS) - Poliverso",
+    description="API para la gestión de surtidor: stock, ventas, turnos, finanzas y adquisiciones",
+    version="2.0.0"
 )
 
 # Configuración de CORS - Debe estar antes de cualquier ruta
@@ -116,12 +116,16 @@ from delete_user_physical import router as delete_user_physical_router
 from notify_admin_password_reset import router as notify_admin_password_reset_router
 from resend_user_password import router as resend_user_password_router
 
+# ======= SGS: Router del Sistema de Gestión de Surtidor =======
+from routes_surtidor import router as surtidor_router
+
 # Montar los routers en la aplicación
 app.include_router(auth_router)
 app.include_router(reactivate_user_router)
 app.include_router(delete_user_physical_router)
 app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
+app.include_router(surtidor_router)  # SGS - Gestión de Surtidor
 
 
 
