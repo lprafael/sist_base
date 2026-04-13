@@ -233,3 +233,48 @@ class Reporte(Base):
     ruta_archivo = Column(String(500))
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=False)
     detalles = Column(JSON)
+
+
+# ===== MÓDULO DE MEJORAS (Feature Requests / Change Management) =====
+
+class Mejora(Base):
+    """
+    Registro de solicitudes de mejora al sistema.
+    Cualquier usuario puede solicitar; admin implementa o rechaza.
+    Provee trazabilidad completa: quién pidió, cuándo, qué se hizo.
+    """
+    __tablename__ = "mejoras"
+    __table_args__ = {"schema": "sistema"}
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # ── Solicitud ─────────────────────────────
+    titulo = Column(String(200), nullable=False)
+    modulo_afectado = Column(String(100), nullable=True)   # ej: "Ventas", "Stock", "General"
+    funcionamiento_actual = Column(Text, nullable=True)    # descripción de cómo funciona HOY
+    mejora_sugerida = Column(Text, nullable=False)         # descripción de lo que se pide
+    prioridad = Column(String(20), default="media")        # baja | media | alta | critica
+
+    # ── Estado (máquina de estados) ───────────
+    # pendiente → en_analisis → implementada / rechazada / diferida
+    estado = Column(String(30), default="pendiente", index=True)
+
+    # ── Trazabilidad de solicitud ─────────────
+    solicitado_por = Column(Integer, ForeignKey("sistema.usuarios.id"), nullable=False)
+    fecha_solicitud = Column(DateTime, default=func.now(), nullable=False)
+
+    # ── Trazabilidad de implementación ────────
+    implementada_por = Column(Integer, ForeignKey("sistema.usuarios.id"), nullable=True)
+    fecha_implementacion = Column(DateTime, nullable=True)
+    descripcion_implementacion = Column(Text, nullable=True)  # qué se cambió exactamente
+    version_implementacion = Column(String(100), nullable=True)  # nro de versión / commit
+
+    # ── Rechazo ───────────────────────────────
+    motivo_rechazo = Column(Text, nullable=True)
+
+    # ── Comentarios encadenados ───────────────
+    comentarios = Column(Text, nullable=True)  # texto plano con timestamps inline
+
+    # ── Relaciones ────────────────────────────
+    solicitante = relationship("Usuario", foreign_keys=[solicitado_por], lazy="select")
+    implementador = relationship("Usuario", foreign_keys=[implementada_por], lazy="select")

@@ -27,7 +27,7 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 EMAIL_FROM = os.getenv("EMAIL_FROM", "")
 
 # Contexto para hash de contraseñas
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # Bearer token para autenticación
 security = HTTPBearer()

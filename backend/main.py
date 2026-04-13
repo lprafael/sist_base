@@ -100,6 +100,11 @@ app.add_middleware(
     max_age=600
 )
 
+# Endpoint de salud para Docker Healthcheck
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 # ============================================
 # 6. FUNCIONES AUXILIARES
 # ============================================
@@ -119,6 +124,9 @@ from resend_user_password import router as resend_user_password_router
 # ======= SGS: Router del Sistema de Gestión de Surtidor =======
 from routes_surtidor import router as surtidor_router
 
+# ======= Módulo de Mejoras / Feature Requests =======
+from routes_mejoras import router as mejoras_router
+
 # Montar los routers en la aplicación
 app.include_router(auth_router)
 app.include_router(reactivate_user_router)
@@ -126,6 +134,7 @@ app.include_router(delete_user_physical_router)
 app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
 app.include_router(surtidor_router)  # SGS - Gestión de Surtidor
+app.include_router(mejoras_router)   # SGS - Mejoras del sistema
 
 
 

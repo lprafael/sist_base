@@ -1,0 +1,87 @@
+# docker-compose.local.yml
+# Para pruebas locales con PostgreSQL incluido (sin depender de servidor externo)
+
+version: '3.8'
+
+services:
+
+  # ── Base de datos PostgreSQL local ────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: sgs-db-local
+    environment:
+      POSTGRES_USER: sgs_user
+      POSTGRES_PASSWORD: sgs_pass_local
+      POSTGRES_DB: sgs_db
+    ports:
+      - "5433:5432"   # Puerto 5433 en host para no chocar con otros Postgres
+    volumes:
+      - sgs_pgdata_local:/var/lib/postgresql/data
+    networks:
+      - sgs-local-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sgs_user -d sgs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Backend FastAPI ───────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local   # Dockerfile simplificado sin GDAL
+    container_name: sgs-backend-local
+    ports:
+      - "8002:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql+asyncpg://sgs_user:sgs_pass_local@db:5432/sgs_db
+      - SECRET_KEY=local_dev_secret_key_cambiar_en_produccion_2024
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=480
+      - ENVIRONMENT=local
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    networks:
+      - sgs-local-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Frontend React/Nginx ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_REACT_APP_API_URL=/api   # Usa el proxy nginx local
+    container_name: sgs-frontend-local
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - sgs-local-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  sgs_pgdata_local:
+    name: sgs_pgdata_local
+
+networks:
+  sgs-local-network:
+    driver: bridge
+    name: sgs-local-network

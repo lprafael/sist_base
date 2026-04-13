@@ -1,51 +1,68 @@
-version: '3.8'
-
 services:
+  # ── Base de Datos (PostgreSQL) ─────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: sgs-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sgs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sgs_pass_prod_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-sgs_db}
+    ports:
+      - "5435:5432"   # Puerto 5435 para no chocar con SIGEL (5434)
+    volumes:
+      - sgs_pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - sgs-prod-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sgs_user} -d ${POSTGRES_DB:-sgs_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend FastAPI ────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sist-catalogos-backend
+    container_name: sgs-backend
     ports:
-      - "8002:8001"  # Host:Container - Puerto 8002 en el servidor, 8001 en el container
+      - "8003:8001"   # Puerto 8003 para no chocar con SIGEL (8002)
+    env_file:
+      - .env
     environment:
       - PORT=8001
-      # Las demás variables de entorno deben estar en un archivo .env
-      # o definirse aquí directamente
-    env_file:
-      - ./backend/.env
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
-      # Montar el código para desarrollo (opcional, comentar en producción)
-      # - ./backend:/app
       - ./backend/logs:/app/logs
-    restart: unless-stopped
     networks:
-      - sist-catalogos-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - sgs-prod-network
+    restart: unless-stopped
 
+  # ── Frontend React/Nginx ───────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: sist-catalogos-frontend
+      args:
+        - VITE_REACT_APP_API_URL=/api
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+    container_name: sgs-frontend
     ports:
-      - "3002:80"  # Host:Container - Puerto 3002 en el servidor, 80 en el container (nginx)
+      - "3003:80"     # Puerto 3003 para no chocar con SIGEL (3002)
     depends_on:
       - backend
-    restart: unless-stopped
     networks:
-      - sist-catalogos-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - sgs-prod-network
+    restart: unless-stopped
 
 networks:
-  sist-catalogos-network:
+  sgs-prod-network:
     driver: bridge
+
+volumes:
+  sgs_pgdata_prod:
+    name: sgs_pgdata_prod

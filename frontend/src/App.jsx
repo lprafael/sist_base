@@ -14,6 +14,7 @@ import ControlStock from "./components/ControlStock.jsx";
 import CajaFinanzas from "./components/CajaFinanzas.jsx";
 import PersonalPlayeros from "./components/PersonalPlayeros.jsx";
 import RecepcionCombustible from "./components/RecepcionCombustible.jsx";
+import GestionMejoras from "./components/GestionMejoras.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -146,7 +147,13 @@ export default function App() {
         { id: 'auditoria', label: 'Auditoría', icon: '📋', roles: ['admin', 'manager'] },
         { id: 'backup', label: 'Backup', icon: '🗃️', roles: ['admin'] },
       ]
-    }
+    },
+    {
+      title: "Mejoras",
+      items: [
+        { id: 'mejoras', label: 'Mejoras del Sistema', icon: '✨', roles: ['admin', 'manager', 'user', 'viewer'] },
+      ]
+    },
   ];
 
   const PENDING_MODULES = ["turnos","mediciones","cuentas"];
@@ -211,6 +218,7 @@ export default function App() {
             {tab === "personal" && (user.rol === 'admin' || user.rol === 'manager') && <PersonalPlayeros />}
             {tab === "recepciones" && <RecepcionCombustible />}
             {tab === "pedidos" && <RecepcionCombustible />}
+            {tab === "mejoras" && <GestionMejoras user={user} />}
 
             {PENDING_MODULES.includes(tab) && (
               <div style={{ textAlign: 'center', padding: '80px 20px' }}>

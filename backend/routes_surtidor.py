@@ -3,7 +3,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text, and_, or_
+from sqlalchemy import select, func, text, and_, or_, case
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import date, datetime, timedelta
@@ -90,7 +90,7 @@ async def _saldo_caja(session: AsyncSession) -> Decimal:
     result = await session.execute(
         select(func.coalesce(
             func.sum(
-                func.case(
+                case(
                     (CajaMovimiento.tipo == "ingreso", CajaMovimiento.monto),
                     else_=-CajaMovimiento.monto
                 )
