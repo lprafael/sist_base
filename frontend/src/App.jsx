@@ -15,6 +15,9 @@ import CajaFinanzas from "./components/CajaFinanzas.jsx";
 import PersonalPlayeros from "./components/PersonalPlayeros.jsx";
 import RecepcionCombustible from "./components/RecepcionCombustible.jsx";
 import GestionMejoras from "./components/GestionMejoras.jsx";
+import GestionTurnos from "./components/GestionTurnos.jsx";
+import MedicionesStock from "./components/MedicionesStock.jsx";
+import CuentasBancarias from "./components/CuentasBancarias.jsx";
 
 function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed }) {
   return (
@@ -156,7 +159,7 @@ export default function App() {
     },
   ];
 
-  const PENDING_MODULES = ["turnos","mediciones","cuentas"];
+  const PENDING_MODULES = [];   // ya no hay módulos pendientes
 
   return (
     <div className="app-container">
@@ -219,6 +222,10 @@ export default function App() {
             {tab === "recepciones" && <RecepcionCombustible />}
             {tab === "pedidos" && <RecepcionCombustible />}
             {tab === "mejoras" && <GestionMejoras user={user} />}
+
+            {tab === "turnos" && <GestionTurnos />}
+            {tab === "mediciones" && <MedicionesStock />}
+            {tab === "cuentas" && (user.rol === 'admin' || user.rol === 'manager') && <CuentasBancarias />}
 
             {PENDING_MODULES.includes(tab) && (
               <div style={{ textAlign: 'center', padding: '80px 20px' }}>
