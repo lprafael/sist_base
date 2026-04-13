@@ -1430,3 +1430,287 @@ async def proyeccion_stock(
     ))
 
     return proyecciones
+
+
+# ============================================================
+# MEDICIONES MANUALES & MOVIMIENTOS DE STOCK
+# ============================================================
+
+@router.get("/mediciones", response_model=List[MedicionManualOut])
+async def listar_mediciones(
+    tanque_id: Optional[int] = None,
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    q = select(MedicionManual).options(selectinload(MedicionManual.tanque))
+    if tanque_id:
+        q = q.where(MedicionManual.tanque_id == tanque_id)
+    result = await session.execute(q.order_by(MedicionManual.fecha_hora.desc()).limit(limit))
+    return result.scalars().all()
+
+
+@router.post("/mediciones", response_model=MedicionManualOut, status_code=201)
+async def crear_medicion(
+    data: MedicionManualCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    tanque = await session.get(Tanque, data.tanque_id)
+    if not tanque:
+        raise HTTPException(404, "Tanque no encontrado")
+
+    med = MedicionManual(
+        **data.model_dump(),
+        stock_sistema_al_momento=tanque.stock_actual_litros,
+        registrado_por=current_user.id
+    )
+    session.add(med)
+    await session.commit()
+    await session.refresh(med)
+    return med
+
+
+@router.get("/movimientos-stock")
+async def listar_movimientos_stock(
+    tanque_id: Optional[int] = None,
+    limit: int = Query(200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    q = select(MovimientoStock).options(selectinload(MovimientoStock.tanque))
+    if tanque_id:
+        q = q.where(MovimientoStock.tanque_id == tanque_id)
+    result = await session.execute(q.order_by(MovimientoStock.fecha_hora.desc()).limit(limit))
+    rows = result.scalars().all()
+    return [
+        {
+            "id": m.id,
+            "tanque_id": m.tanque_id,
+            "tanque": {"id": m.tanque.id, "nombre": m.tanque.nombre} if m.tanque else None,
+            "tipo": m.tipo,
+            "litros": float(m.litros),
+            "stock_anterior": float(m.stock_anterior),
+            "stock_posterior": float(m.stock_posterior),
+            "referencia": m.referencia,
+            "motivo": m.motivo,
+            "turno_id": m.turno_id,
+            "fecha_hora": m.fecha_hora.isoformat() if m.fecha_hora else None,
+        } for m in rows
+    ]
+
+
+@router.post("/ajuste-stock")
+async def ajuste_stock(
+    tanque_id: int,
+    tipo: str,
+    litros: float,
+    motivo: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Aplica un ajuste manual (entrada o salida) al stock de un tanque."""
+    delta = Decimal(str(litros)) if tipo == "entrada" else Decimal(str(-litros))
+    await _actualizar_stock_tanque(
+        session, tanque_id, delta,
+        tipo="ajuste",
+        motivo=motivo,
+        usuario_id=current_user.id
+    )
+    await session.commit()
+    tanque = await session.get(Tanque, tanque_id, options=[selectinload(Tanque.tipo_combustible)])
+    return {"ok": True, "stock_actual": float(tanque.stock_actual_litros)}
+
+
+# Endpoint alternativo que acepta JSON body para ajuste-stock
+@router.post("/ajuste-stock/body", status_code=200)
+async def ajuste_stock_body(
+    data: dict,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    litros = float(data.get("litros", 0))
+    tipo = data.get("tipo", "entrada")
+    tanque_id = int(data.get("tanque_id", 0))
+    motivo = data.get("motivo", "Ajuste manual")
+    delta = Decimal(str(litros)) if tipo == "entrada" else Decimal(str(-litros))
+    await _actualizar_stock_tanque(session, tanque_id, delta, tipo="ajuste", motivo=motivo, usuario_id=current_user.id)
+    await session.commit()
+    return {"ok": True}
+
+
+# ============================================================
+# CAJA — MOVIMIENTOS
+# ============================================================
+
+@router.get("/caja/movimientos")
+async def listar_movimientos_caja(
+    limit: int = Query(200, ge=1, le=1000),
+    turno_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    q = select(CajaMovimiento)
+    if turno_id:
+        q = q.where(CajaMovimiento.turno_id == turno_id)
+    result = await session.execute(q.order_by(CajaMovimiento.fecha_hora.desc()).limit(limit))
+    rows = result.scalars().all()
+    return [
+        {
+            "id": m.id,
+            "turno_id": m.turno_id,
+            "tipo": m.tipo,
+            "concepto": m.concepto,
+            "monto": float(m.monto),
+            "saldo_anterior": float(m.saldo_anterior) if m.saldo_anterior else None,
+            "saldo_posterior": float(m.saldo_posterior) if m.saldo_posterior else None,
+            "fecha_hora": m.fecha_hora.isoformat() if m.fecha_hora else None,
+            "registrado_por": m.registrado_por,
+        } for m in rows
+    ]
+
+
+@router.post("/caja/movimientos", status_code=201)
+async def crear_movimiento_caja(
+    data: CajaMovimientoCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    saldo = await _saldo_caja(session)
+    nuevo_saldo = saldo + data.monto if data.tipo == "ingreso" else saldo - data.monto
+
+    mov = CajaMovimiento(
+        **data.model_dump(),
+        saldo_anterior=saldo,
+        saldo_posterior=nuevo_saldo,
+        registrado_por=current_user.id
+    )
+    session.add(mov)
+    await session.commit()
+    await session.refresh(mov)
+    return {"id": mov.id, "saldo_posterior": float(nuevo_saldo)}
+
+
+# ============================================================
+# DEPÓSITOS BANCARIOS
+# ============================================================
+
+@router.get("/depositos")
+async def listar_depositos(
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    result = await session.execute(
+        select(DepositoBancario).order_by(DepositoBancario.fecha_deposito.desc()).limit(limit)
+    )
+    rows = result.scalars().all()
+    return [
+        {
+            "id": d.id,
+            "cuenta_bancaria_id": d.cuenta_bancaria_id,
+            "monto": float(d.monto),
+            "fecha_deposito": d.fecha_deposito.isoformat() if d.fecha_deposito else None,
+            "nro_boleta": d.nro_boleta,
+            "observaciones": d.observaciones,
+            "fecha_registro": d.fecha_registro.isoformat() if d.fecha_registro else None,
+        } for d in rows
+    ]
+
+
+@router.post("/depositos", status_code=201)
+async def crear_deposito(
+    data: DepositoBancarioCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    dep = DepositoBancario(**data.model_dump(), registrado_por=current_user.id)
+    session.add(dep)
+
+    # Registrar egreso de caja
+    saldo = await _saldo_caja(session)
+    mov = CajaMovimiento(
+        tipo="egreso",
+        concepto=f"Depósito bancario — Boleta {data.nro_boleta or 'sin nro'}",
+        monto=data.monto,
+        saldo_anterior=saldo,
+        saldo_posterior=saldo - data.monto,
+        registrado_por=current_user.id
+    )
+    session.add(mov)
+    await session.commit()
+    await session.refresh(dep)
+    return {"id": dep.id, "ok": True}
+
+
+# ============================================================
+# RECEPCIONES — GET
+# ============================================================
+
+@router.get("/recepciones")
+async def listar_recepciones(
+    tanque_id: Optional[int] = None,
+    limit: int = Query(100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    q = select(RecepcionCombustible)
+    if tanque_id:
+        q = q.where(RecepcionCombustible.tanque_id == tanque_id)
+    result = await session.execute(q.order_by(RecepcionCombustible.fecha_recepcion.desc()).limit(limit))
+    rows = result.scalars().all()
+    return [
+        {
+            "id": r.id,
+            "tanque_id": r.tanque_id,
+            "pedido_id": r.pedido_id,
+            "proveedor_id": r.proveedor_id,
+            "litros_recibidos": float(r.litros_recibidos),
+            "precio_litro": float(r.precio_litro) if r.precio_litro else None,
+            "nro_remito": r.nro_remito,
+            "nro_factura": r.nro_factura,
+            "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
+            "observaciones": r.observaciones,
+            "fecha_registro": r.fecha_registro.isoformat() if r.fecha_registro else None,
+        } for r in rows
+    ]
+
+
+# ============================================================
+# PROVEEDORES — PUT (actualizar)
+# ============================================================
+
+@router.put("/proveedores/{id}", response_model=ProveedorOut)
+async def actualizar_proveedor(
+    id: int, data: ProveedorCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    obj = await session.get(Proveedor, id)
+    if not obj:
+        raise HTTPException(404, "Proveedor no encontrado")
+    for k, v in data.model_dump(exclude_none=True).items():
+        setattr(obj, k, v)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+
+# ============================================================
+# CUENTAS BANCARIAS — PUT (actualizar)
+# ============================================================
+
+@router.put("/cuentas-bancarias/{id}", response_model=CuentaBancariaOut)
+async def actualizar_cuenta_bancaria(
+    id: int, data: CuentaBancariaCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user)
+):
+    obj = await session.get(CuentaBancaria, id)
+    if not obj:
+        raise HTTPException(404, "Cuenta bancaria no encontrada")
+    for k, v in data.model_dump(exclude_none=True).items():
+        setattr(obj, k, v)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
