@@ -449,6 +449,15 @@ async def create_user(
             if distrito_id is None:
                 distrito_id = creator.distrito_id
 
+    # RESTRICCIÓN DE SEGURIDAD PARA CANDIDATOS:
+    # Si el creador no es admin, SIEMPRE forzar el territorio del creador
+    if current_role != 'admin':
+        if creator and creator.departamento_id is not None:
+            departamento_id = creator.departamento_id
+        if creator and creator.distrito_id is not None:
+            distrito_id = creator.distrito_id
+        print(f"DEBUG: Forzando territorio heredado para nuevo {target_role}: Dept {departamento_id}, Dist {distrito_id}")
+
     # Validaciones obligatorias
     if target_role in ["intendente", "concejal", "referente"] and distrito_id is None:
         raise HTTPException(
@@ -559,27 +568,52 @@ async def list_users(
     from security import ROLES
     from hierarchy_utils import get_visible_user_ids
     
-    current_role = current_user.get("role")
+    current_role = current_user.get("role", "").lower().strip()
     user_permissions = ROLES.get(current_role, {}).get("permissions", [])
     
     if "manage_users" not in user_permissions and "manage_subordinates" not in user_permissions:
+        logger.warning(f"Permiso denegado para {current_user.get('sub')} con rol '{current_role}'")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos para ver la lista de usuarios"
+            detail=f"No tienes permisos para ver la lista de usuarios. Rol detectado: '{current_role}'"
         )
     
+    logger.info(f"DEBUG: list_users called by {current_user.get('sub')} with role {current_role}")
     visible_ids = await get_visible_user_ids(current_user["user_id"], current_role, session)
+    logger.info(f"DEBUG: visible_ids count: {len(visible_ids)}")
     
     if current_role == "admin":
+        logger.info("DEBUG: User is admin, selecting all users in database")
         stmt = select(Usuario).order_by(Usuario.rol, Usuario.nombre_completo)
     else:
         if not visible_ids:
+            logger.info(f"DEBUG: No visible IDs for non-admin user {current_user.get('sub')}")
             return []
         stmt = select(Usuario).where(Usuario.id.in_(visible_ids)).order_by(Usuario.rol, Usuario.nombre_completo)
         
     result = await session.execute(stmt)
     users = result.scalars().all()
-    return [UserResponse.from_orm(user) for user in users]
+    logger.info(f"DEBUG: list_users query returned {len(users)} users")
+    
+    # Obtener mapeo de jerarquía para asignar superior_usuario_id
+    from models import Referente
+    res_refs = await session.execute(select(Referente))
+    all_refs = res_refs.scalars().all()
+    
+    # Mapeo de id de referente -> id de usuario
+    ref_id_to_user_id = {r.id: r.id_usuario_sistema for r in all_refs}
+    # Mapeo de id de usuario -> id de usuario del superior
+    hierarchy_map = {r.id_usuario_sistema: ref_id_to_user_id.get(r.id_superior) for r in all_refs if r.id_superior}
+    
+    response_users = []
+    for user in users:
+        u_resp = UserResponse.from_orm(user)
+        # Prioridad 1: Jerarquía electoral (clara subordinación política)
+        # Prioridad 2: Creado por (para choferes, veedores o usuarios nuevos sin registro electoral aún)
+        u_resp.superior_usuario_id = hierarchy_map.get(user.id) or user.creado_por
+        response_users.append(u_resp)
+        
+    return response_users
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(

@@ -126,7 +126,7 @@ ROLES = {
 def check_permission(required_permission: str):
     """Decorador para verificar permisos"""
     def permission_checker(current_user: dict = Depends(get_current_user)):
-        role = current_user.get("role", "viewer")
+        role = current_user.get("role", "viewer").lower().strip()
         user_permissions = ROLES.get(role, {}).get("permissions", [])
         print(f"DEBUG: Checking permission '{required_permission}' for role '{role}'")
         print(f"DEBUG: User permissions: {user_permissions}")

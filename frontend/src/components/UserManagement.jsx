@@ -22,6 +22,7 @@ const UserManagement = () => {
   const [passwordFields, setPasswordFields] = useState({
     current_password: '', new_password: '', confirm_password: ''
   });
+  const [expandedNodes, setExpandedNodes] = useState({ 1: true });
 
   // Catálogos geográficos
   const [departamentos, setDepartamentos] = useState([]);
@@ -43,6 +44,49 @@ const UserManagement = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = currentUser?.rol === 'admin';
   const canManageUsers = ['admin', 'intendente', 'concejal'].includes(currentUser?.rol);
+
+  // Construir el árbol de jerarquía
+  const buildTree = (data) => {
+    const map = {};
+    const roots = [];
+    
+    data.forEach(u => {
+      map[u.id] = { ...u, children: [] };
+    });
+
+    data.forEach(u => {
+      const superiorId = u.superior_usuario_id;
+      if (superiorId && map[superiorId] && superiorId !== u.id) {
+        map[superiorId].children.push(map[u.id]);
+      } else {
+        roots.push(map[u.id]);
+      }
+    });
+
+    return roots;
+  };
+
+  // Aplastar el árbol con niveles
+  const getFlattenedTree = (nodes, level = 0) => {
+    let result = [];
+    const sortedNodes = [...nodes].sort((a, b) => {
+      const roleOrder = { 'admin': 1, 'intendente': 2, 'concejal': 3, 'referente': 4, 'chofer': 5, 'veedor': 6 };
+      if (roleOrder[a.rol] !== roleOrder[b.rol]) return (roleOrder[a.rol] || 99) - (roleOrder[b.rol] || 99);
+      return (a.nombre_completo || '').localeCompare(b.nombre_completo || '');
+    });
+
+    sortedNodes.forEach(node => {
+      result.push({ ...node, level });
+      if (expandedNodes[node.id] && node.children.length > 0) {
+        result = result.concat(getFlattenedTree(node.children, level + 1));
+      }
+    });
+    return result;
+  };
+
+  const toggleNode = (id) => {
+    setExpandedNodes(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Roles que el usuario actual puede asignar
   const meRol = ROLES_CONFIG.find(r => r.value === currentUser?.rol);
@@ -106,12 +150,16 @@ const UserManagement = () => {
       const response = await authFetch(endpoint);
       if (response.ok) {
         const data = await response.json();
+        console.warn('DEBUG UserManagement: Fetched data:', data, 'canManageUsers:', canManageUsers);
         setUsers(canManageUsers ? data : [data]);
       } else {
-        setError(canManageUsers ? 'No tienes permisos para ver usuarios' : 'No se pudo cargar tu perfil');
+        const errorMsg = canManageUsers ? 'No tienes permisos para ver usuarios' : 'No se pudo cargar tu perfil';
+        console.error('UserManagement: API Error', errorMsg);
+        setError(errorMsg);
       }
     } catch (err) {
-      setError('Error al cargar datos');
+      console.error('UserManagement: Fetch error', err);
+      setError('Error al cargar datos: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -251,6 +299,8 @@ const UserManagement = () => {
     // Si NO es admin, ya tenemos el territorio, pero podríamos querer cargar
     // superiores disponibles para ese distrito específico
     if (!isAdmin && initialData.distrito_id) {
+      fetchDepartamentos();
+      fetchDistritos(initialData.departamento_id);
       fetchSuperioresDisponibles(rolInicial, initialData.distrito_id);
     }
 
@@ -397,43 +447,118 @@ const UserManagement = () => {
         )}
       </div>
 
+      {error && (
+        <div style={{ 
+          margin: '0 0 20px 0', 
+          padding: '12px 16px', 
+          background: '#fef2f2', 
+          border: '1px solid #fee2e2', 
+          borderRadius: '8px', 
+          color: '#ef4444',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span>⚠️ {error}</span>
+          <button onClick={() => { setError(''); fetchUsers(); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', textDecoration: 'underline' }}>Reintentar</button>
+        </div>
+      )}
+
       <div className="table-container">
         <table>
           <thead>
             <tr>
-              <th>Usuario</th>
+              <th>Estructura / Usuario</th>
               <th>Email</th>
-              <th>Nombre</th>
-              <th>Rol</th>
+              <th>Nombre Completo</th>
+              <th>Rol / Cargo</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(user => (
-              <tr key={user.id}>
-                <td style={{ fontWeight: 600 }}>{user.username}</td>
-                <td>{user.email}</td>
-                <td>{user.nombre_completo}</td>
-                <td><span className={`role-badge role-${user.rol}`}>{getRolLabel(user.rol)}</span></td>
-                <td><span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
-                <td>
-                  <div className="actions-cell">
-                    <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
-                    {(isAdmin || currentUser.id === user.creado_por) && user.username !== 'admin' && (
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        {user.activo ? (
-                          <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button>
-                        ) : (
-                          <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
-                        )}
-                        <button className="action-btn action-btn-delete" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }} onClick={() => handleStatusChange(user, 'hard')} title="ELIMINAR DEFINITIVAMENTE">🗑️</button>
-                      </div>
-                    )}
-                  </div>
+            {users.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  No se encontraron usuarios visible para tu perfil.
                 </td>
               </tr>
-            ))}
+            ) : (
+              getFlattenedTree(buildTree(users)).map(user => (
+                <tr 
+                  key={user.id} 
+                  className={`row-level-${user.level} ${!user.activo ? 'tr-inactive' : ''}`}
+                  style={{ backgroundColor: user.level === 0 ? '#f8fafc' : 'transparent' }}
+                >
+                  <td style={{ 
+                    paddingLeft: `${user.level * 24 + 12}px`,
+                    fontWeight: user.level === 0 ? 700 : 500,
+                    position: 'relative'
+                  }}>
+                    {user.level > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        left: `${user.level * 24 - 4}px`,
+                        top: '0',
+                        bottom: '50%',
+                        width: '12px',
+                        borderLeft: '2px solid #cbd5e1',
+                        borderBottom: '2px solid #cbd5e1',
+                        borderRadius: '0 0 0 4px'
+                      }} />
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {user.children && user.children.length > 0 ? (
+                        <button 
+                          onClick={() => toggleNode(user.id)}
+                          style={{
+                            background: 'none',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            width: '20px',
+                            height: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            fontSize: '10px',
+                            color: '#64748b'
+                          }}
+                        >
+                          {expandedNodes[user.id] ? '▼' : '▶'}
+                        </button>
+                      ) : (
+                        <div style={{ width: '20px' }} />
+                      )}
+                      <span>{user.username}</span>
+                    </div>
+                  </td>
+                  <td style={{ fontSize: '0.85rem' }}>{user.email}</td>
+                  <td>{user.nombre_completo}</td>
+                  <td>
+                    <span className={`role-badge role-${user.rol}`} style={{ fontSize: '0.75rem' }}>
+                      {getRolLabel(user.rol)}
+                    </span>
+                  </td>
+                  <td><span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
+                  <td>
+                    <div className="actions-cell">
+                      <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
+                      {(isAdmin || currentUser.id === user.creado_por) && user.username !== 'admin' && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          {user.activo ? (
+                            <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button>
+                          ) : (
+                            <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
+                          )}
+                          <button className="action-btn action-btn-delete" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }} onClick={() => handleStatusChange(user, 'hard')} title="ELIMINAR DEFINITIVAMENTE">🗑️</button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -592,10 +717,36 @@ const UserManagement = () => {
                         </div>
                       )}
 
-                      {/* Mensaje herencia automática para no-admins */}
+                      {/* Mensaje herencia automática para no-admins con detalle visual */}
                       {!isAdmin && (
-                        <div style={{ fontSize: '0.8125rem', color: '#1e40af', background: '#dbeafe', padding: '10px', borderRadius: '8px' }}>
-                          ℹ️ El usuario colgará directamente de ti y heredará tu territorio.
+                        <div className="territorio-heredado-detalle" style={{ 
+                          marginTop: '12px',
+                          padding: '12px', 
+                          background: '#fff', 
+                          borderRadius: '10px',
+                          border: '1px solid #bfdbfe',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}>
+                          <p style={{ margin: '0 0 8px 0', fontSize: '0.75rem', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
+                            📍 Territorio Heredado de ti
+                          </p>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div style={{ padding: '8px', background: '#f8fafc', borderRadius: '6px' }}>
+                              <span style={{ fontSize: '0.65rem', color: '#64748b', display: 'block' }}>Departamento</span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                                {departamentos.find(d => d.id === parseInt(currentUser.departamento_id))?.descripcion || 'Cargando...'}
+                              </span>
+                            </div>
+                            <div style={{ padding: '8px', background: '#f8fafc', borderRadius: '6px' }}>
+                              <span style={{ fontSize: '0.65rem', color: '#64748b', display: 'block' }}>Distrito</span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                                {distritos.find(d => d.id === parseInt(currentUser.distrito_id))?.descripcion || 'Cargando...'}
+                              </span>
+                            </div>
+                          </div>
+                          <p style={{ margin: '8px 0 0 0', fontSize: '0.7rem', color: '#60a5fa', fontStyle: 'italic' }}>
+                            ℹ️ Como {getRolLabel(currentUser.rol)}, tus subordinados heredan tu jurisdicción automáticamente.
+                          </p>
                         </div>
                       )}
                     </div>

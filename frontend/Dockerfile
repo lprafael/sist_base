@@ -16,6 +16,8 @@ COPY . .
 # Argumentos de construcción para Vite
 ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ARG VITE_REACT_APP_API_URL
+ENV VITE_REACT_APP_API_URL=$VITE_REACT_APP_API_URL
 
 # Construir la aplicación
 RUN npm run build

@@ -180,6 +180,78 @@ const PasswordChangeModal = ({ onClose }) => {
   );
 };
 
+function MobileBottomNav({ tab, setTab, user, menuGroups, onLogout }) {
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const quickItems = [
+    { id: 'captacion', label: 'Captación', icon: '🗳️' },
+    { id: 'tablero',   label: 'Tablero',   icon: '📈' },
+    { id: 'logistica', label: 'Logística', icon: '🚗', roles: ['admin','intendente'] },
+  ].filter(item => !item.roles || item.roles.includes(user.rol));
+
+  const handleQuickNav = (id) => {
+    setTab(id);
+    setDrawerOpen(false);
+  };
+
+  return (
+    <>
+      {drawerOpen && (
+        <div className="mobile-overlay" onClick={() => setDrawerOpen(false)} />
+      )}
+      {drawerOpen && (
+        <div className="mobile-menu-drawer">
+          <div className="mobile-drawer-handle" />
+          {menuGroups.map((group, gi) => {
+            const visible = group.items.filter(i => i.roles.includes(user.rol));
+            if (!visible.length) return null;
+            return (
+              <div className="mobile-drawer-section" key={gi}>
+                <div className="mobile-drawer-section-title">{group.title}</div>
+                {visible.map(item => (
+                  <button
+                    key={item.id}
+                    className={`mobile-drawer-item${tab === item.id ? ' active' : ''}`}
+                    onClick={() => { setTab(item.id); setDrawerOpen(false); }}
+                  >
+                    <span className="drawer-icon">{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          <div className="mobile-drawer-section">
+            <button className="mobile-drawer-item" onClick={onLogout} style={{ color: '#ef4444' }}>
+              <span className="drawer-icon">🚪</span>
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      )}
+      <nav className="mobile-bottom-nav">
+        {quickItems.map(item => (
+          <button
+            key={item.id}
+            className={`mobile-nav-item${tab === item.id ? ' active' : ''}`}
+            onClick={() => handleQuickNav(item.id)}
+          >
+            <span className="nav-icon">{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+        <button
+          className={`mobile-nav-item${drawerOpen ? ' active' : ''}`}
+          onClick={() => setDrawerOpen(o => !o)}
+        >
+          <span className="nav-icon">☰</span>
+          Menú
+        </button>
+      </nav>
+    </>
+  );
+}
+
 function CabeceradePagina({ user, onLogout, onChangePassword, onToggleSidebar, isSidebarCollapsed }) {
   return (
     <header className="main-header">
@@ -372,6 +444,13 @@ function MainDashboard({ user, onLogout }) {
           </div>
         </main>
       </div>
+      <MobileBottomNav
+        tab={tab}
+        setTab={setTab}
+        user={user}
+        menuGroups={menuGroups}
+        onLogout={onLogout}
+      />
     </div>
   );
 }

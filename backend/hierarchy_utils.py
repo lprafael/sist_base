@@ -15,7 +15,10 @@ async def get_visible_referente_ids(user_id: int, user_role: str, session: Async
     - concejal:   su propio referente + sus referentes directos
     - referente:   solo su propio referente
     """
-    if user_role == "admin":
+    # Sanitizar el rol para comparación robusta
+    clean_role = user_role.lower().strip() if user_role else ""
+
+    if clean_role == "admin":
         res = await session.execute(select(Referente.id).where(Referente.activo == True))
         return [r[0] for r in res.all()]
 
@@ -25,7 +28,7 @@ async def get_visible_referente_ids(user_id: int, user_role: str, session: Async
     )
     my_referente_ids = [r[0] for r in res_me.all()]
 
-    if user_role == "referente":
+    if clean_role == "referente":
         return my_referente_ids
 
     # Subordinados directos (concejales creados por intendente, o referentes creados por concejal)
@@ -45,10 +48,10 @@ async def get_visible_referente_ids(user_id: int, user_role: str, session: Async
         )
         direct_referente_ids = [r[0] for r in res_dc.all()]
 
-    if user_role == "concejal":
+    if clean_role == "concejal":
         return my_referente_ids + direct_referente_ids
 
-    if user_role == "intendente":
+    if clean_role == "intendente":
         # También incluir referentes de segundo nivel (referentes de los concejales)
         second_level_ids = []
         if direct_user_ids:
@@ -80,11 +83,14 @@ async def get_visible_user_ids(user_id: int, user_role: str, session: AsyncSessi
     - concejal:   sus referentes directos
     - referente:   nadie (no puede ver otros usuarios)
     """
-    if user_role == "admin":
+    # Sanitizar el rol para comparación robusta
+    clean_role = user_role.lower().strip() if user_role else ""
+    
+    if clean_role == "admin":
         res = await session.execute(select(Usuario.id))
         return [r[0] for r in res.all()]
 
-    if user_role == "referente":
+    if clean_role == "referente":
         return []
 
     # Mis subordinados directos
@@ -93,10 +99,10 @@ async def get_visible_user_ids(user_id: int, user_role: str, session: AsyncSessi
     )
     direct_ids = [r[0] for r in res_direct.all()]
 
-    if user_role == "concejal":
+    if clean_role == "concejal":
         return direct_ids
 
-    if user_role == "intendente":
+    if clean_role == "intendente":
         # Subordinados de segundo nivel (referentes de mis concejales)
         lv2_ids = []
         if direct_ids:

@@ -76,10 +76,22 @@ async def search_padron(
                 func.public.f_unaccent(func.lower(AnrPadron.apellidos)).ilike(func.public.f_unaccent(func.lower(search_pattern)))
             ))
 
-    if departamento_id:
-        filters.append(AnrPadron.departamento == departamento_id)
-    if distrito_id:
-        filters.append(AnrPadron.distrito == distrito_id)
+    # RESTRICCIÓN DE SEGURIDAD: Si no es admin, forzar su propio territorio
+    user_role = current_user.get("role")
+    if user_role != "admin":
+        user_dept = current_user.get("departamento_id")
+        user_dist = current_user.get("distrito_id")
+        
+        if user_dept is not None:
+            filters.append(AnrPadron.departamento == user_dept)
+        if user_dist is not None:
+            filters.append(AnrPadron.distrito == user_dist)
+    else:
+        # Si es admin, puede usar los filtros opcionales
+        if departamento_id:
+            filters.append(AnrPadron.departamento == departamento_id)
+        if distrito_id:
+            filters.append(AnrPadron.distrito == distrito_id)
 
     # Aplicar filtros
     stmt = stmt.where(and_(*filters)).limit(20)

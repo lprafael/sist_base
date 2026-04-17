@@ -12,9 +12,27 @@ export async function authFetch(url, options = {}) {
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
 
-  // Asegurarse de que la URL sea relativa para usar el proxy
-  const requestUrl = url.startsWith('http') ? url :
-    (url.startsWith('/api') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`);
+  // Obtener la URL base del entorno
+  const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+
+  // Evitar duplicación de /api si ya viene en la URL base y en el endpoint
+  let baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+  let endpoint = url;
+  
+  // Limpieza agresiva de prefijos duplicados
+  if (baseUrl.endsWith('/api') && endpoint.startsWith('/api')) {
+      // Si ambos tienen /api, lo removemos del endpoint para que al unir no se duplique
+      endpoint = endpoint.startsWith('/api/') ? endpoint.substring(4) : (endpoint === '/api' ? '' : endpoint);
+  }
+
+  // Asegurarse de que la URL sea completa para la App móvil
+  let requestUrl = url.startsWith('http') ? url : 
+    `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+  // Doble check: si por alguna razón quedó /api/api, lo corregimos
+  if (requestUrl.includes('/api/api/')) {
+      requestUrl = requestUrl.replace('/api/api/', '/api/');
+  }
 
   // Realizar la petición
   let response = await fetch(requestUrl, { ...options, headers });

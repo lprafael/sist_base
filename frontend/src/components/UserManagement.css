@@ -1,4 +1,4 @@
-﻿.user-management {
+.user-management {
   display: flex;
   flex-direction: column;
 }
@@ -155,3 +155,43 @@
   justify-content: flex-end;
   gap: 12px;
 }
+
+/* Estilos para jerarquía */
+.table-container tr {
+  transition: background-color 0.2s;
+}
+
+.table-container tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.tr-inactive {
+  opacity: 0.6;
+}
+
+.tr-inactive td {
+  color: #94a3b8;
+}
+
+.tr-inactive .role-badge {
+  background-color: #e2e8f0;
+  color: #64748b;
+  box-shadow: none;
+}
+
+.row-level-0 {
+  border-left: 4px solid #3b82f6;
+}
+
+.row-level-1 {
+  border-left: 4px solid #8b5cf6;
+}
+
+.row-level-2 {
+  border-left: 4px solid #10b981;
+}
+
+.table-container td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}

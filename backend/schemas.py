@@ -50,6 +50,12 @@ class UserCreate(BaseModel):
     veedor_seccional_id: Optional[int] = None
     veedor_mesas: Optional[List[int]] = None
     
+    @validator('veedor_mesas', pre=True)
+    def unwrap_veedor_mesas(cls, v):
+        if isinstance(v, dict) and 'mesas' in v:
+            return v['mesas']
+        return v
+    
     @validator('username')
     def username_must_be_valid(cls, v):
         if len(v) < 2:
@@ -75,6 +81,12 @@ class UserUpdate(BaseModel):
     veedor_seccional_id: Optional[int] = None
     veedor_mesas: Optional[List[int]] = None
 
+    @validator('veedor_mesas', pre=True)
+    def unwrap_veedor_mesas(cls, v):
+        if isinstance(v, dict) and 'mesas' in v:
+            return v['mesas']
+        return v
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -94,6 +106,13 @@ class UserResponse(BaseModel):
     veedor_mesas: Optional[List[int]] = None
     terminos_aceptados: bool = False
     creado_por: Optional[int] = None
+    superior_usuario_id: Optional[int] = None
+    
+    @validator('veedor_mesas', pre=True)
+    def unwrap_veedor_mesas(cls, v):
+        if isinstance(v, dict) and 'mesas' in v:
+            return v['mesas']
+        return v
     
     class Config:
         from_attributes = True
