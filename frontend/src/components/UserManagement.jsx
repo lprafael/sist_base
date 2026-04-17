@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { authFetch } from '../utils/authFetch';
+import { Info, ChevronRight, ChevronDown, User, Users, Shield, Car, Eye } from 'lucide-react';
 import './UserManagement.css';
 
 const ROLES_CON_DISTRITO = ['intendente', 'concejal', 'referente'];
@@ -23,6 +24,7 @@ const UserManagement = () => {
     current_password: '', new_password: '', confirm_password: ''
   });
   const [expandedNodes, setExpandedNodes] = useState({ 1: true });
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Catálogos geográficos
   const [departamentos, setDepartamentos] = useState([]);
@@ -437,8 +439,24 @@ const UserManagement = () => {
   return (
     <div className="fade-in">
       <div className="user-management-header">
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
           {isAdmin ? 'Gestión de Usuarios' : canManageUsers ? 'Mi Equipo' : 'Mi Perfil'}
+          <button 
+            className="info-trigger" 
+            onClick={() => setShowInfoModal(true)}
+            title="Ver estructura jerárquica"
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              padding: '4px',
+              cursor: 'pointer',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <Info size={20} />
+          </button>
         </h1>
         {canManageUsers && (
           <button className="btn btn-primary" onClick={openCreateForm}>
@@ -850,6 +868,72 @@ const UserManagement = () => {
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={() => { setShowCreateForm(false); setShowEditModal(false); }}>Cancelar</button>
               <button type="submit" form="user-modal-form" className="btn btn-primary">{showCreateForm ? 'Crear' : 'Guardar'}</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showInfoModal && ReactDOM.createPortal(
+        <div className="modal-overlay" onClick={() => setShowInfoModal(false)}>
+          <div className="modal info-modal fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3>Estructura Jerárquica del Sistema</h3>
+              <button className="close-btn" onClick={() => setShowInfoModal(false)}>×</button>
+            </div>
+            <div className="modal-content hierarchy-explainer" style={{ padding: '24px', overflowY: 'auto' }}>
+              <div className="hierarchy-tree-viz">
+                <div className="viz-item viz-admin">
+                  <div className="viz-box"><Shield size={16} /> Administrador</div>
+                  <div className="viz-connector-v"></div>
+                  
+                  <div className="viz-group">
+                    <div className="viz-item viz-intendente">
+                      <div className="viz-box"><User size={16} /> Candidato a Intendente</div>
+                      <div className="viz-connector-v"></div>
+                      
+                      <div className="viz-row-group">
+                        <div className="viz-item">
+                          <div className="viz-box viz-sub-box"><Users size={14} /> Referentes Int.</div>
+                        </div>
+                        <div className="viz-item">
+                          <div className="viz-box viz-sub-box"><User size={14} /> Concejales</div>
+                          <div className="viz-connector-v"></div>
+                          <div className="viz-item">
+                            <div className="viz-box viz-sub-sub-box"><Users size={12} /> Referentes Conc.</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="viz-divider"></div>
+                      
+                      <div className="viz-row-group operative-group">
+                        <div className="viz-item">
+                          <div className="viz-box viz-op-box"><Car size={14} /> Choferes</div>
+                        </div>
+                        <div className="viz-item">
+                          <div className="viz-box viz-op-box"><Eye size={14} /> Veedores</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="hierarchy-text-notes" style={{ marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '8px' }}>
+                  <strong>Lógica de Visibilidad:</strong>
+                </p>
+                <ul style={{ fontSize: '0.8rem', color: '#64748b', paddingLeft: '20px' }}>
+                  <li>Los superiores ven TODOS los datos de sus subordinados.</li>
+                  <li>Los subordinados solo ven sus propios datos.</li>
+                  <li>Los referentes de un mismo superior no ven datos entre sí.</li>
+                  <li>Choferes y Veedores son personal operativo subordinado a quien los creó.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-actions" style={{ padding: '16px 24px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={() => setShowInfoModal(false)}>Entendido</button>
             </div>
           </div>
         </div>,
