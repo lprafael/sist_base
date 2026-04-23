@@ -131,6 +131,13 @@ const ChoferGestion = ({ user }) => {
 
             {showForm && (
                 <form className="chofer-form" onSubmit={handleSubmit}>
+                    <div className="form-avatar-section">
+                        <img src="/imagenes/chofer_placeholder.png" alt="Chofer" className="chofer-form-avatar" />
+                        <div>
+                            <h3 style={{ margin: 0, color: '#1e293b' }}>Registro de Nuevo Chofer</h3>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Complete los datos para habilitar el seguimiento en tiempo real.</p>
+                        </div>
+                    </div>
                     <div className="form-grid">
                         <div className="form-group">
                             <label>Nombre Completo</label>
