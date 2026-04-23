@@ -105,13 +105,22 @@ async def create_chofer(
     if user_role not in ["admin", "intendente", "concejal"]:
         raise HTTPException(status_code=403, detail="No tienes permisos para crear choferes")
 
+    # Asegurar que los IDs territoriales sean enteros o None (evitar error de asyncpg con strings vacíos)
+    def to_int(v):
+        if v is None or v == "":
+            return None
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return None
+
     nuevo_chofer = Chofer(
         nombre=data.get("nombre"),
         telefono=data.get("telefono"),
         vehiculo_info=data.get("vehiculo_info"),
         token_seguimiento=str(uuid.uuid4()),
-        departamento_id=data.get("departamento_id"),
-        distrito_id=data.get("distrito_id"),
+        departamento_id=to_int(data.get("departamento_id")),
+        distrito_id=to_int(data.get("distrito_id")),
         creado_por=user_id,
         activo=True
     )
@@ -137,8 +146,16 @@ async def update_tracking(data: Dict[str, Any], session: AsyncSession = Depends(
     if not chofer:
         raise HTTPException(status_code=404, detail="Chofer no encontrado")
         
-    chofer.latitud = lat
-    chofer.longitud = lng
+    def to_float(v):
+        if v is None or v == "":
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    chofer.latitud = to_float(lat)
+    chofer.longitud = to_float(lng)
     chofer.ultima_conexion = datetime.now(timezone.utc)
     
     await session.commit()
@@ -437,9 +454,17 @@ async def asignar_veedor(
     
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        
-    user.veedor_local_id = local_id
-    user.veedor_seccional_id = seccional_id
+
+    def to_int(v):
+        if v is None or v == "":
+            return None
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return None
+
+    user.veedor_local_id = to_int(local_id)
+    user.veedor_seccional_id = to_int(seccional_id)
     user.veedor_mesas = mesas
     
     await session.commit()
