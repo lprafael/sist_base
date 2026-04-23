@@ -186,7 +186,7 @@ function MobileBottomNav({ tab, setTab, user, menuGroups, onLogout }) {
   const quickItems = [
     { id: 'captacion', label: 'Captación', icon: '🗳️' },
     { id: 'tablero',   label: 'Tablero',   icon: '📈' },
-    { id: 'logistica', label: 'Logística', icon: '🚗', roles: ['admin','intendente'] },
+    { id: 'logistica', label: 'Logística', icon: '🚗', roles: ['admin','intendente', 'concejal'] },
   ].filter(item => !item.roles || item.roles.includes(user.rol));
 
   const handleQuickNav = (id) => {
@@ -335,8 +335,8 @@ function MainDashboard({ user, onLogout }) {
     {
       title: "Logística", // Segundo subgrupo de Gestión Electoral
       items: [
-        { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente'] },
-        { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente'] },
+        { id: 'logistica', label: 'Logística Día D', icon: '🚗', roles: ['admin', 'intendente', 'concejal'] },
+        { id: 'choferes', label: 'Gestión de Choferes', icon: '📇', roles: ['admin', 'intendente', 'concejal'] },
         { id: 'veedores', label: 'Gestión de Veedores', icon: '👥', roles: ['admin', 'intendente', 'concejal'] },
         { id: 'veedor_panel', label: 'Mi Mesa (Veedor)', icon: '📋', roles: ['admin', 'intendente', 'concejal', 'referente'] },
         { id: 'escrutinio_dia_d', label: 'Escrutinio Día D', icon: '🗳️', roles: ['admin', 'intendente', 'concejal'] },
@@ -433,8 +433,8 @@ function MainDashboard({ user, onLogout }) {
             {tab === "geografia" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <GeoDashboard user={user} />}
             {tab === "analisis_historico" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <HistoricalAnalysis user={user} />}
             {tab === "padron_impresion" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <PadronImpresion user={user} />}
-            {tab === "logistica" && ['admin', 'intendente'].includes(user.rol) && <LogisticaControlPanel user={user} />}
-            {tab === "choferes" && ['admin', 'intendente'].includes(user.rol) && <ChoferGestion user={user} />}
+            {tab === "logistica" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <LogisticaControlPanel user={user} />}
+            {tab === "choferes" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <ChoferGestion user={user} />}
             {tab === "veedores" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <VeedorGestion user={user} />}
             {tab === "veedor_panel" && ['admin', 'intendente', 'concejal', 'referente'].includes(user.rol) && <VeedorLocalPanel user={user} />}
             {tab === "padron_plra" && ['admin', 'intendente', 'concejal'].includes(user.rol) && <PlraPadronConsult />}

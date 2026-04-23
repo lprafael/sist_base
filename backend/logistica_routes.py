@@ -29,9 +29,14 @@ async def list_choferes(
     if user_role == "referente":
         return []
 
-    # Obtener usuarios subordinados
-    visible_user_ids = await get_visible_user_ids(user_id, user_role, session)
-    visible_user_ids.append(user_id)
+    # Obtener IDs de usuarios visibles según jerarquía
+    if user_role == "concejal":
+        # Concejales solo ven sus propios choferes (según requerimiento: "concejales solo sus choferes")
+        visible_user_ids = [user_id]
+    else:
+        # Admin e Intendente ven sus propios choferes + los de sus subordinados
+        visible_user_ids = await get_visible_user_ids(user_id, user_role, session)
+        visible_user_ids.append(user_id)
     
     # Query con JOIN para traer el nombre del creador
     stmt = (

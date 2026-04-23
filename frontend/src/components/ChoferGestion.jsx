@@ -196,8 +196,15 @@ const ChoferGestion = ({ user }) => {
                                         </td>
                                         <td>{c.vehiculo_info}</td>
                                         <td>
-                                            <span className="owner-badge" style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                                {c.creador_nombre || 'Sistema'}
+                                            <span className="owner-badge" style={{ 
+                                                fontSize: '0.8rem', 
+                                                padding: '2px 8px',
+                                                borderRadius: '4px',
+                                                background: c.creado_por === (user.user_id || user.id) ? '#dcfce7' : '#f1f5f9',
+                                                color: c.creado_por === (user.user_id || user.id) ? '#166534' : '#64748b',
+                                                fontWeight: '600'
+                                            }}>
+                                                {c.creado_por === (user.user_id || user.id) ? '👤 Propio' : `👥 ${c.creador_nombre || 'Sistema'}`}
                                             </span>
                                         </td>
                                         <td>
