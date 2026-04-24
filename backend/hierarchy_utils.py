@@ -76,14 +76,8 @@ async def get_visible_referente_ids(user_id: int, user_role: str, session: Async
 
 async def get_visible_user_ids(user_id: int, user_role: str, session: AsyncSession) -> list[int]:
     """
-    Retorna los IDs de usuarios visibles en el listado según el rol.
-
-    - admin:      todos
-    - intendente: sus concejales + sus referentes directos + referentes de sus concejales
-    - concejal:   sus referentes directos
-    - referente:   nadie (no puede ver otros usuarios)
+    Retorna los IDs de usuarios visibles en el listado según el rol y la jerarquía política (tabla Referente).
     """
-    # Sanitizar el rol para comparación robusta
     clean_role = user_role.lower().strip() if user_role else ""
     
     if clean_role == "admin":
@@ -93,26 +87,67 @@ async def get_visible_user_ids(user_id: int, user_role: str, session: AsyncSessi
     if clean_role == "referente":
         return []
 
-    # Mis subordinados directos
-    res_direct = await session.execute(
+    # 1. Obtener mi ID en la tabla de referentes
+    res_me = await session.execute(
+        select(Referente.id).where(Referente.id_usuario_sistema == user_id)
+    )
+    my_ref_id = res_me.scalar_one_or_none()
+
+    # 2. Obtener subordinados directos por Referente (jerarquía política)
+    direct_ids = []
+    if my_ref_id:
+        res_direct = await session.execute(
+            select(Usuario.id).where(
+                Usuario.id == Referente.id_usuario_sistema,
+                Referente.id_superior == my_ref_id
+            )
+        )
+        direct_ids = [r[0] for r in res_direct.all()]
+    
+    # 3. Fallback/Complemento: Subordinados por creado_por (jerarquía de sistema)
+    res_system = await session.execute(
         select(Usuario.id).where(Usuario.creado_por == user_id)
     )
-    direct_ids = [r[0] for r in res_direct.all()]
+    system_ids = [r[0] for r in res_system.all()]
+    
+    # Combinar ambas listas (evitando duplicados)
+    all_direct_ids = list(set(direct_ids + system_ids))
 
     if clean_role == "concejal":
-        return direct_ids
+        return all_direct_ids
 
     if clean_role == "intendente":
-        # Subordinados de segundo nivel (referentes de mis concejales)
+        # Para el intendente, también incluimos el segundo nivel (referentes de sus concejales)
         lv2_ids = []
-        if direct_ids:
-            res_lv2 = await session.execute(
-                select(Usuario.id).where(Usuario.creado_por.in_(direct_ids))
+        
+        # Primero por jerarquía de referentes
+        if my_ref_id:
+            # Usuarios cuyo superior tiene como superior a mí (Nivel 2 político)
+            # Buscamos referentes cuyo superior_id esté en la lista de IDs de referentes de mis subordinados directos
+            res_sub_refs = await session.execute(
+                select(Referente.id).where(Referente.id_usuario_sistema.in_(all_direct_ids))
             )
-            lv2_ids = [r[0] for r in res_lv2.all()]
-        return direct_ids + lv2_ids
+            sub_ref_ids = [r[0] for r in res_sub_refs.all()]
+            
+            if sub_ref_ids:
+                res_lv2_pol = await session.execute(
+                    select(Usuario.id).where(
+                        Usuario.id == Referente.id_usuario_sistema,
+                        Referente.id_superior.in_(sub_ref_ids)
+                    )
+                )
+                lv2_ids += [r[0] for r in res_lv2_pol.all()]
 
-    return direct_ids
+        # También por jerarquía de sistema (creado_por de mis subordinados)
+        if all_direct_ids:
+            res_lv2_sys = await session.execute(
+                select(Usuario.id).where(Usuario.creado_por.in_(all_direct_ids))
+            )
+            lv2_ids += [r[0] for r in res_lv2_sys.all()]
+            
+        return list(set(all_direct_ids + lv2_ids))
+
+    return all_direct_ids
 
 
 def inherit_territory(creator_user: dict, target_role: str, user_data_dict: dict) -> dict:
