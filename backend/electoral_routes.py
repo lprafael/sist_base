@@ -378,46 +378,22 @@ async def get_cercanias_padron(
         )
     ).where(AnrPadron.cedula != base.cedula)
 
-    criterios = []
-    
-    # 1) Cédulas contiguas (Rango de +/- 3) - Usamos trim para asegurar el match
-    if cedula_int:
-        cedulas_busqueda = [str(cedula_int + i) for i in range(-3, 4) if i != 0]
-        criterios.append(
-            func.trim(AnrPadron.cedula).in_(cedulas_busqueda)
-        )
-    
-    # 2) Apellidos idénticos (Mismo distrito, ignorando espacios/acentos)
-    if apellidos_original:
-        criterios.append(
+    # Filtro estricto solicitado: Mismos apellidos Y CI cercana (+/- 5)
+    if cedula_int and apellidos_original:
+        cedulas_rango = [str(cedula_int + i) for i in range(-5, 6) if i != 0]
+        stmt = stmt.where(
             and_(
-                AnrPadron.distrito == base.distrito,
+                func.trim(AnrPadron.cedula).in_(cedulas_rango),
                 func.public.f_unaccent(func.trim(AnrPadron.apellidos)).ilike(
                     func.public.f_unaccent(func.trim(apellidos_original))
                 )
             )
         )
-    
-    # 3) Direcciones similares
-    if direccion_original and len(direccion_original) > 6:
-        # Buscamos coincidencias de los primeros 12 caracteres significativos
-        prefix = direccion_original[:12]
-        criterios.append(
-            and_(
-                AnrPadron.distrito == base.distrito,
-                AnrPadron.direccion.ilike(f"%{prefix}%")
-            )
-        )
-    
-    # Criterio base: Misma Mesa
-    criterios.append(
-        and_(
-            AnrPadron.local == base.local,
-            AnrPadron.mesa == base.mesa
-        )
-    )
+    else:
+        # Si no hay datos suficientes, no devolvemos nada para mantener la restricción
+        return []
 
-    stmt = stmt.where(and_(func.trim(AnrPadron.cedula) != base.cedula.strip(), or_(*criterios))).limit(60)
+    stmt = stmt.limit(60)
     result = await session.execute(stmt)
     return [dict(r._mapping) for r in result.all()]
 

@@ -23,6 +23,7 @@ import VeedorLocalPanel from "./components/VeedorLocalPanel.jsx";
 import InteligenciaTerritorial from "./components/InteligenciaTerritorial.jsx";
 import FinanciamientoPolitico from "./components/FinanciamientoPolitico.jsx";
 import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
+import ChoferScanner from "./components/ChoferScanner.jsx";
 
 const TermsAcceptanceModal = ({ onAccept, onLogout }) => {
   return (
@@ -542,6 +543,7 @@ export default function App() {
         />
         <Route path="/candidato/:slug" element={<CandidatePublicPage />} />
         <Route path="/chofer/:token" element={<ChoferTracking />} />
+        <Route path="/scan-chofer" element={<ChoferScanner />} />
         {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

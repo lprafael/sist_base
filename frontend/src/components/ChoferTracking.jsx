@@ -10,6 +10,7 @@ const ChoferTracking = () => {
     const [status, setStatus] = useState('Iniciando...');
     const [coords, setCoords] = useState(null);
     const [installPrompt, setInstallPrompt] = useState(null);
+    const [isTracking, setIsTracking] = useState(false);
     const watchId = useRef(null);
 
     useEffect(() => {
@@ -22,8 +23,8 @@ const ChoferTracking = () => {
 
     const validateToken = async () => {
         try {
-            // Reutilizamos el endpoint de update para validar
-            const res = await fetch(`/api/logistica/tracking/update`, {
+            const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+            const res = await fetch(`${API_BASE_URL}/api/logistica/tracking/update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, lat: 0, lng: 0 })
@@ -43,36 +44,105 @@ const ChoferTracking = () => {
         }
     };
 
-    const startTracking = () => {
-        if ("geolocation" in navigator) {
-            watchId.current = navigator.geolocation.watchPosition(
-                (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    setCoords({ lat: latitude, lng: longitude });
-                    sendLocation(latitude, longitude);
-                    setStatus('📡 Transmitiendo ubicación...');
-                },
-                (err) => {
-                    setStatus('❌ Error GPS: Habilita la ubicación.');
-                },
-                { enableHighAccuracy: true, maximumAge: 10000 }
-            );
-        } else {
-            setStatus('GPS no disponible en este dispositivo.');
+    const startTracking = async () => {
+        try {
+            // Intentar usar Capacitor Background Geolocation si está disponible
+            let BackgroundNavigation;
+            try {
+                const mod = await import('@capacitor-community/background-geolocation');
+                BackgroundNavigation = mod.BackgroundGeolocation;
+            } catch (e) {
+                console.log("Background Geolocation not available, falling back to standard");
+            }
+
+            if (BackgroundNavigation) {
+                // Configuración para tracking permanente (Día D)
+                const watcherId = await BackgroundNavigation.addWatcher(
+                    {
+                        backgroundMessage: "SIGEL está transmitiendo tu ubicación para la logística.",
+                        backgroundTitle: "Seguimiento Activo",
+                        requestPermissions: true,
+                        stale: false,
+                        distanceFilter: 10 // metros
+                    },
+                    (location, error) => {
+                        if (error) {
+                            console.error(error);
+                            return;
+                        }
+                        if (location) {
+                            setCoords({ lat: location.latitude, lng: location.longitude });
+                            sendLocation(location.latitude, location.longitude);
+                            setStatus('📡 Transmitiendo (Segundo Plano)');
+                        }
+                    }
+                );
+                watchId.current = watcherId;
+                setIsTracking(true);
+            } else if ("geolocation" in navigator) {
+                // Fallback a Web Geolocation
+                watchId.current = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        setCoords({ lat: latitude, lng: longitude });
+                        sendLocation(latitude, longitude);
+                        setStatus('📡 Transmitiendo ubicación...');
+                    },
+                    (err) => {
+                        setStatus('❌ Error GPS: Habilita la ubicación.');
+                    },
+                    { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+                );
+                setIsTracking(true);
+            } else {
+                setStatus('GPS no disponible en este dispositivo.');
+            }
+        } catch (err) {
+            console.error("Error starting tracking:", err);
+            setStatus('Error al iniciar GPS.');
+        }
+    };
+
+    const stopTracking = async () => {
+        if (!watchId.current) return;
+
+        try {
+            let BackgroundNavigation;
+            try {
+                const mod = await import('@capacitor-community/background-geolocation');
+                BackgroundNavigation = mod.BackgroundGeolocation;
+            } catch(e) {}
+
+            if (BackgroundNavigation && typeof watchId.current === 'string') {
+                await BackgroundNavigation.removeWatcher({ id: watchId.current });
+            } else if (typeof watchId.current === 'number') {
+                navigator.geolocation.clearWatch(watchId.current);
+            }
+            watchId.current = null;
+            setIsTracking(false);
+            setStatus('🛑 Seguimiento detenido.');
+        } catch (err) {
+            console.error("Error stopping tracking:", err);
         }
     };
 
     const sendLocation = async (lat, lng) => {
-        await fetch(`/api/logistica/tracking/update`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, lat, lng })
-        });
+        const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+        try {
+            await fetch(`${API_BASE_URL}/api/logistica/tracking/update`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, lat, lng })
+            });
+        } catch (e) {
+            console.error("Error sending location", e);
+        }
     };
 
     const fetchVotantes = async () => {
         try {
-            const res = await fetch(`/api/logistica/tracking/votantes?token=${token}`);
+            const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+            const res = await fetch(`${API_BASE_URL}/api/logistica/tracking/votantes?token=${token}`);
             if (res.ok) {
                 const data = await res.json();
                 setVotantes(data);
@@ -83,7 +153,8 @@ const ChoferTracking = () => {
     };
 
     const marcarTraslado = async (vid) => {
-        const res = await fetch(`/api/logistica/marcar-traslado`, {
+        const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+        const res = await fetch(`${API_BASE_URL}/api/logistica/marcar-traslado`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, votante_id: vid })
@@ -95,7 +166,8 @@ const ChoferTracking = () => {
     };
 
     const marcarDestino = async (vid) => {
-        const res = await fetch(`/api/logistica/marcar-destino`, {
+        const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+        const res = await fetch(`${API_BASE_URL}/api/logistica/marcar-destino`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, votante_id: vid })
@@ -108,7 +180,8 @@ const ChoferTracking = () => {
 
     const cancelarTraslado = async (vid) => {
         if (!window.confirm("¿Seguró que deseas cancelar este traslado? El votante volverá a estar pendiente.")) return;
-        const res = await fetch(`/api/logistica/cancelar-traslado`, {
+        const API_BASE_URL = import.meta.env.VITE_REACT_APP_API_URL || '';
+        const res = await fetch(`${API_BASE_URL}/api/logistica/cancelar-traslado`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, votante_id: vid })
@@ -178,7 +251,12 @@ const ChoferTracking = () => {
                 <section className="location-card">
                     <h3>Mi Ubicación</h3>
                     {coords ? (
-                        <p>{coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</p>
+                        <>
+                            <p>{coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</p>
+                            <button className="btn-stop-tracking" onClick={isTracking ? stopTracking : startTracking}>
+                                {isTracking ? "🛑 Detener Seguimiento" : "📡 Iniciar Seguimiento"}
+                            </button>
+                        </>
                     ) : (
                         <p>Buscando GPS...</p>
                     )}
@@ -252,6 +330,8 @@ const ChoferTracking = () => {
                 .btn-cancel:hover { background: #fecaca;}
                 .btn-install-app { background: #2b6cb0; color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: 700; cursor: pointer; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; }
                 .btn-install-app:hover { background: #2c5282; }
+                .btn-stop-tracking { background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; width: 100%; }
+                .btn-stop-tracking:hover { background: #c53030; }
                 .status-label { font-size: 0.8rem; color: #b7791f; font-weight: 600; }
                 .status-label.delivered { color: #2f855a; }
                 .empty-state { text-align: center; color: #999; padding-top: 50px; }

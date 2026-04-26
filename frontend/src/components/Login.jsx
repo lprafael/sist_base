@@ -198,6 +198,13 @@ const Login = ({ onLogin }) => {
               locale="es"
             />
           </div>
+
+          <div style={{ marginTop: '20px' }}>
+            <Link to="/scan-chofer" className="driver-access-btn">
+              <span className="icon">🚕</span>
+              Soy Chofer - Escanear QR
+            </Link>
+          </div>
         </form>
 
         <div className="login-footer">

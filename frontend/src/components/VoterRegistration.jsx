@@ -615,54 +615,23 @@ const VoterRegistration = () => {
                                 const baseCedula = parseInt(baseVoter.cedula_votante);
                                 const baseApellidos = (baseVoter.apellido_votante || "").toLowerCase().trim();
 
-                                // 1) Parientes por Cédula Contigua
-                                const parientesCedula = cercaniasResults.filter(p => {
+                                // Con la nueva lógica, todos los resultados del backend son parientes directos (+/- 5 y mismos apellidos)
+                                const sugerencias = cercaniasResults.filter(p => {
                                     const pCedula = parseInt(p.cedula);
-                                    if (isNaN(pCedula) || isNaN(baseCedula)) return false;
-                                    return Math.abs(pCedula - baseCedula) <= 3 && pCedula !== baseCedula;
+                                    return pCedula !== baseCedula;
                                 });
-
-                                // 2) Parientes por Apellido Idéntico
-                                const parientesApellido = cercaniasResults.filter(p => {
-                                    const pApellidos = (p.apellidos || "").toLowerCase().trim();
-                                    return pApellidos === baseApellidos &&
-                                        !parientesCedula.some(pc => pc.cedula === p.cedula);
-                                });
-
-                                // 3) Vecinos por Dirección o Mesa (el resto)
-                                const vecinos = cercaniasResults.filter(p =>
-                                    !parientesCedula.some(pc => pc.cedula === p.cedula) &&
-                                    !parientesApellido.some(pa => pa.cedula === p.cedula)
-                                );
 
                                 return (
                                     <>
-                                        {parientesCedula.length > 0 && (
+                                        {sugerencias.length > 0 ? (
                                             <div className="cerca-section">
-                                                <h4>👨‍👩‍👧 Parientes por C.I. (Contiguos)</h4>
+                                                <h4>👨‍👩‍👧 Familiares Directos (Mismo Apellido y C.I. Cercana)</h4>
                                                 <div className="cerca-results-list">
-                                                    {parientesCedula.map(p => renderCercaItem(p, 'Familia Directa'))}
+                                                    {sugerencias.map(p => renderCercaItem(p, 'Familia Directa'))}
                                                 </div>
                                             </div>
-                                        )}
-                                        {parientesApellido.length > 0 && (
-                                            <div className="cerca-section">
-                                                <h4>👥 Posibles Parientes (Mismos Apellidos)</h4>
-                                                <div className="cerca-results-list">
-                                                    {parientesApellido.map(p => renderCercaItem(p, 'Pariente'))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {vecinos.length > 0 && (
-                                            <div className="cerca-section">
-                                                <h4>🏠 Vecinos (Ubicación o Mesa Cercana)</h4>
-                                                <div className="cerca-results-list">
-                                                    {vecinos.map(p => renderCercaItem(p, 'Vecino'))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {cercaniasResults.length === 0 && (
-                                            <div className="empty-state">No se encontraron parientes o vecinos cercanos en el padrón.</div>
+                                        ) : (
+                                            <div className="empty-state">No se encontraron familiares directos con cédulas contiguas en el padrón.</div>
                                         )}
                                     </>
                                 );

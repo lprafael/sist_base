@@ -220,3 +220,30 @@
   display: flex;
   justify-content: center;
 }
+
+.driver-access-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  background: #0f172a; /* Dark sleek color */
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.2);
+}
+
+.driver-access-btn:hover {
+  background: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.3);
+}
+
+.driver-access-btn .icon {
+  font-size: 1.4rem;
+}
