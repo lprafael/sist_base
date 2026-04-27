@@ -33,7 +33,7 @@ services:
     image: mi-playa-backend:prod
     container_name: mi-playa-backend
     ports:
-      - "${BACKEND_HOST_PORT:-8002}:8001"
+      - "${BACKEND_HOST_PORT:-8004}:8001"
     environment:
       - PORT=8001
       - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-mi_playa}
@@ -60,7 +60,7 @@ services:
     image: mi-playa-frontend:prod
     container_name: mi-playa-frontend
     ports:
-      - "${FRONTEND_HOST_PORT:-3002}:80"
+      - "${FRONTEND_HOST_PORT:-3004}:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -81,7 +81,7 @@ services:
     image: mi-playa-public-catalog:prod
     container_name: mi-playa-public
     ports:
-      - "${PUBLIC_CATALOG_HOST_PORT:-3003}:80"
+      - "${PUBLIC_CATALOG_HOST_PORT:-3005}:80"
     depends_on:
       - backend
     restart: unless-stopped
