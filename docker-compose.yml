@@ -3,6 +3,24 @@
 # Frontend: http://localhost:3002  |  API: http://localhost:8002
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: mi-playa-db
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-mi_playa}
+    volumes:
+      - mi_playa_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - mi-playa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-mi_playa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -12,8 +30,12 @@ services:
       - "8004:8001"
     environment:
       - PORT=8001
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-mi_playa}
     env_file:
       - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
@@ -65,3 +87,8 @@ services:
 networks:
   mi-playa-network:
     driver: bridge
+
+volumes:
+  mi_playa_db_data:
+  mi_playa_logs:
+  mi_playa_uploads:
