@@ -303,7 +303,6 @@ export default function App() {
     {
       title: "Parámetros",
       items: [
-        { id: "categorias_playa", label: "Categorías(Veh.)", icon: "🏷️", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "config_calificaciones_playa", label: "Calif.(clientes)", icon: "⭐", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "tipos_gastos_empresa_playa", label: "Tipos Gastos Empresa", icon: "🏢", roles: ['admin', 'manager'] },
         { id: "tipos_gastos_productos_playa", label: "Tipos Gastos Productos", icon: "🛠️", roles: ['admin', 'manager'] },
@@ -338,6 +337,7 @@ export default function App() {
       icon: "⚙️",
       items: [
         { id: 'pg_tipos_vehiculos', label: 'Tipos de vehículos', icon: '🚙', roles: ['admin'] },
+        { id: 'pg_categorias', label: 'Categorías (Veh.)', icon: '🏷️', roles: ['admin'] },
         { id: 'pg_marcas', label: 'Marcas', icon: '🏷️', roles: ['admin'] },
         { id: 'pg_modelos', label: 'Modelos', icon: '📋', roles: ['admin'] },
         { id: 'pg_escribanias', label: 'Escribanías', icon: '⚖️', roles: ['admin'] },
@@ -459,7 +459,6 @@ export default function App() {
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}
             {tab === "dashboard_playa" && <DashboardPlaya />}
-            {tab === "categorias_playa" && <CategoriasPlaya setTab={setTab} setPreselectedCategoryId={setPreselectedCategoryId} />}
             {tab === "config_calificaciones_playa" && <ConfigCalificacionesPlaya setTab={setTab} setPreselectedCalificacion={setPreselectedCalificacion} />}
             {tab === "tipos_gastos_empresa_playa" && <TiposGastosEmpresa />}
             {tab === "tipos_gastos_productos_playa" && <TiposGastosProductos />}
@@ -489,6 +488,7 @@ export default function App() {
             {tab === "gastos_adicionales" && <GastosAdicionales />}
             {tab === "escribanias_playa" && <EscribaniasPlaya />}
             {user.rol === 'admin' && tab === "pg_tipos_vehiculos" && <CatalogoTiposVehiculo />}
+            {user.rol === 'admin' && tab === "pg_categorias" && <CategoriasPlaya />}
             {user.rol === 'admin' && tab === "pg_marcas" && <CatalogoMarcas />}
             {user.rol === 'admin' && tab === "pg_modelos" && <CatalogoModelos />}
             {user.rol === 'admin' && tab === "pg_escribanias" && <EscribaniasPlaya />}

@@ -425,7 +425,16 @@ const GastosVehiculo = () => {
 
                         <div className="existing-types" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
                             <h4>Conceptos Existentes</h4>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                            <div style={{ 
+                                display: 'flex', 
+                                flexWrap: 'wrap', 
+                                gap: '5px', 
+                                maxHeight: '200px', 
+                                overflowY: 'auto', 
+                                padding: '10px',
+                                background: '#f8fafc',
+                                borderRadius: '8px'
+                            }}>
                                 {tiposGastos.map(t => (
                                     <span key={t.id_tipo_gasto} className="type-badge">{t.nombre}</span>
                                 ))}
