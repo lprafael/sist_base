@@ -203,6 +203,32 @@ async def persist_imagenes_desde_uploads(
 
     return new_records
 
+@router.get("/mi-playa")
+async def get_mi_playa_info(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtiene la información de la playa vinculada al usuario actual."""
+    id_playa = current_user.get("id_playa")
+    if not id_playa:
+        raise HTTPException(status_code=400, detail="El usuario no tiene una playa vinculada.")
+    
+    res = await session.execute(select(Playa).where(Playa.id == id_playa))
+    playa = res.scalar_one_or_none()
+    
+    if not playa:
+        raise HTTPException(status_code=404, detail="Información de playa no encontrada.")
+    
+    return {
+        "id": playa.id,
+        "nombre": playa.nombre,
+        "razon_social": playa.razon_social,
+        "ruc": playa.ruc,
+        "direccion": playa.direccion,
+        "telefono": playa.telefono,
+        "email": playa.email
+    }
+
 @router.get("/vehiculos/top-vendidos")
 async def get_top_vendidos(
     id_playa: int = Query(..., description="ID de la playa (catálogo público por tenant)"),

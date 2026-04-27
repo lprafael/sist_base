@@ -17,6 +17,7 @@ const ReportesPlaya = () => {
     const [vistaStock, setVistaStock] = useState('administracion'); // 'administracion' o 'vendedor'
     const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
     const [filtroTipoExtracto, setFiltroTipoExtracto] = useState('AMBOS'); // 'AMBOS', 'INGRESO', 'EGRESO'
+    const [playaInfo, setPlayaInfo] = useState(null);
     const [ordenStock, setOrdenStock] = useState({ campo: 'vehiculo', direccion: 'asc' });
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
@@ -59,6 +60,19 @@ const ReportesPlaya = () => {
     }, [datos, ordenStock, reporteSeleccionado]);
 
     useEffect(() => {
+        const fetchPlayaInfo = async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/mi-playa`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPlayaInfo(res.data);
+            } catch (error) {
+                console.error('Error fetching playa info:', error);
+            }
+        };
+        fetchPlayaInfo();
+
         const timer = setInterval(() => {
             setHoraEmision(new Date().toLocaleTimeString('es-PY'));
         }, 1000);
@@ -325,10 +339,10 @@ const ReportesPlaya = () => {
                     <div className="header-left">
                         <img src="/imágenes/Logo_oficial2.jpg" alt="Logo" className="report-logo" />
                         <div className="company-info">
-                            <h2 className="company-name">PERALTA AUTOMOTORES</h2>
-                            <p>Ingavi, Fernando de la Mora</p>
-                            <p>RUC: 2349334-8</p>
-                            <p>Correo: peraltaautomotores@gmail.com</p>
+                            <h2 className="company-name">{playaInfo?.razon_social || playaInfo?.nombre || 'Cargando...'}</h2>
+                            <p>{playaInfo?.direccion || ''}</p>
+                            <p>RUC: {playaInfo?.ruc || ''}</p>
+                            <p>Correo: {playaInfo?.email || ''}</p>
                         </div>
                     </div>
                     <div className="header-right">
