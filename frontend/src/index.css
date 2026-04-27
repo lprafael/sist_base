@@ -217,6 +217,15 @@ body {
   max-height: 500px;
 }
 
+.category-items.standalone {
+  max-height: none;
+  opacity: 1;
+  pointer-events: auto;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
 .category-items.collapsed {
   max-height: 0;
   opacity: 0;

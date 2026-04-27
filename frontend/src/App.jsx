@@ -263,10 +263,16 @@ export default function App() {
 
   const baseMenuGroups = [
     {
+      title: "Dashboard",
+      isStandalone: true,
+      items: [
+        { id: "dashboard_playa", label: "Dashboard", icon: "📊", roles: ['admin', 'manager', 'user', 'viewer'] },
+      ]
+    },
+    {
       title: "Playa de Vehículos",
       icon: "🚗",
       items: [
-        { id: "dashboard_playa", label: "Dashboard", icon: "📊", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "inventario", label: "Inventario", icon: "🚙", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "imagenes_productos", label: "Imágenes de Vehículos", icon: "📸", roles: ['admin', 'manager', 'user', 'viewer'] },
         { id: "documentos_importacion", label: "Documentos Importación", icon: "📄", roles: ['admin', 'manager', 'user', 'viewer'] },
@@ -399,15 +405,17 @@ export default function App() {
 
               return (
                 <div key={gIdx} className="sidebar-category">
-                  <div
-                    className="category-title"
-                    onClick={() => toggleCategory(group.title)}
-                  >
-                    <span>{group.title}</span>
-                    <span className={`category-arrow ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
-                  </div>
+                  {!group.isStandalone && (
+                    <div
+                      className="category-title"
+                      onClick={() => toggleCategory(group.title)}
+                    >
+                      <span>{group.title}</span>
+                      <span className={`category-arrow ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
+                    </div>
+                  )}
 
-                  <div className={`category-items ${isCollapsed ? 'collapsed' : ''}`}>
+                  <div className={`category-items ${group.isStandalone ? 'standalone' : (isCollapsed ? 'collapsed' : '')}`}>
                     {visibleItems.map(item => (
                       <button
                         key={item.id}
