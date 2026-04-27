@@ -1129,7 +1129,7 @@ const CobrosPlaya = () => {
         <div class="header-left">
             <img 
                 src="${playaInfo?.logo ? 
-                    (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+                    (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${API_URL.replace('/api', '')}${playaInfo.logo}`) 
                     : "/imágenes/Logo_oficial2.jpg"}" 
                 alt="Logo" 
                 class="report-logo" 

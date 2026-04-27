@@ -354,7 +354,7 @@ const DashboardPlaya = () => {
         <div class="header">
             <img 
                 src="${playaInfo?.logo ? 
-                    (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+                    (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${API_URL.replace('/api', '')}${playaInfo.logo}`) 
                     : "/imágenes/Logo_actualizado2.png"}" 
                 alt="${playaInfo?.nombre || "Logo"}" 
                 class="header-logo" 

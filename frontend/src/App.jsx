@@ -61,7 +61,7 @@ function CabeceradePagina({ user, playaInfo, onLogout, onToggleSidebar, isSideba
         )}
         <img
           src={playaInfo?.logo ? 
-            (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+            (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${import.meta.env.VITE_REACT_APP_API_URL?.replace('/api', '') || ''}${playaInfo.logo}`) 
             : "/imágenes/Logo_actualizado2.png"}
           alt={playaInfo?.nombre || "Peralta Automotores"}
           className="header-logo"
