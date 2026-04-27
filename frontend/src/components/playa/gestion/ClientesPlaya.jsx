@@ -584,10 +584,10 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
 <body>
     <div class="header">
         <img 
-            src={playaInfo?.logo ? 
+            src="${playaInfo?.logo ? 
                 (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
-                : "/imágenes/Logo_actualizado2.png"} 
-            alt={playaInfo?.nombre || "Logo"} 
+                : "/imágenes/Logo_actualizado2.png"}" 
+            alt="${playaInfo?.nombre || "Logo"}" 
             class="header-logo" 
             onerror="this.src='/imágenes/Logo_actualizado2.png'"
         />

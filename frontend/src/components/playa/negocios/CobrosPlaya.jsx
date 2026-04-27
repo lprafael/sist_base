@@ -1128,9 +1128,9 @@ const CobrosPlaya = () => {
     <div class="report-header-formal">
         <div class="header-left">
             <img 
-                src={playaInfo?.logo ? 
+                src="${playaInfo?.logo ? 
                     (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
-                    : "/imágenes/Logo_oficial2.jpg"} 
+                    : "/imágenes/Logo_oficial2.jpg"}" 
                 alt="Logo" 
                 class="report-logo" 
                 onerror="this.src='/imágenes/Logo_oficial2.jpg'"
