@@ -253,7 +253,7 @@ const PlayaManagement = () => {
                 <td style={{ fontWeight: 600 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {playa.logo ? (
-                      <img src={playa.logo} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'contain', background: '#f8fafc' }} />
+                      <img src={playa.logo.startsWith('http') ? playa.logo : `${window.location.origin.replace(':3004', ':8001')}${playa.logo}`} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'contain', background: '#f8fafc' }} />
                     ) : (
                       <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>🏢</div>
                     )}

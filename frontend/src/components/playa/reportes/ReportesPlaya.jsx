@@ -338,7 +338,7 @@ const ReportesPlaya = () => {
                 <div className="report-header-formal">
                     <div className="header-left">
                         <img 
-                            src={playaInfo?.logo || "/imágenes/Logo_oficial2.jpg"} 
+                            src={playaInfo?.logo ? `${API_URL.replace('/api', '')}${playaInfo.logo}` : "/imágenes/Logo_oficial2.jpg"} 
                             alt="Logo" 
                             className="report-logo" 
                             onError={(e) => { e.target.src = "/imágenes/Logo_oficial2.jpg" }}
