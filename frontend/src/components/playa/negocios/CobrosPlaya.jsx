@@ -10,6 +10,8 @@ const CobrosPlaya = () => {
     const [showModal, setShowModal] = useState(false);
     const [includeCancelados, setIncludeCancelados] = useState(false);
     const [selectedPagare, setSelectedPagare] = useState(null);
+    const [stats, setStats] = useState(null);
+    const [playaInfo, setPlayaInfo] = useState(null);
     const [cuentas, setCuentas] = useState([]);
     const [sortConfig, setSortConfig] = useState({ key: 'fecha_vencimiento', direction: 'asc' });
     const [newPago, setNewPago] = useState({
@@ -41,6 +43,19 @@ const CobrosPlaya = () => {
         fetchAllPagares();
         fetchCuentas();
         fetchRecentPagos();
+
+        const fetchPlayaInfo = async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/mi-playa`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPlayaInfo(res.data);
+            } catch (error) {
+                console.error('Error fetching playa info:', error);
+            }
+        };
+        fetchPlayaInfo();
     }, []);
 
     useEffect(() => {
@@ -1112,12 +1127,19 @@ const CobrosPlaya = () => {
     
     <div class="report-header-formal">
         <div class="header-left">
-            <img src="/imágenes/Logo_oficial2.jpg" alt="Logo" class="report-logo" />
+            <img 
+                src={playaInfo?.logo ? 
+                    (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+                    : "/imágenes/Logo_oficial2.jpg"} 
+                alt="Logo" 
+                class="report-logo" 
+                onerror="this.src='/imágenes/Logo_oficial2.jpg'"
+            />
             <div class="company-info">
-                <h2 class="company-name">PERALTA AUTOMOTORES</h2>
+                <h2 class="company-name">${playaInfo?.nombre || 'PERALTA AUTOMOTORES'}</h2>
                 <p>Ingavi, Fernando de la Mora</p>
                 <p>RUC: 2349334-8</p>
-                <p>Correo: peraltaautomotores@gmail.com</p>
+                <p>Correo: ${playaInfo?.email || 'peraltaautomotores@gmail.com'}</p>
             </div>
         </div>
         <div class="header-right">

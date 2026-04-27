@@ -9,6 +9,7 @@ const DashboardPlaya = () => {
     const [gastosFiltrados, setGastosFiltrados] = useState(null);
     const [loadingGastos, setLoadingGastos] = useState(false);
     const [ventasFiltradas, setVentasFiltradas] = useState(null);
+    const [playaInfo, setPlayaInfo] = useState(null);
 
     // Filtros para gastos
     const [tipoGasto, setTipoGasto] = useState('ambos'); // 'empresa', 'vehiculo', 'ambos'
@@ -32,7 +33,21 @@ const DashboardPlaya = () => {
                 setLoading(false);
             }
         };
+
+        const fetchPlayaInfo = async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/mi-playa`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPlayaInfo(res.data);
+            } catch (error) {
+                console.error('Error fetching playa info:', error);
+            }
+        };
+
         fetchStats();
+        fetchPlayaInfo();
     }, []);
 
     // Efecto para manejar la selección de mes
@@ -337,9 +352,16 @@ const DashboardPlaya = () => {
     
     <div class="container">
         <div class="header">
-            <img src="/imágenes/Logo_actualizado2.png" alt="Peralta Automotores" class="header-logo" />
+            <img 
+                src={playaInfo?.logo ? 
+                    (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+                    : "/imágenes/Logo_actualizado2.png"} 
+                alt={playaInfo?.nombre || "Logo"} 
+                class="header-logo" 
+                onerror="this.src='/imágenes/Logo_actualizado2.png'"
+            />
             <div class="header-content">
-                <h1>REPORTE DETALLADO DE GASTOS</h1>
+                <h1>${(playaInfo?.nombre || 'REPORTE').toUpperCase()} - DETALLE DE GASTOS</h1>
                 ${filtrosTexto.length > 0 ? `<div class="filtros">Filtros aplicados: ${filtrosTexto.join(' | ')}</div>` : ''}
                 <div class="filtros">Generado el ${new Date().toLocaleDateString('es-PY', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
             </div>

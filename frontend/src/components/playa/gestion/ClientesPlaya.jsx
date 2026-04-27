@@ -83,6 +83,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCalificacion, setSelectedCalificacion] = useState('');
+    const [playaInfo, setPlayaInfo] = useState(null);
     const [calificaciones, setCalificaciones] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('datos'); // 'datos', 'garantes', 'referencias', 'ubicaciones'
@@ -129,21 +130,21 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
     useEffect(() => {
-        const initializeData = async () => {
-            setLoading(true);
+        fetchClientes();
+        fetchCalificaciones();
+
+        const fetchPlayaInfo = async () => {
             try {
                 const token = sessionStorage.getItem('token');
-                await axios.post(`${API_URL}/playa/reportes/recalcular-mora`, {}, {
+                const res = await axios.get(`${API_URL}/playa/mi-playa`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
+                setPlayaInfo(res.data);
             } catch (error) {
-                console.error('Error recalibrating arrears on load:', error);
+                console.error('Error fetching playa info:', error);
             }
-            await Promise.all([fetchClientes(), fetchCalificaciones()]);
-            setLoading(false);
         };
-
-        initializeData();
+        fetchPlayaInfo();
     }, []);
 
     useEffect(() => {
@@ -582,9 +583,17 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
 </head>
 <body>
     <div class="header">
-        <img src="/imágenes/Logo_actualizado2.png" alt="Peralta Automotores" class="header-logo" />
+        <img 
+            src={playaInfo?.logo ? 
+                (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+                : "/imágenes/Logo_actualizado2.png"} 
+            alt={playaInfo?.nombre || "Logo"} 
+            class="header-logo" 
+            onerror="this.src='/imágenes/Logo_actualizado2.png'"
+        />
         <div class="header-content">
             <h1>REPORTE DE CLIENTE</h1>
+            <p>${playaInfo?.nombre || 'Peralta Automotores'}</p>
             <p>Generado el ${new Date().toLocaleDateString('es-PY', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
     </div>
@@ -687,7 +696,7 @@ const ClientesPlaya = ({ preselectedCalificacion, setPreselectedCalificacion }) 
         }).join('') : ''}
 
     <div class="footer">
-        <p>Fin del reporte - Peralta Automotores</p>
+        <p>Fin del reporte - ${playaInfo?.nombre || 'Peralta Automotores'}</p>
     </div>
 
     <script>

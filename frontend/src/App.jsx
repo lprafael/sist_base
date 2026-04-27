@@ -35,7 +35,7 @@ import DiagnosticoPagares from "./components/playa/negocios/DiagnosticoPagares.j
 import HistorialPropietarios from "./components/playa/parametros/HistorialPropietarios.jsx";
 import GastosAdicionales from "./components/playa/negocios/GastosAdicionales.jsx";
 
-function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed, isMobileOpen, onMobileToggle }) {
+function CabeceradePagina({ user, playaInfo, onLogout, onToggleSidebar, isSidebarCollapsed, isMobileOpen, onMobileToggle }) {
   const handleToggle = () => {
     // En móviles, toggle del sidebar móvil
     if (window.innerWidth <= 768) {
@@ -60,11 +60,14 @@ function CabeceradePagina({ user, onLogout, onToggleSidebar, isSidebarCollapsed,
           </button>
         )}
         <img
-          src="/imágenes/Logo_actualizado2.png"
-          alt="Peralta Automotores"
+          src={playaInfo?.logo ? 
+            (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+            : "/imágenes/Logo_actualizado2.png"}
+          alt={playaInfo?.nombre || "Peralta Automotores"}
           className="header-logo"
+          onError={(e) => { e.target.src = "/imágenes/Logo_actualizado2.png" }}
         />
-        <h1>Gestión de Playa de Vehículos</h1>
+        <h1>{playaInfo?.nombre || "Gestión de Playa de Vehículos"}</h1>
       </div>
       <div className="header-user-info">
         {user && (
@@ -100,6 +103,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [playaInfo, setPlayaInfo] = useState(null);
   const [collapsedCategories, setCollapsedCategories] = useState({
     "Playa de Vehículos": true,
     "Negocios": true,
@@ -142,6 +146,23 @@ export default function App() {
     if (token && userData) {
       const parsed = JSON.parse(userData);
       setUser(parsed);
+      
+      // Fetch playa info
+      const fetchPlaya = async () => {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_REACT_APP_API_URL || '/api'}/playa/mi-playa`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setPlayaInfo(data);
+          }
+        } catch (err) {
+          console.error("Error fetching playa info in App:", err);
+        }
+      };
+      fetchPlaya();
+
       if (parsed.rol === 'admin') {
         setTab('pg_tipos_vehiculos');
       }
@@ -350,6 +371,7 @@ export default function App() {
     <div className="app-container">
       <CabeceradePagina
         user={user}
+        playaInfo={playaInfo}
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         isSidebarCollapsed={sidebarCollapsed}

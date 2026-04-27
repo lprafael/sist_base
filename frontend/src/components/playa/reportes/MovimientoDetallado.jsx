@@ -13,6 +13,7 @@ const MovimientoDetallado = () => {
     const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
     const [filtroTipo, setFiltroTipo] = useState('AMBOS'); // 'AMBOS', 'INGRESO', 'EGRESO'
     const [horaEmision, setHoraEmision] = useState(new Date().toLocaleTimeString('es-PY'));
+    const [playaInfo, setPlayaInfo] = useState(null);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
 
@@ -27,6 +28,19 @@ const MovimientoDetallado = () => {
     ];
 
     useEffect(() => {
+        const fetchPlayaInfo = async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/mi-playa`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPlayaInfo(res.data);
+            } catch (error) {
+                console.error('Error fetching playa info:', error);
+            }
+        };
+        fetchPlayaInfo();
+
         const timer = setInterval(() => {
             setHoraEmision(new Date().toLocaleTimeString('es-PY'));
         }, 1000);
@@ -173,10 +187,19 @@ const MovimientoDetallado = () => {
             <div className="reporte-content printable-area" style={{ maxWidth: '100%' }}>
                 <div className="report-header-formal">
                     <div className="header-left">
-                        <img src="/imágenes/Logo_oficial2.jpg" alt="Logo" className="report-logo" />
+                        <img 
+                            src={playaInfo?.logo ? 
+                                (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${window.location.origin.replace(':3004', ':8001')}${playaInfo.logo}`) 
+                                : "/imágenes/Logo_oficial2.jpg"} 
+                            alt="Logo" 
+                            className="report-logo" 
+                            onError={(e) => { e.target.src = "/imágenes/Logo_oficial2.jpg" }}
+                        />
                         <div className="company-info">
-                            <h2 className="company-name">PERALTA AUTOMOTORES</h2>
-                            <p>Movimiento Detallado de Fondos</p>
+                            <h2 className="company-name">{playaInfo?.razon_social || playaInfo?.nombre || 'Cargando...'}</h2>
+                            <p>{playaInfo?.direccion || ''}</p>
+                            <p>RUC: {playaInfo?.ruc || ''}</p>
+                            <p>Correo: {playaInfo?.email || ''}</p>
                         </div>
                     </div>
                     <div className="header-right">

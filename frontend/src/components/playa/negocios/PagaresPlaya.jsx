@@ -12,6 +12,7 @@ const PagaresPlaya = () => {
     const [sortColumn, setSortColumn] = useState(null);
     const [sortDirection, setSortDirection] = useState('asc');
     const [includeClientNames, setIncludeClientNames] = useState(false);
+    const [playaInfo, setPlayaInfo] = useState(null);
     const [selectedPagare, setSelectedPagare] = useState(null);
     const [editingData, setEditingData] = useState({
         numero_pagare: '',
@@ -24,6 +25,18 @@ const PagaresPlaya = () => {
 
     useEffect(() => {
         fetchPagares();
+        const fetchPlayaInfo = async () => {
+            try {
+                const token = sessionStorage.getItem('token');
+                const res = await axios.get(`${API_URL}/playa/mi-playa`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPlayaInfo(res.data);
+            } catch (error) {
+                console.error('Error fetching playa info:', error);
+            }
+        };
+        fetchPlayaInfo();
     }, []);
 
     const fetchPagares = async () => {
@@ -323,7 +336,7 @@ const PagaresPlaya = () => {
             <body>
                 <div class="print-header">
                     <h1>Gestión de Pagarés</h1>
-                    <div class="subtitle">Sistema de Gestión de Vehículos - Peralta Automotores</div>
+                    <div class="subtitle">Sistema de Gestión de Vehículos - ${playaInfo?.nombre || 'Peralta Automotores'}</div>
                     <div class="subtitle">Fecha de impresión: ${fechaActual}</div>
                 </div>
                 

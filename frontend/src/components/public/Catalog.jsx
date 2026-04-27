@@ -8,6 +8,7 @@ const PublicCatalog = ({ user }) => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
+    const [playaInfo, setPlayaInfo] = useState(null);
     const [categories, setCategories] = useState([]);
 
     const API_URL = import.meta.env.VITE_REACT_APP_API_URL || "/api";
@@ -17,7 +18,19 @@ const PublicCatalog = ({ user }) => {
     useEffect(() => {
         fetchData();
         fetchCategories();
+        fetchPlayaInfo();
     }, []);
+
+    const fetchPlayaInfo = async () => {
+        try {
+            if (!PUBLIC_PLAYA_ID) return;
+            const response = await fetch(`${API_URL}/playa/mi-playa-publico?id_playa=${encodeURIComponent(PUBLIC_PLAYA_ID)}`);
+            const raw = await response.json();
+            setPlayaInfo(raw);
+        } catch (error) {
+            console.error("Error fetching playa info:", error);
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -113,8 +126,8 @@ const PublicCatalog = ({ user }) => {
 
     const handleWhatsApp = (vehicle) => {
         const message = `Hola! Estoy interesado en el ${vehicle.marca} ${vehicle.modelo} (${vehicle.anho_fabricacion}) que vi en su web.`;
-        const phone = "595981431983";
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
+        const phone = playaInfo?.telefono || "595981431983";
+        window.open(`https://wa.me/${phone.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(message)}`, "_blank");
     };
 
     if (loading) {
@@ -125,7 +138,13 @@ const PublicCatalog = ({ user }) => {
         <div className="catalog-container">
             <nav className="catalog-nav">
                 <div className="nav-content">
-                    <img src="/imágenes/Logo_moderno2.png" alt="Peralta Automotores" className="nav-logo" />
+                    <img 
+                        src={playaInfo?.logo ? 
+                            (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${API_URL.replace("/api", "")}${playaInfo.logo}`) 
+                            : "/imágenes/Logo_moderno2.png"} 
+                        alt={playaInfo?.nombre || "Logo"} 
+                        className="nav-logo" 
+                    />
                     <div className="nav-links">
                         <a href="#inventario">Inventario</a>
                         <a href="#contacto">Contacto</a>
@@ -200,14 +219,19 @@ const PublicCatalog = ({ user }) => {
             <footer id="contacto" className="catalog-footer">
                 <div className="footer-content">
                     <div className="footer-info">
-                        <img src="/imágenes/Logo_actualizado2.png" alt="Logo" />
-                        <p>Líderes en venta de vehículos con la mejor financiación del mercado.</p>
+                        <img 
+                            src={playaInfo?.logo ? 
+                                (playaInfo.logo.startsWith('http') ? playaInfo.logo : `${API_URL.replace("/api", "")}${playaInfo.logo}`) 
+                                : "/imágenes/Logo_actualizado2.png"} 
+                            alt="Logo" 
+                        />
+                        <p>{playaInfo?.eslogan || "Líderes en venta de vehículos con la mejor financiación del mercado."}</p>
                     </div>
                     <div className="footer-contact">
                         <h4>Contacto</h4>
-                        <p>📍 Avda. Ingavi 1165 c/ 6 de enero, Fdo de la Mora</p>
-                        <p>📞 +595 981 431 983</p>
-                        <p>✉️ peraltaautomotores@hotmail.com.py</p>
+                        <p>📍 {playaInfo?.direccion || "Avda. Ingavi 1165 c/ 6 de enero, Fdo de la Mora"}</p>
+                        <p>📞 {playaInfo?.telefono || "+595 981 431 983"}</p>
+                        <p>✉️ {playaInfo?.email || "peraltaautomotores@hotmail.com.py"}</p>
                     </div>
                     <div className="footer-social">
                         <h4>Síguenos</h4>
@@ -219,12 +243,12 @@ const PublicCatalog = ({ user }) => {
                     </div>
                 </div>
                 <div className="footer-bottom">
-                    <p>&copy; 2026 Peralta Automotores. Todos los derechos reservados.</p>
+                    <p>&copy; {new Date().getFullYear()} {playaInfo?.nombre || "Peralta Automotores"}. Todos los derechos reservados.</p>
                 </div>
             </footer>
 
             <a 
-                href={`https://wa.me/595981431983?text=${encodeURIComponent("Hola, estuve mirando desde la web algunos vehículos de la flota que tienen en playa y quería conocer más detalles sobre algunos modelos.")}`} 
+                href={`https://wa.me/${(playaInfo?.telefono || "595981431983").replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent("Hola, estuve mirando desde la web algunos vehículos de la flota que tienen en playa y quería conocer más detalles sobre algunos modelos.")}`} 
                 className="whatsapp-float" 
                 target="_blank" 
                 rel="noopener noreferrer"

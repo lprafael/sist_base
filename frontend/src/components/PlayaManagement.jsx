@@ -376,7 +376,7 @@ const PlayaManagement = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                   {(logoPreview || (editPlaya?.logo)) ? (
                     <img 
-                      src={logoPreview || editPlaya?.logo} 
+                      src={logoPreview || (editPlaya?.logo?.startsWith('http') ? editPlaya.logo : `${window.location.origin.replace(':3004', ':8001')}${editPlaya?.logo}`)} 
                       alt="Preview" 
                       style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'contain', border: '1px solid #e2e8f0' }} 
                     />
