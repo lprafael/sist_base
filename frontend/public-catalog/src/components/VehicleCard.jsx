@@ -35,7 +35,7 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
   if (viewMode === "list") {
     return (
       <article
-        className="vehicle-row mc-card glass-card"
+        className="vehicle-row mc-card"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -45,21 +45,30 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
           onClick={() => onPhotoClick(vehicle)}
         >
           <img src={getImageUrl()} alt="" />
+          <div className="card-badges">
+            <span className={`mc-badge ${vehicle.es_particular ? "mc-badge-particular" : ""}`}>
+              {vehicle.es_particular ? "Particular" : "Playa"}
+            </span>
+          </div>
         </button>
         <div className="vehicle-row-body">
-          <span className="mc-badge mc-badge--muted">{badge}</span>
           <h3 className="vehicle-row-title">
             {vehicle.marca} {vehicle.modelo}
           </h3>
+          <p className="vehicle-row-price">{formattedPrice}</p>
           <p className="vehicle-row-meta">
             {[añoVehiculo(vehicle), vehicle.color, vehicle.combustible, vehicle.transmision]
               .filter(Boolean)
               .join(" · ")}
           </p>
+          {vehicle.nombre_playa && !vehicle.es_particular && (
+            <p className="vehicle-row-meta" style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+              Ofrecido por: <strong>{vehicle.nombre_playa}</strong>
+            </p>
+          )}
         </div>
         <div className="vehicle-row-side">
-          <p className="vehicle-row-price">{formattedPrice}</p>
-          <button type="button" className="mc-btn mc-btn--primary mc-btn--sm" onClick={() => onWhatsApp(vehicle)}>
+          <button type="button" className="mc-btn mc-btn--primary mc-btn--sm" style={{ width: '100%', borderRadius: '4px' }} onClick={() => onWhatsApp(vehicle)}>
             WhatsApp
           </button>
         </div>
@@ -69,21 +78,23 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
 
   return (
     <article
-      className="vehicle-card mc-card glass-card"
+      className="vehicle-card mc-card"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => onPhotoClick(vehicle)}
     >
       <div className="card-image-wrapper">
         <img src={getImageUrl()} alt={`${vehicle.marca} ${vehicle.modelo}`} />
         <div className="card-badges">
           <span className={`mc-badge ${vehicle.es_particular ? "mc-badge-particular" : ""}`}>
-             {vehicle.es_particular ? "👤 Particular" : "🏪 " + (vehicle.nombre_playa || "Playa")}
+             {vehicle.es_particular ? "Particular" : "Playa"}
           </span>
         </div>
-        <div className="card-overlay" onClick={() => onPhotoClick(vehicle)}>
+        <div className="card-overlay">
           <button
             type="button"
-            className="mc-btn mc-overlay-btn"
+            className="mc-btn mc-btn--primary mc-btn--sm"
+            style={{ borderRadius: '4px' }}
             onClick={(e) => {
               e.stopPropagation();
               onWhatsApp(vehicle);
@@ -92,7 +103,7 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
             WhatsApp
           </button>
           {hasImages && images.length > 1 && isHovered && (
-            <div className="image-counter">
+            <div className="image-counter" style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
               {currentImageIndex + 1} / {images.length}
             </div>
           )}
@@ -104,19 +115,13 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
         </h3>
         <p className="card-price">{formattedPrice}</p>
         <div className="card-specs">
-          <span>📅 {añoVehiculo(vehicle) || "—"}</span>
+          <span>{añoVehiculo(vehicle) || "—"}</span>
           <span>·</span>
-          <span>🎨 {vehicle.color || "—"}</span>
+          <span>{vehicle.color || "—"}</span>
           {vehicle.combustible && (
             <>
               <span>·</span>
-              <span>⛽ {vehicle.combustible}</span>
-            </>
-          )}
-          {vehicle.transmision && (
-            <>
-              <span>·</span>
-              <span style={{ textTransform: "capitalize" }}>⚙️ {vehicle.transmision.toLowerCase()}</span>
+              <span>{vehicle.combustible}</span>
             </>
           )}
         </div>

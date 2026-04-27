@@ -137,6 +137,7 @@ class HistorialPropietario(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_historial = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_producto = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.productos.id_producto'))
     nombre_propietario = Column(String(200), nullable=False)
     documento = Column(String(50)) # Cédula / RUC
@@ -444,6 +445,7 @@ class Pagare(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_pagare = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta'))
     numero_pagare = Column(String(50), unique=True, nullable=False)
     numero_cuota = Column(Integer, nullable=False)
@@ -467,6 +469,7 @@ class Pago(Base):
     __table_args__ = {"schema": PLAYA_SCHEMA}
     
     id_pago = Column(Integer, primary_key=True, index=True)
+    id_playa = Column(Integer, index=True, nullable=True)
     id_pagare = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.pagares.id_pagare'))
     id_venta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.ventas.id_venta'))
     id_cuenta = Column(Integer, ForeignKey(f'{PLAYA_SCHEMA}.cuentas.id_cuenta'), nullable=True)

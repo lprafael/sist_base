@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from "react";
 import Login from "./components/Login.jsx";
 import UserManagement from "./components/UserManagement.jsx";
+import PlayaManagement from "./components/PlayaManagement.jsx";
 import BackupSystem from "./components/BackupSystem.jsx";
 import AuditSystem from "./components/AuditSystem.jsx";
 import VehiculosPlaya from "./components/playa/gestion/VehiculosPlaya.jsx";
@@ -319,6 +320,7 @@ export default function App() {
       title: "Administración",
       items: [
         { id: 'usuarios', label: 'Gestión de Usuarios', icon: '👤', roles: ['admin'] },
+        { id: 'playas_admin', label: 'Gestión de Playas', icon: '🏢', roles: ['admin'] },
         { id: 'diagnostico_pagares', label: 'Diagnóstico Pagarés', icon: '🔍', roles: ['admin'] },
         { id: 'auditoria', label: 'Auditoría', icon: '📊', roles: ['admin'] },
         { id: 'backup', label: 'Sistema de Backup', icon: '🔄', roles: ['admin'] },
@@ -422,6 +424,7 @@ export default function App() {
         <main className="main-content">
           <div className="fade-in">
             {tab === "usuarios" && <UserManagement />}
+            {tab === "playas_admin" && user.rol === 'admin' && <PlayaManagement />}
             {tab === "diagnostico_pagares" && (user.rol === 'admin' || user.rol === 'manager') && <DiagnosticoPagares />}
             {tab === "auditoria" && (user.rol === 'admin' || user.rol === 'manager') && <AuditSystem />}
             {tab === "backup" && (user.rol === 'admin' || user.rol === 'manager') && <BackupSystem />}

@@ -343,7 +343,10 @@ export default function PublicCatalog() {
       </section>
 
       <div id="catalogo" className="mc-layout">
-        <aside className="mc-filters glass-card">
+        <aside className="mc-filters">
+          <p className="mc-results-count-alt">
+            {loading ? "Buscando..." : <strong>{vehiclesList.length}</strong>} Resultados
+          </p>
           <h2>Filtros Avanzados</h2>
           <div className="mc-filters-list">
              <div className="mc-field">
@@ -363,7 +366,7 @@ export default function PublicCatalog() {
                   <option value="__part">👤 Solo Particulares</option>
                   {playasList.map((p) => (
                     <option key={p.id} value={String(p.id)}>
-                      🏪 {p.nombre} ({p.vehiculos_disponibles})
+                      {p.nombre} ({p.vehiculos_disponibles})
                     </option>
                   ))}
                 </select>
@@ -389,17 +392,12 @@ export default function PublicCatalog() {
 
              <div className="mc-field">
                 <span>Especificaciones</span>
-                <input placeholder="Combustible (Nafta, Diesel...)" value={filtrosDraft.combustible} onChange={e => setFiltrosDraft(f => ({...f, combustible: e.target.value}))} />
+                <input placeholder="Combustible" value={filtrosDraft.combustible} onChange={e => setFiltrosDraft(f => ({...f, combustible: e.target.value}))} />
                 <div style={{ marginTop: '0.5rem' }}></div>
-                <input placeholder="Transmisión (Auto, Mec...)" value={filtrosDraft.transmision} onChange={e => setFiltrosDraft(f => ({...f, transmision: e.target.value}))} />
+                <input placeholder="Transmisión" value={filtrosDraft.transmision} onChange={e => setFiltrosDraft(f => ({...f, transmision: e.target.value}))} />
              </div>
 
-             <div className="mc-field">
-                <span>Color</span>
-                <input placeholder="Ej. Plata, Blanco, Negro..." value={filtrosDraft.color} onChange={e => setFiltrosDraft(f => ({...f, color: e.target.value}))} />
-             </div>
-
-             <button className="mc-btn mc-btn--outline" style={{ marginTop: '1rem' }} onClick={() => {
+             <button className="mc-btn mc-btn--outline" style={{ marginTop: '1rem', borderRadius: '4px', fontSize: '0.85rem' }} onClick={() => {
                 setFiltrosDraft(FILTROS_VACIOS);
                 setFiltros(FILTROS_VACIOS);
              }}>
@@ -410,12 +408,16 @@ export default function PublicCatalog() {
 
         <main className="mc-main">
           <div className="mc-toolbar">
-            <p className="mc-results-count">
-              {loading ? "Buscando..." : `Se encontraron ${vehiclesList.length} vehículos`}
-            </p>
-            <div className="mc-view-toggle glass-card">
-              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")}>Grilla</button>
-              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}>Lista</button>
+            <div className="mc-breadcrumb">
+               <a href="/">Motor</a> / <a href="/autos">Autos</a>
+            </div>
+            <div className="mc-view-toggle">
+              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")}>
+                 <span className="toggle-icon">▤</span> Grilla
+              </button>
+              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}>
+                 <span className="toggle-icon">☰</span> Lista
+              </button>
             </div>
           </div>
 

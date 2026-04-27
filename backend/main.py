@@ -132,6 +132,7 @@ from notify_admin_password_reset import router as notify_admin_password_reset_ro
 from resend_user_password import router as resend_user_password_router
 from routers_playa import router as playa_router
 from report_routers import router as reports_router
+from routers_sistema import router as sistema_router
 
 # Montar los routers en la aplicación
 app.include_router(auth_router)
@@ -141,6 +142,7 @@ app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
 app.include_router(playa_router)
 app.include_router(reports_router)
+app.include_router(sistema_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA

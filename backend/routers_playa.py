@@ -694,33 +694,17 @@ async def _public_crear_oferta_particular_core(
 # ===== CATEGORÍAS =====
 @router.get("/categorias", response_model=List[CategoriaVehiculoResponse])
 async def list_categorias(
-    id_playa_publico: Optional[int] = Query(None, description="Catálogo público sin token"),
-    current_user: Optional[dict] = Depends(get_current_user_optional),
     session: AsyncSession = Depends(get_session),
 ):
+    """Listado global de categorías compartido por todas las playas."""
     query = select(CategoriaVehiculo).order_by(CategoriaVehiculo.id_categoria.asc())
-    if current_user is None:
-        if id_playa_publico is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Autenticación requerida o indique id_playa_publico",
-            )
-        id_playa_filter = id_playa_publico
-    else:
-        uid = current_user.get("id_playa")
-        if uid is not None:
-            id_playa_filter = uid
-        else:
-            id_playa_filter = id_playa_publico
-    if id_playa_filter is not None:
-        query = query.where(CategoriaVehiculo.id_playa == id_playa_filter)
     result = await session.execute(query)
     return result.scalars().all()
 
 @router.post("/categorias", response_model=CategoriaVehiculoResponse)
 async def create_categoria(
     categoria_data: CategoriaVehiculoCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin), # Solo admin sistema
     session: AsyncSession = Depends(get_session)
 ):
     # Verificar si ya existe
@@ -732,7 +716,7 @@ async def create_categoria(
         raise HTTPException(status_code=400, detail=f"La categoría '{categoria_data.nombre}' ya existe.")
 
     new_cat_data = categoria_data.model_dump()
-    new_cat_data["id_playa"] = current_user.get("id_playa")
+    new_cat_data["id_playa"] = None # Global
     new_cat = CategoriaVehiculo(**new_cat_data)
     session.add(new_cat)
     await session.commit()
@@ -756,7 +740,7 @@ async def create_categoria(
 async def update_categoria(
     id_categoria: int,
     categoria_data: CategoriaVehiculoCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session)
 ):
     res = await session.execute(select(CategoriaVehiculo).where(CategoriaVehiculo.id_categoria == id_categoria))
@@ -805,7 +789,7 @@ async def update_categoria(
 @router.delete("/categorias/{id_categoria}")
 async def delete_categoria(
     id_categoria: int,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session)
 ):
     res = await session.execute(select(CategoriaVehiculo).where(CategoriaVehiculo.id_categoria == id_categoria))

@@ -10,8 +10,9 @@ const UserManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [newUser, setNewUser] = useState({
-    username: '', email: '', nombre_completo: '', rol: 'user'
+    username: '', email: '', nombre_completo: '', rol: 'user', id_playa: ''
   });
+  const [playas, setPlayas] = useState([]);
   const [passwordFields, setPasswordFields] = useState({
     current_password: '', new_password: '', confirm_password: ''
   });
@@ -44,7 +45,23 @@ const UserManagement = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  const fetchPlayas = async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await authFetch('/api/sistema/playas');
+      if (response.ok) {
+        const data = await response.json();
+        setPlayas(data);
+      }
+    } catch (err) {
+      console.error('Error al cargar playas:', err);
+    }
+  };
+
+  useEffect(() => { 
+    fetchUsers(); 
+    if (isAdmin) fetchPlayas();
+  }, []);
 
   const handleEditClick = (user) => {
     setEditUser({ ...user });
@@ -59,15 +76,19 @@ const UserManagement = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setLoading(true);
+    const userToCreate = {
+      ...newUser,
+      id_playa: newUser.id_playa ? parseInt(newUser.id_playa) : null
+    };
     try {
       const response = await authFetch(`/api/auth/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
+        body: JSON.stringify(userToCreate)
       });
       if (response.ok) {
         setShowCreateForm(false);
-        setNewUser({ username: '', email: '', nombre_completo: '', rol: 'user' });
+        setNewUser({ username: '', email: '', nombre_completo: '', rol: 'user', id_playa: '' });
         fetchUsers();
         alert('Usuario creado exitosamente.');
       } else {
@@ -104,6 +125,7 @@ const UserManagement = () => {
           email: editUser.email,
           nombre_completo: editUser.nombre_completo,
           rol: editUser.rol,
+          id_playa: editUser.id_playa ? parseInt(editUser.id_playa) : null,
         })
       });
       if (response.ok) {
@@ -152,15 +174,24 @@ const UserManagement = () => {
   };
 
   const handleStatusChange = async (user, action) => {
+    const messages = {
+      soft: `¿Seguro que deseas desactivar al usuario ${user.username}? No podrá iniciar sesión.`,
+      reactivate: `¿Seguro que deseas reactivar al usuario ${user.username}?`,
+      hard: `¡ADVERTENCIA! ¿Seguro que deseas ELIMINAR PERMANENTEMENTE al usuario ${user.username}? Esta acción no se puede deshacer.`
+    };
+
+    if (!window.confirm(messages[action])) return;
+
     const url = action === 'reactivate'
       ? `/api/auth/users/${user.id}/reactivate`
       : `/api/auth/users/${user.id}${action === 'hard' ? '/hard' : ''}`;
 
-    if (!window.confirm(`¿Seguro que deseas ${action} a ${user.username}?`)) return;
-
     try {
-      await authFetch(url, { method: action === 'reactivate' ? 'POST' : 'DELETE' });
-      fetchUsers();
+      const response = await authFetch(url, { method: action === 'reactivate' ? 'POST' : 'DELETE' });
+      if (response.ok) {
+        fetchUsers();
+        alert(action === 'hard' ? 'Usuario eliminado permanentemente.' : 'Estado actualizado.');
+      }
     } catch (err) { alert('Error en la operación'); }
   };
 
@@ -186,6 +217,7 @@ const UserManagement = () => {
               <th>Usuario</th>
               <th>Email</th>
               <th>Nombre</th>
+              <th>Empresa/Playa</th>
               <th>Rol</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -197,15 +229,25 @@ const UserManagement = () => {
                 <td style={{ fontWeight: 600 }}>{user.username}</td>
                 <td>{user.email}</td>
                 <td>{user.nombre_completo}</td>
+                <td style={{ fontSize: '0.85rem' }}>
+                  {user.id_playa 
+                    ? (playas.find(p => p.id === user.id_playa)?.nombre || `Playa ID: ${user.id_playa}`)
+                    : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sistema (Global)</span>
+                  }
+                </td>
                 <td><span className={`role-badge role-${user.rol}`}>{roles.find(r => r.value === user.rol)?.label}</span></td>
                 <td><span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <div className="actions-cell">
                     <button className="action-btn action-btn-edit" onClick={() => handleEditClick(user)} title="Editar Perfil">✏️</button>
                     {isAdmin && user.username !== 'admin' && (
-                      user.activo ?
-                        <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button> :
-                        <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
+                      <>
+                        {user.activo ?
+                          <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'soft')} title="Desactivar">🚫</button> :
+                          <button className="action-btn action-btn-edit" style={{ color: '#22c55e' }} onClick={() => handleStatusChange(user, 'reactivate')} title="Reactivar">✅</button>
+                        }
+                        <button className="action-btn action-btn-delete" onClick={() => handleStatusChange(user, 'hard')} title="Eliminar Permanentemente">🗑️</button>
+                      </>
                     )}
                   </div>
                 </td>
@@ -248,6 +290,21 @@ const UserManagement = () => {
                   {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
+              {isAdmin && (
+                <div className="form-group">
+                  <label className="form-label">Vincular a Playa/Empresa</label>
+                  <select
+                    name="id_playa"
+                    value={showCreateForm ? newUser.id_playa : (editUser.id_playa || '')}
+                    onChange={(e) => handleChange(e, showCreateForm ? setNewUser : setEditUser)}
+                  >
+                    <option value="">-- Ninguna (Admin Global) --</option>
+                    {playas.map(p => (
+                      <option key={p.id} value={p.id}>{p.nombre} ({p.ruc})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {!showCreateForm && currentUser.id === editUser?.id && (
                 <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', borderRadius: '12px' }}>
                   <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '12px' }}>Cambiar Contraseña</p>

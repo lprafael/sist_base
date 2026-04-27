@@ -729,6 +729,18 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                 <input type="text" value={formatCurrency(newVehiculo.entrega_inicial_sugerida)} onChange={(e) => handleCurrencyChange(e, 'entrega_inicial_sugerida', true)} />
                                             </div>
                                         </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <CatalogoAutocomplete
+                                                    id="nv-tipo"
+                                                    label="Tipo Vehículo"
+                                                    value={newVehiculo.tipo_vehiculo}
+                                                    onChange={(v) => setNewVehiculo({ ...newVehiculo, tipo_vehiculo: v })}
+                                                    options={catalogoTipos}
+                                                    placeholder="Escriba para buscar tipo…"
+                                                />
+                                            </div>
+                                        </div>
                                         <div className="form-group">
                                             <label>Observaciones</label>
                                             <textarea value={newVehiculo.observaciones} onChange={(e) => setNewVehiculo({ ...newVehiculo, observaciones: e.target.value })} />
@@ -770,14 +782,9 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                     <option value="AUT">AUT</option>
                                                 </select>
                                             </div>
-                                            <CatalogoAutocomplete
-                                                id="nv-tipo"
-                                                label="Tipo Vehículo"
-                                                value={newVehiculo.tipo_vehiculo}
-                                                onChange={(v) => setNewVehiculo({ ...newVehiculo, tipo_vehiculo: v })}
-                                                options={catalogoTipos}
-                                                placeholder="Escriba para buscar tipo…"
-                                            />
+                                            <div className="form-group">
+                                                {/* Empty space or another field */}
+                                            </div>
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
@@ -931,6 +938,16 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
+                                                <CatalogoAutocomplete
+                                                    id="ed-tipo"
+                                                    label="Tipo Vehículo"
+                                                    value={selectedVehiculo.tipo_vehiculo || ''}
+                                                    onChange={(v) => setSelectedVehiculo({ ...selectedVehiculo, tipo_vehiculo: v })}
+                                                    options={catalogoTipos}
+                                                    placeholder="Escriba para buscar tipo…"
+                                                />
+                                            </div>
+                                            <div className="form-group">
                                                 <label>Estado Disponibilidad</label>
                                                 <select value={selectedVehiculo.estado_disponibilidad} onChange={(e) => setSelectedVehiculo({ ...selectedVehiculo, estado_disponibilidad: e.target.value })}>
                                                     <option value="DISPONIBLE">DISPONIBLE</option>
@@ -989,14 +1006,9 @@ const VehiculosPlaya = ({ setTab, setPreselectedVehicleId, preselectedCategoryId
                                                     <option value="AUT">AUT</option>
                                                 </select>
                                             </div>
-                                            <CatalogoAutocomplete
-                                                id="ed-tipo"
-                                                label="Tipo Vehículo"
-                                                value={selectedVehiculo.tipo_vehiculo || ''}
-                                                onChange={(v) => setSelectedVehiculo({ ...selectedVehiculo, tipo_vehiculo: v })}
-                                                options={catalogoTipos}
-                                                placeholder="Escriba para buscar tipo…"
-                                            />
+                                            <div className="form-group">
+                                                {/* Empty space */}
+                                            </div>
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
