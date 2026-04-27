@@ -106,6 +106,8 @@
     border-radius: 18px;
     width: 600px;
     max-width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .form-group {
