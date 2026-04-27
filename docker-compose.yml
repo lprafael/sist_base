@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: mi-playa-backend
     ports:
-      - "8002:8001"
+      - "8004:8001"
     environment:
       - PORT=8001
     env_file:
@@ -34,7 +34,7 @@ services:
       dockerfile: Dockerfile
     container_name: mi-playa-frontend
     ports:
-      - "3002:80"
+      - "3004:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -55,7 +55,7 @@ services:
         VITE_REACT_APP_API_URL: /api
     container_name: mi-playa-public
     ports:
-      - "3003:80"
+      - "3005:80"
     depends_on:
       - backend
     restart: unless-stopped
