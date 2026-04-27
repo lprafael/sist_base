@@ -337,7 +337,12 @@ const ReportesPlaya = () => {
             <div className="reporte-content printable-area">
                 <div className="report-header-formal">
                     <div className="header-left">
-                        <img src="/imágenes/Logo_oficial2.jpg" alt="Logo" className="report-logo" />
+                        <img 
+                            src={playaInfo?.logo || "/imágenes/Logo_oficial2.jpg"} 
+                            alt="Logo" 
+                            className="report-logo" 
+                            onError={(e) => { e.target.src = "/imágenes/Logo_oficial2.jpg" }}
+                        />
                         <div className="company-info">
                             <h2 className="company-name">{playaInfo?.razon_social || playaInfo?.nombre || 'Cargando...'}</h2>
                             <p>{playaInfo?.direccion || ''}</p>

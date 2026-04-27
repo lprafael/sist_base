@@ -11,7 +11,15 @@ from audit_utils import log_audit_action
 from email_service import email_service
 import secrets
 import string
+import os
+import shutil
+import uuid
+from fastapi import File, UploadFile
 from pydantic import BaseModel
+
+# Directorio para logos
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "logos_playas")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 class DeletePhysicalRequest(BaseModel):
     admin_password: str
@@ -140,6 +148,48 @@ async def delete_playa(
     )
     
     return {"message": "Playa desactivada correctamente"}
+
+@router.post("/{playa_id}/logo")
+async def upload_playa_logo(
+    playa_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(require_admin)
+):
+    """Sube o actualiza el logo de una playa."""
+    result = await session.execute(select(Playa).where(Playa.id == playa_id))
+    playa = result.scalar_one_or_none()
+    if not playa:
+        raise HTTPException(status_code=404, detail="Playa no encontrada")
+
+    # Validar que sea imagen
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
+
+    # Crear nombre único
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"logo_{playa_id}_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+
+    # Guardar archivo
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Borrar logo anterior si existe
+    if playa.logo:
+        old_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), playa.logo.lstrip('/'))
+        if os.path.exists(old_path) and "logos_playas" in old_path:
+            try:
+                os.remove(old_path)
+            except:
+                pass
+
+    # Actualizar base de datos
+    playa.logo = f"/static/uploads/logos_playas/{filename}"
+    await session.commit()
+    await session.refresh(playa)
+
+    return {"logo_url": playa.logo}
 
 @router.post("/{playa_id}/resend-password")
 async def resend_playa_password(

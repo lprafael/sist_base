@@ -12,6 +12,8 @@ const PlayaManagement = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePlayaId, setDeletePlayaId] = useState(null);
   const [adminPassword, setAdminPassword] = useState('');
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [newPlaya, setNewPlaya] = useState({
     nombre: '', 
     razon_social: '', 
@@ -47,6 +49,35 @@ const PlayaManagement = () => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? checked : value;
     setter((prev) => ({ ...prev, [name]: val }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLogoFile(file);
+      setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleLogoUpload = async (playaId) => {
+    if (!logoFile) return;
+    
+    const formData = new FormData();
+    formData.append('file', logoFile);
+    
+    try {
+      const response = await fetch(`/api/sistema/playas/${playaId}/logo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        },
+        body: formData
+      });
+      return response.ok;
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      return false;
+    }
   };
 
   const handleResendPassword = async (playa) => {
@@ -112,7 +143,14 @@ const PlayaManagement = () => {
         body: JSON.stringify(newPlaya)
       });
       if (response.ok) {
+        const data = await response.json();
+        // Subir logo si existe
+        if (logoFile) {
+          await handleLogoUpload(data.id);
+        }
         setShowCreateForm(false);
+        setLogoFile(null);
+        setLogoPreview(null);
         setNewPlaya({
           nombre: '', razon_social: '', ruc: '', direccion: '', telefono: '', email: '', activo: true
         });
@@ -144,7 +182,13 @@ const PlayaManagement = () => {
         body: JSON.stringify(editPlaya)
       });
       if (response.ok) {
+        // Subir logo si se cambió
+        if (logoFile) {
+          await handleLogoUpload(editPlaya.id);
+        }
         setShowEditModal(false);
+        setLogoFile(null);
+        setLogoPreview(null);
         fetchPlayas();
         alert('Datos de la empresa actualizados.');
       } else {
@@ -206,7 +250,16 @@ const PlayaManagement = () => {
           <tbody>
             {playas.map(playa => (
               <tr key={playa.id}>
-                <td style={{ fontWeight: 600 }}>{playa.nombre}</td>
+                <td style={{ fontWeight: 600 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {playa.logo ? (
+                      <img src={playa.logo} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'contain', background: '#f8fafc' }} />
+                    ) : (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>🏢</div>
+                    )}
+                    {playa.nombre}
+                  </div>
+                </td>
                 <td>{playa.ruc || '-'}</td>
                 <td>{playa.email || '-'}</td>
                 <td>{playa.telefono || '-'}</td>
@@ -316,6 +369,30 @@ const PlayaManagement = () => {
                   onChange={(e) => handleChange(e, showCreateForm ? setNewPlaya : setEditPlaya)} 
                   rows="2"
                 />
+              </div>
+
+              <div className="form-group" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '15px' }}>
+                <label className="form-label">Logo Institucional</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  {(logoPreview || (editPlaya?.logo)) ? (
+                    <img 
+                      src={logoPreview || editPlaya?.logo} 
+                      alt="Preview" 
+                      style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'contain', border: '1px solid #e2e8f0' }} 
+                    />
+                  ) : (
+                    <div style={{ width: '60px', height: '60px', borderRadius: '8px', background: '#f8fafc', border: '2px dashed #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                      🖼️
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileChange}
+                    style={{ fontSize: '0.8rem' }}
+                  />
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px' }}>Formato sugerido: PNG transparente o fondo blanco.</p>
               </div>
 
               <div className="modal-actions">

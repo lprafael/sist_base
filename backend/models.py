@@ -40,6 +40,7 @@ class Playa(Base):
     direccion = Column(Text)
     telefono = Column(String(50))
     email = Column(String(100))
+    logo = Column(String(500), nullable=True)
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     

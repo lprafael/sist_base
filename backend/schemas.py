@@ -38,6 +38,7 @@ class PlayaBase(BaseModel):
     direccion: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[EmailStr] = None
+    logo: Optional[str] = None
     activo: bool = True
 
 class PlayaCreate(PlayaBase):
@@ -50,6 +51,7 @@ class PlayaUpdate(BaseModel):
     direccion: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[EmailStr] = None
+    logo: Optional[str] = None
     activo: Optional[bool] = None
 
 class PlayaResponse(PlayaBase):
