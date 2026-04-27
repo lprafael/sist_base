@@ -9,6 +9,9 @@ const PlayaManagement = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editPlaya, setEditPlaya] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePlayaId, setDeletePlayaId] = useState(null);
+  const [adminPassword, setAdminPassword] = useState('');
   const [newPlaya, setNewPlaya] = useState({
     nombre: '', 
     razon_social: '', 
@@ -44,6 +47,59 @@ const PlayaManagement = () => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? checked : value;
     setter((prev) => ({ ...prev, [name]: val }));
+  };
+
+  const handleResendPassword = async (playa) => {
+    if (!window.confirm(`¿Seguro que deseas reenviar las credenciales al administrador de "${playa.nombre}"?`)) return;
+    
+    setLoading(true);
+    try {
+      const response = await authFetch(`/api/sistema/playas/${playa.id}/resend-password`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message);
+      } else {
+        alert(data.detail || 'Error al reenviar contraseña');
+      }
+    } catch (err) {
+      alert('Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePhysical = async (e) => {
+    e.preventDefault();
+    if (!adminPassword) {
+      alert('Debes ingresar tu contraseña de administrador.');
+      return;
+    }
+
+    if (!window.confirm('¡ATENCIÓN! Esta acción eliminará PERMANENTEMENTE la empresa, todos sus usuarios, vehículos y transacciones. Esta acción NO se puede deshacer. ¿Estás absolutamente seguro?')) return;
+
+    setLoading(true);
+    try {
+      const response = await authFetch(`/api/sistema/playas/${deletePlayaId}/delete-physical`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_password: adminPassword })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setShowDeleteModal(false);
+        setAdminPassword('');
+        fetchPlayas();
+        alert(data.message);
+      } else {
+        alert(data.detail || 'Error al eliminar');
+      }
+    } catch (err) {
+      alert('Error de conexión');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreatePlaya = async (e) => {
@@ -162,6 +218,7 @@ const PlayaManagement = () => {
                 <td>
                   <div className="actions-cell">
                     <button className="action-btn action-btn-edit" onClick={() => handleEditClick(playa)} title="Editar">✏️</button>
+                    <button className="action-btn" onClick={() => handleResendPassword(playa)} title="Reenviar Contraseña" style={{ color: '#f59e0b' }}>🔑</button>
                     <button 
                       className={`action-btn ${playa.activo ? 'action-btn-delete' : ''}`} 
                       style={{ color: playa.activo ? '' : '#22c55e' }}
@@ -169,6 +226,14 @@ const PlayaManagement = () => {
                       title={playa.activo ? 'Desactivar' : 'Activar'}
                     >
                       {playa.activo ? '🚫' : '✅'}
+                    </button>
+                    <button 
+                      className="action-btn action-btn-delete" 
+                      onClick={() => { setDeletePlayaId(playa.id); setShowDeleteModal(true); }} 
+                      title="ELIMINAR PERMANENTE"
+                      style={{ border: '1px solid #ef4444', marginLeft: '5px' }}
+                    >
+                      🗑️
                     </button>
                   </div>
                 </td>
@@ -263,6 +328,43 @@ const PlayaManagement = () => {
           </div>
         </div>
       )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal fade-in" style={{ maxWidth: '400px', borderTop: '5px solid #ef4444' }}>
+            <div className="modal-header">
+              <h3 style={{ color: '#ef4444' }}>⚠️ ELIMINACIÓN TOTAL</h3>
+              <button className="close-btn" onClick={() => setShowDeleteModal(false)}>×</button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <p style={{ marginBottom: '15px', fontSize: '0.9rem' }}>
+                Estás a punto de borrar esta empresa y <strong>todos sus datos asociados</strong> permanentemente.
+              </p>
+              <div className="form-group">
+                <label className="form-label">Confirma tu contraseña de Administrador:</label>
+                <input 
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="Contraseña Maestra"
+                  autoFocus
+                />
+              </div>
+              <div className="modal-actions" style={{ marginTop: '20px' }}>
+                <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
+                <button className="btn btn-primary" style={{ backgroundColor: '#ef4444' }} onClick={handleDeletePhysical} disabled={loading}>
+                  {loading ? 'Borrando...' : 'ELIMINAR TODO'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PlayaManagement;
     </div>
   );
 };

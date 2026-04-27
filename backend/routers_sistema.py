@@ -2,11 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
+from sqlalchemy import text
 from database import get_session
-from models import Playa
+from models import Playa, Usuario
 from schemas import PlayaCreate, PlayaUpdate, PlayaResponse
-from security import require_admin
+from security import require_admin, verify_password, get_password_hash
 from audit_utils import log_audit_action
+from email_service import email_service
+import secrets
+import string
+from pydantic import BaseModel
+
+class DeletePhysicalRequest(BaseModel):
+    admin_password: str
 
 router = APIRouter(prefix="/sistema/playas", tags=["Administración de Playas"])
 
@@ -132,3 +140,105 @@ async def delete_playa(
     )
     
     return {"message": "Playa desactivada correctamente"}
+
+@router.post("/{playa_id}/resend-password")
+async def resend_playa_password(
+    playa_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(require_admin)
+):
+    """Busca al usuario principal de la playa y le envía una nueva contraseña."""
+    # Buscar el usuario de esa playa (el primero que encuentre, asumiendo que es el admin del tenant)
+    result = await session.execute(
+        select(Usuario).where(Usuario.id_playa == playa_id).order_by(Usuario.id.asc())
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="No se encontró un usuario asociado a esta empresa.")
+
+    # Generar contraseña temporal
+    alphabet = string.ascii_letters + string.digits
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+    user.hashed_password = get_password_hash(temp_password)
+    await session.commit()
+
+    # Enviar email
+    enviado = email_service.send_welcome_email(
+        user.email,
+        user.username,
+        temp_password,
+        user.rol
+    )
+    
+    if not enviado:
+        raise HTTPException(
+            status_code=500,
+            detail="Error al enviar el correo. Verifica la configuración SMTP."
+        )
+        
+    return {"message": f"Se ha enviado una nueva contraseña a {user.email}"}
+
+@router.post("/{playa_id}/delete-physical")
+async def delete_playa_physical(
+    playa_id: int,
+    data: DeletePhysicalRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(require_admin)
+):
+    """Elimina físicamente una playa y TODOS sus datos asociados (CUIDADO)."""
+    # 1. Verificar contraseña del admin que ejecuta la acción
+    result = await session.execute(select(Usuario).where(Usuario.username == current_user["sub"]))
+    admin_user = result.scalar_one_or_none()
+    
+    if not admin_user or not verify_password(data.admin_password, admin_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Contraseña de administrador incorrecta.")
+
+    # 2. Verificar existencia de la playa
+    result = await session.execute(select(Playa).where(Playa.id == playa_id))
+    playa = result.scalar_one_or_none()
+    if not playa:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada.")
+
+    nombre_playa = playa.nombre
+
+    try:
+        # 3. Eliminar datos en cascada manual (SQL directo para eficiencia en multitenancy)
+        # Esto asume que las tablas tienen la columna id_playa
+        tablas_a_limpiar = [
+            "playa.productos", "playa.ventas", "playa.compras", 
+            "playa.gastos", "playa.movimientos_caja", "playa.pagos",
+            "playa.pagares", "playa.clientes", "playa.vendedores",
+            "playa.historial_propietarios", "playa.catalogos"
+        ]
+        
+        for tabla in tablas_a_limpiar:
+            try:
+                await session.execute(text(f"DELETE FROM {tabla} WHERE id_playa = :pid"), {"pid": playa_id})
+            except Exception as e:
+                print(f"Aviso: No se pudo limpiar tabla {tabla}: {e}")
+
+        # 4. Eliminar usuarios de la playa
+        await session.execute(text("DELETE FROM sistema.usuarios WHERE id_playa = :pid"), {"pid": playa_id})
+
+        # 5. Eliminar la playa finalmente
+        await session.delete(playa)
+        
+        await session.commit()
+
+        # Auditoría
+        await log_audit_action(
+            session=session,
+            username=current_user["sub"],
+            user_id=admin_user.id,
+            action="delete_physical",
+            table="playas",
+            record_id=playa_id,
+            details=f"ELIMINACIÓN TOTAL de la empresa: {nombre_playa}"
+        )
+
+        return {"message": f"La empresa {nombre_playa} y todos sus datos han sido eliminados permanentemente."}
+
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error crítico durante la eliminación: {str(e)}")
