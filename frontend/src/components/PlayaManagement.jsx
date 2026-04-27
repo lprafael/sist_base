@@ -365,8 +365,3 @@ const PlayaManagement = () => {
 };
 
 export default PlayaManagement;
-    </div>
-  );
-};
-
-export default PlayaManagement;
