@@ -56,8 +56,6 @@ export default function PublicCatalog() {
   const [filtros, setFiltros] = useState(() => ({ ...FILTROS_VACIOS }));
 
   const [viewMode, setViewMode] = useState("grid");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedVehicleForModal, setSelectedVehicleForModal] = useState(null);
   
   const [oferta, setOferta] = useState(initialOferta);
@@ -72,7 +70,7 @@ export default function PublicCatalog() {
   const featuredVehicles = useMemo(() => {
     const withImg = vehiclesList.filter((v) => imagenesLista(v).some((i) => i.imagen_con_marca));
     const pool = withImg.length ? withImg : vehiclesList;
-    return pool.slice(0, Math.min(5, pool.length));
+    return pool.slice(0, Math.min(3, pool.length));
   }, [vehiclesList]);
   
   const [featuredIndex, setFeaturedIndex] = useState(0);
@@ -137,8 +135,6 @@ export default function PublicCatalog() {
         if (q.trim()) p.set("q", q.trim());
         if (filtros.marca.trim()) p.set("marca", filtros.marca.trim());
         if (filtros.modelo.trim()) p.set("modelo", filtros.modelo.trim());
-        if (filtros.año_desde) p.set("año_desde", filtros.año_desde);
-        if (filtros.año_hasta) p.set("año_hasta", filtros.año_hasta);
         if (filtros.combustible.trim()) p.set("combustible", filtros.combustible.trim());
         if (filtros.transmision.trim()) p.set("transmision", filtros.transmision.trim());
         if (filtros.color.trim()) p.set("color", filtros.color.trim());
@@ -262,15 +258,17 @@ export default function PublicCatalog() {
       <header className="mc-topbar">
         <div className="mc-topbar-inner">
           <span>🚀 Marketplace de vehículos en Paraguay · Playas y particulares</span>
-          <a href="http://localhost:3002/" className="mc-topbar-link" target="_blank" rel="noreferrer">
-            Acceso Administración →
-          </a>
+          <div className="mc-topbar-links">
+             <a href="http://187.77.247.23:3004" className="mc-topbar-link" target="_blank" rel="noreferrer">
+                Acceso Administración →
+             </a>
+          </div>
         </div>
       </header>
 
       <nav className="mc-nav">
         <div className="mc-nav-inner">
-          <a href="#inicio" className="mc-brand">
+          <a href="/" className="mc-brand">
             <img src="/imágenes/logo_miplaya_oficial.png" alt="MiCoche" className="mc-logo" />
             <span className="mc-brand-text">
               <strong>MiCoche</strong>
@@ -278,23 +276,10 @@ export default function PublicCatalog() {
           </a>
 
           <div className="mc-nav-links">
-            <a href="#catalogo">Explorar</a>
+            <a href="#catalogo">Comprar</a>
             <a href="#playas">Agencias</a>
             {user ? (
-              <div className="mc-user-nav">
-                <span className="mc-user-name">Hola, {user.nombre_completo.split(' ')[0]}</span>
-                <button 
-                  className="mc-link-btn mc-logout-btn" 
-                  onClick={() => {
-                    localStorage.removeItem("mc_token");
-                    localStorage.removeItem("mc_user");
-                    setUser(null);
-                    setMisOfertas([]);
-                  }}
-                >
-                  Salir
-                </button>
-              </div>
+              <span className="mc-user-name">Hola, {user.nombre_completo.split(' ')[0]}</span>
             ) : (
               <a href="/login">Acceso Clientes</a>
             )}
@@ -303,40 +288,37 @@ export default function PublicCatalog() {
         </div>
       </nav>
 
-      <section id="inicio" className="mc-hero">
+      <section className="mc-hero">
         <div className="mc-hero-grid">
           <div className="mc-hero-copy">
-            <span className="mc-eyebrow">✨ EL MARKETPLACE N°1 DE PARAGUAY</span>
-            <h1>Encontrá el auto que mejor va con vos</h1>
+            <h1>Encuentra tu próximo vehículo hoy</h1>
             <p className="mc-lead">
-              Navegá entre cientos de opciones certificadas de las mejores playas y ofertas directas de particulares en todo el país.
+              Navega entre cientos de opciones certificadas de las mejores playas y ofertas directas en Paraguay.
             </p>
-            <form className="mc-search glass-card" onSubmit={(e) => {
+            
+            <form className="mc-search" onSubmit={(e) => {
                 e.preventDefault();
                 document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth" });
               }}>
               <input
                 type="search"
-                placeholder="¿Qué marca o modelo buscás? (Ej. Toyota Hilux)"
+                placeholder="¿Qué marca o modelo buscas? (Ej. Toyota Hilux)"
                 value={qInput}
                 onChange={(e) => setQInput(e.target.value)}
               />
-              <button type="submit" className="mc-btn mc-btn--primary">Buscar Ahora</button>
+              <button type="submit" className="mc-btn--primary">Buscar Vehículo</button>
             </form>
           </div>
           
           {fv && (
             <div className="mc-hero-spotlight"
               style={{
-                backgroundImage: `linear-gradient(160deg, rgba(10, 31, 68, 0.7), rgba(10, 31, 68, 0.2)), url(${getFullImageUrl(imagenesLista(fv).find(i => i.es_principal) || imagenesLista(fv)[0])})`,
+                backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.6)), url(${getFullImageUrl(imagenesLista(fv).find(i => i.es_principal) || imagenesLista(fv)[0])})`,
                 backgroundSize: 'cover', backgroundPosition: 'center'
               }}>
-              <span className="mc-spot-badge">🔥 Recomendado</span>
-              <h2>{fv.marca} {fv.modelo}</h2>
-              <p>{añoVehiculo(fv)} · {fv.color}</p>
-              <button className="mc-btn mc-btn--accent" onClick={() => handleWhatsApp(fv)}>
-                Contactar ahora
-              </button>
+              <span className="mc-spot-badge">Destacado</span>
+              <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>{fv.marca} {fv.modelo}</h2>
+              <p>{añoVehiculo(fv)} · {precioMostrar(fv) ? formatPrice(precioMostrar(fv)) : "Consultar"}</p>
             </div>
           )}
         </div>
@@ -344,13 +326,10 @@ export default function PublicCatalog() {
 
       <div id="catalogo" className="mc-layout">
         <aside className="mc-filters">
-          <p className="mc-results-count-alt">
-            {loading ? "Buscando..." : <strong>{vehiclesList.length}</strong>} Resultados
-          </p>
-          <h2>Filtros Avanzados</h2>
+          <h2>Filtros</h2>
           <div className="mc-filters-list">
              <div className="mc-field">
-                <span>¿Quién vende?</span>
+                <span>Vendedor</span>
                 <select 
                   value={filtrosDraft.solo_particulares ? "__part" : filtrosDraft.id_playa} 
                   onChange={(e) => {
@@ -362,42 +341,36 @@ export default function PublicCatalog() {
                     }
                   }}
                 >
-                  <option value="">Todas las agencias y particulares</option>
-                  <option value="__part">👤 Solo Particulares</option>
+                  <option value="">Todos</option>
+                  <option value="__part">👤 Particulares</option>
                   {playasList.map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      {p.nombre} ({p.vehiculos_disponibles})
-                    </option>
+                    <option key={p.id} value={String(p.id)}>{p.nombre}</option>
                   ))}
                 </select>
              </div>
              
              <div className="mc-field">
                 <span>Marca</span>
-                <input placeholder="Ej. Toyota, Kia, Hyundai..." value={filtrosDraft.marca} onChange={e => setFiltrosDraft(f => ({...f, marca: e.target.value}))} />
+                <input placeholder="Ej. Toyota" value={filtrosDraft.marca} onChange={e => setFiltrosDraft(f => ({...f, marca: e.target.value}))} />
              </div>
 
              <div className="mc-field">
                 <span>Modelo</span>
-                <input placeholder="Ej. Hilux, Picanto..." value={filtrosDraft.modelo} onChange={e => setFiltrosDraft(f => ({...f, modelo: e.target.value}))} />
+                <input placeholder="Ej. Hilux" value={filtrosDraft.modelo} onChange={e => setFiltrosDraft(f => ({...f, modelo: e.target.value}))} />
              </div>
 
              <div className="mc-field">
-                <span>Rango de Año</span>
-                <div className="mc-field-row">
-                  <input placeholder="Desde" value={filtrosDraft.año_desde} onChange={e => setFiltrosDraft(f => ({...f, año_desde: e.target.value}))} />
-                  <input placeholder="Hasta" value={filtrosDraft.año_hasta} onChange={e => setFiltrosDraft(f => ({...f, año_hasta: e.target.value}))} />
-                </div>
+                <span>Combustible</span>
+                <select value={filtrosDraft.combustible} onChange={e => setFiltrosDraft(f => ({...f, combustible: e.target.value}))}>
+                   <option value="">Todos</option>
+                   <option value="Nafta">Nafta</option>
+                   <option value="Diesel">Diesel</option>
+                   <option value="Híbrido">Híbrido</option>
+                   <option value="Eléctrico">Eléctrico</option>
+                </select>
              </div>
 
-             <div className="mc-field">
-                <span>Especificaciones</span>
-                <input placeholder="Combustible" value={filtrosDraft.combustible} onChange={e => setFiltrosDraft(f => ({...f, combustible: e.target.value}))} />
-                <div style={{ marginTop: '0.5rem' }}></div>
-                <input placeholder="Transmisión" value={filtrosDraft.transmision} onChange={e => setFiltrosDraft(f => ({...f, transmision: e.target.value}))} />
-             </div>
-
-             <button className="mc-btn mc-btn--outline" style={{ marginTop: '1rem', borderRadius: '4px', fontSize: '0.85rem' }} onClick={() => {
+             <button className="mc-btn--outline" style={{ marginTop: '1rem', padding: '0.5rem' }} onClick={() => {
                 setFiltrosDraft(FILTROS_VACIOS);
                 setFiltros(FILTROS_VACIOS);
              }}>
@@ -408,124 +381,58 @@ export default function PublicCatalog() {
 
         <main className="mc-main">
           <div className="mc-toolbar">
-            <div className="mc-breadcrumb">
-               <a href="/">Motor</a> / <a href="/autos">Autos</a>
-            </div>
+            <p className="mc-results-count-alt">
+              Mostrando <strong>{vehiclesList.length}</strong> vehículos
+            </p>
             <div className="mc-view-toggle">
-              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")}>
-                 <span className="toggle-icon">▤</span> Grilla
-              </button>
-              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}>
-                 <span className="toggle-icon">☰</span> Lista
-              </button>
+              <button className={viewMode === "grid" ? "active" : ""} onClick={() => setViewMode("grid")}>Grilla</button>
+              <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}>Lista</button>
             </div>
           </div>
 
           {loading ? (
-            <SkeletonLoader count={12} viewMode={viewMode} />
+            <SkeletonLoader count={12} />
           ) : (
-            <>
-              <div className={viewMode === "grid" ? "mc-grid" : "mc-list"}>
-                {vehiclesList.map(v => (
-                  <VehicleCard 
-                    key={v.id_producto} 
-                    vehicle={v} 
-                    viewMode={viewMode} 
-                    onWhatsApp={handleWhatsApp} 
-                    onPhotoClick={setSelectedVehicleForModal} 
-                  />
-                ))}
-              </div>
-              {vehiclesList.length === 0 && !error && (
-                <div className="mc-empty glass-card">
-                   <p>No encontramos vehículos con esos filtros.</p>
-                   <button className="mc-btn mc-btn--outline" onClick={() => {
-                     setFiltrosDraft(FILTROS_VACIOS);
-                     setFiltros(FILTROS_VACIOS);
-                   }}>Limpiar filtros</button>
-                </div>
-              )}
-            </>
+            <div className={viewMode === "grid" ? "mc-grid" : "mc-list"}>
+              {vehiclesList.map(v => (
+                <VehicleCard 
+                  key={v.id_producto} 
+                  vehicle={v} 
+                  viewMode={viewMode} 
+                  onWhatsApp={handleWhatsApp} 
+                  onPhotoClick={setSelectedVehicleForModal} 
+                />
+              ))}
+            </div>
           )}
           
-          {hasMore && !loading && vehiclesList.length > 0 && (
-            <div className="mc-more-wrap">
-              <button className="mc-btn mc-btn--outline" onClick={loadMore} disabled={loadingMore}>
-                {loadingMore ? "Cargando..." : "Mostrar más resultados"}
+          {hasMore && !loading && (
+            <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+              <button className="mc-btn--outline" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? "Cargando..." : "Ver más vehículos"}
               </button>
             </div>
           )}
         </main>
       </div>
 
-      <section id="playas" className="mc-section">
+      <section id="playas" className="mc-section" style={{ background: '#fff' }}>
          <div className="mc-section-inner">
-            <h2 className="mc-section-title">Nuestras Playas Adheridas</h2>
+            <h2 className="mc-section-title">Nuestras Playas</h2>
             <div className="mc-playas-grid">
                {playasList.map(p => (
-                 <article key={p.id} className="mc-playa-card glass-card">
+                 <article key={p.id} className="mc-playa-card">
                     <h3>{p.nombre}</h3>
-                    <p className="mc-playa-stock">{p.vehiculos_disponibles} disponibles</p>
-                    {p.direccion && <p className="mc-playa-dir">📍 {p.direccion}</p>}
+                    <p className="mc-playa-stock">{p.vehiculos_disponibles} vehículos</p>
                     <button className="mc-link-btn" onClick={() => {
                        const next = { ...FILTROS_VACIOS, id_playa: String(p.id) };
                        setFiltrosDraft(next);
                        setFiltros(next);
                        document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth" });
-                    }}>Ver inventario →</button>
+                    }}>Ver Stock →</button>
                  </article>
                ))}
             </div>
-         </div>
-      </section>
-
-      <section id="publicar" className="mc-section">
-         <div className="mc-section-inner">
-            <div className="mc-publish-header">
-                <h2>{user ? "Publicá un nuevo vehículo" : "Vendé tu auto hoy"}</h2>
-                <p>Miles de personas buscan su próximo vehículo aquí cada día.</p>
-            </div>
-            
-            {user ? (
-                <>
-                  <PublishForm 
-                    oferta={oferta} setOferta={setOferta} 
-                    handleOfertaSubmit={handleOfertaSubmit}
-                    ofertaMsg={ofertaMsg} ofertaLoading={ofertaLoading}
-                    ofertaFotos={ofertaFotos} setOfertaFotos={setOfertaFotos}
-                    ofertaFileInputRef={ofertaFileInputRef}
-                    catalogoTipos={catalogoTipos}
-                    catalogoMarcas={catalogoMarcas}
-                    catalogoModelos={catalogoModelos}
-                  />
-                  
-                  {misOfertas.length > 0 && (
-                    <div style={{ marginTop: '3rem' }}>
-                      <h2 className="mc-section-title" style={{ textAlign: 'left', marginBottom: '2rem' }}>Mis Publicaciones</h2>
-                      <MyPublications 
-                        publications={misOfertas} 
-                        loading={loadingMisOfertas} 
-                        onUpdate={fetchMyOffers}
-                      />
-                    </div>
-                  )}
-                </>
-            ) : (
-              <div className="mc-login-box glass-card">
-                  <span className="mc-login-icon">👤</span>
-                  <h3>Iniciá sesión para publicar</h3>
-                  <p>Accedé de forma segura con tu cuenta de Google para administrar tus publicaciones gratis.</p>
-                  <div className="mc-google-login-wrap">
-                    <GoogleLogin 
-                      onLoginSuccess={(data) => {
-                        setUser(data.user);
-                        setOfertaMsg({ type: "ok", text: "¡Sesión iniciada! Completá los datos ahora." });
-                      }}
-                      onLoginError={(err) => setOfertaMsg({ type: "err", text: err })}
-                    />
-                  </div>
-              </div>
-            )}
          </div>
       </section>
 

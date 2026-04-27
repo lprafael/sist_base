@@ -30,100 +30,53 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
 
   const price = precioMostrar(vehicle);
   const formattedPrice = formatPrice(price);
-  const badge = vehicle.es_particular ? "Particular" : vehicle.nombre_playa || "Playa";
-
-  if (viewMode === "list") {
-    return (
-      <article
-        className="vehicle-row mc-card"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        <button
-          type="button"
-          className="vehicle-row-thumb"
-          onClick={() => onPhotoClick(vehicle)}
-        >
-          <img src={getImageUrl()} alt="" />
-          <div className="card-badges">
-            <span className={`mc-badge ${vehicle.es_particular ? "mc-badge-particular" : ""}`}>
-              {vehicle.es_particular ? "Particular" : "Playa"}
-            </span>
-          </div>
-        </button>
-        <div className="vehicle-row-body">
-          <h3 className="vehicle-row-title">
-            {vehicle.marca} {vehicle.modelo}
-          </h3>
-          <p className="vehicle-row-price">{formattedPrice}</p>
-          <p className="vehicle-row-meta">
-            {[añoVehiculo(vehicle), vehicle.color, vehicle.combustible, vehicle.transmision]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-          {vehicle.nombre_playa && !vehicle.es_particular && (
-            <p className="vehicle-row-meta" style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
-              Ofrecido por: <strong>{vehicle.nombre_playa}</strong>
-            </p>
-          )}
-        </div>
-        <div className="vehicle-row-side">
-          <button type="button" className="mc-btn mc-btn--primary mc-btn--sm" style={{ width: '100%', borderRadius: '4px' }} onClick={() => onWhatsApp(vehicle)}>
-            WhatsApp
-          </button>
-        </div>
-      </article>
-    );
-  }
 
   return (
     <article
-      className="vehicle-card mc-card"
+      className={`mc-card ${viewMode === "list" ? "vehicle-row" : "vehicle-card"}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onPhotoClick(vehicle)}
     >
       <div className="card-image-wrapper">
-        <img src={getImageUrl()} alt={`${vehicle.marca} ${vehicle.modelo}`} />
+        <img src={getImageUrl()} alt={`${vehicle.marca} ${vehicle.modelo}`} loading="lazy" />
+        
         <div className="card-badges">
           <span className={`mc-badge ${vehicle.es_particular ? "mc-badge-particular" : ""}`}>
-             {vehicle.es_particular ? "Particular" : "Playa"}
+             {vehicle.es_particular ? "Particular" : (vehicle.nombre_playa || "Playa")}
           </span>
+          {vehicle.kilometraje && (
+            <span className="mc-badge" style={{ background: 'rgba(255,255,255,0.9)', color: '#0f172a' }}>
+              {vehicle.kilometraje} km
+            </span>
+          )}
         </div>
+
         <div className="card-overlay">
           <button
             type="button"
-            className="mc-btn mc-btn--primary mc-btn--sm"
-            style={{ borderRadius: '4px' }}
+            className="mc-btn--primary"
+            style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}
             onClick={(e) => {
               e.stopPropagation();
               onWhatsApp(vehicle);
             }}
           >
-            WhatsApp
+            Consultar WhatsApp
           </button>
-          {hasImages && images.length > 1 && isHovered && (
-            <div className="image-counter" style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
-              {currentImageIndex + 1} / {images.length}
-            </div>
-          )}
         </div>
       </div>
+
       <div className="card-info">
-        <h3>
-          {vehicle.marca} {vehicle.modelo}
-        </h3>
+        <h3>{vehicle.marca} {vehicle.modelo} {añoVehiculo(vehicle)}</h3>
         <p className="card-price">{formattedPrice}</p>
+        
         <div className="card-specs">
-          <span>{añoVehiculo(vehicle) || "—"}</span>
+          <span>{vehicle.transmision || "Transmisión"}</span>
           <span>·</span>
-          <span>{vehicle.color || "—"}</span>
-          {vehicle.combustible && (
-            <>
-              <span>·</span>
-              <span>{vehicle.combustible}</span>
-            </>
-          )}
+          <span>{vehicle.combustible || "Combustible"}</span>
+          <span>·</span>
+          <span>{vehicle.color || "Color"}</span>
         </div>
       </div>
     </article>
