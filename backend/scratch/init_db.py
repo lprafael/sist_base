@@ -1,5 +1,6 @@
 import asyncio
-from database import engine, Base
+from database import engine
+from models import Base
 from sqlalchemy import text
 from models import Usuario, Rol, Permiso, LogAuditoria, LogAcceso, SesionUsuario
 # Importar otros modelos si es necesario para que Base.metadata los reconozca
