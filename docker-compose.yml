@@ -12,6 +12,8 @@ services:
       - POSTGRES_DB=${DB_NAME:-mi_playa}
     volumes:
       - mi_playa_db_data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
     restart: unless-stopped
     networks:
       - mi-playa-network
@@ -30,12 +32,10 @@ services:
       - "8004:8001"
     environment:
       - PORT=8001
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-mi_playa}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - ./backend/.env
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
