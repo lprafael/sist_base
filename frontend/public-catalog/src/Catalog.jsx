@@ -237,8 +237,18 @@ export default function PublicCatalog() {
         body: fd,
       });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.detail || data.message || "No se pudo publicar");
-      
+      if (!r.ok) {
+        let errMsg = data.detail || data.message || "No se pudo publicar";
+        if (Array.isArray(data.detail)) {
+          errMsg = data.detail.map(e => {
+            const campo = e.loc ? e.loc[e.loc.length - 1] : "";
+            return `${campo ? campo + ': ' : ''}${e.msg}`;
+          }).join(", ");
+        } else if (typeof data.detail === "object") {
+          errMsg = JSON.stringify(data.detail);
+        }
+        throw new Error(errMsg);
+      }
       setOfertaMsg({ type: "ok", text: "¡Publicación registrada!" });
       setVehicles((prev) => [data, ...(Array.isArray(prev) ? prev : [])]);
       setOferta(initialOferta);
