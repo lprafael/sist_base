@@ -206,40 +206,46 @@ const TiposGastosProductos = () => {
             {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>{editingTipo ? 'Editar Concepto' : 'Nuevo Concepto'}</h3>
+                        <div className="modal-header">
+                            <h3>{editingTipo ? 'Editar Concepto' : 'Nuevo Concepto'}</h3>
+                        </div>
                         <form onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label>Nombre</label>
-                                <input
-                                    type="text"
-                                    value={formData.nombre}
-                                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                                    required
-                                />
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Nombre</label>
+                                    <input
+                                        type="text"
+                                        value={formData.nombre}
+                                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Descripción</label>
+                                    <textarea
+                                        value={formData.descripcion}
+                                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                                        rows="3"
+                                    />
+                                </div>
+
+                                <div className="form-check">
+                                    <input
+                                        type="checkbox"
+                                        id="chkActivo"
+                                        checked={formData.activo}
+                                        onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                                    />
+                                    <label htmlFor="chkActivo">Activo</label>
+                                </div>
                             </div>
 
-                            <div className="form-group">
-                                <label>Descripción</label>
-                                <textarea
-                                    value={formData.descripcion}
-                                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                                    rows="3"
-                                />
-                            </div>
-
-                            <div className="form-check">
-                                <input
-                                    type="checkbox"
-                                    id="chkActivo"
-                                    checked={formData.activo}
-                                    onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                                />
-                                <label htmlFor="chkActivo">Activo</label>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={closeModal}>Cancelar</button>
-                                <button type="submit" className="btn-save">Guardar</button>
+                            <div className="modal-footer">
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={closeModal}>Cancelar</button>
+                                    <button type="submit" className="btn-save">Guardar</button>
+                                </div>
                             </div>
                         </form>
                     </div>

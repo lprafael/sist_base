@@ -148,55 +148,60 @@ const VendedoresPlaya = () => {
             {modalOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>{editingVendedor ? 'Editar Vendedor' : 'Nuevo Vendedor'}</h3>
+                        <div className="modal-header">
+                            <h3>{editingVendedor ? 'Editar Vendedor' : 'Nuevo Vendedor'}</h3>
+                        </div>
                         <form onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label>Nombre *</label>
-                                <input
-                                    type="text"
-                                    value={formData.nombre}
-                                    onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Apellido *</label>
-                                <input
-                                    type="text"
-                                    value={formData.apellido}
-                                    onChange={e => setFormData({ ...formData, apellido: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Teléfono</label>
-                                <input
-                                    type="text"
-                                    value={formData.telefono}
-                                    onChange={e => setFormData({ ...formData, telefono: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Email</label>
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group checkbox">
-                                <label>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label>Nombre *</label>
+                                    <input
+                                        type="text"
+                                        value={formData.nombre}
+                                        onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Apellido *</label>
+                                    <input
+                                        type="text"
+                                        value={formData.apellido}
+                                        onChange={e => setFormData({ ...formData, apellido: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Teléfono</label>
+                                    <input
+                                        type="text"
+                                        value={formData.telefono}
+                                        onChange={e => setFormData({ ...formData, telefono: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Email</label>
+                                    <input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-check">
                                     <input
                                         type="checkbox"
+                                        id="chkActivo"
                                         checked={formData.activo}
                                         onChange={e => setFormData({ ...formData, activo: e.target.checked })}
                                     />
-                                    Activo
-                                </label>
+                                    <label htmlFor="chkActivo">Activo</label>
+                                </div>
                             </div>
-                            <div className="modal-actions">
-                                <button type="button" className="btn-cancel" onClick={closeModal}>Cancelar</button>
-                                <button type="submit" className="btn-save">Guardar</button>
+                            <div className="modal-footer">
+                                <div className="modal-actions">
+                                    <button type="button" className="btn-cancel" onClick={closeModal}>Cancelar</button>
+                                    <button type="submit" className="btn-save">Guardar</button>
+                                </div>
                             </div>
                         </form>
                     </div>

@@ -18,7 +18,8 @@ import {
   imagenesLista, 
   telParticular,
   getFullImageUrl,
-  precioMostrar
+  precioMostrar,
+  formatPrice
 } from "./utils/helpers";
 
 const initialOferta = {
