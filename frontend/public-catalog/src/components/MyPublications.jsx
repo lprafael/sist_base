@@ -1,5 +1,5 @@
 import React from "react";
-import { API_URL, getFullImageUrl, precioMostrar, añoVehiculo } from "../utils/helpers";
+import { API_URL, getFullImageUrl, formatPrice, añoVehiculo } from "../utils/helpers";
 
 const MyPublications = ({ publications, loading, onUpdate }) => {
   if (loading) return <div className="mc-loading-small">Cargando tus publicaciones...</div>;
@@ -36,7 +36,7 @@ const MyPublications = ({ publications, loading, onUpdate }) => {
             <div className="mc-my-pub-info">
               <h4>{p.marca} {p.modelo}</h4>
               <p className="mc-my-pub-meta">{añoVehiculo(p)} · {p.color}</p>
-              <p className="mc-my-pub-price">{precioMostrar(p.costo_final)}</p>
+              <p className="mc-my-pub-price">{formatPrice(p.costo_final)}</p>
               <div className="mc-my-pub-actions">
                 {/* <button className="mc-btn mc-btn--small mc-btn--outline">Editar</button> */}
                 <button 
