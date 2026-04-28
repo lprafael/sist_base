@@ -29,7 +29,7 @@ const VehicleCard = ({ vehicle, viewMode, onWhatsApp, onPhotoClick }) => {
   };
 
   const price = precioMostrar(vehicle);
-  const formattedPrice = formatPrice(price);
+  const formattedPrice = typeof formatPrice === 'function' ? formatPrice(price) : price;
 
   return (
     <article

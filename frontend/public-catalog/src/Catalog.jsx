@@ -329,7 +329,7 @@ export default function PublicCatalog() {
               }}>
               <span className="mc-spot-badge">Destacado</span>
               <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>{fv.marca} {fv.modelo}</h2>
-              <p>{añoVehiculo(fv)} · {precioMostrar(fv) ? formatPrice(precioMostrar(fv)) : "Consultar"}</p>
+              <p>{añoVehiculo(fv)} · {precioMostrar(fv) ? (typeof formatPrice === 'function' ? formatPrice(precioMostrar(fv)) : precioMostrar(fv)) : "Consultar"}</p>
             </div>
           )}
         </div>

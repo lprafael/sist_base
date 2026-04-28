@@ -43,9 +43,13 @@ export const getFullImageUrl = (img) => {
 };
 
 export const formatPrice = (price) => {
-  return price != null
-    ? new Intl.NumberFormat("es-PY", { style: "currency", currency: "PYG" }).format(price)
-    : "Consultar";
+  if (price == null) return "Consultar";
+  try {
+    return new Intl.NumberFormat("es-PY", { style: "currency", currency: "PYG" }).format(price);
+  } catch (e) {
+    console.error("Error formatting price:", e);
+    return `Gs. ${Number(price).toLocaleString('es-PY')}`;
+  }
 };
 
 export const telParticular = (vehicle) => {

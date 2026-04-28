@@ -1,5 +1,10 @@
 import React, { useState } from "react";
-import { API_URL, getFullImageUrl, formatPrice, añoVehiculo } from "../utils/helpers";
+import { 
+  API_URL, 
+  getFullImageUrl, 
+  formatPrice, 
+  añoVehiculo 
+} from "../utils/helpers";
 
 const MyPublications = ({ publications, loading, onUpdate }) => {
   const [editingId, setEditingId] = useState(null);
@@ -107,7 +112,7 @@ const MyPublications = ({ publications, loading, onUpdate }) => {
                 <>
                   <h4>{p.marca} {p.modelo}</h4>
                   <p className="mc-my-pub-meta">{añoVehiculo(p)} · {p.color || 'Sin color'} · {p.ubicacion_actual || 'Sin ciudad'}</p>
-                  <p className="mc-my-pub-price">{formatPrice(p.costo_final)}</p>
+                  <p className="mc-my-pub-price">{typeof formatPrice === 'function' ? formatPrice(p.costo_final) : p.costo_final}</p>
                   <p className="mc-my-pub-meta" style={{ fontSize: "0.8rem", marginBottom: "0.5rem" }}>Tel: {p.telefono}</p>
                   <div className="mc-my-pub-actions">
                     <button className="mc-btn mc-btn--small mc-btn--outline" onClick={() => handleEditClick(p)}>Editar</button>
