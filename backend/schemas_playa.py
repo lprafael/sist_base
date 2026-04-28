@@ -113,7 +113,7 @@ class ProductoBase(BaseModel):
     modelo: Optional[str] = None
     año: Optional[int] = None
     color: Optional[str] = None
-    chasis: str
+    chasis: Optional[str] = None
     motor: Optional[str] = None
     kilometraje: Optional[int] = None
     combustible: Optional[str] = None
@@ -133,7 +133,15 @@ class ProductoBase(BaseModel):
     fecha_ingreso: Optional[date] = None
 
 class ProductoCreate(ProductoBase):
-    pass
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        for key in ("chasis", "codigo_interno"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: None}
+        return data
 
 class ProductoUpdate(BaseModel):
     id_categoria: Optional[int] = None
@@ -167,6 +175,16 @@ class ProductoUpdate(BaseModel):
     observaciones: Optional[str] = None
     fecha_ingreso: Optional[date] = None
     activo: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        for key in ("chasis", "codigo_interno"):
+            if key in data and (data[key] == "" or data[key] is None):
+                data = {**data, key: None}
+        return data
 
 class ProductoResponseSimple(BaseModel):
     """Respuesta básica de producto sin campos calculados que requieran relaciones extra."""

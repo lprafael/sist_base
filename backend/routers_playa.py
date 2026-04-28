@@ -1709,15 +1709,21 @@ async def create_vehiculo(
 ):
     # Verificar chasis duplicado solo dentro de la misma playa
     user_playa = current_user.get("id_playa")
-    dup_q = select(Producto).where(Producto.chasis == vehiculo_data.chasis)
-    if user_playa is not None:
-        dup_q = dup_q.where(Producto.id_playa == user_playa)
-    res = await session.execute(dup_q)
-    if res.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail=f"Ya existe un vehículo registrado con el chasis '{vehiculo_data.chasis}'.")
+    if vehiculo_data.chasis:
+        dup_q = select(Producto).where(Producto.chasis == vehiculo_data.chasis)
+        if user_playa is not None:
+            dup_q = dup_q.where(Producto.id_playa == user_playa)
+        res = await session.execute(dup_q)
+        if res.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Ya existe un vehículo registrado con el chasis '{vehiculo_data.chasis}'.")
 
     new_vehiculo_data = vehiculo_data.dict()
     new_vehiculo_data["id_playa"] = current_user.get("id_playa")
+    
+    import uuid
+    if not new_vehiculo_data.get("codigo_interno"):
+        new_vehiculo_data["codigo_interno"] = f"INV-{uuid.uuid4().hex[:8].upper()}"
+
     new_vehiculo = Producto(**new_vehiculo_data)
     session.add(new_vehiculo)
     await session.commit()
@@ -1787,7 +1793,11 @@ async def update_vehiculo(
             old_data[key] = value.isoformat()
 
     # Actualizar campos
-    update_data = vehiculo_data.model_dump(exclude_none=True)
+    update_data = vehiculo_data.model_dump(exclude_unset=True)
+    if "codigo_interno" in update_data and not update_data["codigo_interno"]:
+        # Evitar borrar el código interno; si está vacío o nulo, lo quitamos de la actualización
+        del update_data["codigo_interno"]
+
     for field, value in update_data.items():
         setattr(vehiculo, field, value)
     
