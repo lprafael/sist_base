@@ -843,6 +843,16 @@ body {
   background: #fee2e2;
 }
 
+.mc-btn--edit {
+  color: var(--mc-accent) !important;
+  border: 1px solid var(--mc-accent) !important;
+  background: transparent;
+}
+
+.mc-btn--edit:hover {
+  background: rgba(37, 99, 235, 0.05) !important;
+}
+
 .mc-loading-small {
   text-align: center;
   padding: 2rem;

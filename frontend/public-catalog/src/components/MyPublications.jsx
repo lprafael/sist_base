@@ -78,14 +78,18 @@ const MyPublications = ({ publications, loading, onUpdate }) => {
   return (
     <div className="mc-my-pubs">
       <div className="mc-my-pubs-grid">
-        {publications.map((p) => {
+        {publications.length === 0 ? (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "2rem", background: "rgba(0,0,0,0.02)", borderRadius: "12px", border: "1px dashed #ccc" }}>
+            <p>Todavía no tenés ninguna publicación activa.</p>
+          </div>
+        ) : publications.map((p) => {
           const isEditing = editingId === p.id_producto;
           return (
           <div key={p.id_producto} className="mc-my-pub-card glass-card">
             <div className="mc-my-pub-img">
                 <img 
-                  src={getFullImageUrl(p.imagenes?.find(i => i.es_principal) || p.imagenes?.[0])} 
-                  alt={p.modelo} 
+                   src={getFullImageUrl(p.imagenes?.find(i => i.es_principal) || p.imagenes?.[0])} 
+                   alt={p.modelo} 
                 />
             </div>
             <div className="mc-my-pub-info">
@@ -101,7 +105,7 @@ const MyPublications = ({ publications, loading, onUpdate }) => {
                   
                   <div className="mc-my-pub-actions" style={{ marginTop: "1rem" }}>
                     <button className="mc-btn mc-btn--small mc-btn--primary" onClick={() => handleSave(p.id_producto)} disabled={saving} style={{ background: "#2563eb", color: "#fff", border: "none" }}>
-                      {saving ? "..." : "Guardar"}
+                      {saving ? "..." : "✅ Guardar"}
                     </button>
                     <button className="mc-btn mc-btn--small mc-btn--outline" onClick={handleCancelEdit} disabled={saving}>
                       Cancelar
@@ -115,12 +119,12 @@ const MyPublications = ({ publications, loading, onUpdate }) => {
                   <p className="mc-my-pub-price">{typeof formatPrice === 'function' ? formatPrice(p.costo_final) : p.costo_final}</p>
                   <p className="mc-my-pub-meta" style={{ fontSize: "0.8rem", marginBottom: "0.5rem" }}>Tel: {p.telefono}</p>
                   <div className="mc-my-pub-actions">
-                    <button className="mc-btn mc-btn--small mc-btn--outline" onClick={() => handleEditClick(p)}>Editar</button>
+                    <button className="mc-btn mc-btn--small mc-btn--edit" onClick={() => handleEditClick(p)}>✏️ Editar</button>
                     <button 
                         className="mc-btn mc-btn--small mc-btn--err"
                         onClick={() => handleDelete(p.id_producto)}
                     >
-                        Eliminar
+                        🗑️ Eliminar
                     </button>
                   </div>
                 </>

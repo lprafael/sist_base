@@ -524,6 +524,7 @@ async def public_listar_mis_ofertas(
             joinedload(Producto.modelo_rel)
         )
         .where(Producto.id_usuario == uid)
+        .where(Producto.activo == True)
         .order_by(Producto.fecha_registro.desc())
     )
     res = await session.execute(query)
