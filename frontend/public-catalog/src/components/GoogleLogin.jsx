@@ -15,7 +15,7 @@ const GoogleLogin = ({ onLoginSuccess, onLoginError }) => {
     script.onload = () => {
       if (window.google) {
         window.google.accounts.id.initialize({
-          client_id: "584709457333-pc1r7el5ic8ap3539dqvuj5v5bqs203r.apps.googleusercontent.com",
+          client_id: "691059769882-cr25lrk05acsjs8bnu7a108ec6qnp63f.apps.googleusercontent.com",
           callback: handleCredentialResponse,
         });
 
