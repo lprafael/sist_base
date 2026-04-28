@@ -437,6 +437,49 @@ export default function PublicCatalog() {
          </div>
       </section>
 
+      <section id="publicar" className="mc-section" style={{ background: '#f8fafc' }}>
+         <div className="mc-section-inner">
+            <h2 className="mc-section-title">Publicar mi vehículo</h2>
+            {!user ? (
+               <div style={{ textAlign: "center", padding: "2rem" }}>
+                  <p style={{ marginBottom: "1.5rem" }}>Iniciá sesión con Google para publicar un vehículo o administrar tus publicaciones.</p>
+                  <GoogleLogin onLogin={setUser} />
+               </div>
+            ) : (
+               <div className="mc-user-dashboard">
+                  <div className="mc-dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                     <h3>Tus Publicaciones</h3>
+                     <button className="mc-btn--outline" onClick={() => {
+                        localStorage.removeItem("mc_user");
+                        localStorage.removeItem("mc_token");
+                        setUser(null);
+                     }}>Cerrar Sesión</button>
+                  </div>
+                  <MyPublications 
+                     publications={misOfertas} 
+                     loading={loadingMisOfertas} 
+                     onUpdate={fetchMyOffers} 
+                  />
+                  <div className="mc-publish-divider" style={{ borderTop: '1px solid #e2e8f0', margin: '3rem 0' }}></div>
+                  <h3 style={{ marginBottom: '1.5rem' }}>Nueva Publicación</h3>
+                  <PublishForm 
+                     oferta={oferta} 
+                     setOferta={setOferta} 
+                     ofertaMsg={ofertaMsg} 
+                     ofertaLoading={ofertaLoading} 
+                     ofertaFotos={ofertaFotos} 
+                     setOfertaFotos={setOfertaFotos} 
+                     ofertaFileInputRef={ofertaFileInputRef} 
+                     handleOfertaSubmit={handleOfertaSubmit}
+                     catalogoTipos={catalogoTipos}
+                     catalogoMarcas={catalogoMarcas}
+                     catalogoModelos={catalogoModelos}
+                  />
+               </div>
+            )}
+         </div>
+      </section>
+
       {selectedVehicleForModal && (
         <ImageModal vehicle={selectedVehicleForModal} onClose={() => setSelectedVehicleForModal(null)} />
       )}
