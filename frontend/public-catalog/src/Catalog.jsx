@@ -453,7 +453,7 @@ export default function PublicCatalog() {
             {!user ? (
                <div style={{ textAlign: "center", padding: "2rem" }}>
                   <p style={{ marginBottom: "1.5rem" }}>Iniciá sesión con Google para publicar un vehículo o administrar tus publicaciones.</p>
-                  <GoogleLogin onLogin={setUser} />
+                  <GoogleLogin onLoginSuccess={setUser} />
                </div>
             ) : (
                <div className="mc-user-dashboard">
