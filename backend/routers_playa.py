@@ -446,7 +446,7 @@ async def public_crear_oferta_particular(
     current_user: dict = Depends(get_current_user),
     marca: str = Form(...),
     modelo: str = Form(...),
-    chasis: str = Form(...),
+    chasis: Optional[str] = Form(None),
     precio_pyg: str = Form(...),
     telefono: str = Form(...),
     año: Optional[str] = Form(None),
@@ -488,7 +488,7 @@ async def public_crear_oferta_particular(
         id_marca=id_marca,
         id_modelo=id_modelo,
         id_tipo_vehiculo=id_tipo_vehiculo,
-        chasis=chasis.strip(),
+        chasis=chasis.strip() if chasis else None,
         año=año_int,
         color=_f(color),
         combustible=_f(combustible),
@@ -623,7 +623,7 @@ async def _public_crear_oferta_particular_core(
     id_usuario: Optional[int] = None,
 ) -> ProductoPublicCatalogItem:
     id_cat = await get_or_create_categoria_publico_particular(session)
-    chasis_norm = payload.chasis.strip().upper()
+    chasis_norm = payload.chasis.strip().upper() if payload.chasis else f"SC-{uuid.uuid4().hex[:10].upper()}"
     dup = await session.execute(select(Producto).where(Producto.chasis == chasis_norm))
     if dup.scalar_one_or_none():
         raise HTTPException(
@@ -707,7 +707,12 @@ async def _public_crear_oferta_particular_core(
 
     res = await session.execute(
         select(Producto)
-        .options(selectinload(Producto.imagenes))
+        .options(
+            selectinload(Producto.imagenes),
+            joinedload(Producto.marca_rel),
+            joinedload(Producto.modelo_rel),
+            joinedload(Producto.tipo_vehiculo_rel)
+        )
         .where(Producto.id_producto == prod.id_producto)
     )
     p = res.scalar_one()

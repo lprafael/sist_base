@@ -269,7 +269,7 @@ class OfertaParticularCreate(BaseModel):
     id_tipo_vehiculo: Optional[int] = None
     marca: Optional[str] = None
     modelo: Optional[str] = None
-    chasis: str = Field(..., min_length=5, max_length=100)
+    chasis: Optional[str] = Field(None, max_length=100)
     año: Optional[int] = None
     color: Optional[str] = None
     combustible: Optional[str] = None
