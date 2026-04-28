@@ -2104,13 +2104,17 @@ RESPONDER ÚNICAMENTE CON EL TEXTO FINAL DE LA PUBLICACIÓN.
     # 3. Llamar al LLM (Reusando lógica de _extract_with_llm pero simplificada para texto plano)
     import os
     import requests
-    from openai import OpenAI
+    try:
+        from openai import OpenAI
+        has_openai = True
+    except ImportError:
+        has_openai = False
     
     api_key = os.getenv("OPENAI_API_KEY")
     base_url = os.getenv("DOCUMENTOS_LLM_URL")
     model = os.getenv("DOCUMENTOS_LLM_MODEL", "llama3.2")
 
-    if not api_key and not base_url:
+    if not has_openai or (not api_key and not base_url):
         # Fallback si no hay IA: generar un texto básico manual
         l1 = f"🚗 ¡NUEVO INGRESO! {vehiculo.marca} {vehiculo.modelo} {vehiculo.año} 🚗"
         l2 = f"✨ Color {vehiculo.color}. Transmisión {vehiculo.transmision}. Motor {vehiculo.motor}."
@@ -6010,14 +6014,18 @@ TEXTO DESPACHO:
                 r.raise_for_status()
                 content = r.json().get("message", {}).get("content", "{}")
         else:
-            from openai import OpenAI
-            client = OpenAI(api_key=api_key)
-            resp = client.chat.completions.create(
-                model=os.getenv("DOCUMENTOS_LLM_MODEL", "gpt-4o-mini"),
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0,
-            )
-            content = resp.choices[0].message.content or "{}"
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                resp = client.chat.completions.create(
+                    model=os.getenv("DOCUMENTOS_LLM_MODEL", "gpt-4o-mini"),
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0,
+                )
+                content = resp.choices[0].message.content or "{}"
+            except ImportError:
+                logger.warning("Paquete 'openai' no instalado. No se puede usar OpenAI.")
+                return None
         # Extraer JSON del texto (por si el modelo envuelve en ```json)
         content = content.strip()
         for match in re.finditer(r"\{[\s\S]*\}", content):
