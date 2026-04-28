@@ -849,3 +849,98 @@ body {
   color: rgba(255, 255, 255, 0.6);
   font-weight: 600;
 }
+
+/* --- BUTTONS --- */
+.mc-btn--outline {
+  background: transparent;
+  color: var(--mc-navy);
+  border: 1.5px solid var(--mc-gray-200);
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--mc-radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--mc-font);
+}
+
+.mc-btn--outline:hover {
+  background: var(--mc-gray-50);
+  border-color: var(--mc-gray-400);
+}
+
+.mc-link-btn {
+  background: transparent;
+  color: var(--mc-accent);
+  border: none;
+  padding: 0;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mc-link-btn:hover {
+  color: var(--mc-navy);
+  text-decoration: underline;
+}
+
+/* --- SECTIONS --- */
+.mc-section {
+  padding: 5rem 1.5rem;
+  border-top: 1px solid var(--mc-gray-200);
+}
+
+.mc-section-inner {
+  max-width: var(--mc-container);
+  margin: 0 auto;
+}
+
+.mc-section-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--mc-navy);
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+/* --- PLAYAS GRID --- */
+.mc-playas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.mc-playa-card {
+  background: var(--mc-white);
+  border: 1px solid var(--mc-gray-200);
+  border-radius: var(--mc-radius-lg);
+  padding: 2rem;
+  transition: all 0.2s ease;
+  box-shadow: var(--mc-shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.mc-playa-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--mc-shadow-hover);
+  border-color: var(--mc-gray-300);
+}
+
+.mc-playa-card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--mc-navy);
+  margin-bottom: 0.5rem;
+}
+
+.mc-playa-stock {
+  font-size: 0.9rem;
+  color: var(--mc-gray-500);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
