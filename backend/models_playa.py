@@ -117,19 +117,25 @@ class Producto(Base):
 
     @property
     def cliente_nombre(self) -> Optional[str]:
-        if self.ventas:
-            # Buscar la venta activa más reciente (asumiendo que solo hay una venta 'ACTIVA' a la vez)
-            venta_activa = next((v for v in self.ventas if v.estado_venta == 'ACTIVA'), None)
-            if venta_activa and venta_activa.cliente:
-                return f"{venta_activa.cliente.nombre} {venta_activa.cliente.apellido}"
+        try:
+            if self.ventas:
+                # Buscar la venta activa más reciente (asumiendo que solo hay una venta 'ACTIVA' a la vez)
+                venta_activa = next((v for v in self.ventas if v.estado_venta == 'ACTIVA'), None)
+                if venta_activa and venta_activa.cliente:
+                    return f"{venta_activa.cliente.nombre} {venta_activa.cliente.apellido}"
+        except Exception:
+            return None
         return None
 
     @property
     def cliente_documento(self) -> Optional[str]:
-        if self.ventas:
-            venta_activa = next((v for v in self.ventas if v.estado_venta == 'ACTIVA'), None)
-            if venta_activa and venta_activa.cliente:
-                return venta_activa.cliente.numero_documento
+        try:
+            if self.ventas:
+                venta_activa = next((v for v in self.ventas if v.estado_venta == 'ACTIVA'), None)
+                if venta_activa and venta_activa.cliente:
+                    return venta_activa.cliente.numero_documento
+        except Exception:
+            return None
         return None
         
 class HistorialPropietario(Base):

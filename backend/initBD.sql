@@ -99,6 +99,38 @@ CREATE TABLE IF NOT EXISTS categorias_vehiculos (
 -- ============================================
 -- TABLA: PRODUCTOS (VEHÍCULOS)
 -- ============================================
+CREATE TABLE IF NOT EXISTS productos (
+    id_producto SERIAL PRIMARY KEY,
+    id_playa INTEGER,
+    id_categoria INTEGER REFERENCES categorias_vehiculos(id_categoria),
+    codigo_interno VARCHAR(50) UNIQUE,
+    id_tipo_vehiculo INTEGER,
+    id_marca INTEGER,
+    id_modelo INTEGER,
+    tipo_vehiculo VARCHAR(50),
+    marca VARCHAR(100),
+    modelo VARCHAR(100),
+    año INTEGER,
+    color VARCHAR(50),
+    chasis VARCHAR(100) UNIQUE,
+    motor VARCHAR(100),
+    kilometraje INTEGER,
+    combustible VARCHAR(50),
+    transmision VARCHAR(50),
+    numero_puertas INTEGER,
+    capacidad_pasajeros INTEGER,
+    estado VARCHAR(50),
+    procedencia VARCHAR(100),
+    ubicacion_actual VARCHAR(200),
+    costo_base DECIMAL(15,2) NOT NULL,
+    precio_contado_sugerido DECIMAL(15,2),
+    precio_financiado_sugerido DECIMAL(15,2),
+    precio_venta_minimo DECIMAL(15,2),
+    entrega_inicial_sugerida DECIMAL(15,2),
+    estado_disponibilidad VARCHAR(50) DEFAULT 'DISPONIBLE',
+    observaciones TEXT,
+    fecha_ingreso DATE DEFAULT CURRENT_DATE,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     activo BOOLEAN DEFAULT TRUE
 );
 

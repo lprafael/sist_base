@@ -97,6 +97,9 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://playa.micoche.com.py",
+        "http://playa.micoche.com.py",
+        "http://187.77.247.23:3004",
         "http://192.168.100.112:3001", 
         "http://127.0.0.1:3001", 
         "http://localhost:3001", 

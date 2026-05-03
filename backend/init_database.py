@@ -45,7 +45,7 @@ async def init_sistema(session, engine):
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS sistema"))
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS playa"))
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=[t for t in Base.metadata.sorted_tables if t.schema == 'sistema']))
     
     # Verificar si ya existen datos
     result = await session.execute(select(Usuario).where(Usuario.id == 1))
