@@ -61,15 +61,16 @@ async def get_comparativo_resultados(
     
     # 1. Obtener simpatizantes esperados por mesa
     query_symp = text("""
-        SELECT p.departamento, p.distrito, p.seccional, p.local, p.mesa, 
+        SELECT pa.departamento_id as departamento, pa.distrito_id as distrito, pa.seccional_id as seccional, pa.local_id as local, pa.mesa, 
                l.descripcion as nombre_local, COUNT(pv.id) as simpatizantes
         FROM electoral.posibles_votantes pv
-        JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
-        JOIN electoral.ref_locales l ON p.local = l.local_id 
-             AND p.departamento = l.departamento_id 
-             AND p.distrito = l.distrito_id
-             AND p.seccional = l.seccional_id
-        GROUP BY p.departamento, p.distrito, p.seccional, p.local, p.mesa, l.descripcion
+        JOIN electoral.personas p ON pv.cedula_votante = p.cedula
+        JOIN electoral.padrones pa ON p.cedula = pa.cedula
+        JOIN electoral.ref_locales l ON pa.local_id = l.local_id 
+             AND pa.departamento_id = l.departamento_id 
+             AND pa.distrito_id = l.distrito_id
+             AND pa.seccional_id = l.seccional_id
+        GROUP BY pa.departamento_id, pa.distrito_id, pa.seccional_id, pa.local_id, pa.mesa, l.descripcion
     """)
     
     res_symp = await session.execute(query_symp)
@@ -120,14 +121,14 @@ async def get_locales_padron(
 ):
     """Obtiene los locales de votación que existen en el padrón para un distrito"""
     query = text("""
-        SELECT DISTINCT p.local as id, l.descripcion as nombre, p.seccional
-        FROM electoral.anr_padron_2026 p
-        LEFT JOIN electoral.ref_locales l ON p.local = l.local_id 
-             AND p.departamento = l.departamento_id 
-             AND p.distrito = l.distrito_id
-             AND p.seccional = l.seccional_id
-        WHERE p.departamento = :dep AND p.distrito = :dist
-        ORDER BY l.descripcion, p.local
+        SELECT DISTINCT pa.local_id as id, l.descripcion as nombre, pa.seccional_id as seccional
+        FROM electoral.padrones pa
+        LEFT JOIN electoral.ref_locales l ON pa.local_id = l.local_id 
+             AND pa.departamento_id = l.departamento_id 
+             AND pa.distrito_id = l.distrito_id
+             AND pa.seccional_id = l.seccional_id
+        WHERE pa.departamento_id = :dep AND pa.distrito_id = :dist
+        ORDER BY l.descripcion, pa.local_id
     """)
     res = await session.execute(query, {"dep": departamento_id, "dist": distrito_id})
     return [{"id": f"{departamento_id}_{distrito_id}_{r.seccional}_{r.id}", "nombre": r.nombre or f"Local Nro {r.id}"} for r in res.fetchall()]
@@ -142,8 +143,8 @@ async def get_mesas_padron(
         dep, dist, secc, loc = map(int, composite_id.split('_'))
         query = text("""
             SELECT DISTINCT mesa 
-            FROM electoral.anr_padron_2026 
-            WHERE departamento = :dep AND distrito = :dist AND seccional = :secc AND local = :loc
+            FROM electoral.padrones 
+            WHERE departamento_id = :dep AND distrito_id = :dist AND seccional_id = :secc AND local_id = :loc
             ORDER BY mesa
         """)
         res = await session.execute(query, {"dep": dep, "dist": dist, "secc": secc, "loc": loc})

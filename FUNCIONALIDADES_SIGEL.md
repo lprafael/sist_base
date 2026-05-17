@@ -48,23 +48,24 @@ Sincronización automática entre la gestión interna y la imagen pública.
 
 ## 🚛 Logística Operativa: El Día D
 
-### 6. 🏁 Control de Movilizaciones en Tiempo Real
-Transformación digital de la jornada electoral para maximizar la participación.
-- **Gestión de Choferes**: Listado completo de conductores asignados con escaneo de **Código QR** para inicio de operaciones.
-- **Rutas Optimizadas**: Los choferes visualizan en su dispositivo el listado exacto de votantes a recolectar.
-- **Seguimiento GPX / Real-Time**: El candidato visualiza en un panel central la ubicación en tiempo real de todos los vehículos.
-- **Estado de Recolección**: Marcación instantánea cuando un votante es recogido, actualizando el tablero de control de votantes pendientes.
-- **Filtros de Prioridad**: Posibilidad de priorizar la recolección de "votantes inseguros" a primera hora para asegurar su participación.
+### 6. 🏁 Control de Movilizaciones y Monitoreo del Escrutinio (Día D)
+Transformación digital completa de la jornada electoral para maximizar la participación y asegurar los votos.
+- **Tablero del Coordinador de Logística**: Mapa interactivo en tiempo real que consolida la ubicación GPS de votantes captados y la geolocalización de choferes activos, indicando estados de recolección (`pendiente`, `en_camino`, `en_destino`).
+- **Gestión de Choferes**: Listado completo de conductores asignados con escaneo de **Código QR** para inicio rápido de operaciones y asignación automática de pasajeros.
+- **Rutas Optimizadas**: Los choferes visualizan en su dispositivo el listado exacto y geolocalizado de los votantes que deben recoger.
+- **Día D - Monitoreo de Participación**: Tablero de control en tiempo real que segmenta simpatizantes esperados vs. votos confirmados por local y mesa electoral, facilitando la movilización focalizada en horas críticas.
+- **Veedores y Fiscales de Mesa**: Registro de fiscales asignados por mesa, agilizando el flujo de reportes de participación de adherentes directamente desde los locales de votación.
 
 ---
 
 ## 📚 Base de Datos e Histórico
 
-### 7. 🏛️ Inteligencia de Datos Electoral
-Herramientas de consulta y análisis profundo.
-- **Histórico de Resultados (1996 - 2023)**: Acceso a resultados electorales previos para análisis de tendencias y proyecciones.
-- **Padrón de la Concertación**: Herramienta de verificación extra contra el listado de la última votación de la concertación.
-- **Generación de Padrones**: Impresión personalizada del padrón del distrito con filtros por zona o mesa.
+### 7. 🏛️ Inteligencia de Datos Electoral y Estimación D'Hondt
+Herramientas de consulta profunda y proyección estadística inteligente.
+- **Historial Detallado por Periodo (1996 - 2023)**: Acceso consolidado a resultados históricos de Intendencia y Junta Municipal por listas, partidos, candidatos electos y cocientes D'Hondt.
+- **Estimación Inteligente de Votos Necesarios**: Algoritmo de proyección basado en umbrales históricos reales que calcula la cantidad mínima recomendada de votos para asegurar bancas (Equipo) o ganar la intendencia (Candidato Principal).
+- **Control Territorial Estricto**: Restricción territorial automática de vistas históricas que se adapta dinámicamente a la jurisdicción (departamento y distrito) del candidato o coordinador logueado.
+- **Generación y Descarga de Padrones**: Visualización e impresión personalizada del padrón del distrito con soporte especial para Asunción (ID 0) y filtros dinámicos por local y mesa.
 
 ---
 
@@ -90,15 +91,15 @@ Capacidades de exportación y análisis offline.
 Gestión granular de permisos para asegurar la confidencialidad de la estrategia.
 - **Jerarquía Electoral**:
     - **Admin**: Control total del sistema y configuración técnica.
-    - **Intendente**: Visión global de su distrito, concejales y referentes.
+    - **Candidato Principal (Intendente)**: Visión global de su distrito, concejales, referentes y métricas.
     - **Concejal**: Gestión de sus propios referentes y adherentes.
     - **Referente**: Carga y visualización limitada exclusivamente a sus propios simpatizantes.
 
-### 11. 🛡️ Auditoría y Trazabilidad Total
-Transparencia absoluta sobre el uso del sistema.
-- **Logs de Actividad**: Registro detallado de cada acción (creación, edición, eliminación) con marca de tiempo y usuario responsable.
-- **Historial de Accesos**: Control de inicios de sesión y ubicaciones IP para prevenir accesos no autorizados.
-- **Backups Automáticos**: Sistema de respaldo diario de la base de datos para garantizar la continuidad de la operación.
+### 11. 🛡️ Auditoría y Trazabilidad Total (Audit Logs)
+Transparencia y seguridad absoluta sobre el uso del sistema.
+- **Tablero Administrativo de Logs**: Panel premium interactivo para monitorear actividades del sistema (inicios de sesión, exportaciones, altas/bajas de adherentes) en tiempo real.
+- **Filtros e Historial de Accesos**: Filtrado de logs por módulo, severidad y rango de fechas, con registro de IP de origen del usuario responsable.
+- **Archivado y Limpieza Segura**: Funcionalidades protegidas para archivar logs históricos de campañas previas y depurar registros bajo estricto control de rol administrador.
 
 ### 12. 📧 Comunicaciones y Notificaciones
 Mantenga a su equipo coordinado en todo momento.

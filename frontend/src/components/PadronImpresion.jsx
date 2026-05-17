@@ -4,8 +4,8 @@ import './PadronImpresion.css';
 
 const PadronImpresion = ({ user }) => {
     const [filters, setFilters] = useState({
-        departamento_id: user.departamento_id || '',
-        distrito_id: user.distrito_id || '',
+        departamento_id: (user.departamento_id !== undefined && user.departamento_id !== null) ? String(user.departamento_id) : '',
+        distrito_id: (user.distrito_id !== undefined && user.distrito_id !== null) ? String(user.distrito_id) : '',
         local_id: '',
         mesa: ''
     });
@@ -23,17 +23,17 @@ const PadronImpresion = ({ user }) => {
 
     useEffect(() => {
         fetchDepartamentos();
-        if (user.departamento_id) {
+        if (user.departamento_id !== undefined && user.departamento_id !== null) {
             fetchDistritos(user.departamento_id);
         }
-        if (user.distrito_id) {
+        if (user.distrito_id !== undefined && user.distrito_id !== null) {
             fetchLocales(user.distrito_id, user.departamento_id);
             fetchDistritoStats(user.distrito_id);
         }
     }, [user]);
 
     const fetchDistritoStats = async (distId) => {
-        if (!distId) {
+        if (distId === null || distId === undefined || distId === '') {
             setDistritoStats(null);
             return;
         }
@@ -118,7 +118,7 @@ const PadronImpresion = ({ user }) => {
     };
 
     const handleSearch = async () => {
-        if (!filters.distrito_id) {
+        if (filters.distrito_id === null || filters.distrito_id === undefined || filters.distrito_id === '') {
             setMessage('Debes seleccionar al menos un distrito.');
             return;
         }
@@ -164,10 +164,24 @@ const PadronImpresion = ({ user }) => {
                             name="departamento_id"
                             value={filters.departamento_id}
                             onChange={handleFilterChange}
-                            disabled={!!user.departamento_id && user.rol !== 'admin'}
+                            disabled={user.rol !== 'admin' && user.departamento_id !== undefined && user.departamento_id !== null}
                         >
-                            <option value="">Seleccione...</option>
-                            {options.departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                            {user.rol !== 'admin' && user.departamento_id !== undefined && user.departamento_id !== null ? (
+                                <>
+                                    {options.departamentos
+                                        .filter(d => String(d.id) === String(user.departamento_id))
+                                        .map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)
+                                    }
+                                    {options.departamentos.filter(d => String(d.id) === String(user.departamento_id)).length === 0 && (
+                                        <option value={user.departamento_id}>Heredado de Perfil</option>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <option value="">Seleccione...</option>
+                                    {options.departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                                </>
+                            )}
                         </select>
                     </div>
                     <div className="filter-group">
@@ -176,10 +190,24 @@ const PadronImpresion = ({ user }) => {
                             name="distrito_id"
                             value={filters.distrito_id}
                             onChange={handleFilterChange}
-                            disabled={!!user.distrito_id && user.rol !== 'admin'}
+                            disabled={user.rol !== 'admin' && user.distrito_id !== undefined && user.distrito_id !== null}
                         >
-                            <option value="">Seleccione...</option>
-                            {options.distritos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                            {user.rol !== 'admin' && user.distrito_id !== undefined && user.distrito_id !== null ? (
+                                <>
+                                    {options.distritos
+                                        .filter(d => String(d.id) === String(user.distrito_id))
+                                        .map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)
+                                    }
+                                    {options.distritos.filter(d => String(d.id) === String(user.distrito_id)).length === 0 && (
+                                        <option value={user.distrito_id}>Heredado de Perfil</option>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <option value="">Seleccione...</option>
+                                    {options.distritos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                                </>
+                            )}
                         </select>
                     </div>
                     <div className="filter-group">
@@ -239,8 +267,8 @@ const PadronImpresion = ({ user }) => {
                         <div className="report-title">
                             <h3>PADRÓN ELECTORAL - SIGEL</h3>
                             <p>
-                                {filters.distrito_id && options.distritos.find(d => d.id == filters.distrito_id)?.nombre}
-                                {filters.local_id && ` | ${options.locales.find(l => l.id == filters.local_id)?.nombre}`}
+                                {(filters.distrito_id !== null && filters.distrito_id !== undefined && filters.distrito_id !== '') && options.distritos.find(d => String(d.id) === String(filters.distrito_id))?.nombre}
+                                {filters.local_id && ` | ${options.locales.find(l => String(l.id) === String(filters.local_id))?.nombre}`}
                                 {filters.mesa && ` | Mesa: ${filters.mesa}`}
                             </p>
                             <span className="report-date">Fecha de impresión: {new Date().toLocaleString()}</span>

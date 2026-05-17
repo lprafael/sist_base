@@ -179,11 +179,12 @@ async def get_votantes_para_chofer(token: str, session: AsyncSession = Depends(g
         SELECT pv.id, p.nombres, p.apellidos, pv.domicilio, pv.latitud, pv.longitud, pv.logistica_estado,
                l.descripcion as local_nombre, l.ubicacion as local_coords
         FROM electoral.posibles_votantes pv
-        JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
-        LEFT JOIN electoral.ref_locales l ON p.local = l.local_id 
-             AND p.departamento = l.departamento_id AND p.distrito = l.distrito_id
-             AND p.seccional = l.seccional_id
-        WHERE p.departamento = :d AND p.distrito = :di
+        JOIN electoral.personas p ON pv.cedula_votante = p.cedula
+        JOIN electoral.padrones pa ON p.cedula = pa.cedula
+        LEFT JOIN electoral.ref_locales l ON pa.local_id = l.local_id 
+             AND pa.departamento_id = l.departamento_id AND pa.distrito_id = l.distrito_id
+             AND pa.seccional_id = l.seccional_id
+        WHERE pa.departamento_id = :d AND pa.distrito_id = :di
         AND (pv.logistica_estado = 'pendiente' OR (pv.logistica_estado IN ('en_camino', 'en_destino') AND pv.chofer_id = :cid))
         ORDER BY pv.logistica_estado DESC, p.apellidos ASC
     """)
@@ -362,11 +363,12 @@ async def get_control_mapa(
                p.nombres, p.apellidos, p.cedula,
                l.descripcion as local_nombre
         FROM electoral.posibles_votantes pv
-        JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
-        LEFT JOIN electoral.ref_locales l ON p.local = l.local_id 
-             AND p.departamento = l.departamento_id AND p.distrito = l.distrito_id
-             AND p.seccional = l.seccional_id
-        WHERE p.departamento = :d AND p.distrito = :di
+        JOIN electoral.personas p ON pv.cedula_votante = p.cedula
+        JOIN electoral.padrones pa ON p.cedula = pa.cedula
+        LEFT JOIN electoral.ref_locales l ON pa.local_id = l.local_id 
+             AND pa.departamento_id = l.departamento_id AND pa.distrito_id = l.distrito_id
+             AND pa.seccional_id = l.seccional_id
+        WHERE pa.departamento_id = :d AND pa.distrito_id = :di
         AND (pv.logistica_estado IS NULL OR pv.logistica_estado != 'voto')
     """)
     
@@ -490,14 +492,15 @@ async def get_mis_votantes_veedor(
 
     # Mesas es una lista [1, 2, 3] en JSONB
     query = text("""
-        SELECT pv.id, p.nombres, p.apellidos, p.cedula, p.mesa, pv.logistica_estado,
+        SELECT pv.id, p.nombres, p.apellidos, p.cedula, pa.mesa, pv.logistica_estado,
                c.nombre as chofer_nombre, c.telefono as chofer_telefono
         FROM electoral.posibles_votantes pv
-        JOIN electoral.anr_padron_2026 p ON pv.cedula_votante = p.cedula
+        JOIN electoral.personas p ON pv.cedula_votante = p.cedula
+        JOIN electoral.padrones pa ON p.cedula = pa.cedula
         LEFT JOIN electoral.choferes c ON pv.chofer_id = c.id
-        WHERE p.departamento = :dept AND p.distrito = :dist AND p.seccional = :sec AND p.local = :loc
-        AND p.mesa = ANY(:mesas)
-        ORDER BY p.mesa ASC, p.apellidos ASC
+        WHERE pa.departamento_id = :dept AND pa.distrito_id = :dist AND pa.seccional_id = :sec AND pa.local_id = :loc
+        AND pa.mesa = ANY(:mesas)
+        ORDER BY pa.mesa ASC, p.apellidos ASC
     """)
     
     # En PostgreSQL, ANY lo espera como un array literal o similar. 

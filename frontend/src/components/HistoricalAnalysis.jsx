@@ -15,20 +15,31 @@ const HistoricalAnalysis = ({ user }) => {
 
     const isAdmin = user.rol === 'admin';
 
+    // Sincronizar dptoId y distId cuando el objeto de usuario se cargue
     useEffect(() => {
-        if (isAdmin) fetchCatalog();
+        if (user.departamento_id !== undefined && user.departamento_id !== null) {
+            setDptoId(user.departamento_id);
+        }
+        if (user.distrito_id !== undefined && user.distrito_id !== null) {
+            setDistId(String(user.distrito_id));
+        }
+    }, [user]);
+
+    // Carga de Catálogo
+    useEffect(() => {
+        fetchCatalog();
     }, []);
 
-    // Carga de Distritos (Solo cuando cambia el Departamento)
+    // Carga de Distritos (Cuando cambia el Departamento)
     useEffect(() => {
-        if (isAdmin && dptoId) {
+        if (dptoId !== null && dptoId !== undefined && dptoId !== '') {
             fetchDistritos(dptoId);
         }
     }, [dptoId]);
 
     // Carga de Datos (Cuando hay una selección completa)
     useEffect(() => {
-        if (dptoId && distId) {
+        if (dptoId !== null && dptoId !== undefined && dptoId !== '' && distId !== null && distId !== undefined && distId !== '') {
             fetchData();
         }
     }, [dptoId, distId, bancas]);
@@ -54,7 +65,7 @@ const HistoricalAnalysis = ({ user }) => {
     };
 
     const fetchData = async () => {
-        if (!dptoId || !distId) return;
+        if (dptoId === null || dptoId === undefined || dptoId === '' || distId === null || distId === undefined || distId === '') return;
         setLoading(true);
         setError(null);
         try {
@@ -107,8 +118,10 @@ const HistoricalAnalysis = ({ user }) => {
                             }}
                             disabled={!isAdmin}
                         >
-                            {!isAdmin && <option value={dptoId}>Heredado de Perfil</option>}
-                            {isAdmin && catalog.dptos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                            {catalog.dptos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                            {catalog.dptos.filter(d => d.id === dptoId).length === 0 && (
+                                <option value={dptoId}>Heredado de Perfil</option>
+                            )}
                         </select>
                     </div>
 
@@ -117,12 +130,15 @@ const HistoricalAnalysis = ({ user }) => {
                         <select
                             value={String(distId || "")}
                             onChange={e => setDistId(e.target.value)}
-                            disabled={!isAdmin || !dptoId}
+                            disabled={!isAdmin || dptoId === null || dptoId === undefined || dptoId === ''}
                         >
                             <option value="">-- Seleccione Distrito --</option>
                             {catalog.dists.map(d => (
                                 <option key={d.id} value={String(d.id)}>{d.nombre}</option>
                             ))}
+                            {distId && catalog.dists.filter(d => String(d.id) === String(distId)).length === 0 && (
+                                <option value={distId}>Heredado de Perfil</option>
+                            )}
                         </select>
                     </div>
 
