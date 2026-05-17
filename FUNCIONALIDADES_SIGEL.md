@@ -64,6 +64,7 @@ Transformación digital completa de la jornada electoral para maximizar la parti
 Herramientas de consulta profunda y proyección estadística inteligente.
 - **Historial Detallado por Periodo (1996 - 2023)**: Acceso consolidado a resultados históricos de Intendencia y Junta Municipal por listas, partidos, candidatos electos y cocientes D'Hondt.
 - **Estimación Inteligente de Votos Necesarios**: Algoritmo de proyección basado en umbrales históricos reales que calcula la cantidad mínima recomendada de votos para asegurar bancas (Equipo) o ganar la intendencia (Candidato Principal).
+- **Carga de Padrones Multiorganización y Movimientos**: Capacidad para importar de forma masiva bases de datos de votantes no solo para partidos tradicionales (ANR, PLRA), sino también para movimientos independientes, partidos minoritarios, cooperativas, sindicatos, centros de estudiantes, comisiones vecinales o clubes. Ofrece soporte para la georreferenciación genérica (mediante código de departamento `0` y distrito `0` para elecciones locales y gremiales).
 - **Control Territorial Estricto**: Restricción territorial automática de vistas históricas que se adapta dinámicamente a la jurisdicción (departamento y distrito) del candidato o coordinador logueado.
 - **Generación y Descarga de Padrones**: Visualización e impresión personalizada del padrón del distrito con soporte especial para Asunción (ID 0) y filtros dinámicos por local y mesa.
 

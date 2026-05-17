@@ -71,7 +71,7 @@ const EleccionesManagement = () => {
         <div className="fade-in">
             <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2>🗳️ Gestión de Elecciones</h2>
-                <button className="btn-primary" onClick={() => { setEditMode(false); setShowForm(true); setFormData({ nombre: '', tipo: 'Internas Municipales', fecha: '', partido: 'ANR', activo: true }); }}>
+                <button className="btn-primary" onClick={() => { setEditMode(false); setShowForm(true); setFormData({ nombre: '', tipo: 'Internas Municipales', fecha: '', partido: '', activo: true }); }}>
                     ➕ Nueva Elección
                 </button>
             </div>
@@ -81,9 +81,9 @@ const EleccionesManagement = () => {
                     <thead>
                         <tr>
                             <th>Nombre</th>
-                            <th>Tipo</th>
+                            <th>Tipo / Ámbito</th>
                             <th>Fecha</th>
-                            <th>Partido</th>
+                            <th>Organización / Partido</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -94,7 +94,7 @@ const EleccionesManagement = () => {
                                 <td><strong>{ele.nombre}</strong></td>
                                 <td>{ele.tipo}</td>
                                 <td>{ele.fecha}</td>
-                                <td>{ele.partido}</td>
+                                <td>{ele.partido || 'Independiente / Genérica'}</td>
                                 <td>{ele.activo ? '✅ Activa' : '❌ Inactiva'}</td>
                                 <td>
                                     <button className="action-btn" onClick={() => handleEdit(ele)}>✏️</button>
@@ -108,7 +108,7 @@ const EleccionesManagement = () => {
 
             {showForm && (
                 <div className="modal-overlay">
-                    <div className="modal card" style={{ maxWidth: '400px' }}>
+                    <div className="modal card" style={{ maxWidth: '450px' }}>
                         <div className="modal-header">
                             <h3>{editMode ? 'Editar Elección' : 'Crear Elección'}</h3>
                             <button className="close-btn" onClick={() => setShowForm(false)}>×</button>
@@ -116,22 +116,25 @@ const EleccionesManagement = () => {
                         <form onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '20px' }}>
                             <div className="form-group">
                                 <label>Nombre de la Elección</label>
-                                <input value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} required placeholder="Ej: Municipales 2026" />
+                                <input value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} required placeholder="Ej: Municipales 2026 / Elecciones Cooperativa" />
                             </div>
                             <div className="form-group">
-                                <label>Tipo</label>
-                                <input value={formData.tipo} onChange={e => setFormData({ ...formData, tipo: e.target.value })} />
+                                <label>Tipo de Proceso o Ámbito</label>
+                                <input value={formData.tipo} onChange={e => setFormData({ ...formData, tipo: e.target.value })} placeholder="Ej: Internas, Generales, Centro de Estudiantes, Gremial" />
                             </div>
                             <div className="form-group">
-                                <label>Fecha</label>
+                                <label>Fecha de la Elección</label>
                                 <input type="date" value={formData.fecha} onChange={e => setFormData({ ...formData, fecha: e.target.value })} />
                             </div>
                             <div className="form-group">
-                                <label>Partido</label>
-                                <input value={formData.partido} onChange={e => setFormData({ ...formData, partido: e.target.value })} />
+                                <label>Organización / Partido / Movimiento</label>
+                                <input value={formData.partido} onChange={e => setFormData({ ...formData, partido: e.target.value })} placeholder="Ej: ANR, PLRA, Movimiento Independiente, Cooperativa X" />
+                                <small style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>
+                                    Indica la organización dueña de este padrón (admite partidos tradicionales, comisiones, gremios o cooperativas).
+                                </small>
                             </div>
                             <div className="form-group checkbox-group">
-                                <label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={formData.activo} onChange={e => setFormData({ ...formData, activo: e.target.checked })} />
                                     ¿Elección Activa?
                                 </label>

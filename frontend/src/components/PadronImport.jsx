@@ -106,12 +106,23 @@ const PadronImport = () => {
                 )}
             </div>
 
-            <div className="instructions-card card" style={{ marginTop: '24px', padding: '20px', background: '#f8fafc' }}>
-                <h4>ℹ️ Instrucciones</h4>
-                <ul style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.6' }}>
-                    <li>Los encabezados deben ser exactos: <strong>cedula, nombres, apellidos, departamento_id, distrito_id, local_id, mesa, orden</strong>.</li>
-                    <li>Si el número de cédula ya existe en la tabla de personas, solo se actualizará su vinculación al padrón.</li>
-                    <li>Asegúrate de que los IDs de Departamento, Distrito y Local correspondan a los catálogos del sistema.</li>
+            <div className="instructions-card card" style={{ marginTop: '24px', padding: '24px', background: '#f8fafc', borderLeft: '4px solid #3b82f6' }}>
+                <h4 style={{ marginBottom: '12px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    ℹ️ Instrucciones y Flexibilidad Multiorganización
+                </h4>
+                <ul style={{ fontSize: '0.9rem', color: '#475569', lineHeight: '1.6', paddingLeft: '20px' }}>
+                    <li style={{ marginBottom: '8px' }}>
+                        Los encabezados del CSV deben ser exactos: <strong>cedula, nombres, apellidos, departamento_id, distrito_id, local_id, mesa, orden</strong>.
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                        <strong>Soporte Multi-Organización:</strong> El sistema admite padrones de cualquier partido (ANR, PLRA), movimientos independientes, gremios, sindicatos, clubes o cooperativas. Solo crea el proceso en el panel de <em>Gestión de Elecciones</em> y selecciónalo arriba.
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                        <strong>Flexibilidad Geográfica:</strong> Si tu organización es local (ej. Cooperativa, Gremio Universitario) y no se distribuye por departamentos tradicionales, puedes cargar todos los electores con <strong>departamento_id = 0</strong> y <strong>distrito_id = 0</strong> (Asunción / Contenedor General), asignándoles locales y mesas ficticias según corresponda.
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                        Si la cédula ya existe en la base de datos global de personas, se mantendrán sus datos de contacto de forma íntegra y solo se creará su vinculación en el padrón de esta elección.
+                    </li>
                 </ul>
             </div>
         </div>
