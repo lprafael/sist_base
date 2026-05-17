@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile
     container_name: micancha-backend
     ports:
-      - "8002:8001"
+      - "8008:8001"
     environment:
       - PORT=8001
       - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/BBDD_micancha
@@ -84,7 +84,7 @@ services:
       dockerfile: Dockerfile
     container_name: micancha-public
     ports:
-      - "3002:3000"
+      - "3008:3000"
     restart: unless-stopped
     networks:
       - micancha-network
