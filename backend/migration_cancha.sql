@@ -649,6 +649,7 @@ VALUES
     '08:00:00',
     '00:00:00'
 ),
+(
     '30303030-3030-3030-3030-303030303030',
     'Arasa Padel Villarrica',
     'El club de pádel más importante y concurrido del departamento del Guairá',
@@ -803,7 +804,6 @@ VALUES
     ST_GeogFromText('POINT(-55.8690 -27.3280)'),
     '06:00:00',
     '23:00:00'
-)
 )
 ON CONFLICT DO NOTHING;
 
