@@ -1,0 +1,100 @@
+# Mi Cancha - Production Docker Compose Configuration
+# Complete, self-contained stack: PostgreSQL + FastAPI Backend + Next.js Portals (Web, Admin, Public)
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: micancha-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=BBDD_micancha
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d BBDD_micancha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: micancha-backend
+    ports:
+      - "8002:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/BBDD_micancha
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./backend/static/uploads:/app/static/uploads
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: micancha-web
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    depends_on:
+      - backend
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: micancha-admin
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    depends_on:
+      - backend
+
+  public:
+    build:
+      context: ./public
+      dockerfile: Dockerfile
+    container_name: micancha-public
+    ports:
+      - "3002:3000"
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  micancha-network:
+    driver: bridge
