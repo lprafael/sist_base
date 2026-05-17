@@ -13,6 +13,18 @@ import Footer from '@/components/Footer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
+// Robust UUID fallback generator for insecure context (HTTP / non-localhost)
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // Standard seeds
 const MOCK_COMPLEJOS = [
   {
@@ -116,7 +128,7 @@ export default function AdminConsole() {
     const key = type === 'acceso' ? 'logs_acceso' : 'logs_auditoria';
     const existing = JSON.parse(localStorage.getItem(key) || '[]');
     const newLog = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       fecha: new Date().toLocaleString('es-PY'),
       usuario: session?.email || 'admin@micancha.com.py',
       rol: session?.role === 'super' ? 'Administrador' : 'Local Deportivo',
@@ -255,7 +267,7 @@ export default function AdminConsole() {
     if (!editComplejo.nombre || !editComplejo.direccion) return;
 
     if (editComplejo.isNew) {
-      const newId = crypto.randomUUID();
+      const newId = generateUUID();
       const created = {
         ...editComplejo,
         id: newId,
@@ -321,7 +333,7 @@ export default function AdminConsole() {
     if (!newCancha.nombre) return;
     const added = {
       ...newCancha,
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       complejo_id: selectedComplejoId,
     };
     setCanchas(prev => [...prev, added]);

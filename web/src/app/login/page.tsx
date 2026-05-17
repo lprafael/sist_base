@@ -7,6 +7,18 @@ import { ArrowLeft, Lock, Mail, Shield, User, ChevronRight } from 'lucide-react'
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 
+// Robust UUID fallback generator for insecure context (HTTP / non-localhost)
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export default function LoginPage() {
   const [authMode, setAuthMode] = useState<'admin' | 'google'>('google');
   
@@ -26,7 +38,7 @@ export default function LoginPage() {
     const key = type === 'acceso' ? 'logs_acceso' : 'logs_auditoria';
     const existing = JSON.parse(localStorage.getItem(key) || '[]');
     const newLog = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       fecha: new Date().toLocaleString('es-PY'),
       ...log
     };
@@ -111,7 +123,7 @@ export default function LoginPage() {
     // Register custom request in pending tenants list
     const pendingList = JSON.parse(localStorage.getItem('pending_tenants') || '[]');
     const newRequest = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       nombre: name,
       email: email,
       fecha: new Date().toLocaleDateString('es-PY'),
