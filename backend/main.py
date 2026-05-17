@@ -805,6 +805,220 @@ async def crear_backup_completo(
 
 
 # ============================================
+# 12. ENDPOINTS MICANCHA (COMPLEJOS, CANCHAS, RESERVAS Y TORNEOS)
+# ============================================
+
+@app.get("/cancha/complejos", summary="Obtener todos los complejos deportivos")
+async def get_complejos(session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, descripcion, telefono, email, direccion, ciudad, departamento,
+               horario_apertura, horario_cierre, ST_Y(ubicacion::geometry) as lat, ST_X(ubicacion::geometry) as lng
+        FROM cancha.complejos
+    """)
+    result = await session.execute(query)
+    rows = result.fetchall()
+    
+    complejos = []
+    for row in rows:
+        complejos.append({
+            "id": str(row[0]),
+            "nombre": row[1],
+            "descripcion": row[2],
+            "telefono": row[3],
+            "email": row[4],
+            "direccion": row[5],
+            "ciudad": row[6],
+            "departamento": row[7],
+            "horario_apertura": row[8].strftime("%H:%M:%S") if row[8] else "07:00:00",
+            "horario_cierre": row[9].strftime("%H:%M:%S") if row[9] else "23:00:00",
+            "lat": float(row[10]) if row[10] is not None else None,
+            "lng": float(row[11]) if row[11] is not None else None
+        })
+    return complejos
+
+@app.get("/cancha/complejos/{complejo_id}", summary="Obtener un complejo deportivo por ID")
+async def get_complejo(complejo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        query = text("""
+            SELECT id, nombre, descripcion, telefono, email, direccion, ciudad, departamento,
+                   horario_apertura, horario_cierre, ST_Y(ubicacion::geometry) as lat, ST_X(ubicacion::geometry) as lng
+            FROM cancha.complejos
+            WHERE id = :complejo_id
+        """)
+        result = await session.execute(query, {"complejo_id": complejo_id})
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Complejo no encontrado")
+            
+        return {
+            "id": str(row[0]),
+            "nombre": row[1],
+            "descripcion": row[2],
+            "telefono": row[3],
+            "email": row[4],
+            "direccion": row[5],
+            "ciudad": row[6],
+            "departamento": row[7],
+            "horario_apertura": row[8].strftime("%H:%M:%S") if row[8] else "07:00:00",
+            "horario_cierre": row[9].strftime("%H:%M:%S") if row[9] else "23:00:00",
+            "lat": float(row[10]) if row[10] is not None else None,
+            "lng": float(row[11]) if row[11] is not None else None
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/cancha/complejos/{complejo_id}/canchas", summary="Obtener las canchas de un complejo")
+async def get_canchas(complejo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, deporte, superficie, precio_hora, precio_hora_nocturna, numero_orden, color, activo
+        FROM cancha.canchas
+        WHERE complejo_id = :complejo_id AND activo = TRUE
+        ORDER BY numero_orden ASC
+    """)
+    result = await session.execute(query, {"complejo_id": complejo_id})
+    rows = result.fetchall()
+    
+    canchas = []
+    for row in rows:
+        canchas.append({
+            "id": str(row[0]),
+            "nombre": row[1],
+            "deporte": row[2],
+            "superficie": row[3],
+            "precio_hora": float(row[4]) if row[4] else 0.0,
+            "precio_hora_nocturna": float(row[5]) if row[5] else 0.0,
+            "numero_orden": row[6],
+            "color": row[7],
+            "activo": row[8]
+        })
+    return canchas
+
+@app.get("/cancha/complejos/{complejo_id}/reservas", summary="Obtener reservas de un complejo")
+async def get_reservas(complejo_id: str, fecha: Optional[str] = None, session: AsyncSession = Depends(get_session)):
+    sql = """
+        SELECT r.id, r.cancha_id, r.cliente_id, r.inicio, r.fin, r.precio_total, r.estado,
+               c.nombre as cancha_nombre, cl.nombre as cliente_nombre
+        FROM cancha.reservas r
+        JOIN cancha.canchas c ON r.cancha_id = c.id
+        LEFT JOIN cancha.clientes cl ON r.cliente_id = cl.id
+        WHERE r.complejo_id = :complejo_id
+    """
+    params = {"complejo_id": complejo_id}
+    if fecha:
+        sql += " AND DATE(r.inicio) = DATE(:fecha)"
+        params["fecha"] = fecha
+        
+    query = text(sql)
+    result = await session.execute(query, params)
+    rows = result.fetchall()
+    
+    reservas = []
+    for row in rows:
+        reservas.append({
+            "id": str(row[0]),
+            "cancha_id": str(row[1]),
+            "cliente_id": str(row[2]) if row[2] else None,
+            "inicio": row[3].isoformat() if row[3] else None,
+            "fin": row[4].isoformat() if row[4] else None,
+            "precio_total": float(row[5]) if row[5] else 0.0,
+            "estado": row[6],
+            "cancha_nombre": row[7],
+            "cliente_nombre": row[8] if row[8] else "Cliente General"
+        })
+    return reservas
+
+@app.get("/cancha/torneos", summary="Obtener todos los torneos")
+async def get_torneos(complejo_id: Optional[str] = None, session: AsyncSession = Depends(get_session)):
+    sql = """
+        SELECT t.id, t.complejo_id, t.nombre, t.descripcion, t.deporte, t.fecha_inicio, t.fecha_fin, t.estado,
+               c.nombre as complejo_nombre
+        FROM cancha.torneos t
+        JOIN cancha.complejos c ON t.complejo_id = c.id
+    """
+    params = {}
+    if complejo_id:
+        sql += " WHERE t.complejo_id = :complejo_id"
+        params["complejo_id"] = complejo_id
+        
+    query = text(sql)
+    result = await session.execute(query, params)
+    rows = result.fetchall()
+    
+    torneos = []
+    for row in rows:
+        torneos.append({
+            "id": str(row[0]),
+            "complejo_id": str(row[1]),
+            "nombre": row[2],
+            "descripcion": row[3],
+            "deporte": row[4],
+            "fecha_inicio": row[5].strftime("%Y-%m-%d") if row[5] else None,
+            "fecha_fin": row[6].strftime("%Y-%m-%d") if row[6] else None,
+            "estado": row[7],
+            "complejo_nombre": row[8]
+        })
+    return torneos
+
+@app.get("/cancha/torneos/{torneo_id}/equipos", summary="Obtener equipos de un torneo")
+async def get_torneo_equipos(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, logo_url, puntos, partidos_jugados, partidos_ganados, partidos_empatados, partidos_perdidos
+        FROM cancha.torneos_equipos
+        WHERE torneo_id = :torneo_id
+        ORDER BY puntos DESC, partidos_ganados DESC
+    """)
+    result = await session.execute(query, {"torneo_id": torneo_id})
+    rows = result.fetchall()
+    
+    equipos = []
+    for row in rows:
+        equipos.append({
+            "id": str(row[0]),
+            "nombre": row[1],
+            "logo_url": row[2],
+            "puntos": row[3],
+            "partidos_jugados": row[4],
+            "partidos_ganados": row[5],
+            "partidos_empatados": row[6],
+            "partidos_perdidos": row[7]
+        })
+    return equipos
+
+@app.get("/cancha/torneos/{torneo_id}/partidos", summary="Obtener partidos de un torneo")
+async def get_torneo_partidos(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT p.id, p.equipo_local_id, p.equipo_visitante_id, p.goles_local, p.goles_visitante, p.fecha, p.estado,
+               el.nombre as local_nombre, ev.nombre as visitante_nombre, c.nombre as cancha_nombre
+        FROM cancha.torneos_partidos p
+        JOIN cancha.torneos_equipos el ON p.equipo_local_id = el.id
+        JOIN cancha.torneos_equipos ev ON p.equipo_visitante_id = ev.id
+        LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
+        WHERE p.torneo_id = :torneo_id
+        ORDER BY p.fecha ASC
+    """)
+    result = await session.execute(query, {"torneo_id": torneo_id})
+    rows = result.fetchall()
+    
+    partidos = []
+    for row in rows:
+        partidos.append({
+            "id": str(row[0]),
+            "equipo_local_id": str(row[1]),
+            "equipo_visitante_id": str(row[2]),
+            "goles_local": row[3],
+            "goles_visitante": row[4],
+            "fecha": row[5].isoformat() if row[5] else None,
+            "estado": row[6],
+            "local_nombre": row[7],
+            "visitante_nombre": row[8],
+            "cancha_nombre": row[9]
+        })
+    return partidos
+
+
+# ============================================
 # 13. ENDPOINTS DE SALUD Y UTILIDADES
 # ============================================
 
