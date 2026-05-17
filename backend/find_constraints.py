@@ -11,12 +11,12 @@ async def run():
     engine = create_async_engine(os.getenv('DATABASE_URL'))
     async_session = sessionmaker(engine, class_=AsyncSession)
     async with async_session() as s:
-        res = await s.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'electoral'"))
+        res = await s.execute(text("SELECT constraint_name FROM information_schema.key_column_usage WHERE table_name = 'padrones' AND table_schema = 'electoral' AND column_name = 'local_id'"))
         rows = res.fetchall()
-        print("TABLES in electoral schema:")
+        print("CONSTRAINTS on padrones.local_id:")
         for r in rows:
             print(f"- {r[0]}")
-        
+            
     await engine.dispose()
 
 if __name__ == "__main__":

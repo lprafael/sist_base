@@ -1,0 +1,46 @@
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: SIGEL-backend-test
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=8001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - sigel-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/api/electoral/elecciones\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_REACT_APP_API_URL=/api
+        - VITE_GOOGLE_CLIENT_ID=1052650611016-o42m62srbuc0o76r40tjg26ue1i9e4m9.apps.googleusercontent.com
+    container_name: SIGEL-frontend-test
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sigel-network
+
+networks:
+  sigel-network:
+    driver: bridge

@@ -27,10 +27,10 @@ async def create_test_users():
             
             # 1. Definir lista de usuarios
             test_users_data = [
-                {"username": "intendente_test", "nombre": "Juan Intendente", "rol": "intendente", "email": "intendente@test.com"},
+                {"username": "intendente_test", "nombre": "Juan Intendente", "rol": "candidato_principal", "email": "intendente@test.com"},
                 {"username": "referente_intendente_test", "nombre": "Pedro Referente Intendencia", "rol": "referente", "email": "ref_int@test.com"},
-                {"username": "concejal_ind_test", "nombre": "Roberto Concejal Libre", "rol": "concejal", "email": "concejal_ind@test.com"},
-                {"username": "concejal_dep_test", "nombre": "Marta Concejal Equipo", "rol": "concejal", "email": "concejal_dep@test.com"},
+                {"username": "concejal_ind_test", "nombre": "Roberto Concejal Libre", "rol": "equipo_electoral", "email": "concejal_ind@test.com"},
+                {"username": "concejal_dep_test", "nombre": "Marta Concejal Equipo", "rol": "equipo_electoral", "email": "concejal_dep@test.com"},
                 {"username": "ref_concejal_dep_test", "nombre": "Lucas Referente de Marta", "rol": "referente", "email": "ref_marta@test.com"},
                 {"username": "ref_concejal_ind_test", "nombre": "Sofia Referente de Roberto", "rol": "referente", "email": "ref_roberto@test.com"},
                 {"username": "chofer_test", "nombre": "Carlos Chofer", "rol": "chofer", "email": "chofer@test.com"},
@@ -72,7 +72,11 @@ async def create_test_users():
             """), {"viejos": viejos_usernames})
             
             # Borrar choferes vinculados
-            await session.execute(text("DELETE FROM electoral.choferes WHERE nombre = 'Carlos Chofer'"))
+            await session.execute(text(f"""
+                DELETE FROM electoral.choferes 
+                WHERE creado_por IN (SELECT id FROM sistema.usuarios WHERE username = ANY(:usernames))
+                OR nombre = 'Carlos Chofer'
+            """), {"usernames": usernames})
             
             # Borrar usuarios
             await session.execute(text(f"""
@@ -84,7 +88,7 @@ async def create_test_users():
             print("Limpieza completada.")
 
             # 3. Asegurar Roles
-            roles_needed = ["intendente", "concejal", "referente", "veedor", "chofer"]
+            roles_needed = ["candidato_principal", "equipo_electoral", "referente", "veedor", "chofer"]
             for role_name in roles_needed:
                 result = await session.execute(select(Rol).where(Rol.nombre == role_name))
                 if not result.scalar_one_or_none():
@@ -112,6 +116,7 @@ async def create_test_users():
                     rol=data["rol"],
                     departamento_id=0,
                     distrito_id=0,
+                    eleccion_id=1,
                     activo=True
                 )
                 session.add(u)

@@ -166,7 +166,7 @@ app.include_router(dia_d_router) # Escrutinio Día D
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================
-@app.get("/auditoria/logs", summary="Obtener logs de auditoría")
+@app.get("/api/auditoria/logs", summary="Obtener logs de auditoría")
 async def obtener_logs_auditoria(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("auditoria_read")),
@@ -219,7 +219,7 @@ async def obtener_logs_auditoria(
     
     return logs
 
-@app.get("/auditoria/logs/{log_id}", summary="Obtener log de auditoría específico", response_model=LogAuditoriaResponse)
+@app.get("/api/auditoria/logs/{log_id}", summary="Obtener log de auditoría específico", response_model=LogAuditoriaResponse)
 async def obtener_log_auditoria(
     log_id: int,
     session: AsyncSession = Depends(get_session),
@@ -238,7 +238,7 @@ async def obtener_log_auditoria(
     
     return log
 
-@app.get("/auditoria/accesos", summary="Obtener logs de acceso", response_model=List[LogAccesoResponse])
+@app.get("/api/auditoria/accesos", summary="Obtener logs de acceso", response_model=List[LogAccesoResponse])
 async def obtener_logs_acceso(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("auditoria_read")),
@@ -267,7 +267,7 @@ async def obtener_logs_acceso(
     logs = result.scalars().all()
     return logs
 
-@app.get("/auditoria/sesiones", summary="Obtener sesiones de usuarios", response_model=List[SesionUsuarioResponse])
+@app.get("/api/auditoria/sesiones", summary="Obtener sesiones de usuarios", response_model=List[SesionUsuarioResponse])
 async def obtener_sesiones_usuarios(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(check_permission("auditoria_read")),
@@ -296,6 +296,42 @@ async def obtener_sesiones_usuarios(
         sesiones.append(s_dict)
         
     return sesiones
+
+class ClearLogsRequest(BaseModel):
+    password: str
+
+@app.post("/api/auditoria/clear", summary="Vaciar logs de auditoría y accesos")
+async def vaciar_logs(
+    request: ClearLogsRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(check_permission("auditoria_read")) # We will enforce role="admin" inside
+):
+    """
+    Vacía las tablas de logs_auditoria y logs_acceso.
+    Requiere ser administrador y enviar la contraseña actual.
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo el administrador puede vaciar los logs")
+
+    # Verify password
+    result = await session.execute(select(Usuario).where(Usuario.id == current_user["user_id"]))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    from security import verify_password
+    if not verify_password(request.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+
+    try:
+        await session.execute(text("TRUNCATE TABLE sistema.logs_auditoria RESTART IDENTITY;"))
+        await session.execute(text("TRUNCATE TABLE sistema.logs_acceso RESTART IDENTITY;"))
+        await session.commit()
+        return {"message": "Logs vaciados exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al vaciar logs: {str(e)}")
 
 # ============================================
 # 12. ENDPOINTS DE BACKUP

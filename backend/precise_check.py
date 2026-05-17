@@ -7,17 +7,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-async def run():
+async def check():
     engine = create_async_engine(os.getenv('DATABASE_URL'))
     async_session = sessionmaker(engine, class_=AsyncSession)
     async with async_session() as s:
-        res = await s.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'electoral'"))
-        rows = res.fetchall()
-        print("TABLES in electoral schema:")
-        for r in rows:
-            print(f"- {r[0]}")
+        res = await s.execute(text("SELECT username, rol FROM sistema.usuarios WHERE username = 'intendente_test'"))
+        row = res.fetchone()
+        if row:
+            print(f"USER: {row.username}, ROLE: '{row.rol}'")
+        else:
+            print("User not found")
         
     await engine.dispose()
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    asyncio.run(check())

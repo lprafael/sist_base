@@ -122,7 +122,7 @@ const CandidatePublicPage = () => {
                 </div>
             </section>
 
-            {/* El Equipo (Solo si es Intendente y tiene concejales) */}
+            {/* El Equipo (Solo si es Candidato Principal y tiene equipo electoral) */}
             {concejales.length > 0 && (
                 <section id="equipo" className="candidate-equipo-section">
                     <div className="container">

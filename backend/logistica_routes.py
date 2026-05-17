@@ -34,7 +34,7 @@ async def list_choferes(
         # Concejales solo ven sus propios choferes (según requerimiento: "concejales solo sus choferes")
         visible_user_ids = [user_id]
     else:
-        # Admin e Intendente ven sus propios choferes + los de sus subordinados
+        # Admin y Candidato Principal ven sus propios choferes + los de sus subordinados
         visible_user_ids = await get_visible_user_ids(user_id, user_role, session)
         visible_user_ids.append(user_id)
     
@@ -81,7 +81,7 @@ async def delete_chofer(
     user_id = current_user["user_id"]
     user_role = current_user.get("role", "referente")
     
-    if user_role not in ["admin", "intendente", "concejal"]:
+    if user_role not in ["admin", "candidato_principal", "equipo_electoral"]:
         raise HTTPException(status_code=403, detail="No tienes permisos para eliminar choferes")
         
     result = await session.execute(select(Chofer).where(Chofer.id == chofer_id))
@@ -107,7 +107,7 @@ async def create_chofer(
     user_id = current_user["user_id"]
     user_role = current_user.get("role")
     
-    if user_role not in ["admin", "intendente", "concejal"]:
+    if user_role not in ["admin", "candidato_principal", "equipo_electoral"]:
         raise HTTPException(status_code=403, detail="No tienes permisos para crear choferes")
 
     # Asegurar que los IDs territoriales sean enteros o None (evitar error de asyncpg con strings vacíos)
@@ -446,7 +446,7 @@ async def asignar_veedor(
     current_user: dict = Depends(get_current_user)
 ):
     """Asigna un local y mesas a un usuario"""
-    if current_user.get("role") not in ["admin", "intendente", "concejal"]:
+    if current_user.get("role") not in ["admin", "candidato_principal", "equipo_electoral"]:
         raise HTTPException(status_code=403, detail="No tienes permisos")
         
     user_id = data.get("user_id")

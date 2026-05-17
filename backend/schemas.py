@@ -10,8 +10,8 @@ from enum import Enum
 
 class TipoUsuario(str, Enum):
     ADMIN = "admin"
-    INTENDENTE = "intendente"
-    CONCEJAL = "concejal"
+    CANDIDATO_PRINCIPAL = "candidato_principal"
+    EQUIPO_ELECTORAL = "equipo_electoral"
     REFERENTE = "referente"
     VIEWER = "viewer"
 
@@ -42,8 +42,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     nombre_completo: str
     rol: str = "user"
-    departamento_id: Optional[int] = None  # Obligatorio para intendente/concejal
-    distrito_id: Optional[int] = None      # Obligatorio para intendente/concejal
+    departamento_id: Optional[int] = None  # Obligatorio para candidatos principales
+    distrito_id: Optional[int] = None      # Obligatorio para candidatos principales
+    eleccion_id: Optional[int] = None      # Elección asignada
     restriccion_equipo: Optional[bool] = False
     superior_usuario_id: Optional[int] = None
     veedor_local_id: Optional[int] = None
@@ -74,6 +75,7 @@ class UserUpdate(BaseModel):
     restriccion_equipo: Optional[bool] = None
     departamento_id: Optional[int] = None
     distrito_id: Optional[int] = None
+    eleccion_id: Optional[int] = None
     superior_usuario_id: Optional[int] = None
     public_slug: Optional[str] = None
     public_config: Optional[Dict[str, Any]] = None
@@ -98,6 +100,7 @@ class UserResponse(BaseModel):
     ultimo_acceso: Optional[datetime] = None
     departamento_id: Optional[int] = None
     distrito_id: Optional[int] = None
+    eleccion_id: Optional[int] = None
     restriccion_equipo: bool = False
     public_slug: Optional[str] = None
     public_config: Optional[Dict[str, Any]] = None
@@ -378,6 +381,66 @@ class PermissionCheck(BaseModel):
     has_permission: bool
 
 # ===== SCHEMAS ELECTORALES =====
+
+class PersonaResponse(BaseModel):
+    cedula: str
+    nombres: str
+    apellidos: str
+    fecha_nacimiento: Optional[date] = None
+    genero: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion_residencia: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class EleccionCreate(BaseModel):
+    nombre: str
+    tipo: Optional[str] = None
+    fecha: Optional[date] = None
+    partido: Optional[str] = None
+    activo: bool = True
+
+class EleccionUpdate(BaseModel):
+    nombre: Optional[str] = None
+    tipo: Optional[str] = None
+    fecha: Optional[date] = None
+    partido: Optional[str] = None
+    activo: Optional[bool] = None
+
+class EleccionResponse(BaseModel):
+    id: int
+    nombre: str
+    tipo: Optional[str] = None
+    fecha: Optional[date] = None
+    partido: Optional[str] = None
+    activo: bool
+    
+    class Config:
+        from_attributes = True
+
+class PadronElectoralResponse(BaseModel):
+    id: int
+    eleccion_id: int
+    cedula: str
+    persona: Optional[PersonaResponse] = None
+    eleccion: Optional[EleccionResponse] = None
+    local_id: Optional[int] = None
+    mesa: Optional[int] = None
+    orden: Optional[int] = None
+    seccional_id: Optional[int] = None
+    comite_id: Optional[int] = None
+    distrito_id: Optional[int] = None
+    departamento_id: Optional[int] = None
+    
+    # Campos descriptivos opcionales para UI
+    nombre_local: Optional[str] = None
+    nombre_departamento: Optional[str] = None
+    nombre_distrito: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 class PadronResponse(BaseModel):
     cedula: str

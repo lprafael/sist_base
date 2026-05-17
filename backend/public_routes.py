@@ -19,11 +19,11 @@ async def get_candidate_by_slug(slug: str, session: AsyncSession = Depends(get_s
     if not candidato:
         raise HTTPException(status_code=404, detail="Candidato no encontrado")
     
-    # Podriamos querer retornar equipo (concejales si es intendente)
+    # Podriamos querer retornar equipo (equipo electoral si es candidato principal)
     equipo = []
-    if candidato.rol == 'intendente' and candidato.distrito_id:
+    if candidato.rol == 'candidato_principal' and candidato.distrito_id:
         stmt_equipo = select(Usuario).where(
-            Usuario.rol == 'concejal',
+            Usuario.rol == 'equipo_electoral',
             Usuario.distrito_id == candidato.distrito_id,
             Usuario.public_slug != None
         )

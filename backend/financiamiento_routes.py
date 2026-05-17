@@ -294,12 +294,13 @@ async def get_my_candidate_id(
     if candidato_id:
         return {"candidato_id": candidato_id}
 
-    # 2. Si no hay vínculo, pero es un Intendente o Concejal, buscar/crear su propia candidatura
-    user_res = await session.execute(select(Usuario).where(Usuario.id == user_id))
-    user = user_res.scalar_one_or_none()
-    
-    if user and user.rol in ["intendente", "concejal"]:
-        # Buscar candidato por nombre o municipio si es intendente
+    # 2. Si no hay vínculo, pero es un Candidato Principal o Equipo Electoral, buscar/crear su propia candidatura
+    user_id = current_user.get("user_id")
+    stmt_user = select(Usuario).where(Usuario.id == user_id)
+    user = (await session.execute(stmt_user)).scalar_one_or_none()
+
+    if user and user.rol in ["candidato_principal", "equipo_electoral"]:
+        # Buscar candidato por nombre o municipio
         # Usamos lower() y comparamos nombres simplificados para mayor robustez
         nombre_clean = user.nombre_completo.lower().strip()
         

@@ -40,15 +40,16 @@ class Usuario(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     nombre_completo = Column(String(100), nullable=False)
-    rol = Column(String(20), default='user')  # admin, intendente, concejal, referente
+    rol = Column(String(20), default='user')  # admin, candidato_principal, equipo_electoral, referente
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
     ultimo_acceso = Column(DateTime)
     terminos_aceptados = Column(Boolean, default=False)
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=True)
     # Localización para filtrar datos por territorio
-    departamento_id = Column(Integer, nullable=True)  # Departamento asignado (intendente/concejal)
-    distrito_id = Column(Integer, nullable=True)       # Distrito asignado (intendente/concejal)
+    departamento_id = Column(Integer, nullable=True)  # Departamento asignado
+    distrito_id = Column(Integer, nullable=True)       # Distrito asignado
+    eleccion_id = Column(Integer, ForeignKey('electoral.elecciones.id'), nullable=True) # Elección asignada
     restriccion_equipo = Column(Boolean, default=False) # Si TRUE, solo puede entrar de equipos autorizados
     public_slug = Column(String(100), unique=True, index=True, nullable=True)
     public_config = Column(JSONB, nullable=True) # JSON para guardar Ejes y bio
@@ -274,11 +275,79 @@ class LocalVotacion(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre_local = Column(String(255), nullable=False)
     direccion = Column(Text)
-    distrito = Column(String(100))
-    departamento = Column(String(100))
-    ubicacion_gps = Column(String) # For now, simple string representation
+    distrito_id = Column(Integer)
+    departamento_id = Column(Integer)
+    ubicacion_gps = Column(String) 
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
+
+class EleccionLocal(Base):
+    """Vincula una elección con los locales físicos que se utilizarán en ella"""
+    __tablename__ = "eleccion_locales"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    eleccion_id = Column(Integer, ForeignKey('electoral.elecciones.id'), nullable=False)
+    local_id = Column(Integer, ForeignKey('electoral.locales_votacion.id'), nullable=False)
+    cantidad_mesas = Column(Integer, default=0)
+    descripcion_adicional = Column(String(255)) # Ej: "Sede Principal", "Solo para varones", etc.
+    
+    # Relaciones
+    eleccion = relationship("Eleccion", back_populates="locales_asignados")
+    local_fisico = relationship("LocalVotacion")
+
+class Persona(Base):
+    __tablename__ = "personas"
+    __table_args__ = {"schema": "electoral"}
+    
+    cedula = Column(String(20), primary_key=True)
+    nombres = Column(String(255))
+    apellidos = Column(String(255))
+    fecha_nacimiento = Column(Date)
+    genero = Column(String(1))
+    telefono = Column(String(20))
+    email = Column(String(100))
+    direccion_residencia = Column(Text)
+    fecha_registro = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    padrones = relationship("PadronElectoral", back_populates="persona")
+    captaciones = relationship("PosibleVotante", back_populates="persona")
+
+class Eleccion(Base):
+    __tablename__ = "elecciones"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(255), nullable=False)
+    tipo = Column(String(50)) # Internas, Generales, Municipales
+    fecha = Column(Date)
+    partido = Column(String(100))
+    activo = Column(Boolean, default=True)
+    fecha_creacion = Column(DateTime, default=func.now())
+    
+    # Relaciones
+    padrones = relationship("PadronElectoral", back_populates="eleccion")
+    locales_asignados = relationship("EleccionLocal", back_populates="eleccion")
+
+class PadronElectoral(Base):
+    __tablename__ = "padrones"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    eleccion_id = Column(Integer, ForeignKey('electoral.elecciones.id'))
+    cedula = Column(String(20), ForeignKey('electoral.personas.cedula'))
+    local_id = Column(Integer, ForeignKey('electoral.locales_votacion.id'), nullable=True)
+    mesa = Column(Integer)
+    orden = Column(Integer)
+    seccional_id = Column(Integer)
+    comite_id = Column(Integer)
+    distrito_id = Column(Integer)
+    departamento_id = Column(Integer)
+    
+    # Relaciones
+    persona = relationship("Persona", back_populates="padrones")
+    eleccion = relationship("Eleccion", back_populates="padrones")
 
 class Padron(Base):
     __tablename__ = "padron"
@@ -317,7 +386,7 @@ class Referente(Base):
     id_usuario_sistema = Column(Integer, ForeignKey('sistema.usuarios.id'))
     id_candidato = Column(Integer, ForeignKey('electoral.candidatos.id'), nullable=True)
     id_superior = Column(Integer, ForeignKey('electoral.referentes.id'), nullable=True)  # Superior jerárquico
-    rol_electoral = Column(String(20), default='referente')  # intendente, concejal, referente
+    rol_electoral = Column(String(20), default='referente')  # candidato_principal, equipo_electoral, referente
     nombre_referente = Column(String(155), nullable=False)
     telefono = Column(String(20))
     zona_influencia = Column(Text)
@@ -329,7 +398,7 @@ class PosibleVotante(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     id_referente = Column(Integer, ForeignKey('electoral.referentes.id'))
-    cedula_votante = Column(String(20), ForeignKey('electoral.anr_padron_2026.cedula'))
+    cedula_votante = Column(String(20), ForeignKey('electoral.personas.cedula'))
 
     parentesco = Column(String(50))
     grado_seguridad = Column(Integer)
@@ -340,6 +409,8 @@ class PosibleVotante(Base):
     ubicacion_captacion = Column(String) 
     fecha_captacion = Column(DateTime, default=func.now())
 
+    eleccion_id = Column(Integer, ForeignKey('electoral.elecciones.id'))
+    
     validacion_candidato = Column(Boolean, default=False)
     movilidad_propia = Column(Boolean, default=False)
 
@@ -353,6 +424,7 @@ class PosibleVotante(Base):
     
     # Relaciones
     chofer = relationship("Chofer", back_populates="traslados")
+    persona = relationship("Persona", back_populates="captaciones")
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, Index
 

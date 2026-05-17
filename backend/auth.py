@@ -47,6 +47,7 @@ async def log_access(session: AsyncSession, log_data: LogAccesoCreate):
     """Registra un log de acceso"""
     log = LogAcceso(**log_data.dict())
     session.add(log)
+    await session.commit()
     
 async def check_table_exists(session: AsyncSession, schema: str, table: str) -> bool:
     """Verifica si una tabla existe en el esquema dado"""
@@ -141,7 +142,8 @@ async def login(
             "role": user.rol, 
             "user_id": user.id,
             "departamento_id": user.departamento_id,
-            "distrito_id": user.distrito_id
+            "distrito_id": user.distrito_id,
+            "eleccion_id": user.eleccion_id
         }
     )
     
@@ -311,7 +313,8 @@ async def google_login(
                 "role": user.rol, 
                 "user_id": user.id,
                 "departamento_id": user.departamento_id,
-                "distrito_id": user.distrito_id
+                "distrito_id": user.distrito_id,
+                "eleccion_id": user.eleccion_id
             }
         )
         
@@ -377,10 +380,10 @@ async def create_user(
     
     # Jerarquía de quién puede crear qué
     hierarchy = {
-        "admin":      ["admin", "intendente", "concejal", "referente"],
-        "intendente": ["concejal", "referente"],
-        "concejal":   ["referente"],
-        "referente":   []
+        "admin":               ["admin", "candidato_principal", "equipo_electoral", "referente"],
+        "candidato_principal": ["equipo_electoral", "referente"],
+        "equipo_electoral":    ["referente"],
+        "referente":           []
     }
     
     user_permissions = ROLES.get(current_role, {}).get("permissions", [])
@@ -433,13 +436,16 @@ async def create_user(
     
     departamento_id = user_data.departamento_id
     distrito_id = user_data.distrito_id
+    eleccion_id = user_data.eleccion_id
 
-    if target_role in ["concejal", "referente"] and superior_user:
+    if target_role in ["equipo_electoral", "referente"] and superior_user:
         # Solo sobreescribimos si el superior tiene territorio asignado
         if superior_user.departamento_id is not None:
             departamento_id = superior_user.departamento_id
         if superior_user.distrito_id is not None:
             distrito_id = superior_user.distrito_id
+        if superior_user.eleccion_id is not None:
+            eleccion_id = superior_user.eleccion_id
     
     # Si falta territorio, intentar fallback al creador (solo si no es admin)
     if departamento_id is None or distrito_id is None:
@@ -448,6 +454,8 @@ async def create_user(
                 departamento_id = creator.departamento_id
             if distrito_id is None:
                 distrito_id = creator.distrito_id
+            if eleccion_id is None:
+                eleccion_id = creator.eleccion_id
 
     # RESTRICCIÓN DE SEGURIDAD PARA CANDIDATOS:
     # Si el creador no es admin, SIEMPRE forzar el territorio del creador
@@ -459,7 +467,7 @@ async def create_user(
         print(f"DEBUG: Forzando territorio heredado para nuevo {target_role}: Dept {departamento_id}, Dist {distrito_id}")
 
     # Validaciones obligatorias
-    if target_role in ["intendente", "concejal", "referente"] and distrito_id is None:
+    if target_role in ["candidato_principal", "equipo_electoral", "referente"] and distrito_id is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"El rol '{target_role}' requiere un distrito asignado (ya sea explícito o por herencia de su superior)"
@@ -468,14 +476,13 @@ async def create_user(
     if target_role == "referente" and not superior_user and current_role == 'admin':
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Un referente siempre debe estar asociado a un Intendente o Concejal"
+            detail="Un referente siempre debe estar asociado a un Candidato Principal o Equipo Electoral"
         )
     
     # Generar contraseña aleatoria
     password = generate_random_password()
     hashed_password = get_password_hash(password)
     
-    # Crear usuario
     new_user = Usuario(
         username=user_data.username,
         email=user_data.email,
@@ -485,6 +492,7 @@ async def create_user(
         creado_por=current_user["user_id"],
         departamento_id=departamento_id,
         distrito_id=distrito_id,
+        eleccion_id=eleccion_id,
         restriccion_equipo=False if target_role == "referente" else user_data.restriccion_equipo
     )
     
@@ -493,7 +501,7 @@ async def create_user(
     await session.refresh(new_user)
     
     # Crear registro en electoral.referentes para roles electorales
-    if target_role in ["intendente", "concejal", "referente"]:
+    if target_role in ["candidato_principal", "equipo_electoral", "referente"]:
         from models import Referente
         
         superior_referente_id = None
@@ -553,6 +561,7 @@ async def create_user(
             "rol": new_user.rol,
             "departamento_id": departamento_id,
             "distrito_id": distrito_id,
+            "eleccion_id": new_user.eleccion_id,
         },
         details=f"Usuario creado por {current_role}: {new_user.username}"
     )
@@ -609,7 +618,7 @@ async def list_users(
     for user in users:
         u_resp = UserResponse.from_orm(user)
         # Prioridad 1: Jerarquía electoral (clara subordinación política)
-        # Prioridad 2: Creado por (para choferes, veedores o usuarios nuevos sin registro electoral aún)
+        # Prioridad 2: Creado por (para equipo electoral, referentes o usuarios nuevos)
         u_resp.superior_usuario_id = hierarchy_map.get(user.id) or user.creado_por
         response_users.append(u_resp)
         
@@ -663,9 +672,9 @@ async def update_user(
     if "rol" in update_data:
         target_role = update_data["rol"]
         hierarchy = {
-            "admin": ["admin", "intendente", "concejal", "referente"],
-            "intendente": ["concejal", "referente"],
-            "concejal": ["referente"],
+            "admin": ["admin", "candidato_principal", "equipo_electoral", "referente"],
+            "candidato_principal": ["equipo_electoral", "referente"],
+            "equipo_electoral": ["referente"],
             "referente": []
         }
         if target_role not in hierarchy.get(current_role, []):

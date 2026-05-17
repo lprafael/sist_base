@@ -100,16 +100,16 @@ ROLES = {
             "electoral_admin", "electoral_read", "electoral_write"
         ]
     },
-    "intendente": {
-        "description": "Candidato Intendente - Gestión total electoral",
+    "candidato_principal": {
+        "description": "Candidato Principal - Gestión total electoral",
         "permissions": [
             "read", "write", "manage_users", 
             "electoral_read", "electoral_write", "electoral_view_all", 
             "manage_subordinates", "auditoria_read"
         ]
     },
-    "concejal": {
-        "description": "Candidato a Concejal - Gestión de su propia estructura",
+    "equipo_electoral": {
+        "description": "Equipo Electoral / Coordinador - Gestión de su propia estructura",
         "permissions": [
             "read", "write", "electoral_read", "electoral_write", 
             "manage_subordinates"

@@ -31,7 +31,7 @@ async def get_visible_referente_ids(user_id: int, user_role: str, session: Async
     if clean_role == "referente":
         return my_referente_ids
 
-    # Subordinados directos (concejales creados por intendente, o referentes creados por concejal)
+    # Subordinados directos (equipo_electoral creados por candidato_principal, o referentes creados por equipo_electoral)
     res_direct = await session.execute(
         select(Usuario.id).where(Usuario.creado_por == user_id)
     )
@@ -48,11 +48,11 @@ async def get_visible_referente_ids(user_id: int, user_role: str, session: Async
         )
         direct_referente_ids = [r[0] for r in res_dc.all()]
 
-    if clean_role == "concejal":
+    if clean_role == "equipo_electoral":
         return my_referente_ids + direct_referente_ids
 
-    if clean_role == "intendente":
-        # También incluir referentes de segundo nivel (referentes de los concejales)
+    if clean_role == "candidato_principal":
+        # También incluir referentes de segundo nivel (referentes de los equipo_electoral)
         second_level_ids = []
         if direct_user_ids:
             res_lv2_users = await session.execute(
@@ -116,8 +116,8 @@ async def get_visible_user_ids(user_id: int, user_role: str, session: AsyncSessi
     if clean_role == "concejal":
         return all_direct_ids
 
-    if clean_role == "intendente":
-        # Para el intendente, también incluimos el segundo nivel (referentes de sus concejales)
+    if clean_role == "candidato_principal":
+        # Para el candidato principal, también incluimos el segundo nivel (referentes de sus equipo_electorales)
         lv2_ids = []
         
         # Primero por jerarquía de referentes

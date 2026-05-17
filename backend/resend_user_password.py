@@ -25,7 +25,7 @@ async def resend_user_password(
     current_role = current_user.get("role")
     
     # Redundant but safe check at high level
-    if current_role not in ["admin", "intendente", "concejal"]:
+    if current_role not in ["admin", "candidato_principal", "equipo_electoral"]:
         raise HTTPException(status_code=403, detail="No tienes permisos para realizar esta acción")
 
     username = data.username

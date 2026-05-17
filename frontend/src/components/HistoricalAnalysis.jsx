@@ -3,8 +3,8 @@ import { authFetch } from '../utils/authFetch';
 import './HistoricalAnalysis.css';
 
 const HistoricalAnalysis = ({ user }) => {
-    const [dptoId, setDptoId] = useState(user.departamento_id || 11); // Central por defecto
-    const [distId, setDistId] = useState(user.distrito_id ? String(user.distrito_id) : "");
+    const [dptoId, setDptoId] = useState(user.departamento_id !== undefined && user.departamento_id !== null ? user.departamento_id : 11); // Central por defecto
+    const [distId, setDistId] = useState(user.distrito_id !== undefined && user.distrito_id !== null ? String(user.distrito_id) : "");
     const [bancas, setBancas] = useState(12);
     const [data, setData] = useState(null);
     const [electos, setElectos] = useState(null);
@@ -129,9 +129,9 @@ const HistoricalAnalysis = ({ user }) => {
                     <div className="control-group">
                         <label>🪑 Bancas (Junta):</label>
                         <select value={bancas} onChange={e => setBancas(parseInt(e.target.value))}>
-                            <option value={9}>9 Concejales</option>
-                            <option value={12}>12 Concejales</option>
-                            <option value={24}>24 Concejales (Asunción)</option>
+                            <option value={9}>9 Miembros (Equipo)</option>
+                            <option value={12}>12 Miembros (Equipo)</option>
+                            <option value={24}>24 Miembros (Equipo)</option>
                         </select>
                     </div>
                 </div>
@@ -151,7 +151,7 @@ const HistoricalAnalysis = ({ user }) => {
                             <div className="estimates-container">
                                 {estimates && Object.keys(estimates).map(cargo => (
                                     <div key={cargo} className="estimate-card">
-                                        <h4>{cargo === 'INTENDENTE' ? '🏙️ Intendencia' : '👥 Junta Municipal'}</h4>
+                                        <h4>{cargo === 'INTENDENTE' ? '🏙️ Candidatura Principal' : '👥 Equipo Electoral'}</h4>
                                         <div className="estimate-stats">
                                             <div className="est-stat">
                                                 <span>Promedio Histórico:</span>
@@ -229,7 +229,7 @@ const HistoricalAnalysis = ({ user }) => {
                                                             <thead>
                                                                 <tr>
                                                                     <th>Lista/Partido</th>
-                                                                    {cargo === 'JUNTA MUNICIPAL' && <th className="cell-center" style={{ textAlign: 'center' }}>Cant. Concejales</th>}
+                                                                    {cargo === 'JUNTA MUNICIPAL' && <th className="cell-center" style={{ textAlign: 'center' }}>Cant. Electos</th>}
                                                                     <th className="cell-right">Votos</th>
                                                                     <th>%</th>
                                                                 </tr>

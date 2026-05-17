@@ -49,12 +49,12 @@
 }
 
 .global-map-view {
-    height: 180px !important;
     flex-shrink: 0;
     margin-bottom: 1rem;
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
 }
 
 /* --- BOTONES PREMIUM --- */

@@ -68,7 +68,7 @@ const VoterRegistration = () => {
     };
 
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const isRestricted = ['intendente', 'concejal', 'referente'].includes(currentUser?.rol);
+    const isRestricted = ['candidato_principal', 'equipo_electoral', 'referente'].includes(currentUser?.rol);
 
     useEffect(() => {
         fetchMyVoters();
@@ -584,7 +584,7 @@ const VoterRegistration = () => {
                                         <td>{voter.movilidad_propia ? '🚗' : '🚶'}</td>
                                         <td>
                                             <div className="table-actions">
-                                                {['intendente', 'admin', 'concejal'].includes(currentUser?.rol || currentUser?.role) && !voter.validacion_candidato && (
+                                                {['candidato_principal', 'admin', 'equipo_electoral'].includes(currentUser?.rol || currentUser?.role) && !voter.validacion_candidato && (
                                                     <button className="action-btn validate" title="Validar oficialmente" onClick={() => handleValidateVoter(voter.id)}>✅</button>
                                                 )}
                                                 <button className="action-btn edit" title="Editar datos" onClick={() => handleEditClick(voter)}>✏️</button>

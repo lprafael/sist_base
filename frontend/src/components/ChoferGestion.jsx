@@ -6,7 +6,7 @@ const ChoferGestion = ({ user }) => {
     const [choferes, setChoferes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const canManageDrivers = ['admin', 'intendente', 'concejal'].includes(user?.rol || user?.role);
+    const canManageDrivers = ['admin', 'candidato_principal', 'equipo_electoral'].includes(user?.rol || user?.role);
 
     const [nuevoChofer, setNuevoChofer] = useState({
         nombre: '',

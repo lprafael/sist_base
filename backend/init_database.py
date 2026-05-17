@@ -100,10 +100,10 @@ async def init_database():
                     {"rol_id": rol_admin.id, "permiso_id": permiso_id}
                 )
             
-            # Rol Intendente - Candidato a Intendente
+            # Rol Candidato Principal - Candidato a Intendente / Gobernador / etc.
             rol_intendente = Rol(
-                nombre="intendente",
-                descripcion="Candidato a Intendente: ve toda su rama (concejales + referentes + simpatizantes)"
+                nombre="candidato_principal",
+                descripcion="Candidato Principal: ve toda su rama (equipo + referentes + simpatizantes)"
             )
             session.add(rol_intendente)
             await session.commit()
@@ -116,10 +116,10 @@ async def init_database():
                         {"rol_id": rol_intendente.id, "permiso_id": permisos_dict[permiso_nombre]}
                     )
 
-            # Rol Concejal - Candidato a Concejal
+            # Rol Equipo Electoral - Colaboradores directos o Concejales
             rol_concejal = Rol(
-                nombre="concejal",
-                descripcion="Candidato a Concejal: ve sus referentes y sus simpatizantes"
+                nombre="equipo_electoral",
+                descripcion="Equipo Electoral: ve sus referentes y sus simpatizantes"
             )
             session.add(rol_concejal)
             await session.commit()

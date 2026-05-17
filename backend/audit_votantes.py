@@ -11,12 +11,11 @@ async def run():
     engine = create_async_engine(os.getenv('DATABASE_URL'))
     async_session = sessionmaker(engine, class_=AsyncSession)
     async with async_session() as s:
-        res = await s.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'electoral'"))
-        rows = res.fetchall()
-        print("TABLES in electoral schema:")
-        for r in rows:
-            print(f"- {r[0]}")
-        
+        res = await s.execute(text("SELECT id_referente, count(*) FROM electoral.posibles_votantes GROUP BY id_referente"))
+        print("POSIBLES VOTANTES PER REFERENTE:")
+        for r in res.fetchall():
+            print(f"Referente ID {r[0]}: {r[1]} votantes")
+            
     await engine.dispose()
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ const ActivitiesManagement = ({ user }) => {
     const [message, setMessage] = useState({ type: '', text: '' });
     const [geoData, setGeoData] = useState(null);
     const [mapCenter, setMapCenter] = useState([-25.33, -57.52]);
+    const [isMapExpanded, setIsMapExpanded] = useState(false);
 
     // Form state for NEW/EDIT Activity
     const [formData, setFormData] = useState({
@@ -367,65 +368,80 @@ const ActivitiesManagement = ({ user }) => {
 
             {message.text && <div className={`message ${message.type}`}>{message.text}</div>}
 
-            <div className="global-map-view card" style={{ position: 'relative', zIndex: 1 }}>
-                <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                    {geoData && (
-                        <GeoJSON
-                            data={geoData}
-                            key={JSON.stringify(geoData)}
-                            style={() => ({
-                                fillColor: '#cbd5e1',
-                                weight: 2,
-                                opacity: 0.8,
-                                color: '#64748b',
-                                dashArray: '3',
-                                fillOpacity: 0.15
-                            })}
-                            onEachFeature={(feature, layer) => {
-                                if (feature.properties && feature.properties.nombre) {
-                                    const popTotal = feature.properties.poblacion_total || 0;
-                                    const captados = feature.properties.captados_count || 0;
-                                    layer.bindTooltip(
-                                        `<strong>${feature.properties.nombre}</strong><br/>
-                                        <em>Población: ${popTotal}</em><br/>
-                                        <em>Captados Votantes: ${captados}</em>`,
-                                        { sticky: true }
-                                    );
-                                }
-                            }}
-                        />
-                    )}
-
-                    {activities.filter(a => a.latitud != null && a.longitud != null).map(act => (
-                        <React.Fragment key={act.id}>
-                            <Marker position={[act.latitud, act.longitud]}>
-                                <Tooltip>
-                                    <strong>{act.titulo}</strong><br />
-                                    <em>{act.tipo}</em><br />
-                                    <span>Estado: {act.estado}</span>
-                                </Tooltip>
-                            </Marker>
-                            <Circle
-                                center={[act.latitud, act.longitud]}
-                                radius={act.radio_influencia || 200}
-                                pathOptions={{
-                                    color: act.estado === 'concluída' ? '#10b981' : (act.estado === 'en_curso' ? '#3b82f6' : (act.estado === 'cancelada' ? '#ef4444' : '#f59e0b')),
-                                    fillColor: act.estado === 'concluída' ? '#10b981' : (act.estado === 'en_curso' ? '#3b82f6' : (act.estado === 'cancelada' ? '#ef4444' : '#f59e0b')),
-                                    fillOpacity: 0.25
-                                }}
-                            />
-                        </React.Fragment>
-                    ))}
-                </MapContainer>
-                <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(255,255,255,0.9)', padding: '0.5rem', borderRadius: '8px', zIndex: 1000, fontSize: '0.85rem' }}>
-                    <strong>Leyenda de Estados:</strong>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#f59e0b', borderRadius: '50%' }}></span> Pendiente/Agendada</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3b82f6', borderRadius: '50%' }}></span> En Curso</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#10b981', borderRadius: '50%' }}></span> Concluida</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#ef4444', borderRadius: '50%' }}></span> Cancelada</div>
+            <div className="global-map-view card" style={{ position: 'relative', zIndex: 1, height: isMapExpanded ? '60vh' : 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 15px', background: '#f8fafc', borderBottom: isMapExpanded ? '1px solid #e2e8f0' : 'none', cursor: 'pointer' }} onClick={() => setIsMapExpanded(!isMapExpanded)}>
+                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        🗺️ Mapa de Actividades {isMapExpanded ? '' : '(Oculto)'}
+                    </h3>
+                    <button 
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#64748b' }}
+                    >
+                        {isMapExpanded ? '🔼' : '☰'}
+                    </button>
                 </div>
+
+                {isMapExpanded && (
+                    <div style={{ height: 'calc(100% - 45px)', width: '100%', position: 'relative' }}>
+                        <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                            {geoData && (
+                                <GeoJSON
+                                    data={geoData}
+                                    key={JSON.stringify(geoData)}
+                                    style={() => ({
+                                        fillColor: '#cbd5e1',
+                                        weight: 2,
+                                        opacity: 0.8,
+                                        color: '#64748b',
+                                        dashArray: '3',
+                                        fillOpacity: 0.15
+                                    })}
+                                    onEachFeature={(feature, layer) => {
+                                        if (feature.properties && feature.properties.nombre) {
+                                            const popTotal = feature.properties.poblacion_total || 0;
+                                            const captados = feature.properties.captados_count || 0;
+                                            layer.bindTooltip(
+                                                `<strong>${feature.properties.nombre}</strong><br/>
+                                                <em>Población: ${popTotal}</em><br/>
+                                                <em>Captados Votantes: ${captados}</em>`,
+                                                { sticky: true }
+                                            );
+                                        }
+                                    }}
+                                />
+                            )}
+
+                            {activities.filter(a => a.latitud != null && a.longitud != null).map(act => (
+                                <React.Fragment key={act.id}>
+                                    <Marker position={[act.latitud, act.longitud]}>
+                                        <Tooltip>
+                                            <strong>{act.titulo}</strong><br />
+                                            <em>{act.tipo}</em><br />
+                                            <span>Estado: {act.estado}</span>
+                                        </Tooltip>
+                                    </Marker>
+                                    <Circle
+                                        center={[act.latitud, act.longitud]}
+                                        radius={act.radio_influencia || 200}
+                                        pathOptions={{
+                                            color: act.estado === 'concluída' ? '#10b981' : (act.estado === 'en_curso' ? '#3b82f6' : (act.estado === 'cancelada' ? '#ef4444' : '#f59e0b')),
+                                            fillColor: act.estado === 'concluída' ? '#10b981' : (act.estado === 'en_curso' ? '#3b82f6' : (act.estado === 'cancelada' ? '#ef4444' : '#f59e0b')),
+                                            fillOpacity: 0.25
+                                        }}
+                                    />
+                                </React.Fragment>
+                            ))}
+                        </MapContainer>
+                        <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(255,255,255,0.9)', padding: '0.5rem', borderRadius: '8px', zIndex: 1000, fontSize: '0.85rem' }}>
+                            <strong>Leyenda de Estados:</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#f59e0b', borderRadius: '50%' }}></span> Pendiente/Agendada</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3b82f6', borderRadius: '50%' }}></span> En Curso</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#10b981', borderRadius: '50%' }}></span> Concluida</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#ef4444', borderRadius: '50%' }}></span> Cancelada</div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="activities-content">

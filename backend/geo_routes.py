@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 from database import get_session
-from models import RefDepartamento, RefDistrito, RefSeccional, RefLocal, AnrPadron
+from models import RefDepartamento, RefDistrito, RefSeccional, RefLocal, PadronElectoral
 from security import get_current_user, check_permission
 
 router = APIRouter(prefix="/api/electoral/geo", tags=["Georreferenciación"])
@@ -37,11 +37,16 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
             FROM electoral.posibles_votantes
             WHERE latitud IS NOT NULL AND longitud IS NOT NULL
         ),
+        -- Optimización: Filtrar barrios por dpto_id primero
+        barrios_filtered AS (
+            SELECT ctid, geometry, barlo_desc, dist_desc_, poblacion_total, poblacion_hombres, poblacion_mujeres
+            FROM cartografia.barrios
+            WHERE dpto_id_ref = :dpto_id
+        ),
         counts AS (
             SELECT b.ctid as barrio_id, count(p.geom) as total_captados
-            FROM cartografia.barrios b
-            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
-            WHERE b.dpto_id_ref = :dpto_id
+            FROM barrios_filtered b
+            LEFT JOIN points p ON ST_Intersects(b.geometry, p.geom)
             GROUP BY b.ctid
         )
         SELECT jsonb_build_object(
@@ -62,9 +67,8 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
                 'captados_count', COALESCE(c.total_captados, 0)
             )
           ) AS feature
-          FROM cartografia.barrios b
+          FROM barrios_filtered b
           LEFT JOIN counts c ON b.ctid = c.barrio_id
-          WHERE b.dpto_id_ref = :dpto_id
         ) AS features;
     """)
     try:
@@ -75,7 +79,6 @@ async def get_barrios(dpto_id: int, session: AsyncSession = Depends(get_session)
         return geojson
     except Exception as e:
         logger.error(f"Error querying PostGIS barrios: {e}")
-        # Retornamos vacío en lugar de 500 para no romper el frontend
         return {"type": "FeatureCollection", "features": []}
 
 @router.get("/cartografia/distrito/{dpto_id}/{dist_id}")
@@ -122,7 +125,7 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             FROM cartografia.barrios b
             LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
             WHERE b.dpto_id_ref = :dpto_id
-              AND (b.ref_distrito_id = :dist_id_str OR b.ref_distrito_id = :dist_id_padded)
+              AND b.ref_distrito_id = :dist_id
             GROUP BY b.ctid
         )
         SELECT jsonb_build_object(
@@ -147,7 +150,7 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
           FROM cartografia.barrios b
           LEFT JOIN counts c ON b.ctid = c.barrio_id
           WHERE b.dpto_id_ref = :dpto_id
-            AND (b.ref_distrito_id = :dist_id_str OR b.ref_distrito_id = :dist_id_padded)
+            AND b.ref_distrito_id = :dist_id
         ) AS features;
     """)
 
@@ -157,12 +160,16 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             FROM electoral.posibles_votantes
             WHERE latitud IS NOT NULL AND longitud IS NOT NULL
         ),
+        barrios_filtered AS (
+            SELECT ctid, geometry, barlo_desc, dist_desc_, poblacion_total, poblacion_hombres, poblacion_mujeres
+            FROM cartografia.barrios
+            WHERE dpto_id_ref = :dpto_id
+              AND unaccent(TRIM(dist_desc_)) = unaccent(TRIM(:dist_nombre))
+        ),
         counts AS (
             SELECT b.ctid as barrio_id, count(p.geom) as total_captados
-            FROM cartografia.barrios b
-            LEFT JOIN points p ON ST_Contains(b.geometry, p.geom)
-            WHERE b.dpto_id_ref = :dpto_id
-              AND unaccent(TRIM(b.dist_desc_)) = unaccent(TRIM(:dist_nombre))
+            FROM barrios_filtered b
+            LEFT JOIN points p ON ST_Intersects(b.geometry, p.geom)
             GROUP BY b.ctid
         )
         SELECT jsonb_build_object(
@@ -184,21 +191,17 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
                 'captados_count', COALESCE(c.total_captados, 0)
             )
           ) AS feature
-          FROM cartografia.barrios b
+          FROM barrios_filtered b
           LEFT JOIN counts c ON b.ctid = c.barrio_id
-          WHERE b.dpto_id_ref = :dpto_id
-            AND unaccent(TRIM(b.dist_desc_)) = unaccent(TRIM(:dist_nombre))
         ) AS features;
     """)
     
-
 
     try:
         # 1. Intentar por REF_ID (principal)
         result = await session.execute(barrios_ref_query, {
                 "dpto_id": dpto_id,
-                "dist_id_str": dist_code,
-                "dist_id_padded": dist_code_padded
+                "dist_id": dist_id
             })
         geojson = result.scalar()
         if geojson and geojson.get('features'):
@@ -232,14 +235,14 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
             'geometry',   ST_AsGeoJSON(d.geometry)::jsonb,
             'properties', jsonb_build_object(
                 'nombre', d.dist_desc_,
-                'dpto', d.dpto_desc,
+                'dpto', d.dpto_nombre_ref,
                 'tipo', 'distrito'
             )
           ) AS feature
           FROM cartografia.distritos d
           WHERE d.dpto_id_ref = :dpto_id
           AND (
-              d.ref_distrito_id = CAST(:dist_id AS TEXT)
+              d.ref_distrito_id = :dist_id
               OR (
                   CAST(:dist_nombre AS TEXT) IS NOT NULL 
                   AND unaccent(TRIM(d.dist_desc_)) = unaccent(TRIM(CAST(:dist_nombre AS TEXT)))
@@ -265,10 +268,11 @@ async def get_cartografia_distrito(dpto_id: int, dist_id: int, session: AsyncSes
 @router.get("/stats/departamentos")
 async def get_stats_departamentos(session: AsyncSession = Depends(get_session)):
     """Obtiene cantidad de votantes, distritos y locales por departamento"""
-    # 1. Conteo de votantes (Padron)
+    # 1. Conteo de votantes (PadronElectoral) - Filtrado por eleccion_id=1 para velocidad
     votantes_subq = (
-        select(AnrPadron.departamento, func.count(AnrPadron.cedula).label("total"))
-        .group_by(AnrPadron.departamento)
+        select(PadronElectoral.departamento_id, func.count(PadronElectoral.cedula).label("total"))
+        .where(PadronElectoral.eleccion_id == 1)
+        .group_by(PadronElectoral.departamento_id)
     ).subquery()
 
     # 2. Conteo de distritos
@@ -291,7 +295,7 @@ async def get_stats_departamentos(session: AsyncSession = Depends(get_session)):
             func.coalesce(distritos_subq.c.total_distritos, 0),
             func.coalesce(locales_subq.c.total_locales, 0)
         )
-        .outerjoin(votantes_subq, RefDepartamento.id == votantes_subq.c.departamento)
+        .outerjoin(votantes_subq, RefDepartamento.id == votantes_subq.c.departamento_id)
         .outerjoin(distritos_subq, RefDepartamento.id == distritos_subq.c.departamento_id)
         .outerjoin(locales_subq, RefDepartamento.id == locales_subq.c.departamento_id)
         .order_by(votantes_subq.c.total.desc().nulls_last())
@@ -302,20 +306,20 @@ async def get_stats_departamentos(session: AsyncSession = Depends(get_session)):
         {
             "id": r[0], 
             "nombre": r[1] or f"ID {r[0]}", 
-            "votantes": r[2], 
-            "distritos_count": r[3],
-            "locales_count": r[4]
+            "votantes": int(r[2]), 
+            "distritos_count": int(r[3]),
+            "locales_count": int(r[4])
         } for r in result.all()
     ]
 
 @router.get("/stats/distritos/{dpto_id}")
 async def get_stats_distritos(dpto_id: int, session: AsyncSession = Depends(get_session)):
     """Obtiene cantidad de votantes, barrios y locales por distrito en un departamento"""
-    # 1. Conteo de votantes (Padron)
+    # 1. Conteo de votantes (PadronElectoral)
     votantes_subq = (
-        select(AnrPadron.distrito, func.count(AnrPadron.cedula).label("total"))
-        .where(AnrPadron.departamento == dpto_id)
-        .group_by(AnrPadron.distrito)
+        select(PadronElectoral.distrito_id, func.count(PadronElectoral.cedula).label("total"))
+        .where(and_(PadronElectoral.departamento_id == dpto_id, PadronElectoral.eleccion_id == 1))
+        .group_by(PadronElectoral.distrito_id)
     ).subquery()
 
     # 2. Conteo de barrios (Cartografía)
@@ -359,7 +363,7 @@ async def get_stats_distritos(dpto_id: int, session: AsyncSession = Depends(get_
             func.coalesce(locales_subq.c.total_locales, 0)
         )
         .where(RefDistrito.departamento_id == dpto_id)
-        .outerjoin(votantes_subq, RefDistrito.id == votantes_subq.c.distrito)
+        .outerjoin(votantes_subq, RefDistrito.id == votantes_subq.c.distrito_id)
         .outerjoin(locales_subq, RefDistrito.id == locales_subq.c.distrito_id)
         .order_by(votantes_subq.c.total.desc().nulls_last())
     )
@@ -432,12 +436,13 @@ async def list_locales(
     items = []
     for row in rows:
         # Votantes por local
-        count_stmt = select(func.count(AnrPadron.cedula)).where(
+        count_stmt = select(func.count(PadronElectoral.cedula)).where(
             and_(
-                AnrPadron.departamento == row.departamento_id,
-                AnrPadron.distrito == row.distrito_id,
-                AnrPadron.seccional == row.seccional_id,
-                AnrPadron.local == row.local_id
+                PadronElectoral.departamento_id == row.departamento_id,
+                PadronElectoral.distrito_id == row.distrito_id,
+                PadronElectoral.seccional_id == row.seccional_id,
+                PadronElectoral.local_id == row.local_id,
+                PadronElectoral.eleccion_id == 1
             )
         )
         count_res = await session.execute(count_stmt)
@@ -515,3 +520,65 @@ async def update_local_ubicacion(
         await session.rollback()
         logger.error(f"Error updating location: {e}")
         raise HTTPException(status_code=500, detail=f"Error al actualizar ubicación: {str(e)}")
+
+@router.get("/simpatizantes")
+async def get_simpatizantes_markers(
+    departamento_id: Optional[int] = None,
+    distrito_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retorna los simpatizantes georreferenciados según la jerarquía del usuario"""
+    from hierarchy_utils import get_visible_referente_ids
+    from models import PosibleVotante, Persona
+    
+    user_id = current_user["user_id"]
+    user_role = current_user.get("role", "referente")
+    
+    referente_ids = await get_visible_referente_ids(user_id, user_role, session)
+    
+    if not referente_ids:
+        return []
+
+    # Query para obtener simpatizantes con lat/lng y sus nombres
+    stmt = select(
+        PosibleVotante.id,
+        PosibleVotante.latitud,
+        PosibleVotante.longitud,
+        Persona.nombres,
+        Persona.apellidos,
+        PosibleVotante.cedula_votante,
+        PosibleVotante.grado_seguridad
+    ).join(Persona, PosibleVotante.cedula_votante == Persona.cedula).where(
+        and_(
+            PosibleVotante.id_referente.in_(referente_ids),
+            PosibleVotante.latitud != None,
+            PosibleVotante.longitud != None
+        )
+    )
+    
+    # Filtros territoriales opcionales aplicados sobre el padrón
+    if departamento_id or distrito_id:
+        from models import PadronElectoral
+        stmt = stmt.join(
+            PadronElectoral, 
+            and_(PosibleVotante.cedula_votante == PadronElectoral.cedula, PadronElectoral.eleccion_id == 1)
+        )
+        if departamento_id:
+            stmt = stmt.where(PadronElectoral.departamento_id == departamento_id)
+        if distrito_id:
+            stmt = stmt.where(PadronElectoral.distrito_id == distrito_id)
+            
+    result = await session.execute(stmt)
+    markers = []
+    for row in result.all():
+        markers.append({
+            "id": row.id,
+            "lat": row.latitud,
+            "lng": row.longitud,
+            "nombre": f"{row.nombres} {row.apellidos}",
+            "cedula": row.cedula_votante,
+            "seguridad": row.grado_seguridad
+        })
+    
+    return markers

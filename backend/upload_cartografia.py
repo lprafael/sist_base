@@ -92,6 +92,7 @@ def upload_cartografia():
                         'pobl_homb': 'poblacion_hombres',
                         'pobl_muje': 'poblacion_mujeres',
                         'pob_total': 'poblacion_total',
+                        'pobtot': 'poblacion_total',
                         'poblacion_total': 'poblacion_total',
                         'dist_desc': 'dist_desc_',
                         'dist_desc_': 'dist_desc_',
@@ -108,6 +109,10 @@ def upload_cartografia():
                             else:
                                 gdf[new] = gdf[old]
                     
+                    # Si estamos en la carpeta de Asuncion y no hay dist_desc_, poner ASUNCION
+                    if "00 ASUNCION" in root.upper() and ('dist_desc_' not in gdf.columns or gdf['dist_desc_'].isnull().all()):
+                        gdf['dist_desc_'] = "ASUNCION"
+
                     # Asegurar que existan todas las columnas clave (todas en minúsculas)
                     columnas_fijas = [
                         'poblacion_total', 'poblacion_hombres', 'poblacion_mujeres',
@@ -116,10 +121,15 @@ def upload_cartografia():
                     ]
                     for cf in columnas_fijas:
                         if cf not in gdf.columns:
-                            if 'poblacion' in cf:
-                                gdf[cf] = 0
-                            else:
-                                gdf[cf] = None
+                            gdf[cf] = 0 if 'poblacion' in cf or 'id' in cf else ""
+
+                    # Asegurar tipos correctos para evitar errores de bigint
+                    for col in ['ref_distrito_id', 'dpto_id_ref', 'poblacion_total', 'poblacion_hombres', 'poblacion_mujeres']:
+                        if col in gdf.columns:
+                            gdf[col] = gdf[col].fillna(0).apply(lambda x: int(float(x)))
+
+                    # Asegurar que solo subimos las columnas que queremos para evitar errores de esquema
+                    gdf = gdf[columnas_fijas + ['geometry']]
 
                     # Linking de distritos (Solo si tenemos dpto_id_ref y columna de nombre de distrito)
                     if dpto_id is not None and target_table in ['barrios', 'distritos']:
@@ -132,18 +142,39 @@ def upload_cartografia():
                         
                         gdf["ref_distrito_id"] = gdf.apply(link_dist, axis=1)
 
+                    # Asegurar tipos correctos para evitar errores de bigint
+                    for col in ['ref_distrito_id', 'dpto_id_ref', 'poblacion_total', 'poblacion_hombres', 'poblacion_mujeres']:
+                        if col in gdf.columns:
+                            gdf[col] = pd.to_numeric(gdf[col], errors='coerce').fillna(0).round().astype(int)
+
+                    # Asegurar que solo subimos las columnas que queremos para evitar errores de esquema
+                    gdf = gdf[columnas_fijas + ['geometry']]
+
                     # Subir a la base de datos
+                    from sqlalchemy import BigInteger, Text
+                    dtypes = {
+                        'ref_distrito_id': BigInteger,
+                        'dpto_id_ref': BigInteger,
+                        'poblacion_total': BigInteger,
+                        'poblacion_hombres': BigInteger,
+                        'poblacion_mujeres': BigInteger,
+                        'dist_desc_': Text,
+                        'barlo_desc': Text,
+                        'dpto_nombre_ref': Text
+                    }
+                    
                     gdf.to_postgis(
                         target_table, 
                         engine, 
                         schema="cartografia", 
                         if_exists="append", 
-                        index=False
+                        index=False,
+                        dtype={k: v for k, v in dtypes.items() if k in gdf.columns}
                     )
-                    print(f"  ✓ {len(gdf)} registros subidos.")
+                    print(f"  [OK] {len(gdf)} registros subidos.")
                     
                 except Exception as e:
-                    print(f"  ✗ Error en {file}: {e}")
+                    print(f"  [ERROR] en {file}: {e}")
 
     # Crear índices espaciales después de cargar todo
     with engine.begin() as conn:

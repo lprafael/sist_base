@@ -15,6 +15,9 @@ const AuditSystem = () => {
         limit: 100
     });
 
+    const [showClearModal, setShowClearModal] = useState(false);
+    const [clearPassword, setClearPassword] = useState('');
+
     const fetchData = async () => {
         setLoading(true);
         setError('');
@@ -39,6 +42,27 @@ const AuditSystem = () => {
             setError('Error de conexión con el servidor.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleClearLogs = async () => {
+        if (!clearPassword) return alert('Debes ingresar tu contraseña');
+        try {
+            const resp = await authFetch('/api/auditoria/clear', {
+                method: 'POST',
+                body: JSON.stringify({ password: clearPassword })
+            });
+            if (resp.ok) {
+                alert('Logs vaciados exitosamente');
+                setShowClearModal(false);
+                setClearPassword('');
+                fetchData();
+            } else {
+                const err = await resp.json();
+                alert(err.detail || 'Contraseña incorrecta o error al vaciar logs');
+            }
+        } catch (e) {
+            alert('Error de conexión con el servidor');
         }
     };
 
@@ -208,6 +232,7 @@ const AuditSystem = () => {
                     </select>
                     <button type="submit" className="btn btn-secondary">🔍 Buscar</button>
                     <button type="button" className="btn btn-secondary" onClick={fetchData}>🔄 Refrescar</button>
+                    <button type="button" className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={() => setShowClearModal(true)}>🗑️ Vaciar Logs</button>
                 </form>
                 {loading && <span style={{ marginLeft: 'auto', color: 'var(--primary-color)' }}>Actualizando...</span>}
             </div>
@@ -263,6 +288,35 @@ const AuditSystem = () => {
 
                         <div className="modal-actions" style={{ marginTop: '20px' }}>
                             <button className="btn btn-secondary" onClick={() => setSelectedItem(null)}>Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showClearModal && (
+                <div className="audit-modal" onClick={() => setShowClearModal(false)}>
+                    <div className="audit-modal-content" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>⚠️ Vaciar Logs de Auditoría</h3>
+                            <button className="close-btn" onClick={() => setShowClearModal(false)}>×</button>
+                        </div>
+                        <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+                            <p style={{ color: '#ef4444', marginBottom: '15px' }}>
+                                Esta acción eliminará permanentemente todos los registros de auditoría y accesos. Requiere verificación de seguridad.
+                            </p>
+                            <label style={{ display: 'block', marginBottom: '5px' }}>Contraseña de Administrador:</label>
+                            <input
+                                type="password"
+                                className="form-input"
+                                value={clearPassword}
+                                onChange={(e) => setClearPassword(e.target.value)}
+                                placeholder="Ingresa tu contraseña"
+                                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            />
+                        </div>
+                        <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowClearModal(false)}>Cancelar</button>
+                            <button className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={handleClearLogs}>Confirmar Vaciado</button>
                         </div>
                     </div>
                 </div>

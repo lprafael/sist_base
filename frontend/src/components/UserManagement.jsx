@@ -4,8 +4,8 @@ import { authFetch } from '../utils/authFetch';
 import { Info, ChevronRight, ChevronDown, User, Users, Shield, Car, Eye } from 'lucide-react';
 import './UserManagement.css';
 
-const ROLES_CON_DISTRITO = ['intendente', 'concejal', 'referente'];
-const ROLES_CANDIDATOS = ['intendente', 'concejal'];
+const ROLES_CON_DISTRITO = ['candidato_principal', 'equipo_electoral', 'referente'];
+const ROLES_CANDIDATOS = ['candidato_principal', 'equipo_electoral'];
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -17,7 +17,7 @@ const UserManagement = () => {
   const [newUser, setNewUser] = useState({
     username: '', email: '', nombre_completo: '', rol: 'referente',
     departamento_id: '', distrito_id: '', superior_usuario_id: '',
-    restriccion_equipo: false
+    eleccion_id: '', restriccion_equipo: false
   });
   const [userDevices, setUserDevices] = useState([]);
   const [passwordFields, setPasswordFields] = useState({
@@ -32,20 +32,20 @@ const UserManagement = () => {
   const [loadingDepts, setLoadingDepts] = useState(false);
   const [loadingDists, setLoadingDists] = useState(false);
 
-  // Superiores disponibles (Intendentes para Concejales, Intendentes/Concejales para Referentes)
   const [superioresDisponibles, setSuperioresDisponibles] = useState([]);
+  const [elecciones, setElecciones] = useState([]);
 
   // Todos los roles posibles del sistema
   const ROLES_CONFIG = [
     { value: 'admin', label: '🔑 Administrador', crea: [] },
-    { value: 'intendente', label: '🏛️ Candidato a Intendente', crea: ['concejal', 'referente'] },
-    { value: 'concejal', label: '🏙️ Candidato a Concejal', crea: ['referente'] },
+    { value: 'candidato_principal', label: '🏛️ Candidato Principal', crea: ['equipo_electoral', 'referente'] },
+    { value: 'equipo_electoral', label: '🏙️ Equipo Electoral', crea: ['referente'] },
     { value: 'referente', label: '👥 Referente', crea: [] },
   ];
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = currentUser?.rol === 'admin';
-  const canManageUsers = ['admin', 'intendente', 'concejal'].includes(currentUser?.rol);
+  const canManageUsers = ['admin', 'candidato_principal', 'equipo_electoral'].includes(currentUser?.rol);
 
   // Construir el árbol de jerarquía
   const buildTree = (data) => {
@@ -72,7 +72,7 @@ const UserManagement = () => {
   const getFlattenedTree = (nodes, level = 0) => {
     let result = [];
     const sortedNodes = [...nodes].sort((a, b) => {
-      const roleOrder = { 'admin': 1, 'intendente': 2, 'concejal': 3, 'referente': 4, 'chofer': 5, 'veedor': 6 };
+      const roleOrder = { 'admin': 1, 'candidato_principal': 2, 'equipo_electoral': 3, 'referente': 4, 'chofer': 5, 'veedor': 6 };
       if (roleOrder[a.rol] !== roleOrder[b.rol]) return (roleOrder[a.rol] || 99) - (roleOrder[b.rol] || 99);
       return (a.nombre_completo || '').localeCompare(b.nombre_completo || '');
     });
@@ -116,6 +116,13 @@ const UserManagement = () => {
     finally { setLoadingDists(false); }
   };
 
+  const fetchElecciones = async () => {
+    try {
+      const res = await authFetch('/api/electoral/elecciones');
+      if (res.ok) setElecciones(await res.json());
+    } catch (e) { console.error('Error cargando elecciones', e); }
+  };
+
   // Cargar posibles superiores basados en el rol que se está creando
   const fetchSuperioresDisponibles = async (rolACrear, distritoId = null) => {
     try {
@@ -124,12 +131,12 @@ const UserManagement = () => {
         const todos = await res.json();
         let filtrados = [];
 
-        if (rolACrear === 'concejal') {
-          // Un concejal responde a un Intendente
-          filtrados = todos.filter(u => u.rol === 'intendente');
+        if (rolACrear === 'equipo_electoral') {
+          // Un equipo_electoral responde a un Candidato Principal
+          filtrados = todos.filter(u => u.rol === 'candidato_principal');
         } else if (rolACrear === 'referente') {
-          // Un Referente responde a un Intendente o a un Concejal
-          filtrados = todos.filter(u => u.rol === 'intendente' || u.rol === 'concejal');
+          // Un Referente responde a un Candidato Principal o a un Equipo Electoral
+          filtrados = todos.filter(u => u.rol === 'candidato_principal' || u.rol === 'equipo_electoral');
         }
 
         // Si hay distrito seleccionado, filtrar por él y por el departamento para evitar colisiones
@@ -167,7 +174,10 @@ const UserManagement = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { 
+    fetchUsers(); 
+    fetchElecciones();
+  }, []);
 
   const handleRolChange = (e, setter) => {
     const nuevoRol = e.target.value;
@@ -243,6 +253,8 @@ const UserManagement = () => {
       fetchSuperioresDisponibles('referente', user.distrito_id);
     }
 
+    if (elecciones.length === 0) fetchElecciones();
+
     if (user.restriccion_equipo) {
       fetchUserDevices(user.id);
     }
@@ -278,10 +290,11 @@ const UserManagement = () => {
     const initialData = {
       username: '', email: '', nombre_completo: '',
       rol: rolInicial,
-      departamento_id: '', distrito_id: '', superior_usuario_id: ''
+      departamento_id: '', distrito_id: '', superior_usuario_id: '',
+      eleccion_id: ''
     };
 
-    // Si NO es admin (es Intendente o Concejal), hereda automáticamente el territorio
+    // Si NO es admin (es Candidato Principal o Equipo Electoral), hereda automáticamente el territorio
     if (!isAdmin) {
       initialData.departamento_id = (currentUser.departamento_id !== undefined && currentUser.departamento_id !== null) ? currentUser.departamento_id : '';
       initialData.distrito_id = (currentUser.distrito_id !== undefined && currentUser.distrito_id !== null) ? currentUser.distrito_id : '';
@@ -314,11 +327,11 @@ const UserManagement = () => {
     e.preventDefault();
 
     // Validaciones de negocio
-    if (newUser.rol === 'intendente' && (newUser.departamento_id === '' || newUser.distrito_id === '')) {
-      alert('El Intendente debe tener un Departamento y Distrito.'); return;
+    if (newUser.rol === 'candidato_principal' && (newUser.departamento_id === '' || newUser.distrito_id === '')) {
+      alert('El Candidato Principal debe tener un Departamento y Distrito.'); return;
     }
-    if (newUser.rol === 'concejal' && (newUser.departamento_id === '' || newUser.distrito_id === '')) {
-      alert('El Concejal debe tener un Distrito asignado.'); return;
+    if (newUser.rol === 'equipo_electoral' && (newUser.departamento_id === '' || newUser.distrito_id === '')) {
+      alert('El Equipo Electoral debe tener un Distrito asignado.'); return;
     }
     if (newUser.rol === 'referente' && isAdmin && !newUser.superior_usuario_id) {
       alert('Un Referente creado por el Administrador siempre debe tener un superior asignado.'); return;
@@ -335,6 +348,7 @@ const UserManagement = () => {
       if (newUser.departamento_id !== '') payload.departamento_id = parseInt(newUser.departamento_id);
       if (newUser.distrito_id !== '') payload.distrito_id = parseInt(newUser.distrito_id);
       if (newUser.superior_usuario_id !== '') payload.superior_usuario_id = parseInt(newUser.superior_usuario_id);
+      if (newUser.eleccion_id !== '') payload.eleccion_id = parseInt(newUser.eleccion_id);
       payload.restriccion_equipo = newUser.restriccion_equipo;
 
       const response = await authFetch(`/api/auth/users`, {
@@ -384,6 +398,7 @@ const UserManagement = () => {
           departamento_id: editUser.departamento_id ? parseInt(editUser.departamento_id) : null,
           distrito_id: editUser.distrito_id ? parseInt(editUser.distrito_id) : null,
           superior_usuario_id: editUser.superior_usuario_id ? parseInt(editUser.superior_usuario_id) : null,
+          eleccion_id: editUser.eleccion_id ? parseInt(editUser.eleccion_id) : null,
           public_slug: editUser.public_slug || null
         })
       });
@@ -490,6 +505,7 @@ const UserManagement = () => {
               <th>Email</th>
               <th>Nombre Completo</th>
               <th>Rol / Cargo</th>
+              <th>Elección</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -497,7 +513,7 @@ const UserManagement = () => {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
                   No se encontraron usuarios visible para tu perfil.
                 </td>
               </tr>
@@ -557,6 +573,9 @@ const UserManagement = () => {
                     <span className={`role-badge role-${user.rol}`} style={{ fontSize: '0.75rem' }}>
                       {getRolLabel(user.rol)}
                     </span>
+                  </td>
+                  <td style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    {elecciones.find(e => e.id === user.eleccion_id)?.nombre || '-'}
                   </td>
                   <td><span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>{user.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
@@ -660,11 +679,29 @@ const UserManagement = () => {
                       borderRadius: '12px',
                       border: '1px solid #bfdbfe'
                     }}>
-                      <p style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '12px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        🏛️ Estructura Política
-                      </p>
+                        <p style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '12px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          🏛️ Estructura Política y Elección
+                        </p>
 
-                      {/* PARA INTENDENTE Y CONCEJAL: Selección de distrito */}
+                        <div className="form-group">
+                          <label className="form-label">🗳️ Elección / Padrón</label>
+                          <select 
+                            name="eleccion_id" 
+                            value={showCreateForm ? newUser.eleccion_id : (editUser.eleccion_id || '')} 
+                            onChange={(e) => handleChange(e, showCreateForm ? setNewUser : setEditUser)}
+                            required={ROLES_CON_DISTRITO.includes(showCreateForm ? newUser.rol : editUser.rol)}
+                          >
+                            <option value="">— Seleccionar Elección —</option>
+                            {elecciones.map(e => (
+                              <option key={e.id} value={e.id}>{e.nombre} ({e.partido})</option>
+                            ))}
+                          </select>
+                          <small style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                            Determina el padrón de búsqueda y el contexto electoral del usuario.
+                          </small>
+                        </div>
+
+                      {/* PARA CANDIDATO PRINCIPAL Y EQUIPO ELECTORAL: Selección de distrito */}
                       {ROLES_CANDIDATOS.includes(showCreateForm ? newUser.rol : editUser.rol) && isAdmin && (
                         <>
                           <div className="form-group">
@@ -695,10 +732,10 @@ const UserManagement = () => {
                         </>
                       )}
 
-                      {/* PARA CONCEJAL: Superior (Intendente) Opcional */}
-                      {(showCreateForm ? newUser.rol : editUser.rol) === 'concejal' && isAdmin && (showCreateForm ? newUser.distrito_id : editUser.distrito_id) && (
+                      {/* PARA EQUIPO ELECTORAL: Superior (Candidato Principal) Opcional */}
+                      {(showCreateForm ? newUser.rol : editUser.rol) === 'equipo_electoral' && isAdmin && (showCreateForm ? newUser.distrito_id : editUser.distrito_id) && (
                         <div className="form-group">
-                          <label className="form-label">Intendente Superior (Opcional)</label>
+                          <label className="form-label">Candidato Principal Superior (Opcional)</label>
                           <select 
                             name="superior_usuario_id" 
                             value={showCreateForm ? newUser.superior_usuario_id : (editUser.superior_usuario_id || '')} 
@@ -713,7 +750,7 @@ const UserManagement = () => {
                       {/* PARA REFERENTE: Superior Obligatorio */}
                       {(showCreateForm ? newUser.rol : editUser.rol) === 'referente' && isAdmin && (
                         <div className="form-group">
-                          <label className="form-label">Pertenece al Candidato / Intendente</label>
+                          <label className="form-label">Pertenece al Candidato Principal / Equipo</label>
                           <select 
                             name="superior_usuario_id" 
                             value={showCreateForm ? newUser.superior_usuario_id : (editUser.superior_usuario_id || '')} 
@@ -888,8 +925,8 @@ const UserManagement = () => {
                   <div className="viz-connector-v"></div>
                   
                   <div className="viz-group">
-                    <div className="viz-item viz-intendente">
-                      <div className="viz-box"><User size={16} /> Candidato a Intendente</div>
+                    <div className="viz-item viz-candidato_principal">
+                      <div className="viz-box"><User size={16} /> Candidato Principal</div>
                       <div className="viz-connector-v"></div>
                       
                       <div className="viz-row-group">
