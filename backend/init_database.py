@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text, select
 from models import Base, Usuario, Rol, Permiso, ParametroSistema, ConfiguracionEmail
-from models_playa import CategoriaVehiculo, TipoGastoProducto, TipoGastoEmpresa, ConfigCalificacion
 from security import get_password_hash
 from datetime import datetime, timedelta
 
@@ -41,10 +40,9 @@ async def init_sistema(session, engine):
     print("INICIALIZANDO SCHEMA SISTEMA")
     print("="*60 + "\n")
     
-    # Crear schemas (playa debe existir porque Base.metadata incluye tablas playa, ej. vendedores)
+    # Crear schemas
     async with engine.begin() as conn:
         await conn.execute(text("CREATE SCHEMA IF NOT EXISTS sistema"))
-        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS playa"))
         await conn.run_sync(Base.metadata.create_all)
     
     # Verificar si ya existen datos
@@ -407,7 +405,7 @@ async def init_database(modo="all"):
                 finally:
                     await session.close()
         
-        if modo in ["all", "playa"]:
+        if modo == "playa":
             await init_playa(engine)
         
         print("\n" + "="*60)
