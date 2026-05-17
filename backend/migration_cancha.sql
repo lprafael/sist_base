@@ -649,7 +649,6 @@ VALUES
     '08:00:00',
     '00:00:00'
 ),
-(
     '30303030-3030-3030-3030-303030303030',
     'Arasa Padel Villarrica',
     'El club de pádel más importante y concurrido del departamento del Guairá',
@@ -661,6 +660,150 @@ VALUES
     ST_GeogFromText('POINT(-56.4420 -25.7820)'),
     '07:00:00',
     '23:00:00'
+),
+(
+    '15151515-1515-1515-1515-151515151515',
+    'Aventura Centro Deportivo',
+    'Excelente complejo multideportivo en Lambaré, ideal para fútbol y pádel',
+    '0981-222-333',
+    'aventura@micancha.com.py',
+    'Avda. Primero de Marzo y Cacique Lambaré',
+    'Lambaré',
+    'Central',
+    ST_GeogFromText('POINT(-57.6250 -25.3410)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '16161616-1616-1616-1616-161616161616',
+    'Guggiari Padel & Bar',
+    'Un punto de encuentro muy popular que combina juego competitivo con un excelente tercer tiempo',
+    '0982-333-444',
+    'guggiari@micancha.com.py',
+    'Av. Guggiari c/ Pirizal',
+    'Lambaré',
+    'Central',
+    ST_GeogFromText('POINT(-57.6180 -25.3280)'),
+    '08:00:00',
+    '23:59:00'
+),
+(
+    '17171717-1717-1717-1717-171717171717',
+    'Laguna Padel Club',
+    'Complejo de pádel con canchas de vidrio templado de primer nivel profesional',
+    '0983-444-555',
+    'laguna@micancha.com.py',
+    'Calle Laguna Grande',
+    'San Lorenzo',
+    'Central',
+    ST_GeogFromText('POINT(-57.5300 -25.3250)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '18181818-1818-1818-1818-181818181818',
+    'Central Padel Club',
+    'Pistas profesionales de cristal y gran ambiente deportivo y social',
+    '0984-555-666',
+    'centralpadel@micancha.com.py',
+    'Julio César Franco 2412',
+    'Fernando de la Mora',
+    'Central',
+    ST_GeogFromText('POINT(-57.5500 -25.3200)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '19191919-1919-1919-1919-191919191919',
+    'El Coliseo Padel Complex',
+    'El complejo de pádel más imponente de Ciudad del Este con 8 canchas profesionales',
+    '0985-666-777',
+    'coliseo@micancha.com.py',
+    'Km 8, Ciudad del Este',
+    'Ciudad del Este',
+    'Alto Paraná',
+    ST_GeogFromText('POINT(-54.6600 -25.5250)'),
+    '07:00:00',
+    '23:30:00'
+),
+(
+    '20202020-2020-2020-2020-202020202020',
+    'Ciudad Padel CDE',
+    'Excelente infraestructura para torneos y juego diario a pasos de la Supercarretera',
+    '0986-777-888',
+    'ciudadpadel@micancha.com.py',
+    'Avda. del Lago',
+    'Ciudad del Este',
+    'Alto Paraná',
+    ST_GeogFromText('POINT(-54.6200 -25.5180)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '31313131-3131-3131-3131-313131313131',
+    'La Choza Padel Club',
+    'Excelente ambiente deportivo y canchas de primera calidad en el este del país',
+    '0987-888-999',
+    'lachoza@micancha.com.py',
+    'Km 7, Ciudad del Este',
+    'Ciudad del Este',
+    'Alto Paraná',
+    ST_GeogFromText('POINT(-54.6500 -25.5200)'),
+    '08:00:00',
+    '23:00:00'
+),
+(
+    '32323232-3232-3232-3232-323232323232',
+    'J&M Futbol Center',
+    'Las canchas de fútbol sintético más concurridas de la zona sur del Este',
+    '0988-999-000',
+    'jym@micancha.com.py',
+    'Barrio Fátima Sur, Ciudad del Este',
+    'Ciudad del Este',
+    'Alto Paraná',
+    ST_GeogFromText('POINT(-54.6180 -25.5390)'),
+    '08:00:00',
+    '00:00:00'
+),
+(
+    '34343434-3434-3434-3434-343434343434',
+    'Set Padel Encarnacion',
+    'Canchas profesionales y una excelente comunidad de jugadores en Itapúa',
+    '0975-770-017',
+    'setpadel@micancha.com.py',
+    'Barrio San Blas, Encarnación',
+    'Encarnación',
+    'Itapúa',
+    ST_GeogFromText('POINT(-55.8550 -27.3220)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '35353535-3535-3535-3535-353535353535',
+    'Eseka Padel Club',
+    'Pistas de cristal techadas ideales para días de lluvia, en plena costanera',
+    '0995-602-231',
+    'eseka@micancha.com.py',
+    'Av. Caballero, Encarnación',
+    'Encarnación',
+    'Itapúa',
+    ST_GeogFromText('POINT(-55.8620 -27.3350)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '36363636-3636-3636-3636-363636363636',
+    'Centro Encarnaceno de Deportes (CEDE)',
+    'El complejo multideportivo municipal de referencia nacional frente al río Paraná',
+    '0991-333-444',
+    'cede@micancha.com.py',
+    'Av. Costanera Padre Bolik, Encarnación',
+    'Encarnación',
+    'Itapúa',
+    ST_GeogFromText('POINT(-55.8690 -27.3280)'),
+    '06:00:00',
+    '23:00:00'
+)
 )
 ON CONFLICT DO NOTHING;
 
@@ -747,5 +890,52 @@ VALUES
     ('29292929-2929-2929-2929-292929292929', 'Pista Cristal', 'Pádel', 'Cristal', 95000, 2, '#F59E0B'),
 
     ('30303030-3030-3030-3030-303030303030', 'Pista 1', 'Pádel', 'Cristal', 95000, 1, '#F59E0B'),
-    ('30303030-3030-3030-3030-303030303030', 'Pista 2', 'Pádel', 'Cristal', 95000, 2, '#F59E0B')
+    ('30303030-3030-3030-3030-303030303030', 'Pista 2', 'Pádel', 'Cristal', 95000, 2, '#F59E0B'),
+    
+    -- Aventura Centro Deportivo (Lambaré - Central)
+    ('15151515-1515-1515-1515-151515151515', 'Cancha Sintética 1', 'Fútbol 5', 'Sintético', 130000, 1, '#10B981'),
+    ('15151515-1515-1515-1515-151515151515', 'Cancha Sintética 2', 'Fútbol 7', 'Sintético', 180000, 2, '#3B82F6'),
+    ('15151515-1515-1515-1515-151515151515', 'Pista Pádel 1', 'Pádel', 'Cristal', 90000, 3, '#F59E0B'),
+
+    -- Guggiari Padel & Bar (Lambaré - Central)
+    ('16161616-1616-1616-1616-161616161616', 'Pista 1', 'Pádel', 'Cristal', 95000, 1, '#F59E0B'),
+    ('16161616-1616-1616-1616-161616161616', 'Pista 2', 'Pádel', 'Cristal', 95000, 2, '#F59E0B'),
+
+    -- Laguna Padel Club (San Lorenzo - Central)
+    ('17171717-1717-1717-1717-171717171717', 'Pista Vidrio 1', 'Pádel', 'Cristal', 100000, 1, '#F59E0B'),
+    ('17171717-1717-1717-1717-171717171717', 'Pista Vidrio 2', 'Pádel', 'Cristal', 100000, 2, '#F59E0B'),
+
+    -- Central Padel Club (Fernando de la Mora - Central)
+    ('18181818-1818-1818-1818-181818181818', 'Pista Cristal 1', 'Pádel', 'Cristal', 100000, 1, '#F59E0B'),
+    ('18181818-1818-1818-1818-181818181818', 'Pista Cristal 2', 'Pádel', 'Cristal', 100000, 2, '#F59E0B'),
+
+    -- El Coliseo Padel Complex (CDE - Alto Paraná)
+    ('19191919-1919-1919-1919-191919191919', 'Pista Central Pro', 'Pádel', 'Cristal', 120000, 1, '#F59E0B'),
+    ('19191919-1919-1919-1919-191919191919', 'Pista 2', 'Pádel', 'Cristal', 100000, 2, '#F59E0B'),
+    ('19191919-1919-1919-1919-191919191919', 'Pista 3', 'Pádel', 'Cristal', 100000, 3, '#F59E0B'),
+    ('19191919-1919-1919-1919-191919191919', 'Pista 4', 'Pádel', 'Cristal', 100000, 4, '#F59E0B'),
+
+    -- Ciudad Padel CDE (CDE - Alto Paraná)
+    ('20202020-2020-2020-2020-202020202020', 'Pista Cristal 1', 'Pádel', 'Cristal', 90000, 1, '#F59E0B'),
+    ('20202020-2020-2020-2020-202020202020', 'Pista Cristal 2', 'Pádel', 'Cristal', 90000, 2, '#F59E0B'),
+
+    -- La Choza Padel Club (CDE - Alto Paraná)
+    ('31313131-3131-3131-3131-313131313131', 'Pista 1', 'Pádel', 'Cristal', 95000, 1, '#F59E0B'),
+    ('31313131-3131-3131-3131-313131313131', 'Pista 2', 'Pádel', 'Cristal', 95000, 2, '#F59E0B'),
+
+    -- J&M Futbol Center (CDE - Alto Paraná)
+    ('32323232-3232-3232-3232-323232323232', 'Cancha Principal F8', 'Fútbol 8', 'Sintético', 190000, 1, '#3B82F6'),
+    ('32323232-3232-3232-3232-323232323232', 'Cancha Chica F5', 'Fútbol 5', 'Sintético', 120000, 2, '#10B981'),
+
+    -- Set Padel Encarnacion (Encarnación - Itapúa)
+    ('34343434-3434-3434-3434-343434343434', 'Pista Set 1', 'Pádel', 'Cristal', 110000, 1, '#F59E0B'),
+    ('34343434-3434-3434-3434-343434343434', 'Pista Set 2', 'Pádel', 'Cristal', 110000, 2, '#F59E0B'),
+
+    -- Eseka Padel Club (Encarnación - Itapúa)
+    ('35353535-3535-3535-3535-353535353535', 'Pista Techada 1', 'Pádel', 'Cristal', 120000, 1, '#F59E0B'),
+    ('35353535-3535-3535-3535-353535353535', 'Pista Techada 2', 'Pádel', 'Cristal', 120000, 2, '#F59E0B'),
+
+    -- Centro Encarnaceno de Deportes (CEDE) (Encarnación - Itapúa)
+    ('36363636-3636-3636-3636-363636363636', 'Estadio F9', 'Fútbol 9', 'Sintético', 220000, 1, '#3B82F6'),
+    ('36363636-3636-3636-3636-363636363636', 'Cancha Tenis Arcilla', 'Tenis', 'Arcilla', 100000, 2, '#EF4444')
 ON CONFLICT DO NOTHING;
