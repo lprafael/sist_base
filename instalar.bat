@@ -76,9 +76,11 @@ echo   Instalacion completada exitosamente!
 echo ========================================
 echo.
 echo Servicios disponibles en:
-echo   - Frontend: http://localhost:3002
-echo   - Backend:  http://localhost:8002
-echo   - API Docs: http://localhost:8002/docs
+echo   - Portal Principal (Buscar/Reservar): http://localhost:3000
+echo   - Panel de Administracion (Clubes):   http://localhost:3001
+echo   - Catalogo Publico / Invitados:       http://localhost:3002
+echo   - FastAPI Backend API Core:            http://localhost:8002
+echo   - Documentacion de la API (Docs):      http://localhost:8002/docs
 echo.
 echo Para ver los logs:
 echo   docker compose logs -f

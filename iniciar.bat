@@ -69,6 +69,9 @@ echo ========================================
 echo   Estado: SISTEMA ACTIVO
 echo ========================================
 echo.
-echo Puede acceder en: http://localhost:3002
+echo Puede acceder en:
+echo   - Portal Principal (Buscar/Reservar): http://localhost:3000
+echo   - Panel de Administracion (Clubes):   http://localhost:3001
+echo   - Catalogo Publico / Invitados:       http://localhost:3002
 echo.
 pause

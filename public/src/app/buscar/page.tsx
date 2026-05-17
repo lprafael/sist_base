@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useState } from "react";
 import { Search, Navigation, Filter } from "lucide-react";
 import { motion } from "framer-motion";

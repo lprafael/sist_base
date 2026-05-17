@@ -1,13 +1,13 @@
-# Backend (FastAPI) + Frontend (Nginx). La base de datos es externa (local en el host).
-# Uso: docker compose up -d
-# Frontend: http://localhost:3002  |  API: http://localhost:8002
+# Mi Cancha - Docker Compose Configuration
+# Services: FastAPI Backend + Next.js Portals (Web, Admin, Public)
+# Usage: docker compose up -d --build
 
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sist-playa-backend
+    container_name: micancha-backend
     ports:
       - "8002:8001"
     environment:
@@ -20,45 +20,53 @@ services:
       - ./backend/static/uploads:/app/static/uploads
     restart: unless-stopped
     networks:
-      - sist-playa-network
+      - micancha-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8001/backup/ping" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  frontend:
+  web:
     build:
-      context: ./frontend
+      context: ./web
       dockerfile: Dockerfile
-    container_name: sist-playa-frontend
+    container_name: micancha-web
     ports:
-      - "3002:80"
-    depends_on:
-      - backend
+      - "3000:3000"
     restart: unless-stopped
     networks:
-      - sist-playa-network
-    healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - micancha-network
+    depends_on:
+      - backend
 
-  public-catalog:
+  admin:
     build:
-      context: ./frontend/public-catalog
+      context: ./admin
       dockerfile: Dockerfile
-    container_name: sist-playa-public
+    container_name: micancha-admin
     ports:
-      - "3003:80"
-    depends_on:
-      - backend
+      - "3001:3000"
     restart: unless-stopped
     networks:
-      - sist-playa-network
+      - micancha-network
+    depends_on:
+      - backend
+
+  public:
+    build:
+      context: ./public
+      dockerfile: Dockerfile
+    container_name: micancha-public
+    ports:
+      - "3002:3000"
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    depends_on:
+      - backend
 
 networks:
-  sist-playa-network:
+  micancha-network:
     driver: bridge
