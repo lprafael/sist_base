@@ -67,29 +67,6 @@ services:
     depends_on:
       - backend
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: micancha-ssl-proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    restart: unless-stopped
-    networks:
-      - micancha-network
-    depends_on:
-      - backend
-      - web
-      - admin
-      - public
-
-volumes:
-  caddy_data:
-  caddy_config:
-
 networks:
   micancha-network:
     driver: bridge
