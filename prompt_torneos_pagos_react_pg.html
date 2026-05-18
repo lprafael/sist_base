@@ -1,0 +1,904 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:1.5rem 0}
+.hdr{margin-bottom:1.5rem}
+.hdr h1{font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+.hdr p{font-size:13px;color:var(--color-text-secondary)}
+.stack-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem}
+.stack-pill{font-size:12px;font-weight:500;padding:4px 12px;border-radius:100px;border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);background:var(--color-background-secondary)}
+.sec{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;overflow:hidden}
+.sec-hdr{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;user-select:none}
+.sec-hdr:hover{background:var(--color-background-secondary)}
+.sec-title{font-size:14px;font-weight:500;color:var(--color-text-primary);flex:1}
+.badge{font-size:11px;font-weight:500;padding:3px 9px;border-radius:100px}
+.b-blue{background:#E6F1FB;color:#0C447C}
+.b-green{background:#EAF3DE;color:#27500A}
+.b-amber{background:#FAEEDA;color:#633806}
+.b-purple{background:#EEEDFE;color:#3C3489}
+.b-new{background:#E1F5EE;color:#085041}
+.chevron{font-size:16px;color:var(--color-text-secondary);transition:transform .2s}
+.chevron.open{transform:rotate(180deg)}
+.sec-body{display:none;padding:14px 16px;border-top:0.5px solid var(--color-border-tertiary)}
+.sec-body.open{display:block}
+.code-block{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:13px 15px;font-size:12.5px;line-height:1.8;color:var(--color-text-primary);white-space:pre-wrap;word-break:break-word;font-family:var(--font-mono)}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.tag{font-size:11px;padding:2px 8px;border-radius:100px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary)}
+.new-flag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:100px;background:#E1F5EE;color:#085041;margin-left:6px;vertical-align:middle}
+.full-area{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:14px 16px;font-size:12px;line-height:1.8;color:var(--color-text-primary);white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto;font-family:var(--font-mono)}
+.action-bar{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn{display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 16px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);cursor:pointer;font-weight:500}
+.btn:hover{background:var(--color-background-secondary)}
+.btn.ok{border-color:#97C459;color:#27500A}
+</style>
+
+<div class="wrap">
+  <div class="hdr">
+    <h1><i class="ti ti-trophy" aria-hidden="true" style="font-size:20px;vertical-align:-2px;margin-right:6px"></i>Prompt completo — módulo torneos + pagos</h1>
+    <p>Stack confirmado: React + Node.js + PostgreSQL · Incluye pasarela de pagos para inscripciones</p>
+  </div>
+
+  <div class="stack-bar">
+    <span class="stack-pill"><i class="ti ti-brand-react" aria-hidden="true" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>React 18</span>
+    <span class="stack-pill"><i class="ti ti-brand-nodejs" aria-hidden="true" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>Node.js + Express</span>
+    <span class="stack-pill"><i class="ti ti-database" aria-hidden="true" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>PostgreSQL</span>
+    <span class="stack-pill"><i class="ti ti-credit-card" aria-hidden="true" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>Stripe / MercadoPago</span>
+    <span class="stack-pill"><i class="ti ti-lock" aria-hidden="true" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>JWT Auth</span>
+  </div>
+
+  <div id="secs"></div>
+
+  <div class="sec" style="margin-top:16px">
+    <div class="sec-hdr" onclick="toggleFull()">
+      <i class="ti ti-file-code" aria-hidden="true" style="font-size:17px;color:var(--color-text-secondary)"></i>
+      <span class="sec-title">Prompt completo — copiar y usar</span>
+      <i class="ti ti-chevron-down chevron" id="fchev"></i>
+    </div>
+    <div id="fbody" style="display:none;padding:16px;border-top:0.5px solid var(--color-border-tertiary)">
+      <div class="full-area" id="ftext"></div>
+      <div class="action-bar">
+        <button class="btn" id="copyBtn" onclick="copyAll()"><i class="ti ti-copy" aria-hidden="true"></i>Copiar todo el prompt</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const secs = [
+  {
+    icon:"ti-stack",title:"Stack y contexto del proyecto",badge:"b-blue",bl:"Stack",
+    new:false,
+    body:`Stack tecnológico a usar:
+- Frontend: React 18 + Vite + React Router v6 + Zustand (estado global) + React Query (server state)
+- Backend: Node.js + Express + Prisma ORM
+- Base de datos: PostgreSQL 16
+- Autenticación: JWT (access token + refresh token)
+- Pagos: MercadoPago (recomendado para Paraguay/Latinoamérica) con fallback a Stripe si se requiere tarjetas internacionales
+- Almacenamiento de imágenes: Cloudinary (logos de equipos, fotos de jugadores)
+- Emails: Nodemailer + plantillas HTML
+- Documentación API: Swagger / OpenAPI 3.0
+
+El sistema ya tiene un módulo de reservas de canchas funcionando. El nuevo módulo de torneos debe integrarse como un sub-sistema independiente que reutiliza: autenticación existente, tabla de canchas existente y tabla de usuarios existente.
+
+Estructura de carpetas sugerida (monorepo):
+/apps
+  /web          → React frontend
+  /api          → Node.js + Express backend
+/packages
+  /shared       → tipos TypeScript compartidos, utilidades`,
+    tags:["react","node","postgresql","prisma","mercadopago"]
+  },
+  {
+    icon:"ti-sitemap",title:"Modalidades de torneo",badge:"b-blue",bl:"Core",new:false,
+    body:`Implementar las siguientes 4 modalidades, cada una como una clase/servicio independiente en el backend:
+
+1. TODOS CONTRA TODOS — Liga / Round Robin
+   - Cada equipo enfrenta a todos los demás (ida simple o ida+vuelta, configurable)
+   - Puntos: victoria=3, empate=1, derrota=0
+   - Tabla de posiciones con desempate configurable:
+     1° diferencia de goles > 2° goles a favor > 3° enfrentamiento directo > 4° sorteo
+   - Actualización automática de tabla al guardar resultado
+
+2. FASE DE GRUPOS + ELIMINATORIAS
+   - División en grupos (N equipos por grupo, configurable)
+   - Round robin dentro de cada grupo
+   - Clasificados por grupo pasan a eliminatoria (cantidad configurable: 1ro, 1ro+2do, etc.)
+   - Cruces automáticos entre grupos (1ro grupo A vs 2do grupo B, etc.)
+   - Fases eliminatorias: desde 32vos hasta la final + 3er/4to puesto
+   - Ida y vuelta o partido único por fase (configurable)
+
+3. ELIMINACIÓN DIRECTA — Bracket
+   - Bracket tipo árbol, visualizable en el frontend como "llaves"
+   - Soportar: 4, 8, 16, 32 equipos (con byes automáticos si no es potencia de 2 exacta)
+   - Partido único o ida+vuelta (configurable por torneo)
+   - Avance automático al cargar resultado
+   - En empate de ida+vuelta: gol de visitante o penales (configurable)
+
+4. SISTEMA SUIZO
+   - N rondas predefinidas (configurable, típicamente log2 de equipos)
+   - Ronda 1: emparejamiento aleatorio
+   - Rondas siguientes: emparejamiento por puntaje similar (los líderes entre sí), evitando repetir cruces
+   - Sin eliminación, todos juegan todas las rondas
+   - Desempate final: puntos > Buchholz score (suma de puntos de rivales enfrentados)
+   - Ideal para torneos de 1 día / muchos equipos`,
+    tags:["modalidades","round-robin","bracket","suizo","grupos"]
+  },
+  {
+    icon:"ti-credit-card",title:"Módulo de pagos — inscripciones",badge:"b-new",bl:"Nuevo",new:true,
+    body:`CONFIGURACIÓN POR TORNEO:
+- El administrador define si el torneo requiere pago de inscripción (puede ser gratuito)
+- Monto de inscripción por equipo (en moneda local, configurable)
+- Fecha límite de pago (inscripción válida solo si se paga antes de esa fecha)
+- Política de reembolso: sin reembolso / reembolso parcial hasta X días / reembolso completo
+- Descuento por pago anticipado (opcional): si paga antes de una fecha, aplica X% de descuento
+
+PASARELA DE PAGO — MERCADOPAGO:
+Integrar MercadoPago Checkout Pro (recomendado para Paraguay/Argentina/Latinoamérica):
+- Backend: usar SDK oficial @mercadopago/sdk-node
+- Crear preferencia de pago con los datos del torneo y equipo
+- Redirect al Checkout Pro de MercadoPago
+- Webhook para recibir notificaciones de pago en tiempo real
+- Endpoint POST /api/pagos/webhook/mercadopago (debe ser público, sin JWT)
+- Verificar firma del webhook con header x-signature
+
+TAMBIÉN SOPORTAR STRIPE (para tarjetas internacionales):
+- Backend: usar stripe npm package
+- Payment Intents API con confirmación en frontend
+- Stripe Elements en React para formulario de tarjeta seguro
+- Webhook endpoint POST /api/pagos/webhook/stripe
+- Verificar con stripe.webhooks.constructEvent()
+
+TABLA DE PAGOS EN POSTGRESQL:
+CREATE TABLE payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_team_id UUID REFERENCES tournament_teams(id),
+  amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'ARS',
+  provider VARCHAR(20) NOT NULL, -- 'mercadopago' | 'stripe' | 'manual'
+  provider_payment_id VARCHAR(255),
+  provider_preference_id VARCHAR(255),
+  status VARCHAR(20) DEFAULT 'pending', -- pending|approved|rejected|refunded|cancelled
+  paid_at TIMESTAMPTZ,
+  refunded_at TIMESTAMPTZ,
+  refund_amount DECIMAL(10,2),
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX ON payments(tournament_team_id);
+CREATE INDEX ON payments(provider_payment_id);
+CREATE INDEX ON payments(status);
+
+ESTADOS DE INSCRIPCIÓN (flujo completo):
+pending_payment → payment_processing → confirmed → rejected → refunded
+
+LÓGICA DE NEGOCIO:
+- Al crear inscripción: estado = pending_payment, se genera link de pago
+- Al confirmar pago (webhook): estado = confirmed, equipo queda habilitado
+- Si no paga antes de fecha límite: estado automático = cancelled (cron job diario)
+- Solo equipos con estado = confirmed pueden participar en el sorteo
+- Si se rechaza un pago, notificar al delegado y permitir reintentar
+
+API ENDPOINTS DE PAGOS:
+POST   /api/pagos/inscripcion/:torneoEquipoId   → generar preferencia/intent
+GET    /api/pagos/estado/:torneoEquipoId         → consultar estado actual
+POST   /api/pagos/webhook/mercadopago            → webhook MP (público)
+POST   /api/pagos/webhook/stripe                 → webhook Stripe (público)
+POST   /api/pagos/reembolso/:pagoId              → emitir reembolso (solo admin)
+GET    /api/pagos/reporte/:torneoId              → reporte financiero del torneo
+
+PANEL FINANCIERO DEL TORNEO (admin):
+- Total recaudado vs total esperado
+- Equipos con pago pendiente / confirmado / vencido
+- Historial de transacciones con filtros
+- Exportar reporte a CSV (equipos, monto pagado, fecha, método)
+- Botón para enviar recordatorio de pago a los delegados morosos
+
+PAGO MANUAL (efectivo):
+- El admin puede marcar un pago como "pagado en efectivo"
+- Requiere ingresar: monto recibido, fecha, nombre del responsable que recibió
+- Genera un comprobante interno (no procesado por pasarela)
+
+COMPROBANTE DE PAGO:
+- Al confirmar pago, enviar email al delegado con comprobante en PDF
+- El comprobante incluye: torneo, equipo, monto, fecha, número de transacción`,
+    tags:["mercadopago","stripe","pagos","webhook","inscripción","reembolso"]
+  },
+  {
+    icon:"ti-users",title:"Equipos, jugadores y lista de buena fe",badge:"b-blue",bl:"Core",new:false,
+    body:`REGISTRO DE EQUIPO:
+- Nombre, logo/escudo (upload a Cloudinary, max 2MB)
+- Color principal y alternativo (color picker hex)
+- Delegado: nombre, teléfono, email
+- Categoría: libre / sub-20 / sub-17 / veteranos / femenino (configurable por torneo)
+- Estado: activo / suspendido / retirado del torneo
+
+LISTA DE BUENA FE:
+- Cada equipo carga su plantilla antes del torneo
+- Campos por jugador: nombre completo, DNI/CI, fecha de nacimiento, nro de camiseta, posición, foto (Cloudinary, opcional)
+- Mín y máx de jugadores por torneo (configurable, ej: mín 11, máx 25)
+- Fecha límite para modificar la lista (configurable por torneo)
+- Al intentar modificar después de la fecha límite: solo el admin puede hacerlo
+- Los jugadores inhabilitados por sanción se marcan automáticamente con un flag visible
+
+VALIDACIONES IMPORTANTES:
+- Un jugador (por DNI) no puede estar en dos equipos del mismo torneo
+- El número de camiseta debe ser único dentro del equipo en ese torneo
+- Si un equipo no tiene la lista completa al inicio del torneo, mostrar advertencia al admin
+
+INSCRIPCIÓN:
+- Un equipo puede participar en múltiples torneos simultáneamente
+- Estado de inscripción: pending_payment / confirmed / rejected / withdrawn
+- El campo de costo de inscripción se sincroniza con el módulo de pagos`,
+    tags:["equipos","jugadores","lista buena fe","cloudinary","validaciones"]
+  },
+  {
+    icon:"ti-arrows-shuffle",title:"Sorteo y fixture",badge:"b-blue",bl:"Core",new:false,
+    body:`SORTEO ALEATORIO:
+- Solo ejecutable cuando todos los equipos confirmados tienen estado = confirmed (pago aprobado)
+- Algoritmo Fisher-Yates para aleatorización real
+- Opción de cabezas de serie: los mejores equipos (indicados por admin) se separan en distintos grupos/ramas
+- El sorteo puede ejecutarse una sola vez (con confirmación antes de ejecutar)
+- Posibilidad de deshacer el sorteo y volver a sortear (solo si no hay partidos jugados aún)
+- Guardar seed del sorteo para reproducibilidad/auditoría
+
+GENERACIÓN DE FIXTURE:
+Para Liga: algoritmo round-robin de Berger (genera calendario equilibrado)
+Para Grupos + Elim: genera partidos de grupos, luego cruces automáticos al completar fase
+Para Eliminatorias: genera bracket completo con byes si es necesario
+Para Suizo: genera solo la primera ronda; las siguientes se generan automáticamente al terminar cada ronda
+
+ASIGNACIÓN DE CANCHA Y HORARIO:
+- Integración con el módulo de reservas existente
+- Al generar fixture: reserva automática de canchas según disponibilidad
+- Si no hay cancha disponible: dejar sin asignar y alertar al admin
+- Posibilidad de asignar/cambiar cancha y horario manualmente
+- Historial de cambios de programación (quién cambió, cuándo, motivo)
+
+EXPORTACIÓN Y COMPARTIR:
+- Fixture completo exportable como PDF (usar react-pdf o puppeteer en backend)
+- Link público por torneo: /t/[slug-del-torneo] (sin login requerido)
+- Compartir fixture por WhatsApp: URL pre-construida con mensaje y link`,
+    tags:["sorteo","fixture","round-robin","berger","reservas","PDF"]
+  },
+  {
+    icon:"ti-ball-football",title:"Resultados y estadísticas",badge:"b-blue",bl:"Core",new:false,
+    body:`RESULTADO DE PARTIDO — API:
+PATCH /api/partidos/:id/resultado
+Body: { golesLocal, golesVisitante, estado, arbitro, penalesLocal?, penalesVisitante?, observaciones }
+
+Estados válidos: scheduled | in_progress | finished | suspended | postponed | walkover
+
+REGISTRO DE GOLES (endpoint separado):
+POST /api/partidos/:id/goles
+Body: { jugadorId, equipoId, minuto, tipo: 'normal'|'penal'|'autogol'|'cabeza' }
+DELETE /api/partidos/:id/goles/:golId  → corregir error de carga
+
+Los autogoles: se suman a los goles del equipo rival, se restan de la valla del arquero rival.
+Un jugador puede registrar múltiples goles en el mismo partido (hat-trick, etc.).
+
+VALLA MENOS VENCIDA:
+- Registrar arquero titular por partido y equipo: POST /api/partidos/:id/arquero
+- Calcular: PJ (partidos jugados), GC (goles concedidos), VI (vallas invictas), promedio GC/PJ
+- Ranking de arqueros del torneo por promedio GC/PJ (menor es mejor)
+
+ESTADÍSTICAS DEL TORNEO (calculadas en PostgreSQL con views/materialized views):
+- Tabla de posiciones (PJ, PG, PE, PP, GF, GC, DG, PTS) — actualizar al guardar cada resultado
+- Top goleadores (jugador, equipo, goles, asistencias opcionales)
+- Top arqueros (valla menos vencida)
+- Datos del torneo: total de goles, promedio goles/partido, partido más goleador
+- Historial completo por equipo: todos los torneos en que participó
+
+CORRECCIONES:
+- El admin puede corregir un resultado cargado (con log de quién lo corrigió y cuándo)
+- Al corregir resultado: recalcular tabla de posiciones automáticamente`,
+    tags:["goles","resultados","estadísticas","views","postgresql","valla"]
+  },
+  {
+    icon:"ti-card-card",title:"Tarjetas y sanciones",badge:"b-blue",bl:"Core",new:false,
+    body:`REGISTRO DE TARJETAS:
+POST /api/partidos/:id/tarjetas
+Body: { jugadorId, equipoId, minuto, tipo: 'yellow'|'red'|'second_yellow' }
+
+Segunda amarilla en el mismo partido → el sistema la convierte automáticamente en roja y actualiza el conteo.
+
+CONFIGURACIÓN DE SANCIONES (por torneo, en tabla tournament_config):
+{
+  "yellowsForSuspension": 3,          // cada N amarillas = 1 partido suspendido
+  "redDirectSuspension": 1,           // partidos de suspensión por roja directa
+  "redAccumulatedSuspension": 1,      // partidos por segunda amarilla = roja
+  "suspensionEnabled": true,          // si false, solo registra sin penalizar
+  "canAppeal": true                   // si se permiten apelaciones
+}
+
+LÓGICA DE SANCIONES (ejecutar al guardar una tarjeta):
+1. Verificar si el jugador llegó al límite de amarillas → crear sanción automática
+2. Si recibió roja → crear sanción automática con partidos configurados
+3. Marcar al jugador como suspended=true para el/los siguiente/s partido/s
+4. Al iniciar carga de planilla de un partido: verificar que ningún jugador esté suspendido
+
+SANCIONES MANUALES (admin):
+- Agregar sanción extra con descripción, gravedad (leve/grave/muy grave) y N partidos
+- Ejemplo: incidente fuera de cancha, agresión a árbitro, etc.
+
+APELACIONES:
+POST /api/sanciones/:id/apelar
+Body: { motivo, documentacion (texto libre) }
+El admin puede aprobar (reducir/eliminar sanción) o rechazar la apelación.
+Notificar al delegado el resultado.
+
+PANEL DE SANCIONES (frontend admin):
+- Lista de jugadores sancionados activos con contador de partidos restantes
+- Jugadores "en el límite" (próxima tarjeta = suspensión automática)
+- Historial completo: tarjetas por jugador, por partido, por equipo
+- Fair play ranking: equipos ordenados por menor cantidad de tarjetas
+- Premio fair play al final del torneo (campo en Tournament, asignable por admin)`,
+    tags:["tarjetas","sanciones","apelaciones","fair-play","suspensión"]
+  },
+  {
+    icon:"ti-layout-dashboard",title:"Frontend React — componentes clave",badge:"b-purple",bl:"React",new:false,
+    body:`ARQUITECTURA FRONTEND:
+- React 18 + Vite + TypeScript
+- Routing: React Router v6 (rutas públicas y privadas)
+- Estado global: Zustand (sesión, torneo activo)
+- Server state: React Query / TanStack Query (cache + invalidación)
+- Formularios: React Hook Form + Zod (validación)
+- UI Components: shadcn/ui o Radix UI (accesibles, sin estilos forzados)
+- Tablas: TanStack Table v8
+- Gráficos/Bracket: react-flow o custom SVG para el bracket visual
+- Exportar PDF: react-pdf/renderer o jsPDF
+
+PÁGINAS PÚBLICAS (sin login) → /t/:slug:
+- TournamentPage: vista general, próximos partidos, últimos resultados
+- FixturePage: todos los partidos organizados por fecha/ronda
+- StandingsPage: tabla de posiciones (liga) o bracket (eliminatorias)
+- ScorersPage: tabla de goleadores y arqueros
+- TeamPage: detalle de un equipo con su plantilla y estadísticas
+
+PÁGINAS ADMIN (con login) → /admin:
+- Dashboard: métricas rápidas, partidos del día, alertas
+- TournamentForm: crear/editar torneo con todos sus parámetros
+- TeamsManager: gestión de inscripciones, validar listas de buena fe
+- DrawPage: ejecutar sorteo con animación y vista de resultado
+- FixtureManager: ver y editar el fixture, asignar canchas/horarios
+- MatchForm: carga rápida de resultado, goles, tarjetas (optimizado para móvil)
+- SanctionsPanel: gestión de sanciones y apelaciones
+- PaymentsPanel: estado de pagos, enviar recordatorios, marcar pagos manuales
+- ReportsPage: exportar fixtures, estadísticas, reporte financiero en PDF/CSV
+
+COMPONENTE BRACKET VISUAL:
+- Árbol de eliminatorias interactivo
+- Cada nodo = partido con equipos, resultado, estado
+- Responsive: en móvil se visualiza scrolleable horizontalmente
+- Los partidos avanzan automáticamente (React Query revalida cada 30s en tiempo de torneo)
+
+CHECKOUT DE INSCRIPCIÓN:
+- Si el torneo requiere pago: al confirmar inscripción mostrar resumen + botón de pago
+- Para MercadoPago: redirigir a Checkout Pro (URL generada por backend)
+- Para Stripe: mostrar Stripe Elements en modal (sin salir de la app)
+- Página de retorno: /inscripcion/resultado?status=approved|rejected|pending
+- Mostrar comprobante o mensaje de error con opción de reintentar`,
+    tags:["react","tanstack-query","react-hook-form","bracket","shadcn","stripe-elements"]
+  },
+  {
+    icon:"ti-database",title:"Schema PostgreSQL completo",badge:"b-amber",bl:"DB",new:false,
+    body:`-- Usar UUID como PK en todas las tablas
+-- Habilitar extensión: CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE tournaments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  venue_id UUID REFERENCES venues(id),       -- complejo deportivo
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,         -- para URL pública
+  sport VARCHAR(50) DEFAULT 'football',
+  modality VARCHAR(20) NOT NULL,             -- league|groups_knockout|knockout|swiss
+  status VARCHAR(20) DEFAULT 'draft',        -- draft|open|in_progress|finished|cancelled
+  start_date DATE,
+  end_date DATE,
+  registration_deadline TIMESTAMPTZ,
+  payment_required BOOLEAN DEFAULT false,
+  registration_fee DECIMAL(10,2) DEFAULT 0,
+  currency VARCHAR(3) DEFAULT 'ARS',
+  early_payment_discount DECIMAL(5,2) DEFAULT 0,
+  early_payment_deadline TIMESTAMPTZ,
+  refund_policy VARCHAR(20) DEFAULT 'none',  -- none|partial|full
+  min_players INT DEFAULT 11,
+  max_players INT DEFAULT 25,
+  roster_lock_date TIMESTAMPTZ,
+  config JSONB DEFAULT '{}',                 -- reglas del torneo (sanciones, etc.)
+  fair_play_winner_id UUID,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE tournament_teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE,
+  team_id UUID REFERENCES teams(id),
+  group_letter VARCHAR(2),                   -- A, B, C... (para modalidad grupos)
+  seed INT,                                  -- cabeza de serie (1, 2, etc.)
+  status VARCHAR(20) DEFAULT 'pending_payment',
+  withdrawn_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_team_id UUID REFERENCES tournament_teams(id),
+  amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'ARS',
+  provider VARCHAR(20) NOT NULL,             -- mercadopago|stripe|cash
+  provider_payment_id VARCHAR(255),
+  provider_preference_id VARCHAR(255),
+  status VARCHAR(20) DEFAULT 'pending',      -- pending|approved|rejected|refunded|cancelled
+  paid_at TIMESTAMPTZ,
+  refunded_at TIMESTAMPTZ,
+  refund_amount DECIMAL(10,2),
+  received_by VARCHAR(255),                  -- para pagos en efectivo
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX ON payments(tournament_team_id);
+CREATE INDEX ON payments(provider_payment_id);
+CREATE INDEX ON payments(status);
+
+CREATE TABLE matches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_id UUID REFERENCES tournaments(id),
+  phase VARCHAR(30) NOT NULL,                -- groups|r32|r16|quarters|semis|third|final
+  round INT,
+  group_letter VARCHAR(2),
+  home_team_id UUID REFERENCES tournament_teams(id),
+  away_team_id UUID REFERENCES tournament_teams(id),
+  field_id UUID REFERENCES fields(id),       -- cancha del complejo
+  booking_id UUID,                           -- reserva en módulo existente
+  scheduled_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
+  home_goals INT DEFAULT 0,
+  away_goals INT DEFAULT 0,
+  home_penalties INT,
+  away_penalties INT,
+  status VARCHAR(20) DEFAULT 'scheduled',
+  referee VARCHAR(255),
+  notes TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE goals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
+  tournament_player_id UUID REFERENCES tournament_players(id),
+  team_id UUID REFERENCES tournament_teams(id),
+  minute INT,
+  type VARCHAR(20) DEFAULT 'normal',         -- normal|penalty|own_goal|header
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
+  tournament_player_id UUID REFERENCES tournament_players(id),
+  team_id UUID REFERENCES tournament_teams(id),
+  minute INT,
+  type VARCHAR(20) NOT NULL,                 -- yellow|red|second_yellow
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE sanctions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_player_id UUID REFERENCES tournament_players(id),
+  tournament_id UUID REFERENCES tournaments(id),
+  card_id UUID REFERENCES cards(id),         -- null si es sanción manual
+  reason TEXT NOT NULL,
+  severity VARCHAR(20) DEFAULT 'mild',       -- mild|serious|very_serious
+  matches_suspended INT NOT NULL DEFAULT 1,
+  matches_served INT DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'active',       -- active|served|appealing|overturned
+  appeal_reason TEXT,
+  appeal_resolved_at TIMESTAMPTZ,
+  appeal_resolved_by UUID REFERENCES users(id),
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Vista materializada para tabla de posiciones (refrescar al cargar cada resultado):
+CREATE MATERIALIZED VIEW standings AS
+SELECT
+  tt.tournament_id, tt.id AS tournament_team_id, tt.group_letter,
+  t.name AS team_name,
+  COUNT(m.id) AS played,
+  COUNT(CASE WHEN (m.home_team_id = tt.id AND m.home_goals > m.away_goals) OR
+                  (m.away_team_id = tt.id AND m.away_goals > m.home_goals) THEN 1 END) AS won,
+  COUNT(CASE WHEN m.home_goals = m.away_goals THEN 1 END) AS drawn,
+  COUNT(CASE WHEN (m.home_team_id = tt.id AND m.home_goals < m.away_goals) OR
+                  (m.away_team_id = tt.id AND m.away_goals < m.home_goals) THEN 1 END) AS lost,
+  SUM(CASE WHEN m.home_team_id = tt.id THEN m.home_goals ELSE m.away_goals END) AS goals_for,
+  SUM(CASE WHEN m.home_team_id = tt.id THEN m.away_goals ELSE m.home_goals END) AS goals_against,
+  (COUNT(CASE WHEN ... THEN 1 END) * 3 + COUNT(CASE WHEN m.home_goals = m.away_goals THEN 1 END)) AS points
+FROM tournament_teams tt
+JOIN teams t ON t.id = tt.team_id
+LEFT JOIN matches m ON (m.home_team_id = tt.id OR m.away_team_id = tt.id) AND m.status = 'finished'
+GROUP BY tt.tournament_id, tt.id, tt.group_letter, t.name;`,
+    tags:["postgresql","schema","migrations","materialized-view","uuid","prisma"]
+  },
+  {
+    icon:"ti-bell",title:"Notificaciones y otras funcionalidades",badge:"b-green",bl:"Plus",new:false,
+    body:`NOTIFICACIONES POR EMAIL (Nodemailer):
+- Plantillas HTML para: confirmación de inscripción, recordatorio de pago, pago confirmado/rechazado,
+  partido programado (24h antes), resultado cargado, sanción aplicada, apelación resuelta
+- Cola de emails con retry (usar bull/bullmq + Redis, o pg-boss para no agregar Redis)
+- El admin puede enviar recordatorio de pago masivo a todos los equipos morosos
+
+NOTIFICACIONES POR WHATSAPP (opcional, agregar si el cliente dispone de API):
+- Integrar con API de WhatsApp Business o Twilio
+- Mensajes: recordatorio de partido, resultado, sanción
+- Mensajes se envían al teléfono del delegado del equipo
+
+CRON JOBS (node-cron o pg-boss):
+- Cada hora: verificar inscripciones con pago vencido → cambiar estado a 'cancelled'
+- Cada día: recordatorio de pago a equipos pendientes (si está dentro del período)
+- Al terminar una ronda en modalidad suizo: generar automáticamente la siguiente
+
+LOGS DE AUDITORÍA:
+- Tabla audit_log: user_id, action, entity_type, entity_id, old_value (jsonb), new_value (jsonb), ip, created_at
+- Registrar: cargar resultado, corregir resultado, aplicar sanción, confirmar pago manual, hacer sorteo
+- El admin puede ver el log filtrado por torneo, usuario, fecha
+
+EXPORTACIONES:
+- Fixture completo: PDF con react-pdf (backend genera PDF, frontend lo descarga)
+- Tabla de posiciones: imagen PNG (html2canvas en frontend o puppeteer en backend)
+- Reporte financiero: CSV con equipos, montos, fechas, métodos de pago
+- Estadísticas del torneo: PDF resumen al finalizar (goleadores, fair play, campeón)
+
+INTEGRACIÓN CON MÓDULO DE RESERVAS:
+- Al generar fixture: crear reservas automáticas en el módulo existente
+- Si hay conflicto de horario/cancha: alertar al admin y dejar el partido sin asignar
+- Si se reprograma un partido: actualizar o cancelar la reserva existente
+- Consultar disponibilidad de canchas al asignar manualmente un horario
+
+SEGURIDAD Y VALIDACIONES:
+- JWT con refresh token (access token expira en 15 min, refresh en 7 días)
+- Rate limiting en endpoints de pagos y webhooks
+- Los webhooks verifican firma criptográfica (no procesar pagos sin verificar)
+- Validar con Zod todos los inputs del backend
+- Sanitizar uploads de imágenes (verificar MIME type real, no solo extensión)
+- CORS configurado para permitir solo el dominio del frontend
+
+TESTS:
+- Jest + Supertest para tests de integración de la API
+- Tests obligatorios para: lógica de puntuación, generación de fixture round-robin,
+  lógica de sanciones, cálculo de tabla de posiciones, webhook de pagos (con mock de firma)
+- Vitest para tests unitarios en el frontend (lógica de bracket, cálculos de stats)`,
+    tags:["emails","cron","audit-log","exports","seguridad","tests","whatsapp"]
+  }
+];
+
+const fullPrompt = `=================================================================
+PROMPT: MÓDULO DE GESTIÓN DE TORNEOS DEPORTIVOS
+Stack: React 18 + Node.js + Express + PostgreSQL
+Incluye: pagos de inscripciones (MercadoPago + Stripe)
+=================================================================
+
+## 1. STACK Y CONTEXTO DEL PROYECTO
+
+Stack tecnológico:
+- Frontend: React 18 + Vite + TypeScript + React Router v6 + Zustand + React Query (TanStack Query)
+- Backend: Node.js + Express + Prisma ORM
+- Base de datos: PostgreSQL 16
+- Autenticación: JWT (access token 15min + refresh token 7 días)
+- Pagos: MercadoPago Checkout Pro (principal) + Stripe (tarjetas internacionales)
+- Imágenes: Cloudinary (logos de equipos, fotos de jugadores)
+- Emails: Nodemailer con plantillas HTML
+- Documentación API: Swagger / OpenAPI 3.0
+
+El sistema ya tiene un módulo de reservas de canchas funcionando.
+Este módulo de torneos se integra como subsistema independiente que reutiliza:
+autenticación existente, tabla de canchas (fields) y tabla de usuarios (users).
+
+Estructura de carpetas (monorepo):
+/apps
+  /web    → React frontend
+  /api    → Node.js + Express backend
+/packages
+  /shared → tipos TypeScript compartidos
+
+---
+
+## 2. MODALIDADES DE TORNEO
+
+Implementar como clases/servicios independientes:
+
+1. TODOS CONTRA TODOS — Liga / Round Robin
+   - Cada equipo enfrenta a todos (ida simple o ida+vuelta, configurable)
+   - Puntos: victoria=3, empate=1, derrota=0
+   - Desempate configurable: diferencia de goles > goles a favor > enfrentamiento directo
+
+2. FASE DE GRUPOS + ELIMINATORIAS
+   - Grupos de N equipos (configurable), round robin dentro de cada grupo
+   - Clasificados pasan a eliminatoria (cantidad configurable)
+   - Cruces automáticos entre grupos al completar fase de grupos
+   - Fases: 32vos → final + 3er/4to puesto; ida y vuelta o partido único por fase
+
+3. ELIMINACIÓN DIRECTA — Bracket
+   - Árbol visual de llaves, 4/8/16/32 equipos con byes automáticos
+   - Partido único o ida+vuelta por ronda (configurable)
+   - En empate de ida+vuelta: gol de visitante o penales (configurable)
+
+4. SISTEMA SUIZO
+   - N rondas predefinidas (configurable)
+   - Ronda 1: emparejamiento aleatorio; siguientes: por puntaje similar sin repetir cruces
+   - Desempate final: puntos > Buchholz score
+
+---
+
+## 3. MÓDULO DE PAGOS — INSCRIPCIONES
+
+CONFIGURACIÓN POR TORNEO:
+- Pago requerido (true/false), monto en moneda local, fecha límite de pago
+- Descuento por pago anticipado: X% si paga antes de fecha Y
+- Política de reembolso: none | partial | full
+
+MERCADOPAGO (pasarela principal — Latinoamérica):
+- SDK: @mercadopago/sdk-node
+- Checkout Pro: backend genera preferencia → frontend redirige
+- Webhook: POST /api/pagos/webhook/mercadopago (público, sin JWT)
+- Verificar firma con header x-signature
+
+STRIPE (tarjetas internacionales):
+- Payment Intents API + Stripe Elements en React
+- Webhook: POST /api/pagos/webhook/stripe (público)
+- Verificar con stripe.webhooks.constructEvent()
+
+TABLA EN POSTGRESQL:
+CREATE TABLE payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tournament_team_id UUID REFERENCES tournament_teams(id),
+  amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'ARS',
+  provider VARCHAR(20) NOT NULL,           -- mercadopago | stripe | cash
+  provider_payment_id VARCHAR(255),
+  provider_preference_id VARCHAR(255),
+  status VARCHAR(20) DEFAULT 'pending',    -- pending|approved|rejected|refunded|cancelled
+  paid_at TIMESTAMPTZ,
+  refunded_at TIMESTAMPTZ,
+  refund_amount DECIMAL(10,2),
+  received_by VARCHAR(255),               -- para pagos en efectivo
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+FLUJO COMPLETO:
+pending_payment → payment_processing → confirmed → rejected / refunded
+
+LÓGICA:
+- Al crear inscripción: estado = pending_payment, generar link de pago
+- Webhook aprueba pago → estado = confirmed, equipo habilitado para sorteo
+- Cron job diario: inscripciones no pagadas después de fecha límite → cancelled
+- Solo equipos confirmed participan en el sorteo
+
+API ENDPOINTS:
+POST   /api/pagos/inscripcion/:torneoEquipoId  → generar preferencia/intent
+GET    /api/pagos/estado/:torneoEquipoId        → estado actual
+POST   /api/pagos/webhook/mercadopago           → webhook MP
+POST   /api/pagos/webhook/stripe                → webhook Stripe
+POST   /api/pagos/reembolso/:pagoId             → reembolso (solo admin)
+GET    /api/pagos/reporte/:torneoId             → reporte financiero CSV
+
+PAGO MANUAL (efectivo):
+- Admin marca como pagado manualmente: monto, fecha, quién recibió
+- Genera comprobante interno
+
+PANEL FINANCIERO (frontend admin):
+- Total recaudado vs esperado
+- Estado de pago por equipo con filtros
+- Historial de transacciones
+- Botón "enviar recordatorio" a equipos morosos
+- Exportar CSV
+- Al confirmar pago: enviar comprobante PDF por email al delegado
+
+---
+
+## 4. GESTIÓN DE EQUIPOS Y JUGADORES
+
+EQUIPO: nombre, logo (Cloudinary), colores, delegado (nombre, tel, email), categoría, estado
+
+LISTA DE BUENA FE:
+- Por jugador: nombre, DNI/CI, fecha de nacimiento, nro camiseta, posición, foto
+- Mín y máx configurables por torneo
+- Fecha límite de modificación (solo admin puede modificar después)
+- Jugadores sancionados se marcan automáticamente
+
+VALIDACIONES:
+- Jugador (por DNI) no puede estar en dos equipos del mismo torneo
+- Número de camiseta único por equipo en el torneo
+
+---
+
+## 5. SORTEO Y FIXTURE
+
+SORTEO:
+- Solo ejecutable con todos los equipos en estado = confirmed
+- Algoritmo Fisher-Yates; opción de cabezas de serie
+- Una sola ejecución por torneo (con confirmación antes); se puede deshacer si no hay partidos jugados
+- Guardar seed para auditoría
+
+FIXTURE:
+- Liga: algoritmo de Berger (round-robin equilibrado)
+- Grupos + elim: grupos completos, luego cruces automáticos
+- Bracket: árbol completo con byes
+- Suizo: solo primera ronda; siguientes se generan al terminar cada ronda
+
+CANCHAS Y HORARIOS:
+- Integración con módulo de reservas existente
+- Reserva automática al generar fixture; alerta si no hay disponibilidad
+- Reprogramación con historial de cambios
+
+EXPORTACIÓN:
+- PDF del fixture (Puppeteer en backend o react-pdf)
+- Link público: /t/[slug]
+- Compartir por WhatsApp: URL pre-construida
+
+---
+
+## 6. RESULTADOS Y ESTADÍSTICAS
+
+API resultados: PATCH /api/partidos/:id/resultado
+Estados: scheduled|in_progress|finished|suspended|postponed|walkover
+
+GOLES: POST /api/partidos/:id/goles → { jugadorId, equipoId, minuto, tipo }
+Tipos: normal | penalty | own_goal | header
+Autogoles: suman al rival, restan a la valla del arquero rival
+
+VALLA: registrar arquero titular por partido → calcular PJ, GC, vallas invictas, promedio
+
+ESTADÍSTICAS (PostgreSQL materialized views):
+- Tabla de posiciones (PJ, PG, PE, PP, GF, GC, DG, PTS) — refrescar al guardar resultado
+- Goleadores, arqueros, datos generales del torneo
+- Correcciones con log de auditoría
+
+---
+
+## 7. TARJETAS Y SANCIONES
+
+TARJETAS: POST /api/partidos/:id/tarjetas → { jugadorId, equipoId, minuto, tipo }
+Segunda amarilla → expulsión automática
+
+CONFIG POR TORNEO (JSONB):
+{
+  "yellowsForSuspension": 3,
+  "redDirectSuspension": 1,
+  "redAccumulatedSuspension": 1,
+  "suspensionEnabled": true,
+  "canAppeal": true
+}
+
+LÓGICA: al guardar tarjeta → verificar límites → crear sanción automática si corresponde
+SANCIONES MANUALES: admin agrega con gravedad (mild|serious|very_serious) y N partidos
+APELACIONES: registro de motivo + resolución del admin + notificación al delegado
+
+PANEL: sancionados activos, jugadores "en el límite", fair play ranking
+
+---
+
+## 8. FRONTEND REACT — COMPONENTES CLAVE
+
+RUTAS PÚBLICAS /t/:slug:
+- Página principal del torneo, fixture, tabla de posiciones, goleadores, detalle de equipo
+
+RUTAS ADMIN /admin:
+- Dashboard, crear/editar torneo, gestión de equipos, sorteo, fixture manager,
+  carga de resultados (mobile-first), sanciones, pagos, reportes
+
+COMPONENTE BRACKET: SVG o react-flow interactivo, responsivo (scroll horizontal en móvil)
+CHECKOUT: MercadoPago → redirect; Stripe → modal con Stripe Elements
+
+STACK FRONTEND:
+- React Hook Form + Zod (formularios y validaciones)
+- shadcn/ui o Radix UI (componentes accesibles)
+- TanStack Table v8 (tablas de datos)
+- React Query (cache + revalidación automática cada 30s en partidos en curso)
+
+---
+
+## 9. SCHEMA POSTGRESQL (entidades principales)
+
+tournaments: id, venue_id, name, slug, sport, modality, status, fechas, config_pago, config JSONB
+tournament_teams: id, tournament_id, team_id, group_letter, seed, status
+payments: (ver sección 3 arriba — schema completo)
+matches: id, tournament_id, phase, round, group_letter, home/away team, field, booking, marcadores, estado
+goals: id, match_id, tournament_player_id, team_id, minute, type
+cards: id, match_id, tournament_player_id, team_id, minute, type
+sanctions: id, tournament_player_id, tournament_id, card_id, reason, severity, matches_suspended, status
+audit_log: user_id, action, entity_type, entity_id, old_value JSONB, new_value JSONB, ip, created_at
+
+Usar gen_random_uuid() como PK en todas las tablas.
+Crear materialized view 'standings' para tabla de posiciones.
+Índices en: payments(provider_payment_id), payments(status), matches(tournament_id, phase)
+
+---
+
+## 10. NOTIFICACIONES, CRONS Y OTROS
+
+EMAILS (Nodemailer): inscripción confirmada, pago confirmado/rechazado, partido próximo (24h antes),
+resultado cargado, sanción aplicada, apelación resuelta — usar plantillas HTML
+
+CRON JOBS (node-cron o pg-boss):
+- Cada hora: vencer inscripciones sin pago → cancelled
+- Cada día: recordatorios de pago a equipos morosos
+- Post-ronda suizo: generar siguiente ronda automáticamente
+
+AUDIT LOG: registrar toda acción relevante (resultado, sanción, pago manual, sorteo)
+
+EXPORTACIONES: fixture PDF, tabla PNG, reporte financiero CSV, resumen final PDF
+
+SEGURIDAD:
+- JWT con refresh token (access 15min, refresh 7 días)
+- Rate limiting en endpoints de pagos y webhooks
+- Verificar firma criptográfica de todos los webhooks antes de procesar
+- Validar con Zod en backend, sanitizar uploads (verificar MIME type real)
+- CORS restringido al dominio del frontend
+
+TESTS:
+- Jest + Supertest: lógica de puntuación, round-robin, sanciones, tabla de posiciones, webhooks (mock)
+- Vitest: bracket visual, cálculos de estadísticas en frontend
+
+---
+
+Desarrollar en este orden:
+1. Schema PostgreSQL + migraciones Prisma
+2. Autenticación y middlewares base
+3. Backend: torneos, equipos, jugadores
+4. Backend: sorteo y fixture
+5. Backend: resultados, goles, tarjetas, sanciones
+6. Backend: módulo de pagos (MercadoPago + Stripe + webhooks)
+7. Frontend: panel admin
+8. Frontend: vista pública del torneo
+9. Integración con módulo de reservas existente
+10. Tests, crons, notificaciones por email
+=================================================================`;
+
+function render(){
+  const c=document.getElementById('secs');
+  secs.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='sec';
+    d.innerHTML=`<div class="sec-hdr" onclick="tog(${i})">
+      <i class="ti ${s.icon}" aria-hidden="true" style="font-size:17px;color:var(--color-text-secondary)"></i>
+      <span class="sec-title">${s.title}${s.new?'<span class="new-flag">nuevo</span>':''}</span>
+      <span class="badge ${s.badge}">${s.bl}</span>
+      <i class="ti ti-chevron-down chevron" id="ch${i}"></i>
+    </div>
+    <div class="sec-body" id="bd${i}">
+      <div class="code-block">${s.body}</div>
+      <div class="tags">${s.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    </div>`;
+    c.appendChild(d);
+  });
+  document.getElementById('ftext').textContent=fullPrompt;
+}
+function tog(i){
+  const b=document.getElementById('bd'+i),ch=document.getElementById('ch'+i);
+  const o=b.classList.contains('open');
+  b.classList.toggle('open',!o);ch.classList.toggle('open',!o);
+}
+function toggleFull(){
+  const b=document.getElementById('fbody'),ch=document.getElementById('fchev');
+  const o=b.style.display!=='none';
+  b.style.display=o?'none':'block';ch.classList.toggle('open',!o);
+}
+function copyAll(){
+  navigator.clipboard.writeText(fullPrompt).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.innerHTML='<i class="ti ti-check" aria-hidden="true"></i>¡Copiado!';
+    btn.classList.add('ok');
+    setTimeout(()=>{btn.innerHTML='<i class="ti ti-copy" aria-hidden="true"></i>Copiar todo el prompt';btn.classList.remove('ok');},2500);
+  });
+}
+render();
+</script>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Trophy, 
   Calendar, 
@@ -13,52 +13,183 @@ import {
   Clock,
   Zap,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function TournamentDetailPage() {
-  const [activeTab, setActiveTab] = useState("info");
-  const [isInscribed, setIsInscribed] = useState(false);
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id;
 
-  // Mock data for the tournament
-  const tournament = {
-    id: 1,
-    name: "Copa de Verano 2026",
-    club: "La Quinta Sports",
-    sport: "Fútbol 7 Masculino",
-    date: "15 de Mayo - 30 de Junio",
-    location: "Asunción, Paraguay",
-    prize: "G. 10.000.000",
-    teamsRegistered: 24,
-    maxTeams: 32,
-    fee: "G. 500.000 por equipo",
-    description: "El torneo amateur más grande del país. Categoría libre para mayores de 18 años. Formato fase de grupos seguido de eliminación directa (Playoffs).",
-    rules: [
-      "Mínimo 7 jugadores, máximo 12.",
-      "Carnet de identidad obligatorio.",
-      "Duración: 2 tiempos de 25 minutos.",
-      "Árbitros profesionales certificados."
-    ],
-    prizes: [
-      { rank: "1er Puesto", reward: "G. 7.000.000 + Trofeo + Medallas" },
-      { rank: "2do Puesto", reward: "G. 3.000.000 + Medallas" },
-      { rank: "Goleador", reward: "Botines Nike + Voucher G. 500.000" }
-    ],
-    brackets: [
-      { round: "Cuartos de Final", matches: [
-        { team1: "Los Galácticos", team2: "Dptivo. Luque", score1: 3, score2: 1, winner: "Los Galácticos" },
-        { team1: "Águilas Doradas", team2: "Team Padel/Fut", score1: 0, score2: 2, winner: "Team Padel/Fut" },
-        { team1: "Branca FC", team2: "Los Amigos", score1: 1, score2: 1, winner: "Branca FC", penalty: true },
-        { team1: "Villarreal PY", team2: "Cancha Libre", score1: 4, score2: 2, winner: "Villarreal PY" }
-      ]},
-      { round: "Semifinales", matches: [
-        { team1: "Los Galácticos", team2: "Team Padel/Fut", score1: null, score2: null, winner: null },
-        { team1: "Branca FC", team2: "Villarreal PY", score1: null, score2: null, winner: null }
-      ]}
-    ]
+  const [activeTab, setActiveTab] = useState("información");
+  const [isInscribed, setIsInscribed] = useState(false);
+  const [tournament, setTournament] = useState<any>(null);
+  const [equipos, setEquipos] = useState<any[]>([]);
+  const [partidos, setPartidos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [enrollData, setEnrollData] = useState({
+    nombre: "",
+    capitan_nombre: "",
+    capitan_telefono: "",
+    capitan_email: ""
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadData = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      // 1. Fetch tournament details
+      const tRes = await fetch(`${API_URL}/cancha/torneos`);
+      if (tRes.ok) {
+        const torneos = await tRes.json();
+        const found = torneos.find((t: any) => t.id === id);
+        if (found) {
+          setTournament(found);
+        }
+      }
+
+      // 2. Fetch enrolled teams
+      const eRes = await fetch(`${API_URL}/cancha/torneos/${id}/equipos`);
+      if (eRes.ok) {
+        const eqData = await eRes.json();
+        setEquipos(eqData);
+        // Check if user is already inscribed locally
+        const localInscribed = localStorage.getItem(`inscribed_${id}`);
+        if (localInscribed) {
+          setIsInscribed(true);
+        }
+      }
+
+      // 3. Fetch matches
+      const mRes = await fetch(`${API_URL}/cancha/torneos/${id}/partidos`);
+      if (mRes.ok) {
+        setPartidos(await mRes.json());
+      }
+    } catch (e) {
+      console.error("Error loading tournament details:", e);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
+
+  const handleEnrollSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      // 1. Enroll the team in backend
+      const res = await fetch(`${API_URL}/cancha/torneos/${id}/equipos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(enrollData)
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Error al inscribir equipo");
+      }
+      
+      const team = await res.json();
+      
+      // Save enrollment locally
+      localStorage.setItem(`inscribed_${id}`, team.id);
+      
+      // 2. If it requires payment, redirect to simulated checkout
+      if (tournament?.costo_inscripcion > 0) {
+        const payRes = await fetch(`${API_URL}/cancha/pagos/inscripcion/${team.id}`, {
+          method: "POST"
+        });
+        if (payRes.ok) {
+          const payData = await payRes.json();
+          if (payData.checkout_url) {
+            window.location.href = payData.checkout_url;
+            return;
+          }
+        }
+      }
+      
+      // 3. Otherwise confirm directly
+      alert("¡Tu equipo se ha inscrito con éxito!");
+      setIsInscribed(true);
+      setIsModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Error al inscribir equipo.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <Trophy className="w-16 h-16 text-primary animate-bounce mb-4" />
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Cargando Torneo...</p>
+      </div>
+    );
+  }
+
+  if (!tournament) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6 text-center">
+        <Trophy className="w-16 h-16 text-slate-700 mb-4" />
+        <h2 className="text-2xl font-bold text-white mb-2">Torneo no encontrado</h2>
+        <p className="text-slate-500 mb-8 max-w-sm">La competencia que buscas no existe o fue dada de baja por el complejo.</p>
+        <Link href="/buscar" className="bg-primary hover:bg-primary/90 text-black font-bold px-8 py-4 rounded-[2rem] transition-colors">
+          Volver a Buscar
+        </Link>
+      </div>
+    );
+  }
+
+  const getFixturesByRound = () => {
+    const rounds: Record<string, any[]> = {};
+    partidos.forEach(p => {
+      const roundName = p.fase || "Fase de Grupos";
+      if (!rounds[roundName]) {
+        rounds[roundName] = [];
+      }
+      rounds[roundName].push(p);
+    });
+    return Object.entries(rounds).map(([roundName, matches]) => ({
+      round: roundName,
+      matches: matches.map(m => ({
+        team1: m.local_nombre,
+        team2: m.visitante_nombre,
+        score1: m.goles_local,
+        score2: m.goles_visitante,
+        winner: m.goles_local > m.goles_visitante ? m.local_nombre : (m.goles_visitante > m.goles_local ? m.visitante_nombre : null)
+      }))
+    }));
+  };
+
+  const roundsData = getFixturesByRound();
+
+  // Rules mock template
+  const rules = [
+    "Mínimo 7 jugadores, máximo 12 en lista de buena fe.",
+    "Presentación de carnet de identidad obligatorio antes de iniciar cada encuentro.",
+    "Duración reglamentaria: 2 tiempos de 25 minutos con 5 min de descanso.",
+    "Tolerancia de espera máxima de 15 minutos en el primer partido."
+  ];
+
+  // Prizes mock template
+  const prizes = [
+    { rank: "1er Puesto", reward: "Medallas + Copa Campeón + Premios de Sponsors" },
+    { rank: "2do Puesto", reward: "Medallas + Voucher de Consumo en el Club" },
+    { rank: "Goleador del Torneo", reward: "Trofeo Bota de Oro + Regalo Especial" }
+  ];
 
   return (
     <div className="min-h-screen bg-subtle">
@@ -82,14 +213,14 @@ export default function TournamentDetailPage() {
             <div className="flex flex-col lg:flex-row justify-between items-end gap-10">
               <div className="max-w-3xl">
                 <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold uppercase tracking-widest mb-6 backdrop-blur-md">
-                   {tournament.sport}
+                   {tournament.deporte} • {tournament.formato === 'liga' ? 'Liga' : 'Eliminación Directa'}
                 </span>
                 <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight">
-                  {tournament.name}
+                  {tournament.nombre}
                 </h1>
                 <div className="flex flex-wrap gap-6 text-slate-300 font-semibold text-sm">
-                  <span className="flex items-center gap-2"><MapPin size={18} className="text-primary" /> {tournament.club}</span>
-                  <span className="flex items-center gap-2"><Calendar size={18} className="text-primary" /> {tournament.date}</span>
+                  <span className="flex items-center gap-2"><MapPin size={18} className="text-primary" /> {tournament.complejo_nombre}</span>
+                  <span className="flex items-center gap-2"><Calendar size={18} className="text-primary" /> {new Date(tournament.fecha_inicio).toLocaleDateString()}</span>
                 </div>
               </div>
               
@@ -98,11 +229,11 @@ export default function TournamentDetailPage() {
                    <Share2 size={24} />
                 </button>
                 <button 
-                  onClick={() => setIsInscribed(true)}
-                  disabled={isInscribed}
-                  className={`btn px-10 py-5 rounded-[2rem] text-lg ${isInscribed ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'btn-primary'}`}
+                  onClick={() => setIsModalOpen(true)}
+                  disabled={isInscribed || equipos.length >= tournament.max_equipos}
+                  className={`btn px-10 py-5 rounded-[2rem] text-lg transition-all ${isInscribed ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'btn-primary'}`}
                 >
-                  {isInscribed ? 'ESTÁS INSCRITO' : 'INSCRIBIR EQUIPO'}
+                  {isInscribed ? 'ESTÁS INSCRITO' : (equipos.length >= tournament.max_equipos ? 'COMPLETO' : 'INSCRIBIR EQUIPO')}
                 </button>
               </div>
             </div>
@@ -115,10 +246,10 @@ export default function TournamentDetailPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {[
-            { label: "Equipos", val: `${tournament.teamsRegistered}/${tournament.maxTeams}`, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
-            { label: "Premio Mayor", val: tournament.prize, icon: Trophy, color: "text-yellow-500", bg: "bg-yellow-50" },
-            { label: "Inscripción", val: tournament.fee, icon: DollarSign, color: "text-primary", bg: "bg-primary/10" },
-            { label: "Cierre", val: "10 de Mayo", icon: Clock, color: "text-orange-500", bg: "bg-orange-50" },
+            { label: "Equipos", val: `${equipos.length}/${tournament.max_equipos}`, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
+            { label: "Premio Mayor", val: "Copa + Medallas", icon: Trophy, color: "text-yellow-500", bg: "bg-yellow-50" },
+            { label: "Inscripción", val: tournament.costo_inscripcion > 0 ? `G. ${tournament.costo_inscripcion.toLocaleString()}` : "Gratuito", icon: DollarSign, color: "text-primary", bg: "bg-primary/10" },
+            { label: "Cierre", val: "Faltan pocos días", icon: Clock, color: "text-orange-500", bg: "bg-orange-50" },
           ].map((stat, i) => (
             <div key={i} className="card !p-6 flex items-center gap-5 hover:!translate-y-0">
               <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center shrink-0`}>
@@ -137,7 +268,7 @@ export default function TournamentDetailPage() {
           <div className="lg:col-span-2 space-y-12">
             {/* Tabs */}
             <div className="flex border-b border-slate-200">
-              {["Información", "Bracket / Llaves", "Reglas"].map((tab) => (
+              {["Información", "Equipos", "Fixture", "Reglas"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab.toLowerCase())}
@@ -163,7 +294,7 @@ export default function TournamentDetailPage() {
                     <h3 className="text-2xl font-extrabold text-slate-900 mb-6 flex items-center gap-3">
                       <Zap className="text-primary" /> Detalles del Evento
                     </h3>
-                    <p className="text-slate-500 text-lg leading-relaxed">{tournament.description}</p>
+                    <p className="text-slate-500 text-lg leading-relaxed">{tournament.descripcion || "¡Prepárate para la competencia! Un espacio ideal para demostrar todo el talento de tu equipo y competir por grandes premios."}</p>
                   </section>
 
                   <section className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm">
@@ -171,7 +302,7 @@ export default function TournamentDetailPage() {
                       <Trophy size={24} className="text-yellow-500" /> Bolsa de Premios
                     </h3>
                     <div className="grid grid-cols-1 gap-4">
-                      {tournament.prizes.map((p, i) => (
+                      {prizes.map((p, i) => (
                         <div key={i} className="flex justify-between items-center p-6 bg-subtle rounded-2xl border border-slate-50 group hover:border-primary/30 transition-all">
                           <div className="flex items-center gap-4">
                              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-slate-400 border border-slate-100 group-hover:text-primary group-hover:border-primary/20">{i+1}</div>
@@ -185,14 +316,45 @@ export default function TournamentDetailPage() {
                 </motion.div>
               )}
 
-              {activeTab === "bracket / llaves" && (
+              {activeTab === "equipos" && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                >
+                  {equipos.length === 0 ? (
+                    <div className="col-span-full py-16 text-center text-slate-500 italic">No hay equipos inscritos todavía. ¡Sé el primero en sumarte!</div>
+                  ) : equipos.map((e, idx) => (
+                    <div key={e.id} className="card !p-6 flex items-center gap-5 group hover:border-primary/30 transition-all">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-slate-900 text-lg">{e.nombre}</h4>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">Capitán: {e.capitan_nombre || "Sin Capitán"}</p>
+                      </div>
+                      {e.estado_inscripcion === 'confirmado' && (
+                        <span className="ml-auto bg-green-100 text-green-700 font-bold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full">CONFIRMADO</span>
+                      )}
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+
+              {activeTab === "fixture" && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
-                  className="flex flex-col md:flex-row gap-8 overflow-x-auto pb-8 scrollbar-hide"
+                  className="flex flex-col md:flex-row gap-8 overflow-x-auto pb-8 scrollbar-hide w-full"
                 >
-                  {tournament.brackets.map((round, i) => (
+                  {roundsData.length === 0 ? (
+                    <div className="w-full py-20 bg-white border border-slate-100 rounded-[2rem] text-center">
+                      <Trophy className="mx-auto text-slate-300 w-16 h-16 mb-4 animate-bounce" />
+                      <h4 className="text-xl font-bold text-slate-900 mb-2">Fixture en Preparación</h4>
+                      <p className="text-slate-500 max-w-sm mx-auto text-sm">El organizador realizará el sorteo una vez que se completen los cupos de inscripción y estén todos confirmados.</p>
+                    </div>
+                  ) : roundsData.map((round, i) => (
                     <div key={i} className="flex-1 min-w-[320px]">
                       <h4 className="text-center font-bold text-xs uppercase tracking-[0.2em] text-slate-400 mb-8 py-3 bg-white rounded-xl border border-slate-100 italic">
                         {round.round}
@@ -218,7 +380,7 @@ export default function TournamentDetailPage() {
 
               {activeTab === "reglas" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {tournament.rules.map((rule, i) => (
+                   {rules.map((rule, i) => (
                       <div key={i} className="card !p-8 flex items-start gap-4">
                         <CheckCircle2 size={24} className="text-primary shrink-0" />
                         <span className="text-slate-600 font-medium leading-relaxed">{rule}</span>
@@ -252,11 +414,11 @@ export default function TournamentDetailPage() {
                 </div>
 
                 <button 
-                  onClick={() => setIsInscribed(true)}
-                  disabled={isInscribed}
+                  onClick={() => setIsModalOpen(true)}
+                  disabled={isInscribed || equipos.length >= tournament.max_equipos}
                   className={`w-full py-5 rounded-[2rem] font-extrabold text-lg transition-all shadow-xl ${isInscribed ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white text-secondary hover:bg-slate-100'}`}
                 >
-                  {isInscribed ? 'COMPLETADO' : 'UNIRME AHORA'}
+                  {isInscribed ? 'ESTÁS INSCRITO' : 'UNIRME AHORA'}
                 </button>
               </div>
             </div>
@@ -267,7 +429,7 @@ export default function TournamentDetailPage() {
               <div className="flex items-center gap-5 mb-8">
                 <div className="w-16 h-16 rounded-[1.5rem] bg-subtle border border-slate-100 flex items-center justify-center font-extrabold text-2xl text-primary">LQ</div>
                 <div>
-                  <div className="font-extrabold text-xl text-slate-900 leading-none mb-2">La Quinta Sports</div>
+                  <div className="font-extrabold text-xl text-slate-900 leading-none mb-2">{tournament.complejo_nombre}</div>
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">
                     <ShieldCheck size={14} /> Club Verificado
                   </div>
@@ -283,7 +445,89 @@ export default function TournamentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Enrollment Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl p-8 relative">
+            <button 
+              onClick={() => setIsModalOpen(false)} 
+              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Trophy size={32} />
+              </div>
+              <h3 className="text-2xl font-extrabold text-white">Inscribir Equipo</h3>
+              <p className="text-slate-400 text-sm mt-1">Completa los datos de tu plantel para el torneo</p>
+            </div>
+            
+            <form onSubmit={handleEnrollSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Nombre del Equipo</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej. Real Canchita FC"
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
+                  value={enrollData.nombre}
+                  onChange={e => setEnrollData({ ...enrollData, nombre: e.target.value })}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Nombre del Capitán</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej. Juan Pérez"
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
+                  value={enrollData.capitan_nombre}
+                  onChange={e => setEnrollData({ ...enrollData, capitan_nombre: e.target.value })}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Teléfono</label>
+                  <input 
+                    type="tel"
+                    required
+                    placeholder="Ej. 0981123456"
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
+                    value={enrollData.capitan_telefono}
+                    onChange={e => setEnrollData({ ...enrollData, capitan_telefono: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Email</label>
+                  <input 
+                    type="email"
+                    required
+                    placeholder="capitan@gmail.com"
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
+                    value={enrollData.capitan_email}
+                    onChange={e => setEnrollData({ ...enrollData, capitan_email: e.target.value })}
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-4">
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="w-full py-5 bg-primary hover:bg-primary/90 text-black font-extrabold rounded-[2rem] flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-base uppercase"
+                >
+                  {submitting ? 'Procesando...' : (tournament?.costo_inscripcion > 0 ? `Proceder al Pago (G. ${tournament.costo_inscripcion.toLocaleString()})` : 'Confirmar Registro')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

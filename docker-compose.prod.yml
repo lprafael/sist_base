@@ -57,7 +57,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8008
+        - NEXT_PUBLIC_API_URL=https://api.micancha.com.py
     container_name: micancha-web
     ports:
       - "3000:3000"
@@ -72,7 +72,7 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8008
+        - NEXT_PUBLIC_API_URL=https://api.micancha.com.py
     container_name: micancha-admin
     ports:
       - "3001:3000"
@@ -87,7 +87,7 @@ services:
       context: ./public
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8008
+        - NEXT_PUBLIC_API_URL=https://api.micancha.com.py
     container_name: micancha-public
     ports:
       - "3008:3000"
@@ -97,9 +97,30 @@ services:
     depends_on:
       - backend
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: micancha-ssl-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    networks:
+      - micancha-network
+    depends_on:
+      - backend
+      - web
+      - admin
+      - public
+
 volumes:
   pgdata:
     driver: local
+  caddy_data:
+  caddy_config:
 
 networks:
   micancha-network:

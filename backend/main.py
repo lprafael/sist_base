@@ -116,7 +116,11 @@ app.add_middleware(
         "https://187.77.247.23:3000",
         "https://187.77.247.23:3001",
         "https://187.77.247.23:3008",
-        "https://187.77.247.23"
+        "https://187.77.247.23",
+        "https://micancha.com.py",
+        "https://play.micancha.com.py",
+        "https://admin.micancha.com.py",
+        "https://api.micancha.com.py"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -140,6 +144,7 @@ from reactivate_user import router as reactivate_user_router
 from delete_user_physical import router as delete_user_physical_router
 from notify_admin_password_reset import router as notify_admin_password_reset_router
 from resend_user_password import router as resend_user_password_router
+from routers.payments import router as payments_router
 
 # Montar los routers en la aplicación
 app.include_router(auth_router)
@@ -147,6 +152,7 @@ app.include_router(reactivate_user_router)
 app.include_router(delete_user_physical_router)
 app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
+app.include_router(payments_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
@@ -933,7 +939,7 @@ async def get_reservas(complejo_id: str, fecha: Optional[str] = None, session: A
 async def get_torneos(complejo_id: Optional[str] = None, session: AsyncSession = Depends(get_session)):
     sql = """
         SELECT t.id, t.complejo_id, t.nombre, t.descripcion, t.deporte, t.fecha_inicio, t.fecha_fin, t.estado,
-               c.nombre as complejo_nombre
+               c.nombre as complejo_nombre, t.formato, t.max_equipos, t.costo_inscripcion
         FROM cancha.torneos t
         JOIN cancha.complejos c ON t.complejo_id = c.id
     """
@@ -957,17 +963,20 @@ async def get_torneos(complejo_id: Optional[str] = None, session: AsyncSession =
             "fecha_inicio": row[5].strftime("%Y-%m-%d") if row[5] else None,
             "fecha_fin": row[6].strftime("%Y-%m-%d") if row[6] else None,
             "estado": row[7],
-            "complejo_nombre": row[8]
+            "complejo_nombre": row[8],
+            "formato": row[9],
+            "max_equipos": row[10],
+            "costo_inscripcion": float(row[11]) if row[11] else 0.0
         })
     return torneos
 
 @app.get("/cancha/torneos/{torneo_id}/equipos", summary="Obtener equipos de un torneo")
 async def get_torneo_equipos(torneo_id: str, session: AsyncSession = Depends(get_session)):
     query = text("""
-        SELECT id, nombre, logo_url, puntos, partidos_jugados, partidos_ganados, partidos_empatados, partidos_perdidos
+        SELECT id, nombre, capitan_nombre, capitan_telefono, capitan_email, estado_inscripcion, semilla
         FROM cancha.torneos_equipos
         WHERE torneo_id = :torneo_id
-        ORDER BY puntos DESC, partidos_ganados DESC
+        ORDER BY creado_en ASC
     """)
     result = await session.execute(query, {"torneo_id": torneo_id})
     rows = result.fetchall()
@@ -977,26 +986,25 @@ async def get_torneo_equipos(torneo_id: str, session: AsyncSession = Depends(get
         equipos.append({
             "id": str(row[0]),
             "nombre": row[1],
-            "logo_url": row[2],
-            "puntos": row[3],
-            "partidos_jugados": row[4],
-            "partidos_ganados": row[5],
-            "partidos_empatados": row[6],
-            "partidos_perdidos": row[7]
+            "capitan_nombre": row[2],
+            "capitan_telefono": row[3],
+            "capitan_email": row[4],
+            "estado_inscripcion": row[5],
+            "semilla": row[6]
         })
     return equipos
 
 @app.get("/cancha/torneos/{torneo_id}/partidos", summary="Obtener partidos de un torneo")
 async def get_torneo_partidos(torneo_id: str, session: AsyncSession = Depends(get_session)):
     query = text("""
-        SELECT p.id, p.equipo_local_id, p.equipo_visitante_id, p.goles_local, p.goles_visitante, p.fecha, p.estado,
+        SELECT p.id, p.equipo_local_id, p.equipo_visitante_id, p.goles_local, p.goles_visitante, p.fecha_hora, p.estado,
                el.nombre as local_nombre, ev.nombre as visitante_nombre, c.nombre as cancha_nombre
         FROM cancha.torneos_partidos p
         JOIN cancha.torneos_equipos el ON p.equipo_local_id = el.id
         JOIN cancha.torneos_equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
         WHERE p.torneo_id = :torneo_id
-        ORDER BY p.fecha ASC
+        ORDER BY p.fecha_hora ASC
     """)
     result = await session.execute(query, {"torneo_id": torneo_id})
     rows = result.fetchall()
@@ -1016,6 +1024,639 @@ async def get_torneo_partidos(torneo_id: str, session: AsyncSession = Depends(ge
             "cancha_nombre": row[9]
         })
     return partidos
+
+# Pydantic schemas para creación y modificación
+from typing import Optional
+
+class TorneoCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    deporte: str
+    formato: Optional[str] = "liga"
+    fecha_inicio: str
+    max_equipos: Optional[int] = 16
+    costo_inscripcion: Optional[float] = 0
+    complejo_id: str
+
+class EquipoCreate(BaseModel):
+    nombre: str
+    capitan_nombre: Optional[str] = None
+    capitan_telefono: Optional[str] = None
+    capitan_email: Optional[str] = None
+
+class PartidoUpdate(BaseModel):
+    goles_local: Optional[int] = 0
+    goles_visitante: Optional[int] = 0
+    estado: Optional[str] = "finalizado"
+
+class PagoEfectivoRequest(BaseModel):
+    recibido_por: str
+
+@app.post("/cancha/torneos", summary="Crear un nuevo torneo")
+async def create_torneo(payload: TorneoCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        fecha_ini = date.fromisoformat(payload.fecha_inicio)
+        query = text("""
+            INSERT INTO cancha.torneos 
+                (id, complejo_id, nombre, descripcion, deporte, formato, fecha_inicio, max_equipos, costo_inscripcion, estado)
+            VALUES 
+                (uuid_generate_v4(), :complejo_id, :nombre, :descripcion, :deporte, :formato, :fecha_inicio, :max_equipos, :costo_inscripcion, 'abierto')
+            RETURNING id, complejo_id, nombre, descripcion, deporte, formato, fecha_inicio, max_equipos, costo_inscripcion, estado
+        """)
+        result = await session.execute(query, {
+            "complejo_id": payload.complejo_id,
+            "nombre": payload.nombre,
+            "descripcion": payload.descripcion,
+            "deporte": payload.deporte,
+            "formato": payload.formato,
+            "fecha_inicio": fecha_ini,
+            "max_equipos": payload.max_equipos,
+            "costo_inscripcion": payload.costo_inscripcion
+        })
+        await session.commit()
+        row = result.fetchone()
+        return {
+            "id": str(row[0]),
+            "complejo_id": str(row[1]),
+            "nombre": row[2],
+            "descripcion": row[3],
+            "deporte": row[4],
+            "formato": row[5],
+            "fecha_inicio": row[6].isoformat() if row[6] else None,
+            "max_equipos": row[7],
+            "costo_inscripcion": float(row[8]) if row[8] else 0.0,
+            "estado": row[9]
+        }
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/cancha/torneos/{torneo_id}/equipos", summary="Inscribir un equipo en un torneo")
+async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        t_query = text("SELECT costo_inscripcion FROM cancha.torneos WHERE id = :torneo_id")
+        t_res = await session.execute(t_query, {"torneo_id": torneo_id})
+        t_row = t_res.fetchone()
+        if not t_row:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+        
+        costo = float(t_row[0]) if t_row[0] else 0.0
+        estado_insc = "confirmado" if costo <= 0 else "pendiente"
+        
+        query = text("""
+            INSERT INTO cancha.torneos_equipos 
+                (id, torneo_id, nombre, capitan_nombre, capitan_telefono, capitan_email, estado_inscripcion)
+            VALUES 
+                (uuid_generate_v4(), :torneo_id, :nombre, :capitan_nombre, :capitan_telefono, :capitan_email, :estado_inscripcion)
+            RETURNING id, torneo_id, nombre, capitan_nombre, capitan_telefono, capitan_email, estado_inscripcion
+        """)
+        result = await session.execute(query, {
+            "torneo_id": torneo_id,
+            "nombre": payload.nombre,
+            "capitan_nombre": payload.capitan_nombre,
+            "capitan_telefono": payload.capitan_telefono,
+            "capitan_email": payload.capitan_email,
+            "estado_inscripcion": estado_insc
+        })
+        await session.commit()
+        row = result.fetchone()
+        return {
+            "id": str(row[0]),
+            "torneo_id": str(row[1]),
+            "nombre": row[2],
+            "capitan_nombre": row[3],
+            "capitan_telefono": row[4],
+            "capitan_email": row[5],
+            "estado_inscripcion": row[6]
+        }
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.patch("/cancha/torneos/partidos/{partido_id}", summary="Actualizar el resultado de un partido")
+async def update_partido(partido_id: str, payload: PartidoUpdate, session: AsyncSession = Depends(get_session)):
+    try:
+        query_partido = text("SELECT equipo_local_id, equipo_visitante_id FROM cancha.torneos_partidos WHERE id = :partido_id")
+        res_partido = await session.execute(query_partido, {"partido_id": partido_id})
+        row_partido = res_partido.fetchone()
+        if not row_partido:
+            raise HTTPException(status_code=404, detail="Partido no encontrado")
+            
+        el_id, ev_id = row_partido[0], row_partido[1]
+        ganador_id = None
+        if payload.goles_local > payload.goles_visitante:
+            ganador_id = el_id
+        elif payload.goles_visitante > payload.goles_local:
+            ganador_id = ev_id
+            
+        query = text("""
+            UPDATE cancha.torneos_partidos 
+            SET goles_local = :goles_local, goles_visitante = :goles_visitante, estado = :estado, ganador_id = :ganador_id
+            WHERE id = :partido_id
+            RETURNING id, goles_local, goles_visitante, estado, ganador_id
+        """)
+        result = await session.execute(query, {
+            "partido_id": partido_id,
+            "goles_local": payload.goles_local,
+            "goles_visitante": payload.goles_visitante,
+            "estado": payload.estado,
+            "ganador_id": ganador_id
+        })
+        await session.commit()
+        row = result.fetchone()
+        return {
+            "id": str(row[0]),
+            "goles_local": row[1],
+            "goles_visitante": row[2],
+            "estado": row[3],
+            "ganador_id": str(row[4]) if row[4] else None
+        }
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Algoritmo de Berger para fixtures round-robin
+def generar_round_robin(equipos_ids: list):
+    n = len(equipos_ids)
+    if n % 2 != 0:
+        equipos_ids.append(None)
+        n += 1
+        
+    rondas = []
+    for r in range(n - 1):
+        partidos = []
+        for i in range(n // 2):
+            local = equipos_ids[i]
+            visitante = equipos_ids[n - 1 - i]
+            if local is not None and visitante is not None:
+                if r % 2 == 0:
+                    partidos.append((local, visitante))
+                else:
+                    partidos.append((visitante, local))
+        equipos_ids = [equipos_ids[0]] + [equipos_ids[-1]] + equipos_ids[1:-1]
+        rondas.append(partidos)
+    return rondas
+
+@app.post("/cancha/torneos/{torneo_id}/fixture", summary="Generar fixture automático para un torneo")
+async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        from datetime import datetime, timedelta, time
+        
+        torneo_query = text("SELECT id, formato, fecha_inicio FROM cancha.torneos WHERE id = :torneo_id")
+        torneo_res = await session.execute(torneo_query, {"torneo_id": torneo_id})
+        torneo = torneo_res.fetchone()
+        if not torneo:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+            
+        equipos_query = text("SELECT id FROM cancha.torneos_equipos WHERE torneo_id = :torneo_id AND estado_inscripcion = 'confirmado'")
+        equipos_res = await session.execute(equipos_query, {"torneo_id": torneo_id})
+        equipos = [str(r[0]) for r in equipos_res.fetchall()]
+        
+        if len(equipos) < 2:
+            raise HTTPException(status_code=400, detail="Se necesitan al menos 2 equipos confirmados para generar el fixture")
+            
+        await session.execute(text("DELETE FROM cancha.torneos_partidos WHERE torneo_id = :torneo_id"), {"torneo_id": torneo_id})
+        
+        rondas = generar_round_robin(equipos)
+        fecha_base = torneo[2]
+        numero_partido = 1
+        
+        for round_num, partidos in enumerate(rondas, start=1):
+            fecha_partido = fecha_base + timedelta(days=(round_num - 1) * 7)
+            for local, visitante in partidos:
+                insert_query = text("""
+                    INSERT INTO cancha.torneos_partidos 
+                        (id, torneo_id, equipo_local_id, equipo_visitante_id, fase, numero_partido, fecha_hora, estado)
+                    VALUES 
+                        (uuid_generate_v4(), :torneo_id, :local, :visitante, :fase, :numero_partido, :fecha_hora, 'programado')
+                """)
+                await session.execute(insert_query, {
+                    "torneo_id": torneo_id,
+                    "local": local,
+                    "visitante": visitante,
+                    "fase": f"Fecha {round_num}",
+                    "numero_partido": numero_partido,
+                    "fecha_hora": datetime.combine(fecha_partido, time(18, 0)),
+                })
+                numero_partido += 1
+                
+        await session.commit()
+        return {"status": "ok", "message": f"Fixture generado exitosamente con {numero_partido - 1} partidos."}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ENDPOINTS DE PAGOS Y WEBHOOKS
+@app.post("/cancha/pagos/inscripcion/{torneo_equipo_id}", summary="Generar link de pago para la inscripción")
+async def generate_payment_link(torneo_equipo_id: str, request: Request, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT t.costo_inscripcion, t.nombre, e.nombre, e.estado_inscripcion
+        FROM cancha.torneos_equipos e
+        JOIN cancha.torneos t ON e.torneo_id = t.id
+        WHERE e.id = :torneo_equipo_id
+    """)
+    res = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
+    row = res.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+        
+    costo = float(row[0]) if row[0] else 0.0
+    torneo_nombre = row[1]
+    equipo_nombre = row[2]
+    estado_insc = row[3]
+    
+    if estado_insc == "confirmado":
+        return {"status": "already_paid", "message": "Esta inscripción ya está pagada y confirmada."}
+        
+    pref_id = f"pref_{torneo_equipo_id[:8]}"
+    check_p = await session.execute(text("SELECT id FROM cancha.torneos_pagos WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'"), {"torneo_equipo_id": torneo_equipo_id})
+    existing = check_p.fetchone()
+    
+    if not existing:
+        await session.execute(text("""
+            INSERT INTO cancha.torneos_pagos
+                (id, torneo_equipo_id, monto, moneda, proveedor, proveedor_preference_id, estado)
+            VALUES
+                (uuid_generate_v4(), :torneo_equipo_id, :monto, 'PYG', 'mercadopago', :pref_id, 'pendiente')
+        """), {
+            "torneo_equipo_id": torneo_equipo_id,
+            "monto": costo,
+            "pref_id": pref_id
+        })
+        await session.commit()
+        
+    checkout_url = f"{str(request.base_url).rstrip('/')}cancha/pagos/checkout-simulado/{torneo_equipo_id}"
+    return {
+        "checkout_url": checkout_url,
+        "monto": costo,
+        "moneda": "PYG",
+        "torneo": torneo_nombre,
+        "equipo": equipo_nombre
+    }
+
+from fastapi.responses import HTMLResponse
+
+@app.get("/cancha/pagos/checkout-simulado/{torneo_equipo_id}", response_class=HTMLResponse)
+async def checkout_simulado(torneo_equipo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT t.nombre, e.nombre, t.costo_inscripcion, t.id
+        FROM cancha.torneos_equipos e
+        JOIN cancha.torneos t ON e.torneo_id = t.id
+        WHERE e.id = :torneo_equipo_id
+    """)
+    res = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
+    row = res.fetchone()
+    if not row:
+        return "<h3>Equipo no encontrado</h3>"
+        
+    torneo_nombre = row[0]
+    equipo_nombre = row[1]
+    costo = float(row[2]) if row[2] else 0.0
+    torneo_id = str(row[3])
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mi Cancha Pay - Pasarela Simula</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+        <style>
+            :root {{
+                --bg: #060913;
+                --primary: #00D084;
+                --primary-hover: #00b371;
+                --card-bg: rgba(255, 255, 255, 0.03);
+                --card-border: rgba(255, 255, 255, 0.08);
+                --text: #ffffff;
+                --text-secondary: #94A3B8;
+            }}
+            * {{
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family: 'Outfit', sans-serif;
+            }}
+            body {{
+                background-color: var(--bg);
+                color: var(--text);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 20px;
+                overflow: hidden;
+            }}
+            .container {{
+                background: var(--card-bg);
+                border: 1px solid var(--card-border);
+                border-radius: 32px;
+                padding: 40px;
+                max-width: 450px;
+                width: 100%;
+                text-align: center;
+                backdrop-blur: 20px;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+                position: relative;
+            }}
+            .logo {{
+                font-size: 28px;
+                font-weight: 800;
+                color: var(--primary);
+                margin-bottom: 30px;
+                letter-spacing: -0.5px;
+            }}
+            .icon {{
+                font-size: 48px;
+                margin-bottom: 20px;
+                animation: float 3s ease-in-out infinite;
+            }}
+            @keyframes float {{
+                0%, 100% {{ transform: translateY(0); }}
+                50% {{ transform: translateY(-10px); }}
+            }}
+            h2 {{
+                font-size: 22px;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }}
+            .subtitle {{
+                font-size: 14px;
+                color: var(--text-secondary);
+                margin-bottom: 30px;
+            }}
+            .details-box {{
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid var(--card-border);
+                border-radius: 20px;
+                padding: 20px;
+                margin-bottom: 30px;
+                text-align: left;
+            }}
+            .detail-row {{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 12px;
+                font-size: 14px;
+            }}
+            .detail-row:last-child {{
+                margin-bottom: 0;
+                padding-top: 12px;
+                border-top: 1px solid var(--card-border);
+            }}
+            .label {{
+                color: var(--text-secondary);
+            }}
+            .value {{
+                font-weight: 600;
+            }}
+            .amount {{
+                font-size: 20px;
+                color: var(--primary);
+                font-weight: 800;
+            }}
+            .btn {{
+                background: var(--primary);
+                color: #000;
+                border: none;
+                border-radius: 100px;
+                padding: 16px 32px;
+                font-size: 16px;
+                font-weight: 800;
+                width: 100%;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 8px 24px rgba(0, 208, 132, 0.2);
+            }}
+            .btn:hover {{
+                background: var(--primary-hover);
+                transform: translateY(-2px);
+                box-shadow: 0 12px 30px rgba(0, 208, 132, 0.3);
+            }}
+            .btn:active {{
+                transform: translateY(0);
+            }}
+            .loading {{
+                display: none;
+                font-size: 14px;
+                color: var(--primary);
+                margin-top: 20px;
+                font-weight: 600;
+            }}
+            .success-view {{
+                display: none;
+            }}
+            .success-icon {{
+                font-size: 64px;
+                color: var(--primary);
+                margin-bottom: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container" id="payment-card">
+            <div class="logo">Mi Cancha <span style="color:#fff">Pay</span></div>
+            <div class="icon">💳</div>
+            <h2>Pasarela de Pago Simulado</h2>
+            <p class="subtitle">Estás inscribiendo a tu equipo de forma segura</p>
+            
+            <div class="details-box">
+                <div class="detail-row">
+                    <span class="label">Torneo</span>
+                    <span class="value">{torneo_nombre}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Equipo</span>
+                    <span class="value">{equipo_nombre}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Método</span>
+                    <span class="value">MercadoPago Simulado</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Total a pagar</span>
+                    <span class="value amount">G. {costo:,.0f}</span>
+                </div>
+            </div>
+            
+            <button class="btn" id="pay-btn" onclick="processPayment()">CONFIRMAR PAGO SIMULADO</button>
+            <div class="loading" id="loader">Procesando pago seguro...</div>
+        </div>
+
+        <div class="container success-view" id="success-card">
+            <div class="success-icon">🏆</div>
+            <h2>¡Inscripción Confirmada!</h2>
+            <p class="subtitle" style="margin-bottom: 20px">Tu pago ha sido procesado de manera exitosa y tu equipo está habilitado para el sorteo.</p>
+            <div class="details-box" style="text-align: center;">
+                <span class="label">Monto Pagado</span>
+                <div class="amount" style="font-size: 28px; margin-top: 5px;">G. {costo:,.0f}</div>
+            </div>
+            <p class="subtitle">Redirigiéndote al torneo en 3 segundos...</p>
+        </div>
+
+        <script>
+            async function processPayment() {{
+                const btn = document.getElementById('pay-btn');
+                const loader = document.getElementById('loader');
+                btn.style.display = 'none';
+                loader.style.display = 'block';
+                
+                try {{
+                    const response = await fetch('/cancha/pagos/webhook/mercadopago?torneo_equipo_id={torneo_equipo_id}&status=aprobado', {{
+                        method: 'POST'
+                    }});
+                    
+                    if (response.ok) {{
+                        setTimeout(() => {{
+                            document.getElementById('payment-card').style.display = 'none';
+                            document.getElementById('success-card').style.display = 'block';
+                            
+                            setTimeout(() => {{
+                                window.location.href = 'http://187.77.247.23:3000/torneos/{torneo_id}';
+                            }}, 3000);
+                        }}, 1500);
+                    }} else {{
+                        alert('Error al registrar el pago en el servidor.');
+                        btn.style.display = 'block';
+                        loader.style.display = 'none';
+                    }}
+                }} catch (e) {{
+                    console.error(e);
+                    alert('Error de conexión con la pasarela.');
+                    btn.style.display = 'block';
+                    loader.style.display = 'none';
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    return html_content
+
+@app.post("/cancha/pagos/webhook/mercadopago", summary="Webhook para MercadoPago (Simulado/Real)")
+async def mercadopago_webhook(torneo_equipo_id: str, status: str = "aprobado", session: AsyncSession = Depends(get_session)):
+    try:
+        if status == "aprobado":
+            update_team = text("""
+                UPDATE cancha.torneos_equipos
+                SET estado_inscripcion = 'confirmado'
+                WHERE id = :torneo_equipo_id
+                RETURNING torneo_id
+            """)
+            res_team = await session.execute(update_team, {"torneo_equipo_id": torneo_equipo_id})
+            row_team = res_team.fetchone()
+            if not row_team:
+                raise HTTPException(status_code=404, detail="Equipo no encontrado")
+                
+            torneo_id = str(row_team[0])
+            
+            check_p = await session.execute(text("SELECT id, monto FROM cancha.torneos_pagos WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'"), {"torneo_equipo_id": torneo_equipo_id})
+            existing_p = check_p.fetchone()
+            
+            if existing_p:
+                pago_id = existing_p[0]
+                update_pago = text("""
+                    UPDATE cancha.torneos_pagos
+                    SET estado = 'aprobado', pagado_en = NOW(), actualizado_en = NOW()
+                    WHERE id = :pago_id
+                """)
+                await session.execute(update_pago, {"pago_id": pago_id})
+            else:
+                t_query = text("SELECT costo_inscripcion FROM cancha.torneos WHERE id = :torneo_id")
+                t_res = await session.execute(t_query, {"torneo_id": torneo_id})
+                t_row = t_res.fetchone()
+                costo = float(t_row[0]) if t_row and t_row[0] else 0.0
+                
+                insert_pago = text("""
+                    INSERT INTO cancha.torneos_pagos
+                        (id, torneo_equipo_id, monto, moneda, proveedor, estado, pagado_en)
+                    VALUES
+                        (uuid_generate_v4(), :torneo_equipo_id, :monto, 'PYG', 'mercadopago', 'aprobado', NOW())
+                """)
+                await session.execute(insert_pago, {"torneo_equipo_id": torneo_equipo_id, "monto": costo})
+                
+            await session.commit()
+            return {"status": "success", "message": "Inscripción confirmada y pago aprobado."}
+        else:
+            update_team = text("""
+                UPDATE cancha.torneos_equipos
+                SET estado_inscripcion = 'pendiente'
+                WHERE id = :torneo_equipo_id
+            """)
+            await session.execute(update_team, {"torneo_equipo_id": torneo_equipo_id})
+            
+            update_pago = text("""
+                UPDATE cancha.torneos_pagos
+                SET estado = 'rechazado', actualizado_en = NOW()
+                WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'
+            """)
+            await session.execute(update_pago, {"torneo_equipo_id": torneo_equipo_id})
+            await session.commit()
+            return {"status": "rejected", "message": "Pago rechazado o fallido."}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/cancha/pagos/estado/{torneo_equipo_id}", summary="Consultar el estado del pago de un equipo")
+async def get_payment_status(torneo_equipo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT estado, monto, pagado_en, proveedor
+        FROM cancha.torneos_pagos
+        WHERE torneo_equipo_id = :torneo_equipo_id
+        ORDER BY creado_en DESC
+        LIMIT 1
+    """)
+    result = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
+    row = result.fetchone()
+    if not row:
+        return {"status": "none", "message": "No se registran intenciones de pago para este equipo."}
+        
+    return {
+        "status": row[0],
+        "monto": float(row[1]) if row[1] else 0.0,
+        "pagado_en": row[2].isoformat() if row[2] else None,
+        "proveedor": row[3]
+    }
+
+@app.post("/cancha/pagos/efectivo/{torneo_equipo_id}", summary="Registrar un pago en efectivo (Manual)")
+async def register_cash_payment(torneo_equipo_id: str, payload: PagoEfectivoRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        query = text("""
+            SELECT t.costo_inscripcion, e.torneo_id
+            FROM cancha.torneos_equipos e
+            JOIN cancha.torneos t ON e.torneo_id = t.id
+            WHERE e.id = :torneo_equipo_id
+        """)
+        res = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
+        row = res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+            
+        costo = float(row[0]) if row[0] else 0.0
+        
+        await session.execute(text("""
+            UPDATE cancha.torneos_equipos
+            SET estado_inscripcion = 'confirmado'
+            WHERE id = :torneo_equipo_id
+        """), {"torneo_equipo_id": torneo_equipo_id})
+        
+        await session.execute(text("""
+            INSERT INTO cancha.torneos_pagos
+                (id, torneo_equipo_id, monto, moneda, proveedor, estado, pagado_en, recibido_por)
+            VALUES
+                (uuid_generate_v4(), :torneo_equipo_id, :monto, 'PYG', 'efectivo', 'aprobado', NOW(), :recibido_por)
+        """), {
+            "torneo_equipo_id": torneo_equipo_id,
+            "monto": costo,
+            "recibido_por": payload.recibido_por
+        })
+        
+        await session.commit()
+        return {"status": "success", "message": "Pago en efectivo registrado y equipo confirmado."}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ============================================

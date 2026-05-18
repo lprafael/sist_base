@@ -1,0 +1,29 @@
+{
+    # Correo electrónico para notificaciones de renovación de Let's Encrypt
+    email lprafael1710@gmail.com
+}
+
+# =========================================================================
+# CONFIGURACIÓN DE DOMINIOS - MI CANCHA
+# Dominio principal: micancha.com.py
+# =========================================================================
+
+# 1. Landing Page Pública (micancha-public)
+micancha.com.py {
+    reverse_proxy public:3000
+}
+
+# 2. Portal de Clientes (micancha-web)
+play.micancha.com.py {
+    reverse_proxy web:3000
+}
+
+# 3. Portal Administrativo (micancha-admin)
+admin.micancha.com.py {
+    reverse_proxy admin:3000
+}
+
+# 4. API Backend (micancha-backend)
+api.micancha.com.py {
+    reverse_proxy backend:8001
+}
