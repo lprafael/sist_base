@@ -84,9 +84,7 @@ const DEPORTES = ["Todos", "Fútbol 5", "Fútbol 7", "Pádel", "Tenis", "Básque
 
 export default function SearchPage() {
   const [selectedSport, setSelectedSport] = useState("Todos");
-  const [selectedDate, setSelectedDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const [selectedDate, setSelectedDate] = useState(""); // Empty initially to avoid hydration mismatch
   const [busqueda, setBusqueda] = useState("");
   const [complejos, setComplejos] = useState(MOCK_COMPLEJOS);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
@@ -122,8 +120,11 @@ export default function SearchPage() {
     fetchRealComplejos();
   }, []);
 
-  // Load query parameters on mount to support landing page redirects
+  // Load query parameters and set local client date on mount
   useEffect(() => {
+    // Set client local date safely after mount
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const sportParam = params.get('deporte');
