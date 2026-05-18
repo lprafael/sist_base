@@ -77,6 +77,36 @@ const MOCK_COMPLEJOS = [
       { id: "c10", deporte: "Tenis", precio: 85000, disponible: true },
       { id: "c11", deporte: "Básquet", precio: 70000, disponible: true }
     ]
+  },
+  {
+    id: "17171717-1717-1717-1717-171717171717",
+    name: "Laguna Padel Club",
+    direccion: "Calle Laguna Grande",
+    ciudad: "San Lorenzo",
+    pos: [-25.3250, -57.5300] as [number, number],
+    rating: 4.8,
+    img: "https://images.unsplash.com/photo-1554072675-66db59dba794?auto=format&fit=crop&q=80&w=400",
+    hours: "07:00 - 23:00",
+    activo: true,
+    canchas: [
+      { id: "c12", deporte: "Pádel", precio: 100000, disponible: true },
+      { id: "c13", deporte: "Pádel", precio: 120000, disponible: true }
+    ]
+  },
+  {
+    id: "18181818-1818-1818-1818-181818181818",
+    name: "Central Padel Club",
+    direccion: "Julio César Franco 2412",
+    ciudad: "Fernando de la Mora",
+    pos: [-25.3200, -57.5500] as [number, number],
+    rating: 4.7,
+    img: "https://images.unsplash.com/photo-1544033527-b192daee1f5b?auto=format&fit=crop&q=80&w=400",
+    hours: "07:00 - 23:00",
+    activo: true,
+    canchas: [
+      { id: "c14", deporte: "Pádel", precio: 90000, disponible: true },
+      { id: "c15", deporte: "Tenis", precio: 80000, disponible: true }
+    ]
   }
 ];
 
