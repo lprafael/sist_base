@@ -804,6 +804,58 @@ VALUES
     ST_GeogFromText('POINT(-55.8690 -27.3280)'),
     '06:00:00',
     '23:00:00'
+),
+(
+    '91919191-9191-9191-9191-919191919191',
+    'San Lorenzo Padel Arena',
+    'El complejo de pádel techado más grande de San Lorenzo, climatizado y con vestuarios de primer nivel.',
+    '0981-222-777',
+    'arena@micancha.com.py',
+    'Av. Mariscal Estigarribia Km 9',
+    'San Lorenzo',
+    'Central',
+    ST_GeogFromText('POINT(-57.5180 -25.3390)'),
+    '07:00:00',
+    '23:30:00'
+),
+(
+    '92929292-9292-9292-9292-929292929292',
+    'La Terraza Fútbol Club',
+    'Canchas de fútbol sintético techadas y al aire libre, cantina climatizada para el mejor tercer tiempo.',
+    '0971-444-555',
+    'laterraza@micancha.com.py',
+    'Calle 14 de Mayo c/ España',
+    'San Lorenzo',
+    'Central',
+    ST_GeogFromText('POINT(-57.5090 -25.3420)'),
+    '08:00:00',
+    '00:00:00'
+),
+(
+    '93939393-9393-9393-9393-939393939393',
+    'Fernando Padel Center',
+    'Pistas de cristal panorámicas oficiales del WPT, equipadas con iluminación LED de alta definición.',
+    '0983-888-222',
+    'fernandopadel@micancha.com.py',
+    'Av. Santa Teresa c/ Cnel. Martínez',
+    'Fernando de la Mora',
+    'Central',
+    ST_GeogFromText('POINT(-57.5450 -25.3050)'),
+    '07:00:00',
+    '23:00:00'
+),
+(
+    '94949494-9494-9494-9494-949494949494',
+    'Complejo Deportivo 3 de Febrero',
+    'Estadio de fútbol 5 y 7 con césped sintético de calidad FIFA Pro, ideal para torneos empresariales.',
+    '0984-999-333',
+    'complejo3febrero@micancha.com.py',
+    'Av. Zavala Cué',
+    'Fernando de la Mora',
+    'Central',
+    ST_GeogFromText('POINT(-57.5650 -25.3350)'),
+    '08:00:00',
+    '23:59:00'
 )
 ON CONFLICT DO NOTHING;
 
@@ -937,5 +989,21 @@ VALUES
 
     -- Centro Encarnaceno de Deportes (CEDE) (Encarnación - Itapúa)
     ('36363636-3636-3636-3636-363636363636', 'Estadio F9', 'Fútbol 9', 'Sintético', 220000, 1, '#3B82F6'),
-    ('36363636-3636-3636-3636-363636363636', 'Cancha Tenis Arcilla', 'Tenis', 'Arcilla', 100000, 2, '#EF4444')
+    ('36363636-3636-3636-3636-363636363636', 'Cancha Tenis Arcilla', 'Tenis', 'Arcilla', 100000, 2, '#EF4444'),
+
+    -- San Lorenzo Padel Arena (San Lorenzo)
+    ('91919191-9191-9191-9191-919191919191', 'Pista Techada 1', 'Pádel', 'Cristal', 110000, 1, '#F59E0B'),
+    ('91919191-9191-9191-9191-919191919191', 'Pista Techada 2 (Climatizada)', 'Pádel', 'Cristal', 130000, 2, '#F59E0B'),
+
+    -- La Terraza Fútbol Club (San Lorenzo)
+    ('92929292-9292-9292-9292-929292929292', 'Cancha Sintética F5', 'Fútbol 5', 'Sintético', 120000, 1, '#10B981'),
+    ('92929292-9292-9292-9292-929292929292', 'Cancha Sintética F7', 'Fútbol 7', 'Sintético', 170000, 2, '#3B82F6'),
+
+    -- Fernando Padel Center (Fernando de la Mora)
+    ('93939393-9393-9393-9393-939393939393', 'Pista Central WPT', 'Pádel', 'Cristal', 120000, 1, '#F59E0B'),
+    ('93939393-9393-9393-9393-939393939393', 'Pista Cristal 2', 'Pádel', 'Cristal', 100000, 2, '#F59E0B'),
+
+    -- Complejo Deportivo 3 de Febrero (Fernando de la Mora)
+    ('94949494-9494-9494-9494-949494949494', 'Cancha F5 FIFA Pro', 'Fútbol 5', 'Sintético', 130000, 1, '#10B981'),
+    ('94949494-9494-9494-9494-949494949494', 'Cancha F7 FIFA Pro', 'Fútbol 7', 'Sintético', 180000, 2, '#3B82F6')
 ON CONFLICT DO NOTHING;
