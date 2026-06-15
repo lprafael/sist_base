@@ -145,6 +145,10 @@ from delete_user_physical import router as delete_user_physical_router
 from notify_admin_password_reset import router as notify_admin_password_reset_router
 from resend_user_password import router as resend_user_password_router
 from routers.payments import router as payments_router
+from routers.torneos import router as torneos_router
+from routers.chat import router as chat_router
+from routers.reservas import router as reservas_router
+from routers.analytics import router as analytics_router
 
 # Montar los routers en la aplicación
 app.include_router(auth_router)
@@ -153,6 +157,10 @@ app.include_router(delete_user_physical_router)
 app.include_router(notify_admin_password_reset_router)
 app.include_router(resend_user_password_router)
 app.include_router(payments_router)
+app.include_router(torneos_router)
+app.include_router(chat_router)
+app.include_router(reservas_router)
+app.include_router(analytics_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
@@ -901,6 +909,25 @@ async def get_canchas(complejo_id: str, session: AsyncSession = Depends(get_sess
         })
     return canchas
 
+from fastapi import WebSocket, WebSocketDisconnect
+
+# Manejador de WebSockets simple (dummy para evitar errores 403/404 en el admin)
+active_connections: list[WebSocket] = []
+
+@app.websocket("/cancha/ws/{complejo_id}")
+async def websocket_endpoint(websocket: WebSocket, complejo_id: str):
+    await websocket.accept()
+    active_connections.append(websocket)
+    try:
+        while True:
+            # Esperar a que el cliente envíe mensajes (ej. 'ping')
+            data = await websocket.receive_text()
+            if data == 'ping':
+                await websocket.send_text('pong')
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+
+
 @app.get("/cancha/complejos/{complejo_id}/reservas", summary="Obtener reservas de un complejo")
 async def get_reservas(complejo_id: str, fecha: Optional[str] = None, session: AsyncSession = Depends(get_session)):
     sql = """
@@ -914,7 +941,7 @@ async def get_reservas(complejo_id: str, fecha: Optional[str] = None, session: A
     params = {"complejo_id": complejo_id}
     if fecha:
         sql += " AND DATE(r.inicio) = DATE(:fecha)"
-        params["fecha"] = fecha
+        params["fecha"] = datetime.strptime(fecha, "%Y-%m-%d").date()
         
     query = text(sql)
     result = await session.execute(query, params)
@@ -1037,6 +1064,8 @@ class TorneoCreate(BaseModel):
     max_equipos: Optional[int] = 16
     costo_inscripcion: Optional[float] = 0
     complejo_id: str
+    reglas: Optional[list[str]] = []
+    premios: Optional[list[dict]] = []
 
 class EquipoCreate(BaseModel):
     nombre: str
@@ -1055,14 +1084,16 @@ class PagoEfectivoRequest(BaseModel):
 @app.post("/cancha/torneos", summary="Crear un nuevo torneo")
 async def create_torneo(payload: TorneoCreate, session: AsyncSession = Depends(get_session)):
     try:
-        fecha_ini = date.fromisoformat(payload.fecha_inicio)
+        fecha_str = payload.fecha_inicio.split('T')[0]
+        fecha_ini = date.fromisoformat(fecha_str)
         query = text("""
             INSERT INTO cancha.torneos 
-                (id, complejo_id, nombre, descripcion, deporte, formato, fecha_inicio, max_equipos, costo_inscripcion, estado)
+                (id, complejo_id, nombre, descripcion, deporte, formato, fecha_inicio, max_equipos, costo_inscripcion, estado, reglas, premios)
             VALUES 
-                (uuid_generate_v4(), :complejo_id, :nombre, :descripcion, :deporte, :formato, :fecha_inicio, :max_equipos, :costo_inscripcion, 'abierto')
+                (uuid_generate_v4(), :complejo_id, :nombre, :descripcion, :deporte, :formato, :fecha_inicio, :max_equipos, :costo_inscripcion, 'abierto', :reglas, :premios)
             RETURNING id, complejo_id, nombre, descripcion, deporte, formato, fecha_inicio, max_equipos, costo_inscripcion, estado
         """)
+        import json
         result = await session.execute(query, {
             "complejo_id": payload.complejo_id,
             "nombre": payload.nombre,
@@ -1071,7 +1102,9 @@ async def create_torneo(payload: TorneoCreate, session: AsyncSession = Depends(g
             "formato": payload.formato,
             "fecha_inicio": fecha_ini,
             "max_equipos": payload.max_equipos,
-            "costo_inscripcion": payload.costo_inscripcion
+            "costo_inscripcion": payload.costo_inscripcion,
+            "reglas": json.dumps(payload.reglas),
+            "premios": json.dumps(payload.premios)
         })
         await session.commit()
         row = result.fetchone()
@@ -1285,7 +1318,7 @@ async def generate_payment_link(torneo_equipo_id: str, request: Request, session
         })
         await session.commit()
         
-    checkout_url = f"{str(request.base_url).rstrip('/')}cancha/pagos/checkout-simulado/{torneo_equipo_id}"
+    checkout_url = f"{str(request.base_url).rstrip('/')}/cancha/pagos/checkout-simulado/{torneo_equipo_id}"
     return {
         "checkout_url": checkout_url,
         "monto": costo,

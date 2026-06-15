@@ -1,11 +1,12 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /app
 
 # Dependencias del sistema: geoalchemy2/geopandas + unixODBC + ODBC Driver 18 (run_migration.py)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
+    build-essential \
+    python3-dev \
+    cmake \
     libpq-dev \
     libgdal-dev \
     gdal-bin \

@@ -29,15 +29,25 @@ export default function TournamentsSection() {
   if (torneos.length === 0) return null;
 
   return (
-    <section className="section" id="torneos" style={{ padding: '80px 0', background: 'rgba(0,0,0,0.3)' }}>
+    <section 
+      className="section" 
+      id="torneos" 
+      style={{ 
+        padding: '100px 0', 
+        position: 'relative',
+        background: 'linear-gradient(rgba(6, 9, 19, 0.4), rgba(6, 9, 19, 0.8)), url("/torneo_bg.png") center/cover no-repeat',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)'
+      }}
+    >
       <div className="section-header" style={{ marginBottom: '40px' }}>
         <div>
-          <h2 className="section-title">🏆 Torneos Abiertos</h2>
-          <div className="section-subtitle">Inscribí a tu equipo y demostrá quién es el mejor</div>
+          <h2 className="section-title" style={{ color: '#ffffff', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>🏆 Torneos Abiertos</h2>
+          <div className="section-subtitle" style={{ color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>Inscribí a tu equipo y demostrá quién es el mejor</div>
         </div>
       </div>
 
-      <div className="courts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
+      <div className="courts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '30px' }}>
         {torneos.map(t => (
           <div key={t.id} style={{ 
             background: 'rgba(255,255,255,0.03)', 

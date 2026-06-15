@@ -47,13 +47,10 @@ export default function TournamentDetailPage() {
     setLoading(true);
     try {
       // 1. Fetch tournament details
-      const tRes = await fetch(`${API_URL}/cancha/torneos`);
+      const tRes = await fetch(`${API_URL}/cancha/torneos/${id}`);
       if (tRes.ok) {
-        const torneos = await tRes.json();
-        const found = torneos.find((t: any) => t.id === id);
-        if (found) {
-          setTournament(found);
-        }
+        const found = await tRes.json();
+        setTournament(found);
       }
 
       // 2. Fetch enrolled teams
@@ -176,19 +173,13 @@ export default function TournamentDetailPage() {
 
   const roundsData = getFixturesByRound();
 
-  // Rules mock template
-  const rules = [
-    "Mínimo 7 jugadores, máximo 12 en lista de buena fe.",
-    "Presentación de carnet de identidad obligatorio antes de iniciar cada encuentro.",
-    "Duración reglamentaria: 2 tiempos de 25 minutos con 5 min de descanso.",
-    "Tolerancia de espera máxima de 15 minutos en el primer partido."
+  // Extract dynamic rules and prizes with fallbacks
+  const rules = tournament?.reglas?.length > 0 ? tournament.reglas : [
+    "No hay reglas definidas para este torneo aún."
   ];
 
-  // Prizes mock template
-  const prizes = [
-    { rank: "1er Puesto", reward: "Medallas + Copa Campeón + Premios de Sponsors" },
-    { rank: "2do Puesto", reward: "Medallas + Voucher de Consumo en el Club" },
-    { rank: "Goleador del Torneo", reward: "Trofeo Bota de Oro + Regalo Especial" }
+  const prizes = tournament?.premios?.length > 0 ? tournament.premios : [
+    { rank: "-", reward: "Premios a confirmar" }
   ];
 
   return (

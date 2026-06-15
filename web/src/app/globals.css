@@ -5,6 +5,10 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --brand: #16a34a; /* Forest Green */
   --brand-dark: #15803d;
@@ -470,7 +474,7 @@ button { cursor: pointer; font-family: inherit; }
 
 .courts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 24px;
 }
 

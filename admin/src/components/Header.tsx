@@ -31,8 +31,18 @@ export default function Header({
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(texto);
-      u.lang = 'es-PY';
+      u.lang = 'es-ES'; // Using a more standard variant often yields better voices
       u.rate = 0.95;
+      u.pitch = 1.0;
+      
+      const voices = window.speechSynthesis.getVoices();
+      // Busca voces de Google (Chrome), Microsoft Natural (Edge), o al menos alguna en español
+      const naturalVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Microsoft Elena'))) || voices.find(v => v.lang.startsWith('es'));
+      
+      if (naturalVoice) {
+        u.voice = naturalVoice;
+      }
+
       window.speechSynthesis.speak(u);
     }
     onAnuncioManual(texto);

@@ -24,6 +24,12 @@ export default function HomePage() {
   const [busqueda, setBusqueda] = useState('');
   const [selectedCancha, setSelectedCancha] = useState<any>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filtroDeporte, busqueda]);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -80,6 +86,9 @@ export default function HomePage() {
 
   const totalCanchas = canchas.length;
   const totalComplejos = complejos.length;
+
+  const totalPages = Math.ceil(canchasFiltradas.length / itemsPerPage);
+  const currentCanchas = canchasFiltradas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <>
@@ -239,16 +248,101 @@ export default function HomePage() {
             <p style={{ marginTop: 8, fontSize: 15 }}>Intentá buscando con otro deporte o limpiando los filtros.</p>
           </div>
         ) : (
-          <div className="courts-grid">
-            {canchasFiltradas.map(cancha => (
-              <CourtCard
-                key={cancha.id}
-                cancha={cancha}
-                sportIcon={SPORT_ICONS[cancha.deporte] || SPORT_ICONS['default']}
-                onReservar={() => setSelectedCancha(cancha)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="courts-grid">
+              {currentCanchas.map(cancha => (
+                <CourtCard
+                  key={cancha.id}
+                  cancha={cancha}
+                  sportIcon={SPORT_ICONS[cancha.deporte] || SPORT_ICONS['default']}
+                  onReservar={() => setSelectedCancha(cancha)}
+                />
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '40px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className={`btn btn-sm ${currentPage === 1 ? 'btn-outline' : 'btn-primary'}`}
+                >
+                  Primero
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`btn btn-sm ${currentPage === 1 ? 'btn-outline' : 'btn-primary'}`}
+                >
+                  Anterior
+                </button>
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                  {[...Array(Math.min(3, totalPages))].map((_, i) => {
+                    // Logic to show 1, 2, 3, or the current page window
+                    // To keep it simple and match the request: 1 2 3 ... N
+                    // But if currentPage is > 3, we probably want to show it.
+                    // Let's implement a smarter pagination array:
+                    // Always show 1, 2, 3, and current page if it's not in 1,2,3
+                    return null;
+                  })}
+                  {(() => {
+                    const pages = [];
+                    // add 1, 2, 3
+                    for (let i = 1; i <= Math.min(3, totalPages); i++) {
+                      pages.push(i);
+                    }
+                    // add current page if not already in list and not last
+                    if (currentPage > 3 && currentPage < totalPages) {
+                      pages.push('...');
+                      pages.push(currentPage);
+                    } else if (totalPages > 4) {
+                      pages.push('...');
+                    }
+                    // add last page
+                    if (totalPages > 3) {
+                      if (currentPage < totalPages - 1 && totalPages > 4) pages.push('....'); // distinct key
+                      pages.push(totalPages);
+                    }
+
+                    // filter duplicates and clean up
+                    const uniquePages = pages.filter((v, i, a) => a.indexOf(v) === i || v === '....');
+
+                    return uniquePages.map((p, i) => (
+                      p === '...' || p === '....' ? (
+                        <span key={`dots-${i}`} style={{ color: 'var(--text-secondary)', margin: '0 4px' }}>...</span>
+                      ) : (
+                        <button
+                          key={`page-${p}`}
+                          onClick={() => setCurrentPage(p as number)}
+                          style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            border: 'none', cursor: 'pointer', fontWeight: 'bold',
+                            background: currentPage === p ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                            color: currentPage === p ? '#000' : 'var(--text-secondary)'
+                          }}
+                        >
+                          {p}
+                        </button>
+                      )
+                    ));
+                  })()}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`btn btn-sm ${currentPage === totalPages ? 'btn-outline' : 'btn-primary'}`}
+                >
+                  Siguiente
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className={`btn btn-sm ${currentPage === totalPages ? 'btn-outline' : 'btn-primary'}`}
+                >
+                  Último
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

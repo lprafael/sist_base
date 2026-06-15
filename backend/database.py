@@ -18,7 +18,7 @@ engine = create_async_engine(
     echo=False,
     pool_size=10,           # Conexiones base para mantener abiertas
     max_overflow=20,        # Conexiones adicionales permitidas en picos de carga
-    pool_recycle=3600,      # Reciclar conexión cada hora
+    pool_recycle=300,       # Reciclar conexión cada 5 minutos
     pool_pre_ping=True      # Verificar conexión antes de usarla para evitar errores de red
 )
 
