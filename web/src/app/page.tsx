@@ -25,7 +25,7 @@ export default function HomePage() {
   const [selectedCancha, setSelectedCancha] = useState<any>(null);
   const [scrolled, setScrolled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 6;
 
   useEffect(() => {
     setCurrentPage(1);

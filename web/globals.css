@@ -1,0 +1,18 @@
+/* globals.css – Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom variables (already used in the app) */
+:root {
+  --bg-dark: #090d16;
+  --bg-card: #0f172a;
+  --border-color: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --primary: #10b981;
+  --primary-glow: rgba(16, 185, 129, 0.15);
+  --primary-hover: #34d399;
+  --secondary: #3b82f6;
+  --secondary-glow: rgba(59, 130, 246, 0.15);
+}
