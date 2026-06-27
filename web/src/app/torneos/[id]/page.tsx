@@ -102,10 +102,12 @@ export default function TournamentDetailPage() {
       // Save enrollment locally
       localStorage.setItem(`inscribed_${id}`, team.id);
       
-      // 2. If it requires payment, redirect to simulated checkout
+      // 2. If it requires payment, redirect to real checkout
       if (tournament?.costo_inscripcion > 0) {
-        const payRes = await fetch(`${API_URL}/cancha/pagos/inscripcion/${team.id}`, {
-          method: "POST"
+        const payRes = await fetch(`${API_URL}/api/pagos/inscripcion/${team.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider: "mercadopago" })
         });
         if (payRes.ok) {
           const payData = await payRes.json();

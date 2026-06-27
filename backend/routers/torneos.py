@@ -46,6 +46,7 @@ class EquipoCreate(BaseModel):
     logo_url: Optional[str] = None
     color_principal: Optional[str] = None
     color_secundario: Optional[str] = None
+    promocion: int = 0
 
 class JugadorCreate(BaseModel):
     nombre: str
@@ -54,12 +55,16 @@ class JugadorCreate(BaseModel):
     numero_camiseta: Optional[int] = None
     posicion: Optional[str] = None
     foto_url: Optional[str] = None
+    egreso_ano: Optional[int] = None
+    es_exalumno: bool = True
 
 class JugadorUpdate(BaseModel):
     nombre: Optional[str] = None
     numero_camiseta: Optional[int] = None
     posicion: Optional[str] = None
     estado: Optional[str] = None
+    egreso_ano: Optional[int] = None
+    es_exalumno: Optional[bool] = None
 
 class PartidoUpdate(BaseModel):
     goles_local: int = 0
@@ -184,12 +189,12 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
             INSERT INTO cancha.torneos_posiciones
                 (id, torneo_id, torneo_equipo_id, posicion, pj, pg, pe, pp, gf, gc, dg, pts, pts_fair_play_neg, actualizado_en)
             VALUES
-                (gen_random_uuid(), :tid, :eid, :pos, :pj, :pg, :pe, :pp, :gf, :gc, :dg, :pts, :fp, NOW())
+                (:uuid, :tid, :eid, :pos, :pj, :pg, :pe, :pp, :gf, :gc, :dg, :pts, :fp, CURRENT_TIMESTAMP)
             ON CONFLICT (torneo_id, torneo_equipo_id)
             DO UPDATE SET
                 posicion=:pos, pj=:pj, pg=:pg, pe=:pe, pp=:pp,
-                gf=:gf, gc=:gc, dg=:dg, pts=:pts, pts_fair_play_neg=:fp, actualizado_en=NOW()
-        """), {"tid": torneo_id, "eid": eid, "pos": pos,
+                gf=:gf, gc=:gc, dg=:dg, pts=:pts, pts_fair_play_neg=:fp, actualizado_en=CURRENT_TIMESTAMP
+        """), {"uuid": str(uuid.uuid4()), "tid": torneo_id, "eid": eid, "pos": pos,
                "pj": s["pj"], "pg": s["pg"], "pe": s["pe"], "pp": s["pp"],
                "gf": s["gf"], "gc": s["gc"], "dg": dg, "pts": s["pts"], "fp": fp})
 
@@ -370,11 +375,11 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
         result = await session.execute(text("""
             INSERT INTO cancha.torneos_equipos
                 (id, torneo_id, nombre, capitan_nombre, capitan_telefono, capitan_email,
-                 estado_inscripcion, logo_url, color_principal, color_secundario)
+                 estado_inscripcion, logo_url, color_principal, color_secundario, promocion)
             VALUES
                 (gen_random_uuid(), :tid, :nombre, :capitan_nombre, :capitan_telefono,
-                 :capitan_email, :estado, :logo_url, :color_p, :color_s)
-            RETURNING id, torneo_id, nombre, estado_inscripcion
+                 :capitan_email, :estado, :logo_url, :color_p, :color_s, :promocion)
+            RETURNING id, torneo_id, nombre, estado_inscripcion, promocion
         """), {
             "tid": torneo_id, "nombre": payload.nombre,
             "capitan_nombre": payload.capitan_nombre,
@@ -383,11 +388,12 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
             "estado": estado_insc,
             "logo_url": payload.logo_url,
             "color_p": payload.color_principal,
-            "color_s": payload.color_secundario
+            "color_s": payload.color_secundario,
+            "promocion": payload.promocion
         })
         await session.commit()
         row = result.fetchone()
-        return _row_to_dict(["id","torneo_id","nombre","estado_inscripcion"], row)
+        return _row_to_dict(["id","torneo_id","nombre","estado_inscripcion","promocion"], row)
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -402,15 +408,67 @@ async def get_jugadores(torneo_id: str, equipo_id: str, session: AsyncSession = 
     result = await session.execute(text("""
         SELECT tp.id, tp.nombre, tp.dni, tp.fecha_nacimiento, tp.numero_camiseta,
                tp.posicion, tp.foto_url, tp.estado, tp.partidos_jugados,
-               tp.amarillas_acum, tp.rojas_acum
+               tp.amarillas_acum, tp.rojas_acum, tp.egreso_ano, tp.es_exalumno
         FROM cancha.tournament_players tp
         WHERE tp.torneo_equipo_id = :eid
         ORDER BY tp.numero_camiseta ASC NULLS LAST, tp.nombre ASC
     """), {"eid": equipo_id})
     rows = result.fetchall()
     keys = ["id","nombre","dni","fecha_nacimiento","numero_camiseta",
-            "posicion","foto_url","estado","partidos_jugados","amarillas_acum","rojas_acum"]
+            "posicion","foto_url","estado","partidos_jugados","amarillas_acum","rojas_acum","egreso_ano","es_exalumno"]
     return [_row_to_dict(keys, r) for r in rows]
+
+
+async def _get_config_param(param_key: str, default_value, torneo_id: str, session: AsyncSession):
+    """Retrieves a configuration parameter hierarchically: Torneo -> Complejo -> Default."""
+    t_res = await session.execute(
+        text("SELECT config, configuracion, complejo_id FROM cancha.torneos WHERE id = :tid"),
+        {"tid": torneo_id}
+    )
+    t_row = t_res.fetchone()
+    if not t_row:
+        return default_value
+        
+    t_config, t_configuracion, complejo_id = t_row
+    
+    # Try t_config
+    if t_config:
+        try:
+            if isinstance(t_config, str):
+                t_config = json.loads(t_config)
+            if isinstance(t_config, dict) and param_key in t_config:
+                return t_config[param_key]
+        except Exception:
+            pass
+            
+    # Try t_configuracion
+    if t_configuracion:
+        try:
+            if isinstance(t_configuracion, str):
+                t_configuracion = json.loads(t_configuracion)
+            if isinstance(t_configuracion, dict) and param_key in t_configuracion:
+                return t_configuracion[param_key]
+        except Exception:
+            pass
+
+    # 2. Check Complejo's configuracion
+    if complejo_id:
+        c_res = await session.execute(
+            text("SELECT configuracion FROM cancha.complejos WHERE id = :cid"),
+            {"cid": complejo_id}
+        )
+        c_row = c_res.fetchone()
+        if c_row and c_row[0]:
+            c_config = c_row[0]
+            try:
+                if isinstance(c_config, str):
+                    c_config = json.loads(c_config)
+                if isinstance(c_config, dict) and param_key in c_config:
+                    return c_config[param_key]
+            except Exception:
+                pass
+
+    return default_value
 
 
 @router.post("/{torneo_id}/equipos/{equipo_id}/jugadores", summary="Agregar jugador al plantel")
@@ -420,15 +478,32 @@ async def add_jugador(
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        # Verificar que el equipo pertenece al torneo
-        eq_res = await session.execute(
-            text("SELECT id FROM cancha.torneos_equipos WHERE id = :eid AND torneo_id = :tid"),
+        # 1. Obtener datos del equipo y del torneo
+        team_res = await session.execute(
+            text("""
+                SELECT te.promocion, t.categoria, t.estado
+                FROM cancha.torneos_equipos te
+                JOIN cancha.torneos t ON te.torneo_id = t.id
+                WHERE te.id = :eid AND te.torneo_id = :tid
+            """),
             {"eid": equipo_id, "tid": torneo_id}
         )
-        if not eq_res.fetchone():
+        team_row = team_res.fetchone()
+        if not team_row:
             raise HTTPException(status_code=404, detail="Equipo no encontrado en este torneo")
+        
+        team_promocion, torneo_categoria, torneo_estado = team_row
+        team_promocion = team_promocion or 0
+        torneo_categoria = torneo_categoria or 'Primera'
 
-        # Verificar DNI no repetido en otro equipo del mismo torneo
+        # 2. Bloqueo de adición de jugadores en fases finales (playoffs)
+        if torneo_estado in ('playoffs', 'finalizado'):
+             raise HTTPException(
+                 status_code=400,
+                 detail="Está prohibido incorporar jugadores en fases de eliminación directa / playoffs o cuando el torneo está finalizado."
+             )
+
+        # 3. Validar DNI no repetido en otro equipo del mismo torneo
         dup = await session.execute(text("""
             SELECT tp.id FROM cancha.tournament_players tp
             JOIN cancha.torneos_equipos te ON tp.torneo_equipo_id = te.id
@@ -437,21 +512,106 @@ async def add_jugador(
         if dup.fetchone():
             raise HTTPException(status_code=409, detail=f"El jugador con DNI {payload.dni} ya está inscripto en otro equipo de este torneo")
 
-        fnac = date.fromisoformat(payload.fecha_nacimiento) if payload.fecha_nacimiento else None
+        # 4. Validar edad y fecha de nacimiento
+        current_year = datetime.now().year
+        player_age = None
+        fnac = None
+        if payload.fecha_nacimiento:
+            try:
+                fnac = date.fromisoformat(payload.fecha_nacimiento)
+                player_age = current_year - fnac.year
+            except Exception:
+                fnac = None
+
+        # 5. Determinar si el jugador es considerado refuerzo
+        is_refuerzo = False
+        anos_exencion_vg = await _get_config_param("anos_exencion_viejas_glorias", 25, torneo_id, session)
+        if not payload.es_exalumno or payload.egreso_ano != team_promocion:
+            is_refuerzo = True
+            
+            # Exención de viejas glorias
+            if payload.es_exalumno and payload.egreso_ano:
+                years_since_egreso = current_year - payload.egreso_ano
+                if years_since_egreso >= anos_exencion_vg:
+                    is_refuerzo = False
+
+        # 6. Si es refuerzo, aplicar validaciones de cupo de refuerzos
+        if is_refuerzo:
+            existing_players_res = await session.execute(
+                text("""
+                    SELECT es_exalumno, egreso_ano, fecha_nacimiento
+                    FROM cancha.tournament_players
+                    WHERE torneo_equipo_id = :eid
+                """),
+                {"eid": equipo_id}
+            )
+            existing_players = existing_players_res.fetchall()
+            
+            refuerzos_count = 0
+            refuerzos_menores_30_count = 0
+            
+            for p_es_exalumno, p_egreso_ano, p_fnac in existing_players:
+                p_is_refuerzo = False
+                if not p_es_exalumno or p_egreso_ano != team_promocion:
+                    p_is_refuerzo = True
+                    if p_es_exalumno and p_egreso_ano:
+                        p_years = current_year - p_egreso_ano
+                        if p_years >= anos_exencion_vg:
+                            p_is_refuerzo = False
+                
+                if p_is_refuerzo:
+                    refuerzos_count += 1
+                    if p_fnac:
+                        if isinstance(p_fnac, str):
+                            try:
+                                p_year = int(p_fnac.split('-')[0])
+                            except Exception:
+                                p_year = current_year
+                        else:
+                            p_year = p_fnac.year
+                        p_age = current_year - p_year
+                        if p_age < 30:
+                            refuerzos_menores_30_count += 1
+
+            # Calcular límite máximo de refuerzos permitido
+            antiguedad_promo = current_year - team_promocion
+            if antiguedad_promo > 15 and torneo_categoria != 'Primera':
+                max_refuerzos = await _get_config_param("limite_refuerzos_antiguedad", 6, torneo_id, session)
+            else:
+                max_refuerzos = await _get_config_param("limite_refuerzos_estandar", 4, torneo_id, session)
+                
+            if refuerzos_count >= max_refuerzos:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Cupo de refuerzos completo. Límite máximo para este equipo: {max_refuerzos} refuerzos."
+                )
+
+            if torneo_categoria == 'Ejecutivo':
+                if player_age is not None and player_age < 30:
+                    max_menores_30 = await _get_config_param("limite_refuerzos_menores_30_ejecutivo", 1, torneo_id, session)
+                    if refuerzos_menores_30_count >= max_menores_30:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Categoría Ejecutivo: Solo se permite {max_menores_30} refuerzo(s) menor(es) de 30 años por equipo, y ya hay uno registrado."
+                        )
+        # 7. Insertar jugador
+        player_uuid = str(uuid.uuid4())
         result = await session.execute(text("""
             INSERT INTO cancha.tournament_players
-                (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url)
+                (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, egreso_ano, es_exalumno)
             VALUES
-                (gen_random_uuid(), :eid, :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url)
-            RETURNING id, nombre, dni, numero_camiseta, posicion, estado
+                (:id, :eid, :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url, :egreso_ano, :es_exalumno)
+            RETURNING id, nombre, dni, numero_camiseta, posicion, estado, egreso_ano, es_exalumno
         """), {
+            "id": player_uuid,
             "eid": equipo_id, "nombre": payload.nombre, "dni": payload.dni,
             "fnac": fnac, "camiseta": payload.numero_camiseta,
-            "posicion": payload.posicion, "foto_url": payload.foto_url
+            "posicion": payload.posicion, "foto_url": payload.foto_url,
+            "egreso_ano": payload.egreso_ano, "es_exalumno": payload.es_exalumno
         })
         await session.commit()
         row = result.fetchone()
-        return _row_to_dict(["id","nombre","dni","numero_camiseta","posicion","estado"], row)
+        return _row_to_dict(["id","nombre","dni","numero_camiseta","posicion","estado","egreso_ano","es_exalumno"], row)
     except HTTPException:
         raise
     except Exception as e:
@@ -658,7 +818,7 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             UPDATE cancha.torneos_partidos
             SET goles_local = :gl, goles_visitante = :gv,
                 estado = :estado, ganador_id = :ganador_id,
-                fecha_hora_fin_real = NOW(), acta_cerrada_en = NOW()
+                fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
             WHERE id = :pid
         """), {
             "pid": partido_id, "gl": payload.goles_local,
@@ -680,6 +840,10 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
         if payload.estado in ("finalizado", "wo"):
             await _recalcular_posiciones(torneo_id, session)
             await session.commit()
+            
+            await _avanzar_ronda_eliminatoria(torneo_id, session)
+            await _verificar_fin_fase_grupos(torneo_id, session)
+            await session.commit()
 
         return {"id": partido_id, "goles_local": payload.goles_local,
                 "goles_visitante": payload.goles_visitante, "estado": payload.estado}
@@ -688,6 +852,97 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+async def _chequear_descalificacion_wo(equipo_id: str, torneo_id: str, session: AsyncSession):
+    """Monitorea los W.O. y descalifica automáticamente si acumula 3 consecutivos o 4 alternados."""
+    res = await session.execute(
+        text("""
+            SELECT id, estado, equipo_wo_id
+            FROM cancha.torneos_partidos
+            WHERE torneo_id = :tid 
+              AND (equipo_local_id = :eid OR equipo_visitante_id = :eid)
+              AND estado IN ('finalizado', 'wo')
+            ORDER BY fecha_hora ASC
+        """),
+        {"tid": torneo_id, "eid": equipo_id}
+    )
+    partidos = res.fetchall()
+    
+    # 1. Contar W.O.s alternados (totales)
+    wo_totales = 0
+    for pid, estado, eq_wo_id in partidos:
+        if estado == 'wo' and eq_wo_id and str(eq_wo_id) == equipo_id:
+            wo_totales += 1
+            
+    # 2. Contar W.O.s consecutivos
+    wo_consecutivos = 0
+    max_consecutivos = 0
+    for pid, estado, eq_wo_id in partidos:
+        if estado == 'wo' and eq_wo_id and str(eq_wo_id) == equipo_id:
+            wo_consecutivos += 1
+            if wo_consecutivos > max_consecutivos:
+                max_consecutivos = wo_consecutivos
+        else:
+            wo_consecutivos = 0
+            
+    # Disparador de Expulsión: parametrizable por tenant
+    consecutivos_limit = await _get_config_param("consecutivos_wo_descalificacion", 3, torneo_id, session)
+    alternados_limit = await _get_config_param("alternados_wo_descalificacion", 4, torneo_id, session)
+
+    if max_consecutivos >= consecutivos_limit or wo_totales >= alternados_limit:
+        # Cambiar estado del equipo a 'eliminado'
+        await session.execute(
+            text("""
+                UPDATE cancha.torneos_equipos
+                SET estado_inscripcion = 'eliminado', updated_at = CURRENT_TIMESTAMP
+                WHERE id = :eid
+            """),
+            {"eid": equipo_id}
+        )
+        
+        # Sancionar al equipo dando por perdidos todos sus partidos restantes por 2-0 (marcador WO)
+        partidos_restantes_res = await session.execute(
+            text("""
+                SELECT id, equipo_local_id, equipo_visitante_id
+                FROM cancha.torneos_partidos
+                WHERE torneo_id = :tid
+                  AND (equipo_local_id = :eid OR equipo_visitante_id = :eid)
+                  AND estado NOT IN ('finalizado', 'wo')
+            """),
+            {"tid": torneo_id, "eid": equipo_id}
+        )
+        partidos_restantes = partidos_restantes_res.fetchall()
+        
+        for p_id, loc_id, vis_id in partidos_restantes:
+            p_id = str(p_id)
+            loc_id = str(loc_id)
+            vis_id = str(vis_id)
+            
+            if loc_id == equipo_id:
+                gl, gv = 0, 2
+                ganador_id = vis_id
+            else:
+                gl, gv = 2, 0
+                ganador_id = loc_id
+                
+            await session.execute(
+                text("""
+                    UPDATE cancha.torneos_partidos
+                    SET estado = 'wo', es_wo = true,
+                        equipo_wo_id = :infractor_id,
+                        goles_local = :gl, goles_visitante = :gv,
+                        ganador_id = :ganador_id,
+                        fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
+                    WHERE id = :pid
+                """),
+                {
+                    "pid": p_id, "infractor_id": equipo_id,
+                    "gl": gl, "gv": gv, "ganador_id": ganador_id
+                }
+            )
+        return True
+    return False
 
 
 @router.post("/partidos/{partido_id}/wo", summary="Declarar W.O.")
@@ -701,9 +956,9 @@ async def declarar_wo(partido_id: str, payload: WORequest, session: AsyncSession
         p_row = p_res.fetchone()
         if not p_row:
             raise HTTPException(status_code=404, detail="Partido no encontrado")
-
+ 
         torneo_id, local_id, visitante_id = str(p_row[0]), str(p_row[1]), str(p_row[2])
-
+ 
         # Determinar quién gana
         if str(local_id) == payload.equipo_infractor_id:
             gl, gv = payload.marcador_perdedor, payload.marcador_ganador
@@ -711,25 +966,39 @@ async def declarar_wo(partido_id: str, payload: WORequest, session: AsyncSession
         else:
             gl, gv = payload.marcador_ganador, payload.marcador_perdedor
             ganador_id = str(local_id)
-
+ 
         await session.execute(text("""
             UPDATE cancha.torneos_partidos
             SET estado = 'wo', es_wo = true,
                 equipo_wo_id = :infractor_id,
                 goles_local = :gl, goles_visitante = :gv,
                 ganador_id = :ganador_id,
-                fecha_hora_fin_real = NOW(), acta_cerrada_en = NOW()
+                fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
             WHERE id = :pid
         """), {
             "pid": partido_id, "infractor_id": payload.equipo_infractor_id,
             "gl": gl, "gv": gv, "ganador_id": ganador_id
         })
         await session.commit()
+        
+        # Chequear si corresponde la descalificación
+        fue_descalificado = await _chequear_descalificacion_wo(payload.equipo_infractor_id, torneo_id, session)
+        await session.commit()
+
         await _recalcular_posiciones(torneo_id, session)
         await session.commit()
 
-        return {"status": "ok", "message": "W.O. declarado correctamente",
-                "goles_local": gl, "goles_visitante": gv, "ganador_id": ganador_id}
+        await _avanzar_ronda_eliminatoria(torneo_id, session)
+        await _verificar_fin_fase_grupos(torneo_id, session)
+        await session.commit()
+ 
+        msg = "W.O. declarado correctamente"
+        if fue_descalificado:
+            msg += ". El equipo infractor acumuló el límite de W.O.s y fue ELIMINADO DEL TORNEO. Se otorgaron victorias automáticas para sus partidos restantes."
+
+        return {"status": "ok", "message": msg,
+                "goles_local": gl, "goles_visitante": gv, "ganador_id": ganador_id,
+                "eliminado": fue_descalificado}
     except HTTPException:
         raise
     except Exception as e:
@@ -1008,6 +1277,280 @@ async def get_sanciones(torneo_id: str, session: AsyncSession = Depends(get_sess
 # FIXTURE (mantenido desde main.py pero mejorado)
 # ============================================================
 
+def _generar_primera_ronda_eliminatoria(equipos: list) -> tuple[str, list, any]:
+    """Genera la primera ronda de bracket de eliminación directa según el número de equipos."""
+    m = len(equipos)
+    if m <= 2:
+        fase = "Final"
+    elif m <= 4:
+        fase = "Semifinal"
+    elif m <= 8:
+        fase = "Cuartos de Final"
+    elif m <= 16:
+        fase = "Octavos de Final"
+    else:
+        fase = "Dieciseisavos de Final"
+        
+    partidos = []
+    for i in range(m // 2):
+        partidos.append((equipos[i], equipos[m - 1 - i]))
+        
+    bye_team = equipos[m // 2] if m % 2 != 0 else None
+    return fase, partidos, bye_team
+
+
+async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
+    """Verifica si todos los partidos de la fase eliminatoria actual terminaron y genera la siguiente fase."""
+    t_res = await session.execute(
+        text("SELECT formato, estado, fecha_inicio FROM cancha.torneos WHERE id = :tid"),
+        {"tid": torneo_id}
+    )
+    t_row = t_res.fetchone()
+    if not t_row:
+        return
+    formato, torneo_estado, fecha_inicio = t_row
+    if isinstance(fecha_inicio, str):
+        fecha_inicio = date.fromisoformat(fecha_inicio)
+    
+    if formato not in ('eliminatoria', 'mixta'):
+        return
+
+    # Buscar partidos activos en fase eliminatoria
+    f_res = await session.execute(
+        text("""
+            SELECT fase, MAX(jornada) 
+            FROM cancha.torneos_partidos 
+            WHERE torneo_id = :tid 
+              AND (fase LIKE '%Final%' OR fase LIKE '%Semifinal%')
+            GROUP BY fase
+        """),
+        {"tid": torneo_id}
+    )
+    fases = f_res.fetchall()
+    if not fases:
+        return
+        
+    jerarquia = ["Dieciseisavos de Final", "Octavos de Final", "Cuartos de Final", "Semifinal", "Final"]
+    
+    fase_actual = None
+    max_idx = -1
+    max_jornada = 1
+    for f, j in fases:
+        for idx, name in enumerate(jerarquia):
+            if f == name and idx > max_idx:
+                max_idx = idx
+                fase_actual = name
+                max_jornada = j or 1
+                
+    if not fase_actual:
+        return
+        
+    p_res = await session.execute(
+        text("""
+            SELECT id, estado, ganador_id, equipo_local_id, equipo_visitante_id, es_wo
+            FROM cancha.torneos_partidos
+            WHERE torneo_id = :tid AND fase = :fase
+        """),
+        {"tid": torneo_id, "fase": fase_actual}
+    )
+    partidos = p_res.fetchall()
+    if not partidos:
+        return
+        
+    for pid, estado, win_id, el_id, ev_id, es_wo in partidos:
+        if estado not in ('finalizado', 'wo'):
+            return # Aún quedan partidos por jugar en esta fase
+            
+    ganadores = []
+    for pid, estado, win_id, el_id, ev_id, es_wo in partidos:
+        if win_id:
+            ganadores.append(str(win_id))
+            
+    # ¿Hay algún equipo que tuvo BYE?
+    eq_res = await session.execute(
+        text("""
+            SELECT id FROM cancha.torneos_equipos 
+            WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'
+        """),
+        {"tid": torneo_id}
+    )
+    todos_equipos = [str(r[0]) for r in eq_res.fetchall()]
+    
+    jugaron = set()
+    for pid, estado, win_id, el_id, ev_id, es_wo in partidos:
+        if el_id: jugaron.add(str(el_id))
+        if ev_id: jugaron.add(str(ev_id))
+        
+    for eq_id in todos_equipos:
+        if eq_id not in jugaron:
+            ganadores.append(eq_id)
+
+    idx_actual = jerarquia.index(fase_actual)
+    if idx_actual == len(jerarquia) - 1:
+        await session.execute(
+            text("UPDATE cancha.torneos SET estado = 'finalizado' WHERE id = :tid"),
+            {"tid": torneo_id}
+        )
+        return
+        
+    siguiente_fase = jerarquia[idx_actual + 1]
+    
+    from datetime import timedelta, time as dtime
+    siguiente_jornada = max_jornada + 1
+    fecha_partido = fecha_inicio + timedelta(days=(siguiente_jornada - 1) * 7)
+    
+    partidos_siguiente = []
+    m = len(ganadores)
+    for i in range(m // 2):
+        partidos_siguiente.append((ganadores[i], ganadores[m - 1 - i]))
+        
+    total_creados = 0
+    for i, (local, visitante) in enumerate(partidos_siguiente):
+        hora = dtime(18 + i, 0)
+        await session.execute(text("""
+            INSERT INTO cancha.torneos_partidos
+                (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                 fase, jornada, numero_partido, fecha_hora, estado)
+            VALUES
+                (:uuid, :tid, :local, :visitante,
+                 :fase, :jornada, :num, :fecha_hora, 'programado')
+        """), {
+            "uuid": str(uuid.uuid4()),
+            "tid": torneo_id, "local": local, "visitante": visitante,
+            "fase": siguiente_fase, "jornada": siguiente_jornada,
+            "num": i + 1,
+            "fecha_hora": datetime.combine(fecha_partido, hora)
+        })
+        total_creados += 1
+        
+    if m % 2 != 0:
+        bye_team = ganadores[m // 2]
+        hora = dtime(18 + total_creados, 0)
+        await session.execute(text("""
+            INSERT INTO cancha.torneos_partidos
+                (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                 fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
+            VALUES
+                (:uuid, :tid, :local, NULL,
+                 :fase, :jornada, :num, :fecha_hora, 'wo', true, :local, 2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """), {
+            "uuid": str(uuid.uuid4()),
+            "tid": torneo_id, "local": bye_team,
+            "fase": siguiente_fase, "jornada": siguiente_jornada,
+            "num": total_creados + 1,
+            "fecha_hora": datetime.combine(fecha_partido, hora)
+        })
+
+
+async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
+    """Para torneos mixtos, verifica si terminó la fase de grupos y genera las semifinales de playoffs."""
+    t_res = await session.execute(
+        text("SELECT formato, estado, fecha_inicio FROM cancha.torneos WHERE id = :tid"),
+        {"tid": torneo_id}
+    )
+    t_row = t_res.fetchone()
+    if not t_row or t_row[0] != 'mixta':
+        return
+        
+    fecha_inicio = t_row[2]
+    if isinstance(fecha_inicio, str):
+        fecha_inicio = date.fromisoformat(fecha_inicio)
+
+    playoffs_res = await session.execute(
+        text("SELECT COUNT(*) FROM cancha.torneos_partidos WHERE torneo_id = :tid AND (fase = 'Semifinal' OR fase = 'Final')"),
+        {"tid": torneo_id}
+    )
+    if playoffs_res.scalar() > 0:
+        return
+
+    p_res = await session.execute(
+        text("SELECT id, estado, fase FROM cancha.torneos_partidos WHERE torneo_id = :tid AND fase LIKE 'Grupo%'"),
+        {"tid": torneo_id}
+    )
+    group_partidos = p_res.fetchall()
+    if not group_partidos:
+        return
+        
+    for pid, estado, fase in group_partidos:
+        if estado not in ('finalizado', 'wo'):
+            return
+
+    eq_res = await session.execute(
+        text("SELECT id, nombre FROM cancha.torneos_equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
+        {"tid": torneo_id}
+    )
+    equipos = [str(r[0]) for r in eq_res.fetchall()]
+    
+    grupo_a_teams = set()
+    grupo_b_teams = set()
+    for pid, estado, fase in group_partidos:
+        eqs_res = await session.execute(
+            text("SELECT equipo_local_id, equipo_visitante_id FROM cancha.torneos_partidos WHERE id = :pid"),
+            {"pid": pid}
+        )
+        el, ev = eqs_res.fetchone()
+        if 'Grupo A' in fase:
+            if el: grupo_a_teams.add(str(el))
+            if ev: grupo_a_teams.add(str(ev))
+        elif 'Grupo B' in fase:
+            if el: grupo_b_teams.add(str(el))
+            if ev: grupo_b_teams.add(str(ev))
+
+    pos_res = await session.execute(
+        text("SELECT torneo_equipo_id, pts, dg, gf FROM cancha.torneos_posiciones WHERE torneo_id = :tid"),
+        {"tid": torneo_id}
+    )
+    pos_map = {str(r[0]): (r[1] or 0, r[2] or 0, r[3] or 0) for r in pos_res.fetchall()}
+
+    sorted_a = sorted(
+        list(grupo_a_teams),
+        key=lambda e: pos_map.get(e, (0, 0, 0)),
+        reverse=True
+    )
+    sorted_b = sorted(
+        list(grupo_b_teams),
+        key=lambda e: pos_map.get(e, (0, 0, 0)),
+        reverse=True
+    )
+
+    if len(sorted_a) < 2 or len(sorted_b) < 2:
+        return
+
+    a1, a2 = sorted_a[0], sorted_a[1]
+    b1, b2 = sorted_b[0], sorted_b[1]
+
+    jornada_max_res = await session.execute(
+        text("SELECT MAX(jornada) FROM cancha.torneos_partidos WHERE torneo_id = :tid"),
+        {"tid": torneo_id}
+    )
+    jornada_max = (jornada_max_res.scalar() or 0) + 1
+
+    from datetime import timedelta, time as dtime
+    fecha_partido = fecha_inicio + timedelta(days=(jornada_max - 1) * 7)
+    
+    cruces = [(a1, b2), (b1, a2)]
+    for i, (local, visitante) in enumerate(cruces):
+        hora = dtime(18 + i, 0)
+        await session.execute(text("""
+            INSERT INTO cancha.torneos_partidos
+                (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                 fase, jornada, numero_partido, fecha_hora, estado)
+            VALUES
+                (:uuid, :tid, :local, :visitante,
+                 'Semifinal', :jornada, :num, :fecha_hora, 'programado')
+        """), {
+            "uuid": str(uuid.uuid4()),
+            "tid": torneo_id, "local": local, "visitante": visitante,
+            "jornada": jornada_max, "num": i + 1,
+            "fecha_hora": datetime.combine(fecha_partido, hora)
+        })
+    
+    await session.execute(
+        text("UPDATE cancha.torneos SET estado = 'playoffs' WHERE id = :tid"),
+        {"tid": torneo_id}
+    )
+
+
 def _generar_round_robin(equipos_ids: list) -> list:
     """Algoritmo de Berger — maneja número impar con BYE."""
     n = len(equipos_ids)
@@ -1043,6 +1586,11 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         if not torneo:
             raise HTTPException(status_code=404, detail="Torneo no encontrado")
 
+        formato = torneo[1] or 'liga'
+        fecha_base = torneo[2]
+        if isinstance(fecha_base, str):
+            fecha_base = date.fromisoformat(fecha_base)
+
         equipos_res = await session.execute(
             text("SELECT id FROM cancha.torneos_equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
             {"tid": torneo_id}
@@ -1058,12 +1606,36 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
             {"tid": torneo_id}
         )
 
-        rondas = _generar_round_robin(equipos)
-        fecha_base = torneo[2]
         total = 0
+        jornadas_totales = 0
 
-        for round_num, partidos_ronda in enumerate(rondas, start=1):
-            fecha_partido = fecha_base + timedelta(days=(round_num - 1) * 7)
+        if formato == 'liga':
+            rondas = _generar_round_robin(equipos)
+            jornadas_totales = len(rondas)
+            for round_num, partidos_ronda in enumerate(rondas, start=1):
+                fecha_partido = fecha_base + timedelta(days=(round_num - 1) * 7)
+                for i, (local, visitante) in enumerate(partidos_ronda):
+                    hora = dtime(18 + i, 0)
+                    await session.execute(text("""
+                        INSERT INTO cancha.torneos_partidos
+                            (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                             fase, jornada, numero_partido, fecha_hora, estado)
+                        VALUES
+                            (:uuid, :tid, :local, :visitante,
+                             :fase, :jornada, :num, :fecha_hora, 'programado')
+                    """), {
+                        "uuid": str(uuid.uuid4()),
+                        "tid": torneo_id, "local": local, "visitante": visitante,
+                        "fase": f"Fecha {round_num}", "jornada": round_num,
+                        "num": total + 1,
+                        "fecha_hora": datetime.combine(fecha_partido, hora)
+                    })
+                    total += 1
+
+        elif formato == 'eliminatoria':
+            fase, partidos_ronda, bye_team = _generar_primera_ronda_eliminatoria(equipos)
+            jornadas_totales = 1
+            fecha_partido = fecha_base
             for i, (local, visitante) in enumerate(partidos_ronda):
                 hora = dtime(18 + i, 0)
                 await session.execute(text("""
@@ -1071,11 +1643,129 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
                         (id, torneo_id, equipo_local_id, equipo_visitante_id,
                          fase, jornada, numero_partido, fecha_hora, estado)
                     VALUES
-                        (gen_random_uuid(), :tid, :local, :visitante,
-                         :fase, :jornada, :num, :fecha_hora, 'programado')
+                        (:uuid, :tid, :local, :visitante,
+                         :fase, 1, :num, :fecha_hora, 'programado')
                 """), {
+                    "uuid": str(uuid.uuid4()),
                     "tid": torneo_id, "local": local, "visitante": visitante,
-                    "fase": f"Fecha {round_num}", "jornada": round_num,
+                    "fase": fase, "num": total + 1,
+                    "fecha_hora": datetime.combine(fecha_partido, hora)
+                })
+                total += 1
+            
+            if bye_team:
+                hora = dtime(18 + total, 0)
+                await session.execute(text("""
+                    INSERT INTO cancha.torneos_partidos
+                        (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                         fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
+                    VALUES
+                        (:uuid, :tid, :local, NULL,
+                         :fase, 1, :num, :fecha_hora, 'wo', true, :local, 2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), {
+                    "uuid": str(uuid.uuid4()),
+                    "tid": torneo_id, "local": bye_team,
+                    "fase": fase, "num": total + 1,
+                    "fecha_hora": datetime.combine(fecha_partido, hora)
+                })
+                total += 1
+
+        elif formato == 'mixta':
+            grupo_a = [eq for idx, eq in enumerate(equipos) if idx % 2 == 0]
+            grupo_b = [eq for idx, eq in enumerate(equipos) if idx % 2 != 0]
+
+            rondas_a = _generar_round_robin(grupo_a)
+            rondas_b = _generar_round_robin(grupo_b)
+            
+            max_rondas = max(len(rondas_a), len(rondas_b))
+            jornadas_totales = max_rondas
+
+            for r_num in range(max_rondas):
+                fecha_partido = fecha_base + timedelta(days=r_num * 7)
+                i_partido = 0
+                
+                # Partidos Grupo A
+                if r_num < len(rondas_a):
+                    for local, visitante in rondas_a[r_num]:
+                        hora = dtime(18 + i_partido, 0)
+                        await session.execute(text("""
+                            INSERT INTO cancha.torneos_partidos
+                                (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                                 fase, jornada, numero_partido, fecha_hora, estado)
+                            VALUES
+                                (:uuid, :tid, :local, :visitante,
+                                 :fase, :jornada, :num, :fecha_hora, 'programado')
+                        """), {
+                            "uuid": str(uuid.uuid4()),
+                            "tid": torneo_id, "local": local, "visitante": visitante,
+                            "fase": f"Grupo A - Fecha {r_num + 1}", "jornada": r_num + 1,
+                            "num": total + 1,
+                            "fecha_hora": datetime.combine(fecha_partido, hora)
+                        })
+                        total += 1
+                        i_partido += 1
+                        
+                # Partidos Grupo B
+                if r_num < len(rondas_b):
+                    for local, visitante in rondas_b[r_num]:
+                        hora = dtime(18 + i_partido, 0)
+                        await session.execute(text("""
+                            INSERT INTO cancha.torneos_partidos
+                                (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                                 fase, jornada, numero_partido, fecha_hora, estado)
+                            VALUES
+                                (:uuid, :tid, :local, :visitante,
+                                 :fase, :jornada, :num, :fecha_hora, 'programado')
+                        """), {
+                            "uuid": str(uuid.uuid4()),
+                            "tid": torneo_id, "local": local, "visitante": visitante,
+                            "fase": f"Grupo B - Fecha {r_num + 1}", "jornada": r_num + 1,
+                            "num": total + 1,
+                            "fecha_hora": datetime.combine(fecha_partido, hora)
+                        })
+                        total += 1
+                        i_partido += 1
+
+        elif formato == 'suizo':
+            jornadas_totales = 1
+            fecha_partido = fecha_base
+            m = len(equipos)
+            
+            partidos_ronda = []
+            for i in range(m // 2):
+                partidos_ronda.append((equipos[i], equipos[m - 1 - i]))
+                
+            bye_team = equipos[m // 2] if m % 2 != 0 else None
+            
+            for i, (local, visitante) in enumerate(partidos_ronda):
+                hora = dtime(18 + i, 0)
+                await session.execute(text("""
+                    INSERT INTO cancha.torneos_partidos
+                        (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                         fase, jornada, numero_partido, fecha_hora, estado)
+                    VALUES
+                        (:uuid, :tid, :local, :visitante,
+                         'Suizo - Ronda 1', 1, :num, :fecha_hora, 'programado')
+                """), {
+                    "uuid": str(uuid.uuid4()),
+                    "tid": torneo_id, "local": local, "visitante": visitante,
+                    "num": total + 1,
+                    "fecha_hora": datetime.combine(fecha_partido, hora)
+                })
+                total += 1
+                
+            if bye_team:
+                hora = dtime(18 + total, 0)
+                await session.execute(text("""
+                    INSERT INTO cancha.torneos_partidos
+                        (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                         fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
+                    VALUES
+                        (:uuid, :tid, :local, NULL,
+                         'Suizo - Ronda 1', 1, :num, :fecha_hora, 'wo', true, :local, 2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), {
+                    "uuid": str(uuid.uuid4()),
+                    "tid": torneo_id, "local": bye_team,
                     "num": total + 1,
                     "fecha_hora": datetime.combine(fecha_partido, hora)
                 })
@@ -1087,12 +1777,174 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
                 INSERT INTO cancha.torneos_posiciones
                     (id, torneo_id, torneo_equipo_id, posicion)
                 VALUES
-                    (gen_random_uuid(), :tid, :eid, 0)
+                    (:uuid, :tid, :eid, 0)
                 ON CONFLICT (torneo_id, torneo_equipo_id) DO NOTHING
-            """), {"tid": torneo_id, "eid": eid})
+            """), {"uuid": str(uuid.uuid4()), "tid": torneo_id, "eid": eid})
 
         await session.commit()
-        return {"status": "ok", "message": f"Fixture generado: {total} partidos en {len(rondas)} jornadas"}
+        return {"status": "ok", "message": f"Fixture generado: {total} partidos en {jornadas_totales} jornadas"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{torneo_id}/fixture/suizo/siguiente", summary="Generar siguiente ronda del sistema Suizo")
+async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        from datetime import timedelta, time as dtime
+
+        torneo_res = await session.execute(
+            text("SELECT id, formato, fecha_inicio FROM cancha.torneos WHERE id = :tid"),
+            {"tid": torneo_id}
+        )
+        torneo = torneo_res.fetchone()
+        if not torneo:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+
+        formato, fecha_base = torneo[1], torneo[2]
+        if isinstance(fecha_base, str):
+            fecha_base = date.fromisoformat(fecha_base)
+        if formato != 'suizo':
+            raise HTTPException(status_code=400, detail="Este torneo no es de formato suizo")
+
+        ronda_res = await session.execute(
+            text("SELECT MAX(jornada) FROM cancha.torneos_partidos WHERE torneo_id = :tid"),
+            {"tid": torneo_id}
+        )
+        ronda_actual = ronda_res.scalar()
+        if not ronda_actual:
+            raise HTTPException(status_code=400, detail="No se ha generado la primera ronda aún")
+
+        activos_res = await session.execute(
+            text("""
+                SELECT COUNT(*) FROM cancha.torneos_partidos 
+                WHERE torneo_id = :tid AND jornada = :ronda AND estado NOT IN ('finalizado', 'wo')
+            """),
+            {"tid": torneo_id, "ronda": ronda_actual}
+        )
+        if activos_res.scalar() > 0:
+            raise HTTPException(status_code=400, detail=f"No se puede avanzar: existen partidos pendientes en la Ronda {ronda_actual}")
+
+        enfrentamientos_res = await session.execute(
+            text("""
+                SELECT equipo_local_id, equipo_visitante_id FROM cancha.torneos_partidos
+                WHERE torneo_id = :tid AND equipo_local_id IS NOT NULL AND equipo_visitante_id IS NOT NULL
+            """),
+            {"tid": torneo_id}
+        )
+        enfrentamientos = set()
+        for loc, vis in enfrentamientos_res.fetchall():
+            enfrentamientos.add((str(loc), str(vis)))
+            enfrentamientos.add((str(vis), str(loc)))
+
+        equipos_res = await session.execute(
+            text("""
+                SELECT tp.torneo_equipo_id, tp.pts, tp.dg, tp.gf 
+                FROM cancha.torneos_posiciones tp
+                JOIN cancha.torneos_equipos te ON tp.torneo_equipo_id = te.id
+                WHERE tp.torneo_id = :tid AND te.estado_inscripcion = 'confirmado'
+            """),
+            {"tid": torneo_id}
+        )
+        posiciones = sorted(
+            [{"id": str(r[0]), "pts": r[1] or 0, "dg": r[2] or 0, "gf": r[3] or 0} for r in equipos_res.fetchall()],
+            key=lambda e: (e["pts"], e["dg"], e["gf"]),
+            reverse=True
+        )
+
+        n_ronda = ronda_actual + 1
+        fecha_partido = fecha_base + timedelta(days=(n_ronda - 1) * 7)
+
+        paired = set()
+        partidos_ronda = []
+        bye_team = None
+
+        if len(posiciones) % 2 != 0:
+            byes_res = await session.execute(
+                text("SELECT equipo_local_id FROM cancha.torneos_partidos WHERE torneo_id = :tid AND equipo_visitante_id IS NULL"),
+                {"tid": torneo_id}
+            )
+            equipos_con_bye = {str(r[0]) for r in byes_res.fetchall()}
+            
+            idx_bye = -1
+            for idx in range(len(posiciones) - 1, -1, -1):
+                tid = posiciones[idx]["id"]
+                if tid not in equipos_con_bye:
+                    idx_bye = idx
+                    break
+            if idx_bye == -1:
+                idx_bye = len(posiciones) - 1
+                
+            bye_team = posiciones.pop(idx_bye)["id"]
+            paired.add(bye_team)
+
+        for i in range(len(posiciones)):
+            t1_id = posiciones[i]["id"]
+            if t1_id in paired:
+                continue
+
+            t2_id = None
+            for j in range(i + 1, len(posiciones)):
+                cand_id = posiciones[j]["id"]
+                if cand_id in paired:
+                    continue
+                if (t1_id, cand_id) not in enfrentamientos:
+                    t2_id = cand_id
+                    break
+                    
+            if not t2_id:
+                for j in range(i + 1, len(posiciones)):
+                    cand_id = posiciones[j]["id"]
+                    if cand_id not in paired:
+                        t2_id = cand_id
+                        break
+
+            if t2_id:
+                partidos_ronda.append((t1_id, t2_id))
+                paired.add(t1_id)
+                paired.add(t2_id)
+
+        total_creados = 0
+        for idx, (local, visitante) in enumerate(partidos_ronda):
+            hora = dtime(18 + idx, 0)
+            await session.execute(text("""
+                INSERT INTO cancha.torneos_partidos
+                    (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                     fase, jornada, numero_partido, fecha_hora, estado)
+                VALUES
+                    (:uuid, :tid, :local, :visitante,
+                     :fase, :jornada, :num, :fecha_hora, 'programado')
+            """), {
+                "uuid": str(uuid.uuid4()),
+                "tid": torneo_id, "local": local, "visitante": visitante,
+                "fase": f"Suizo - Ronda {n_ronda}", "jornada": n_ronda,
+                "num": total_creados + 1,
+                "fecha_hora": datetime.combine(fecha_partido, hora)
+            })
+            total_creados += 1
+
+        if bye_team:
+            hora = dtime(18 + total_creados, 0)
+            await session.execute(text("""
+                INSERT INTO cancha.torneos_partidos
+                    (id, torneo_id, equipo_local_id, equipo_visitante_id,
+                     fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
+                VALUES
+                    (:uuid, :tid, :local, NULL,
+                     :fase, :jornada, :num, :fecha_hora, 'wo', true, :local, 2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """), {
+                "uuid": str(uuid.uuid4()),
+                "tid": torneo_id, "local": bye_team,
+                "fase": f"Suizo - Ronda {n_ronda}", "jornada": n_ronda,
+                "num": total_creados + 1,
+                "fecha_hora": datetime.combine(fecha_partido, hora)
+            })
+            total_creados += 1
+
+        await session.commit()
+        return {"status": "ok", "message": f"Ronda {n_ronda} del sistema suizo generada con éxito."}
     except HTTPException:
         raise
     except Exception as e:

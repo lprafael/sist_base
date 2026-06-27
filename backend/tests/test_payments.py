@@ -62,7 +62,7 @@ def test_client(mock_session, mock_current_user):
         
         query_str = str(query)
         if "costo_inscripcion" in query_str and "te.id = :id" in query_str:
-            mock_result.fetchone.return_value = ("team-123", Decimal("500.00"), "Copa Verano", "Real Madrid", "tournament-123")
+            mock_result.fetchone.return_value = ("team-123", Decimal("500.00"), "Copa Verano", "Real Madrid", "tournament-123", "test@example.com")
         elif "costo_inscripcion" in query_str:
             mock_result.fetchone.return_value = (Decimal("500.00"),)
         else:
@@ -140,7 +140,7 @@ async def test_generar_preferencia_mercadopago_success(
     from schemas.payments import PaymentCreate, PaymentProvider
     
     # Mock de datos del torneo
-    mock_row = ("team-id", Decimal("500"), "Copa Verano", "Real Madrid", "tournament-id")
+    mock_row = ("team-id", Decimal("500"), "Copa Verano", "Real Madrid", "tournament-id", "test@example.com")
     mock_session.execute = AsyncMock()
     mock_session.execute.return_value.fetchone.return_value = mock_row
     mock_session.execute.return_value.scalar.return_value = None  # No hay pago anterior
@@ -180,7 +180,7 @@ async def test_generar_preferencia_already_paid(mock_session, mock_current_user)
     from fastapi import HTTPException
     
     # Mock: Ya hay pago aprobado
-    mock_row = ("team-id", Decimal("500"), "Copa", "Equipo", "tournament-id")
+    mock_row = ("team-id", Decimal("500"), "Copa", "Equipo", "tournament-id", "test@example.com")
     mock_session.execute = AsyncMock()
     mock_session.execute.return_value.fetchone.return_value = mock_row
     mock_session.execute.return_value.scalar.return_value = 1  # Ya pagado

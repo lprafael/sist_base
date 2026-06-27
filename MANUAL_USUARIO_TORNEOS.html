@@ -1,1325 +1,686 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manual de Usuario — Mi Cancha | Gestión de Torneos</title>
-  <meta name="description" content="Manual completo del módulo de Gestión de Torneos para administradores del sistema Mi Cancha." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Usuario - Sistema de Torneos Mi Cancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    /* ═══════════════════════════════════════
-       DESIGN TOKENS
-    ═══════════════════════════════════════ */
     :root {
-      --bg:        #060913;
-      --bg2:       #0d1221;
-      --card:      rgba(255,255,255,0.03);
-      --border:    rgba(255,255,255,0.07);
-      --border-h:  rgba(0,208,132,0.25);
-      --primary:   #00D084;
-      --primary-l: #00ffaa;
-      --primary-d: #009e62;
-      --accent:    #7c6af5;
-      --yellow:    #f5c842;
-      --red:       #f54242;
-      --orange:    #f59642;
-      --text:      #f0f4ff;
-      --text2:     #8b98b8;
-      --text3:     #4a5468;
-      --radius:    2rem;
-      --radius-s:  1rem;
-      --shadow:    0 20px 60px rgba(0,0,0,.5);
+      --bg-dark: #090d16;
+      --bg-card: #0f172a;
+      --border-color: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #10b981;
+      --primary-glow: rgba(16, 185, 129, 0.15);
+      --primary-hover: #34d399;
+      --secondary: #3b82f6;
+      --secondary-glow: rgba(59, 130, 246, 0.15);
+      --accent-red: #ef4444;
+      --sidebar-width: 280px;
+      --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { scroll-behavior: smooth; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
 
     body {
-      font-family: 'Outfit', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
       line-height: 1.6;
+      overflow-x: hidden;
     }
 
-    /* ═══════════════════════════════════════
-       LAYOUT
-    ═══════════════════════════════════════ */
-    .layout { display: flex; min-height: 100vh; }
-
-    /* SIDEBAR */
-    .sidebar {
-      width: 280px;
-      flex-shrink: 0;
-      background: var(--bg2);
-      border-right: 1px solid var(--border);
-      position: fixed;
-      top: 0; left: 0; bottom: 0;
-      overflow-y: auto;
-      z-index: 100;
-      transition: transform .3s ease;
-    }
-
-    .sidebar-logo {
-      padding: 2rem 1.75rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .sidebar-logo .brand {
-      font-size: 1.3rem;
-      font-weight: 900;
-      color: var(--primary);
-      letter-spacing: -.5px;
-    }
-
-    .sidebar-logo .subtitle {
-      font-size: .7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .1em;
-      color: var(--text3);
-      margin-top: .25rem;
-    }
-
-    .sidebar-nav { padding: 1.25rem 1rem; }
-
-    .nav-section-label {
-      font-size: .65rem;
+    h1, h2, h3, h4 {
+      font-family: 'Outfit', sans-serif;
       font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: .12em;
-      color: var(--text3);
-      padding: .75rem .75rem .4rem;
+      letter-spacing: -0.02em;
     }
 
-    .nav-item {
+    /* Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: #0b0f19;
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      z-index: 100;
+    }
+
+    .brand {
       display: flex;
       align-items: center;
-      gap: .75rem;
-      padding: .65rem .75rem;
-      border-radius: .75rem;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 900;
+      background: linear-gradient(to right, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--text-muted);
       text-decoration: none;
-      color: var(--text2);
-      font-size: .85rem;
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
       font-weight: 600;
-      transition: all .2s;
-      margin-bottom: .1rem;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
     }
 
-    .nav-item:hover,
-    .nav-item.active {
-      background: rgba(0,208,132,.08);
+    .nav-item a:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.02);
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-item.active a {
       color: var(--primary);
+      background-color: var(--primary-glow);
+      border-color: rgba(16, 185, 129, 0.2);
     }
 
-    .nav-item .icon {
-      width: 28px; height: 28px;
-      border-radius: .5rem;
-      background: rgba(255,255,255,.04);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
-
-    .nav-item.active .icon { background: rgba(0,208,132,.12); }
-
-    /* MAIN */
-    .main {
-      margin-left: 280px;
+    /* Content Area */
+    .main-content {
+      margin-left: var(--sidebar-width);
       flex: 1;
-      padding: 3rem 2.5rem;
-      max-width: 960px;
+      padding: 3rem 4rem;
+      max-width: 1200px;
     }
 
-    /* ═══════════════════════════════════════
-       HERO
-    ═══════════════════════════════════════ */
+    /* Hero Section */
     .hero {
-      background: linear-gradient(135deg, rgba(0,208,132,.12) 0%, rgba(124,106,245,.1) 100%);
-      border: 1px solid var(--border-h);
-      border-radius: var(--radius);
-      padding: 3.5rem;
-      margin-bottom: 3rem;
       position: relative;
+      background: radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.08), transparent 40%),
+                  radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
+      padding: 4rem 3rem;
+      border-radius: 32px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 4rem;
       overflow: hidden;
     }
 
     .hero::before {
-      content: '🏆';
-      font-size: 12rem;
+      content: '';
       position: absolute;
-      right: -2rem;
-      top: -2rem;
-      opacity: .06;
-      line-height: 1;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(9, 13, 22, 0.9));
+      z-index: 1;
     }
 
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: .5rem;
-      background: rgba(0,208,132,.1);
-      border: 1px solid rgba(0,208,132,.2);
-      color: var(--primary);
-      padding: .35rem 1rem;
-      border-radius: 100px;
-      font-size: .7rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: .1em;
-      margin-bottom: 1.25rem;
+    .hero-content {
+      position: relative;
+      z-index: 2;
     }
 
-    .hero h1 {
-      font-size: 2.8rem;
-      font-weight: 900;
-      line-height: 1.1;
-      letter-spacing: -1px;
-      margin-bottom: .75rem;
-    }
-
-    .hero h1 span { color: var(--primary); }
-
-    .hero p {
-      color: var(--text2);
-      max-width: 520px;
-      font-size: 1rem;
-      line-height: 1.7;
-    }
-
-    .hero-stats {
-      display: flex;
-      gap: 2rem;
-      margin-top: 2rem;
-    }
-
-    .hero-stat { text-align: center; }
-    .hero-stat .num { font-size: 2rem; font-weight: 900; color: var(--primary); }
-    .hero-stat .lbl { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); }
-
-    /* ═══════════════════════════════════════
-       SECTIONS
-    ═══════════════════════════════════════ */
-    .section { margin-bottom: 4rem; scroll-margin-top: 2rem; }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 2rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .section-icon {
-      width: 48px; height: 48px;
-      border-radius: 1rem;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem;
-      flex-shrink: 0;
-    }
-
-    .section-header h2 {
-      font-size: 1.6rem;
-      font-weight: 900;
-      letter-spacing: -.5px;
-    }
-
-    .section-header p {
-      color: var(--text2);
-      font-size: .85rem;
-      margin-top: .2rem;
-    }
-
-    /* ═══════════════════════════════════════
-       STEP CARDS
-    ═══════════════════════════════════════ */
-    .steps { display: flex; flex-direction: column; gap: 1rem; }
-
-    .step {
-      display: flex;
-      gap: 1.25rem;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-s);
-      padding: 1.5rem;
-      transition: all .2s;
-    }
-
-    .step:hover { border-color: var(--border-h); background: rgba(0,208,132,.03); }
-
-    .step-num {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: rgba(0,208,132,.1);
-      border: 1px solid rgba(0,208,132,.2);
-      color: var(--primary);
-      font-weight: 900;
-      font-size: .85rem;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      margin-top: .15rem;
-    }
-
-    .step-content h3 {
-      font-size: 1rem;
-      font-weight: 800;
-      margin-bottom: .35rem;
-    }
-
-    .step-content p {
-      font-size: .875rem;
-      color: var(--text2);
-      line-height: 1.65;
-    }
-
-    .step-content code {
-      background: rgba(255,255,255,.07);
-      border: 1px solid var(--border);
-      border-radius: .4rem;
-      padding: .15rem .5rem;
-      font-family: 'Courier New', monospace;
-      font-size: .8rem;
-      color: var(--primary-l);
-    }
-
-    /* ═══════════════════════════════════════
-       FEATURE GRID
-    ═══════════════════════════════════════ */
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1rem;
-    }
-
-    .feature-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-s);
-      padding: 1.5rem;
-      transition: all .2s;
-    }
-
-    .feature-card:hover { border-color: var(--border-h); }
-
-    .feature-card .fc-icon {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      display: block;
-    }
-
-    .feature-card h3 {
-      font-size: .95rem;
-      font-weight: 800;
-      margin-bottom: .5rem;
-    }
-
-    .feature-card p {
-      font-size: .82rem;
-      color: var(--text2);
-      line-height: 1.6;
-    }
-
-    /* ═══════════════════════════════════════
-       CALLOUTS
-    ═══════════════════════════════════════ */
-    .callout {
-      display: flex;
-      gap: 1rem;
-      border-radius: var(--radius-s);
-      padding: 1.25rem 1.5rem;
-      margin: 1.25rem 0;
-      font-size: .875rem;
-      line-height: 1.65;
-    }
-
-    .callout .callout-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .05rem; }
-
-    .callout-info    { background: rgba(124,106,245,.08); border: 1px solid rgba(124,106,245,.2); color: #c4befc; }
-    .callout-tip     { background: rgba(0,208,132,.07);   border: 1px solid rgba(0,208,132,.2);   color: #7effd6; }
-    .callout-warning { background: rgba(245,200,66,.07);  border: 1px solid rgba(245,200,66,.2);  color: #fadf82; }
-    .callout-danger  { background: rgba(245,66,66,.07);   border: 1px solid rgba(245,66,66,.2);   color: #fca5a5; }
-
-    /* ═══════════════════════════════════════
-       CARD COLOR VARIANTS
-    ═══════════════════════════════════════ */
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: .35rem;
-      padding: .25rem .75rem;
-      border-radius: 100px;
-      font-size: .72rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    .badge-green  { background: rgba(0,208,132,.1);  border: 1px solid rgba(0,208,132,.25);  color: var(--primary); }
-    .badge-yellow { background: rgba(245,200,66,.1); border: 1px solid rgba(245,200,66,.25); color: var(--yellow); }
-    .badge-red    { background: rgba(245,66,66,.1);  border: 1px solid rgba(245,66,66,.25);  color: var(--red); }
-    .badge-purple { background: rgba(124,106,245,.1);border: 1px solid rgba(124,106,245,.25);color: var(--accent); }
-    .badge-orange { background: rgba(245,150,66,.1); border: 1px solid rgba(245,150,66,.25); color: var(--orange); }
-
-    /* ═══════════════════════════════════════
-       TABLE
-    ═══════════════════════════════════════ */
-    .info-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .875rem;
-      margin: 1rem 0;
-    }
-
-    .info-table thead th {
-      background: rgba(0,208,132,.06);
+      gap: 0.5rem;
+      background-color: var(--primary-glow);
       color: var(--primary);
-      font-weight: 800;
-      font-size: .72rem;
+      padding: 0.4rem 1rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: .08em;
-      padding: .8rem 1rem;
-      text-align: left;
-      border-bottom: 1px solid rgba(0,208,132,.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      margin-bottom: 1.5rem;
     }
 
-    .info-table tbody td {
-      padding: .85rem 1rem;
-      border-bottom: 1px solid var(--border);
-      color: var(--text2);
-      vertical-align: top;
+    .hero-title {
+      font-size: 3rem;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .info-table tbody tr:hover td { background: rgba(255,255,255,.02); }
-    .info-table tbody td:first-child { font-weight: 700; color: var(--text); }
-
-    /* ═══════════════════════════════════════
-       FLOW DIAGRAM
-    ═══════════════════════════════════════ */
-    .flow {
-      display: flex;
-      align-items: center;
-      gap: .75rem;
-      flex-wrap: wrap;
-      padding: 1.5rem;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-s);
-      margin: 1rem 0;
-    }
-
-    .flow-node {
-      background: rgba(0,208,132,.08);
-      border: 1px solid rgba(0,208,132,.2);
-      color: var(--primary);
-      padding: .6rem 1.25rem;
-      border-radius: 100px;
-      font-size: .8rem;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-
-    .flow-arrow { color: var(--text3); font-size: 1.2rem; font-weight: 300; }
-
-    /* ═══════════════════════════════════════
-       ACCORDION (FAQ)
-    ═══════════════════════════════════════ */
-    .accordion { border-radius: var(--radius-s); overflow: hidden; border: 1px solid var(--border); }
-
-    .accordion details {
-      border-bottom: 1px solid var(--border);
-    }
-
-    .accordion details:last-child { border-bottom: none; }
-
-    .accordion summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 1.1rem 1.5rem;
-      font-weight: 700;
-      font-size: .9rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      transition: background .2s;
-    }
-
-    .accordion summary:hover { background: rgba(255,255,255,.03); }
-    .accordion summary::after { content: '+'; color: var(--primary); font-size: 1.3rem; font-weight: 300; flex-shrink: 0; }
-    .accordion details[open] summary::after { content: '−'; }
-
-    .accordion .details-body {
-      padding: 0 1.5rem 1.25rem;
-      font-size: .875rem;
-      color: var(--text2);
-      line-height: 1.7;
-    }
-
-    /* ═══════════════════════════════════════
-       KEYBOARD SHORTCUT STYLE
-    ═══════════════════════════════════════ */
-    kbd {
-      background: rgba(255,255,255,.07);
-      border: 1px solid var(--border);
-      border-bottom: 3px solid var(--border);
-      border-radius: .35rem;
-      padding: .15rem .5rem;
-      font-family: 'Outfit', sans-serif;
-      font-size: .78rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    /* ═══════════════════════════════════════
-       ROLE PILLS
-    ═══════════════════════════════════════ */
-    .role-pills { display: flex; gap: .5rem; flex-wrap: wrap; margin: .5rem 0; }
-
-    /* ═══════════════════════════════════════
-       MOBILE HAMBURGER
-    ═══════════════════════════════════════ */
-    .hamburger {
-      display: none;
-      position: fixed;
-      top: 1rem; left: 1rem;
-      z-index: 200;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: .75rem;
-      padding: .5rem .75rem;
-      cursor: pointer;
-      font-size: 1.2rem;
-    }
-
-    @media (max-width: 900px) {
-      .hamburger { display: flex; }
-      .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; padding: 5rem 1.25rem 2rem; }
-      .hero h1 { font-size: 1.8rem; }
-      .hero-stats { gap: 1rem; }
-    }
-
-    /* ═══════════════════════════════════════
-       SMOOTH SCROLL HIGHLIGHT
-    ═══════════════════════════════════════ */
-    :target .section-header { animation: pulse .8s ease; }
-
-    @keyframes pulse {
-      0%   { opacity: .3; }
-      50%  { opacity: 1; }
-      100% { opacity: 1; }
-    }
-
-    /* ═══════════════════════════════════════
-       FOOTER
-    ═══════════════════════════════════════ */
-    .footer {
-      margin-top: 4rem;
-      padding-top: 2rem;
-      border-top: 1px solid var(--border);
-      text-align: center;
-      color: var(--text3);
-      font-size: .8rem;
-    }
-
-    .footer span { color: var(--primary); }
-
-    /* Quick Back-to-top */
-    .back-top {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      width: 44px; height: 44px;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text2);
-      text-decoration: none;
+    .hero-subtitle {
       font-size: 1.1rem;
-      transition: all .2s;
-      z-index: 50;
+      color: var(--text-muted);
+      max-width: 600px;
     }
-    .back-top:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Sections */
+    .section {
+      margin-bottom: 5rem;
+      scroll-margin-top: 3rem;
+    }
+
+    .section-title {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: white;
+      border-left: 4px solid var(--primary);
+      padding-left: 1rem;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+      font-size: 1.05rem;
+    }
+
+    /* Cards Grid */
+    .grid {
+      display: grid;
+      grid-template-cols: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-premium);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(to bottom, var(--primary), transparent);
+      opacity: 0.5;
+    }
+
+    .card-icon {
+      background-color: rgba(255, 255, 255, 0.03);
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: white;
+    }
+
+    .card-text {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
+    }
+
+    /* List items styles */
+    .list-premium {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .list-premium li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .list-premium li i {
+      color: var(--primary);
+      margin-top: 0.2rem;
+      flex-shrink: 0;
+    }
+
+    /* Alert Boxes */
+    .alert-box {
+      background-color: rgba(59, 130, 246, 0.05);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      border-radius: 20px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+    }
+
+    .alert-box.warning {
+      background-color: rgba(239, 68, 68, 0.03);
+      border-color: rgba(239, 68, 68, 0.15);
+    }
+
+    .alert-icon {
+      color: var(--secondary);
+      flex-shrink: 0;
+    }
+
+    .alert-box.warning .alert-icon {
+      color: var(--accent-red);
+    }
+
+    .alert-content h4 {
+      color: white;
+      margin-bottom: 0.4rem;
+    }
+
+    .alert-content p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Highlight badge style inside docs */
+    .hl-badge {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      padding: 0.1rem 0.5rem;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.9em;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Step flow layout */
+    .step-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      position: relative;
+      margin-left: 1rem;
+      padding-left: 2rem;
+      border-left: 2px dashed var(--border-color);
+    }
+
+    .step-node {
+      position: relative;
+    }
+
+    .step-node::before {
+      content: '';
+      position: absolute;
+      left: calc(-2rem - 6px);
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+    }
+
+    .step-number {
+      font-size: 0.8rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+    }
+
+    .step-title {
+      font-size: 1.15rem;
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .sidebar {
+        display: none;
+      }
+      .main-content {
+        margin-left: 0;
+        padding: 2rem;
+      }
+    }
   </style>
 </head>
 <body>
 
-<!-- HAMBURGER -->
-<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menú">☰</button>
-
-<!-- SIDEBAR -->
-<nav class="sidebar" id="sidebar">
-  <div class="sidebar-logo">
-    <div class="brand">🏟️ Mi Cancha</div>
-    <div class="subtitle">Manual de Usuario · Torneos</div>
-  </div>
-
-  <div class="sidebar-nav">
-    <div class="nav-section-label">Inicio</div>
-    <a href="#inicio"    class="nav-item active"><span class="icon">🏠</span> Introducción</a>
-    <a href="#flujo"     class="nav-item"><span class="icon">🔄</span> Flujo General</a>
-
-    <div class="nav-section-label" style="margin-top:.75rem">Módulos</div>
-    <a href="#torneos"   class="nav-item"><span class="icon">🏆</span> Crear Torneo</a>
-    <a href="#equipos"   class="nav-item"><span class="icon">🛡️</span> Equipos</a>
-    <a href="#jugadores" class="nav-item"><span class="icon">👤</span> Jugadores / Plantel</a>
-    <a href="#fixture"   class="nav-item"><span class="icon">📅</span> Fixture</a>
-    <a href="#acta"      class="nav-item"><span class="icon">⚔️</span> Acta en Vivo</a>
-    <a href="#posiciones"class="nav-item"><span class="icon">📊</span> Posiciones</a>
-    <a href="#goleadores"class="nav-item"><span class="icon">⭐</span> Goleadores</a>
-    <a href="#sanciones" class="nav-item"><span class="icon">🟥</span> Sanciones</a>
-    <a href="#wo"        class="nav-item"><span class="icon">🚫</span> W.O. / Forfeit</a>
-    <a href="#pagos"     class="nav-item"><span class="icon">💳</span> Pagos</a>
-
-    <div class="nav-section-label" style="margin-top:.75rem">Referencia</div>
-    <a href="#estados"   class="nav-item"><span class="icon">📌</span> Estados del sistema</a>
-    <a href="#tarjetas"  class="nav-item"><span class="icon">🎴</span> Sistema de tarjetas</a>
-    <a href="#faq"       class="nav-item"><span class="icon">❓</span> Preguntas frecuentes</a>
-  </div>
-</nav>
-
-<!-- MAIN CONTENT -->
-<main class="main">
-
-  <!-- HERO -->
-  <section id="inicio" class="section">
-    <div class="hero">
-      <div class="hero-badge">📖 Versión 2.0 · Mayo 2026</div>
-      <h1>Manual de Usuario<br /><span>Gestión de Torneos</span></h1>
-      <p>Guía completa para administrar torneos deportivos en Mi Cancha. Cubrimos desde la creación del torneo hasta la carga de resultados en vivo, goleadores y disciplina.</p>
-      <div class="hero-stats">
-        <div class="hero-stat"><div class="num">6</div><div class="lbl">Tabs del panel</div></div>
-        <div class="hero-stat"><div class="num">30+</div><div class="lbl">Funciones</div></div>
-        <div class="hero-stat"><div class="num">100%</div><div class="lbl">Automático</div></div>
-      </div>
-    </div>
-
-    <div class="callout callout-info">
-      <span class="callout-icon">ℹ️</span>
-      <div>Este manual cubre el módulo de Torneos disponible en el <strong>Panel de Administración</strong> de Mi Cancha (acceso en <code>http://localhost:3001</code>). Para funcionar correctamente, el servidor backend debe estar activo en el puerto <code>8002</code>.</div>
-    </div>
-  </section>
-
-  <!-- FLUJO GENERAL -->
-  <section id="flujo" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(124,106,245,.1)">🔄</div>
-      <div>
-        <h2>Flujo General del Torneo</h2>
-        <p>El recorrido completo desde la creación hasta el cierre oficial.</p>
-      </div>
-    </div>
-
-    <div class="flow">
-      <div class="flow-node">1. Crear Torneo</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node">2. Inscribir Equipos</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node">3. Cargar Plantel</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node">4. Generar Fixture</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node">5. Cargar Resultados</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node">6. Cierre y Stats</div>
-    </div>
-
-    <div class="feature-grid" style="margin-top:1.5rem">
-      <div class="feature-card">
-        <span class="fc-icon">🏆</span>
-        <h3>Configuración flexible</h3>
-        <p>Definí deporte, formato (liga, eliminatoria, mixta), puntuación (V/E/D), costo de inscripción y máximo de equipos.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">⚡</span>
-        <h3>Fixture automático</h3>
-        <p>El sistema genera todos los partidos con el <strong>Algoritmo de Berger</strong> (round-robin balanceado) con un solo clic.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">📋</span>
-        <h3>Acta digital</h3>
-        <p>Registrá goles y tarjetas en tiempo real. El marcador y la tabla de posiciones se actualizan instantáneamente.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">🛡️</span>
-        <h3>Disciplina automática</h3>
-        <p>El sistema calcula suspensiones automáticamente: 3 amarillas = 1 fecha, roja directa = 2 fechas.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- TORNEOS -->
-  <section id="torneos" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(0,208,132,.1)">🏆</div>
-      <div>
-        <h2>Crear un Torneo</h2>
-        <p>Configurá los parámetros base del torneo antes de abrir las inscripciones.</p>
-      </div>
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Acceder al panel de Torneos</h3>
-          <p>Ingresá al panel de administración y buscá la sección <strong>"Gestión de Torneos"</strong> en el menú lateral de tu complejo. Hacé clic en el botón verde <kbd>+ Crear Torneo</kbd>.</p>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <i data-lucide="trophy"></i>
         </div>
+        <span class="brand-title">Mi Cancha</span>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Completar el formulario</h3>
-          <p>Completá los campos del modal:</p>
-          <table class="info-table" style="margin-top:.75rem">
-            <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
-            <tbody>
-              <tr><td>Nombre</td><td>Nombre oficial del torneo</td><td>Torneo Apertura 2026</td></tr>
-              <tr><td>Descripción</td><td>Bases, premios, horarios (opcional)</td><td>Todos los sábados a las 18 hs</td></tr>
-              <tr><td>Deporte</td><td>Tipo de deporte</td><td>Fútbol 5 / Pádel / Vóley</td></tr>
-              <tr><td>Formato</td><td>Modalidad competitiva</td><td>Liga / Eliminatoria / Mixta</td></tr>
-              <tr><td>Fecha de inicio</td><td>Primer partido del torneo</td><td>2026-06-07</td></tr>
-              <tr><td>Máx. equipos</td><td>Cupo máximo de inscripciones</td><td>16</td></tr>
-              <tr><td>Costo inscripción</td><td>Monto en Gs. (0 = gratuito)</td><td>150.000</td></tr>
-              <tr><td>Puntuación V/E/D</td><td>Puntos por victoria, empate, derrota</td><td>3 / 1 / 0</td></tr>
-            </tbody>
-          </table>
+      <ul class="nav-menu">
+        <li class="nav-item active"><a href="#introduccion"><i data-lucide="compass"></i> Introducción</a></li>
+        <li class="nav-item"><a href="#creacion"><i data-lucide="plus-circle"></i> Configuración Inicial</a></li>
+        <li class="nav-item"><a href="#plantillas"><i data-lucide="users"></i> Equipos y Planteles</a></li>
+        <li class="nav-item"><a href="#facial"><i data-lucide="scan-face"></i> Reconocimiento Facial</a></li>
+        <li class="nav-item"><a href="#formatos"><i data-lucide="calendar"></i> Formatos de Fixture</a></li>
+        <li class="nav-item"><a href="#actas"><i data-lucide="swords"></i> Actas y Estadísticas</a></li>
+        <li class="nav-item"><a href="#pagos"><i data-lucide="credit-card"></i> Pagos y Finanzas</a></li>
+        <li class="nav-item"><a href="#reglas"><i data-lucide="shield-alert"></i> Reglas y Disciplina</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Hero Header -->
+      <section id="introduccion" class="hero">
+        <div class="hero-content">
+          <div class="badge">
+            <i data-lucide="sparkles"></i> Módulo de Gestión de Torneos V2
+          </div>
+          <h1 class="hero-title">Manual de Usuario de Torneos</h1>
+          <p class="hero-subtitle">Descubre cómo configurar, administrar y sincronizar el ecosistema de campeonatos deportivos en la plataforma premium de Mi Cancha.</p>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Confirmar creación</h3>
-          <p>Hacé clic en <kbd>Crear y Publicar</kbd>. El torneo aparecerá en el listado con estado <span class="badge badge-green">abierto</span> y quedará disponible para inscripciones inmediatamente.</p>
-        </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="callout callout-tip">
-      <span class="callout-icon">💡</span>
-      <div><strong>Formatos disponibles:</strong><br/>
-        <strong>Liga</strong> → todos contra todos (más justo, más partidos)<br/>
-        <strong>Eliminatoria</strong> → bracket directo (rápido, dramático)<br/>
-        <strong>Mixta</strong> → fase de grupos + playoffs eliminatorios (recomendado para 8+ equipos)
-      </div>
-    </div>
-  </section>
-
-  <!-- EQUIPOS -->
-  <section id="equipos" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(124,106,245,.1)">🛡️</div>
-      <div>
-        <h2>Gestión de Equipos</h2>
-        <p>Inscribí y administrá los equipos participantes del torneo.</p>
-      </div>
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Entrar al panel del torneo</h3>
-          <p>Desde el listado de torneos, hacé clic en <kbd>Administrar Panel</kbd> sobre el torneo deseado. Se abre el detalle con las pestañas (tabs).</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Tab "Equipos"</h3>
-          <p>La primera pestaña muestra todos los equipos inscritos con su estado. Hacé clic en <kbd>+ Agregar Equipo</kbd> para abrir el formulario de inscripción.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Datos requeridos del equipo</h3>
-          <p>Completá:</p>
-          <ul style="margin-top:.5rem; padding-left:1.5rem; color:var(--text2); font-size:.875rem; line-height:2">
-            <li><strong>Nombre del equipo</strong> (obligatorio)</li>
-            <li><strong>Nombre del capitán/delegado</strong></li>
-            <li><strong>Teléfono de contacto</strong></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="callout callout-warning">
-      <span class="callout-icon">⚠️</span>
-      <div>Si el torneo tiene <strong>costo de inscripción mayor a 0</strong>, el equipo quedará con estado <span class="badge badge-yellow">pendiente</span> hasta que se registre el pago. Si es gratuito, queda <span class="badge badge-green">confirmado</span> automáticamente.</div>
-    </div>
-
-    <h3 style="margin-top:2rem; margin-bottom:1rem; font-size:1rem; font-weight:800">Estados de inscripción</h3>
-    <table class="info-table">
-      <thead><tr><th>Estado</th><th>Significado</th><th>¿Puede jugar?</th></tr></thead>
-      <tbody>
-        <tr><td><span class="badge badge-yellow">pendiente</span></td><td>Inscripto pero pago no registrado</td><td>No</td></tr>
-        <tr><td><span class="badge badge-green">confirmado</span></td><td>Inscripción y pago validados</td><td>Sí</td></tr>
-        <tr><td><span class="badge badge-red">eliminado</span></td><td>Descalificado por el organizador</td><td>No</td></tr>
-        <tr><td><span class="badge badge-orange">retirado</span></td><td>El equipo se dio de baja</td><td>No</td></tr>
-      </tbody>
-    </table>
-
-    <div class="callout callout-info">
-      <span class="callout-icon">ℹ️</span>
-      <div>El fixture solo incluye equipos con estado <span class="badge badge-green">confirmado</span>. Verificá los pagos antes de generar el fixture.</div>
-    </div>
-  </section>
-
-  <!-- JUGADORES -->
-  <section id="jugadores" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(245,200,66,.1)">👤</div>
-      <div>
-        <h2>Jugadores y Plantel</h2>
-        <p>Registrá los jugadores de cada equipo para habilitar el Acta Digital.</p>
-      </div>
-    </div>
-
-    <div class="callout callout-info">
-      <span class="callout-icon">ℹ️</span>
-      <div>Los jugadores están asociados a un equipo <strong>dentro del torneo</strong>. Un mismo jugador (por DNI) no puede estar en dos equipos del mismo torneo — el sistema lo bloqueará automáticamente.</div>
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Ir a la pestaña "Jugadores"</h3>
-          <p>Desde el panel del torneo, hacé clic en la tab <kbd>👤 Jugadores</kbd>. Verás un panel por cada equipo inscripto.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Agregar jugador a un equipo</h3>
-          <p>En el encabezado del equipo, presioná <kbd>+ Agregar</kbd>. Aparece el formulario inline:</p>
-          <table class="info-table" style="margin-top:.75rem">
-            <thead><tr><th>Campo</th><th>Requerido</th><th>Notas</th></tr></thead>
-            <tbody>
-              <tr><td>Nombre completo</td><td>✅ Sí</td><td>Nombre y apellido del jugador</td></tr>
-              <tr><td>DNI / Cédula</td><td>✅ Sí</td><td>Debe ser único en el torneo</td></tr>
-              <tr><td>N° Camiseta</td><td>No</td><td>Debe ser único dentro del equipo</td></tr>
-              <tr><td>Posición</td><td>No</td><td>arquero / defensor / mediocampista / delantero</td></tr>
-              <tr><td>Fecha de nacimiento</td><td>No</td><td>Útil para control de categorías</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Confirmar el alta</h3>
-          <p>Hacé clic en <kbd>✓ Agregar</kbd>. El jugador aparece en la lista con sus tarjetas acumuladas (si las hay) y su estado <span class="badge badge-green">habilitado</span>.</p>
-        </div>
-      </div>
-    </div>
-
-    <h3 style="margin-top:2rem; margin-bottom:1rem; font-size:1rem; font-weight:800">Indicadores del jugador</h3>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <span class="fc-icon" style="font-size:1.5rem">🟡</span>
-        <h3>Tarjeta Amarilla</h3>
-        <p>Se muestra el contador de amarillas acumuladas en el torneo. Al llegar a 3, genera suspensión automática.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon" style="font-size:1.5rem">🔴</span>
-        <h3>Tarjeta Roja</h3>
-        <p>Contador de rojas. Roja directa = 2 fechas suspendido. Segunda amarilla/roja = 1 fecha.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">🚫</span>
-        <h3>Estado suspendido</h3>
-        <p>El badge cambia a <span class="badge badge-red">suspendido</span> cuando el jugador no puede participar en el próximo partido.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- FIXTURE -->
-  <section id="fixture" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(0,208,132,.1)">📅</div>
-      <div>
-        <h2>Fixture de Partidos</h2>
-        <p>Generá y administrá el calendario de partidos del torneo.</p>
-      </div>
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Ir a la pestaña "Fixture"</h3>
-          <p>Hacé clic en el tab <kbd>📅 Fixture</kbd> dentro del panel del torneo.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Generar fixture automático</h3>
-          <p>Presioná el botón <kbd>⚽ Generar Fixture Auto</kbd>. El sistema usará el <strong>Algoritmo de Berger</strong> para crear todos los partidos entre los equipos <span class="badge badge-green">confirmados</span>.</p>
-          <div class="callout callout-warning" style="margin-top:.75rem">
-            <span class="callout-icon">⚠️</span>
-            <div>Si ya existían partidos, <strong>serán eliminados y reemplazados</strong>. No generés el fixture dos veces si ya tenés resultados cargados.</div>
+      <!-- Section: Introduccion -->
+      <section class="section">
+        <h2 class="section-title">Introducción al Ecosistema</h2>
+        <p class="section-desc">El Módulo de Torneos ofrece una administración integral y automatizada para campeonatos amateur y profesionales de fútbol, básquetbol, tenis y más. Desde el registro financiero hasta la validación de identidad biométrica en el campo de juego.</p>
+        
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="zap"></i></div>
+            <h3 class="card-title">Automatización Extrema</h3>
+            <p class="card-text">Lógica de fixture autogenerada, cálculo instantáneo de tablas de posiciones, y descalificaciones por amonestaciones acumuladas.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="credit-card"></i></div>
+            <h3 class="card-title">Pagos E2E Integrados</h3>
+            <p class="card-text">Permite transacciones y abonos de inscripciones mediante MercadoPago, Stripe o controles manuales de caja.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="fingerprint"></i></div>
+            <h3 class="card-title">Seguridad Biométrica</h3>
+            <p class="card-text">Valida el DNI y la identidad de los jugadores en planilla antes de cada cotejo utilizando la cámara del dispositivo móvil.</p>
           </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Ver y editar resultados</h3>
-          <p>Cada partido muestra dos campos numéricos editables. Podés ingresar el resultado final directamente. Al salir del campo (<kbd>Tab</kbd> o clic afuera), el resultado se guarda automáticamente y la tabla de posiciones se recalcula.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-content">
-          <h3>Abrir acta detallada</h3>
-          <p>En cada partido hay un ícono <kbd>⚔️</kbd> para abrir el <strong>Acta en Vivo</strong>, donde podés cargar goles y tarjetas individuales por jugador.</p>
-        </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="callout callout-tip">
-      <span class="callout-icon">💡</span>
-      <div><strong>¿Cómo funciona el Algoritmo de Berger?</strong><br/>
-      Distribuye los partidos en <em>jornadas</em> garantizando que todos los equipos jueguen la misma cantidad de veces. Los partidos impares se resuelven con un <strong>bye</strong> (descanso rotativo). La localía alterna cada jornada.</div>
-    </div>
-  </section>
+      <!-- Section: Configuración Inicial -->
+      <section id="creacion" class="section">
+        <h2 class="section-title">1. Configuración de un Nuevo Torneo</h2>
+        <p class="section-desc">Crea y parametriza la estructura base del campeonato desde la consola de administración de forma multitenant.</p>
 
-  <!-- ACTA EN VIVO -->
-  <section id="acta" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(245,66,66,.1)">⚔️</div>
-      <div>
-        <h2>Acta en Vivo</h2>
-        <p>Registrá goles y tarjetas de cada partido en tiempo real.</p>
-      </div>
-    </div>
-
-    <div class="callout callout-info">
-      <span class="callout-icon">ℹ️</span>
-      <div>Para usar el Acta, los equipos deben tener <strong>jugadores cargados en el plantel</strong>. Sin jugadores, solo podrás actualizar el marcador global desde el Fixture.</div>
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Ir a la pestaña "Acta en Vivo"</h3>
-          <p>Hacé clic en <kbd>⚔️ Acta en Vivo</kbd>. Verás el listado de todos los partidos. Seleccioná el que querés abrir. También podés llegar desde el Fixture con el ícono <kbd>⚔️</kbd>.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Marcador en tiempo real</h3>
-          <p>En la parte superior del acta verás el <strong>marcador en tiempo real</strong> que se actualiza automáticamente al registrar goles o anularlos.</p>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Registrar un gol</h3>
-          <p>En el panel izquierdo "Registrar Gol":</p>
-          <ul style="margin-top:.5rem; padding-left:1.5rem; color:var(--text2); font-size:.875rem; line-height:2">
-            <li>Seleccioná el <strong>equipo</strong> que marcó</li>
-            <li>Elegí el <strong>tipo</strong>: Gol Normal / Penal / Autogol</li>
-            <li>Elegí el <strong>jugador</strong> (opcional si no hay plantel cargado)</li>
-            <li>Ingresá el <strong>minuto</strong> (opcional)</li>
-            <li>Presioná <kbd>✓ Confirmar Gol</kbd></li>
-          </ul>
-          <div class="callout callout-tip" style="margin-top:.75rem">
-            <span class="callout-icon">💡</span>
-            <div>Los <strong>autogoles</strong> se asignan al equipo que los convirtió (en contra), pero el gol suma para el rival en el marcador.</div>
+        <div class="step-flow">
+          <div class="step-node">
+            <div class="step-number">Paso 01</div>
+            <h4 class="step-title">Parámetros del Torneo</h4>
+            <p class="card-text">Define el nombre del torneo, la categoría (Primera, Senior, Exalumnos), el costo de inscripción por equipo, y la fecha de inicio programada.</p>
+          </div>
+          <div class="step-node">
+            <div class="step-number">Paso 02</div>
+            <h4 class="step-title">Reglas de Puntuación</h4>
+            <p class="card-text">Establece la puntuación personalizada de la tabla: Puntos por Victoria (estándar: <span class="hl-badge">3</span>), Empate (<span class="hl-badge">1</span>) y Derrota (<span class="hl-badge">0</span>).</p>
+          </div>
+          <div class="step-node">
+            <div class="step-number">Paso 03</div>
+            <h4 class="step-title">Configuración Multitenant (Reglas de Plantel)</h4>
+            <p class="card-text">Personaliza los parámetros específicos del complejo deportivo, incluyendo el límite de refuerzos exógenos, años de antigüedad máxima, multas acumuladas de W.O. y rangos de edades ejecutivas.</p>
           </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-content">
-          <h3>Registrar una tarjeta</h3>
-          <p>En el panel derecho "Registrar Tarjeta":</p>
-          <ul style="margin-top:.5rem; padding-left:1.5rem; color:var(--text2); font-size:.875rem; line-height:2">
-            <li>Seleccioná el <strong>equipo</strong></li>
-            <li>Elegí el <strong>tipo</strong>: 🟡 Amarilla / 🟠 Roja 2ª Amarilla / 🔴 Roja Directa</li>
-            <li>Seleccioná el <strong>jugador</strong> (obligatorio)</li>
-            <li>Ingresá el <strong>minuto</strong> (opcional)</li>
-            <li>Presioná <kbd>⚠ Aplicar Tarjeta</kbd></li>
-          </ul>
-          <p style="margin-top:.75rem; color:var(--text2); font-size:.875rem">Si la tarjeta <strong>genera suspensión</strong>, aparecerá un badge rojo <span class="badge badge-red">+1 Susp.</span> junto a la tarjeta, y el estado del jugador cambiará a <span class="badge badge-red">suspendido</span>.</p>
+      </section>
+
+      <!-- Section: Equipos y Planteles -->
+      <section id="plantillas" class="section">
+        <h2 class="section-title">2. Gestión de Equipos y Lista de Buena Fe</h2>
+        <p class="section-desc">Los delegados inscriben a sus equipos y cargan a sus jugadores respetando los límites reglamentarios.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="shield-check"></i></div>
+            <h3 class="card-title">Inscripciones y Delegados</h3>
+            <p class="card-text">Cada equipo cuenta con un delegado responsable de cargar la información de contacto, pagar el arancel y enviar la lista de jugadores.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="check-square"></i></div>
+            <h3 class="card-title">Reglas de Control de Buena Fe</h3>
+            <p class="card-text">El motor de validación del backend verifica en tiempo real:</p>
+            <ul class="list-premium">
+              <li><i data-lucide="check-circle-2"></i> Camiseta única por jugador del mismo equipo.</li>
+              <li><i data-lucide="check-circle-2"></i> DNI único (ningún jugador puede jugar en dos equipos a la vez).</li>
+              <li><i data-lucide="check-circle-2"></i> Cupo límite de refuerzos externos a la promoción.</li>
+              <li><i data-lucide="check-circle-2"></i> Rango etario mínimo de la categoría (ej. mayor de 28 años para ejecutivos).</li>
+            </ul>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">5</div>
-        <div class="step-content">
-          <h3>Anular un gol</h3>
-          <p>En la línea de eventos de goles, cada gol tiene un ícono <kbd>−</kbd> para anularlo. Al anularlo, el marcador se descuenta automáticamente. El gol anulado queda en la lista tachado para auditoría.</p>
+      </section>
+
+      <!-- Section: Reconocimiento Facial -->
+      <section id="facial" class="section">
+        <h2 class="section-title">3. Reconocimiento Facial e Identificación Biométrica</h2>
+        <p class="section-desc">Garantiza la transparencia en la cancha. Evita la suplantación de identidad o la participación de jugadores inhabilitados.</p>
+
+        <div class="card" style="margin-bottom: 2rem;">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card-icon" style="margin-bottom: 0;"><i data-lucide="scan-face" style="width: 24px; height: 24px;"></i></div>
+            <h3 class="card-title" style="margin-bottom: 0;">¿Cómo funciona el Reconocimiento Facial en Mi Cancha?</h3>
+          </div>
+          <p class="card-text">Antes de iniciar un partido, el veedor de la mesa de control solicita el documento del jugador y utiliza la cámara del dispositivo móvil integrada en el sistema administrativo.</p>
+          
+          <div class="step-flow" style="margin-top: 2rem;">
+            <div class="step-node">
+              <div class="step-number">Etapa A</div>
+              <h4 class="step-title">Captura Facial del Jugador</h4>
+              <p class="card-text">El sistema enciende la webcam integrada y detecta las características geométricas faciales del jugador en tiempo real en la pantalla de control.</p>
+            </div>
+            <div class="step-node">
+              <div class="step-number">Etapa B</div>
+              <h4 class="step-title">Match de Rostro y Base de Datos</h4>
+              <p class="card-text">La inteligencia artificial compara los vectores del rostro capturado contra la foto de perfil del jugador previamente registrada en su Lista de Buena Fe.</p>
+            </div>
+            <div class="step-node">
+              <div class="step-number">Etapa C</div>
+              <h4 class="step-title">Diagnóstico de Habilitación</h4>
+              <p class="card-text">Si el porcentaje de similitud es superior al umbral (<span class="hl-badge">&gt; 85%</span>), y el jugador no cuenta con sanciones de tarjetas acumuladas, el sistema enciende el indicador verde habilitando su firma digital en la planilla del partido.</p>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- POSICIONES -->
-  <section id="posiciones" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(0,208,132,.1)">📊</div>
-      <div>
-        <h2>Tabla de Posiciones</h2>
-        <p>Rankings calculados automáticamente al cerrar cada partido.</p>
-      </div>
-    </div>
-
-    <p style="color:var(--text2); margin-bottom:1.5rem; font-size:.9rem; line-height:1.7">La tabla se actualiza automáticamente cada vez que se carga o modifica un resultado. Hacé clic en <kbd>🕐 Actualizar</kbd> para forzar la recarga.</p>
-
-    <h3 style="margin-bottom:1rem; font-size:1rem; font-weight:800">Columnas de la tabla</h3>
-    <table class="info-table">
-      <thead><tr><th>Col.</th><th>Nombre</th><th>Descripción</th></tr></thead>
-      <tbody>
-        <tr><td>Pos</td><td>Posición</td><td>Ranking actual. El 1° se marca en dorado 🥇</td></tr>
-        <tr><td>PJ</td><td>Partidos Jugados</td><td>Total de partidos con resultado</td></tr>
-        <tr><td>PG</td><td>Partidos Ganados</td><td>Victorias (mostrado en verde)</td></tr>
-        <tr><td>PE</td><td>Partidos Empatados</td><td>Empates</td></tr>
-        <tr><td>PP</td><td>Partidos Perdidos</td><td>Derrotas (mostrado en rojo)</td></tr>
-        <tr><td>GF</td><td>Goles a Favor</td><td>Suma de goles anotados</td></tr>
-        <tr><td>GC</td><td>Goles en Contra</td><td>Suma de goles recibidos</td></tr>
-        <tr><td>DG</td><td>Diferencia de Goles</td><td>GF − GC (puede ser negativo)</td></tr>
-        <tr><td>PTS</td><td>Puntos</td><td>Calculado según V/E/D configurados al crear el torneo</td></tr>
-        <tr><td>FP</td><td>Fair Play</td><td>Puntos negativos de disciplina (tarjetas)</td></tr>
-      </tbody>
-    </table>
-
-    <h3 style="margin-top:2rem; margin-bottom:1rem; font-size:1rem; font-weight:800">Criterios de desempate (en orden)</h3>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content"><h3>Puntos (PTS)</h3><p>Siempre el criterio principal.</p></div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content"><h3>Diferencia de Goles (DG)</h3><p>GF − GC. Mayor diferencia positiva gana.</p></div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content"><h3>Goles a Favor (GF)</h3><p>A igual diferencia, gana quien marcó más.</p></div>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-content"><h3>Fair Play (FP)</h3><p>Menor cantidad de puntos negativos por tarjetas.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- GOLEADORES -->
-  <section id="goleadores" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(245,200,66,.1)">⭐</div>
-      <div>
-        <h2>Tabla de Goleadores</h2>
-        <p>Ranking de los mejores anotadores del torneo.</p>
-      </div>
-    </div>
-
-    <p style="color:var(--text2); margin-bottom:1.5rem; font-size:.9rem; line-height:1.7">La tabla muestra automáticamente todos los jugadores con al menos un gol registrado (excluyendo autogoles del conteo personal). Para verla, hacé clic en la tab <kbd>⭐ Goleadores</kbd>.</p>
-
-    <div class="feature-grid">
-      <div class="feature-card">
-        <span class="fc-icon">🥇</span>
-        <h3>Top 3 con medallas</h3>
-        <p>El 1°, 2° y 3° puesto tienen indicadores visuales dorado, plata y bronce.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">⚽</span>
-        <h3>Goles + Penales</h3>
-        <p>Se muestra el total de goles y, por separado, cuántos fueron de penal.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">🏷️</span>
-        <h3>Número de camiseta</h3>
-        <p>Si el jugador tiene camiseta asignada, se muestra junto a su nombre.</p>
-      </div>
-    </div>
-
-    <div class="callout callout-tip">
-      <span class="callout-icon">💡</span>
-      <div>Los goles aparecen en la tabla solo cuando están cargados en el <strong>Acta en Vivo</strong> asociada al partido. Un resultado global (cargado en el Fixture) no desglosa goles por jugador.</div>
-    </div>
-  </section>
-
-  <!-- SANCIONES -->
-  <section id="sanciones" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(245,66,66,.1)">🟥</div>
-      <div>
-        <h2>Sanciones y Disciplina</h2>
-        <p>El sistema gestiona suspensiones automáticas basadas en tarjetas acumuladas.</p>
-      </div>
-    </div>
-
-    <div class="callout callout-danger">
-      <span class="callout-icon">🚫</span>
-      <div>Los jugadores con estado <span class="badge badge-red">suspendido</span> <strong>no deben ser incluidos en la planilla</strong> del partido. El sistema lleva el control automáticamente.</div>
-    </div>
-
-    <h3 style="margin:1.5rem 0 1rem; font-size:1rem; font-weight:800">Reglas de suspensión automática</h3>
-    <table class="info-table">
-      <thead><tr><th>Evento</th><th>Pts Fair Play</th><th>Suspensión generada</th></tr></thead>
-      <tbody>
-        <tr><td>🟡 Amarilla</td><td>1 punto</td><td>Ninguna (hasta acumular 3)</td></tr>
-        <tr><td>🟡🟡🟡 Tres amarillas</td><td>3 puntos</td><td>1 fecha de suspensión</td></tr>
-        <tr><td>🟠 Roja por 2ª amarilla</td><td>3 puntos</td><td>1 fecha de suspensión</td></tr>
-        <tr><td>🔴 Roja directa</td><td>4 puntos</td><td>2 fechas de suspensión</td></tr>
-      </tbody>
-    </table>
-
-    <div class="callout callout-info" style="margin-top:1.5rem">
-      <span class="callout-icon">ℹ️</span>
-      <div>El contador de amarillas se reinicia cada 3 acumuladas. Es decir: 1ª sanción = al llegar a 3, 2ª sanción = al llegar a 6, etc.</div>
-    </div>
-  </section>
-
-  <!-- W.O. -->
-  <section id="wo" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(245,66,66,.12)">🚫</div>
-      <div>
-        <h2>W.O. / Walkover / Forfeit</h2>
-        <p>Cuando un equipo no se presenta al partido o es descalificado.</p>
-      </div>
-    </div>
-
-    <p style="color:var(--text2); margin-bottom:1.5rem; font-size:.9rem; line-height:1.7">Un <strong>W.O.</strong> (Walkover) se da cuando un equipo no se presenta en tiempo y forma. El partido se marca como perdido por el equipo infractor con un marcador estándar.</p>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Abrir el Acta del partido</h3>
-          <p>Desde el tab Fixture o Acta en Vivo, abrí el partido afectado.</p>
+        <div class="alert-box">
+          <i data-lucide="info" class="alert-icon"></i>
+          <div class="alert-content">
+            <h4>Registro y Privacidad</h4>
+            <p>La foto de perfil del jugador puede ser cargada por el delegado o registrada directamente por la mesa de control en el complejo deportivo antes de su primer partido de la temporada.</p>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Declarar W.O. vía API</h3>
-          <p>El botón de W.O. está disponible en el endpoint del sistema. El organizador debe llamar a <code>POST /cancha/torneos/partidos/{id}/wo</code> indicando el <strong>equipo infractor</strong>. El sistema aplica el marcador estándar <strong>2-0</strong> (configurable).</p>
+      </section>
+
+      <!-- Section: Formatos de Fixture -->
+      <section id="formatos" class="section">
+        <h2 class="section-title">4. Formatos de Fixture Avanzados</h2>
+        <p class="section-desc">Adapta el campeonato según los formatos preferidos por los organizadores y delegados.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="award"></i></div>
+            <h3 class="card-title">Liga (Todos contra Todos)</h3>
+            <p class="card-text">Fixture circular perfecto mediante el <strong>Algoritmo de Berger</strong>. Calendarización de jornadas de ida (y vuelta opcional). Gestión de fechas automáticas con equipos impares.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="git-pull-request"></i></div>
+            <h3 class="card-title">Eliminación Directa (Playoffs)</h3>
+            <p class="card-text">Estructura clásica de brackets (Semifinales, Finales). El sistema sortea las llaves y clasifica de forma automática a los ganadores a la siguiente ronda.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="grid"></i></div>
+            <h3 class="card-title">Mixto (Grupos + Playoffs)</h3>
+            <p class="card-text">Divide los equipos en dos zonas de liga. Al culminar todos los encuentros, transiciona de forma autónoma a Semifinales cruzadas: <strong>1º Grupo A vs 2º Grupo B</strong>.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="refresh-cw"></i></div>
+            <h3 class="card-title">Sistema Suizo</h3>
+            <p class="card-text">Rondas progresivas donde se enfrentan rivales con puntajes de tabla similares. El algoritmo del backend recalcula los nuevos emparejamientos evitando la repetición de oponentes jugados.</p>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <h3 style="margin-top:1.5rem; margin-bottom:1rem; font-size:1rem; font-weight:800">Consecuencias del W.O.</h3>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <span class="fc-icon">📉</span>
-        <h3>Derrota automática</h3>
-        <p>El equipo infractor pierde el partido con marcador <strong>0-2</strong> (o el configurado).</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">📊</span>
-        <h3>Posiciones actualizadas</h3>
-        <p>La tabla de posiciones se recalcula instantáneamente con el resultado del W.O.</p>
-      </div>
-      <div class="feature-card">
-        <span class="fc-icon">🏷️</span>
-        <h3>Badge en el fixture</h3>
-        <p>El partido queda marcado con una etiqueta roja <span class="badge badge-red">W.O.</span> visible en el fixture.</p>
-      </div>
-    </div>
-  </section>
+      <!-- Section: Actas y Estadísticas -->
+      <section id="actas" class="section">
+        <h2 class="section-title">5. Carga de Resultados y Actas de Partido</h2>
+        <p class="section-desc">Controla los goles y las tarjetas del encuentro en tiempo real.</p>
 
-  <!-- PAGOS -->
-  <section id="pagos" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(0,208,132,.1)">💳</div>
-      <div>
-        <h2>Gestión de Pagos</h2>
-        <p>Registrá pagos de inscripción en efectivo o via MercadoPago.</p>
-      </div>
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <h3>Pago en efectivo</h3>
-          <p>Para confirmar el pago de un equipo que pagó en efectivo, usá el endpoint de pagos del sistema: <code>POST /cancha/pagos/efectivo/{torneo_equipo_id}</code> indicando quién recibió el dinero. El equipo pasará automáticamente a <span class="badge badge-green">confirmado</span>.</p>
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="clipboard-list"></i></div>
+            <h3 class="card-title">Actas Digitales</h3>
+            <p class="card-text">La mesa de control registra los goles minuto a minuto, autogoles, tarjetas amarillas, segundas amarillas y rojas directas asignadas a la base de datos de jugadores.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="bar-chart-3"></i></div>
+            <h3 class="card-title">Tablas Estadísticas</h3>
+            <p class="card-text">Todos los marcadores actualizan inmediatamente y de forma automática:</p>
+            <ul class="list-premium">
+              <li><i data-lucide="star"></i> Tabla General de Posiciones (PTS, PJ, PG, PE, PP, GF, GC, DG).</li>
+              <li><i data-lucide="star"></i> Tabla de Goleadores Individuales de la Temporada.</li>
+              <li><i data-lucide="star"></i> Tabla de Vallas Menos Vencidas (Mejores Arqueros).</li>
+              <li><i data-lucide="star"></i> Tabla de Fair Play (Puntaje de juego limpio basado en tarjetas).</li>
+            </ul>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <h3>Pago via MercadoPago (simulado)</h3>
-          <p>Generá el link de pago con <code>POST /cancha/pagos/inscripcion/{torneo_equipo_id}</code>. El sistema devuelve una URL de checkout. Al completar el pago, el webhook confirma la inscripción automáticamente.</p>
+      </section>
+
+      <!-- Section: Pagos y Finanzas -->
+      <section id="pagos" class="section">
+        <h2 class="section-title">6. Pasarela de Pagos E2E</h2>
+        <p class="section-desc">Recaudación simplificada y automatizada de aranceles de torneos e inscripciones de equipos.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="wallet"></i></div>
+            <h3 class="card-title">MercadoPago y Stripe</h3>
+            <p class="card-text">Generación de links de pago automáticos para el delegado. Integración segura y actualización instantánea del estado de pago mediante webhooks en tiempo real.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="banknote"></i></div>
+            <h3 class="card-title">Pagos Manuales / Caja</h3>
+            <p class="card-text">Permite a los administradores del complejo registrar cobros físicos (Efectivo/Transferencia) desde el panel administrativo, aprobando la inscripción al instante.</p>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <h3>Verificar estado de pago</h3>
-          <p>Usá el endpoint <code>GET /cancha/pagos/estado/{torneo_equipo_id}</code> para saber el estado actual: <span class="badge badge-yellow">pendiente</span>, <span class="badge badge-green">aprobado</span> o <span class="badge badge-red">rechazado</span>.</p>
+      </section>
+
+      <!-- Section: Reglas y Disciplina -->
+      <section id="reglas" class="section">
+        <h2 class="section-title">7. Reglas de Control Disciplinario y Descalificaciones</h2>
+        <p class="section-desc">Garantiza la justicia deportiva implementando reglas y sanciones automáticas regulables por complejo.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="alert-triangle"></i></div>
+            <h3 class="card-title">Control de Tarjetas y Fair Play</h3>
+            <p class="card-text">Las tarjetas restan puntos en la Tabla de Fair Play y generan suspensiones en base a la configuración local del complejo deportivo.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="user-x"></i></div>
+            <h3 class="card-title">Descalificación Automática por W.O.</h3>
+            <p class="card-text">El sistema monitorea la incomparecencia (Walkover). Si un equipo acumula el límite de W.O.s del complejo, el sistema:</p>
+            <ul class="list-premium">
+              <li><i data-lucide="x-circle"></i> Cambia su estado a <strong>Descalificado</strong>.</li>
+              <li><i data-lucide="x-circle"></i> Otorga victoria por 2-0 reglamentario de forma automática a todos sus rivales en las fechas restantes del calendario.</li>
+            </ul>
+          </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- ESTADOS -->
-  <section id="estados" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(124,106,245,.1)">📌</div>
-      <div>
-        <h2>Estados del Sistema</h2>
-        <p>Referencia rápida de todos los estados posibles.</p>
-      </div>
-    </div>
+        <div class="alert-box warning">
+          <i data-lucide="alert-octagon" class="alert-icon"></i>
+          <div class="alert-content">
+            <h4>Restricción en Fase Eliminatoria</h4>
+            <p>Un jugador suspendido o que cuente con sanciones pendientes registradas en la tabla de disciplina no podrá ser alineado en la mesa de control ni registrar firma digital hasta cumplir las fechas indicadas.</p>
+          </div>
+        </div>
+      </section>
 
-    <h3 style="margin-bottom:1rem; font-size:1rem; font-weight:800">Torneo</h3>
-    <table class="info-table">
-      <thead><tr><th>Estado</th><th>Descripción</th><th>Próximo paso</th></tr></thead>
-      <tbody>
-        <tr><td><span class="badge badge-purple">borrador</span></td><td>En configuración inicial</td><td>Publicar para inscripciones</td></tr>
-        <tr><td><span class="badge badge-green">abierto</span></td><td>Aceptando inscripciones</td><td>Cerrar inscripciones e iniciar</td></tr>
-        <tr><td><span class="badge badge-yellow">en_curso</span></td><td>Torneo en juego</td><td>Cargar resultados</td></tr>
-        <tr><td><span class="badge badge-orange">finalizado</span></td><td>Torneo concluido</td><td>Descargar estadísticas</td></tr>
-        <tr><td><span class="badge badge-red">cancelado</span></td><td>Torneo anulado</td><td>—</td></tr>
-      </tbody>
-    </table>
+    </main>
+  </div>
 
-    <h3 style="margin-top:2rem; margin-bottom:1rem; font-size:1rem; font-weight:800">Partido</h3>
-    <table class="info-table">
-      <thead><tr><th>Estado</th><th>Descripción</th></tr></thead>
-      <tbody>
-        <tr><td><span class="badge badge-purple">programado</span></td><td>Fecha asignada, sin jugarse aún</td></tr>
-        <tr><td><span class="badge badge-yellow">en_curso</span></td><td>Partido en juego (iniciado con "Iniciar")</td></tr>
-        <tr><td><span class="badge badge-green">finalizado</span></td><td>Acta cerrada, resultado definitivo</td></tr>
-        <tr><td><span class="badge badge-red">wo</span></td><td>Walkover — un equipo no se presentó</td></tr>
-        <tr><td><span class="badge badge-orange">suspendido</span></td><td>Partido suspendido, pendiente de reprogramar</td></tr>
-      </tbody>
-    </table>
-  </section>
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
 
-  <!-- TARJETAS -->
-  <section id="tarjetas" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(245,200,66,.1)">🎴</div>
-      <div>
-        <h2>Sistema de Tarjetas</h2>
-        <p>Referencia completa del sistema disciplinario automático.</p>
-      </div>
-    </div>
+    // Smooth navigation active highlighting based on scroll
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('.section, .hero');
+      const navItems = document.querySelectorAll('.nav-item');
+      
+      let currentId = 'introduccion';
+      sections.forEach(sec => {
+        const top = sec.offsetTop;
+        const height = sec.offsetHeight;
+        if (window.scrollY >= top - 200) {
+          currentId = sec.getAttribute('id');
+        }
+      });
 
-    <div class="feature-grid">
-      <div class="feature-card" style="border-color:rgba(245,200,66,.2)">
-        <span class="fc-icon">🟡</span>
-        <h3>Tarjeta Amarilla</h3>
-        <p><strong>1 punto</strong> de Fair Play negativo. Se acumula en el torneo. Al llegar a 3, 6, 9... genera automáticamente 1 fecha de suspensión.</p>
-      </div>
-      <div class="feature-card" style="border-color:rgba(245,150,66,.2)">
-        <span class="fc-icon">🟠</span>
-        <h3>Roja por 2ª Amarilla</h3>
-        <p><strong>3 puntos</strong> de Fair Play negativo. El jugador queda expulsado del partido y suspendido por <strong>1 fecha</strong>.</p>
-      </div>
-      <div class="feature-card" style="border-color:rgba(245,66,66,.2)">
-        <span class="fc-icon">🔴</span>
-        <h3>Roja Directa</h3>
-        <p><strong>4 puntos</strong> de Fair Play negativo. El jugador queda expulsado del partido y suspendido por <strong>2 fechas</strong>.</p>
-      </div>
-    </div>
-
-    <div class="callout callout-tip" style="margin-top:1.5rem">
-      <span class="callout-icon">💡</span>
-      <div><strong>Fair Play en la Tabla de Posiciones:</strong> La columna FP muestra la suma de puntos negativos del equipo. Es el último criterio de desempate: a igual puntos y diferencia de goles, el equipo con <em>menos</em> puntos de Fair Play ocupa mejor posición.</div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section id="faq" class="section">
-    <div class="section-header">
-      <div class="section-icon" style="background:rgba(124,106,245,.1)">❓</div>
-      <div>
-        <h2>Preguntas Frecuentes</h2>
-        <p>Respuestas a las consultas más comunes.</p>
-      </div>
-    </div>
-
-    <div class="accordion">
-      <details>
-        <summary>¿Puedo editar el resultado de un partido ya finalizado?</summary>
-        <div class="details-body">Sí. Podés modificar el resultado directamente en los campos del fixture. La tabla de posiciones se recalcula automáticamente al confirmar el nuevo marcador. Si el partido tiene goles cargados en el acta, considerar actualizarlos también para mantener la consistencia.</div>
-      </details>
-      <details>
-        <summary>¿El jugador suspendido puede ver en qué partidos está inhabilitado?</summary>
-        <div class="details-body">Sí. La pestaña de Sanciones del torneo muestra todos los jugadores suspendidos, cuántas fechas tienen de sanción, cuántas cumplieron y cuál es su estado actual (vigente / cumplida).</div>
-      </details>
-      <details>
-        <summary>¿Qué pasa si genero el fixture dos veces?</summary>
-        <div class="details-body">Se borran todos los partidos existentes y se generan nuevos. <strong>Cualquier resultado o acta previamente cargada se pierde.</strong> Solo generá el fixture una vez, antes de comenzar el torneo.</div>
-      </details>
-      <details>
-        <summary>¿El sistema maneja número impar de equipos?</summary>
-        <div class="details-body">Sí. El Algoritmo de Berger maneja números impares con un "BYE" (descanso rotativo). Cada jornada, un equipo distinto descansa. El BYE no se registra como partido.</div>
-      </details>
-      <details>
-        <summary>¿Puedo agregar un jugador después de que el torneo ya comenzó?</summary>
-        <div class="details-body">Sí, podés agregar jugadores en cualquier momento desde la tab Jugadores. La única restricción es que el DNI sea único dentro del torneo (no puede estar en dos equipos simultáneamente).</div>
-      </details>
-      <details>
-        <summary>¿Cómo anulo una tarjeta cargada por error?</summary>
-        <div class="details-body">Por ahora, las tarjetas no tienen botón de anulación en la interfaz. Para revertirlas, deberás contactar al administrador del sistema que puede hacerlo desde la base de datos. Se planea agregar esta funcionalidad en futuras versiones.</div>
-      </details>
-      <details>
-        <summary>¿La tabla de posiciones incluye los W.O.?</summary>
-        <div class="details-body">Sí. Los W.O. se cuentan como partidos con resultado (el infractor pierde 0-2 por defecto). El equipo ganador suma los puntos correspondientes y el infractor suma los puntos de derrota (generalmente 0).</div>
-      </details>
-      <details>
-        <summary>¿Dónde veo la API completa del módulo de torneos?</summary>
-        <div class="details-body">Toda la documentación de la API está disponible en la <strong>interfaz Swagger</strong> del backend, accesible en <code>http://localhost:8002/docs</code>. Podés probar cada endpoint directamente desde el navegador.</div>
-      </details>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
-  <footer class="footer">
-    <p>Manual de Usuario · <span>Mi Cancha — Gestión de Torneos</span> · Versión 2.0</p>
-    <p style="margin-top:.5rem">Soporte: Panel Administración en <span>http://localhost:3001</span> · API: <span>http://localhost:8002/docs</span></p>
-  </footer>
-
-</main>
-
-<!-- Back to top -->
-<a href="#inicio" class="back-top" title="Volver arriba">↑</a>
-
-<script>
-  // Active nav highlight on scroll
-  const sections = document.querySelectorAll('section[id]');
-  const navItems = document.querySelectorAll('.nav-item');
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.id;
-        navItems.forEach(item => {
-          item.classList.toggle('active', item.getAttribute('href') === `#${id}`);
-        });
-      }
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        const link = item.querySelector('a');
+        if (link.getAttribute('href') === `#${currentId}`) {
+          item.classList.add('active');
+        }
+      });
     });
-  }, { rootMargin: '-20% 0px -70% 0px' });
-
-  sections.forEach(s => observer.observe(s));
-
-  // Close sidebar on mobile nav click
-  navItems.forEach(item => {
-    item.addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.remove('open');
-    });
-  });
-</script>
-
+  </script>
 </body>
 </html>

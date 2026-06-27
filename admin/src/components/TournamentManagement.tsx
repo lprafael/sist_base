@@ -253,7 +253,86 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
   const [goleadores, setGoleadores] = useState<Goleador[]>([]);
   const [selectedPartido, setSelectedPartido] = useState<any>(null);
   const [isAddingEquipo, setIsAddingEquipo] = useState(false);
-  const [newEquipo, setNewEquipo] = useState({ nombre: '', capitan: '', telefono: '' });
+  const [newEquipo, setNewEquipo] = useState({ nombre: '', capitan: '', telefono: '', promocion: '' });
+
+  // States for Payment Management
+  const [isPayingCash, setIsPayingCash] = useState(false);
+  const [paymentTeam, setPaymentTeam] = useState<any>(null);
+  const [cashReceiver, setCashReceiver] = useState('');
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  const handlePayCashClick = (team: any) => {
+    setPaymentTeam(team);
+    setCashReceiver('');
+    setIsPayingCash(true);
+  };
+
+  const handleGenerateLinkClick = async (team: any, provider: 'mercadopago' | 'stripe') => {
+    setPaymentTeam(team);
+    setIsGeneratingLink(true);
+    setGeneratedLink('');
+    try {
+      const token = localStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${API_URL}/api/pagos/inscripcion/${team.id}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ provider })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.checkout_url) {
+          setGeneratedLink(data.checkout_url);
+        } else {
+          alert('No se pudo obtener la URL de pago.');
+        }
+      } else {
+        const err = await res.json();
+        alert(err.detail || 'Error al generar link de pago.');
+      }
+    } catch (e) {
+      alert('Error de red al generar link de pago.');
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleConfirmCashPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentTeam) return;
+    try {
+      const token = localStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${API_URL}/api/pagos/manual/${paymentTeam.id}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          tournament_team_id: paymentTeam.id,
+          amount: torneo.costo_inscripcion,
+          received_by: cashReceiver || 'Administrador',
+          notes: 'Pago en efectivo registrado por administrador'
+        })
+      });
+      if (res.ok) {
+        alert('Pago en efectivo registrado con éxito. El equipo ha sido confirmado.');
+        setIsPayingCash(false);
+        setPaymentTeam(null);
+        loadEquipos();
+      } else {
+        const err = await res.json();
+        alert(err.detail || 'Error al registrar pago en efectivo.');
+      }
+    } catch (e) {
+      alert('Error de red al registrar pago.');
+    }
+  };
 
   const loadEquipos = async () => {
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos`);
@@ -280,15 +359,27 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
     e.preventDefault();
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre: newEquipo.nombre, capitan_nombre: newEquipo.capitan, capitan_telefono: newEquipo.telefono })
+      body: JSON.stringify({
+        nombre: newEquipo.nombre,
+        capitan_nombre: newEquipo.capitan,
+        capitan_telefono: newEquipo.telefono,
+        promocion: newEquipo.promocion ? parseInt(newEquipo.promocion) : 0
+      })
     });
-    if (res.ok) { setIsAddingEquipo(false); setNewEquipo({ nombre: '', capitan: '', telefono: '' }); loadEquipos(); }
+    if (res.ok) { setIsAddingEquipo(false); setNewEquipo({ nombre: '', capitan: '', telefono: '', promocion: '' }); loadEquipos(); }
   };
 
   const generarFixture = async () => {
     if (!confirm('¿Generar fixture automático? Se eliminarán los partidos existentes.')) return;
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/fixture`, { method: 'POST' });
     if (res.ok) { alert('¡Fixture generado!'); loadPartidos(); loadPosiciones(); }
+    else { const d = await res.json(); alert('Error: ' + (d.detail || 'No se pudo generar')); }
+  };
+
+  const generarSiguienteRondaSuizo = async () => {
+    if (!confirm('¿Generar la siguiente ronda del Sistema Suizo?')) return;
+    const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/fixture/suizo/siguiente`, { method: 'POST' });
+    if (res.ok) { alert('¡Siguiente ronda generada!'); loadPartidos(); loadPosiciones(); }
     else { const d = await res.json(); alert('Error: ' + (d.detail || 'No se pudo generar')); }
   };
 
@@ -348,23 +439,42 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
               <div className="col-span-full py-16 bg-slate-900/20 border border-slate-800/60 rounded-[2rem] text-center text-slate-500 font-bold text-xs uppercase tracking-widest">Sin equipos inscritos.</div>
             ) : equipos.map((e, idx) => (
               <div key={e.id} style={{ borderColor: e.color_principal ? `${e.color_principal}40` : undefined }}
-                className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl flex items-center gap-4 hover:border-slate-700 transition-all">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg"
-                  style={{ background: e.color_principal ? `${e.color_principal}20` : 'rgba(34,197,94,0.1)', color: e.color_principal || '#4ade80' }}>
-                  {idx + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-extrabold text-white truncate">{e.nombre}</div>
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                    {e.capitan_nombre || 'Sin capitán'}
+                className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl flex flex-col gap-4 hover:border-slate-700 transition-all">
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg flex-shrink-0"
+                    style={{ background: e.color_principal ? `${e.color_principal}20` : 'rgba(34,197,94,0.1)', color: e.color_principal || '#4ade80' }}>
+                    {idx + 1}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-extrabold text-white truncate">{e.nombre}</div>
+                    <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                      {e.capitan_nombre || 'Sin capitán'}
+                    </div>
+                  </div>
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border flex-shrink-0 ${
+                    e.estado_inscripcion === 'confirmado'
+                      ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                      : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
+                    {e.estado_inscripcion}
+                  </span>
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
-                  e.estado_inscripcion === 'confirmado'
-                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                    : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
-                  {e.estado_inscripcion}
-                </span>
+                
+                {torneo.costo_inscripcion > 0 && e.estado_inscripcion === 'pendiente' && (
+                  <div className="border-t border-slate-800/40 pt-4 flex flex-wrap gap-2 justify-end w-full">
+                    <button onClick={() => handlePayCashClick(e)}
+                      className="bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-1">
+                      💵 Efectivo
+                    </button>
+                    <button onClick={() => handleGenerateLinkClick(e, 'mercadopago')}
+                      className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-1">
+                      🔗 Link MP
+                    </button>
+                    <button onClick={() => handleGenerateLinkClick(e, 'stripe')}
+                      className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-1">
+                      💳 Stripe
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -404,10 +514,18 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-extrabold text-white flex items-center gap-2"><Calendar size={20} className="text-green-400" /> Partidos Programados</h3>
-            <button onClick={generarFixture}
-              className="text-xs bg-green-500/10 hover:bg-green-500/20 text-green-400 font-black border border-green-500/20 px-4 py-2.5 rounded-full transition-all flex items-center gap-2">
-              <Award size={14} /> Generar Fixture Auto
-            </button>
+            <div className="flex gap-2">
+              <button onClick={generarFixture}
+                className="text-xs bg-green-500/10 hover:bg-green-500/20 text-green-400 font-black border border-green-500/20 px-4 py-2.5 rounded-full transition-all flex items-center gap-2">
+                <Award size={14} /> Generar Fixture Auto
+              </button>
+              {torneo.formato === 'suizo' && (
+                <button onClick={generarSiguienteRondaSuizo}
+                  className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-black border border-blue-500/20 px-4 py-2.5 rounded-full transition-all flex items-center gap-2">
+                  <Award size={14} /> Siguiente Ronda Suiza
+                </button>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {partidos.length === 0 ? (
@@ -568,6 +686,9 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
               <input placeholder="Nombre del Equipo" required
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
                 value={newEquipo.nombre} onChange={e => setNewEquipo({...newEquipo, nombre: e.target.value})} />
+              <input type="number" placeholder="Año de Promoción / Egreso" required min={1900} max={2100}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
+                value={newEquipo.promocion} onChange={e => setNewEquipo({...newEquipo, promocion: e.target.value})} />
               <input placeholder="Nombre del Capitán"
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
                 value={newEquipo.capitan} onChange={e => setNewEquipo({...newEquipo, capitan: e.target.value})} />
@@ -582,6 +703,64 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
           </div>
         </div>
       )}
+
+      {/* Modal registrar pago efectivo */}
+      {isPayingCash && paymentTeam && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-slate-800/80 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative animate-in zoom-in duration-200">
+            <button onClick={() => setIsPayingCash(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X size={20} /></button>
+            <h3 className="text-2xl font-black text-white mb-2">Registrar Pago</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-6">Equipo: {paymentTeam.nombre}</p>
+            <form onSubmit={handleConfirmCashPayment} className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-2">Monto a cobrar</label>
+                <div className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-green-400 font-black text-lg">
+                  {new Intl.NumberFormat('es-PY', { style: 'currency', currency: 'PYG', minimumFractionDigits: 0 }).format(torneo.costo_inscripcion)}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-2">Nombre del Receptor</label>
+                <input placeholder="Nombre de quien recibe el dinero" required
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
+                  value={cashReceiver} onChange={e => setCashReceiver(e.target.value)} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsPayingCash(false)} className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-extrabold text-sm">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-green-500 text-black rounded-2xl font-extrabold text-sm hover:bg-green-400">Confirmar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal generar link de pago */}
+      {(isGeneratingLink || generatedLink) && paymentTeam && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-slate-800/80 w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative animate-in zoom-in duration-200">
+            <button onClick={() => { setGeneratedLink(''); setPaymentTeam(null); }} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X size={20} /></button>
+            <h3 className="text-2xl font-black text-white mb-2">Link de Pago</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-6">Equipo: {paymentTeam.nombre}</p>
+            
+            {isGeneratingLink ? (
+              <div className="py-12 text-center text-slate-400 font-bold text-sm">Generando preferencia de pago...</div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Copia este link y envíaselo al capitán o delegado:</p>
+                <div className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-slate-300 font-mono text-xs break-all select-all">
+                  {generatedLink}
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => {
+                    navigator.clipboard.writeText(generatedLink);
+                    alert('¡Link copiado al portapapeles!');
+                  }} className="flex-1 py-4 bg-green-500 text-black rounded-2xl font-extrabold text-sm hover:bg-green-400">Copiar Link</button>
+                  <button type="button" onClick={() => { setGeneratedLink(''); setPaymentTeam(null); }} className="py-4 bg-slate-800 text-white rounded-2xl px-6 font-extrabold text-sm">Cerrar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -593,7 +772,7 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '' });
+  const [form, setForm] = useState({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '', egreso_ano: '', es_exalumno: true });
 
   const loadJugadores = async () => {
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos/${equipo.id}/jugadores`);
@@ -610,11 +789,13 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
         nombre: form.nombre, dni: form.dni,
         numero_camiseta: form.numero_camiseta ? parseInt(form.numero_camiseta) : null,
         posicion: form.posicion || null,
-        fecha_nacimiento: form.fecha_nacimiento || null
+        fecha_nacimiento: form.fecha_nacimiento || null,
+        egreso_ano: form.es_exalumno && form.egreso_ano ? parseInt(form.egreso_ano) : null,
+        es_exalumno: form.es_exalumno
       })
     });
     if (res.ok) {
-      setIsAdding(false); setForm({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '' });
+      setIsAdding(false); setForm({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '', egreso_ano: '', es_exalumno: true });
       loadJugadores();
     } else {
       const err = await res.json();
@@ -623,7 +804,7 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
   };
 
   const handleEditClick = (j: Jugador) => {
-    setForm({ nombre: j.nombre, dni: j.dni, numero_camiseta: j.numero_camiseta ? String(j.numero_camiseta) : '', posicion: j.posicion || '', fecha_nacimiento: '' });
+    setForm({ nombre: j.nombre, dni: j.dni, numero_camiseta: j.numero_camiseta ? String(j.numero_camiseta) : '', posicion: j.posicion || '', fecha_nacimiento: '', egreso_ano: j.egreso_ano ? String(j.egreso_ano) : '', es_exalumno: j.es_exalumno ?? true });
     setEditingId(j.id);
     setIsAdding(false);
   };
@@ -639,7 +820,7 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
       })
     });
     if (res.ok) {
-      setEditingId(null); setForm({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '' });
+      setEditingId(null); setForm({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '', egreso_ano: '', es_exalumno: true });
       loadJugadores();
     } else {
       const err = await res.json();
@@ -683,7 +864,18 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
           <input type="date" placeholder="Fecha nacimiento"
             className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
             value={form.fecha_nacimiento} onChange={e => setForm({...form, fecha_nacimiento: e.target.value})} />
-          <button type="submit" className="bg-green-500 hover:bg-green-400 text-black font-extrabold rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-all">
+          <select className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
+            value={form.es_exalumno ? "exalumno" : "refuerzo"} 
+            onChange={e => setForm({...form, es_exalumno: e.target.value === "exalumno"})}>
+            <option value="exalumno">Exalumno</option>
+            <option value="refuerzo">Refuerzo</option>
+          </select>
+          {form.es_exalumno && (
+            <input type="number" placeholder="Año de Egreso" min={1900} max={2100}
+              className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
+              value={form.egreso_ano} onChange={e => setForm({...form, egreso_ano: e.target.value})} />
+          )}
+          <button type="submit" className="bg-green-500 hover:bg-green-400 text-black font-extrabold rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-all col-span-2 md:col-span-1">
             <CheckCircle size={16} /> Agregar
           </button>
         </form>
@@ -712,7 +904,10 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
                 ) : (
                   <>
                     <div className="font-extrabold text-white text-sm truncate">{j.nombre}</div>
-                    <div className="text-xs text-slate-500 font-semibold">{j.posicion || 'Sin posición'} · DNI: {j.dni}</div>
+                    <div className="text-xs text-slate-500 font-semibold">
+                      {j.posicion || 'Sin posición'} · DNI: {j.dni}
+                      {j.es_exalumno ? ` · Exalumno (${j.egreso_ano || 'Sin año'})` : ' · Refuerzo'}
+                    </div>
                   </>
                 )}
               </div>

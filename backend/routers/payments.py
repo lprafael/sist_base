@@ -32,6 +32,18 @@ try:
 except ImportError:
     mercadopago = None
 
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+security_optional = HTTPBearer(auto_error=False)
+
+async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)):
+    if not credentials:
+        return None
+    try:
+        from security import verify_token
+        return verify_token(credentials.credentials)
+    except Exception:
+        return None
+
 router = APIRouter(prefix="/api/pagos", tags=["Pagos"])
 
 # Configurar SDK de MercadoPago
@@ -125,7 +137,7 @@ async def generar_preferencia_pago(
     tournament_team_id: str,
     payment_create: PaymentCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(get_current_user)
+    current_user: Optional[dict] = Depends(get_current_user_optional)
 ):
     """
     Generar preferencia de pago en MercadoPago para inscripción
@@ -140,7 +152,7 @@ async def generar_preferencia_pago(
     try:
         # 1. Obtener datos de inscripción
         query = text("""
-            SELECT te.id, t.costo_inscripcion, t.nombre, te.nombre_equipo, t.id as torneo_id
+            SELECT te.id, t.costo_inscripcion, t.nombre, te.nombre_equipo, t.id as torneo_id, te.capitan_email
             FROM cancha.torneos_equipos te
             JOIN cancha.torneos t ON te.torneo_id = t.id
             WHERE te.id = :id
@@ -151,7 +163,7 @@ async def generar_preferencia_pago(
         if not row:
             raise HTTPException(status_code=404, detail="Inscripción no encontrada")
         
-        team_id, amount, torneo_nombre, equipo_nombre, torneo_id = row
+        team_id, amount, torneo_nombre, equipo_nombre, torneo_id, capitan_email = row
         
         if not amount or amount == 0:
             raise HTTPException(
@@ -175,7 +187,7 @@ async def generar_preferencia_pago(
         if payment_create.provider == PaymentProvider.MERCADOPAGO:
             return await _crear_preferencia_mercadopago(
                 tournament_team_id, team_id, amount, torneo_nombre, 
-                equipo_nombre, current_user, session
+                equipo_nombre, current_user, session, capitan_email
             )
         
         elif payment_create.provider == PaymentProvider.STRIPE:
@@ -202,8 +214,9 @@ async def _crear_preferencia_mercadopago(
     amount: Decimal,
     torneo_nombre: str,
     equipo_nombre: str,
-    current_user: dict,
-    session: AsyncSession
+    current_user: Optional[dict],
+    session: AsyncSession,
+    capitan_email: Optional[str] = None
 ):
     """Crear preferencia de MercadoPago"""
     
@@ -218,6 +231,10 @@ async def _crear_preferencia_mercadopago(
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     api_url = os.getenv("API_URL", "http://localhost:8002")
     
+    payer_email = current_user.get("email") if current_user else capitan_email
+    if not payer_email:
+        payer_email = "cliente@example.com"
+
     preference_data = {
         "items": [
             {
@@ -227,7 +244,7 @@ async def _crear_preferencia_mercadopago(
             }
         ],
         "payer": {
-            "email": current_user.get("email", "cliente@example.com")
+            "email": payer_email
         },
         "back_urls": {
             "success": f"{frontend_url}/inscripcion/resultado?status=approved&id={tournament_team_id}",
@@ -248,6 +265,7 @@ async def _crear_preferencia_mercadopago(
             )
         
         preference = preference_response.json()
+
         
         # Guardar payment record
         insert = text("""
