@@ -1,0 +1,255 @@
+
+--- PAGE 1 ---
+ESPECIFICACIÓN DE REQUERIMIENTOS 
+Y LÓGICA DE NEGOCIO PARA AGENTE 
+IA: SOFTWARE DE GESTIÓN DE 
+TORNEOS 
+1. MÓDULO DE ESTRUCTURA ORGANIZATIVA, 
+CATEGORÍAS Y EQUIPOS 
+1.1 Jerarquía del Sistema 
+El sistema debe soportar una arquitectura multicapa: 
+●​ Torneo Madre: (Ej. "Torneo Clausura 2026"). 
+●​ Categorías Autónomas: Senior, Ejecutivo, Juvenil, Primera, etc.. Cada categoría tiene 
+sus propias tablas de posiciones, fixtures, costos y reglas de edad/refuerzos. 
+1.2 Registro de Equipos y Promociones 
+●​ Identificador de Origen: Cada equipo está ligado a un "Año de Promoción" o "Año de 
+Egreso". 
+●​ Mecanismo de Fusiones: El sistema debe permitir fundar un equipo híbrido uniendo 
+dos o más promociones antiguas (Ej. Promo 2005/2006). 
+○​ Restricción de Negocio: Las fusiones solo pueden registrarse antes del inicio 
+del torneo. Queda estrictamente bloqueado fusionar equipos una vez empezada 
+la Fecha 1. 
+○​ Regla de Ascenso: Si un equipo fusionado en la categoría "Ejecutivo" logra el 
+ascenso a "Primera", el software debe mantener la fusión de forma automática 
+para la nueva categoría. 
+2. MÓDULO DE JUGADORES, "LISTA DE BUENA FE" Y 
+CONTROL DE ACCESO 
+2.1 La Lista de Buena Fe (Modelado de Datos) 
+Cada equipo debe dar de alta una Lista de Buena Fe digitalizada. No se permiten campos 
+vacíos. El jugador que no complete todos los parámetros obligatorios quedará en estado "No 
+Habilitado": 
+●​ Datos Obligatorios: Nombres, Apellidos, Cédula de Identidad (CI), Fecha de 
+Nacimiento, Dirección Particular, Dirección Laboral, Lugar de Trabajo, Teléfono 
+Particular, Teléfono Laboral, Celular, Correo Electrónico. 
+●​ Excepción "NO TIENE": Si un jugador carece de un dato laboral, el campo debe 
+llenarse explícitamente con la cadena "NO TIENE". Dejarlo en blanco genera 
+automáticamente una bandera de Causal de Protesta en el sistema. 
+●​ Parámetros de Delegados: Cada lista debe asociar obligatoriamente un Delegado y un 
+Vice-delegado con sus respectivos datos de contacto y firma digitalizada. 
+●​ Límites de Plantel: Mínimo de 15 jugadores inscritos por equipo, sin límite máximo. 
+
+--- PAGE 2 ---
+2.2 Reglas de Elegibilidad y Refuerzos (Algoritmo de Validación) 
+●​ Condición General: El software validará que el jugador sea exalumno de la institución 
+(mínimo 1 año lectivo cursado). El administrador puede marcar una casilla de 
+"Documentación Verificada" (Libreta, Certificado MEC). 
+●​ Refuerzos (Jugadores fuera de la Promoción): 
+○​ Regla Estándar: Máximo 4 jugadores que no pertenezcan al año de la 
+promoción. 
+○​ Regla de Antigüedad: Las promociones con más de 15 años de egreso pueden 
+incluir hasta 6 refuerzos (excepto en la categoría "Primera"). 
+○​ Regla de Exención (Viejas Glorias): Los jugadores que cumplan 25 años o 
+más de haber egresado no sumarán al conteo de refuerzos de ningún equipo. 
+○​ Categoría Ejecutivo: Se permite un máximo de 1 refuerzo menor de 30 años, 
+siempre que no se exceda el tope total de refuerzos de la categoría. 
+●​ Unicidad de Equipo: Un jugador solo puede figurar activo en un (1) equipo por torneo. 
+2.3 Altas Extemporáneas y Transferencias Temporales 
+●​ Incorporaciones en Fase Regular: Se pueden añadir jugadores a la Lista de Buena Fe 
+durante la etapa de "Todos contra Todos" mediante la carga de una nota firmada por el 
+delegado. El sistema requiere una aprobación del administrador (Secretaría) con "Fecha 
+de Recepción" antes del día del partido. 
+●​ Bloqueo de Instancias Finales: Queda estrictamente prohibido incorporar jugadores 
+en fases de eliminación directa (Octavos, Cuartos, Semifinal, Final) o fases de grupos 
+secundarias. 
+●​ Transferencias de Club: Un jugador puede transferirse de una promoción a otra (e 
+indistintamente entre categorías) bajo las siguientes condiciones: 
+○​ Se permite una sola transferencia por jugador al año. 
+○​ Solo se puede realizar antes del inicio de la Segunda Rueda o Fase de 
+Grupos/Octavos. 
+○​ Validación de Actividad: El jugador debe haber disputado al menos un (1) partido 
+oficial con el equipo de origen en el torneo corriente para poder transferirse. 
+○​ Tope de Refuerzos en Destino: Si el equipo de destino ya tiene el cupo de 
+refuerzos lleno, el sistema obligará al delegado a "Dar de Baja" a un refuerzo 
+anterior mediante el panel para procesar el alta. 
+2.4 Control de Asistencia Biométrico y Mesa de Control 
+●​ Reconocimiento Facial / CI: Interfaz para registrar la asistencia en la mesa de control 
+mediante reconocimiento facial o escaneo de Cédula de Identidad antes de pisar la 
+cancha. 
+●​ Firma Digital de Planilla: Los jugadores deben registrar su número de camiseta y firma 
+digital en la app de la mesa de control antes de ingresar al campo. 
+●​ Cierre de Planilla Dinámico: El software permitirá agregar jugadores que lleguen tarde 
+únicamente hasta el pitazo final del partido. Al concluir el encuentro, la mesa de 
+control ejecuta el "Cierre de Acta", bloqueando cualquier enmienda, adición o 
+modificación. 
+
+--- PAGE 3 ---
+●​ Alerta de Indisciplina Administrativa: Si un jugador entra a la cancha sin firmar la 
+planilla o sin registrar su número de camiseta, el sistema activará una alerta de "Pérdida 
+Automática de Puntos por Protesta". 
+3. MÓDULO DE MODALIDADES DE TORNEO Y FIXTURE 
+AUTOMÁTICO 
+El sistema debe permitir parametrizar tres modalidades de juego por categoría: 
+3.1 Modalidad A: Todos contra Todos (Round Robin / Acumulación de 
+Puntos) 
+●​ Algoritmo para generar el fixture completo (opción de Ida, o Ida y Vuelta) calculando 
+disponibilidad de canchas, fechas y franjas horarias. 
+●​ Asignación de puntos estándar: Victoria (3 pts), Empate (1 pt), Derrota (0 pts). 
+3.2 Modalidad B: Eliminatoria Directa (Playoffs) 
+●​ Sorteo aleatorio de contrincantes o basado en llaves de preclasificación (cruces por 
+ranking). 
+●​ Generación de cuadros desde dieciseisavos o de acuerdo a la cantidad de inscritos. 
+3.3 Modalidad C: Mixta / Combinada (Fase de Grupos + Playoffs) 
+●​ Fase 1: Grupos de $N$ equipos jugando todos contra todos. 
+●​ Fase 2: Clasificación de los $X$ mejores de cada grupo a llaves de eliminación directa 
+(Octavos, Cuartos, etc.). 
+3.4 Criterios Oficiales de Desempate (Matriz Configurable) 
+En caso de igualdad de puntos en la fase de clasificación, el Agente IA debe programar una 
+rutina que evalúe las variables en el siguiente orden jerárquico estricto: 
+1.​ Mayor Diferencia de Goles ($GF - GC$). 
+2.​ Mayor cantidad de Goles a Favor ($GF$). 
+3.​ Resultado de los partidos directos entre los equipos empatados. 
+4.​ Tabla de Juego Limpio (Fair Play): Menor puntaje de indisciplina, restando puntos por 
+tarjetas: 
+○​ Tarjeta Amarilla: -1 punto. 
+○​ Tarjeta Roja Directa o Doble Amarilla: -3 puntos. 
+5.​ Sorteo aleatorio automatizado por el sistema. 
+3.5 Regla de Participación Mínima para Instancias Finales 
+●​ Filtro de Seguridad: El sistema contará los partidos jugados por cada futbolista en la 
+etapa regular o de grupos. 
+●​ Parámetro Configurable: El administrador define el mínimo requerido, ya sea en 
+porcentaje (Ej. 30% de los partidos de la fase regular) o en cantidad absoluta (Ej. 
+mínimo 1 partido disputado). 
+●​ Bloqueo: Si un jugador no cumple este mínimo al finalizar la fase regular, el sistema le 
+denegará automáticamente la habilitación en la planilla para los partidos de playoffs. 
+4. MÓDULO DISCIPLINARIO, CONTROL DE EVENTOS Y 
+MULTAS ECONÓMICAS 
+4.1 Registro de Sucesos en Vivo (Línea de Tiempo del Partido) 
+
+--- PAGE 4 ---
+La interfaz de la mesa de control registrará en tiempo real: 
+●​ Goles (Asociando Jugador, Minuto, Tipo: Jugada, Penal, Autogol). 
+●​ Tarjetas Amarillas y Rojas (Asociando Jugador, Minuto, Motivo). 
+●​ Cambios de jugadores. 
+4.2 Lógica de Suspensión Automática por Tarjetas 
+●​ Tarjeta Roja Directa o Doble Amarilla: Genera un estado inmediato de "Suspendido" 
+para el siguiente partido oficial del torneo. El software debe permitir al tribunal de 
+disciplina ingresar fechas extra de sanción según el informe arbitral. 
+●​ Acumulación de Tarjetas Amarillas: El sistema llevará un contador global por jugador. 
+Al llegar al límite parametrizado (Ej. 3 o 5 amarillas), se activa automáticamente una 
+fecha de suspensión para el partido subsecuente. 
+4.3 Matriz de Control Financiero y Multas (En Guaraníes - Gs.) 
+El software bloqueará la participación de equipos o jugadores que posean saldos pendientes. 
+Se debe calcular la liquidación de multas automáticamente de acuerdo a los siguientes eventos 
+registrados: 
+Evento de 
+Infracción 
+Impacto 
+Deportivo 
+Multa Económica 
+(Ejemplo 
+Parametrizable) 
+Tarjeta 
+Amarilla 
+Registrada 
+Acumulación 
+disciplinaria 
+Gs. X por tarjeta 
+(Abonar 
+post-partido) 
+Tarjeta Roja 
+Registrada 
+Suspensión de 
+1 fecha o más 
+Gs. Y por tarjeta 
+(Abonar 
+post-partido) 
+
+--- PAGE 5 ---
+No abonar 
+Arancel de 
+Mesa/Árbitr
+o 
+Alerta 
+administrativa 
+Gs. 100.000 + 
+Costo de la fecha 
+en mora 
+Pérdida de 
+Partido por 
+W.O. 
+Pérdida de 
+puntos, 
+resultado 0-2 
+Gs. 100.000 + 
+Pago de la 
+jornada no 
+asistida 
+Abandono / 
+Retiro del 
+Torneo 
+Expulsión del 
+fixture activo 
+Gs. 500.000 (A 
+cobrar al 
+reincorporarse) 
+Retiro 
+prematuro 
+de la 
+cancha 
+Pérdida de 
+puntos del 
+partido 
+Gs. 100.000 + 
+Sanción del 
+Tribunal 
+●​ Regla de Pago para Fases Finales: El software exigirá que el arancel de arbitraje 
+("Derecho de Partido") de Octavos de Final en adelante sea marcado como "PAGADO" 
+
+--- PAGE 6 ---
+en el sistema antes del pitazo inicial, de lo contrario no desbloqueará la planilla de 
+juego. 
+5. MÓDULO DE W.O. (WALK-OVER) Y EXPULSIÓN POR 
+INASISTENCIA 
+5.1 Algoritmo para Decretar W.O. 
+El sistema procesará un W.O. bajo estas condiciones informáticas: 
+1.​ Validación de Quórum: El equipo $A$ no cuenta con el mínimo de 7 jugadores 
+firmados en planilla a la hora exacta fijada (tolerancia cero en el reloj del sistema). 
+2.​ Validación del Rival: El equipo $B$ (ganador) debe tener al menos 7 jugadores en la 
+cancha con la indumentaria correcta, planilla firmada y el Derecho de Partido abonado 
+en el sistema. 
+3.​ Procesamiento de Datos: 
+○​ Puntos del partido: Equipo Ganador = 3 pts; Equipo Infractor = 0 pts. 
+○​ Marcador Automático: Se guarda un resultado oficial de 2 - 0 a favor del equipo 
+que se presentó. Los 2 goles no se asignan a ningún jugador en particular para 
+la tabla de goleo, pero sumarán a los goles a favor del equipo. 
+5.2 Algoritmo de Descalificación por Reincidencia (W.O. Acumulado) 
+●​ Contador de Infracciones: El sistema monitorea los W.O. de cada equipo en las 
+categorías base (Ej. Juvenil o Ejecutivo). 
+●​ Disparador de Expulsión: Si un equipo acumula 3 W.O. consecutivos o 4 
+intercalados, el software cambiará automáticamente su estado a "ELIMINADO DEL 
+TORNEO". 
+●​ Penalización de Rescate de Jugadores: Si un jugador perteneciente al plantel 
+expulsado desea transferirse como refuerzo a otra promoción activa, el software le 
+aplicará una tasa de penalización de Gs. 50.000 obligatoria para poder desbloquear su 
+ficha (adicional al costo regular del pase). 
+6. ESTADÍSTICAS Y MÓDULO PÚBLICO 
+6.1 Procesamiento Estadístico Automatizado 
+El sistema actualizará instantáneamente tras cada cierre de partido: 
+●​ Tabla de Posiciones Completa: Puntos, PJ, PG, PE, PP, GF, GC, DG. 
+●​ Tabla de Goleadores (Trofeo Pichichi): Conteo decreciente de goles anotados por 
+jugador. 
+●​ Valla Menos Vencida: Ranking de porteros/equipos con menor promedio de goles 
+recibidos, calculando un mínimo de minutos en cancha. 
+●​ Tabla de Tarjetas / Fair Play: Conteo de amonestaciones totales por club. 
+6.2 Portal Público (Evitar Saturación de Consultas) 
+●​ Consumo de datos mediante una interfaz web pública/móvil responsiva donde los 
+delegados y jugadores puedan revisar fixtures, horarios, tablas de posiciones y 
+suspensiones en tiempo real, evitando canales saturados como WhatsApp. 
+Instrucciones para el Agente IA: Utiliza esta especificación para estructurar las entidades 
+relacionales (Torneo, Categoria, Equipo, Fusion, Jugador, ListaBuenaFe, Partido, Evento, 
+Multa). Asegúrate de que todos los disparadores (triggers) financieros y de elegibilidad 
+
+--- PAGE 7 ---
+bloqueen las planillas si las condiciones lógicas de los puntos 2, 4 y 5 no están en estado 
+"Válido". 
+ 
