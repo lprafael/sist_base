@@ -1,4 +1,3 @@
-import React from 'react';
 import Nav from '../../components/Nav';
 
 const groupsData = [
@@ -239,7 +238,7 @@ export default function MundialPage() {
                     </thead>
                     <tbody>
                       {group.teams.map((team, j) => (
-                        <tr key={j} className="border-b last:border-0 border-slate-800 hover:bg-slate-800/80 transition-colors">
+                        <tr key={j} className={`border-b last:border-0 border-slate-800 transition-colors ${j < 2 ? 'bg-emerald-500/10 hover:bg-emerald-500/20' : 'hover:bg-slate-800/80'}`}>
                           <td className="px-3 py-3 font-medium flex items-center gap-2 text-slate-200">
                             <span className={`text-xs font-bold w-4 text-center ${j < 2 ? 'text-emerald-400' : 'text-slate-500'}`}>{team.pos}</span>
                             <span className="text-lg drop-shadow-sm">{team.flag}</span>
@@ -268,15 +267,22 @@ export default function MundialPage() {
           
           <div className="flex flex-col gap-8">
             {knockoutStages.map((stage, stageIdx) => (
-              <div key={stageIdx} className="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 overflow-hidden relative">
-                <div className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none">
+              <details key={stageIdx} open={stage.name === '16vos de Final'} className="group bg-slate-800 rounded-2xl shadow-xl border border-slate-700 overflow-hidden relative mb-4 last:mb-0">
+                <summary className="flex items-center justify-between cursor-pointer bg-slate-900/60 p-4 border-b border-slate-700 relative z-20 hover:bg-slate-800/80 transition-colors">
+                  <h3 className="text-xl font-black text-emerald-400 tracking-wide uppercase text-center flex-1">{stage.name}</h3>
+                  <div className="text-emerald-400 font-bold group-open:rotate-180 transition-transform text-xl">▼</div>
+                </summary>
+                
+                <div className="absolute inset-0 opacity-10 mix-blend-overlay pointer-events-none mt-16">
                   <img src="/Mundial/250612-aca12_Des_F1-Cuenta_regre.jpg" alt="Background" className="w-full h-full object-cover" />
                 </div>
                 
-                <div className="relative z-10">
-                  <div className="bg-slate-900/60 p-4 border-b border-slate-700">
-                    <h3 className="text-xl font-black text-emerald-400 tracking-wide uppercase text-center">{stage.name}</h3>
-                  </div>
+                <div className="relative z-10 p-2">
+                  {stage.name === 'Final' && (
+                    <div className="flex justify-center mb-6 mt-4">
+                      <img src="/Mundial/51Lba4gaGAL._AC_SL1500_.jpg" alt="Copa del Mundo" className="h-64 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  )}
                   <div className={`grid grid-cols-1 ${stage.matches.length > 4 ? 'md:grid-cols-2 divide-y md:divide-y-0 md:divide-x' : 'divide-y'} divide-slate-700`}>
                     
                     {stage.matches.length > 4 ? (
@@ -346,18 +352,21 @@ export default function MundialPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </details>
             ))}
           </div>
         </div>
 
           {/* Tabla de Goleadores */}
           <div className="mt-16">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-3xl">⚽</span>
-              <h2 className="text-2xl font-black text-white tracking-tight uppercase">Estadísticas de Jugadores</h2>
-            </div>
-            <div className="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 overflow-hidden">
+            <details className="group bg-slate-800 rounded-2xl shadow-xl border border-slate-700 overflow-hidden">
+              <summary className="flex items-center justify-between cursor-pointer p-6 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 transition-all border-b border-slate-700">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">⚽</span>
+                  <h2 className="text-2xl font-black text-white tracking-tight uppercase">Estadísticas de Jugadores</h2>
+                </div>
+                <div className="text-emerald-400 font-bold group-open:rotate-180 transition-transform text-xl">▼</div>
+              </summary>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-slate-400 uppercase bg-slate-900/80 border-b border-slate-700">
@@ -408,7 +417,7 @@ export default function MundialPage() {
                   Tabla en actualización
                 </p>
               </div>
-            </div>
+            </details>
           </div>
 
       </div>
