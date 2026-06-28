@@ -31,47 +31,95 @@ interface Goleador { player_id: string; nombre: string; equipo_nombre: string; g
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────
 export default function TournamentManagement({ complejoId }: { complejoId: string }) {
-  const [torneos, setTorneos] = useState<Tournament[]>([]);
+  const [eventos, setEventos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTorneo, setSelectedTorneo] = useState<Tournament | null>(null);
+  const [selectedEvento, setSelectedEvento] = useState<any>(null);
   const [formData, setFormData] = useState({
-    nombre: '', descripcion: '', deporte: 'Fútbol 5', formato: 'liga',
+    nombre: '', descripcion: '', deporte: 'Fútbol 5',
     fecha_inicio: new Date().toISOString().split('T')[0],
-    max_equipos: 16, costo_inscripcion: 0, pts_victoria: 3, pts_empate: 1, pts_derrota: 0,
+    fecha_fin: '',
     reglas: [''] as string[],
-    premios: [{ rank: '1er Puesto', reward: '' }] as {rank: string, reward: string}[]
+    premios: [{ rank: '1er Puesto', reward: '' }] as {rank: string, reward: string}[],
+    categorias: [
+      { id: Date.now(), nombre: 'Categoría Libre', formato: 'liga', max_equipos: 16, costo_inscripcion: 0, pts_victoria: 3, pts_empate: 1, pts_derrota: 0, configuracion: { a_dos_vueltas: false, tipo_sorteo_playoffs: 'random', rondas_suizo: 4 } }
+    ]
   });
 
-  const loadTorneos = async () => {
+  const loadEventos = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/cancha/torneos?complejo_id=${complejoId}`);
-      if (res.ok) setTorneos(await res.json());
+      const res = await fetch(`${API_URL}/cancha/torneos/eventos?complejo_id=${complejoId}`);
+      if (res.ok) setEventos(await res.json());
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  useEffect(() => { if (complejoId) loadTorneos(); }, [complejoId]);
+  useEffect(() => { if (complejoId) loadEventos(); }, [complejoId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        complejo_id: complejoId,
+        fecha_fin: formData.fecha_fin || null,
+        categorias: formData.categorias.map(c => ({
+            nombre: c.nombre, formato: c.formato, max_equipos: c.max_equipos,
+            costo_inscripcion: c.costo_inscripcion, pts_victoria: c.pts_victoria,
+            pts_empate: c.pts_empate, pts_derrota: c.pts_derrota, configuracion: c.configuracion
+        }))
+      };
       const res = await fetch(`${API_URL}/cancha/torneos`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, complejo_id: complejoId })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setIsModalOpen(false); loadTorneos();
-        setFormData({ nombre: '', descripcion: '', deporte: 'Fútbol 5', formato: 'liga',
-          fecha_inicio: new Date().toISOString().split('T')[0], max_equipos: 16,
-          costo_inscripcion: 0, pts_victoria: 3, pts_empate: 1, pts_derrota: 0,
-          reglas: [], premios: [] });
+        setIsModalOpen(false); loadEventos();
+        setFormData({ nombre: '', descripcion: '', deporte: 'Fútbol 5',
+          fecha_inicio: new Date().toISOString().split('T')[0], fecha_fin: '', reglas: [], premios: [],
+          categorias: [{ id: Date.now(), nombre: 'Categoría Libre', formato: 'liga', max_equipos: 16, costo_inscripcion: 0, pts_victoria: 3, pts_empate: 1, pts_derrota: 0, configuracion: { a_dos_vueltas: false, tipo_sorteo_playoffs: 'random', rondas_suizo: 4 } }]
+        });
       }
     } catch (e) { console.error(e); }
   };
 
   if (selectedTorneo) {
-    return <TournamentDetails torneo={selectedTorneo} onBack={() => { setSelectedTorneo(null); loadTorneos(); }} />;
+    return <TournamentDetails torneo={selectedTorneo} onBack={() => { setSelectedTorneo(null); }} />;
+  }
+
+  if (selectedEvento && !selectedTorneo) {
+    return (
+      <div className="p-6 h-full overflow-y-auto">
+        <button onClick={() => setSelectedEvento(null)} className="text-slate-400 hover:text-white mb-6 flex items-center gap-2"><ChevronRight className="rotate-180" size={16}/> Volver a Eventos</button>
+        <div className="mb-10">
+            <h2 className="text-4xl font-black text-white tracking-tight mb-2">{selectedEvento.nombre}</h2>
+            <p className="text-slate-400">{selectedEvento.descripcion || 'Sin descripción'}</p>
+            <div className="flex items-center gap-4 mt-4">
+                <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs font-bold"><Calendar size={14} className="inline mr-1"/> {new Date(selectedEvento.fecha_inicio).toLocaleDateString()}</span>
+                <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase">{selectedEvento.estado}</span>
+            </div>
+        </div>
+        
+        <h3 className="text-xl font-bold text-white mb-6">Categorías del Evento</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {selectedEvento.categorias?.map((c: any) => (
+             <div key={c.id} className="bg-slate-900/60 border border-slate-800/80 rounded-[2rem] p-6 hover:border-green-500/30 transition-all group flex flex-col justify-between h-[250px]">
+                <div>
+                    <h4 className="text-2xl font-black text-white group-hover:text-green-400 transition-colors">{c.categoria}</h4>
+                    <p className="text-slate-400 text-sm mt-3 uppercase tracking-wider font-bold">Mod: {c.formato}</p>
+                </div>
+                <button onClick={() => setSelectedTorneo({...c, deporte: 'Fútbol 5', max_equipos: 16, costo_inscripcion: 0, estado: selectedEvento.estado, fecha_inicio: selectedEvento.fecha_inicio, nombre: `${selectedEvento.nombre} - ${c.categoria}`})} className="w-full py-4 bg-slate-800 hover:bg-green-500 hover:text-black text-white rounded-2xl font-extrabold flex items-center justify-center gap-2 transition-all duration-300">
+                   Administrar Categoría <ChevronRight size={18} />
+                </button>
+             </div>
+          ))}
+          {(!selectedEvento.categorias || selectedEvento.categorias.length === 0) && (
+              <div className="col-span-full py-12 text-center text-slate-500 font-bold">No hay categorías configuradas para este evento.</div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -95,38 +143,34 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500 font-bold uppercase tracking-widest text-xs">Cargando torneos...</div>
-      ) : torneos.length === 0 ? (
+        <div className="py-20 text-center text-slate-500 font-bold uppercase tracking-widest text-xs">Cargando eventos...</div>
+      ) : eventos.length === 0 ? (
         <div className="py-24 bg-slate-900/40 border border-slate-800/80 rounded-[2.5rem] text-center max-w-xl mx-auto">
           <Trophy className="text-slate-600 w-8 h-8 mx-auto mb-6" />
           <h3 className="text-2xl font-black text-white mb-2">Sin competencias activas</h3>
           <p className="text-slate-400 text-sm max-w-sm mx-auto leading-relaxed mb-8">Comienza creando tu primer torneo oficial.</p>
-          <button onClick={() => setIsModalOpen(true)} className="bg-green-500/10 hover:bg-green-500/20 text-green-400 font-extrabold py-3.5 px-8 rounded-xl border border-green-500/20 transition-all">Crear Torneo</button>
+          <button onClick={() => setIsModalOpen(true)} className="bg-green-500/10 hover:bg-green-500/20 text-green-400 font-extrabold py-3.5 px-8 rounded-xl border border-green-500/20 transition-all">Crear Evento</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {torneos.map(t => (
-            <div key={t.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-[2rem] p-8 hover:border-green-500/30 transition-all duration-300 group flex flex-col justify-between h-[400px]">
+          {eventos.map(e => (
+            <div key={e.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-[2rem] p-8 hover:border-green-500/30 transition-all duration-300 group flex flex-col justify-between h-[360px]">
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{t.estado}</span>
-                  <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">{t.deporte}</span>
+                  <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{e.estado}</span>
+                  <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">{e.categorias?.length || 0} Categorías</span>
                 </div>
-                <h3 className="text-2xl font-black text-white mb-3 tracking-tight group-hover:text-green-400 transition-colors line-clamp-1">{t.nombre}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-2">{t.descripcion || 'Sin descripción'}</p>
+                <h3 className="text-2xl font-black text-white mb-3 tracking-tight group-hover:text-green-400 transition-colors line-clamp-1">{e.nombre}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-2">{e.descripcion || 'Sin descripción'}</p>
                 <div className="space-y-3 mb-8 border-t border-slate-800/60 pt-6">
                   <div className="flex items-center gap-3 text-slate-400 text-sm font-semibold">
-                    <Calendar size={16} className="text-green-400" /> Inicia: {new Date(t.fecha_inicio).toLocaleDateString()}
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-400 text-sm font-semibold">
-                    <Users size={16} className="text-green-400" />
-                    {t.equipos_confirmados ?? '–'} / {t.max_equipos} equipos
+                    <Calendar size={16} className="text-green-400" /> Inicia: {new Date(e.fecha_inicio).toLocaleDateString()}
                   </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedTorneo(t)}
+              <button onClick={() => setSelectedEvento(e)}
                 className="w-full py-4 bg-slate-800 hover:bg-green-500 hover:text-black text-white rounded-2xl font-extrabold flex items-center justify-center gap-2 transition-all duration-300">
-                Administrar Panel <ChevronRight size={18} />
+                Ver Categorías <ChevronRight size={18} />
               </button>
             </div>
           ))}
@@ -165,46 +209,70 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Formato</label>
-                  <select className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
-                    value={formData.formato} onChange={e => setFormData({...formData, formato: e.target.value})}>
-                    <option value="liga">Liga (Todos contra todos)</option>
-                    <option value="eliminatoria">Eliminación Directa</option>
-                    <option value="mixta">Mixta (Grupos + Eliminatoria)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Fecha de Inicio</label>
                   <input type="date" required
                     className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
                     value={formData.fecha_inicio} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Max Equipos</label>
-                  <input type="number" required min={2}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
-                    value={formData.max_equipos} onChange={e => setFormData({...formData, max_equipos: parseInt(e.target.value) || 16})} />
-                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Costo de Inscripción (Gs.)</label>
-                <input type="number" min={0} step={50000}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold text-sm"
-                  placeholder="0 si es gratuito" value={formData.costo_inscripcion}
-                  onChange={e => setFormData({...formData, costo_inscripcion: parseFloat(e.target.value) || 0})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Puntuación (Victoria / Empate / Derrota)</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {(['pts_victoria', 'pts_empate', 'pts_derrota'] as const).map((k, i) => (
-                    <input key={k} type="number" min={0} max={10}
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 font-bold text-sm text-center"
-                      value={formData[k]} onChange={e => setFormData({...formData, [k]: parseInt(e.target.value) || 0})}
-                      placeholder={['V','E','D'][i]} />
-                  ))}
+
+              <div className="mt-6 border-t border-slate-800 pt-6 space-y-6">
+                <div className="flex justify-between items-center">
+                    <label className="block text-sm font-bold uppercase tracking-wider text-green-400">Categorías del Evento</label>
+                    <button type="button" onClick={() => setFormData({...formData, categorias: [...formData.categorias, { id: Date.now(), nombre: '', formato: 'liga', max_equipos: 16, costo_inscripcion: 0, pts_victoria: 3, pts_empate: 1, pts_derrota: 0, configuracion: { a_dos_vueltas: false, tipo_sorteo_playoffs: 'random', rondas_suizo: 4 } }]})} className="text-xs bg-green-500/10 text-green-400 px-3 py-1.5 rounded-lg font-bold">+ Agregar Categoría</button>
                 </div>
+                {formData.categorias.map((cat, cIdx) => (
+                    <div key={cat.id} className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 space-y-4 relative">
+                        {formData.categorias.length > 1 && (
+                            <button type="button" onClick={() => setFormData({...formData, categorias: formData.categorias.filter(c => c.id !== cat.id)})} className="absolute top-4 right-4 text-slate-500 hover:text-red-500"><X size={18}/></button>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Nombre (Ej. Senior)</label>
+                                <input type="text" required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm" value={cat.nombre} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].nombre = e.target.value; setFormData({...formData, categorias: nc})}} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Modalidad</label>
+                                <select className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm" value={cat.formato} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].formato = e.target.value; setFormData({...formData, categorias: nc})}}>
+                                    <option value="liga">Acumulación de Puntos (Liga)</option>
+                                    <option value="eliminatoria">Eliminación Directa (Playoffs)</option>
+                                    <option value="mixta">Mixta (Grupos + Playoffs)</option>
+                                    <option value="suizo">Sistema Suizo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Max Eq.</label>
+                                <input type="number" required min={2} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm" value={cat.max_equipos} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].max_equipos = parseInt(e.target.value)||16; setFormData({...formData, categorias: nc})}} />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Costo Gs.</label>
+                                <input type="number" min={0} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm" value={cat.costo_inscripcion} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].costo_inscripcion = parseFloat(e.target.value)||0; setFormData({...formData, categorias: nc})}} />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Pts (V-E-D)</label>
+                                <div className="flex gap-1">
+                                    <input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-md px-1 py-2 text-white text-xs text-center" value={cat.pts_victoria} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].pts_victoria = parseInt(e.target.value)||0; setFormData({...formData, categorias: nc})}} />
+                                    <input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-md px-1 py-2 text-white text-xs text-center" value={cat.pts_empate} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].pts_empate = parseInt(e.target.value)||0; setFormData({...formData, categorias: nc})}} />
+                                    <input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-md px-1 py-2 text-white text-xs text-center" value={cat.pts_derrota} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].pts_derrota = parseInt(e.target.value)||0; setFormData({...formData, categorias: nc})}} />
+                                </div>
+                            </div>
+                        </div>
+                        {cat.formato === 'liga' && (
+                            <label className="flex items-center gap-2 text-xs text-slate-300">
+                                <input type="checkbox" checked={cat.configuracion.a_dos_vueltas} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].configuracion.a_dos_vueltas = e.target.checked; setFormData({...formData, categorias: nc})}} />
+                                Jugar a dos vueltas (Ida y Vuelta)
+                            </label>
+                        )}
+                        {cat.formato === 'suizo' && (
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs text-slate-300">Total de Rondas:</label>
+                                <input type="number" min={1} className="bg-slate-950 border border-slate-800 rounded-md px-2 py-1 text-white text-xs w-16" value={cat.configuracion.rondas_suizo} onChange={e => { const nc = [...formData.categorias]; nc[cIdx].configuracion.rondas_suizo = parseInt(e.target.value)||4; setFormData({...formData, categorias: nc})}} />
+                            </div>
+                        )}
+                    </div>
+                ))}
               </div>
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">Reglas del Torneo</label>

@@ -25,9 +25,10 @@ async def async_session_fixture():
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS cancha.torneos (
                 id TEXT PRIMARY KEY,
+                evento_id TEXT,
                 complejo_id TEXT,
                 nombre TEXT NOT NULL,
-                categoria TEXT DEFAULT 'Primera',
+                categoria TEXT,
                 formato TEXT DEFAULT 'liga',
                 estado TEXT DEFAULT 'disponible',
                 costo_inscripcion DECIMAL DEFAULT 0,
@@ -35,7 +36,8 @@ async def async_session_fixture():
                 pts_empate INT DEFAULT 1,
                 pts_derrota INT DEFAULT 0,
                 fecha_inicio DATE,
-                fecha_fin DATE
+                fecha_fin DATE,
+                configuracion TEXT
             )
         """))
         
@@ -47,6 +49,7 @@ async def async_session_fixture():
                 nombre TEXT NOT NULL,
                 estado_inscripcion TEXT DEFAULT 'confirmado',
                 promocion INT DEFAULT 0,
+                semilla INT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(torneo_id) REFERENCES torneos(id)
@@ -147,11 +150,11 @@ async def test_format_eliminatoria_bracket(async_session_fixture):
     session = async_session_fixture
     hoy = date.today()
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, formato, fecha_inicio) VALUES ('t_elim', 'Torneo Playoffs', 'eliminatoria', :hoy)"), {"hoy": hoy})
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq1', 't_elim', 'Equipo A')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq2', 't_elim', 'Equipo B')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq3', 't_elim', 'Equipo C')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq4', 't_elim', 'Equipo D')"))
+    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, formato, fecha_inicio, configuracion) VALUES ('t_elim', 'Torneo Playoffs', 'eliminatoria', :hoy, '{\"tipo_sorteo_playoffs\": \"siembra\"}')"), {"hoy": hoy})
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq1', 't_elim', 'Equipo A', 1)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq2', 't_elim', 'Equipo B', 2)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq3', 't_elim', 'Equipo C', 3)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq4', 't_elim', 'Equipo D', 4)"))
     await session.commit()
 
     # Generar fixture inicial (debería crear 2 semifinales)
@@ -196,11 +199,11 @@ async def test_format_mixto_groups_to_playoffs(async_session_fixture):
     session = async_session_fixture
     hoy = date.today()
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, formato, fecha_inicio) VALUES ('t_mix', 'Torneo Mixto', 'mixta', :hoy)"), {"hoy": hoy})
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq1', 't_mix', 'Equipo 1')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq2', 't_mix', 'Equipo 2')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq3', 't_mix', 'Equipo 3')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq4', 't_mix', 'Equipo 4')"))
+    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, formato, fecha_inicio, configuracion) VALUES ('t_mix', 'Torneo Mixto', 'mixta', :hoy, '{\"tipo_sorteo_playoffs\": \"siembra\"}')"), {"hoy": hoy})
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq1', 't_mix', 'Equipo 1', 1)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq2', 't_mix', 'Equipo 2', 2)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq3', 't_mix', 'Equipo 3', 3)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq4', 't_mix', 'Equipo 4', 4)"))
     await session.commit()
 
     # Generar fixture
@@ -241,11 +244,11 @@ async def test_format_suizo_system(async_session_fixture):
     session = async_session_fixture
     hoy = date.today()
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, formato, fecha_inicio) VALUES ('t_suizo', 'Torneo Suizo', 'suizo', :hoy)"), {"hoy": hoy})
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq1', 't_suizo', 'Equipo 1')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq2', 't_suizo', 'Equipo 2')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq3', 't_suizo', 'Equipo 3')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq4', 't_suizo', 'Equipo 4')"))
+    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, formato, fecha_inicio, configuracion) VALUES ('t_suizo', 'Torneo Suizo', 'suizo', :hoy, '{\"tipo_sorteo_playoffs\": \"siembra\", \"rondas_suizo\": 2}')"), {"hoy": hoy})
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq1', 't_suizo', 'Equipo 1', 1)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq2', 't_suizo', 'Equipo 2', 2)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq3', 't_suizo', 'Equipo 3', 3)"))
+    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, semilla) VALUES ('eq4', 't_suizo', 'Equipo 4', 4)"))
     await session.commit()
 
     # Generar Ronda 1

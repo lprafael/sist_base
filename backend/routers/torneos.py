@@ -23,20 +23,26 @@ router = APIRouter(prefix="/cancha/torneos", tags=["Torneos"])
 # SCHEMAS PYDANTIC
 # ============================================================
 
-class TorneoCreate(BaseModel):
+class CategoriaCreate(BaseModel):
     nombre: str
-    descripcion: Optional[str] = None
-    deporte: str = "Fútbol 5"
-    formato: str = "liga"           # liga | eliminatoria | mixta
-    fecha_inicio: str
+    formato: str = "liga"  # liga | eliminacion_simple | mixto | suizo
     max_equipos: int = 16
     costo_inscripcion: float = 0.0
-    complejo_id: str
     pts_victoria: int = 3
     pts_empate: int = 1
     pts_derrota: int = 0
+    configuracion: Optional[dict] = {}
+
+class EventoCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    deporte: str = "Fútbol 5"
+    fecha_inicio: str
+    fecha_fin: Optional[str] = None
+    complejo_id: str
     reglas: Optional[list[str]] = []
     premios: Optional[list[dict]] = []
+    categorias: List[CategoriaCreate] = []
 
 class EquipoCreate(BaseModel):
     nombre: str
@@ -130,7 +136,7 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
     partidos = p_res.fetchall()
 
     # Calcular stats por equipo
-    stats: dict = {eid: {"pj": 0, "pg": 0, "pe": 0, "pp": 0, "gf": 0, "gc": 0, "pts": 0} for eid in equipos}
+    stats: dict = {eid: {"pj": 0, "pg": 0, "pe": 0, "pp": 0, "gf": 0, "gc": 0, "pts": 0, "opponents": []} for eid in equipos}
 
     for local_id, visitante_id, gl, gv in partidos:
         lid = str(local_id)
@@ -147,14 +153,41 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
             stats[vid]["gc"] += gl
 
         if gl > gv:
-            if lid in stats: stats[lid]["pg"] += 1; stats[lid]["pts"] += pts_v
-            if vid in stats: stats[vid]["pp"] += 1; stats[vid]["pts"] += pts_d
+            if lid in stats: 
+                stats[lid]["pg"] += 1; stats[lid]["pts"] += pts_v
+                stats[lid]["opponents"].append((vid, 'W'))
+            if vid in stats: 
+                stats[vid]["pp"] += 1; stats[vid]["pts"] += pts_d
+                stats[vid]["opponents"].append((lid, 'L'))
         elif gv > gl:
-            if vid in stats: stats[vid]["pg"] += 1; stats[vid]["pts"] += pts_v
-            if lid in stats: stats[lid]["pp"] += 1; stats[lid]["pts"] += pts_d
+            if vid in stats: 
+                stats[vid]["pg"] += 1; stats[vid]["pts"] += pts_v
+                stats[vid]["opponents"].append((lid, 'W'))
+            if lid in stats: 
+                stats[lid]["pp"] += 1; stats[lid]["pts"] += pts_d
+                stats[lid]["opponents"].append((vid, 'L'))
         else:
-            if lid in stats: stats[lid]["pe"] += 1; stats[lid]["pts"] += pts_e
-            if vid in stats: stats[vid]["pe"] += 1; stats[vid]["pts"] += pts_e
+            if lid in stats: 
+                stats[lid]["pe"] += 1; stats[lid]["pts"] += pts_e
+                stats[lid]["opponents"].append((vid, 'D'))
+            if vid in stats: 
+                stats[vid]["pe"] += 1; stats[vid]["pts"] += pts_e
+                stats[vid]["opponents"].append((lid, 'D'))
+
+    # Calculate Buchholz and Sonneborn-Berger
+    for eid in equipos:
+        bh = 0
+        sb = 0.0
+        for opp_id, result in stats[eid]["opponents"]:
+            if opp_id in stats:
+                opp_pts = stats[opp_id]["pts"]
+                bh += opp_pts
+                if result == 'W':
+                    sb += opp_pts
+                elif result == 'D':
+                    sb += opp_pts * 0.5
+        stats[eid]["bh"] = bh
+        stats[eid]["sb"] = sb
 
     # Obtener fair play por equipo
     fp_res = await session.execute(
@@ -169,11 +202,13 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
     )
     fp_map = {str(r[0]): int(r[1]) for r in fp_res.fetchall()}
 
-    # Ordenar: pts DESC, dg DESC, gf DESC, fair_play ASC
+    # Ordenar: pts DESC, bh DESC, sb DESC, dg DESC, gf DESC, fair_play ASC
     sorted_equipos = sorted(
         equipos,
         key=lambda e: (
             -stats[e]["pts"],
+            -stats[e]["bh"],
+            -stats[e]["sb"],
             -(stats[e]["gf"] - stats[e]["gc"]),
             -stats[e]["gf"],
             fp_map.get(e, 0)
@@ -243,8 +278,48 @@ async def _aplicar_tarjeta_logica(player_id: str, tipo: str, torneo_id: str, ses
 
 
 # ============================================================
-# ENDPOINTS — TORNEOS
+# ENDPOINTS — EVENTOS Y TORNEOS
 # ============================================================
+
+@router.get("/eventos", summary="Listar eventos")
+async def get_eventos(
+    complejo_id: Optional[str] = None,
+    estado: Optional[str] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    sql = """
+        SELECT e.id, e.complejo_id, e.nombre, e.descripcion, e.fecha_inicio, e.fecha_fin, e.estado,
+               c.nombre AS complejo_nombre,
+               (SELECT json_agg(json_build_object('id', t.id, 'categoria', t.categoria, 'formato', t.formato)) 
+                FROM cancha.torneos t WHERE t.evento_id = e.id) as categorias
+        FROM cancha.torneos_eventos e
+        JOIN cancha.complejos c ON e.complejo_id = c.id
+        WHERE 1=1
+    """
+    params: dict = {}
+    if complejo_id:
+        sql += " AND e.complejo_id = :complejo_id"
+        params["complejo_id"] = complejo_id
+    if estado:
+        sql += " AND e.estado = :estado"
+        params["estado"] = estado
+    sql += " ORDER BY e.fecha_inicio DESC"
+
+    result = await session.execute(text(sql), params)
+    rows = result.fetchall()
+    
+    events = []
+    for r in rows:
+        d = _row_to_dict(["id","complejo_id","nombre","descripcion","fecha_inicio","fecha_fin","estado","complejo_nombre","categorias"], r)
+        # Parse JSON if needed
+        cats = d.get("categorias")
+        if isinstance(cats, str):
+            try:
+                d["categorias"] = json.loads(cats)
+            except:
+                d["categorias"] = []
+        events.append(d)
+    return events
 
 @router.get("", summary="Listar torneos")
 async def get_torneos(
@@ -258,6 +333,7 @@ async def get_torneos(
                t.fecha_inicio, t.fecha_fin, t.estado,
                c.nombre AS complejo_nombre, t.formato,
                t.max_equipos, t.costo_inscripcion,
+               t.evento_id, t.categoria,
                (SELECT COUNT(*) FROM cancha.torneos_equipos te
                 WHERE te.torneo_id = t.id AND te.estado_inscripcion = 'confirmado') AS equipos_confirmados
         FROM cancha.torneos t
@@ -280,35 +356,54 @@ async def get_torneos(
     rows = result.fetchall()
     keys = ["id","complejo_id","nombre","descripcion","deporte","fecha_inicio",
             "fecha_fin","estado","complejo_nombre","formato","max_equipos",
-            "costo_inscripcion","equipos_confirmados"]
+            "costo_inscripcion","evento_id","categoria","equipos_confirmados"]
     return [_row_to_dict(keys, r) for r in rows]
 
 
-@router.post("", summary="Crear torneo")
-async def create_torneo(payload: TorneoCreate, session: AsyncSession = Depends(get_session)):
+@router.post("", summary="Crear evento y categorías")
+async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSession = Depends(get_session)):
     try:
         fecha_ini = date.fromisoformat(payload.fecha_inicio)
-        result = await session.execute(text("""
-            INSERT INTO cancha.torneos
-                (id, complejo_id, nombre, descripcion, deporte, formato,
-                 fecha_inicio, max_equipos, costo_inscripcion, estado,
-                 pts_victoria, pts_empate, pts_derrota, reglas, premios)
+        fecha_f = date.fromisoformat(payload.fecha_fin) if payload.fecha_fin else None
+
+        # Insert Event
+        evento_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO cancha.torneos_eventos
+                (id, complejo_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
             VALUES
-                (gen_random_uuid(), :complejo_id, :nombre, :descripcion, :deporte, :formato,
-                 :fecha_inicio, :max_equipos, :costo_inscripcion, 'abierto',
-                 :pts_v, :pts_e, :pts_d, :reglas, :premios)
-            RETURNING id, nombre, estado, deporte, formato, fecha_inicio, max_equipos, costo_inscripcion
+                (:id, :complejo_id, :nombre, :descripcion, :fecha_inicio, :fecha_fin, 'abierto')
         """), {
-            "complejo_id": payload.complejo_id, "nombre": payload.nombre,
-            "descripcion": payload.descripcion, "deporte": payload.deporte,
-            "formato": payload.formato, "fecha_inicio": fecha_ini,
-            "max_equipos": payload.max_equipos, "costo_inscripcion": payload.costo_inscripcion,
-            "pts_v": payload.pts_victoria, "pts_e": payload.pts_empate, "pts_d": payload.pts_derrota,
-            "reglas": json.dumps(payload.reglas), "premios": json.dumps(payload.premios)
+            "id": evento_id, "complejo_id": payload.complejo_id, "nombre": payload.nombre,
+            "descripcion": payload.descripcion, "fecha_inicio": fecha_ini, "fecha_fin": fecha_f
         })
+
+        # Insert Categories (Torneos)
+        categorias_creadas = []
+        for cat in payload.categorias:
+            cat_id = str(uuid.uuid4())
+            await session.execute(text("""
+                INSERT INTO cancha.torneos
+                    (id, evento_id, complejo_id, nombre, descripcion, deporte, formato,
+                     fecha_inicio, max_equipos, costo_inscripcion, estado,
+                     pts_victoria, pts_empate, pts_derrota, reglas, premios, categoria, configuracion)
+                VALUES
+                    (:id, :evento_id, :complejo_id, :nombre, :descripcion, :deporte, :formato,
+                     :fecha_inicio, :max_equipos, :costo_inscripcion, 'abierto',
+                     :pts_v, :pts_e, :pts_d, :reglas, :premios, :categoria, :configuracion)
+            """), {
+                "id": cat_id, "evento_id": evento_id, "complejo_id": payload.complejo_id,
+                "nombre": f"{payload.nombre} - {cat.nombre}", "descripcion": payload.descripcion,
+                "deporte": payload.deporte, "formato": cat.formato, "fecha_inicio": fecha_ini,
+                "max_equipos": cat.max_equipos, "costo_inscripcion": cat.costo_inscripcion,
+                "pts_v": cat.pts_victoria, "pts_e": cat.pts_empate, "pts_d": cat.pts_derrota,
+                "reglas": json.dumps(payload.reglas), "premios": json.dumps(payload.premios),
+                "categoria": cat.nombre, "configuracion": json.dumps(cat.configuracion)
+            })
+            categorias_creadas.append({"id": cat_id, "nombre": cat.nombre, "formato": cat.formato})
+
         await session.commit()
-        row = result.fetchone()
-        return _row_to_dict(["id","nombre","estado","deporte","formato","fecha_inicio","max_equipos","costo_inscripcion"], row)
+        return {"evento_id": evento_id, "nombre": payload.nombre, "categorias": categorias_creadas}
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -1551,8 +1646,8 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
     )
 
 
-def _generar_round_robin(equipos_ids: list) -> list:
-    """Algoritmo de Berger — maneja número impar con BYE."""
+def _generar_round_robin(equipos_ids: list, a_dos_vueltas: bool = False) -> list:
+    """Algoritmo de Berger — maneja número impar con BYE, e Ida/Vuelta."""
     n = len(equipos_ids)
     if n % 2 != 0:
         equipos_ids = equipos_ids + [None]
@@ -1570,6 +1665,14 @@ def _generar_round_robin(equipos_ids: list) -> list:
                     partidos.append((visitante, local))
         ids = [ids[0]] + [ids[-1]] + ids[1:-1]
         rondas.append(partidos)
+
+    if a_dos_vueltas:
+        rondas_vuelta = []
+        for ronda in rondas:
+            partidos_vuelta = [(v, l) for l, v in ronda]
+            rondas_vuelta.append(partidos_vuelta)
+        rondas.extend(rondas_vuelta)
+
     return rondas
 
 
@@ -1579,7 +1682,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         from datetime import timedelta, time as dtime
 
         torneo_res = await session.execute(
-            text("SELECT id, formato, fecha_inicio FROM cancha.torneos WHERE id = :tid"),
+            text("SELECT id, formato, fecha_inicio, configuracion FROM cancha.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         torneo = torneo_res.fetchone()
@@ -1590,12 +1693,31 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         fecha_base = torneo[2]
         if isinstance(fecha_base, str):
             fecha_base = date.fromisoformat(fecha_base)
+            
+        config_str = torneo[3]
+        configuracion = {}
+        if config_str:
+            if isinstance(config_str, str):
+                try: configuracion = json.loads(config_str)
+                except: pass
+            else: configuracion = config_str
+        
+        a_dos_vueltas = configuracion.get("a_dos_vueltas", False)
+        tipo_sorteo = configuracion.get("tipo_sorteo_playoffs", "random")
 
         equipos_res = await session.execute(
-            text("SELECT id FROM cancha.torneos_equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
+            text("SELECT id, semilla FROM cancha.torneos_equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
             {"tid": torneo_id}
         )
-        equipos = [str(r[0]) for r in equipos_res.fetchall()]
+        equipos_db = equipos_res.fetchall()
+        
+        if tipo_sorteo == 'random':
+            import random
+            random.shuffle(equipos_db)
+        else:
+            equipos_db = sorted(equipos_db, key=lambda x: x[1] or 9999)
+            
+        equipos = [str(r[0]) for r in equipos_db]
 
         if len(equipos) < 2:
             raise HTTPException(status_code=400, detail="Se necesitan al menos 2 equipos confirmados")
@@ -1610,7 +1732,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         jornadas_totales = 0
 
         if formato == 'liga':
-            rondas = _generar_round_robin(equipos)
+            rondas = _generar_round_robin(equipos, a_dos_vueltas=a_dos_vueltas)
             jornadas_totales = len(rondas)
             for round_num, partidos_ronda in enumerate(rondas, start=1):
                 fecha_partido = fecha_base + timedelta(days=(round_num - 1) * 7)
@@ -1674,8 +1796,8 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
             grupo_a = [eq for idx, eq in enumerate(equipos) if idx % 2 == 0]
             grupo_b = [eq for idx, eq in enumerate(equipos) if idx % 2 != 0]
 
-            rondas_a = _generar_round_robin(grupo_a)
-            rondas_b = _generar_round_robin(grupo_b)
+            rondas_a = _generar_round_robin(grupo_a, a_dos_vueltas=a_dos_vueltas)
+            rondas_b = _generar_round_robin(grupo_b, a_dos_vueltas=a_dos_vueltas)
             
             max_rondas = max(len(rondas_a), len(rondas_b))
             jornadas_totales = max_rondas
