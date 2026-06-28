@@ -15,7 +15,7 @@ const groupsData = [
     teams: [
       { pos: 1, name: 'Suiza', flag: '🇨🇭', p: 3, gd: 4, pts: 7 },
       { pos: 2, name: 'Canadá', flag: '🇨🇦', p: 3, gd: 5, pts: 4 },
-      { pos: 3, name: 'Bosnia y Herz.', flag: '🇧🇦', p: 3, gd: -1, pts: 4 },
+      { pos: 3, name: 'Bosnia y Herzegovina', flag: '🇧🇦', p: 3, gd: -1, pts: 4 },
       { pos: 4, name: 'Catar', flag: '🇶🇦', p: 3, gd: -8, pts: 1 },
     ],
   },
@@ -184,6 +184,11 @@ const topScorers = [
 ];
 
 export default function MundialPage() {
+  const roundOf16Matches = knockoutStages.find(s => s.name === '16vos de Final')?.matches || [];
+  const qualifiedTeams = new Set(
+    roundOf16Matches.flatMap(fixture => fixture.match.split(' vs '))
+  );
+
   return (
     <div className="bg-slate-900 min-h-screen text-slate-100 pb-20 font-sans">
       <Nav scrolled={true} />
@@ -237,18 +242,21 @@ export default function MundialPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {group.teams.map((team, j) => (
-                        <tr key={j} className={`border-b last:border-0 border-slate-800 transition-colors ${j < 2 ? 'bg-emerald-500/10 hover:bg-emerald-500/20' : 'hover:bg-slate-800/80'}`}>
-                          <td className="px-3 py-3 font-medium flex items-center gap-2 text-slate-200">
-                            <span className={`text-xs font-bold w-4 text-center ${j < 2 ? 'text-emerald-400' : 'text-slate-500'}`}>{team.pos}</span>
-                            <span className="text-lg drop-shadow-sm">{team.flag}</span>
-                            <span className="truncate max-w-[100px]" title={team.name}>{team.name}</span>
-                          </td>
-                          <td className="px-2 py-3 text-center text-slate-400">{team.p}</td>
-                          <td className="px-2 py-3 text-center text-slate-400">{team.gd > 0 ? `+${team.gd}` : team.gd}</td>
-                          <td className="px-3 py-3 text-center font-bold text-white">{team.pts}</td>
-                        </tr>
-                      ))}
+                      {group.teams.map((team, j) => {
+                        const isQualified = qualifiedTeams.has(team.name);
+                        return (
+                          <tr key={j} className={`border-b last:border-0 border-slate-800 transition-colors ${isQualified ? 'bg-emerald-500/10 hover:bg-emerald-500/20' : 'hover:bg-slate-800/80'}`}>
+                            <td className="px-3 py-3 font-medium flex items-center gap-2 text-slate-200">
+                              <span className={`text-xs font-bold w-4 text-center ${isQualified ? 'text-emerald-400' : 'text-slate-500'}`}>{team.pos}</span>
+                              <span className="text-lg drop-shadow-sm">{team.flag}</span>
+                              <span className="truncate max-w-[100px]" title={team.name}>{team.name}</span>
+                            </td>
+                            <td className="px-2 py-3 text-center text-slate-400">{team.p}</td>
+                            <td className="px-2 py-3 text-center text-slate-400">{team.gd > 0 ? `+${team.gd}` : team.gd}</td>
+                            <td className="px-3 py-3 text-center font-bold text-white">{team.pts}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
