@@ -32,6 +32,7 @@ export default function TournamentDetailPage() {
   const [tournament, setTournament] = useState<any>(null);
   const [equipos, setEquipos] = useState<any[]>([]);
   const [partidos, setPartidos] = useState<any[]>([]);
+  const [posiciones, setPosiciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [enrollData, setEnrollData] = useState({
@@ -69,6 +70,12 @@ export default function TournamentDetailPage() {
       const mRes = await fetch(`${API_URL}/cancha/torneos/${id}/partidos`);
       if (mRes.ok) {
         setPartidos(await mRes.json());
+      }
+
+      // 4. Fetch standings
+      const pRes = await fetch(`${API_URL}/cancha/torneos/${id}/posiciones`);
+      if (pRes.ok) {
+        setPosiciones(await pRes.json());
       }
     } catch (e) {
       console.error("Error loading tournament details:", e);
@@ -260,8 +267,8 @@ export default function TournamentDetailPage() {
           {/* Main Info Area */}
           <div className="lg:col-span-2 space-y-12">
             {/* Tabs */}
-            <div className="flex border-b border-slate-200">
-              {["Información", "Equipos", "Fixture", "Reglas"].map((tab) => (
+            <div className="flex border-b border-slate-200 overflow-x-auto whitespace-nowrap">
+              {["Información", "Equipos", "Fixture", "Posiciones", "Reglas"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab.toLowerCase())}
@@ -319,8 +326,8 @@ export default function TournamentDetailPage() {
                     <div className="col-span-full py-16 text-center text-slate-500 italic">No hay equipos inscritos todavía. ¡Sé el primero en sumarte!</div>
                   ) : equipos.map((e, idx) => (
                     <div key={e.id} className="card !p-6 flex items-center gap-5 group hover:border-primary/30 transition-all">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg">
-                        {idx + 1}
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg overflow-hidden">
+                        {e.logo_url ? <img src={`${API_URL.replace('/api', '')}${e.logo_url}`} alt={e.nombre} className="w-full h-full object-cover" /> : idx + 1}
                       </div>
                       <div>
                         <h4 className="font-extrabold text-slate-900 text-lg">{e.nombre}</h4>
@@ -331,6 +338,58 @@ export default function TournamentDetailPage() {
                       )}
                     </div>
                   ))}
+                </motion.div>
+              )}
+
+              {activeTab === "posiciones" && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                >
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 uppercase text-xs tracking-wider border-b border-slate-200">
+                          <th className="p-4 font-bold text-center w-12">Pos</th>
+                          <th className="p-4 font-bold">Equipo</th>
+                          <th className="p-4 font-bold text-center" title="Partidos Jugados">PJ</th>
+                          <th className="p-4 font-bold text-center" title="Partidos Ganados">G</th>
+                          <th className="p-4 font-bold text-center" title="Partidos Empatados">E</th>
+                          <th className="p-4 font-bold text-center" title="Partidos Perdidos">P</th>
+                          <th className="p-4 font-bold text-center hidden md:table-cell" title="Goles a Favor">GF</th>
+                          <th className="p-4 font-bold text-center hidden md:table-cell" title="Goles en Contra">GC</th>
+                          <th className="p-4 font-bold text-center" title="Diferencia de Goles">DIF</th>
+                          <th className="p-4 font-bold text-center text-primary text-sm">PTS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {posiciones.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="p-12 text-center text-slate-500 italic">No hay resultados todavía.</td>
+                          </tr>
+                        ) : posiciones.map((pos, idx) => (
+                          <tr key={pos.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                            <td className="p-4 text-center font-bold text-slate-400">{idx + 1}</td>
+                            <td className="p-4 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-bold overflow-hidden">
+                                {pos.logo_url ? <img src={`${API_URL.replace('/api', '')}${pos.logo_url}`} alt={pos.nombre} className="w-full h-full object-cover" /> : pos.nombre.charAt(0)}
+                              </div>
+                              <span className="font-bold text-slate-800">{pos.nombre}</span>
+                            </td>
+                            <td className="p-4 text-center font-semibold text-slate-600">{pos.pj}</td>
+                            <td className="p-4 text-center text-slate-600">{pos.pg}</td>
+                            <td className="p-4 text-center text-slate-600">{pos.pe}</td>
+                            <td className="p-4 text-center text-slate-600">{pos.pp}</td>
+                            <td className="p-4 text-center text-slate-500 hidden md:table-cell">{pos.gf}</td>
+                            <td className="p-4 text-center text-slate-500 hidden md:table-cell">{pos.gc}</td>
+                            <td className="p-4 text-center font-semibold text-slate-600">{pos.dif > 0 ? `+${pos.dif}` : pos.dif}</td>
+                            <td className="p-4 text-center font-extrabold text-primary text-lg">{pos.pts}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </motion.div>
               )}
 

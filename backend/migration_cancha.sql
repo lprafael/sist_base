@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS cancha.complejos (
     horario_apertura TIME DEFAULT '07:00',
     horario_cierre  TIME DEFAULT '23:00',
     dias_habilitados TEXT[] DEFAULT ARRAY['lunes','martes','miercoles','jueves','viernes','sabado','domingo'],
+    es_publico BOOLEAN DEFAULT false,
     configuracion JSONB DEFAULT '{
         "minutos_seña": 0,
         "tiempo_minimo_reserva": 60,

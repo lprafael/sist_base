@@ -826,7 +826,8 @@ async def crear_backup_completo(
 async def get_complejos(session: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT id, nombre, descripcion, telefono, email, direccion, ciudad, departamento,
-               horario_apertura, horario_cierre, ST_Y(ubicacion::geometry) as lat, ST_X(ubicacion::geometry) as lng
+               horario_apertura, horario_cierre, ST_Y(ubicacion::geometry) as lat, ST_X(ubicacion::geometry) as lng,
+               es_publico
         FROM cancha.complejos
     """)
     result = await session.execute(query)
@@ -846,7 +847,8 @@ async def get_complejos(session: AsyncSession = Depends(get_session)):
             "horario_apertura": row[8].strftime("%H:%M:%S") if row[8] else "07:00:00",
             "horario_cierre": row[9].strftime("%H:%M:%S") if row[9] else "23:00:00",
             "lat": float(row[10]) if row[10] is not None else None,
-            "lng": float(row[11]) if row[11] is not None else None
+            "lng": float(row[11]) if row[11] is not None else None,
+            "es_publico": bool(row[12]) if len(row) > 12 else False
         })
     return complejos
 

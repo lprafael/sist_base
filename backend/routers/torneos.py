@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime, date
 import uuid
 import json
+import os
+import shutil
 
 from database import get_session
 from services.facial_recognition import FacialRecognitionService
@@ -442,15 +444,106 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
 @router.get("/{torneo_id}/equipos", summary="Equipos del torneo")
 async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_session)):
     result = await session.execute(text("""
-        SELECT id, nombre, capitan_nombre, capitan_telefono, capitan_email,
-               estado_inscripcion, semilla, logo_url, color_principal, color_secundario
-        FROM cancha.torneos_equipos
-        WHERE torneo_id = :tid ORDER BY creado_en ASC
+        SELECT * FROM (
+            SELECT DISTINCT ON (nombre) id, nombre, capitan_nombre, capitan_telefono, capitan_email,
+                   estado_inscripcion, semilla, logo_url, color_principal, color_secundario, creado_en
+            FROM cancha.torneos_equipos
+            WHERE torneo_id = :tid 
+            ORDER BY nombre ASC, creado_en ASC
+        ) t
+        ORDER BY t.creado_en ASC
     """), {"tid": torneo_id})
     rows = result.fetchall()
     keys = ["id","nombre","capitan_nombre","capitan_telefono","capitan_email",
             "estado_inscripcion","semilla","logo_url","color_principal","color_secundario"]
     return [_row_to_dict(keys, r) for r in rows]
+
+@router.get("/{torneo_id}/posiciones", summary="Tabla de posiciones")
+async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        t_res = await session.execute(
+            text("SELECT pts_victoria, pts_empate, pts_derrota FROM cancha.torneos WHERE id = :tid"),
+            {"tid": torneo_id}
+        )
+        t_row = t_res.fetchone()
+        if not t_row:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+        
+        pts_v = t_row[0] if t_row[0] is not None else 3
+        pts_e = t_row[1] if t_row[1] is not None else 1
+        pts_d = t_row[2] if t_row[2] is not None else 0
+
+        sql = """
+            WITH partidos AS (
+                SELECT 
+                    equipo_local_id AS equipo_id,
+                    goles_local AS gf,
+                    goles_visitante AS gc,
+                    CASE 
+                        WHEN goles_local > goles_visitante THEN :pts_v
+                        WHEN goles_local = goles_visitante THEN :pts_e
+                        ELSE :pts_d
+                    END AS pts,
+                    CASE WHEN goles_local > goles_visitante THEN 1 ELSE 0 END AS pg,
+                    CASE WHEN goles_local = goles_visitante THEN 1 ELSE 0 END AS pe,
+                    CASE WHEN goles_local < goles_visitante THEN 1 ELSE 0 END AS pp
+                FROM cancha.torneos_partidos
+                WHERE torneo_id = :tid AND estado = 'finalizado'
+
+                UNION ALL
+
+                SELECT 
+                    equipo_visitante_id AS equipo_id,
+                    goles_visitante AS gf,
+                    goles_local AS gc,
+                    CASE 
+                        WHEN goles_visitante > goles_local THEN :pts_v
+                        WHEN goles_visitante = goles_local THEN :pts_e
+                        ELSE :pts_d
+                    END AS pts,
+                    CASE WHEN goles_visitante > goles_local THEN 1 ELSE 0 END AS pg,
+                    CASE WHEN goles_visitante = goles_local THEN 1 ELSE 0 END AS pe,
+                    CASE WHEN goles_visitante < goles_local THEN 1 ELSE 0 END AS pp
+                FROM cancha.torneos_partidos
+                WHERE torneo_id = :tid AND estado = 'finalizado'
+            ),
+            equipos_distinct AS (
+                SELECT DISTINCT ON (nombre) id, nombre, logo_url
+                FROM cancha.torneos_equipos
+                WHERE torneo_id = :tid
+                ORDER BY nombre ASC, creado_en ASC
+            )
+            SELECT 
+                e.id, 
+                e.nombre,
+                e.logo_url,
+                COUNT(p.equipo_id) AS pj,
+                COALESCE(SUM(p.pg), 0) AS pg,
+                COALESCE(SUM(p.pe), 0) AS pe,
+                COALESCE(SUM(p.pp), 0) AS pp,
+                COALESCE(SUM(p.gf), 0) AS gf,
+                COALESCE(SUM(p.gc), 0) AS gc,
+                COALESCE(SUM(p.gf) - SUM(p.gc), 0) AS dif,
+                COALESCE(SUM(p.pts), 0) AS pts
+            FROM equipos_distinct e
+            LEFT JOIN partidos p ON e.id = p.equipo_id
+            GROUP BY e.id, e.nombre, e.logo_url
+            ORDER BY pts DESC, dif DESC, gf DESC, e.nombre ASC
+        """
+        result = await session.execute(text(sql), {
+            "tid": torneo_id, 
+            "pts_v": pts_v, 
+            "pts_e": pts_e, 
+            "pts_d": pts_d
+        })
+        
+        keys = ["id", "nombre", "logo_url", "pj", "pg", "pe", "pp", "gf", "gc", "dif", "pts"]
+        return [_row_to_dict(keys, r) for r in result.fetchall()]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{torneo_id}/equipos", summary="Inscribir equipo")
@@ -492,6 +585,44 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{torneo_id}/equipos/{equipo_id}/logo", summary="Subir logo del equipo")
+async def upload_equipo_logo(
+    torneo_id: str,
+    equipo_id: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "logos")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+        filename = f"logo_equipo_{equipo_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        logo_url = f"/static/uploads/logos/{filename}"
+
+        sql = "UPDATE cancha.torneos_equipos SET logo_url = :logo_url WHERE id = :eid AND torneo_id = :tid RETURNING id"
+        res = await session.execute(text(sql), {"logo_url": logo_url, "eid": equipo_id, "tid": torneo_id})
+        await session.commit()
+
+        if not res.fetchone():
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+
+        return {"status": "ok", "logo_url": logo_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================

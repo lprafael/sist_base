@@ -116,6 +116,7 @@ export default function SearchPage() {
   const [selectedSport, setSelectedSport] = useState("Todos");
   const [selectedDate, setSelectedDate] = useState(""); // Empty initially to avoid hydration mismatch
   const [busqueda, setBusqueda] = useState("");
+  const [showPublic, setShowPublic] = useState(false);
   const [complejos, setComplejos] = useState(MOCK_COMPLEJOS);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
 
@@ -128,18 +129,30 @@ export default function SearchPage() {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             // Map real API complexes with coordinates and matching sub-courts
+            const PUBLIC_COURT_IMAGES = [
+              "https://images.unsplash.com/photo-1575361204481-482f6f59bd31?auto=format&fit=crop&q=80&w=800",
+              "https://images.unsplash.com/photo-1518605363189-204123b37803?auto=format&fit=crop&q=80&w=800",
+              "https://images.unsplash.com/photo-1606925761899-73fbba91efb5?auto=format&fit=crop&q=80&w=800",
+              "https://images.unsplash.com/photo-1543324423-74b88d2f5a65?auto=format&fit=crop&q=80&w=800",
+              "https://images.unsplash.com/photo-1522067768565-5c1cfb9c24ce?auto=format&fit=crop&q=80&w=800",
+              "https://images.unsplash.com/photo-1533089408642-1e967a57a091?auto=format&fit=crop&q=80&w=800"
+            ];
+            
             const mapped = data.map((item: any, idx: number) => {
               const mockSeed = MOCK_COMPLEJOS[idx % MOCK_COMPLEJOS.length];
+              const publicImg = PUBLIC_COURT_IMAGES[idx % PUBLIC_COURT_IMAGES.length];
+              
               return {
                 id: item.id,
                 name: item.nombre,
                 direccion: item.direccion,
                 ciudad: item.ciudad || "Asunción",
                 pos: item.lat && item.lng ? [item.lat, item.lng] : mockSeed.pos,
-                rating: mockSeed.rating,
-                img: mockSeed.img,
+                rating: item.es_publico ? 5.0 : mockSeed.rating,
+                img: item.es_publico ? publicImg : mockSeed.img,
                 hours: `${item.horario_apertura || "07:00"} - ${item.horario_cierre || "23:00"}`,
-                canchas: mockSeed.canchas
+                canchas: item.es_publico ? [] : mockSeed.canchas,
+                es_publico: item.es_publico
               };
             });
             setComplejos(mapped);
@@ -214,6 +227,9 @@ export default function SearchPage() {
         matchingCourtsCount: matchingCourts.length
       };
     }).filter(venue => {
+      // Hide public courts if checkbox is not checked
+      if (!showPublic && venue.es_publico) return false;
+      
       // Apply text search
       if (!busqueda) return true;
       const searchLower = busqueda.toLowerCase();
@@ -223,7 +239,7 @@ export default function SearchPage() {
         venue.ciudad.toLowerCase().includes(searchLower)
       );
     });
-  }, [complejos, selectedSport, selectedDate, busqueda]);
+  }, [complejos, selectedSport, selectedDate, busqueda, showPublic]);
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f8fafc", fontFamily: "'Outfit', sans-serif" }}>
@@ -297,6 +313,20 @@ export default function SearchPage() {
                 style={{ background: "none", border: "none", outline: "none", color: "#0f172a", fontWeight: 800, fontSize: "14px", cursor: "pointer" }}
               />
             </div>
+            
+            {/* Mostrar Públicas Checkbox */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "12px" }}>
+              <input
+                type="checkbox"
+                id="showPublicCheckbox"
+                checked={showPublic}
+                onChange={e => setShowPublic(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#10b981" }}
+              />
+              <label htmlFor="showPublicCheckbox" style={{ fontSize: "14px", fontWeight: 700, color: "#475569", cursor: "pointer" }}>
+                Mostrar públicas
+              </label>
+            </div>
 
           </div>
         </div>
@@ -361,7 +391,7 @@ export default function SearchPage() {
                     position: "absolute",
                     bottom: "0.75rem",
                     left: "0.75rem",
-                    background: venue.available ? "#16a34a" : "#64748b",
+                    background: venue.es_publico ? "#10b981" : (venue.available ? "#16a34a" : "#64748b"),
                     padding: "4px 10px",
                     borderRadius: "8px",
                     color: "white",
@@ -369,7 +399,7 @@ export default function SearchPage() {
                     fontSize: "12px",
                     boxShadow: "0 4px 10px rgba(0,0,0,0.15)"
                   }}>
-                    {venue.available ? `${new Intl.NumberFormat('es-PY').format(venue.price)} Gs.` : "No disponible"}
+                    {venue.es_publico ? "🌳 Pública (Gratis)" : (venue.available ? `${new Intl.NumberFormat('es-PY').format(venue.price)} Gs.` : "No disponible")}
                   </div>
                 </div>
 
@@ -455,23 +485,39 @@ export default function SearchPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: "10px", marginTop: "auto" }}>
-                  <Link
-                    href={`/reservar`}
-                    style={{
+                  {selectedVenue.es_publico ? (
+                    <div style={{
                       flex: 1,
                       padding: "10px",
-                      background: selectedVenue.available ? "#16a34a" : "#64748b",
+                      background: "#10b981",
                       color: "white",
                       borderRadius: "12px",
                       fontWeight: 700,
                       fontSize: "14px",
                       textAlign: "center",
-                      textDecoration: "none",
-                      boxShadow: selectedVenue.available ? "0 4px 10px rgba(22,163,74,0.2)" : "none"
-                    }}
-                  >
-                    {selectedVenue.available ? "Reservar Turno" : "Ver Calendario"}
-                  </Link>
+                      boxShadow: "0 4px 10px rgba(16,185,129,0.2)"
+                    }}>
+                      Cancha de uso público y gratuito
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/reservar`}
+                      style={{
+                        flex: 1,
+                        padding: "10px",
+                        background: selectedVenue.available ? "#16a34a" : "#64748b",
+                        color: "white",
+                        borderRadius: "12px",
+                        fontWeight: 700,
+                        fontSize: "14px",
+                        textAlign: "center",
+                        textDecoration: "none",
+                        boxShadow: selectedVenue.available ? "0 4px 10px rgba(22,163,74,0.2)" : "none"
+                      }}
+                    >
+                      {selectedVenue.available ? "Reservar Turno" : "Ver Calendario"}
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

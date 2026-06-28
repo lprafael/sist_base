@@ -21,6 +21,7 @@ interface Equipo { id: string; nombre: string; logo_url?: string; color_principa
 interface Jugador {
   id: string; nombre: string; dni: string; numero_camiseta?: number;
   posicion?: string; estado: string; amarillas_acum: number; rojas_acum: number; partidos_jugados: number;
+  fecha_nacimiento?: string; egreso_ano?: number; es_exalumno?: boolean;
 }
 interface Gol { id: string; jugador_nombre?: string; equipo_nombre: string; minuto?: number; tipo: string; anulado: boolean; }
 interface Tarjeta { id: string; jugador_nombre: string; equipo_nombre: string; minuto?: number; tipo: string; pts_fair_play: number; genera_suspension: boolean; }
@@ -437,6 +438,26 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
     if (res.ok) { setIsAddingEquipo(false); setNewEquipo({ nombre: '', capitan: '', telefono: '', promocion: '' }); loadEquipos(); }
   };
 
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>, equipoId: string) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos/${equipoId}/logo`, {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        loadEquipos();
+      } else {
+        alert("Error subiendo el logo");
+      }
+    } catch (err) {
+      alert("Error subiendo el logo");
+    }
+  };
+
   const generarFixture = async () => {
     if (!confirm('¿Generar fixture automático? Se eliminarán los partidos existentes.')) return;
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/fixture`, { method: 'POST' });
@@ -509,9 +530,14 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
               <div key={e.id} style={{ borderColor: e.color_principal ? `${e.color_principal}40` : undefined }}
                 className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl flex flex-col gap-4 hover:border-slate-700 transition-all">
                 <div className="flex items-center gap-4 w-full">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg flex-shrink-0"
-                    style={{ background: e.color_principal ? `${e.color_principal}20` : 'rgba(34,197,94,0.1)', color: e.color_principal || '#4ade80' }}>
-                    {idx + 1}
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg flex-shrink-0 cursor-pointer overflow-hidden relative group/logo"
+                    style={{ background: e.color_principal ? `${e.color_principal}20` : 'rgba(34,197,94,0.1)', color: e.color_principal || '#4ade80' }}
+                    onClick={() => document.getElementById(`logo-upload-${e.id}`)?.click()}>
+                    {e.logo_url ? <img src={`${API_URL.replace('/api', '')}${e.logo_url}`} alt={e.nombre} className="w-full h-full object-cover" /> : idx + 1}
+                    <div className="absolute inset-0 bg-black/60 items-center justify-center hidden group-hover/logo:flex">
+                      <Plus size={16} className="text-white" />
+                    </div>
+                    <input type="file" id={`logo-upload-${e.id}`} accept="image/*" className="hidden" onChange={(evt) => handleUploadLogo(evt, e.id)} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-extrabold text-white truncate">{e.nombre}</div>
@@ -909,7 +935,7 @@ function EquipoJugadoresPanel({ torneo, equipo }: { torneo: Tournament; equipo: 
             <div className="text-xs text-slate-500 font-semibold">{jugadores.length} jugadores registrados</div>
           </div>
         </div>
-        <button onClick={() => { setIsAdding(!isAdding); setEditingId(null); setForm({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '' }); }} className="text-xs bg-green-500/10 hover:bg-green-500/20 text-green-400 font-black border border-green-500/20 px-4 py-2 rounded-full transition-all flex items-center gap-1.5">
+        <button onClick={() => { setIsAdding(!isAdding); setEditingId(null); setForm({ nombre: '', dni: '', numero_camiseta: '', posicion: '', fecha_nacimiento: '', egreso_ano: '', es_exalumno: true }); }} className="text-xs bg-green-500/10 hover:bg-green-500/20 text-green-400 font-black border border-green-500/20 px-4 py-2 rounded-full transition-all flex items-center gap-1.5">
           {isAdding ? <X size={12} /> : <Plus size={12} />} {isAdding ? 'Cancelar' : 'Agregar'}
         </button>
       </div>
