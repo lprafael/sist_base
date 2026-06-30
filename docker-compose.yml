@@ -33,7 +33,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8002
+        - NEXT_PUBLIC_API_URL=https://api.micancha.com.py
     container_name: micancha-web
     ports:
       - "3000:3000"
@@ -48,7 +48,7 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8002
+        - NEXT_PUBLIC_API_URL=https://api.micancha.com.py
     container_name: micancha-admin
     ports:
       - "3001:3000"
@@ -63,7 +63,7 @@ services:
       context: ./public
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8002
+        - NEXT_PUBLIC_API_URL=https://api.micancha.com.py
     container_name: micancha-public
     ports:
       - "3002:3000"
