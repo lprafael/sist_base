@@ -2203,3 +2203,192 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+# ============================================================
+# ENDPOINTS MULTITENANCY 007 — Catálogos y Roles por Complejo
+# ============================================================
+
+# ── Schemas nuevos ──────────────────────────────────────────
+
+class ModalidadOut(BaseModel):
+    id: int
+    codigo: str
+    nombre: str
+    descripcion: Optional[str] = None
+
+class CategoriaOut(BaseModel):
+    id: int
+    codigo: str
+    nombre: str
+    edad_minima: Optional[int] = None
+    edad_maxima: Optional[int] = None
+
+class RolComplejoCreate(BaseModel):
+    usuario_id: int
+    complejo_id: str
+    rol: str = "organizador"  # admin_complejo | organizador | veedor
+
+class EventoPartidoCreate(BaseModel):
+    player_id: Optional[str] = None
+    equipo_id: str
+    tipo: str  # GOL | GOL_PENAL | AUTOGOL | AMARILLA | ROJA | ROJA_DIRECTA | DOBLE_AMARILLA | LESION | SUSTITUCION
+    minuto: int
+    periodo: int = 1
+    es_tiempo_adicional: bool = False
+    observaciones: Optional[str] = None
+
+
+# ── CATALOGOS ───────────────────────────────────────────────
+
+@router.get("/catalogos/modalidades", summary="Listar modalidades de torneo")
+async def get_modalidades(session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text("SELECT id, codigo, nombre, descripcion FROM cancha.modalidades ORDER BY id"))
+        rows = result.fetchall()
+        return [{"id": r[0], "codigo": r[1], "nombre": r[2], "descripcion": r[3]} for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo modalidades: {str(e)}")
+
+
+@router.get("/catalogos/categorias", summary="Listar categorías de torneo")
+async def get_categorias(session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text("SELECT id, codigo, nombre, edad_minima, edad_maxima FROM cancha.categorias ORDER BY id"))
+        rows = result.fetchall()
+        return [{"id": r[0], "codigo": r[1], "nombre": r[2], "edad_minima": r[3], "edad_maxima": r[4]} for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo categorías: {str(e)}")
+
+
+# ── EVENTOS DE PARTIDO (tabla unificada) ─────────────────────
+
+@router.get("/{torneo_id}/partidos/{partido_id}/eventos", summary="Listar eventos de un partido")
+async def get_eventos_partido(
+    torneo_id: str,
+    partido_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        result = await session.execute(text("""
+            SELECT ep.id, ep.tipo, ep.minuto, ep.periodo, ep.es_tiempo_adicional,
+                   ep.observaciones, ep.registrado_en,
+                   ep.equipo_id,
+                   tp.nombre AS jugador_nombre
+            FROM cancha.eventos_partido ep
+            LEFT JOIN cancha.tournament_players tp ON tp.id = ep.player_id
+            WHERE ep.partido_id = :pid
+            ORDER BY ep.minuto, ep.periodo
+        """), {"pid": partido_id})
+        rows = result.fetchall()
+        cols = ["id","tipo","minuto","periodo","es_tiempo_adicional","observaciones",
+                "registrado_en","equipo_id","jugador_nombre"]
+        return [_row_to_dict(cols, r) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{torneo_id}/partidos/{partido_id}/eventos", summary="Registrar evento en partido")
+async def create_evento_partido(
+    torneo_id: str,
+    partido_id: str,
+    data: EventoPartidoCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Verificar que el partido pertenece al torneo
+        chk = await session.execute(
+            text("SELECT estado FROM cancha.torneos_partidos WHERE id = :pid AND torneo_id = :tid"),
+            {"pid": partido_id, "tid": torneo_id}
+        )
+        row = chk.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Partido no encontrado en este torneo")
+        if row[0] == "finalizado":
+            raise HTTPException(status_code=400, detail="No se pueden agregar eventos a un partido finalizado")
+
+        new_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO cancha.eventos_partido
+                (id, partido_id, player_id, equipo_id, tipo,
+                 minuto, periodo, es_tiempo_adicional, observaciones)
+            VALUES
+                (:id, :pid, :pid_ref, :eid, :tipo,
+                 :min, :per, :ta, :obs)
+        """), {
+            "id": new_id, "pid": partido_id,
+            "pid_ref": data.player_id,
+            "eid": data.equipo_id, "tipo": data.tipo,
+            "min": data.minuto, "per": data.periodo,
+            "ta": data.es_tiempo_adicional, "obs": data.observaciones
+        })
+        await session.commit()
+        return {"status": "ok", "id": new_id, "message": f"Evento '{data.tipo}' registrado en minuto {data.minuto}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── ROLES POR COMPLEJO (Multitenancy) ───────────────────────
+
+@router.get("/complejos/{complejo_id}/roles", summary="Listar usuarios y roles de un complejo")
+async def get_roles_complejo(
+    complejo_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        result = await session.execute(text("""
+            SELECT rc.id, rc.usuario_id, rc.rol, rc.activo, rc.creado_en,
+                   u.nombre || ' ' || u.apellido AS usuario_nombre,
+                   u.email AS usuario_email
+            FROM cancha.roles_complejo rc
+            JOIN sistema.usuarios u ON u.id = rc.usuario_id
+            WHERE rc.complejo_id = :cid
+            ORDER BY rc.rol, u.apellido
+        """), {"cid": complejo_id})
+        rows = result.fetchall()
+        cols = ["id","usuario_id","rol","activo","creado_en","usuario_nombre","usuario_email"]
+        return [_row_to_dict(cols, r) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/complejos/{complejo_id}/roles", summary="Asignar rol a usuario en un complejo")
+async def create_rol_complejo(
+    complejo_id: str,
+    data: RolComplejoCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        new_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO cancha.roles_complejo (id, complejo_id, usuario_id, rol)
+            VALUES (:id, :cid, :uid, :rol)
+            ON CONFLICT (complejo_id, usuario_id)
+            DO UPDATE SET rol = EXCLUDED.rol, activo = TRUE
+        """), {"id": new_id, "cid": complejo_id, "uid": data.usuario_id, "rol": data.rol})
+        await session.commit()
+        return {"status": "ok", "message": f"Rol '{data.rol}' asignado exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/complejos/{complejo_id}/roles/{usuario_id}", summary="Revocar rol de usuario en un complejo")
+async def delete_rol_complejo(
+    complejo_id: str,
+    usuario_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        await session.execute(
+            text("UPDATE cancha.roles_complejo SET activo = FALSE WHERE complejo_id = :cid AND usuario_id = :uid"),
+            {"cid": complejo_id, "uid": usuario_id}
+        )
+        await session.commit()
+        return {"status": "ok", "message": "Rol revocado exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+

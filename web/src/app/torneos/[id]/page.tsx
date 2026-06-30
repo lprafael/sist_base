@@ -14,7 +14,8 @@ import {
   Zap,
   ArrowRight,
   ShieldCheck,
-  X
+  X,
+  BarChart3
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -43,15 +44,61 @@ export default function TournamentDetailPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  const loadMockData = () => {
+    setTournament({
+      id: "demo",
+      nombre: "Copa Mi Cancha 2026 (Demostración)",
+      deporte: "Fútbol 5",
+      formato: "liga",
+      complejo_nombre: "Complejo Deportivo Mi Cancha",
+      fecha_inicio: "2026-06-01",
+      fecha_fin: "2026-07-15",
+      descripcion: "Torneo demo interactivo. Visualiza la tabla de posiciones, fixture, equipos, goleadores y estadísticas completas de la competencia.",
+      max_equipos: 8,
+      costo_inscripcion: 150000,
+    });
+
+    setEquipos([
+      { id: "e1", nombre: "Real Mandril FC" },
+      { id: "e2", nombre: "Barcelona Cancha FC" },
+      { id: "e3", nombre: "Múnich United" },
+      { id: "e4", nombre: "Milán Amateur" },
+      { id: "e5", nombre: "PSG F5" },
+      { id: "e6", nombre: "Chelsea Amateur" },
+      { id: "e7", nombre: "Liverpool Cancha" },
+      { id: "e8", nombre: "Boca Juniors F5" },
+    ]);
+
+    setPartidos([
+      { id: "m1", local_nombre: "Real Mandril FC", visitante_nombre: "Barcelona Cancha FC", goles_local: 3, goles_visitante: 2, estado: "finalizado", fase: "Jornada 1" },
+      { id: "m2", local_nombre: "Múnich United", visitante_nombre: "Milán Amateur", goles_local: 2, goles_visitante: 1, estado: "finalizado", fase: "Jornada 1" },
+      { id: "m3", local_nombre: "PSG F5", visitante_nombre: "Liverpool Cancha", goles_local: 1, goles_visitante: 1, estado: "finalizado", fase: "Jornada 1" },
+      { id: "m4", local_nombre: "Chelsea Amateur", visitante_nombre: "Boca Juniors F5", goles_local: 0, goles_visitante: 2, estado: "finalizado", fase: "Jornada 1" },
+    ]);
+
+    setPosiciones([
+      { id: "p1", torneo_equipo_id: "e1", nombre_equipo: "Real Mandril FC", pj: 5, pg: 4, pe: 1, pp: 0, gf: 18, gc: 8, dg: 10, pts: 13 },
+      { id: "p2", torneo_equipo_id: "e2", nombre_equipo: "Barcelona Cancha FC", pj: 5, pg: 3, pe: 1, pp: 1, gf: 14, gc: 9, dg: 5, pts: 10 },
+      { id: "p3", torneo_equipo_id: "e3", nombre_equipo: "Múnich United", pj: 5, pg: 3, pe: 0, pp: 2, gf: 12, gc: 10, dg: 2, pts: 9 },
+    ]);
+  };
+
   const loadData = async () => {
     if (!id) return;
     setLoading(true);
+    if (id === "demo" || id === "ficticio") {
+      loadMockData();
+      setLoading(false);
+      return;
+    }
     try {
+      let succeeded = false;
       // 1. Fetch tournament details
       const tRes = await fetch(`${API_URL}/cancha/torneos/${id}`);
       if (tRes.ok) {
         const found = await tRes.json();
         setTournament(found);
+        succeeded = true;
       }
 
       // 2. Fetch enrolled teams
@@ -77,8 +124,14 @@ export default function TournamentDetailPage() {
       if (pRes.ok) {
         setPosiciones(await pRes.json());
       }
+
+      if (!succeeded) {
+        console.warn("Backend down, loading mock details...");
+        loadMockData();
+      }
     } catch (e) {
-      console.error("Error loading tournament details:", e);
+      console.error("Error loading tournament details, loading mock...", e);
+      loadMockData();
     } finally {
       setLoading(false);
     }
@@ -225,6 +278,12 @@ export default function TournamentDetailPage() {
               </div>
               
               <div className="flex gap-4">
+                <Link 
+                  href={`/torneos/${id}/resumen`}
+                  className="px-6 py-5 rounded-[2rem] bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg transition-all flex items-center gap-2"
+                >
+                  <BarChart3 size={20} /> VER ESTADÍSTICAS
+                </Link>
                 <button className="p-4 rounded-2xl bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all backdrop-blur-md">
                    <Share2 size={24} />
                 </button>

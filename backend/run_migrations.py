@@ -21,6 +21,8 @@ MIGRATIONS = [
     {"name": "003_reva_features.py", "module": "m003"},
     {"name": "004_torneo_reglas_premios.py", "module": "m004"},
     {"name": "005_add_rules_fields.py", "module": "m005"},
+    {"name": "006_eventos_categorias.py", "module": "m006"},
+    {"name": "007_multitenancy_catalogos.py", "module": "m007"},
 ]
 
 def load_migration_module(file_name: str, module_name: str):

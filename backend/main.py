@@ -824,33 +824,37 @@ async def crear_backup_completo(
 
 @app.get("/cancha/complejos", summary="Obtener todos los complejos deportivos")
 async def get_complejos(session: AsyncSession = Depends(get_session)):
-    query = text("""
-        SELECT id, nombre, descripcion, telefono, email, direccion, ciudad, departamento,
-               horario_apertura, horario_cierre, ST_Y(ubicacion::geometry) as lat, ST_X(ubicacion::geometry) as lng,
-               es_publico
-        FROM cancha.complejos
-    """)
-    result = await session.execute(query)
-    rows = result.fetchall()
-    
-    complejos = []
-    for row in rows:
-        complejos.append({
-            "id": str(row[0]),
-            "nombre": row[1],
-            "descripcion": row[2],
-            "telefono": row[3],
-            "email": row[4],
-            "direccion": row[5],
-            "ciudad": row[6],
-            "departamento": row[7],
-            "horario_apertura": row[8].strftime("%H:%M:%S") if row[8] else "07:00:00",
-            "horario_cierre": row[9].strftime("%H:%M:%S") if row[9] else "23:00:00",
-            "lat": float(row[10]) if row[10] is not None else None,
-            "lng": float(row[11]) if row[11] is not None else None,
-            "es_publico": bool(row[12]) if len(row) > 12 else False
-        })
-    return complejos
+    try:
+        query = text("""
+            SELECT id, nombre, descripcion, telefono, email, direccion, ciudad, departamento,
+                   horario_apertura, horario_cierre, ST_Y(ubicacion::geometry) as lat, ST_X(ubicacion::geometry) as lng,
+                   es_publico
+            FROM cancha.complejos
+        """)
+        result = await session.execute(query)
+        rows = result.fetchall()
+        
+        complejos = []
+        for row in rows:
+            complejos.append({
+                "id": str(row[0]),
+                "nombre": row[1],
+                "descripcion": row[2],
+                "telefono": row[3],
+                "email": row[4],
+                "direccion": row[5],
+                "ciudad": row[6],
+                "departamento": row[7],
+                "horario_apertura": row[8].strftime("%H:%M:%S") if row[8] else "07:00:00",
+                "horario_cierre": row[9].strftime("%H:%M:%S") if row[9] else "23:00:00",
+                "lat": float(row[10]) if row[10] is not None else None,
+                "lng": float(row[11]) if row[11] is not None else None,
+                "es_publico": bool(row[12]) if len(row) > 12 else False
+            })
+        return complejos
+    except Exception as e:
+        print(f"Error in get_complejos: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/cancha/complejos/{complejo_id}", summary="Obtener un complejo deportivo por ID")
 async def get_complejo(complejo_id: str, session: AsyncSession = Depends(get_session)):

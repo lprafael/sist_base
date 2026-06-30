@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo Entidad-Relación (MER) - Torneos Deportivos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --border-color: #1f2937;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.15);
+            --blue: #3b82f6;
+            --blue-glow: rgba(59, 130, 246, 0.15);
+            --red: #ef4444;
+            --amber: #f59e0b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem 1rem;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #ffffff 0%, #9ca3af 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color) 50%, transparent);
+            margin: 2rem 0;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .diagram-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .table-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            margin-bottom: 2.5rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-header {
+            background-color: rgba(255, 255, 255, 0.02);
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .table-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 0;
+        }
+
+        .table-badge {
+            background-color: var(--primary-glow);
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background-color: rgba(0, 0, 0, 0.2);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            color: #cbd5e1;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .badge-pk {
+            background-color: var(--amber);
+            color: #000000;
+        }
+
+        .badge-fk {
+            background-color: var(--blue-glow);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .badge-nn {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .type-code {
+            font-family: monospace;
+            color: #f472b6;
+        }
+
+        .legend-section {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="subtitle">🏆 Modelo Relacional Oficial</div>
+        <h1>Diseño de Base de Datos - Torneos Deportivos</h1>
+        <p style="color: var(--text-muted); max-width: 600px; margin: 0.5rem auto 0 auto; font-size: 0.95rem;">
+            Estructura en 3NF con soporte multitenant y lógica de equipos y rosters aislados por torneo.
+        </p>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="section-title">📐 Diagrama Entidad-Relación (MER)</div>
+    <div class="diagram-container">
+        <pre class="mermaid" style="background: transparent;">
+erDiagram
+    USUARIOS ||--o{ TORNEOS : "organiza"
+    COMPLEJOS ||--o{ TORNEOS : "alberga"
+    COMPLEJOS ||--o{ CANCHAS : "posee"
+    COMPLEJOS ||--o{ ROLES_COMPLEJO : "define"
+    USUARIOS ||--o{ ROLES_COMPLEJO : "asume_en"
+    MODALIDADES ||--o{ TORNEOS : "define_juego"
+    CATEGORIAS ||--o{ TORNEOS : "clasifica"
+    TORNEOS ||--o{ TORNEOS_EQUIPOS : "inscribe"
+    TORNEOS_EQUIPOS ||--o{ TOURNAMENT_PLAYERS : "registra"
+    TORNEOS ||--o{ TORNEOS_PARTIDOS : "programa"
+    CANCHAS ||--o{ TORNEOS_PARTIDOS : "sede_de"
+    TORNEOS_EQUIPOS ||--o{ TORNEOS_PARTIDOS : "juega_local"
+    TORNEOS_EQUIPOS ||--o{ TORNEOS_PARTIDOS : "juega_visitante"
+    TORNEOS_PARTIDOS ||--o{ TORNEOS_PLANILLA : "registra_asistencia"
+    TOURNAMENT_PLAYERS ||--o{ TORNEOS_PLANILLA : "participa"
+    TORNEOS_PARTIDOS ||--o{ EVENTOS_PARTIDO : "registra_suceso"
+    TOURNAMENT_PLAYERS ||--o{ EVENTOS_PARTIDO : "ejecuta"
+    TORNEOS_EQUIPOS ||--o{ EVENTOS_PARTIDO : "recibe_puntos"
+    TORNEOS ||--o{ TORNEOS_POSICIONES : "calcula"
+    TORNEOS_EQUIPOS ||--o{ TORNEOS_POSICIONES : "acumula_puntos"
+    TORNEOS ||--o{ CANCHAS_TORNEO : "utiliza"
+    CANCHAS ||--o{ CANCHAS_TORNEO : "habilitada_para"
+    TOURNAMENT_PLAYERS ||--o{ TORNEOS_SANCIONES : "recibe_sancion"
+    TORNEOS ||--o{ TORNEOS_SANCIONES : "aplica_sancion"
+    TORNEOS_EQUIPOS ||--o{ TORNEOS_PAGOS : "realiza_pago"
+        </pre>
+    </div>
+
+    <div class="section-title">🗂️ Diccionario de Tablas</div>
+
+    <!-- 1. USUARIOS -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">sistema.usuarios</h3>
+            <span class="table-badge">Global</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">INTEGER</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador único del usuario.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(100)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre de la persona.</td>
+                </tr>
+                <tr>
+                    <td>apellido</td>
+                    <td class="type-code">VARCHAR(100)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Apellido de la persona.</td>
+                </tr>
+                <tr>
+                    <td>email</td>
+                    <td class="type-code">VARCHAR(255)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>UNIQUE</td>
+                    <td>Correo electrónico de acceso.</td>
+                </tr>
+                <tr>
+                    <td>password_hash</td>
+                    <td class="type-code">VARCHAR(255)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Hash de contraseña.</td>
+                </tr>
+                <tr>
+                    <td>activo</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT TRUE</td>
+                    <td>Estado de la cuenta.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 2. COMPLEJOS -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.complejos</h3>
+            <span class="table-badge">Tenant</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador único del complejo.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(200)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre del predio deportivo.</td>
+                </tr>
+                <tr>
+                    <td>direccion</td>
+                    <td class="type-code">TEXT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Dirección física del complejo.</td>
+                </tr>
+                <tr>
+                    <td>activo</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT TRUE</td>
+                    <td>Si está activo y habilitado en el sistema.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. ROLES COMPLEJO -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.roles_complejo</h3>
+            <span class="table-badge">Multitenant Access</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador único de rol.</td>
+                </tr>
+                <tr>
+                    <td>complejo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.complejos(id)</span></td>
+                    <td>Complejo al que pertenece.</td>
+                </tr>
+                <tr>
+                    <td>usuario_id</td>
+                    <td class="type-code">INTEGER</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → sistema.usuarios(id)</span></td>
+                    <td>Usuario asignado.</td>
+                </tr>
+                <tr>
+                    <td>rol</td>
+                    <td class="type-code">VARCHAR(30)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>CHECK (rol IN ('admin_complejo', 'organizador', 'veedor'))</td>
+                    <td>Nivel de privilegios del usuario en este predio.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 4. TORNEOS -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.torneos</h3>
+            <span class="table-badge">Core Config</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador del torneo.</td>
+                </tr>
+                <tr>
+                    <td>complejo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.complejos(id)</span></td>
+                    <td>Filtro de pertenencia por tenant.</td>
+                </tr>
+                <tr>
+                    <td>modalidad_id</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.modalidades(id)</span></td>
+                    <td>Modalidad del campeonato (Liga, Eliminatoria, etc).</td>
+                </tr>
+                <tr>
+                    <td>categoria_id</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.categorias(id)</span></td>
+                    <td>Categoría de la competencia.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(200)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre descriptivo del torneo.</td>
+                </tr>
+                <tr>
+                    <td>slug</td>
+                    <td class="type-code">VARCHAR(170)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>UNIQUE</td>
+                    <td>Slug de acceso para la landing pública del torneo.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 5. TORNEOS EQUIPOS -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.torneos_equipos</h3>
+            <span class="table-badge">Tournament Scoped</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador único del equipo en este torneo.</td>
+                </tr>
+                <tr>
+                    <td>torneo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.torneos(id)</span></td>
+                    <td>Torneo en el cual está inscrito el equipo.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(150)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre del club (permite registrar Lazio en Torneo X e Y).</td>
+                </tr>
+                <tr>
+                    <td>logo_url</td>
+                    <td class="type-code">VARCHAR(500)</td>
+                    <td>NULL</td>
+                    <td>—</td>
+                    <td>Escudo del equipo.</td>
+                </tr>
+                <tr>
+                    <td>color_principal</td>
+                    <td class="type-code">CHAR(7)</td>
+                    <td>NULL</td>
+                    <td>—</td>
+                    <td>Color principal de la indumentaria.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 6. TOURNAMENT PLAYERS -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.tournament_players</h3>
+            <span class="table-badge">Roster Scoped</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador del jugador.</td>
+                </tr>
+                <tr>
+                    <td>torneo_equipo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.torneos_equipos(id)</span></td>
+                    <td>Roster del equipo al que pertenece.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(200)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre completo del jugador.</td>
+                </tr>
+                <tr>
+                    <td>dni</td>
+                    <td class="type-code">VARCHAR(20)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Cédula o DNI del jugador.</td>
+                </tr>
+                <tr>
+                    <td>numero_camiseta</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td>NULL</td>
+                    <td>—</td>
+                    <td>Número de dorsal.</td>
+                </tr>
+                <tr>
+                    <td>face_encoding</td>
+                    <td class="type-code">JSONB</td>
+                    <td>NULL</td>
+                    <td>—</td>
+                    <td>Encoding facial para acreditación biométrica.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 7. EVENTOS PARTIDO -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.eventos_partido</h3>
+            <span class="table-badge">Events Log</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador del evento.</td>
+                </tr>
+                <tr>
+                    <td>partido_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.torneos_partidos(id)</span></td>
+                    <td>Partido en el que ocurre.</td>
+                </tr>
+                <tr>
+                    <td>player_id</td>
+                    <td class="type-code">UUID</td>
+                    <td>NULL</td>
+                    <td><span class="badge badge-fk">FK → cancha.tournament_players(id)</span></td>
+                    <td>Jugador protagonista.</td>
+                </tr>
+                <tr>
+                    <td>equipo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.torneos_equipos(id)</span></td>
+                    <td>Equipo del jugador en ese partido.</td>
+                </tr>
+                <tr>
+                    <td>tipo</td>
+                    <td class="type-code">VARCHAR(25)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>CHECK (tipo IN ('GOL','AUTOGOL','AMARILLA','ROJA'))</td>
+                    <td>Tipo de suceso cargado.</td>
+                </tr>
+                <tr>
+                    <td>minuto</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Minuto exacto del evento.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="legend-section">
+        <div class="legend-item"><span class="badge badge-pk">PK</span> Clave Primaria (Primary Key)</div>
+        <div class="legend-item"><span class="badge badge-fk">FK</span> Clave Foránea (Foreign Key)</div>
+        <div class="legend-item"><span class="badge badge-nn">NOT NULL</span> Campo Obligatorio</div>
+    </div>
+</div>
+
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            background: '#111827',
+            primaryColor: '#10b981',
+            lineColor: '#3b82f6',
+            textColor: '#f3f4f6'
+        }
+    });
+</script>
+</body>
+</html>
