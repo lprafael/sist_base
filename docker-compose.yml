@@ -32,6 +32,8 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://187.77.247.23:8002
     container_name: micancha-web
     ports:
       - "3000:3000"
