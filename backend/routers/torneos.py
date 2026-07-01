@@ -17,8 +17,17 @@ import shutil
 
 from database import get_session
 from services.facial_recognition import FacialRecognitionService
+import time
+from security import get_password_hash
+from email_service import email_service
+import secrets
+import string
 
 router = APIRouter(prefix="/cancha/torneos", tags=["Torneos"])
+
+def generate_random_password(length: int = 10) -> str:
+    characters = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(characters) for _ in range(length))
 
 
 # ============================================================
@@ -41,10 +50,17 @@ class EventoCreate(BaseModel):
     deporte: str = "Fútbol 5"
     fecha_inicio: str
     fecha_fin: Optional[str] = None
-    complejo_id: str
+    complejo_id: Optional[str] = None
+    organizador_id: Optional[int] = None
     reglas: Optional[list[str]] = []
     premios: Optional[list[dict]] = []
     categorias: List[CategoriaCreate] = []
+
+class OrganizadorCreate(BaseModel):
+    usuario_id: int
+    nombre: str
+    plan: Optional[str] = "basico"
+    max_torneos: Optional[int] = 3
 
 class EquipoCreate(BaseModel):
     nombre: str
@@ -59,12 +75,16 @@ class EquipoCreate(BaseModel):
 class JugadorCreate(BaseModel):
     nombre: str
     dni: str
+    email: Optional[str] = None
     fecha_nacimiento: Optional[str] = None
     numero_camiseta: Optional[int] = None
     posicion: Optional[str] = None
     foto_url: Optional[str] = None
     egreso_ano: Optional[int] = None
     es_exalumno: bool = True
+    documento_firmado_url: Optional[str] = None
+    cedula_anverso_url: Optional[str] = None
+    cedula_reverso_url: Optional[str] = None
 
 class JugadorUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -84,12 +104,22 @@ class GolCreate(BaseModel):
     equipo_id: str
     minuto: Optional[int] = None
     tipo: str = "normal"    # normal | penal | autogol
+    tipo_evento_id: Optional[int] = None  # FK a cancha.tipos_evento (opcional, retrocompat.)
 
 class TarjetaCreate(BaseModel):
     player_id: str
     equipo_id: str
     minuto: Optional[int] = None
     tipo: str               # amarilla | roja_directa | roja_segunda
+    tipo_evento_id: Optional[int] = None  # FK a cancha.tipos_evento (opcional, retrocompat.)
+
+class SustitucionCreate(BaseModel):
+    """Registro de una sustitución: jugador que entra (player_id) y el que sale (player_out_id)."""
+    player_id: str          # Jugador que ENTRA
+    player_out_id: str      # Jugador que SALE
+    equipo_id: str
+    minuto: Optional[int] = None
+    observaciones: Optional[str] = None
 
 class WORequest(BaseModel):
     equipo_infractor_id: str
@@ -111,7 +141,7 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
     """Recalcula la tabla de posiciones completa para un torneo."""
     # Obtener configuración de puntos del torneo
     cfg = await session.execute(
-        text("SELECT pts_victoria, pts_empate, pts_derrota FROM cancha.torneos WHERE id = :id"),
+        text("SELECT puntos_victoria, puntos_empate, puntos_derrota FROM cancha.torneos WHERE id = :id"),
         {"id": torneo_id}
     )
     cfg_row = cfg.fetchone()
@@ -326,26 +356,31 @@ async def get_eventos(
 @router.get("", summary="Listar torneos")
 async def get_torneos(
     complejo_id: Optional[str] = None,
+    organizador_id: Optional[int] = None,
     estado: Optional[str] = None,
     deporte: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
     sql = """
-        SELECT t.id, t.complejo_id, t.nombre, t.descripcion, t.deporte,
+        SELECT t.id, t.complejo_id, t.organizador_id, t.nombre, t.descripcion, t.deporte,
                t.fecha_inicio, t.fecha_fin, t.estado,
-               c.nombre AS complejo_nombre, t.formato,
+               c.nombre AS complejo_nombre, org.nombre AS organizador_nombre, t.formato,
                t.max_equipos, t.costo_inscripcion,
                t.evento_id, t.categoria,
                (SELECT COUNT(*) FROM cancha.torneos_equipos te
                 WHERE te.torneo_id = t.id AND te.estado_inscripcion = 'confirmado') AS equipos_confirmados
         FROM cancha.torneos t
-        JOIN cancha.complejos c ON t.complejo_id = c.id
+        LEFT JOIN cancha.complejos c ON t.complejo_id = c.id
+        LEFT JOIN cancha.organizadores org ON t.organizador_id = org.id
         WHERE 1=1
     """
     params: dict = {}
     if complejo_id:
         sql += " AND t.complejo_id = :complejo_id"
         params["complejo_id"] = complejo_id
+    if organizador_id:
+        sql += " AND t.organizador_id = :organizador_id"
+        params["organizador_id"] = organizador_id
     if estado:
         sql += " AND t.estado = :estado"
         params["estado"] = estado
@@ -356,8 +391,8 @@ async def get_torneos(
 
     result = await session.execute(text(sql), params)
     rows = result.fetchall()
-    keys = ["id","complejo_id","nombre","descripcion","deporte","fecha_inicio",
-            "fecha_fin","estado","complejo_nombre","formato","max_equipos",
+    keys = ["id","complejo_id","organizador_id","nombre","descripcion","deporte","fecha_inicio",
+            "fecha_fin","estado","complejo_nombre","organizador_nombre","formato","max_equipos",
             "costo_inscripcion","evento_id","categoria","equipos_confirmados"]
     return [_row_to_dict(keys, r) for r in rows]
 
@@ -372,12 +407,12 @@ async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSessio
         evento_id = str(uuid.uuid4())
         await session.execute(text("""
             INSERT INTO cancha.torneos_eventos
-                (id, complejo_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
+                (id, complejo_id, organizador_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
             VALUES
-                (:id, :complejo_id, :nombre, :descripcion, :fecha_inicio, :fecha_fin, 'abierto')
+                (:id, :complejo_id, :organizador_id, :nombre, :descripcion, :fecha_inicio, :fecha_fin, 'abierto')
         """), {
-            "id": evento_id, "complejo_id": payload.complejo_id, "nombre": payload.nombre,
-            "descripcion": payload.descripcion, "fecha_inicio": fecha_ini, "fecha_fin": fecha_f
+            "id": evento_id, "complejo_id": payload.complejo_id, "organizador_id": payload.organizador_id, 
+            "nombre": payload.nombre, "descripcion": payload.descripcion, "fecha_inicio": fecha_ini, "fecha_fin": fecha_f
         })
 
         # Insert Categories (Torneos)
@@ -386,15 +421,15 @@ async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSessio
             cat_id = str(uuid.uuid4())
             await session.execute(text("""
                 INSERT INTO cancha.torneos
-                    (id, evento_id, complejo_id, nombre, descripcion, deporte, formato,
+                    (id, evento_id, complejo_id, organizador_id, nombre, descripcion, deporte, formato,
                      fecha_inicio, max_equipos, costo_inscripcion, estado,
-                     pts_victoria, pts_empate, pts_derrota, reglas, premios, categoria, configuracion)
+                     puntos_victoria, puntos_empate, puntos_derrota, reglas, premios, categoria, configuracion)
                 VALUES
-                    (:id, :evento_id, :complejo_id, :nombre, :descripcion, :deporte, :formato,
+                    (:id, :evento_id, :complejo_id, :organizador_id, :nombre, :descripcion, :deporte, :formato,
                      :fecha_inicio, :max_equipos, :costo_inscripcion, 'abierto',
                      :pts_v, :pts_e, :pts_d, :reglas, :premios, :categoria, :configuracion)
             """), {
-                "id": cat_id, "evento_id": evento_id, "complejo_id": payload.complejo_id,
+                "id": cat_id, "evento_id": evento_id, "complejo_id": payload.complejo_id, "organizador_id": payload.organizador_id,
                 "nombre": f"{payload.nombre} - {cat.nombre}", "descripcion": payload.descripcion,
                 "deporte": payload.deporte, "formato": cat.formato, "fecha_inicio": fecha_ini,
                 "max_equipos": cat.max_equipos, "costo_inscripcion": cat.costo_inscripcion,
@@ -414,20 +449,22 @@ async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSessio
 @router.get("/{torneo_id}", summary="Detalle de torneo")
 async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
     result = await session.execute(text("""
-        SELECT t.id, t.complejo_id, t.nombre, t.descripcion, t.deporte,
+        SELECT t.id, t.complejo_id, t.organizador_id, t.nombre, t.descripcion, t.deporte,
                t.fecha_inicio, t.fecha_fin, t.estado, c.nombre AS complejo_nombre,
+               org.nombre AS organizador_nombre,
                t.formato, t.max_equipos, t.costo_inscripcion,
-               t.pts_victoria, t.pts_empate, t.pts_derrota,
+               t.puntos_victoria, t.puntos_empate, t.puntos_derrota,
                t.reglas, t.premios
         FROM cancha.torneos t
-        JOIN cancha.complejos c ON t.complejo_id = c.id
+        LEFT JOIN cancha.complejos c ON t.complejo_id = c.id
+        LEFT JOIN cancha.organizadores org ON t.organizador_id = org.id
         WHERE t.id = :tid
     """), {"tid": torneo_id})
     row = result.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Torneo no encontrado")
-    keys = ["id","complejo_id","nombre","descripcion","deporte","fecha_inicio",
-            "fecha_fin","estado","complejo_nombre","formato","max_equipos",
+    keys = ["id","complejo_id","organizador_id","nombre","descripcion","deporte","fecha_inicio",
+            "fecha_fin","estado","complejo_nombre","organizador_nombre","formato","max_equipos",
             "costo_inscripcion","pts_victoria","pts_empate","pts_derrota",
             "reglas","premios"]
     d = _row_to_dict(keys, row)
@@ -462,7 +499,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
 async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_session)):
     try:
         t_res = await session.execute(
-            text("SELECT pts_victoria, pts_empate, pts_derrota FROM cancha.torneos WHERE id = :tid"),
+            text("SELECT puntos_victoria, puntos_empate, puntos_derrota FROM cancha.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         t_row = t_res.fetchone()
@@ -477,16 +514,16 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
             WITH partidos AS (
                 SELECT 
                     equipo_local_id AS equipo_id,
-                    goles_local AS gf,
-                    goles_visitante AS gc,
-                    CASE 
-                        WHEN goles_local > goles_visitante THEN :pts_v
-                        WHEN goles_local = goles_visitante THEN :pts_e
-                        ELSE :pts_d
-                    END AS pts,
-                    CASE WHEN goles_local > goles_visitante THEN 1 ELSE 0 END AS pg,
-                    CASE WHEN goles_local = goles_visitante THEN 1 ELSE 0 END AS pe,
-                    CASE WHEN goles_local < goles_visitante THEN 1 ELSE 0 END AS pp
+                    CAST(goles_local AS INTEGER) AS gf,
+                    CAST(goles_visitante AS INTEGER) AS gc,
+                    CAST(CASE 
+                        WHEN goles_local > goles_visitante THEN CAST(:pts_v AS INTEGER)
+                        WHEN goles_local = goles_visitante THEN CAST(:pts_e AS INTEGER)
+                        ELSE CAST(:pts_d AS INTEGER)
+                    END AS INTEGER) AS pts,
+                    CAST(CASE WHEN goles_local > goles_visitante THEN 1 ELSE 0 END AS INTEGER) AS pg,
+                    CAST(CASE WHEN goles_local = goles_visitante THEN 1 ELSE 0 END AS INTEGER) AS pe,
+                    CAST(CASE WHEN goles_local < goles_visitante THEN 1 ELSE 0 END AS INTEGER) AS pp
                 FROM cancha.torneos_partidos
                 WHERE torneo_id = :tid AND estado = 'finalizado'
 
@@ -494,16 +531,16 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
 
                 SELECT 
                     equipo_visitante_id AS equipo_id,
-                    goles_visitante AS gf,
-                    goles_local AS gc,
-                    CASE 
-                        WHEN goles_visitante > goles_local THEN :pts_v
-                        WHEN goles_visitante = goles_local THEN :pts_e
-                        ELSE :pts_d
-                    END AS pts,
-                    CASE WHEN goles_visitante > goles_local THEN 1 ELSE 0 END AS pg,
-                    CASE WHEN goles_visitante = goles_local THEN 1 ELSE 0 END AS pe,
-                    CASE WHEN goles_visitante < goles_local THEN 1 ELSE 0 END AS pp
+                    CAST(goles_visitante AS INTEGER) AS gf,
+                    CAST(goles_local AS INTEGER) AS gc,
+                    CAST(CASE 
+                        WHEN goles_visitante > goles_local THEN CAST(:pts_v AS INTEGER)
+                        WHEN goles_visitante = goles_local THEN CAST(:pts_e AS INTEGER)
+                        ELSE CAST(:pts_d AS INTEGER)
+                    END AS INTEGER) AS pts,
+                    CAST(CASE WHEN goles_visitante > goles_local THEN 1 ELSE 0 END AS INTEGER) AS pg,
+                    CAST(CASE WHEN goles_visitante = goles_local THEN 1 ELSE 0 END AS INTEGER) AS pe,
+                    CAST(CASE WHEN goles_visitante < goles_local THEN 1 ELSE 0 END AS INTEGER) AS pp
                 FROM cancha.torneos_partidos
                 WHERE torneo_id = :tid AND estado = 'finalizado'
             ),
@@ -567,7 +604,7 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
             VALUES
                 (gen_random_uuid(), :tid, :nombre, :capitan_nombre, :capitan_telefono,
                  :capitan_email, :estado, :logo_url, :color_p, :color_s, :promocion)
-            RETURNING id, torneo_id, nombre, estado_inscripcion, promocion
+            RETURNING id, torneo_id, nombre, estado_inscripcion, promocion, token_delegado
         """), {
             "tid": torneo_id, "nombre": payload.nombre,
             "capitan_nombre": payload.capitan_nombre,
@@ -581,7 +618,54 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
         })
         await session.commit()
         row = result.fetchone()
-        return _row_to_dict(["id","torneo_id","nombre","estado_inscripcion","promocion"], row)
+        
+        # Crear usuario para el delegado (si tiene email cargado)
+        if payload.capitan_email:
+            email_del = payload.capitan_email.strip()
+            # Verificar si existe el usuario
+            u_res = await session.execute(
+                text("SELECT id FROM sistema.usuarios WHERE email = :email"),
+                {"email": email_del}
+            )
+            if not u_res.fetchone():
+                # Generar username
+                usr_base = email_del.split('@')[0]
+                usr_check = await session.execute(
+                    text("SELECT id FROM sistema.usuarios WHERE username = :username"),
+                    {"username": usr_base}
+                )
+                username_final = usr_base
+                if usr_check.fetchone():
+                    username_final = f"{usr_base}_{secrets.token_hex(2)}"
+                
+                # Crear contraseña temporal
+                pass_temp = generate_random_password(10)
+                pass_hash = get_password_hash(pass_temp)
+                
+                # Insertar usuario
+                await session.execute(text("""
+                    INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo, fecha_creacion)
+                    VALUES (:username, :email, :pass_hash, :nombre, 'delegado', true, NOW())
+                """), {
+                    "username": username_final,
+                    "email": email_del,
+                    "pass_hash": pass_hash,
+                    "nombre": payload.capitan_nombre or payload.nombre
+                })
+                await session.commit()
+                
+                # Enviar correo de bienvenida
+                try:
+                    email_service.send_welcome_email(
+                        to_email=email_del,
+                        username=username_final,
+                        password=pass_temp,
+                        role="Delegado de Equipo"
+                    )
+                except Exception as mail_err:
+                    print("Error al enviar email a delegado:", str(mail_err))
+                    
+        return _row_to_dict(["id","torneo_id","nombre","estado_inscripcion","promocion","token_delegado"], row)
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -625,6 +709,190 @@ async def upload_equipo_logo(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/equipos/token/{token}", summary="Validar token de delegado")
+async def get_equipo_by_token(token: str, session: AsyncSession = Depends(get_session)):
+    try:
+        # 1. Buscar equipo y torneo correspondiente
+        eq_res = await session.execute(text("""
+            SELECT te.id AS equipo_id, te.nombre AS equipo_nombre, te.logo_url, te.color_principal, te.color_secundario,
+                   te.capitan_nombre, te.capitan_telefono, te.capitan_email, te.promocion,
+                   t.id AS torneo_id, t.nombre AS torneo_nombre, t.deporte, t.formato, t.estado AS torneo_estado
+            FROM cancha.torneos_equipos te
+            JOIN cancha.torneos t ON te.torneo_id = t.id
+            WHERE te.token_delegado = :token
+        """), {"token": token})
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Enlace de delegado no válido o expirado")
+
+        keys = ["equipo_id", "equipo_nombre", "logo_url", "color_principal", "color_secundario",
+                "capitan_nombre", "capitan_telefono", "capitan_email", "promocion",
+                "torneo_id", "torneo_nombre", "deporte", "formato", "torneo_estado"]
+        data = _row_to_dict(keys, eq_row)
+
+        # 2. Buscar plantilla de jugadores del equipo
+        pl_res = await session.execute(text("""
+            SELECT id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, estado,
+                   documento_firmado_url, cedula_anverso_url, cedula_reverso_url, egreso_ano, es_exalumno
+            FROM cancha.tournament_players
+            WHERE tournament_team_id = :eid
+            ORDER BY numero_camiseta ASC NULLS LAST, nombre ASC
+        """), {"eid": data["equipo_id"]})
+        pl_rows = pl_res.fetchall()
+        pl_keys = ["id", "nombre", "dni", "fecha_nacimiento", "numero_camiseta", "posicion", "foto_url", "estado",
+                   "documento_firmado_url", "cedula_anverso_url", "cedula_reverso_url", "egreso_ano", "es_exalumno"]
+        
+        jugadores = [_row_to_dict(pl_keys, r) for r in pl_rows]
+
+        return {
+            "equipo": {
+                "id": data["equipo_id"],
+                "nombre": data["equipo_nombre"],
+                "logo_url": data["logo_url"],
+                "color_principal": data["color_principal"],
+                "color_secundario": data["color_secundario"],
+                "capitan_nombre": data["capitan_nombre"],
+                "capitan_telefono": data["capitan_telefono"],
+                "capitan_email": data["capitan_email"],
+                "promocion": data["promocion"]
+            },
+            "torneo": {
+                "id": data["torneo_id"],
+                "nombre": data["torneo_nombre"],
+                "deporte": data["deporte"],
+                "formato": data["formato"],
+                "estado": data["torneo_estado"]
+            },
+            "jugadores": jugadores
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/equipos/buscar-token", summary="Buscar token de delegado por email")
+async def buscar_token_delegado(
+    email: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        res = await session.execute(
+            text("SELECT token_delegado FROM cancha.torneos_equipos WHERE capitan_email = :email"),
+            {"email": email.strip()}
+        )
+        row = res.fetchone()
+        if not row or not row[0]:
+            raise HTTPException(status_code=404, detail="No se encontró equipo o token para este correo de delegado")
+        return {"token_delegado": str(row[0])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/equipos/token/{token}/logo", summary="Subir logo del equipo con token de delegado")
+async def upload_equipo_logo_by_token(
+    token: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+        # Validar token
+        eq_res = await session.execute(
+            text("SELECT id, torneo_id FROM cancha.torneos_equipos WHERE token_delegado = :token"),
+            {"token": token}
+        )
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Token no válido")
+
+        equipo_id, torneo_id = eq_row
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "logos")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+        filename = f"logo_equipo_{equipo_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        logo_url = f"/static/uploads/logos/{filename}"
+
+        await session.execute(
+            text("UPDATE cancha.torneos_equipos SET logo_url = :logo_url WHERE id = :eid"),
+            {"logo_url": logo_url, "eid": equipo_id}
+        )
+        await session.commit()
+
+        return {"status": "ok", "logo_url": logo_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/equipos/token/{token}/jugadores", summary="Agregar jugador al plantel usando token de delegado")
+async def add_jugador_by_token(
+    token: str,
+    payload: JugadorCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Validar token
+        eq_res = await session.execute(
+            text("SELECT id, torneo_id FROM cancha.torneos_equipos WHERE token_delegado = :token"),
+            {"token": token}
+        )
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Token de delegado no válido")
+
+        equipo_id, torneo_id = eq_row
+        return await _add_jugador_logic(torneo_id, equipo_id, payload, session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/documentacion/upload", summary="Subir archivos de documentación de jugadores")
+async def upload_documentacion(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Validar tipo de archivo
+        allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        if file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="Tipo de archivo no permitido. Solo se permiten imágenes (PNG/JPG/WEBP) y PDFs.")
+
+        # Guardar en static/uploads/documentacion
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "documentacion")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'dat'
+        filename = f"doc_{uuid.uuid4().hex}_{int(time.time())}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        file_url = f"/static/uploads/documentacion/{filename}"
+        return {"status": "ok", "url": file_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================
 # ENDPOINTS — JUGADORES / PLANTEL
 # ============================================================
@@ -636,7 +904,7 @@ async def get_jugadores(torneo_id: str, equipo_id: str, session: AsyncSession = 
                tp.posicion, tp.foto_url, tp.estado, tp.partidos_jugados,
                tp.amarillas_acum, tp.rojas_acum, tp.egreso_ano, tp.es_exalumno
         FROM cancha.tournament_players tp
-        WHERE tp.torneo_equipo_id = :eid
+        WHERE tp.tournament_team_id = :eid
         ORDER BY tp.numero_camiseta ASC NULLS LAST, tp.nombre ASC
     """), {"eid": equipo_id})
     rows = result.fetchall()
@@ -697,6 +965,200 @@ async def _get_config_param(param_key: str, default_value, torneo_id: str, sessi
     return default_value
 
 
+async def _add_jugador_logic(
+    torneo_id: str, equipo_id: str,
+    payload: JugadorCreate,
+    session: AsyncSession
+) -> dict:
+    # 1. Obtener datos del equipo y del torneo
+    team_res = await session.execute(
+        text("""
+            SELECT te.promocion, t.categoria, t.estado
+            FROM cancha.torneos_equipos te
+            JOIN cancha.torneos t ON te.torneo_id = t.id
+            WHERE te.id = :eid AND te.torneo_id = :tid
+        """),
+        {"eid": equipo_id, "tid": torneo_id}
+    )
+    team_row = team_res.fetchone()
+    if not team_row:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado en este torneo")
+    
+    team_promocion, torneo_categoria, torneo_estado = team_row
+    team_promocion = team_promocion or 0
+    torneo_categoria = torneo_categoria or 'Primera'
+
+    # 2. Bloqueo de adición de jugadores en fases finales (playoffs)
+    if torneo_estado in ('playoffs', 'finalizado'):
+         raise HTTPException(
+             status_code=400,
+             detail="Está prohibido incorporar jugadores en fases de eliminación directa / playoffs o cuando el torneo está finalizado."
+         )
+
+    # 3. Validar DNI no repetido en otro equipo del mismo torneo
+    dup = await session.execute(text("""
+        SELECT tp.id FROM cancha.tournament_players tp
+        JOIN cancha.torneos_equipos te ON tp.tournament_team_id = te.id
+        WHERE te.torneo_id = :tid AND tp.dni = :dni
+    """), {"tid": torneo_id, "dni": payload.dni})
+    if dup.fetchone():
+        raise HTTPException(status_code=409, detail=f"El jugador con DNI {payload.dni} ya está inscripto en otro equipo de este torneo")
+
+    # 4. Validar edad y fecha de nacimiento
+    current_year = datetime.now().year
+    player_age = None
+    fnac = None
+    if payload.fecha_nacimiento:
+        try:
+            fnac = date.fromisoformat(payload.fecha_nacimiento)
+            player_age = current_year - fnac.year
+        except Exception:
+            fnac = None
+
+    # 5. Determinar si el jugador es considerado refuerzo
+    is_refuerzo = False
+    anos_exencion_vg = await _get_config_param("anos_exencion_viejas_glorias", 25, torneo_id, session)
+    if not payload.es_exalumno or payload.egreso_ano != team_promocion:
+        is_refuerzo = True
+        
+        # Exención de viejas glorias
+        if payload.es_exalumno and payload.egreso_ano:
+            years_since_egreso = current_year - payload.egreso_ano
+            if years_since_egreso >= anos_exencion_vg:
+                is_refuerzo = False
+
+    # 6. Si es refuerzo, aplicar validaciones de cupo de refuerzos
+    if is_refuerzo:
+        existing_players_res = await session.execute(
+            text("""
+                SELECT es_exalumno, egreso_ano, fecha_nacimiento
+                FROM cancha.tournament_players
+                WHERE tournament_team_id = :eid
+            """),
+            {"eid": equipo_id}
+        )
+        existing_players = existing_players_res.fetchall()
+        
+        refuerzos_count = 0
+        refuerzos_menores_30_count = 0
+        
+        for p_es_exalumno, p_egreso_ano, p_fnac in existing_players:
+            p_is_refuerzo = False
+            if not p_es_exalumno or p_egreso_ano != team_promocion:
+                p_is_refuerzo = True
+                if p_es_exalumno and p_egreso_ano:
+                    p_years = current_year - p_egreso_ano
+                    if p_years >= anos_exencion_vg:
+                        p_is_refuerzo = False
+            
+            if p_is_refuerzo:
+                refuerzos_count += 1
+                if p_fnac:
+                    if isinstance(p_fnac, str):
+                        try:
+                            p_year = int(p_fnac.split('-')[0])
+                        except Exception:
+                            p_year = current_year
+                    else:
+                        p_year = p_fnac.year
+                    p_age = current_year - p_year
+                    if p_age < 30:
+                        refuerzos_menores_30_count += 1
+
+        # Calcular límite máximo de refuerzos permitido
+        antiguedad_promo = current_year - team_promocion
+        if antiguedad_promo > 15 and torneo_categoria != 'Primera':
+            max_refuerzos = await _get_config_param("limite_refuerzos_antiguedad", 6, torneo_id, session)
+        else:
+            max_refuerzos = await _get_config_param("limite_refuerzos_estandar", 4, torneo_id, session)
+            
+        if refuerzos_count >= max_refuerzos:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cupo de refuerzos completo. Límite máximo para este equipo: {max_refuerzos} refuerzos."
+            )
+
+        if torneo_categoria == 'Ejecutivo':
+            if player_age is not None and player_age < 30:
+                max_menores_30 = await _get_config_param("limite_refuerzos_menores_30_ejecutivo", 1, torneo_id, session)
+                if refuerzos_menores_30_count >= max_menores_30:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Categoría Ejecutivo: Solo se permite {max_menores_30} refuerzo(s) menor(es) de 30 años por equipo, y ya hay uno registrado."
+                    )
+    # 7. Insertar jugador
+    player_uuid = str(uuid.uuid4())
+    result = await session.execute(text("""
+        INSERT INTO cancha.tournament_players
+            (id, tournament_team_id, nombre, dni, email, fecha_nacimiento, numero_camiseta, posicion, foto_url, egreso_ano, es_exalumno,
+             documento_firmado_url, cedula_anverso_url, cedula_reverso_url)
+        VALUES
+            (:id, :eid, :nombre, :dni, :email, :fnac, :camiseta, :posicion, :foto_url, :egreso_ano, :es_exalumno,
+             :doc_firmado, :ced_anverso, :ced_reverso)
+        RETURNING id, nombre, dni, email, numero_camiseta, posicion, estado, egreso_ano, es_exalumno, documento_firmado_url, cedula_anverso_url, cedula_reverso_url
+    """), {
+        "id": player_uuid,
+        "eid": equipo_id, "nombre": payload.nombre, "dni": payload.dni,
+        "email": payload.email.strip() if payload.email else None,
+        "fnac": fnac, "camiseta": payload.numero_camiseta,
+        "posicion": payload.posicion, "foto_url": payload.foto_url,
+        "egreso_ano": payload.egreso_ano, "es_exalumno": payload.es_exalumno,
+        "doc_firmado": payload.documento_firmado_url,
+        "ced_anverso": payload.cedula_anverso_url,
+        "ced_reverso": payload.cedula_reverso_url
+    })
+    await session.commit()
+    row = result.fetchone()
+
+    # Crear usuario para el jugador (si tiene email cargado)
+    if payload.email:
+        email_jug = payload.email.strip()
+        # Verificar si existe el usuario
+        u_res = await session.execute(
+            text("SELECT id FROM sistema.usuarios WHERE email = :email"),
+            {"email": email_jug}
+        )
+        if not u_res.fetchone():
+            # Generar username
+            usr_base = email_jug.split('@')[0]
+            usr_check = await session.execute(
+                text("SELECT id FROM sistema.usuarios WHERE username = :username"),
+                {"username": usr_base}
+            )
+            username_final = usr_base
+            if usr_check.fetchone():
+                username_final = f"{usr_base}_{secrets.token_hex(2)}"
+            
+            # Contraseña inicial = DNI
+            pass_temp = payload.dni.strip()
+            pass_hash = get_password_hash(pass_temp)
+            
+            # Insertar usuario
+            await session.execute(text("""
+                INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo, fecha_creacion)
+                VALUES (:username, :email, :pass_hash, :nombre, 'jugador', true, NOW())
+            """), {
+                "username": username_final,
+                "email": email_jug,
+                "pass_hash": pass_hash,
+                "nombre": payload.nombre
+            })
+            await session.commit()
+
+            # Enviar correo de bienvenida al jugador
+            try:
+                email_service.send_welcome_email(
+                    to_email=email_jug,
+                    username=username_final,
+                    password=pass_temp,
+                    role="Jugador"
+                )
+            except Exception as mail_err:
+                print("Error al enviar email a jugador:", str(mail_err))
+
+    return _row_to_dict(["id","nombre","dni","email","numero_camiseta","posicion","estado","egreso_ano","es_exalumno","documento_firmado_url","cedula_anverso_url","cedula_reverso_url"], row)
+
+
 @router.post("/{torneo_id}/equipos/{equipo_id}/jugadores", summary="Agregar jugador al plantel")
 async def add_jugador(
     torneo_id: str, equipo_id: str,
@@ -704,140 +1166,7 @@ async def add_jugador(
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        # 1. Obtener datos del equipo y del torneo
-        team_res = await session.execute(
-            text("""
-                SELECT te.promocion, t.categoria, t.estado
-                FROM cancha.torneos_equipos te
-                JOIN cancha.torneos t ON te.torneo_id = t.id
-                WHERE te.id = :eid AND te.torneo_id = :tid
-            """),
-            {"eid": equipo_id, "tid": torneo_id}
-        )
-        team_row = team_res.fetchone()
-        if not team_row:
-            raise HTTPException(status_code=404, detail="Equipo no encontrado en este torneo")
-        
-        team_promocion, torneo_categoria, torneo_estado = team_row
-        team_promocion = team_promocion or 0
-        torneo_categoria = torneo_categoria or 'Primera'
-
-        # 2. Bloqueo de adición de jugadores en fases finales (playoffs)
-        if torneo_estado in ('playoffs', 'finalizado'):
-             raise HTTPException(
-                 status_code=400,
-                 detail="Está prohibido incorporar jugadores en fases de eliminación directa / playoffs o cuando el torneo está finalizado."
-             )
-
-        # 3. Validar DNI no repetido en otro equipo del mismo torneo
-        dup = await session.execute(text("""
-            SELECT tp.id FROM cancha.tournament_players tp
-            JOIN cancha.torneos_equipos te ON tp.torneo_equipo_id = te.id
-            WHERE te.torneo_id = :tid AND tp.dni = :dni
-        """), {"tid": torneo_id, "dni": payload.dni})
-        if dup.fetchone():
-            raise HTTPException(status_code=409, detail=f"El jugador con DNI {payload.dni} ya está inscripto en otro equipo de este torneo")
-
-        # 4. Validar edad y fecha de nacimiento
-        current_year = datetime.now().year
-        player_age = None
-        fnac = None
-        if payload.fecha_nacimiento:
-            try:
-                fnac = date.fromisoformat(payload.fecha_nacimiento)
-                player_age = current_year - fnac.year
-            except Exception:
-                fnac = None
-
-        # 5. Determinar si el jugador es considerado refuerzo
-        is_refuerzo = False
-        anos_exencion_vg = await _get_config_param("anos_exencion_viejas_glorias", 25, torneo_id, session)
-        if not payload.es_exalumno or payload.egreso_ano != team_promocion:
-            is_refuerzo = True
-            
-            # Exención de viejas glorias
-            if payload.es_exalumno and payload.egreso_ano:
-                years_since_egreso = current_year - payload.egreso_ano
-                if years_since_egreso >= anos_exencion_vg:
-                    is_refuerzo = False
-
-        # 6. Si es refuerzo, aplicar validaciones de cupo de refuerzos
-        if is_refuerzo:
-            existing_players_res = await session.execute(
-                text("""
-                    SELECT es_exalumno, egreso_ano, fecha_nacimiento
-                    FROM cancha.tournament_players
-                    WHERE torneo_equipo_id = :eid
-                """),
-                {"eid": equipo_id}
-            )
-            existing_players = existing_players_res.fetchall()
-            
-            refuerzos_count = 0
-            refuerzos_menores_30_count = 0
-            
-            for p_es_exalumno, p_egreso_ano, p_fnac in existing_players:
-                p_is_refuerzo = False
-                if not p_es_exalumno or p_egreso_ano != team_promocion:
-                    p_is_refuerzo = True
-                    if p_es_exalumno and p_egreso_ano:
-                        p_years = current_year - p_egreso_ano
-                        if p_years >= anos_exencion_vg:
-                            p_is_refuerzo = False
-                
-                if p_is_refuerzo:
-                    refuerzos_count += 1
-                    if p_fnac:
-                        if isinstance(p_fnac, str):
-                            try:
-                                p_year = int(p_fnac.split('-')[0])
-                            except Exception:
-                                p_year = current_year
-                        else:
-                            p_year = p_fnac.year
-                        p_age = current_year - p_year
-                        if p_age < 30:
-                            refuerzos_menores_30_count += 1
-
-            # Calcular límite máximo de refuerzos permitido
-            antiguedad_promo = current_year - team_promocion
-            if antiguedad_promo > 15 and torneo_categoria != 'Primera':
-                max_refuerzos = await _get_config_param("limite_refuerzos_antiguedad", 6, torneo_id, session)
-            else:
-                max_refuerzos = await _get_config_param("limite_refuerzos_estandar", 4, torneo_id, session)
-                
-            if refuerzos_count >= max_refuerzos:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Cupo de refuerzos completo. Límite máximo para este equipo: {max_refuerzos} refuerzos."
-                )
-
-            if torneo_categoria == 'Ejecutivo':
-                if player_age is not None and player_age < 30:
-                    max_menores_30 = await _get_config_param("limite_refuerzos_menores_30_ejecutivo", 1, torneo_id, session)
-                    if refuerzos_menores_30_count >= max_menores_30:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Categoría Ejecutivo: Solo se permite {max_menores_30} refuerzo(s) menor(es) de 30 años por equipo, y ya hay uno registrado."
-                        )
-        # 7. Insertar jugador
-        player_uuid = str(uuid.uuid4())
-        result = await session.execute(text("""
-            INSERT INTO cancha.tournament_players
-                (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, egreso_ano, es_exalumno)
-            VALUES
-                (:id, :eid, :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url, :egreso_ano, :es_exalumno)
-            RETURNING id, nombre, dni, numero_camiseta, posicion, estado, egreso_ano, es_exalumno
-        """), {
-            "id": player_uuid,
-            "eid": equipo_id, "nombre": payload.nombre, "dni": payload.dni,
-            "fnac": fnac, "camiseta": payload.numero_camiseta,
-            "posicion": payload.posicion, "foto_url": payload.foto_url,
-            "egreso_ano": payload.egreso_ano, "es_exalumno": payload.es_exalumno
-        })
-        await session.commit()
-        row = result.fetchone()
-        return _row_to_dict(["id","nombre","dni","numero_camiseta","posicion","estado","egreso_ano","es_exalumno"], row)
+        return await _add_jugador_logic(torneo_id, equipo_id, payload, session)
     except HTTPException:
         raise
     except Exception as e:
@@ -1447,7 +1776,7 @@ async def get_goleadores(torneo_id: str, session: AsyncSession = Depends(get_ses
                COUNT(CASE WHEN g.tipo = 'penal' AND NOT g.anulado THEN 1 END) AS penales,
                COUNT(CASE WHEN g.tipo = 'autogol' AND NOT g.anulado THEN 1 END) AS autogoles
         FROM cancha.tournament_players tp
-        JOIN cancha.torneos_equipos te ON tp.torneo_equipo_id = te.id
+        JOIN cancha.torneos_equipos te ON tp.tournament_team_id = te.id
         LEFT JOIN cancha.torneos_goles g ON g.player_id = tp.id
         LEFT JOIN cancha.torneos_partidos p ON g.partido_id = p.id
         WHERE te.torneo_id = :tid
@@ -1489,7 +1818,7 @@ async def get_sanciones(torneo_id: str, session: AsyncSession = Depends(get_sess
                s.estado, s.creado_en
         FROM cancha.torneos_sanciones s
         JOIN cancha.tournament_players tp ON s.player_id = tp.id
-        JOIN cancha.torneos_equipos te ON tp.torneo_equipo_id = te.id
+        JOIN cancha.torneos_equipos te ON tp.tournament_team_id = te.id
         WHERE s.torneo_id = :tid
         ORDER BY s.estado ASC, s.creado_en DESC
     """), {"tid": torneo_id})
@@ -2232,6 +2561,7 @@ class EventoPartidoCreate(BaseModel):
     player_id: Optional[str] = None
     equipo_id: str
     tipo: str  # GOL | GOL_PENAL | AUTOGOL | AMARILLA | ROJA | ROJA_DIRECTA | DOBLE_AMARILLA | LESION | SUSTITUCION
+    tipo_evento_id: Optional[int] = None  # FK a cancha.tipos_evento (se resuelve automáticamente si no se envía)
     minuto: int
     periodo: int = 1
     es_tiempo_adicional: bool = False
@@ -2260,7 +2590,29 @@ async def get_categorias(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=500, detail=f"Error obteniendo categorías: {str(e)}")
 
 
-# ── EVENTOS DE PARTIDO (tabla unificada) ─────────────────────
+@router.get("/catalogos/tipos-evento", summary="Listar tipos de evento de partido")
+async def get_tipos_evento(session: AsyncSession = Depends(get_session)):
+    """Devuelve el catálogo normalizado de tipos de evento (gol, tarjeta, sustitución, etc.)."""
+    try:
+        result = await session.execute(text("""
+            SELECT id, codigo, nombre, descripcion, aplica_a, afecta_marcador, afecta_disciplina
+            FROM cancha.tipos_evento
+            WHERE activo = TRUE
+            ORDER BY id
+        """))
+        rows = result.fetchall()
+        return [
+            {
+                "id": r[0], "codigo": r[1], "nombre": r[2], "descripcion": r[3],
+                "aplica_a": r[4], "afecta_marcador": r[5], "afecta_disciplina": r[6]
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo tipos de evento: {str(e)}")
+
+
+# ── EVENTOS DE PARTIDO (tabla unificada) ─────────────────────────
 
 @router.get("/{torneo_id}/partidos/{partido_id}/eventos", summary="Listar eventos de un partido")
 async def get_eventos_partido(
@@ -2273,15 +2625,18 @@ async def get_eventos_partido(
             SELECT ep.id, ep.tipo, ep.minuto, ep.periodo, ep.es_tiempo_adicional,
                    ep.observaciones, ep.registrado_en,
                    ep.equipo_id,
-                   tp.nombre AS jugador_nombre
+                   ep.tipo_evento_id,
+                   tp_in.nombre  AS jugador_nombre,
+                   tp_out.nombre AS jugador_sale_nombre
             FROM cancha.eventos_partido ep
-            LEFT JOIN cancha.tournament_players tp ON tp.id = ep.player_id
+            LEFT JOIN cancha.tournament_players tp_in  ON tp_in.id  = ep.player_id
+            LEFT JOIN cancha.tournament_players tp_out ON tp_out.id = ep.player_out_id
             WHERE ep.partido_id = :pid
             ORDER BY ep.minuto, ep.periodo
         """), {"pid": partido_id})
         rows = result.fetchall()
         cols = ["id","tipo","minuto","periodo","es_tiempo_adicional","observaciones",
-                "registrado_en","equipo_id","jugador_nombre"]
+                "registrado_en","equipo_id","tipo_evento_id","jugador_nombre","jugador_sale_nombre"]
         return [_row_to_dict(cols, r) for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2306,23 +2661,94 @@ async def create_evento_partido(
         if row[0] == "finalizado":
             raise HTTPException(status_code=400, detail="No se pueden agregar eventos a un partido finalizado")
 
+        # Resolver tipo_evento_id si no viene en el payload
+        tipo_evento_id = data.tipo_evento_id
+        if tipo_evento_id is None:
+            te_res = await session.execute(
+                text("SELECT id FROM cancha.tipos_evento WHERE codigo = :cod"),
+                {"cod": data.tipo.upper()}
+            )
+            te_row = te_res.fetchone()
+            if te_row:
+                tipo_evento_id = te_row[0]
+
         new_id = str(uuid.uuid4())
         await session.execute(text("""
             INSERT INTO cancha.eventos_partido
-                (id, partido_id, player_id, equipo_id, tipo,
+                (id, partido_id, player_id, equipo_id, tipo, tipo_evento_id,
                  minuto, periodo, es_tiempo_adicional, observaciones)
             VALUES
-                (:id, :pid, :pid_ref, :eid, :tipo,
+                (:id, :pid, :pid_ref, :eid, :tipo, :tipo_evento_id,
                  :min, :per, :ta, :obs)
         """), {
             "id": new_id, "pid": partido_id,
             "pid_ref": data.player_id,
             "eid": data.equipo_id, "tipo": data.tipo,
+            "tipo_evento_id": tipo_evento_id,
             "min": data.minuto, "per": data.periodo,
             "ta": data.es_tiempo_adicional, "obs": data.observaciones
         })
         await session.commit()
         return {"status": "ok", "id": new_id, "message": f"Evento '{data.tipo}' registrado en minuto {data.minuto}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{torneo_id}/partidos/{partido_id}/sustituciones", summary="Registrar sustitución")
+async def add_sustitucion(
+    torneo_id: str,
+    partido_id: str,
+    payload: SustitucionCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    """Registra el cambio de un jugador: quién entra (player_id) y quién sale (player_out_id)."""
+    try:
+        chk = await session.execute(
+            text("SELECT estado FROM cancha.torneos_partidos WHERE id = :pid AND torneo_id = :tid"),
+            {"pid": partido_id, "tid": torneo_id}
+        )
+        row = chk.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Partido no encontrado en este torneo")
+        if row[0] == "finalizado":
+            raise HTTPException(status_code=400, detail="No se pueden agregar eventos a un partido finalizado")
+
+        # Obtener id del tipo SUSTITUCION del catálogo
+        te_res = await session.execute(
+            text("SELECT id FROM cancha.tipos_evento WHERE codigo = 'SUSTITUCION'"),
+        )
+        te_row = te_res.fetchone()
+        tipo_evento_id = te_row[0] if te_row else None
+
+        new_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO cancha.eventos_partido
+                (id, partido_id, player_id, player_out_id, equipo_id,
+                 tipo, tipo_evento_id, minuto, observaciones)
+            VALUES
+                (:id, :pid, :player_in, :player_out, :eid,
+                 'SUSTITUCION', :tipo_evento_id, :min, :obs)
+        """), {
+            "id": new_id,
+            "pid": partido_id,
+            "player_in": payload.player_id,
+            "player_out": payload.player_out_id,
+            "eid": payload.equipo_id,
+            "tipo_evento_id": tipo_evento_id,
+            "min": payload.minuto,
+            "obs": payload.observaciones
+        })
+        await session.commit()
+        return {
+            "status": "ok",
+            "id": new_id,
+            "message": f"Sustitución registrada en minuto {payload.minuto}",
+            "player_entra": payload.player_id,
+            "player_sale": payload.player_out_id
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -2391,4 +2817,74 @@ async def delete_rol_complejo(
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── ORGANIZADORES INDEPENDIENTES (Sin complejo físico) ──────
+
+@router.get("/organizadores", summary="Listar organizadores independientes")
+async def get_organizadores(session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text("""
+            SELECT o.id, o.usuario_id, o.nombre, o.habilitado, o.plan, o.max_torneos, o.creado_en,
+                   u.nombre || ' ' || u.apellido AS usuario_nombre, u.email AS usuario_email
+            FROM cancha.organizadores o
+            JOIN sistema.usuarios u ON u.id = o.usuario_id
+            ORDER BY o.nombre
+        """))
+        rows = result.fetchall()
+        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en", "usuario_nombre", "usuario_email"]
+        return [_row_to_dict(cols, r) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/organizadores", summary="Crear o actualizar organizador independiente")
+async def create_organizador(data: OrganizadorCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        # Verificar si ya existe un organizador para este usuario
+        chk = await session.execute(
+            text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid"),
+            {"uid": data.usuario_id}
+        )
+        row = chk.fetchone()
+        if row:
+            # Actualizar
+            await session.execute(text("""
+                UPDATE cancha.organizadores
+                SET nombre = :nombre, plan = :plan, max_torneos = :max_torneos
+                WHERE usuario_id = :uid
+            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+            await session.commit()
+            return {"status": "ok", "message": "Organizador actualizado exitosamente"}
+        else:
+            # Insertar
+            await session.execute(text("""
+                INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos)
+                VALUES (:uid, :nombre, :plan, :max_torneos)
+            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+            await session.commit()
+            return {"status": "ok", "message": "Organizador independiente creado exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/organizadores/usuario/{usuario_id}", summary="Obtener organizador por usuario")
+async def get_organizador_por_usuario(usuario_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text("""
+            SELECT id, usuario_id, nombre, habilitado, plan, max_torneos, creado_en
+            FROM cancha.organizadores
+            WHERE usuario_id = :uid AND habilitado = TRUE
+        """), {"uid": usuario_id})
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Organizador no habilitado para este usuario")
+        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en"]
+        return _row_to_dict(cols, row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 

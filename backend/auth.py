@@ -55,7 +55,10 @@ async def login(
     """Inicio de sesión de usuario"""
     # Buscar usuario
     result = await session.execute(
-        select(Usuario).where(Usuario.username == user_credentials.username)
+        select(Usuario).where(
+            (Usuario.username == user_credentials.username) | 
+            (Usuario.email == user_credentials.username)
+        )
     )
     user = result.scalar_one_or_none()
     

@@ -49,7 +49,10 @@ export default function LoginPage() {
   const googleAccounts = [
     { email: 'carlos.mendoza@gmail.com', name: 'Carlos Mendoza', role: 'deportista' },
     { email: 'mburicao.manager@gmail.com', name: 'Gerente Mburicao', role: 'tenant', assignedComplejoId: '11111111-1111-1111-1111-111111111111', authorized: true },
-    { email: 'nuevo.club@gmail.com', name: 'Propietario Nuevo Club', role: 'tenant', authorized: false } // Pending approval demo
+    { email: 'nuevo.club@gmail.com', name: 'Propietario Nuevo Club', role: 'tenant', authorized: false }, // Pending approval demo
+    { email: 'organizador@micancha.com', name: 'Juan Organizador', role: 'organizador', authorized: true },
+    { email: 'delegado_api@micancha.com', name: 'Rafa Delegado', role: 'delegado', authorized: true },
+    { email: 'santi_gimenez@micancha.com', name: 'Santiago Giménez', role: 'jugador', authorized: true }
   ];
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -86,7 +89,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleAccountSelect = (account: any) => {
+  const handleGoogleAccountSelect = async (account: any) => {
     // If selecting a standard account
     const session = {
       role: account.role,
@@ -101,8 +104,8 @@ export default function LoginPage() {
     // Access Log
     addAuditLog('acceso', {
       usuario: account.email,
-      rol: account.role === 'tenant' ? 'Local Deportivo' : 'Deportista',
-      accion: `Login con Google (${account.authorized === false ? 'Pendiente Autorización' : 'Exitoso'})`,
+      rol: account.role,
+      accion: `Login con Google Exitoso`,
       ip: '192.168.43.200',
       dispositivo: navigator.userAgent.substring(0, 50) + '...'
     });
@@ -112,6 +115,24 @@ export default function LoginPage() {
         window.location.href = '/admin';
       } else {
         alert('Tu cuenta de propietario aún no está autorizada. Se ha enviado una solicitud al Administrador Global.');
+        window.location.href = '/';
+      }
+    } else if (account.role === 'organizador') {
+      window.location.href = '/admin';
+    } else if (account.role === 'delegado') {
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+        const res = await fetch(`${apiBase}/cancha/torneos/equipos/buscar-token?email=${account.email}`);
+        if (res.ok) {
+          const resData = await res.json();
+          window.location.href = `/delegados/${resData.token_delegado}`;
+        } else {
+          alert("No se encontró ningún equipo o token activo asociado a tu cuenta de delegado.");
+          window.location.href = '/';
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error al conectar con el servidor para buscar tu equipo de delegado.");
         window.location.href = '/';
       }
     } else {
@@ -390,7 +411,7 @@ export default function LoginPage() {
                       <div style={{ fontSize: 11, color: '#64748b' }}>{acc.email}</div>
                     </div>
                     <span style={{ fontSize: 11, background: '#f1f5f9', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>
-                      {acc.role === 'tenant' ? 'Local' : 'Deportista'}
+                      {acc.role === 'tenant' ? 'Local' : acc.role === 'organizador' ? 'Organizador' : acc.role === 'delegado' ? 'Delegado' : acc.role === 'jugador' ? 'Jugador' : 'Deportista'}
                     </span>
                   </div>
                 ))

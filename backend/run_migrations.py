@@ -23,6 +23,10 @@ MIGRATIONS = [
     {"name": "005_add_rules_fields.py", "module": "m005"},
     {"name": "006_eventos_categorias.py", "module": "m006"},
     {"name": "007_multitenancy_catalogos.py", "module": "m007"},
+    {"name": "008_gaps_logica_negocio.py", "module": "m008"},
+    {"name": "009_organizadores_independientes.py", "module": "m009"},
+    {"name": "010_documentacion_delegados.py", "module": "m010"},
+    {"name": "011_email_jugadores.py", "module": "m011"},
 ]
 
 def load_migration_module(file_name: str, module_name: str):
