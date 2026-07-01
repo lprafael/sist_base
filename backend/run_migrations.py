@@ -10,6 +10,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 import os
 import importlib.util
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Directorio base
 BASE_DIR = Path(__file__).resolve().parent
