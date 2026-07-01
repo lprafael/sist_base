@@ -15,6 +15,17 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Next.js build outputs
+.next/
+out/
+.next-env.d.ts
+
+# Uploads y archivos estáticos generados por usuarios
+backend/static/uploads/documentacion/*
+backend/static/uploads/logos/*
+!backend/static/uploads/documentacion/.gitkeep
+!backend/static/uploads/logos/.gitkeep
+
 # Environment files and Secrets
 .env
 .env.local
