@@ -124,7 +124,7 @@ const knockoutStages = [
       { match: 'España vs Austria', flag1: '🇪🇸', flag2: '🇦🇹', time: 'jue, 2/7, 4:00 p.m.' },
       { match: 'Portugal vs Croacia', flag1: '🇵🇹', flag2: '🇭🇷', time: 'jue, 2/7, 8:00 p.m.' },
       { match: 'Brasil vs Japón', flag1: '🇧🇷', flag2: '🇯🇵', time: 'Finalizado', score1: 2, score2: 1 },
-      { match: 'Costa de Marfil vs Noruega', flag1: '🇨🇮', flag2: '🇳🇴', time: 'Finalizado', score1: 1, score2: 2 },
+      { match: 'Irlanda vs Noruega', flag1: '🇮🇪', flag2: '🇳🇴', time: 'Finalizado', score1: 1, score2: 2 },
       { match: 'México vs Ecuador', flag1: '🇲🇽', flag2: '🇪🇨', time: 'Finalizado', score1: 2, score2: 0 },
       { match: 'Inglaterra vs RD Congo', flag1: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', flag2: '🇨🇩', time: 'Finalizado', score1: 2, score2: 1 },
       { match: 'Suiza vs Argelia', flag1: '🇨🇭', flag2: '🇩🇿', time: 'vie, 3/7, 12:00 a.m.' },
