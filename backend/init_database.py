@@ -281,11 +281,11 @@ async def init_sistema(session, engine):
     print("   - viewer: Solo lectura")
 
 
-async def init_playa(engine):
-    """Inicializa el schema playa ejecutando el archivo initBD.sql"""
+async def init_cancha(engine):
+    """Inicializa el schema cancha ejecutando el archivo initBD.sql"""
     
     print("\n" + "="*60)
-    print("INICIALIZANDO SCHEMA PLAYA")
+    print("INICIALIZANDO SCHEMA CANCHA")
     print("="*60 + "\n")
     
     # Buscar el archivo initBD.sql
@@ -338,34 +338,13 @@ async def init_playa(engine):
         cursor.execute(sql_content)
         print("✅ initBD.sql ejecutado correctamente.")
 
-        # Migraciones posteriores (columnas y tablas añadidas con el tiempo)
-        migraciones = [
-            "update_ventas_mora.sql",
-            "update_ventas_gracia.sql",
-            "update_vendedores.sql",
-            "update_productos_entrega.sql",
-            "migration_add_precio_financiado_sugerido.sql",
-            "update_escribanias.sql",
-            "migration_documentos_importacion.sql",
-            "migration_performance_indexes.sql",
-        ]
-        for nombre in migraciones:
-            sql_path = Path(__file__).parent / nombre
-            if sql_path.exists():
-                print(f"📄 Ejecutando migración: {nombre}")
-                with open(sql_path, "r", encoding="utf-8") as f:
-                    cursor.execute(f.read())
-            else:
-                print(f"⚠️  No encontrado (se omite): {nombre}")
-
         cursor.close()
         conn.close()
 
-        print("✅ Schema playa inicializado correctamente!")
+        print("✅ Schema cancha inicializado correctamente!")
         print("   - Tablas creadas")
         print("   - Datos iniciales insertados")
         print("   - Vistas y funciones creadas")
-        print("   - Migraciones aplicadas")
 
     except Exception as e:
         print(f"❌ Error al ejecutar el script SQL: {e}")
@@ -379,7 +358,7 @@ async def init_database(modo="all"):
     Inicializa la base de datos según el modo especificado
     
     Args:
-        modo: "all" (todo), "sistema" (solo sistema), "playa" (solo playa)
+        modo: "all" (todo), "sistema" (solo sistema), "cancha" (solo cancha)
     """
     
     print("\n" + "="*60)
@@ -405,8 +384,8 @@ async def init_database(modo="all"):
                 finally:
                     await session.close()
         
-        if modo == "playa":
-            await init_playa(engine)
+        if modo in ["all", "cancha"]:
+            await init_cancha(engine)
         
         print("\n" + "="*60)
         print("✅ INICIALIZACIÓN COMPLETADA EXITOSAMENTE")
@@ -425,19 +404,16 @@ if __name__ == "__main__":
     
     if len(sys.argv) > 1:
         arg = sys.argv[1].lower()
-        if arg == "--playa":
-            modo = "playa"
+        if arg == "--cancha":
+            modo = "cancha"
         elif arg == "--sistema":
             modo = "sistema"
         elif arg in ["--help", "-h"]:
             print("\nUso:")
-            print("  python init_database.py              # Inicializa todo (sistema + playa + migraciones)")
-            print("  python init_database.py --playa      # Solo schema playa + migraciones")
-            print("  python init_database.py --sistema   # Solo schema sistema")
-            print("  python init_database.py --help      # Muestra esta ayuda")
-            print("\nMigraciones aplicadas tras initBD.sql:")
-            print("  update_ventas_mora.sql, update_ventas_gracia.sql,")
-            print("  update_vendedores.sql, update_productos_entrega.sql")
+            print("  python init_database.py              # Inicializa todo (sistema + cancha)")
+            print("  python init_database.py --cancha     # Solo schema cancha")
+            print("  python init_database.py --sistema    # Solo schema sistema")
+            print("  python init_database.py --help       # Muestra esta ayuda")
             print("\nPara reset total antes de reinicializar:")
             print("  python revert_init_database.py")
             print()
