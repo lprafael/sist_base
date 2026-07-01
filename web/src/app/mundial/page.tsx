@@ -115,18 +115,18 @@ const knockoutStages = [
   {
     name: '16vos de Final',
     matches: [
-      { match: 'Sudáfrica vs Canadá', flag1: '🇿🇦', flag2: '🇨🇦', time: 'hoy, 4:00 p.m.' },
-      { match: 'Países Bajos vs Marruecos', flag1: '🇳🇱', flag2: '🇲🇦', time: 'mañana, 10:00 p.m.' },
-      { match: 'Alemania vs Paraguay', flag1: '🇩🇪', flag2: '🇵🇾', time: 'mañana, 5:30 p.m.' },
-      { match: 'Francia vs Suecia', flag1: '🇫🇷', flag2: '🇸🇪', time: 'mar, 30/6, 6:00 p.m.' },
+      { match: 'Sudáfrica vs Canadá', flag1: '🇿🇦', flag2: '🇨🇦', time: 'Finalizado', score1: 0, score2: 1 },
+      { match: 'Países Bajos vs Marruecos', flag1: '🇳🇱', flag2: '🇲🇦', time: 'Finalizado (Penales)', score1: 1, score2: 1, pen1: 2, pen2: 3 },
+      { match: 'Alemania vs Paraguay', flag1: '🇩🇪', flag2: '🇵🇾', time: 'Finalizado (Penales)', score1: 1, score2: 1, pen1: 3, pen2: 4 },
+      { match: 'Francia vs Suecia', flag1: '🇫🇷', flag2: '🇸🇪', time: 'Finalizado', score1: 3, score2: 0 },
       { match: 'Bélgica vs Senegal', flag1: '🇧🇪', flag2: '🇸🇳', time: 'mié, 1/7, 5:00 p.m.' },
       { match: 'Estados Unidos vs Bosnia y Herzegovina', flag1: '🇺🇸', flag2: '🇧🇦', time: 'mié, 1/7, 9:00 p.m.' },
       { match: 'España vs Austria', flag1: '🇪🇸', flag2: '🇦🇹', time: 'jue, 2/7, 4:00 p.m.' },
       { match: 'Portugal vs Croacia', flag1: '🇵🇹', flag2: '🇭🇷', time: 'jue, 2/7, 8:00 p.m.' },
-      { match: 'Brasil vs Japón', flag1: '🇧🇷', flag2: '🇯🇵', time: 'mañana, 2:00 p.m.' },
-      { match: 'Costa de Marfil vs Noruega', flag1: '🇨🇮', flag2: '🇳🇴', time: 'mar, 30/6, 2:00 p.m.' },
-      { match: 'México vs Ecuador', flag1: '🇲🇽', flag2: '🇪🇨', time: 'mar, 30/6, 10:00 p.m.' },
-      { match: 'Inglaterra vs RD Congo', flag1: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', flag2: '🇨🇩', time: 'mié, 1/7, 1:00 p.m.' },
+      { match: 'Brasil vs Japón', flag1: '🇧🇷', flag2: '🇯🇵', time: 'Finalizado', score1: 2, score2: 1 },
+      { match: 'Costa de Marfil vs Noruega', flag1: '🇨🇮', flag2: '🇳🇴', time: 'Finalizado', score1: 1, score2: 2 },
+      { match: 'México vs Ecuador', flag1: '🇲🇽', flag2: '🇪🇨', time: 'Finalizado', score1: 2, score2: 0 },
+      { match: 'Inglaterra vs RD Congo', flag1: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', flag2: '🇨🇩', time: 'Finalizado', score1: 2, score2: 1 },
       { match: 'Suiza vs Argelia', flag1: '🇨🇭', flag2: '🇩🇿', time: 'vie, 3/7, 12:00 a.m.' },
       { match: 'Colombia vs Ghana', flag1: '🇨🇴', flag2: '🇬🇭', time: 'vie, 3/7, 10:30 p.m.' },
       { match: 'Australia vs Egipto', flag1: '🇦🇺', flag2: '🇪🇬', time: 'vie, 3/7, 3:00 p.m.' },
@@ -296,66 +296,105 @@ export default function MundialPage() {
                     {stage.matches.length > 4 ? (
                       <>
                         <div className="flex flex-col">
-                          {stage.matches.slice(0, Math.ceil(stage.matches.length / 2)).map((fixture, index) => (
-                            <div key={index} className="p-4 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/40 flex flex-col gap-2 transition-colors">
-                              <div className="inline-block bg-slate-900/80 rounded px-2 py-1 self-start">
-                                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">{fixture.time}</span>
-                              </div>
-                              <div className="flex items-center justify-between bg-slate-900/40 rounded-lg p-2 border border-slate-700/50">
-                                <div className="flex items-center gap-2 flex-1">
-                                  <span className="text-xl">{fixture.flag1}</span>
-                                  <span className={`font-bold ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : 'text-slate-200'}`}>{fixture.match.split(' vs ')[0]}</span>
+                          {stage.matches.slice(0, Math.ceil(stage.matches.length / 2)).map((fixture: any, index) => {
+                            const hasScore = fixture.score1 !== undefined && fixture.score2 !== undefined;
+                            const isWinner1 = hasScore && (fixture.score1 > fixture.score2 || (fixture.score1 === fixture.score2 && fixture.pen1 > fixture.pen2));
+                            const isWinner2 = hasScore && (fixture.score2 > fixture.score1 || (fixture.score1 === fixture.score2 && fixture.pen2 > fixture.pen1));
+                            return (
+                              <div key={index} className="p-4 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/40 flex flex-col gap-2 transition-colors">
+                                <div className="inline-block bg-slate-900/80 rounded px-2 py-1 self-start">
+                                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">{fixture.time}</span>
                                 </div>
-                                <span className="text-slate-500 font-black text-xs px-2">VS</span>
-                                <div className="flex items-center gap-2 flex-1 justify-end text-right">
-                                  <span className={`font-bold ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : 'text-slate-200'}`}>{fixture.match.split(' vs ')[1]}</span>
-                                  <span className="text-xl">{fixture.flag2}</span>
+                                <div className="flex items-center justify-between bg-slate-900/40 rounded-lg p-2 border border-slate-700/50">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="text-xl shrink-0">{fixture.flag1}</span>
+                                    <span className={`font-bold truncate ${isWinner1 ? 'text-emerald-400 font-extrabold' : 'text-slate-200'} ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : ''}`}>{fixture.match.split(' vs ')[0]}</span>
+                                    {fixture.pen1 !== undefined && <span className="text-[11px] text-emerald-400/80 font-normal">({fixture.pen1})</span>}
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0 px-2">
+                                    {hasScore ? (
+                                      <span className="font-mono font-black text-sm bg-slate-950/80 px-2 py-0.5 rounded text-white border border-slate-700">{fixture.score1} - {fixture.score2}</span>
+                                    ) : (
+                                      <span className="text-slate-500 font-black text-xs">VS</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-1 justify-end text-right min-w-0">
+                                    {fixture.pen2 !== undefined && <span className="text-[11px] text-emerald-400/80 font-normal">({fixture.pen2})</span>}
+                                    <span className={`font-bold truncate ${isWinner2 ? 'text-emerald-400 font-extrabold' : 'text-slate-200'} ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : ''}`}>{fixture.match.split(' vs ')[1]}</span>
+                                    <span className="text-xl shrink-0">{fixture.flag2}</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         <div className="flex flex-col">
-                          {stage.matches.slice(Math.ceil(stage.matches.length / 2)).map((fixture, index) => (
-                            <div key={index} className="p-4 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/40 flex flex-col gap-2 transition-colors">
-                              <div className="inline-block bg-slate-900/80 rounded px-2 py-1 self-start">
-                                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">{fixture.time}</span>
-                              </div>
-                              <div className="flex items-center justify-between bg-slate-900/40 rounded-lg p-2 border border-slate-700/50">
-                                <div className="flex items-center gap-2 flex-1">
-                                  <span className="text-xl">{fixture.flag1}</span>
-                                  <span className={`font-bold ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : 'text-slate-200'}`}>{fixture.match.split(' vs ')[0]}</span>
+                          {stage.matches.slice(Math.ceil(stage.matches.length / 2)).map((fixture: any, index) => {
+                            const hasScore = fixture.score1 !== undefined && fixture.score2 !== undefined;
+                            const isWinner1 = hasScore && (fixture.score1 > fixture.score2 || (fixture.score1 === fixture.score2 && fixture.pen1 > fixture.pen2));
+                            const isWinner2 = hasScore && (fixture.score2 > fixture.score1 || (fixture.score1 === fixture.score2 && fixture.pen2 > fixture.pen1));
+                            return (
+                              <div key={index} className="p-4 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/40 flex flex-col gap-2 transition-colors">
+                                <div className="inline-block bg-slate-900/80 rounded px-2 py-1 self-start">
+                                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">{fixture.time}</span>
                                 </div>
-                                <span className="text-slate-500 font-black text-xs px-2">VS</span>
-                                <div className="flex items-center gap-2 flex-1 justify-end text-right">
-                                  <span className={`font-bold ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : 'text-slate-200'}`}>{fixture.match.split(' vs ')[1]}</span>
-                                  <span className="text-xl">{fixture.flag2}</span>
+                                <div className="flex items-center justify-between bg-slate-900/40 rounded-lg p-2 border border-slate-700/50">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="text-xl shrink-0">{fixture.flag1}</span>
+                                    <span className={`font-bold truncate ${isWinner1 ? 'text-emerald-400 font-extrabold' : 'text-slate-200'} ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : ''}`}>{fixture.match.split(' vs ')[0]}</span>
+                                    {fixture.pen1 !== undefined && <span className="text-[11px] text-emerald-400/80 font-normal">({fixture.pen1})</span>}
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0 px-2">
+                                    {hasScore ? (
+                                      <span className="font-mono font-black text-sm bg-slate-950/80 px-2 py-0.5 rounded text-white border border-slate-700">{fixture.score1} - {fixture.score2}</span>
+                                    ) : (
+                                      <span className="text-slate-500 font-black text-xs">VS</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-1 justify-end text-right min-w-0">
+                                    {fixture.pen2 !== undefined && <span className="text-[11px] text-emerald-400/80 font-normal">({fixture.pen2})</span>}
+                                    <span className={`font-bold truncate ${isWinner2 ? 'text-emerald-400 font-extrabold' : 'text-slate-200'} ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : ''}`}>{fixture.match.split(' vs ')[1]}</span>
+                                    <span className="text-xl shrink-0">{fixture.flag2}</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-col">
-                        {stage.matches.map((fixture, index) => (
-                          <div key={index} className="p-4 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/40 flex flex-col gap-2 transition-colors">
-                            <div className="inline-block bg-slate-900/80 rounded px-2 py-1 self-start">
-                              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">{fixture.time}</span>
-                            </div>
-                            <div className="flex items-center justify-between bg-slate-900/40 rounded-lg p-3 border border-slate-700/50 max-w-2xl mx-auto w-full">
-                              <div className="flex items-center gap-3 flex-1 justify-end">
-                                <span className={`font-bold text-lg ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : 'text-slate-200'}`}>{fixture.match.split(' vs ')[0]}</span>
-                                <span className="text-2xl">{fixture.flag1}</span>
+                        {stage.matches.map((fixture: any, index) => {
+                          const hasScore = fixture.score1 !== undefined && fixture.score2 !== undefined;
+                          const isWinner1 = hasScore && (fixture.score1 > fixture.score2 || (fixture.score1 === fixture.score2 && fixture.pen1 > fixture.pen2));
+                          const isWinner2 = hasScore && (fixture.score2 > fixture.score1 || (fixture.score1 === fixture.score2 && fixture.pen2 > fixture.pen1));
+                          return (
+                            <div key={index} className="p-4 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/40 flex flex-col gap-2 transition-colors">
+                              <div className="inline-block bg-slate-900/80 rounded px-2 py-1 self-start">
+                                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">{fixture.time}</span>
                               </div>
-                              <span className="text-slate-500 font-black text-sm px-6">VS</span>
-                              <div className="flex items-center gap-3 flex-1 justify-start">
-                                <span className="text-2xl">{fixture.flag2}</span>
-                                <span className={`font-bold text-lg ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : 'text-slate-200'}`}>{fixture.match.split(' vs ')[1]}</span>
+                              <div className="flex items-center justify-between bg-slate-900/40 rounded-lg p-3 border border-slate-700/50 max-w-2xl mx-auto w-full">
+                                <div className="flex items-center gap-3 flex-1 justify-end min-w-0">
+                                  {fixture.pen1 !== undefined && <span className="text-xs text-emerald-400/80 font-normal mr-1">({fixture.pen1})</span>}
+                                  <span className={`font-bold text-lg truncate ${isWinner1 ? 'text-emerald-400 font-extrabold' : 'text-slate-200'} ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : ''}`}>{fixture.match.split(' vs ')[0]}</span>
+                                  <span className="text-2xl shrink-0 ml-2">{fixture.flag1}</span>
+                                </div>
+                                <div className="flex items-center justify-center px-6 shrink-0">
+                                  {hasScore ? (
+                                    <span className="font-mono font-black text-base bg-slate-950/80 px-3 py-1 rounded text-white border border-slate-700">{fixture.score1} - {fixture.score2}</span>
+                                  ) : (
+                                    <span className="text-slate-500 font-black text-sm">VS</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 flex-1 justify-start min-w-0">
+                                  <span className="text-2xl shrink-0 mr-2">{fixture.flag2}</span>
+                                  <span className={`font-bold text-lg truncate ${isWinner2 ? 'text-emerald-400 font-extrabold' : 'text-slate-200'} ${fixture.match.includes('A definir') ? 'text-slate-400 italic' : ''}`}>{fixture.match.split(' vs ')[1]}</span>
+                                  {fixture.pen2 !== undefined && <span className="text-xs text-emerald-400/80 font-normal ml-1">({fixture.pen2})</span>}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
