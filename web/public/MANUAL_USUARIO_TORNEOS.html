@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Usuario - Sistema de Torneos Mi Cancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: #0f172a;
+      --border-color: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #10b981;
+      --primary-glow: rgba(16, 185, 129, 0.15);
+      --primary-hover: #34d399;
+      --secondary: #3b82f6;
+      --secondary-glow: rgba(59, 130, 246, 0.15);
+      --accent-red: #ef4444;
+      --sidebar-width: 280px;
+      --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: #0b0f19;
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 900;
+      background: linear-gradient(to right, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+    }
+
+    .nav-item a:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.02);
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-item.active a {
+      color: var(--primary);
+      background-color: var(--primary-glow);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    /* Content Area */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      padding: 3rem 4rem;
+      max-width: 1200px;
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      background: radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.08), transparent 40%),
+        radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
+      padding: 4rem 3rem;
+      border-radius: 32px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 4rem;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(9, 13, 22, 0.9));
+      z-index: 1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--primary-glow);
+      color: var(--primary);
+      padding: 0.4rem 1rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-size: 3rem;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 600px;
+    }
+
+    /* Sections */
+    .section {
+      margin-bottom: 5rem;
+      scroll-margin-top: 3rem;
+    }
+
+    .section-title {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: white;
+      border-left: 4px solid var(--primary);
+      padding-left: 1rem;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+      font-size: 1.05rem;
+    }
+
+    /* Cards Grid */
+    .grid {
+      display: grid;
+      grid-template-cols: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-premium);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(to bottom, var(--primary), transparent);
+      opacity: 0.5;
+    }
+
+    .card-icon {
+      background-color: rgba(255, 255, 255, 0.03);
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: white;
+    }
+
+    .card-text {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
+    }
+
+    /* List items styles */
+    .list-premium {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .list-premium li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .list-premium li i {
+      color: var(--primary);
+      margin-top: 0.2rem;
+      flex-shrink: 0;
+    }
+
+    /* Alert Boxes */
+    .alert-box {
+      background-color: rgba(59, 130, 246, 0.05);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      border-radius: 20px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+    }
+
+    .alert-box.warning {
+      background-color: rgba(239, 68, 68, 0.03);
+      border-color: rgba(239, 68, 68, 0.15);
+    }
+
+    .alert-icon {
+      color: var(--secondary);
+      flex-shrink: 0;
+    }
+
+    .alert-box.warning .alert-icon {
+      color: var(--accent-red);
+    }
+
+    .alert-content h4 {
+      color: white;
+      margin-bottom: 0.4rem;
+    }
+
+    .alert-content p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Highlight badge style inside docs */
+    .hl-badge {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      padding: 0.1rem 0.5rem;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.9em;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Step flow layout */
+    .step-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      position: relative;
+      margin-left: 1rem;
+      padding-left: 2rem;
+      border-left: 2px dashed var(--border-color);
+    }
+
+    .step-node {
+      position: relative;
+    }
+
+    .step-node::before {
+      content: '';
+      position: absolute;
+      left: calc(-2rem - 6px);
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+    }
+
+    .step-number {
+      font-size: 0.8rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+    }
+
+    .step-title {
+      font-size: 1.15rem;
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .sidebar {
+        display: none;
+      }
+
+      .main-content {
+        margin-left: 0;
+        padding: 2rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo" style="background: transparent;">
+          <img src="public/public/700530642_28129003293366163_9128309702844075087_n.jpg" alt="Mi Cancha Logo"
+            style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+        </div>
+        <span class="brand-title">Mi Cancha</span>
+      </div>
+      <ul class="nav-menu">
+        <li class="nav-item active"><a href="#introduccion"><i data-lucide="compass"></i> Introducción</a></li>
+        <li class="nav-item"><a href="#creacion"><i data-lucide="plus-circle"></i> Configuración Inicial</a></li>
+        <li class="nav-item"><a href="#plantillas"><i data-lucide="users"></i> Equipos y Planteles</a></li>
+        <li class="nav-item"><a href="#facial"><i data-lucide="scan-face"></i> Reconocimiento Facial</a></li>
+        <li class="nav-item"><a href="#formatos"><i data-lucide="calendar"></i> Formatos de Fixture</a></li>
+        <li class="nav-item"><a href="#actas"><i data-lucide="swords"></i> Actas y Estadísticas</a></li>
+        <li class="nav-item"><a href="#pagos"><i data-lucide="credit-card"></i> Pagos y Finanzas</a></li>
+        <li class="nav-item"><a href="#reglas"><i data-lucide="shield-alert"></i> Reglas y Disciplina</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Hero Header -->
+      <section id="introduccion" class="hero">
+        <div class="hero-content">
+          <img src="public\public\700430873_28129029520030207_5517782211097718004_n.jpg" alt="Mi Cancha Logo"
+            style="width: 100px; height: 100px; border-radius: 20px; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2); object-fit: cover;">
+          <div class="badge">
+            <i data-lucide="sparkles"></i> Módulo de Gestión de Torneos V2 — Actualizado 2026-07-01
+          </div>
+          <h1 class="hero-title">Manual de Usuario de Torneos</h1>
+          <p class="hero-subtitle">Descubre cómo configurar, administrar y sincronizar el ecosistema de campeonatos
+            deportivos en la plataforma premium de Mi Cancha.</p>
+        </div>
+      </section>
+
+      <!-- Section: Introduccion -->
+      <section class="section">
+        <h2 class="section-title">Introducción al Ecosistema</h2>
+        <p class="section-desc">El Módulo de Torneos ofrece una administración integral y automatizada para campeonatos
+          amateur y profesionales de fútbol, básquetbol, tenis y más. Desde el registro financiero hasta la validación
+          de identidad biométrica en el campo de juego.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="zap"></i></div>
+            <h3 class="card-title">Automatización Extrema</h3>
+            <p class="card-text">Lógica de fixture autogenerada, cálculo instantáneo de tablas de posiciones, y
+              descalificaciones por amonestaciones acumuladas.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="credit-card"></i></div>
+            <h3 class="card-title">Pagos E2E Integrados</h3>
+            <p class="card-text">Permite transacciones y abonos de inscripciones mediante MercadoPago, Stripe o
+              controles manuales de caja.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="fingerprint"></i></div>
+            <h3 class="card-title">Seguridad Biométrica</h3>
+            <p class="card-text">Valida el DNI y la identidad de los jugadores en planilla antes de cada cotejo
+              utilizando la cámara del dispositivo móvil.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Configuración Inicial -->
+      <section id="creacion" class="section">
+        <h2 class="section-title">1. Configuración de un Nuevo Torneo</h2>
+        <p class="section-desc">Crea y parametriza la estructura base del campeonato desde la consola de administración
+          de forma multitenant.</p>
+
+        <div class="step-flow">
+          <div class="step-node">
+            <div class="step-number">Paso 01</div>
+            <h4 class="step-title">Parámetros del Torneo</h4>
+            <p class="card-text">Define el nombre del torneo, la <strong>Categoría</strong> (Primera, Senior, Exalumnos), la <strong>Modalidad Deportiva</strong> (Fútbol 5, Pádel, Básquet), el costo de
+              inscripción por equipo, y la fecha de inicio programada.</p>
+          </div>
+          <div class="step-node">
+            <div class="step-number">Paso 02</div>
+            <h4 class="step-title">Reglas de Puntuación</h4>
+            <p class="card-text">Establece la puntuación personalizada de la tabla: Puntos por Victoria (estándar: <span
+                class="hl-badge">3</span>), Empate (<span class="hl-badge">1</span>) y Derrota (<span
+                class="hl-badge">0</span>).</p>
+          </div>
+          <div class="step-node">
+            <div class="step-number">Paso 03</div>
+            <h4 class="step-title">Configuración Multitenant (Reglas de Plantel)</h4>
+            <p class="card-text">Personaliza los parámetros específicos del complejo deportivo, incluyendo el límite de
+              refuerzos exógenos, años de antigüedad máxima, multas acumuladas de W.O. y rangos de edades ejecutivas.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Equipos y Planteles -->
+      <section id="plantillas" class="section">
+        <h2 class="section-title">2. Gestión de Equipos y Lista de Buena Fe</h2>
+        <p class="section-desc">Los delegados inscriben a sus equipos y cargan a sus jugadores respetando los límites
+          reglamentarios.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="shield-check"></i></div>
+            <h3 class="card-title">Inscripciones y Delegados</h3>
+            <p class="card-text">Cada equipo cuenta con un delegado responsable de cargar la información de contacto,
+              pagar el arancel y enviar la lista de jugadores. Además, el delegado puede personalizar la identidad del club subiendo el <strong>Escudo/Logo Oficial</strong> y seleccionando el <strong>Color Principal</strong> de su indumentaria.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="check-square"></i></div>
+            <h3 class="card-title">Reglas de Control de Buena Fe</h3>
+            <p class="card-text">El motor de validación del backend verifica en tiempo real:</p>
+            <ul class="list-premium">
+              <li><i data-lucide="check-circle-2"></i> Camiseta única por jugador del mismo equipo.</li>
+              <li><i data-lucide="check-circle-2"></i> DNI único (ningún jugador puede jugar en dos equipos a la vez).
+              </li>
+              <li><i data-lucide="check-circle-2"></i> Cupo límite de refuerzos externos a la promoción.</li>
+              <li><i data-lucide="check-circle-2"></i> Rango etario mínimo de la categoría (ej. mayor de 28 años para
+                ejecutivos).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Reconocimiento Facial -->
+      <section id="facial" class="section">
+        <h2 class="section-title">3. Reconocimiento Facial e Identificación Biométrica</h2>
+        <p class="section-desc">Garantiza la transparencia en la cancha. Evita la suplantación de identidad o la
+          participación de jugadores inhabilitados.</p>
+
+        <div class="card" style="margin-bottom: 2rem;">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card-icon" style="margin-bottom: 0;"><i data-lucide="scan-face"
+                style="width: 24px; height: 24px;"></i></div>
+            <h3 class="card-title" style="margin-bottom: 0;">¿Cómo funciona el Reconocimiento Facial en Mi Cancha?</h3>
+          </div>
+          <p class="card-text">Antes de iniciar un partido, el veedor de la mesa de control solicita el documento del
+            jugador y utiliza la cámara del dispositivo móvil integrada en el sistema administrativo.</p>
+
+          <div class="step-flow" style="margin-top: 2rem;">
+            <div class="step-node">
+              <div class="step-number">Etapa A</div>
+              <h4 class="step-title">Captura Facial del Jugador</h4>
+              <p class="card-text">El sistema enciende la webcam integrada y detecta las características geométricas
+                faciales del jugador en tiempo real en la pantalla de control.</p>
+            </div>
+            <div class="step-node">
+              <div class="step-number">Etapa B</div>
+              <h4 class="step-title">Match de Rostro y Base de Datos</h4>
+              <p class="card-text">La inteligencia artificial compara los vectores del rostro capturado contra la foto
+                de perfil del jugador previamente registrada en su Lista de Buena Fe.</p>
+            </div>
+            <div class="step-node">
+              <div class="step-number">Etapa C</div>
+              <h4 class="step-title">Diagnóstico de Habilitación</h4>
+              <p class="card-text">Si el porcentaje de similitud es superior al umbral (<span class="hl-badge">&gt;
+                  85%</span>), y el jugador no cuenta con sanciones de tarjetas acumuladas, el sistema enciende el
+                indicador verde habilitando su firma digital en la planilla del partido.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert-box">
+          <i data-lucide="info" class="alert-icon"></i>
+          <div class="alert-content">
+            <h4>Registro y Privacidad</h4>
+            <p>La foto de perfil del jugador puede ser cargada por el delegado o registrada directamente por la mesa de
+              control en el complejo deportivo antes de su primer partido de la temporada.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Formatos de Fixture -->
+      <section id="formatos" class="section">
+        <h2 class="section-title">4. Formatos de Fixture Avanzados</h2>
+        <p class="section-desc">Adapta el campeonato según los formatos preferidos por los organizadores y delegados.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="award"></i></div>
+            <h3 class="card-title">Liga (Todos contra Todos)</h3>
+            <p class="card-text">Fixture circular perfecto mediante el <strong>Algoritmo de Berger</strong>.
+              Calendarización de jornadas de ida (y vuelta opcional). Gestión de fechas automáticas con equipos impares.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="git-pull-request"></i></div>
+            <h3 class="card-title">Eliminación Directa (Playoffs)</h3>
+            <p class="card-text">Estructura clásica de brackets (Semifinales, Finales). El sistema sortea las llaves y
+              clasifica de forma automática a los ganadores a la siguiente ronda.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="grid"></i></div>
+            <h3 class="card-title">Mixto (Grupos + Playoffs)</h3>
+            <p class="card-text">Divide los equipos en dos zonas de liga. Al culminar todos los encuentros, transiciona
+              de forma autónoma a Semifinales cruzadas: <strong>1º Grupo A vs 2º Grupo B</strong>.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="refresh-cw"></i></div>
+            <h3 class="card-title">Sistema Suizo</h3>
+            <p class="card-text">Rondas progresivas donde se enfrentan rivales con puntajes de tabla similares. El
+              algoritmo del backend recalcula los nuevos emparejamientos evitando la repetición de oponentes jugados.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Actas y Estadísticas -->
+      <section id="actas" class="section">
+        <h2 class="section-title">5. Carga de Resultados y Actas de Partido</h2>
+        <p class="section-desc">Controla los goles, tarjetas y cambios del encuentro en tiempo real con el catálogo completo de tipos de evento.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="clipboard-list"></i></div>
+            <h3 class="card-title">Actas Digitales</h3>
+            <p class="card-text">La mesa de control registra minuto a minuto todos los sucesos: goles, autogoles, penales,
+              tarjetas y sustituciones, vinculando cada evento al jugador correspondiente mediante el catálogo centralizado de <strong>Tipos de Evento</strong>.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="bar-chart-3"></i></div>
+            <h3 class="card-title">Tablas Estadísticas</h3>
+            <p class="card-text">Todos los marcadores actualizan inmediatamente y de forma automática:</p>
+            <ul class="list-premium">
+              <li><i data-lucide="star"></i> Tabla General de Posiciones (PTS, PJ, PG, PE, PP, GF, GC, DG).</li>
+              <li><i data-lucide="star"></i> Tabla de Goleadores Individuales de la Temporada.</li>
+              <li><i data-lucide="star"></i> Tabla de Vallas Menos Vencidas (Mejores Arqueros).</li>
+              <li><i data-lucide="star"></i> Tabla de Fair Play (Puntaje de juego limpio basado en tarjetas).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 2rem;">
+          <div class="card-icon"><i data-lucide="refresh-cw"></i></div>
+          <h3 class="card-title">Registro de Sustituciones</h3>
+          <p class="card-text">El sistema permite registrar cambios de jugadores durante el partido de forma precisa, indicando el <strong>minuto</strong>, el jugador que <strong>entra</strong> y el jugador que <strong>sale</strong> del campo. Esto alimenta la cronología oficial del acta digital.</p>
+          <ul class="list-premium" style="margin-top: 1rem;">
+            <li><i data-lucide="log-in"></i> Jugador que <strong>entra</strong>: identificado por biometría y camiseta.</li>
+            <li><i data-lucide="log-out"></i> Jugador que <strong>sale</strong>: registrado en el historial del acta.</li>
+            <li><i data-lucide="clock"></i> Minuto exacto del cambio registrado en la línea de tiempo del partido.</li>
+          </ul>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-icon"><i data-lucide="list-checks"></i></div>
+          <h3 class="card-title">Catálogo de Tipos de Evento</h3>
+          <p class="card-text">El sistema gestiona todos los tipos de suceso desde un catálogo centralizado y extensible. Los tipos actuales son:</p>
+          <ul class="list-premium" style="margin-top: 1rem; columns: 2;">
+            <li><i data-lucide="circle-dot"></i> Gol</li>
+            <li><i data-lucide="circle-dot"></i> Gol de Penal</li>
+            <li><i data-lucide="circle-dot"></i> Autogol</li>
+            <li><i data-lucide="circle-dot"></i> Tarjeta Amarilla</li>
+            <li><i data-lucide="circle-dot"></i> Tarjeta Roja</li>
+            <li><i data-lucide="circle-dot"></i> Tarjeta Roja Directa</li>
+            <li><i data-lucide="circle-dot"></i> Doble Amarilla</li>
+            <li><i data-lucide="circle-dot"></i> Sustitución</li>
+            <li><i data-lucide="circle-dot"></i> Lesión</li>
+            <li><i data-lucide="circle-dot"></i> Tiempo Extra</li>
+            <li><i data-lucide="circle-dot"></i> Definición por Penales</li>
+            <li><i data-lucide="circle-dot"></i> Penal Convertido (tanda)</li>
+            <li><i data-lucide="circle-dot"></i> Penal Errado (tanda)</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Section: Pagos y Finanzas -->
+      <section id="pagos" class="section">
+        <h2 class="section-title">6. Pasarela de Pagos E2E</h2>
+        <p class="section-desc">Recaudación simplificada y automatizada de aranceles de torneos e inscripciones de
+          equipos.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="wallet"></i></div>
+            <h3 class="card-title">MercadoPago y Stripe</h3>
+            <p class="card-text">Generación de links de pago automáticos para el delegado. Integración segura y
+              actualización instantánea del estado de pago mediante webhooks en tiempo real.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="banknote"></i></div>
+            <h3 class="card-title">Pagos Manuales / Caja</h3>
+            <p class="card-text">Permite a los administradores del complejo registrar cobros físicos
+              (Efectivo/Transferencia) desde el panel administrativo, aprobando la inscripción al instante.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Reglas y Disciplina -->
+      <section id="reglas" class="section">
+        <h2 class="section-title">7. Reglas de Control Disciplinario y Descalificaciones</h2>
+        <p class="section-desc">Garantiza la justicia deportiva implementando reglas y sanciones automáticas regulables
+          por complejo.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon"><i data-lucide="alert-triangle"></i></div>
+            <h3 class="card-title">Control de Tarjetas y Fair Play</h3>
+            <p class="card-text">Las tarjetas restan puntos en la Tabla de Fair Play y generan suspensiones en base a la
+              configuración local del complejo deportivo.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon"><i data-lucide="user-x"></i></div>
+            <h3 class="card-title">Descalificación Automática por W.O.</h3>
+            <p class="card-text">El sistema monitorea la incomparecencia (Walkover). Si un equipo acumula el límite de
+              W.O.s del complejo, el sistema:</p>
+            <ul class="list-premium">
+              <li><i data-lucide="x-circle"></i> Cambia su estado a <strong>Descalificado</strong>.</li>
+              <li><i data-lucide="x-circle"></i> Otorga victoria por 2-0 reglamentario de forma automática a todos sus
+                rivales en las fechas restantes del calendario.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="alert-box warning">
+          <i data-lucide="alert-octagon" class="alert-icon"></i>
+          <div class="alert-content">
+            <h4>Restricción en Fase Eliminatoria</h4>
+            <p>Un jugador suspendido o que cuente con sanciones pendientes registradas en la tabla de disciplina no
+              podrá ser alineado en la mesa de control ni registrar firma digital hasta cumplir las fechas indicadas.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Smooth navigation active highlighting based on scroll
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('.section, .hero');
+      const navItems = document.querySelectorAll('.nav-item');
+
+      let currentId = 'introduccion';
+      sections.forEach(sec => {
+        const top = sec.offsetTop;
+        const height = sec.offsetHeight;
+        if (window.scrollY >= top - 200) {
+          currentId = sec.getAttribute('id');
+        }
+      });
+
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        const link = item.querySelector('a');
+        if (link.getAttribute('href') === `#${currentId}`) {
+          item.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -19,7 +19,7 @@ export default function Nav({ scrolled }: NavProps) {
           🗺️ Buscar en Mapa
         </a>
         <a href="#canchas" className="nav-link">Lista Canchas</a>
-        <a href="#como-funciona" className="nav-link">Cómo funciona</a>
+        <a href="/MANUAL_USUARIO_TORNEOS.html" target="_blank" rel="noopener noreferrer" className="nav-link">Cómo funciona</a>
         <a href="/torneos" className="nav-link">Torneos</a>
         <a href="/mundial" className="nav-link" style={{ fontWeight: 600, color: '#eab308' }}>🏆 Mundial 2026</a>
       </div>
