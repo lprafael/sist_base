@@ -136,12 +136,12 @@ const knockoutStages = [
   {
     name: 'Octavos de Final',
     matches: [
-      { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'sáb, 4/7, 2:00 p.m.' },
-      { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'sáb, 4/7, 6:00 p.m.' },
+      { match: 'Canadá vs Marruecos', flag1: '🇨🇦', flag2: '🇲🇦', time: 'sáb, 4/7, 2:00 p.m.' },
+      { match: 'Paraguay vs Francia', flag1: '🇵🇾', flag2: '🇫🇷', time: 'sáb, 4/7, 6:00 p.m.' },
       { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'dom, 5/7, 5:00 p.m.' },
       { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'dom, 5/7, 9:00 p.m.' },
-      { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'lun, 6/7, 4:00 p.m.' },
-      { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'lun, 6/7, 9:00 p.m.' },
+      { match: 'Brasil vs Noruega', flag1: '🇧🇷', flag2: '🇳🇴', time: 'lun, 6/7, 4:00 p.m.' },
+      { match: 'México vs Inglaterra', flag1: '🇲🇽', flag2: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', time: 'lun, 6/7, 9:00 p.m.' },
       { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'mar, 7/7, 1:00 p.m.' },
       { match: 'A definir vs A definir', flag1: '❓', flag2: '❓', time: 'mar, 7/7, 5:00 p.m.' },
     ]
