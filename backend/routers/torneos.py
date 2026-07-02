@@ -493,7 +493,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
     """), {"tid": torneo_id})
     rows = result.fetchall()
     keys = ["id","nombre","capitan_nombre","capitan_telefono","capitan_email",
-            "estado_inscripcion","semilla","logo_url","color_principal","color_secundario", "foto_equipo_url", "token_jugadores"]
+            "estado_inscripcion","semilla","logo_url","color_principal","color_secundario", "creado_en", "foto_equipo_url", "token_jugadores"]
     return [_row_to_dict(keys, r) for r in rows]
 
 @router.get("/{torneo_id}/posiciones", summary="Tabla de posiciones")
