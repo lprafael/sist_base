@@ -1,14 +1,14 @@
-# FICHA TÉCNICA - Sistema de Catálogos
+# FICHA TÉCNICA - Sistema de Gestión de Torneos Deportivos (Mi Cancha)
 
 ## Información General
-| Campo                  | Valor                        |
-|------------------------|------------------------------|
-| Nombre del Sistema     | Sistema de Catálogos         |
-| Versión                | 2.0.0                        |
-| Tipo de Aplicación     | Web (SPA + API REST)         |
-| Arquitectura           | Frontend-Backend Separados   |
-| Estado                 | En producción                |
-| Fecha de última actualización | 2025-08-07           |
+| Campo                         | Valor                                          |
+|-------------------------------|------------------------------------------------|
+| Nombre del Sistema            | Mi Cancha — Módulo de Torneos Deportivos      |
+| Versión                       | 2.1.0                                          |
+| Tipo de Aplicación            | Web (SPA + API REST)                           |
+| Arquitectura                  | Microservicios en Docker (Multitenant)         |
+| Estado                        | En producción                                 |
+| Fecha de última actualización | 2026-07-01 (Migración 008)                    |
 
 ---
 
@@ -21,14 +21,17 @@
 ---
 
 ## Funcionalidades Clave
-- Gestión de usuarios (alta, edición, roles, activación/desactivación, borrado físico)
-- Recuperación de contraseña (notifica al admin)
-- Reenvío de contraseña temporal (admin genera y envía nueva contraseña)
-- Control de acceso por roles y permisos (RBAC)
-- Auditoría de accesos y acciones
-- Notificaciones internas y por email
-- CRUD completo de gremios, EOTs y feriados
-- Exportación de datos
+- **Gestión de Torneos:** Creación, configuración de reglas, categorías y modalidades de juego
+- **Equipos y Planteles (Lista de Buena Fe):** Inscripción de equipos y jugadores con validación de reglas
+- **Reconocimiento Facial Biométrico:** Acreditación de jugadores en la mesa de control
+- **Fixture Automático:** Algoritmos para Liga (Berger), Eliminatoria, Mixto y Sistema Suizo
+- **Actas Digitales:** Eventos de partido con catálogo de tipos normalizados (Mig. 008)
+- **Sustituciones:** Registro de jugador que entra y sale con minuto exacto (Mig. 008)
+- **Tablas Estadísticas:** Posiciones, goleadores, fair play y sanciones actualizadas en tiempo real
+- **Control Disciplinario:** Sanciones automáticas por tarjetas acumuladas y W.O.
+- **Pasarela de Pagos:** Integración con MercadoPago, Stripe y caja manual
+- **Multitenancy:** Aislamiento completo por complejo deportivo con roles por tenant
+- **Organizadores:** Filtro directo de torneos por usuario creador (Mig. 008)
 
 ---
 
@@ -38,16 +41,28 @@
 
 ---
 
-## Endpoints Clave
-- `POST /auth/login` — Login de usuario
-- `POST /auth/users` — Alta de usuario
-- `PUT /auth/users/{id}` — Editar usuario
-- `DELETE /auth/users/{id}` — Desactivar usuario
-- `DELETE /auth/users/{id}/hard` — Borrado físico
-- `POST /auth/users/{id}/reactivate` — Reactivar usuario inactivo
-- `POST /auth/change-password` — Cambiar contraseña propia
-- `POST /notify/forgot-password` — Notificar recuperación (admin)
-- `POST /notify/resend-password` — Enviar contraseña temporal al usuario
+## Endpoints Clave del Módulo de Torneos
+- `POST /auth/login` — Login de usuario (JWT)
+- `GET  /cancha/torneos` — Listar torneos del complejo
+- `POST /cancha/torneos` — Crear torneo con categoría y modalidad
+- `GET  /cancha/torneos/{id}` — Detalle del torneo
+- `POST /cancha/torneos/{id}/equipos` — Inscribir equipo
+- `POST /cancha/torneos/{id}/equipos/{eid}/jugadores` — Agregar jugador (con validación de buena fe)
+- `POST /cancha/torneos/{id}/fixture` — Generar fixture automático
+- `GET  /cancha/torneos/{id}/partidos` — Listar partidos del fixture
+- `POST /cancha/torneos/partidos/{pid}/goles` — Registrar gol
+- `POST /cancha/torneos/partidos/{pid}/tarjetas` — Registrar tarjeta
+- `POST /cancha/torneos/{id}/partidos/{pid}/sustituciones` — Registrar sustitución (entra/sale) **[Mig.008]**
+- `GET  /cancha/torneos/{id}/partidos/{pid}/eventos` — Listar eventos del partido
+- `POST /cancha/torneos/{id}/partidos/{pid}/eventos` — Registrar evento genérico
+- `GET  /cancha/torneos/{id}/posiciones` — Tabla de posiciones
+- `GET  /cancha/torneos/{id}/goleadores` — Ranking goleadores
+- `GET  /cancha/torneos/{id}/fair-play` — Tabla de fair play
+- `GET  /cancha/torneos/{id}/sanciones` — Suspensiones vigentes
+- `GET  /cancha/torneos/catalogos/modalidades` — Catálogo de modalidades
+- `GET  /cancha/torneos/catalogos/categorias` — Catálogo de categorías
+- `GET  /cancha/torneos/catalogos/tipos-evento` — Catálogo de tipos de evento **[Mig.008]**
+- `POST /cancha/torneos/complejos/{cid}/roles` — Asignar rol a usuario en complejo
 
 ---
 

@@ -4,7 +4,7 @@ Router FastAPI para el módulo completo de Gestión de Torneos.
 Cubre: equipos, jugadores, planilla, goles, tarjetas, posiciones, sanciones, W.O.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional, List
@@ -483,7 +483,8 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
     result = await session.execute(text("""
         SELECT * FROM (
             SELECT DISTINCT ON (nombre) id, nombre, capitan_nombre, capitan_telefono, capitan_email,
-                   estado_inscripcion, semilla, logo_url, color_principal, color_secundario, creado_en
+                   estado_inscripcion, semilla, logo_url, color_principal, color_secundario, creado_en,
+                   foto_equipo_url, token_jugadores
             FROM cancha.torneos_equipos
             WHERE torneo_id = :tid 
             ORDER BY nombre ASC, creado_en ASC
@@ -492,7 +493,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
     """), {"tid": torneo_id})
     rows = result.fetchall()
     keys = ["id","nombre","capitan_nombre","capitan_telefono","capitan_email",
-            "estado_inscripcion","semilla","logo_url","color_principal","color_secundario"]
+            "estado_inscripcion","semilla","logo_url","color_principal","color_secundario", "foto_equipo_url", "token_jugadores"]
     return [_row_to_dict(keys, r) for r in rows]
 
 @router.get("/{torneo_id}/posiciones", summary="Tabla de posiciones")
@@ -709,13 +710,51 @@ async def upload_equipo_logo(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{torneo_id}/equipos/{equipo_id}/foto", summary="Subir foto del equipo")
+async def upload_equipo_foto(
+    torneo_id: str,
+    equipo_id: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "fotos_equipos")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+        filename = f"foto_equipo_{equipo_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        foto_url = f"/static/uploads/fotos_equipos/{filename}"
+
+        sql = "UPDATE cancha.torneos_equipos SET foto_equipo_url = :foto_url WHERE id = :eid AND torneo_id = :tid RETURNING id"
+        res = await session.execute(text(sql), {"foto_url": foto_url, "eid": equipo_id, "tid": torneo_id})
+        await session.commit()
+
+        if not res.fetchone():
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+
+        return {"status": "ok", "foto_equipo_url": foto_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/equipos/token/{token}", summary="Validar token de delegado")
 async def get_equipo_by_token(token: str, session: AsyncSession = Depends(get_session)):
     try:
         # 1. Buscar equipo y torneo correspondiente
         eq_res = await session.execute(text("""
-            SELECT te.id AS equipo_id, te.nombre AS equipo_nombre, te.logo_url, te.color_principal, te.color_secundario,
-                   te.capitan_nombre, te.capitan_telefono, te.capitan_email, te.promocion,
+            SELECT te.id AS equipo_id, te.nombre AS equipo_nombre, te.logo_url, te.foto_equipo_url, te.color_principal, te.color_secundario,
+                   te.capitan_nombre, te.capitan_telefono, te.capitan_email, te.promocion, te.token_jugadores,
                    t.id AS torneo_id, t.nombre AS torneo_nombre, t.deporte, t.formato, t.estado AS torneo_estado
             FROM cancha.torneos_equipos te
             JOIN cancha.torneos t ON te.torneo_id = t.id
@@ -725,8 +764,8 @@ async def get_equipo_by_token(token: str, session: AsyncSession = Depends(get_se
         if not eq_row:
             raise HTTPException(status_code=404, detail="Enlace de delegado no válido o expirado")
 
-        keys = ["equipo_id", "equipo_nombre", "logo_url", "color_principal", "color_secundario",
-                "capitan_nombre", "capitan_telefono", "capitan_email", "promocion",
+        keys = ["equipo_id", "equipo_nombre", "logo_url", "foto_equipo_url", "color_principal", "color_secundario",
+                "capitan_nombre", "capitan_telefono", "capitan_email", "promocion", "token_jugadores",
                 "torneo_id", "torneo_nombre", "deporte", "formato", "torneo_estado"]
         data = _row_to_dict(keys, eq_row)
 
@@ -833,6 +872,51 @@ async def upload_equipo_logo_by_token(
         return {"status": "ok", "logo_url": logo_url}
     except HTTPException:
         raise
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/equipos/token/{token}/foto", summary="Subir foto del equipo (Delegado)")
+async def upload_equipo_foto_by_token(
+    token: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+        # Validar token
+        eq_res = await session.execute(
+            text("SELECT id, torneo_id FROM cancha.torneos_equipos WHERE token_delegado = :token"),
+            {"token": token}
+        )
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Token no válido")
+
+        equipo_id, torneo_id = eq_row
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "fotos_equipos")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+        filename = f"foto_equipo_{equipo_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        foto_url = f"/static/uploads/fotos_equipos/{filename}"
+
+        await session.execute(
+            text("UPDATE cancha.torneos_equipos SET foto_equipo_url = :foto_url WHERE id = :eid"),
+            {"foto_url": foto_url, "eid": equipo_id}
+        )
+        await session.commit()
+
+        return {"status": "ok", "foto_equipo_url": foto_url}
+    except HTTPException:
+        raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -890,6 +974,94 @@ async def upload_documentacion(
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/jugadores/self-register/{token_jugadores}", summary="Auto-registro de jugador por token")
+async def self_register_jugador(
+    token_jugadores: str,
+    nombre: str = Form(...),
+    dni: str = Form(...),
+    fecha_nacimiento: str = Form(None),
+    numero_camiseta: int = Form(None),
+    posicion: str = Form(None),
+    file: UploadFile = File(None),
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Validar token y obtener torneo_equipo_id
+        eq_res = await session.execute(
+            text("SELECT id, torneo_id FROM cancha.torneos_equipos WHERE token_jugadores = :token"),
+            {"token": token_jugadores}
+        )
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Token de registro no válido")
+
+        equipo_id, torneo_id = eq_row
+
+        # Validar si el DNI o camiseta ya existen en el equipo
+        dupl_res = await session.execute(
+            text("SELECT dni, numero_camiseta FROM cancha.tournament_players WHERE torneo_equipo_id = :eid AND (dni = :dni OR numero_camiseta = :cam)"),
+            {"eid": equipo_id, "dni": dni, "cam": numero_camiseta if numero_camiseta is not None else -1}
+        )
+        for r in dupl_res.fetchall():
+            if r.dni == dni:
+                raise HTTPException(status_code=400, detail="El DNI ya está registrado en este equipo")
+            if r.numero_camiseta == numero_camiseta:
+                raise HTTPException(status_code=400, detail="El número de camiseta ya está en uso")
+
+        # Procesar la foto (si se envió)
+        foto_url = None
+        face_encoding_json = None
+        if file:
+            if not file.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="El archivo de foto debe ser una imagen")
+
+            file_bytes = await file.read()
+            if len(file_bytes) > 5 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="La foto es demasiado grande (máximo 5MB)")
+
+            # Intentar extraer vector facial si hay rostro
+            try:
+                encoding = FacialRecognitionService.extract_encoding(file_bytes)
+                face_encoding_json = json.dumps(encoding)
+            except ValueError:
+                # Si falla, no cortamos el flujo, solo no guardamos vector facial
+                pass
+
+            upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "fotos_perfil")
+            os.makedirs(upload_dir, exist_ok=True)
+            ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+            filename = f"perfil_{uuid.uuid4().hex[:12]}.{ext}"
+            filepath = os.path.join(upload_dir, filename)
+
+            with open(filepath, "wb") as buffer:
+                buffer.write(file_bytes)
+
+            foto_url = f"/static/uploads/fotos_perfil/{filename}"
+
+        fnac = date.fromisoformat(fecha_nacimiento) if fecha_nacimiento else None
+
+        # Insertar jugador
+        sql = """
+            INSERT INTO cancha.tournament_players
+            (torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, face_encoding, estado)
+            VALUES (:eid, :nombre, :dni, :fnac, :cam, :pos, :foto, :face, 'en_revision')
+            RETURNING id
+        """
+        ins_res = await session.execute(text(sql), {
+            "eid": equipo_id, "nombre": nombre, "dni": dni, "fnac": fnac,
+            "cam": numero_camiseta, "pos": posicion, "foto": foto_url, "face": face_encoding_json
+        })
+        await session.commit()
+        jugador_id = ins_res.fetchone()[0]
+
+        return {"status": "ok", "message": "Jugador registrado y enviado a revisión", "id": jugador_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1732,6 +1904,30 @@ async def add_tarjeta(partido_id: str, payload: TarjetaCreate, session: AsyncSes
                 "desc": f"Suspensión automática por {payload.tipo}",
                 "susp": logica["partidos_suspension"]
             })
+
+        # B.7 Integrar cargo automático
+        cfg_res = await session.execute(
+            text("SELECT multa_amarilla_monto, multa_roja_monto FROM cancha.torneos WHERE id = :tid"),
+            {"tid": torneo_id}
+        )
+        cfg_row = cfg_res.fetchone()
+        if cfg_row:
+            monto_multa = 0.0
+            if payload.tipo == 'amarilla':
+                monto_multa = float(cfg_row[0] or 0)
+            elif payload.tipo in ['roja', 'doble_amarilla']:
+                monto_multa = float(cfg_row[1] or 0)
+            
+            if monto_multa > 0:
+                await session.execute(text("""
+                    INSERT INTO cancha.cuenta_corriente_equipos
+                    (id, torneo_id, equipo_id, concepto, monto, estado, partido_id)
+                    VALUES (gen_random_uuid(), :tid, :eid, :concepto, :monto, 'pendiente', :pid)
+                """), {
+                    "tid": torneo_id, "eid": payload.equipo_id,
+                    "concepto": f"Multa automática por tarjeta {payload.tipo}",
+                    "monto": monto_multa, "pid": partido_id
+                })
 
         await session.commit()
         return {
@@ -2888,3 +3084,441 @@ async def get_organizador_por_usuario(usuario_id: int, session: AsyncSession = D
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================
+# MÓDULO A — CLONACIÓN DE TORNEOS
+# ============================================================
+
+class ClonarTorneoRequest(BaseModel):
+    nuevo_nombre: Optional[str] = None          # Si None, usa "[nombre original] [COPIA]"
+    incluir_equipos: bool = False               # Si True, copia también los equipos (sin jugadores ni pagos)
+
+
+@router.post("/{torneo_id}/clonar", summary="Clonar un torneo existente (deep copy de configuración)")
+async def clonar_torneo(torneo_id: str, payload: ClonarTorneoRequest, session: AsyncSession = Depends(get_session)):
+    """
+    Duplica la configuración de un torneo pasado para una nueva temporada.
+    Copia: nombre, estado inicial (borrador), parámetros de puntos, costo de inscripción,
+    max_equipos, modalidad, categoría, reglas, premios y configuración de multas/deuda.
+    Opcionalmente copia los equipos (sin jugadores ni historial financiero).
+    NO copia: fixture, partidos, goles, tarjetas, sanciones, pagos ni posiciones.
+    """
+    try:
+        # 1. Obtener torneo origen
+        res = await session.execute(
+            text("""
+                SELECT id, complejo_id, organizador_id, modalidad_id, categoria_id, creado_por,
+                       nombre, deporte, descripcion, estado,
+                       puntos_victoria, puntos_empate, puntos_derrota,
+                       max_equipos, costo_inscripcion, es_publico,
+                       reglas, premios, configuracion
+                FROM cancha.torneos WHERE id = :tid
+            """),
+            {"tid": torneo_id}
+        )
+        row = res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Torneo origen no encontrado")
+
+        cols = ["id", "complejo_id", "organizador_id", "modalidad_id", "categoria_id", "creado_por",
+                "nombre", "deporte", "descripcion", "estado",
+                "puntos_victoria", "puntos_empate", "puntos_derrota",
+                "max_equipos", "costo_inscripcion", "es_publico",
+                "reglas", "premios", "configuracion"]
+        origen = _row_to_dict(cols, row)
+
+        # 2. Generar nombre del clon
+        nombre_clon = payload.nuevo_nombre or f"{origen['nombre']} [COPIA]"
+        nuevo_id = str(uuid.uuid4())
+
+        # 3. Insertar torneo clonado (estado siempre 'borrador')
+        await session.execute(text("""
+            INSERT INTO cancha.torneos
+                (id, complejo_id, organizador_id, modalidad_id, categoria_id, creado_por,
+                 nombre, deporte, descripcion, estado,
+                 puntos_victoria, puntos_empate, puntos_derrota,
+                 max_equipos, costo_inscripcion, es_publico,
+                 reglas, premios, configuracion)
+            VALUES
+                (:id, :complejo_id, :organizador_id, :modalidad_id, :categoria_id, :creado_por,
+                 :nombre, :deporte, :descripcion, 'borrador',
+                 :pts_v, :pts_e, :pts_d,
+                 :max_equipos, :costo_inscripcion, :es_publico,
+                 :reglas, :premios, :configuracion)
+        """), {
+            "id": nuevo_id,
+            "complejo_id": origen["complejo_id"],
+            "organizador_id": origen["organizador_id"],
+            "modalidad_id": origen["modalidad_id"],
+            "categoria_id": origen["categoria_id"],
+            "creado_por": origen["creado_por"],
+            "nombre": nombre_clon,
+            "deporte": origen.get("deporte", "Fútbol 5"),
+            "descripcion": origen.get("descripcion"),
+            "pts_v": origen["puntos_victoria"],
+            "pts_e": origen["puntos_empate"],
+            "pts_d": origen["puntos_derrota"],
+            "max_equipos": origen["max_equipos"],
+            "costo_inscripcion": origen["costo_inscripcion"],
+            "es_publico": origen["es_publico"],
+            "reglas": json.dumps(origen["reglas"]) if origen.get("reglas") else None,
+            "premios": json.dumps(origen["premios"]) if origen.get("premios") else None,
+            "configuracion": json.dumps(origen["configuracion"]) if origen.get("configuracion") else None,
+        })
+
+        equipos_copiados = 0
+
+        # 4. (Opcional) Copiar equipos sin jugadores ni pagos
+        if payload.incluir_equipos:
+            eq_res = await session.execute(
+                text("""
+                    SELECT nombre, logo_url, color_principal, color_secundario,
+                           capitan_nombre, capitan_telefono, capitan_email, promocion
+                    FROM cancha.torneos_equipos
+                    WHERE torneo_id = :tid AND estado_inscripcion != 'descalificado'
+                """),
+                {"tid": torneo_id}
+            )
+            equipos_origen = eq_res.fetchall()
+            for eq in equipos_origen:
+                eq_id = str(uuid.uuid4())
+                await session.execute(text("""
+                    INSERT INTO cancha.torneos_equipos
+                        (id, torneo_id, nombre, logo_url, color_principal, color_secundario,
+                         capitan_nombre, capitan_telefono, capitan_email, promocion,
+                         estado_inscripcion, payment_status)
+                    VALUES
+                        (:id, :torneo_id, :nombre, :logo_url, :cp, :cs,
+                         :cap_n, :cap_t, :cap_e, :promo,
+                         'pendiente', 'pending')
+                """), {
+                    "id": eq_id, "torneo_id": nuevo_id,
+                    "nombre": eq[0], "logo_url": eq[1], "cp": eq[2], "cs": eq[3],
+                    "cap_n": eq[4], "cap_t": eq[5], "cap_e": eq[6], "promo": eq[7] or 0,
+                })
+                equipos_copiados += 1
+
+        await session.commit()
+
+        return {
+            "status": "ok",
+            "torneo_id": nuevo_id,
+            "nombre": nombre_clon,
+            "equipos_copiados": equipos_copiados,
+            "message": f"Torneo clonado exitosamente como '{nombre_clon}'"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# MÓDULO A — EXPORTACIÓN XLSX
+# ============================================================
+
+@router.get("/{torneo_id}/exportar/xlsx", summary="Exportar torneo completo a Excel (.xlsx)")
+async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    """
+    Genera y descarga un archivo .xlsx con 5 hojas:
+    - Hoja 1: Equipos (nombre, capitán, estado inscripción, pago)
+    - Hoja 2: Planteles / Jugadores (equipo, jugador, DNI, camiseta, estado)
+    - Hoja 3: Fixture (jornada, fecha, local vs visitante, marcador, estado)
+    - Hoja 4: Tabla de Posiciones (pos, equipo, PJ, PG, PE, PP, GF, GC, DG, PTS)
+    - Hoja 5: Fair Play (equipo, amarillas, rojas, pts_disciplina)
+    """
+    try:
+        import io
+        from fastapi.responses import StreamingResponse
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            raise HTTPException(status_code=500, detail="openpyxl no está instalado. Ejecute: pip install openpyxl")
+
+        # Verificar que el torneo existe
+        t_res = await session.execute(
+            text("SELECT nombre FROM cancha.torneos WHERE id = :tid"),
+            {"tid": torneo_id}
+        )
+        t_row = t_res.fetchone()
+        if not t_row:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+        torneo_nombre = t_row[0]
+
+        # ── Helpers de estilo ──
+        def _header_row(ws, headers: list, fill_hex: str = "1e3a5f"):
+            fill = PatternFill("solid", fgColor=fill_hex)
+            font = Font(bold=True, color="FFFFFF", size=11)
+            border_side = Side(style="thin", color="2d4a6e")
+            border = Border(bottom=border_side)
+            for col_idx, h in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=h)
+                cell.fill = fill
+                cell.font = font
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = border
+            ws.row_dimensions[1].height = 22
+
+        def _auto_width(ws):
+            for col in ws.columns:
+                max_len = 0
+                col_letter = get_column_letter(col[0].column)
+                for cell in col:
+                    try:
+                        if cell.value:
+                            max_len = max(max_len, len(str(cell.value)))
+                    except Exception:
+                        pass
+                ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
+
+        def _style_data_rows(ws, start_row: int = 2):
+            alt_fill = PatternFill("solid", fgColor="0f1e35")
+            for row_idx, row in enumerate(ws.iter_rows(min_row=start_row), start=start_row):
+                for cell in row:
+                    cell.alignment = Alignment(vertical="center")
+                    if row_idx % 2 == 0:
+                        cell.fill = alt_fill
+
+        # ── Crear libro ──
+        wb = Workbook()
+
+        # ─────────────────────────────────────────────
+        # HOJA 1: EQUIPOS
+        # ─────────────────────────────────────────────
+        ws_eq = wb.active
+        ws_eq.title = "Equipos"
+        _header_row(ws_eq, ["#", "Equipo", "Capitán", "Teléfono", "Estado Inscripción", "Estado Pago", "Promoción"])
+        eq_res = await session.execute(text("""
+            SELECT nombre, capitan_nombre, capitan_telefono, estado_inscripcion, payment_status, promocion
+            FROM cancha.torneos_equipos
+            WHERE torneo_id = :tid
+            ORDER BY nombre
+        """), {"tid": torneo_id})
+        for i, eq in enumerate(eq_res.fetchall(), 1):
+            ws_eq.append([i, eq[0], eq[1] or "—", eq[2] or "—", eq[3], eq[4] or "—", eq[5] or 0])
+        _style_data_rows(ws_eq)
+        _auto_width(ws_eq)
+
+        # ─────────────────────────────────────────────
+        # HOJA 2: PLANTELES / JUGADORES
+        # ─────────────────────────────────────────────
+        ws_pl = wb.create_sheet("Planteles")
+        _header_row(ws_pl, ["#", "Equipo", "Jugador", "DNI", "Camiseta", "Posición", "Estado", "Año Egreso"])
+        pl_res = await session.execute(text("""
+            SELECT te.nombre as equipo, tp.nombre, tp.dni, tp.numero_camiseta,
+                   tp.posicion, tp.estado, tp.egreso_ano
+            FROM cancha.torneos_jugadores tp
+            JOIN cancha.torneos_equipos te ON te.id = tp.torneo_equipo_id
+            WHERE te.torneo_id = :tid
+            ORDER BY te.nombre, tp.nombre
+        """), {"tid": torneo_id})
+        for i, pl in enumerate(pl_res.fetchall(), 1):
+            ws_pl.append([i, pl[0], pl[1], pl[2], pl[3] or "—", pl[4] or "—", pl[5], pl[6] or "—"])
+        _style_data_rows(ws_pl)
+        _auto_width(ws_pl)
+
+        # ─────────────────────────────────────────────
+        # HOJA 3: FIXTURE
+        # ─────────────────────────────────────────────
+        ws_fx = wb.create_sheet("Fixture")
+        _header_row(ws_fx, ["Jornada", "Fase", "Fecha / Hora", "Local", "Goles L", "Goles V", "Visitante", "Estado"])
+        fx_res = await session.execute(text("""
+            SELECT tp.jornada, tp.fase,
+                   TO_CHAR(tp.fecha_hora AT TIME ZONE 'America/Asuncion', 'DD/MM/YYYY HH24:MI'),
+                   el.nombre, tp.goles_local, tp.goles_visitante, ev.nombre, tp.estado
+            FROM cancha.torneos_partidos tp
+            JOIN cancha.torneos_equipos el ON el.id = tp.equipo_local_id
+            JOIN cancha.torneos_equipos ev ON ev.id = tp.equipo_visitante_id
+            WHERE tp.torneo_id = :tid
+            ORDER BY tp.jornada, tp.fecha_hora
+        """), {"tid": torneo_id})
+        for p in fx_res.fetchall():
+            ws_fx.append([p[0], p[1] or "—", p[2] or "—", p[3],
+                          p[4] if p[4] is not None else "—",
+                          p[5] if p[5] is not None else "—",
+                          p[6], p[7]])
+        _style_data_rows(ws_fx)
+        _auto_width(ws_fx)
+
+        # ─────────────────────────────────────────────
+        # HOJA 4: TABLA DE POSICIONES
+        # ─────────────────────────────────────────────
+        ws_pos = wb.create_sheet("Posiciones")
+        _header_row(ws_pos, ["Pos", "Equipo", "PJ", "PG", "PE", "PP", "GF", "GC", "DG", "PTS"])
+        pos_res = await session.execute(text("""
+            SELECT po.posicion, te.nombre,
+                   po.pj, po.pg, po.pe, po.pp, po.gf, po.gc, (po.gf - po.gc), po.pts
+            FROM cancha.torneos_posiciones po
+            JOIN cancha.torneos_equipos te ON te.id = po.equipo_id
+            WHERE po.torneo_id = :tid
+            ORDER BY po.posicion
+        """), {"tid": torneo_id})
+        for p in pos_res.fetchall():
+            ws_pos.append(list(p))
+        _style_data_rows(ws_pos)
+        _auto_width(ws_pos)
+
+        # ─────────────────────────────────────────────
+        # HOJA 5: FAIR PLAY
+        # ─────────────────────────────────────────────
+        ws_fp = wb.create_sheet("Fair Play")
+        _header_row(ws_fp, ["#", "Equipo", "Amarillas", "Rojas", "Doble Amarilla", "Pts Disciplina (desc)"])
+        fp_res = await session.execute(text("""
+            SELECT te.nombre,
+                   COUNT(*) FILTER (WHERE tt.tipo IN ('amarilla')) as amarillas,
+                   COUNT(*) FILTER (WHERE tt.tipo IN ('roja_directa')) as rojas,
+                   COUNT(*) FILTER (WHERE tt.tipo = 'roja_segunda') as doble_amarilla,
+                   COALESCE(SUM(tt.pts_fair_play), 0) as total_pts_fp
+            FROM cancha.torneos_tarjetas tt
+            JOIN cancha.torneos_partidos tp ON tt.partido_id = tp.id
+            JOIN cancha.torneos_equipos te ON te.id = tt.equipo_id
+            WHERE tp.torneo_id = :tid
+            GROUP BY te.nombre
+            ORDER BY total_pts_fp DESC
+        """), {"tid": torneo_id})
+        for i, fp in enumerate(fp_res.fetchall(), 1):
+            ws_fp.append([i, fp[0], fp[1], fp[2], fp[3], fp[4]])
+        _style_data_rows(ws_fp)
+        _auto_width(ws_fp)
+
+        # ── Serializar a bytes y devolver como descarga ──
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        filename = f"Torneo_{torneo_nombre.replace(' ', '_')}.xlsx"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        }
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers=headers
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================
+# ENDPOINTS — CUENTA CORRIENTE (MÓDULO B)
+# ============================================================
+
+class CargoCreate(BaseModel):
+    torneo_id: str
+    concepto: str
+    monto: float
+    partido_id: Optional[str] = None
+
+@router.get("/equipos/{equipo_id}/cuenta_corriente", summary="Obtener cuenta corriente de un equipo")
+async def get_cuenta_corriente(equipo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        # Obtener los movimientos
+        result = await session.execute(
+            text("""
+                SELECT id, concepto, monto, estado, creado_en, partido_id, referencia_pago_id
+                FROM cancha.cuenta_corriente_equipos
+                WHERE equipo_id = :eid
+                ORDER BY creado_en DESC
+            """),
+            {"eid": equipo_id}
+        )
+        movimientos = []
+        deuda_total = 0.0
+        
+        for row in result.fetchall():
+            m = _row_to_dict(["id", "concepto", "monto", "estado", "creado_en", "partido_id", "referencia_pago_id"], row)
+            movimientos.append(m)
+            if m["estado"] == "pendiente":
+                deuda_total += float(m["monto"])
+                
+        # Obtener configuración del torneo para saber los límites
+        # Necesitamos el torneo_id del equipo
+        t_res = await session.execute(
+            text("SELECT torneo_id FROM cancha.torneos_equipos WHERE id = :eid"),
+            {"eid": equipo_id}
+        )
+        torneo_id = t_res.scalar()
+        
+        torneo_cfg = {"limite_deuda_habilitado": False, "limite_deuda_monto": 0.0}
+        if torneo_id:
+            cfg_res = await session.execute(
+                text("SELECT limite_deuda_habilitado, limite_deuda_monto FROM cancha.torneos WHERE id = :tid"),
+                {"tid": str(torneo_id)}
+            )
+            cfg_row = cfg_res.fetchone()
+            if cfg_row:
+                torneo_cfg["limite_deuda_habilitado"] = cfg_row[0]
+                torneo_cfg["limite_deuda_monto"] = float(cfg_row[1] or 0)
+                
+        bloqueado = False
+        if torneo_cfg["limite_deuda_habilitado"] and deuda_total > torneo_cfg["limite_deuda_monto"]:
+            bloqueado = True
+
+        return {
+            "equipo_id": equipo_id,
+            "torneo_id": torneo_id,
+            "deuda_total": deuda_total,
+            "bloqueado": bloqueado,
+            "limite_habilitado": torneo_cfg["limite_deuda_habilitado"],
+            "limite_monto": torneo_cfg["limite_deuda_monto"],
+            "movimientos": movimientos
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/equipos/{equipo_id}/cuenta_corriente/cargos", summary="Agregar un cargo manual a la cuenta corriente")
+async def add_cargo_manual(equipo_id: str, payload: CargoCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        cargo_id = str(uuid.uuid4())
+        await session.execute(
+            text("""
+                INSERT INTO cancha.cuenta_corriente_equipos
+                (id, torneo_id, equipo_id, concepto, monto, estado, partido_id)
+                VALUES (:id, :tid, :eid, :concepto, :monto, 'pendiente', :pid)
+            """),
+            {
+                "id": cargo_id,
+                "tid": payload.torneo_id,
+                "eid": equipo_id,
+                "concepto": payload.concepto,
+                "monto": payload.monto,
+                "pid": payload.partido_id
+            }
+        )
+        await session.commit()
+        return {"status": "ok", "cargo_id": cargo_id}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/equipos/{equipo_id}/cuenta_corriente/{cargo_id}/pagar", summary="Registrar el pago de un cargo")
+async def pagar_cargo(equipo_id: str, cargo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        # Verificar que exista y este pendiente
+        check = await session.execute(
+            text("SELECT estado FROM cancha.cuenta_corriente_equipos WHERE id = :cid AND equipo_id = :eid"),
+            {"cid": cargo_id, "eid": equipo_id}
+        )
+        row = check.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Cargo no encontrado")
+        if row[0] != 'pendiente':
+            raise HTTPException(status_code=400, detail="El cargo ya se encuentra pagado")
+            
+        await session.execute(
+            text("UPDATE cancha.cuenta_corriente_equipos SET estado = 'pagado' WHERE id = :cid"),
+            {"cid": cargo_id}
+        )
+        await session.commit()
+        return {"status": "ok", "mensaje": "Cargo marcado como pagado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,7 +1,9 @@
 # 📘 Guía Técnica: Instalación, Despliegue y Mantenimiento
-# Sistema de Gestión - Playa de Vehículos
+# Sistema Mi Cancha — Gestión de Torneos Deportivos
 
 Este documento unifica las instrucciones técnicas para instalar, desplegar actualizaciones y mantener el sistema, tanto en entornos locales (PC Cliente) como en servidores.
+
+*Última actualización: 2026-07-02 — Módulo C & D: Dashboards y Noticias IA*
 
 ---
 
@@ -11,9 +13,10 @@ Este documento unifica las instrucciones técnicas para instalar, desplegar actu
 2.  [Instalación Inicial (PC Cliente o Servidor)](#2-instalación-inicial-pc-cliente-o-servidor)
 3.  [Configuración del Entorno (.env)](#3-configuración-del-entorno-env)
 4.  [Despliegue de Actualizaciones (Mantenimiento)](#4-despliegue-de-actualizaciones-mantenimiento)
-5.  [Instrucciones para Agente IA (Prompt de Despliegue)](#5-instrucciones-para-agente-ia-prompt-de-despliegue)
-6.  [Arquitectura y Puertos](#6-arquitectura-y-puertos)
-7.  [Solución de Problemas (Troubleshooting)](#7-solución-de-problemas-troubleshooting)
+5.  [Migraciones de Base de Datos](#5-migraciones-de-base-de-datos)
+6.  [Instrucciones para Agente IA (Prompt de Despliegue)](#6-instrucciones-para-agente-ia-prompt-de-despliegue)
+7.  [Arquitectura y Puertos](#7-arquitectura-y-puertos)
+8.  [Solución de Problemas (Troubleshooting)](#8-solución-de-problemas-troubleshooting)
 
 ---
 
@@ -138,7 +141,150 @@ docker-compose up -d
 
 ---
 
-## 5. Instrucciones para Agente IA (Prompt de Despliegue)
+## 5. Migraciones de Base de Datos
+
+El sistema usa un runner de migraciones propio (`run_migrations.py`) con scripts en `backend/migrations/`.
+
+### Ejecutar todas las migraciones (UP)
+```bash
+docker exec micancha-backend python run_migrations.py
+```
+
+### Ejecutar una migración específica
+```bash
+docker exec micancha-backend python migrations/008_gaps_logica_negocio.py up
+```
+
+### Revertir una migración (DOWN)
+```bash
+docker exec micancha-backend python migrations/008_gaps_logica_negocio.py down
+```
+
+### Historial de Migraciones
+
+| Nº | Nombre | Descripción |
+|---|---|---|
+| 001 | add_payments_and_tournaments | Pagos y torneos base |
+| 002 | torneo_completo | Schema completo de torneo |
+| 003 | reva_features | Features de REVA |
+| 004 | torneo_reglas_premios | Reglas y premios |
+| 005 | add_rules_fields | Campos adicionales de reglas |
+| 006 | eventos_categorias | Eventos y categorías |
+| 007 | multitenancy_catalogos | Multitenancy + catálogos modalidades/categorías |
+| 008 | gaps_logica_negocio | `tipos_evento`, `player_out_id`, `creado_por` |
+| 009 | organizadores_independientes | Tabla `organizadores` |
+| 010 | documentacion_delegados | URLs de documentos de jugadores |
+| 011 | email_jugadores | Email de bienvenida a jugadores |
+
+---
+
+## 7. Nuevos Endpoints — Módulo A
+
+### Clonación de Torneos
+
+**Endpoint:** `POST /cancha/torneos/{torneo_id}/clonar`
+
+| Parámetro (Body) | Tipo | Descripción |
+|---|---|---|
+| `nuevo_nombre` | string (opcional) | Nombre del torneo clonado. Si no se envía, usa `[original] [COPIA]` |
+| `incluir_equipos` | boolean | Si `true`, copia los equipos (sin jugadores ni pagos) en estado `pendiente` |
+
+**Respuesta:** `{ "status": "ok", "torneo_id": "uuid", "nombre": "...", "equipos_copiados": 0 }`
+
+**Lo que se copia:** nombre, modalidad, categoría, puntos, max_equipos, costo_inscripción, reglas, premios, configuración.
+
+**Lo que NO se copia:** fixture, partidos, goles, tarjetas, sanciones, pagos, posiciones.
+
+---
+
+### Exportación Excel (.xlsx)
+
+**Endpoint:** `GET /cancha/torneos/{torneo_id}/exportar/xlsx`
+
+Devuelve una descarga directa del archivo `Torneo_[nombre].xlsx` con 5 hojas:
+
+| Hoja | Columnas |
+|---|---|
+| Equipos | #, Equipo, Capitán, Teléfono, Estado Inscripción, Estado Pago, Promoción |
+| Planteles | #, Equipo, Jugador, DNI, Camiseta, Posición, Estado, Año Egreso |
+| Fixture | Jornada, Fase, Fecha/Hora, Local, Goles L, Goles V, Visitante, Estado |
+| Posiciones | Pos, Equipo, PJ, PG, PE, PP, GF, GC, DG, PTS |
+| Fair Play | #, Equipo, Amarillas, Rojas, Doble Amarilla, Pts Disciplina |
+
+**Dependencia necesaria:** `openpyxl==3.1.2` (ya incluida en `requirements.txt`)
+
+**Content-Type:** `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+---
+
+## 8. Nuevos Endpoints - Módulo B (Cuenta Corriente)
+
+### Obtener Estado Financiero
+**Endpoint:** `GET /cancha/torneos/equipos/{equipo_id}/cuenta_corriente`
+Devuelve el total adeudado, los límites configurados, si el equipo está bloqueado y el historial de cargos/pagos (`movimientos`).
+
+### Registrar Cargo Manual (Deuda)
+**Endpoint:** `POST /cancha/torneos/equipos/{equipo_id}/cuenta_corriente/cargos`
+Crea un nuevo cargo manual (ej. Multa, Inscripción).
+**Payload:**
+```json
+{
+  "torneo_id": "uuid",
+  "concepto": "Multa por llegada tarde",
+  "monto": 5000.0,
+  "partido_id": null
+}
+```
+
+### Registrar Pago Manual
+**Endpoint:** `POST /cancha/torneos/equipos/{equipo_id}/cuenta_corriente/{cargo_id}/pagar`
+Marca un cargo específico como "pagado" actualizando el estado de cuenta.
+
+---
+
+## 9. Nuevos Endpoints - Módulo C (Dashboard KPIs)
+
+### Ampliación de Dashboard Global
+**Endpoint:** `GET /api/analytics/dashboard`
+Se agregaron indicadores de negocio a nivel torneos a los ya existentes.
+**Respuesta:**
+```json
+{
+  "torneos_activos": 3,
+  "partidos_hoy": 8,
+  "equipos_pendientes_validacion": 5,
+  "equipos_con_deuda": 2,
+  "proximos_partidos": [
+    { "hora": "18:00", "local": "Lazio", "visitante": "Milan", "cancha": "Cancha 1" }
+  ]
+}
+```
+
+---
+
+## 10. Nuevos Endpoints - Módulo D (Noticias IA)
+
+### Generador de IA (Gemini)
+**Endpoint:** `POST /api/noticias/generar-ia`
+Recibe el contexto de un partido y retorna una noticia redactada por IA.
+**Payload:**
+```json
+{
+  "torneo_id": "uuid",
+  "contexto": "El partido terminó 3-2 en un encuentro muy reñido..."
+}
+```
+
+### Crear Noticia
+**Endpoint:** `POST /api/noticias`
+Guarda una noticia generada (manual o por IA) en la base de datos.
+
+### Obtener Noticias de Torneo
+**Endpoint:** `GET /api/noticias/torneo/{torneo_id}`
+Retorna el historial de noticias ordenadas por fecha.
+
+---
+## 6. Instrucciones para Agente IA (Prompt de Despliegue)
 
 Si utilizas un asistente de IA (como ChatGPT, Claude, o un agente en la terminal) para realizar el despliegue en la máquina del cliente, copia y pega el siguiente prompt. Este prompt contiene todas las instrucciones necesarias para que la IA entienda el contexto y ejecute los pasos correctos de forma segura.
 
@@ -176,8 +322,10 @@ El sistema utiliza Docker Compose para orquestar los servicios:
 
 | Servicio | Nombre Contenedor | Puerto Interno | Puerto Externo (Host) | Descripción |
 | :--- | :--- | :--- | :--- | :--- |
-| **Backend** | `sist-playa-backend` | 8001 | **8002** | API FastAPI + Python |
-| **Frontend** | `sist-playa-frontend` | 80 | **3002** | Nginx + React App |
+| **Backend** | `micancha-backend` | 8001 | **8002** | API FastAPI + Python |
+| **Frontend (Admin)** | `micancha-admin` | 80 | **3001** | Panel de Administración React |
+| **Frontend (Público)** | `micancha-public` | 80 | **3000** | Landing pública de torneos React |
+| **Frontend (Web)** | `micancha-web` | 80 | **3002** | Web general React |
 
 *   **Red Docker:** `sist-playa-network` (Bridge)
 *   **Proxy Inverso:** El contenedor Frontend usa Nginx para redirigir peticiones que empiezan con `/api` hacia el contenedor Backend (`http://backend:8001`).

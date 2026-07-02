@@ -13,9 +13,9 @@ email-validator
 google-auth
 requests
 pymupdf
-# Extracción con IA opcional para documentos de importación (ligero)
+# ExtracciÃ³n con IA opcional para documentos de importaciÃ³n (ligero)
 openai
-# Procesamiento de imágenes para marca de agua
+# Procesamiento de imÃ¡genes para marca de agua
 Pillow
 
 # ========== PAGOS ==========
@@ -41,3 +41,15 @@ websockets==12.0
 face_recognition==1.3.0
 dlib>=19.24.2
 numpy==1.26.4
+
+# ========== EXPORTACIÃN Y REPORTES ==========
+openpyxl==3.1.2
+
+# ========== INTELIGENCIA ARTIFICIAL ==========
+google-genai==1.17.0
+
+# google-genai==0.3.0  # (Opcional, para el módulo D de Noticias IA)
+
+# ========== GENERACION PDF Y QR ==========
+reportlab==4.1.0
+qrcode[pil]==7.4.2

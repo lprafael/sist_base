@@ -1,5 +1,0 @@
-=== INICIANDO CORRECCIÓN DE MONTOS DE PAGOS PARCIALES ===
-📥 Obteniendo montos reales de SQL Server (Pagoparcial)...
-Se encontraron 206 registros para verificar.
-
-✅ Proceso terminado. Se actualizaron 162 pagos parciales.

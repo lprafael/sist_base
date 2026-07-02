@@ -161,6 +161,10 @@ app.include_router(torneos_router)
 app.include_router(chat_router)
 app.include_router(reservas_router)
 app.include_router(analytics_router)
+from routers.noticias import router as noticias_router
+app.include_router(noticias_router)
+from routers.reportes import router as reportes_router
+app.include_router(reportes_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA

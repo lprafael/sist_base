@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Manual de Usuario - Sistema de Torneos Mi Cancha</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
   <!-- Lucide Icons via CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -41,7 +44,10 @@
       overflow-x: hidden;
     }
 
-    h1, h2, h3, h4 {
+    h1,
+    h2,
+    h3,
+    h4 {
       font-family: 'Outfit', sans-serif;
       font-weight: 800;
       letter-spacing: -0.02em;
@@ -140,7 +146,7 @@
     .hero {
       position: relative;
       background: radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.08), transparent 40%),
-                  radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
+        radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
       padding: 4rem 3rem;
       border-radius: 32px;
       border: 1px solid var(--border-color);
@@ -391,6 +397,7 @@
       .sidebar {
         display: none;
       }
+
       .main-content {
         margin-left: 0;
         padding: 2rem;
@@ -398,14 +405,16 @@
     }
   </style>
 </head>
+
 <body>
 
   <div class="app-container">
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-logo">
-          <i data-lucide="trophy"></i>
+        <div class="brand-logo" style="background: transparent;">
+          <img src="public/public/700530642_28129003293366163_9128309702844075087_n.jpg" alt="Mi Cancha Logo"
+            style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
         </div>
         <span class="brand-title">Mi Cancha</span>
       </div>
@@ -427,34 +436,42 @@
       <!-- Hero Header -->
       <section id="introduccion" class="hero">
         <div class="hero-content">
+          <img src="public\public\700430873_28129029520030207_5517782211097718004_n.jpg" alt="Mi Cancha Logo"
+            style="width: 100px; height: 100px; border-radius: 20px; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2); object-fit: cover;">
           <div class="badge">
-            <i data-lucide="sparkles"></i> Módulo de Gestión de Torneos V2
+            <i data-lucide="sparkles"></i> Módulo de Gestión de Torneos V2 — Actualizado 2026-07-01
           </div>
           <h1 class="hero-title">Manual de Usuario de Torneos</h1>
-          <p class="hero-subtitle">Descubre cómo configurar, administrar y sincronizar el ecosistema de campeonatos deportivos en la plataforma premium de Mi Cancha.</p>
+          <p class="hero-subtitle">Descubre cómo configurar, administrar y sincronizar el ecosistema de campeonatos
+            deportivos en la plataforma premium de Mi Cancha.</p>
         </div>
       </section>
 
       <!-- Section: Introduccion -->
       <section class="section">
         <h2 class="section-title">Introducción al Ecosistema</h2>
-        <p class="section-desc">El Módulo de Torneos ofrece una administración integral y automatizada para campeonatos amateur y profesionales de fútbol, básquetbol, tenis y más. Desde el registro financiero hasta la validación de identidad biométrica en el campo de juego.</p>
-        
+        <p class="section-desc">El Módulo de Torneos ofrece una administración integral y automatizada para campeonatos
+          amateur y profesionales de fútbol, básquetbol, tenis y más. Desde el registro financiero hasta la validación
+          de identidad biométrica en el campo de juego.</p>
+
         <div class="grid">
           <div class="card">
             <div class="card-icon"><i data-lucide="zap"></i></div>
             <h3 class="card-title">Automatización Extrema</h3>
-            <p class="card-text">Lógica de fixture autogenerada, cálculo instantáneo de tablas de posiciones, y descalificaciones por amonestaciones acumuladas.</p>
+            <p class="card-text">Lógica de fixture autogenerada, cálculo instantáneo de tablas de posiciones, y
+              descalificaciones por amonestaciones acumuladas.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="credit-card"></i></div>
             <h3 class="card-title">Pagos E2E Integrados</h3>
-            <p class="card-text">Permite transacciones y abonos de inscripciones mediante MercadoPago, Stripe o controles manuales de caja.</p>
+            <p class="card-text">Permite transacciones y abonos de inscripciones mediante MercadoPago, Stripe o
+              controles manuales de caja.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="fingerprint"></i></div>
             <h3 class="card-title">Seguridad Biométrica</h3>
-            <p class="card-text">Valida el DNI y la identidad de los jugadores en planilla antes de cada cotejo utilizando la cámara del dispositivo móvil.</p>
+            <p class="card-text">Valida el DNI y la identidad de los jugadores en planilla antes de cada cotejo
+              utilizando la cámara del dispositivo móvil.</p>
           </div>
         </div>
       </section>
@@ -462,23 +479,29 @@
       <!-- Section: Configuración Inicial -->
       <section id="creacion" class="section">
         <h2 class="section-title">1. Configuración de un Nuevo Torneo</h2>
-        <p class="section-desc">Crea y parametriza la estructura base del campeonato desde la consola de administración de forma multitenant.</p>
+        <p class="section-desc">Crea y parametriza la estructura base del campeonato desde la consola de administración
+          de forma multitenant.</p>
 
         <div class="step-flow">
           <div class="step-node">
             <div class="step-number">Paso 01</div>
             <h4 class="step-title">Parámetros del Torneo</h4>
-            <p class="card-text">Define el nombre del torneo, la categoría (Primera, Senior, Exalumnos), el costo de inscripción por equipo, y la fecha de inicio programada.</p>
+            <p class="card-text">Define el nombre del torneo, la <strong>Categoría</strong> (Primera, Senior, Exalumnos), la <strong>Modalidad Deportiva</strong> (Fútbol 5, Pádel, Básquet), el costo de
+              inscripción por equipo, y la fecha de inicio programada.</p>
           </div>
           <div class="step-node">
             <div class="step-number">Paso 02</div>
             <h4 class="step-title">Reglas de Puntuación</h4>
-            <p class="card-text">Establece la puntuación personalizada de la tabla: Puntos por Victoria (estándar: <span class="hl-badge">3</span>), Empate (<span class="hl-badge">1</span>) y Derrota (<span class="hl-badge">0</span>).</p>
+            <p class="card-text">Establece la puntuación personalizada de la tabla: Puntos por Victoria (estándar: <span
+                class="hl-badge">3</span>), Empate (<span class="hl-badge">1</span>) y Derrota (<span
+                class="hl-badge">0</span>).</p>
           </div>
           <div class="step-node">
             <div class="step-number">Paso 03</div>
             <h4 class="step-title">Configuración Multitenant (Reglas de Plantel)</h4>
-            <p class="card-text">Personaliza los parámetros específicos del complejo deportivo, incluyendo el límite de refuerzos exógenos, años de antigüedad máxima, multas acumuladas de W.O. y rangos de edades ejecutivas.</p>
+            <p class="card-text">Personaliza los parámetros específicos del complejo deportivo, incluyendo el límite de
+              refuerzos exógenos, años de antigüedad máxima, multas acumuladas de W.O. y rangos de edades ejecutivas.
+            </p>
           </div>
         </div>
       </section>
@@ -486,13 +509,15 @@
       <!-- Section: Equipos y Planteles -->
       <section id="plantillas" class="section">
         <h2 class="section-title">2. Gestión de Equipos y Lista de Buena Fe</h2>
-        <p class="section-desc">Los delegados inscriben a sus equipos y cargan a sus jugadores respetando los límites reglamentarios.</p>
+        <p class="section-desc">Los delegados inscriben a sus equipos y cargan a sus jugadores respetando los límites
+          reglamentarios.</p>
 
         <div class="grid">
           <div class="card">
             <div class="card-icon"><i data-lucide="shield-check"></i></div>
             <h3 class="card-title">Inscripciones y Delegados</h3>
-            <p class="card-text">Cada equipo cuenta con un delegado responsable de cargar la información de contacto, pagar el arancel y enviar la lista de jugadores.</p>
+            <p class="card-text">Cada equipo cuenta con un delegado responsable de cargar la información de contacto,
+              pagar el arancel y enviar la lista de jugadores. Además, el delegado puede personalizar la identidad del club subiendo el <strong>Escudo/Logo Oficial</strong> y seleccionando el <strong>Color Principal</strong> de su indumentaria.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="check-square"></i></div>
@@ -500,9 +525,11 @@
             <p class="card-text">El motor de validación del backend verifica en tiempo real:</p>
             <ul class="list-premium">
               <li><i data-lucide="check-circle-2"></i> Camiseta única por jugador del mismo equipo.</li>
-              <li><i data-lucide="check-circle-2"></i> DNI único (ningún jugador puede jugar en dos equipos a la vez).</li>
+              <li><i data-lucide="check-circle-2"></i> DNI único (ningún jugador puede jugar en dos equipos a la vez).
+              </li>
               <li><i data-lucide="check-circle-2"></i> Cupo límite de refuerzos externos a la promoción.</li>
-              <li><i data-lucide="check-circle-2"></i> Rango etario mínimo de la categoría (ej. mayor de 28 años para ejecutivos).</li>
+              <li><i data-lucide="check-circle-2"></i> Rango etario mínimo de la categoría (ej. mayor de 28 años para
+                ejecutivos).</li>
             </ul>
           </div>
         </div>
@@ -511,30 +538,37 @@
       <!-- Section: Reconocimiento Facial -->
       <section id="facial" class="section">
         <h2 class="section-title">3. Reconocimiento Facial e Identificación Biométrica</h2>
-        <p class="section-desc">Garantiza la transparencia en la cancha. Evita la suplantación de identidad o la participación de jugadores inhabilitados.</p>
+        <p class="section-desc">Garantiza la transparencia en la cancha. Evita la suplantación de identidad o la
+          participación de jugadores inhabilitados.</p>
 
         <div class="card" style="margin-bottom: 2rem;">
           <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="card-icon" style="margin-bottom: 0;"><i data-lucide="scan-face" style="width: 24px; height: 24px;"></i></div>
+            <div class="card-icon" style="margin-bottom: 0;"><i data-lucide="scan-face"
+                style="width: 24px; height: 24px;"></i></div>
             <h3 class="card-title" style="margin-bottom: 0;">¿Cómo funciona el Reconocimiento Facial en Mi Cancha?</h3>
           </div>
-          <p class="card-text">Antes de iniciar un partido, el veedor de la mesa de control solicita el documento del jugador y utiliza la cámara del dispositivo móvil integrada en el sistema administrativo.</p>
-          
+          <p class="card-text">Antes de iniciar un partido, el veedor de la mesa de control solicita el documento del
+            jugador y utiliza la cámara del dispositivo móvil integrada en el sistema administrativo.</p>
+
           <div class="step-flow" style="margin-top: 2rem;">
             <div class="step-node">
               <div class="step-number">Etapa A</div>
               <h4 class="step-title">Captura Facial del Jugador</h4>
-              <p class="card-text">El sistema enciende la webcam integrada y detecta las características geométricas faciales del jugador en tiempo real en la pantalla de control.</p>
+              <p class="card-text">El sistema enciende la webcam integrada y detecta las características geométricas
+                faciales del jugador en tiempo real en la pantalla de control.</p>
             </div>
             <div class="step-node">
               <div class="step-number">Etapa B</div>
               <h4 class="step-title">Match de Rostro y Base de Datos</h4>
-              <p class="card-text">La inteligencia artificial compara los vectores del rostro capturado contra la foto de perfil del jugador previamente registrada en su Lista de Buena Fe.</p>
+              <p class="card-text">La inteligencia artificial compara los vectores del rostro capturado contra la foto
+                de perfil del jugador previamente registrada en su Lista de Buena Fe.</p>
             </div>
             <div class="step-node">
               <div class="step-number">Etapa C</div>
               <h4 class="step-title">Diagnóstico de Habilitación</h4>
-              <p class="card-text">Si el porcentaje de similitud es superior al umbral (<span class="hl-badge">&gt; 85%</span>), y el jugador no cuenta con sanciones de tarjetas acumuladas, el sistema enciende el indicador verde habilitando su firma digital en la planilla del partido.</p>
+              <p class="card-text">Si el porcentaje de similitud es superior al umbral (<span class="hl-badge">&gt;
+                  85%</span>), y el jugador no cuenta con sanciones de tarjetas acumuladas, el sistema enciende el
+                indicador verde habilitando su firma digital en la planilla del partido.</p>
             </div>
           </div>
         </div>
@@ -543,7 +577,8 @@
           <i data-lucide="info" class="alert-icon"></i>
           <div class="alert-content">
             <h4>Registro y Privacidad</h4>
-            <p>La foto de perfil del jugador puede ser cargada por el delegado o registrada directamente por la mesa de control en el complejo deportivo antes de su primer partido de la temporada.</p>
+            <p>La foto de perfil del jugador puede ser cargada por el delegado o registrada directamente por la mesa de
+              control en el complejo deportivo antes de su primer partido de la temporada.</p>
           </div>
         </div>
       </section>
@@ -551,28 +586,35 @@
       <!-- Section: Formatos de Fixture -->
       <section id="formatos" class="section">
         <h2 class="section-title">4. Formatos de Fixture Avanzados</h2>
-        <p class="section-desc">Adapta el campeonato según los formatos preferidos por los organizadores y delegados.</p>
+        <p class="section-desc">Adapta el campeonato según los formatos preferidos por los organizadores y delegados.
+        </p>
 
         <div class="grid">
           <div class="card">
             <div class="card-icon"><i data-lucide="award"></i></div>
             <h3 class="card-title">Liga (Todos contra Todos)</h3>
-            <p class="card-text">Fixture circular perfecto mediante el <strong>Algoritmo de Berger</strong>. Calendarización de jornadas de ida (y vuelta opcional). Gestión de fechas automáticas con equipos impares.</p>
+            <p class="card-text">Fixture circular perfecto mediante el <strong>Algoritmo de Berger</strong>.
+              Calendarización de jornadas de ida (y vuelta opcional). Gestión de fechas automáticas con equipos impares.
+            </p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="git-pull-request"></i></div>
             <h3 class="card-title">Eliminación Directa (Playoffs)</h3>
-            <p class="card-text">Estructura clásica de brackets (Semifinales, Finales). El sistema sortea las llaves y clasifica de forma automática a los ganadores a la siguiente ronda.</p>
+            <p class="card-text">Estructura clásica de brackets (Semifinales, Finales). El sistema sortea las llaves y
+              clasifica de forma automática a los ganadores a la siguiente ronda.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="grid"></i></div>
             <h3 class="card-title">Mixto (Grupos + Playoffs)</h3>
-            <p class="card-text">Divide los equipos en dos zonas de liga. Al culminar todos los encuentros, transiciona de forma autónoma a Semifinales cruzadas: <strong>1º Grupo A vs 2º Grupo B</strong>.</p>
+            <p class="card-text">Divide los equipos en dos zonas de liga. Al culminar todos los encuentros, transiciona
+              de forma autónoma a Semifinales cruzadas: <strong>1º Grupo A vs 2º Grupo B</strong>.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="refresh-cw"></i></div>
             <h3 class="card-title">Sistema Suizo</h3>
-            <p class="card-text">Rondas progresivas donde se enfrentan rivales con puntajes de tabla similares. El algoritmo del backend recalcula los nuevos emparejamientos evitando la repetición de oponentes jugados.</p>
+            <p class="card-text">Rondas progresivas donde se enfrentan rivales con puntajes de tabla similares. El
+              algoritmo del backend recalcula los nuevos emparejamientos evitando la repetición de oponentes jugados.
+            </p>
           </div>
         </div>
       </section>
@@ -580,13 +622,14 @@
       <!-- Section: Actas y Estadísticas -->
       <section id="actas" class="section">
         <h2 class="section-title">5. Carga de Resultados y Actas de Partido</h2>
-        <p class="section-desc">Controla los goles y las tarjetas del encuentro en tiempo real.</p>
+        <p class="section-desc">Controla los goles, tarjetas y cambios del encuentro en tiempo real con el catálogo completo de tipos de evento.</p>
 
         <div class="grid">
           <div class="card">
             <div class="card-icon"><i data-lucide="clipboard-list"></i></div>
             <h3 class="card-title">Actas Digitales</h3>
-            <p class="card-text">La mesa de control registra los goles minuto a minuto, autogoles, tarjetas amarillas, segundas amarillas y rojas directas asignadas a la base de datos de jugadores.</p>
+            <p class="card-text">La mesa de control registra minuto a minuto todos los sucesos: goles, autogoles, penales,
+              tarjetas y sustituciones, vinculando cada evento al jugador correspondiente mediante el catálogo centralizado de <strong>Tipos de Evento</strong>.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="bar-chart-3"></i></div>
@@ -600,23 +643,58 @@
             </ul>
           </div>
         </div>
+
+        <div class="card" style="margin-top: 2rem;">
+          <div class="card-icon"><i data-lucide="refresh-cw"></i></div>
+          <h3 class="card-title">Registro de Sustituciones</h3>
+          <p class="card-text">El sistema permite registrar cambios de jugadores durante el partido de forma precisa, indicando el <strong>minuto</strong>, el jugador que <strong>entra</strong> y el jugador que <strong>sale</strong> del campo. Esto alimenta la cronología oficial del acta digital.</p>
+          <ul class="list-premium" style="margin-top: 1rem;">
+            <li><i data-lucide="log-in"></i> Jugador que <strong>entra</strong>: identificado por biometría y camiseta.</li>
+            <li><i data-lucide="log-out"></i> Jugador que <strong>sale</strong>: registrado en el historial del acta.</li>
+            <li><i data-lucide="clock"></i> Minuto exacto del cambio registrado en la línea de tiempo del partido.</li>
+          </ul>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-icon"><i data-lucide="list-checks"></i></div>
+          <h3 class="card-title">Catálogo de Tipos de Evento</h3>
+          <p class="card-text">El sistema gestiona todos los tipos de suceso desde un catálogo centralizado y extensible. Los tipos actuales son:</p>
+          <ul class="list-premium" style="margin-top: 1rem; columns: 2;">
+            <li><i data-lucide="circle-dot"></i> Gol</li>
+            <li><i data-lucide="circle-dot"></i> Gol de Penal</li>
+            <li><i data-lucide="circle-dot"></i> Autogol</li>
+            <li><i data-lucide="circle-dot"></i> Tarjeta Amarilla</li>
+            <li><i data-lucide="circle-dot"></i> Tarjeta Roja</li>
+            <li><i data-lucide="circle-dot"></i> Tarjeta Roja Directa</li>
+            <li><i data-lucide="circle-dot"></i> Doble Amarilla</li>
+            <li><i data-lucide="circle-dot"></i> Sustitución</li>
+            <li><i data-lucide="circle-dot"></i> Lesión</li>
+            <li><i data-lucide="circle-dot"></i> Tiempo Extra</li>
+            <li><i data-lucide="circle-dot"></i> Definición por Penales</li>
+            <li><i data-lucide="circle-dot"></i> Penal Convertido (tanda)</li>
+            <li><i data-lucide="circle-dot"></i> Penal Errado (tanda)</li>
+          </ul>
+        </div>
       </section>
 
       <!-- Section: Pagos y Finanzas -->
       <section id="pagos" class="section">
         <h2 class="section-title">6. Pasarela de Pagos E2E</h2>
-        <p class="section-desc">Recaudación simplificada y automatizada de aranceles de torneos e inscripciones de equipos.</p>
+        <p class="section-desc">Recaudación simplificada y automatizada de aranceles de torneos e inscripciones de
+          equipos.</p>
 
         <div class="grid">
           <div class="card">
             <div class="card-icon"><i data-lucide="wallet"></i></div>
             <h3 class="card-title">MercadoPago y Stripe</h3>
-            <p class="card-text">Generación de links de pago automáticos para el delegado. Integración segura y actualización instantánea del estado de pago mediante webhooks en tiempo real.</p>
+            <p class="card-text">Generación de links de pago automáticos para el delegado. Integración segura y
+              actualización instantánea del estado de pago mediante webhooks en tiempo real.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="banknote"></i></div>
             <h3 class="card-title">Pagos Manuales / Caja</h3>
-            <p class="card-text">Permite a los administradores del complejo registrar cobros físicos (Efectivo/Transferencia) desde el panel administrativo, aprobando la inscripción al instante.</p>
+            <p class="card-text">Permite a los administradores del complejo registrar cobros físicos
+              (Efectivo/Transferencia) desde el panel administrativo, aprobando la inscripción al instante.</p>
           </div>
         </div>
       </section>
@@ -624,21 +702,25 @@
       <!-- Section: Reglas y Disciplina -->
       <section id="reglas" class="section">
         <h2 class="section-title">7. Reglas de Control Disciplinario y Descalificaciones</h2>
-        <p class="section-desc">Garantiza la justicia deportiva implementando reglas y sanciones automáticas regulables por complejo.</p>
+        <p class="section-desc">Garantiza la justicia deportiva implementando reglas y sanciones automáticas regulables
+          por complejo.</p>
 
         <div class="grid">
           <div class="card">
             <div class="card-icon"><i data-lucide="alert-triangle"></i></div>
             <h3 class="card-title">Control de Tarjetas y Fair Play</h3>
-            <p class="card-text">Las tarjetas restan puntos en la Tabla de Fair Play y generan suspensiones en base a la configuración local del complejo deportivo.</p>
+            <p class="card-text">Las tarjetas restan puntos en la Tabla de Fair Play y generan suspensiones en base a la
+              configuración local del complejo deportivo.</p>
           </div>
           <div class="card">
             <div class="card-icon"><i data-lucide="user-x"></i></div>
             <h3 class="card-title">Descalificación Automática por W.O.</h3>
-            <p class="card-text">El sistema monitorea la incomparecencia (Walkover). Si un equipo acumula el límite de W.O.s del complejo, el sistema:</p>
+            <p class="card-text">El sistema monitorea la incomparecencia (Walkover). Si un equipo acumula el límite de
+              W.O.s del complejo, el sistema:</p>
             <ul class="list-premium">
               <li><i data-lucide="x-circle"></i> Cambia su estado a <strong>Descalificado</strong>.</li>
-              <li><i data-lucide="x-circle"></i> Otorga victoria por 2-0 reglamentario de forma automática a todos sus rivales en las fechas restantes del calendario.</li>
+              <li><i data-lucide="x-circle"></i> Otorga victoria por 2-0 reglamentario de forma automática a todos sus
+                rivales en las fechas restantes del calendario.</li>
             </ul>
           </div>
         </div>
@@ -647,7 +729,193 @@
           <i data-lucide="alert-octagon" class="alert-icon"></i>
           <div class="alert-content">
             <h4>Restricción en Fase Eliminatoria</h4>
-            <p>Un jugador suspendido o que cuente con sanciones pendientes registradas en la tabla de disciplina no podrá ser alineado en la mesa de control ni registrar firma digital hasta cumplir las fechas indicadas.</p>
+            <p>Un jugador suspendido o que cuente con sanciones pendientes registradas en la tabla de disciplina no
+              podrá ser alineado en la mesa de control ni registrar firma digital hasta cumplir las fechas indicadas.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════
+           NUEVA SECCIÓN — MÓDULO A: HERRAMIENTAS AVANZADAS
+      ═══════════════════════════════════════════════════ -->
+      <section id="herramientas" class="section">
+        <h2 class="section-title">8. Herramientas Avanzadas — Clonar y Exportar</h2>
+        <p class="section-desc">
+          Funcionalidades de productividad para organizadores que gestionan múltiples temporadas.
+          Disponibles en la pantalla principal de Gestión de Torneos, dentro de cada tarjeta de evento.
+        </p>
+
+        <div class="grid">
+          <!-- CLONAR -->
+          <div class="card">
+            <div class="card-icon" style="background:rgba(59,130,246,0.12); color:#3b82f6;">
+              <i data-lucide="copy"></i>
+            </div>
+            <h3 class="card-title">Clonar Torneo</h3>
+            <p class="card-text">
+              Duplica la configuración completa de un torneo existente para iniciar una nueva temporada
+              sin tener que volver a introducir todos los parámetros manualmente.
+            </p>
+            <div class="step-flow" style="margin-top:1.5rem;">
+              <div class="step-node">
+                <div class="step-number">Paso 01</div>
+                <h4 class="step-title">Acceder al botón "Clonar"</h4>
+                <p class="card-text">En la tarjeta del torneo que desea duplicar, hacer clic en el botón <strong>Clonar</strong> (ícono de copia, parte inferior de la tarjeta).</p>
+              </div>
+              <div class="step-node">
+                <div class="step-number">Paso 02</div>
+                <h4 class="step-title">Configurar el nuevo torneo</h4>
+                <p class="card-text">Se abrirá un modal. Puede modificar el nombre del nuevo torneo (por defecto se propone <em>"[Nombre Original] [COPIA]"</em>) y elegir si desea copiar también los equipos inscriptos.</p>
+              </div>
+              <div class="step-node">
+                <div class="step-number">Paso 03</div>
+                <h4 class="step-title">Confirmar</h4>
+                <p class="card-text">Clic en <strong>"Clonar Torneo"</strong>. El nuevo torneo aparecerá inmediatamente en la lista en estado <em>borrador</em>, listo para editar fechas y publicar.</p>
+              </div>
+            </div>
+            <div style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); color:#f59e0b; font-size:0.85rem;">
+              <strong>⚠️ Importante:</strong> La clonación NO copia el fixture, partidos, goles, tarjetas, sanciones, pagos ni posiciones. El nuevo torneo comienza con pizarra en blanco.
+            </div>
+          </div>
+
+          <!-- EXPORTAR XLSX -->
+          <div class="card">
+            <div class="card-icon" style="background:rgba(16,185,129,0.12); color:#10b981;">
+              <i data-lucide="file-spreadsheet"></i>
+            </div>
+            <h3 class="card-title">Exportar a Excel (.xlsx)</h3>
+            <p class="card-text">
+              Genera y descarga un archivo Excel completo con toda la información del torneo,
+              organizada en 5 hojas temáticas. Ideal para reportes, respaldos o análisis externos.
+            </p>
+            <div class="step-flow" style="margin-top:1.5rem;">
+              <div class="step-node">
+                <div class="step-number">Paso 01</div>
+                <h4 class="step-title">Clic en "Excel"</h4>
+                <p class="card-text">En la tarjeta del torneo, hacer clic en el botón <strong>Excel</strong> (ícono de hoja de cálculo). El sistema comenzará a generar el archivo.</p>
+              </div>
+              <div class="step-node">
+                <div class="step-number">Paso 02</div>
+                <h4 class="step-title">Descarga automática</h4>
+                <p class="card-text">Una vez generado, el archivo <code>Torneo_[nombre].xlsx</code> se descargará automáticamente en su carpeta de Descargas.</p>
+              </div>
+            </div>
+            <p class="card-text" style="margin-top:1.5rem; font-weight:600; color:var(--text-muted);">Contenido del archivo Excel:</p>
+            <table style="width:100%; border-collapse:collapse; margin-top:0.75rem; font-size:0.82rem;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; padding:0.5rem; border-bottom:1px solid var(--border-color); color:var(--primary);">Hoja</th>
+                  <th style="text-align:left; padding:0.5rem; border-bottom:1px solid var(--border-color); color:var(--primary);">Contenido</th>
+                </tr>
+              </thead>
+              <tbody style="color:var(--text-muted);">
+                <tr><td style="padding:0.5rem;">📋 Equipos</td><td style="padding:0.5rem;">Nombre, capitán, teléfono, estado inscripción y pago</td></tr>
+                <tr style="background:rgba(255,255,255,0.02);"><td style="padding:0.5rem;">👥 Planteles</td><td style="padding:0.5rem;">Jugadores por equipo con DNI, camiseta, posición y estado</td></tr>
+                <tr><td style="padding:0.5rem;">📅 Fixture</td><td style="padding:0.5rem;">Todos los partidos con marcadores y estados</td></tr>
+                <tr style="background:rgba(255,255,255,0.02);"><td style="padding:0.5rem;">🏆 Posiciones</td><td style="padding:0.5rem;">Tabla completa con PJ, PG, PE, PP, GF, GC, DG, PTS</td></tr>
+                <tr><td style="padding:0.5rem;">🟨 Fair Play</td><td style="padding:0.5rem;">Ranking de tarjetas y puntos disciplinarios por equipo</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 9: CONTROL FINANCIERO -->
+      <section class="section">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon-wrapper" style="background: rgba(16,185,129,0.1); color: var(--primary);">
+              <i data-lucide="banknote"></i>
+            </div>
+            <h2 class="section-title">9. Control Financiero y Cuenta Corriente</h2>
+          </div>
+          <p class="card-text">
+            El sistema ahora incluye un módulo completo para el seguimiento financiero de cada equipo, garantizando que todos los pagos, deudas y multas estén al día antes de disputar los encuentros.
+          </p>
+
+          <div class="feature-grid" style="margin-top:2rem;">
+            <div class="feature-card">
+              <i data-lucide="wallet" class="feature-icon" style="color:var(--primary);"></i>
+              <h4 class="feature-title">Cuenta Corriente</h4>
+              <p class="feature-desc">Cada equipo posee una pestaña de Finanzas en el panel de administración para visualizar el detalle histórico de cargos (deudas) y pagos realizados, así como el saldo total adeudado.</p>
+            </div>
+            
+            <div class="feature-card">
+              <i data-lucide="receipt" class="feature-icon" style="color:var(--amber);"></i>
+              <h4 class="feature-title">Multas Automáticas</h4>
+              <p class="feature-desc">Configura el costo de multas por tarjetas. Al emitirse una tarjeta en el Acta de Partido, se generará automáticamente un cargo en la cuenta corriente del equipo infractor.</p>
+            </div>
+            
+            <div class="feature-card">
+              <i data-lucide="lock" class="feature-icon" style="color:var(--red);"></i>
+              <h4 class="feature-title">Bloqueos de Partido (Soft Lock)</h4>
+              <p class="feature-desc">Si un equipo supera el "Límite de Deuda" configurado, al intentar iniciar un partido se emitirá una Advertencia en rojo al organizador, quien podrá decidir si inicia bajo su riesgo.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 10: DASHBOARD DE KPIs -->
+      <section class="section">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon-wrapper" style="background: rgba(16,185,129,0.1); color: var(--primary);">
+              <i data-lucide="bar-chart-2"></i>
+            </div>
+            <h2 class="section-title">10. Dashboard y Analítica en Tiempo Real</h2>
+          </div>
+          <p class="card-text">
+            Al ingresar al administrador en el modo Torneos, dispondrás de un panel lateral de indicadores clave (KPIs) en tiempo real para mantener el control sobre la salud de tus competencias.
+          </p>
+
+          <div class="feature-grid" style="margin-top:2rem;">
+            <div class="feature-card">
+              <i data-lucide="activity" class="feature-icon" style="color:var(--primary);"></i>
+              <h4 class="feature-title">Torneos y Partidos</h4>
+              <p class="feature-desc">Visualiza rápidamente cuántos torneos están en curso y la cantidad total de partidos programados para el día actual.</p>
+            </div>
+            
+            <div class="feature-card">
+              <i data-lucide="alert-circle" class="feature-icon" style="color:var(--amber);"></i>
+              <h4 class="feature-title">Equipos Pendientes</h4>
+              <p class="feature-desc">Monitorea si existen equipos que solicitaron inscripción pero aún no fueron confirmados, para no perder potenciales participantes.</p>
+            </div>
+            
+            <div class="feature-card">
+              <i data-lucide="alert-triangle" class="feature-icon" style="color:var(--red);"></i>
+              <h4 class="feature-title">Alerta de Deudores</h4>
+              <p class="feature-desc">Si hay equipos que mantienen deuda o cargos pendientes en su cuenta corriente, se mostrará una advertencia roja en el panel principal.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 11: NOTICIAS IA -->
+      <section class="section">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon-wrapper" style="background: rgba(99,102,241,0.1); color: var(--indigo-500);">
+              <i data-lucide="newspaper"></i>
+            </div>
+            <h2 class="section-title">11. Generador de Noticias con IA (Gemini)</h2>
+          </div>
+          <p class="card-text">
+            El sistema incluye una pestaña de "Noticias IA" en el administrador de cada torneo. Esta herramienta te permite generar automáticamente crónicas y resúmenes de los partidos más importantes usando Inteligencia Artificial (Google Gemini).
+          </p>
+
+          <div class="feature-grid" style="margin-top:2rem;">
+            <div class="feature-card">
+              <i data-lucide="star" class="feature-icon" style="color:var(--indigo-500);"></i>
+              <h4 class="feature-title">Redacción Automática</h4>
+              <p class="feature-desc">Con solo ingresar el contexto ("Lazio ganó 3 a 2"), la IA redactará un artículo completo y profesional, ideal para compartir en redes sociales de tu torneo.</p>
+            </div>
+            
+            <div class="feature-card">
+              <i data-lucide="file-text" class="feature-icon" style="color:var(--purple-500);"></i>
+              <h4 class="feature-title">Historial de Crónicas</h4>
+              <p class="feature-desc">Todas las noticias quedan guardadas en un historial dentro de la plataforma, claramente identificadas si fueron escritas por un humano o generadas por IA.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -663,7 +931,7 @@
     window.addEventListener('scroll', () => {
       const sections = document.querySelectorAll('.section, .hero');
       const navItems = document.querySelectorAll('.nav-item');
-      
+
       let currentId = 'introduccion';
       sections.forEach(sec => {
         const top = sec.offsetTop;
@@ -683,4 +951,5 @@
     });
   </script>
 </body>
+
 </html>

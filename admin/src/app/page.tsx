@@ -73,20 +73,25 @@ export default function AdminDashboard() {
     }
   );
 
+  const [analyticsData, setAnalyticsData] = useState<any | null>(null);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [canchasRes, reservasRes, complejoRes] = await Promise.all([
+      const [canchasRes, reservasRes, complejoRes, analyticsRes] = await Promise.all([
         fetch(`${API_URL}/cancha/complejos/${COMPLEJO_ID}/canchas`),
         fetch(`${API_URL}/cancha/complejos/${COMPLEJO_ID}/reservas?fecha=${fecha}`),
         fetch(`${API_URL}/cancha/complejos/${COMPLEJO_ID}`),
+        fetch(`${API_URL}/api/analytics/dashboard`)
       ]);
       const canchasData = await canchasRes.json();
       const reservasData = await reservasRes.json();
       const complejoData = await complejoRes.json();
+      const aData = await analyticsRes.json();
       setCanchas(Array.isArray(canchasData) ? canchasData : []);
       setReservas(Array.isArray(reservasData) ? reservasData : []);
       if (complejoData && !complejoData.detail) setComplejo(complejoData);
+      setAnalyticsData(aData);
     } catch (e) {
       console.error('Error cargando datos:', e);
     } finally {
@@ -160,7 +165,7 @@ export default function AdminDashboard() {
       />
 
       <div className="admin-body">
-        <SidebarStats stats={statsHoy} canchas={canchas} reservas={reservas} />
+        <SidebarStats stats={statsHoy} canchas={canchas} reservas={reservas} analytics={analyticsData} view={view} />
 
         <main className="admin-main">
           {loading ? (

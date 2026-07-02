@@ -92,6 +92,8 @@ export default function AdminConsole() {
   const [complejos, setComplejos] = useState<any[]>(MOCK_COMPLEJOS);
   const [canchas, setCanchas] = useState<any[]>(MOCK_CANCHAS);
   const [deportes, setDeportes] = useState<string[]>(DEPORTES_CATALOGO);
+  const [organizadores, setOrganizadores] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<any[]>([]);
 
   // Tabs states
   const [activeSuperTab, setActiveSuperTab] = useState<'tenants' | 'sports' | 'requests' | 'audit'>('tenants');
@@ -111,6 +113,7 @@ export default function AdminConsole() {
 
   // Forms states
   const [editComplejo, setEditComplejo] = useState<any | null>(null);
+  const [editOrganizador, setEditOrganizador] = useState<any | null>(null);
   const [newSport, setNewSport] = useState('');
   const [newCancha, setNewCancha] = useState<any>({ nombre: '', deporte: 'Fútbol 5', superficie: 'Sintético', precio_hora: 120000, precio_hora_nocturna: 150000 });
   const [toasts, setToasts] = useState<string[]>([]);
@@ -167,7 +170,7 @@ export default function AdminConsole() {
     setPendingRequests(JSON.parse(localStorage.getItem('pending_tenants') || '[]'));
   }, []);
 
-  // Sync complexes with actual DB if active
+  // Sync complexes, organizadores and users with actual DB if active
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -185,6 +188,22 @@ export default function AdminConsole() {
             }));
             setComplejos(merged);
           }
+        }
+      } catch (_e) { }
+
+      try {
+        const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`);
+        if (resOrg.ok) {
+          const dataOrg = await resOrg.json();
+          setOrganizadores(dataOrg);
+        }
+      } catch (_e) { }
+
+      try {
+        const resUsr = await fetch(`${API_URL}/auth/users`);
+        if (resUsr.ok) {
+          const dataUsr = await resUsr.json();
+          setUsuarios(dataUsr);
         }
       } catch (_e) { }
     };
@@ -260,6 +279,52 @@ export default function AdminConsole() {
       detalles: `Se generó una contraseña temporal de acceso para el usuario "${adminUser}" del complejo "${complejoName}"`
     });
     addToast(`🔑 Contraseña temporal para "${adminUser}" (${complejoName}): ${randomPass}`);
+  };
+
+  const handleSaveOrganizador = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editOrganizador) return;
+
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/organizadores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario_id: Number(editOrganizador.usuario_id),
+          nombre: editOrganizador.nombre,
+          plan: editOrganizador.plan || 'basico',
+          max_torneos: Number(editOrganizador.max_torneos || 3)
+        })
+      });
+
+      if (res.ok) {
+        const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`);
+        if (resOrg.ok) {
+          setOrganizadores(await resOrg.json());
+        }
+        addToast(editOrganizador.isNew ? '🎉 Organizador independiente habilitado.' : '✏️ Organizador actualizado.');
+        setEditOrganizador(null);
+      } else {
+        const error = await res.json();
+        alert(`Error al guardar organizador: ${error.detail || 'Error desconocido'}`);
+      }
+    } catch (e: any) {
+      alert(`Error de red: ${e.message}`);
+    }
+  };
+
+  const handleToggleOrganizador = async (usuario_id: number, currentHabilitado: boolean, nombre: string) => {
+    setOrganizadores(prev => prev.map(o => {
+      if (o.usuario_id === usuario_id) {
+        return { ...o, habilitado: !currentHabilitado };
+      }
+      return o;
+    }));
+    logEvent('auditoria', {
+      accion: currentHabilitado ? 'Suspender Organizador' : 'Habilitar Organizador',
+      detalles: `Se modificó el estado del organizador "${nombre}" a ${!currentHabilitado ? 'ACTIVO' : 'SUSPENDIDO'}`
+    });
+    addToast(`${!currentHabilitado ? '🔓 Organizador Habilitado' : '🔒 Organizador Suspendido'} con éxito.`);
   };
 
   const handleSaveComplejo = (e: React.FormEvent) => {
@@ -609,6 +674,95 @@ export default function AdminConsole() {
                     </tbody>
                   </table>
                 </div>
+
+                <div style={{ marginTop: 40, borderTop: '1px solid #f1f5f9', paddingTop: 32 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                    <div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900 }}>Organizadores Independientes</h3>
+                      <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Usuarios habilitados para crear torneos sin un complejo físico.</p>
+                    </div>
+                    <button
+                      onClick={() => setEditOrganizador({ isNew: true, usuario_id: usuarios[0]?.id || 0, nombre: '', plan: 'basico', max_torneos: 3 })}
+                      style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <Plus size={16} />
+                      Habilitar Organizador
+                    </button>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: 12, textTransform: 'uppercase' }}>
+                          <th style={{ padding: 14 }}>Organización / Evento</th>
+                          <th style={{ padding: 14 }}>Usuario / Email</th>
+                          <th style={{ padding: 14 }}>Plan contratado</th>
+                          <th style={{ padding: 14 }}>Torneos permitidos</th>
+                          <th style={{ padding: 14 }}>Estado</th>
+                          <th style={{ padding: 14, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {organizadores.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>
+                              No hay organizadores independientes habilitados todavía.
+                            </td>
+                          </tr>
+                        ) : (
+                          organizadores.map(o => (
+                            <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
+                              <td style={{ padding: 16 }}>
+                                <div style={{ fontWeight: 800, color: '#0f172a' }}>{o.nombre}</div>
+                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Creado el {o.creado_en ? new Date(o.creado_en).toLocaleDateString('es-PY') : 'Recientemente'}</div>
+                              </td>
+                              <td style={{ padding: 16 }}>
+                                <div style={{ fontWeight: 600 }}>{o.usuario_nombre || 'Usuario'}</div>
+                                <div style={{ fontSize: 12, color: '#64748b' }}>{o.usuario_email || 'email@gmail.com'}</div>
+                              </td>
+                              <td style={{ padding: 16 }}>
+                                <span style={{ textTransform: 'capitalize', fontWeight: 700, color: '#3b82f6' }}>
+                                  {o.plan}
+                                </span>
+                              </td>
+                              <td style={{ padding: 16, fontWeight: 700 }}>
+                                {o.max_torneos} torneos
+                              </td>
+                              <td style={{ padding: 16 }}>
+                                <span style={{
+                                  background: o.habilitado ? '#dcfce7' : '#fee2e2',
+                                  color: o.habilitado ? '#16a34a' : '#dc2626',
+                                  padding: '4px 10px',
+                                  borderRadius: 100,
+                                  fontWeight: 700,
+                                  fontSize: 12
+                                }}>
+                                  {o.habilitado ? '● Habilitado' : '● Suspendido'}
+                                </span>
+                              </td>
+                              <td style={{ padding: 16, textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => handleToggleOrganizador(o.usuario_id, o.habilitado, o.nombre)}
+                                    style={{ background: o.habilitado ? '#ea580c' : '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                  >
+                                    {o.habilitado ? 'Suspender' : 'Activar'}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditOrganizador(o)}
+                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                  >
+                                    Editar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -923,7 +1077,94 @@ export default function AdminConsole() {
 
       </div>
 
-      {/* -------------------- POPUP FORM FOR SUPER ADMIN (ADD / EDIT COMPLEJO) -------------------- */}
+      {/* -------------------- POPUP FORM FOR SUPER ADMIN (ADD / EDIT ORGANIZADOR) -------------------- */}
+      {editOrganizador && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <form onSubmit={handleSaveOrganizador} style={{ background: '#fff', padding: 40, borderRadius: 24, width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
+              {editOrganizador.isNew ? '🏆 Habilitar Organizador Independiente' : '✏️ Editar Datos Organizador'}
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700 }}>Nombre de Organización / Evento</label>
+              <input
+                type="text"
+                value={editOrganizador.nombre}
+                onChange={e => setEditOrganizador({ ...editOrganizador, nombre: e.target.value })}
+                placeholder="Ej: Liga Amateur del Paraguay"
+                style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                required
+              />
+            </div>
+
+            {editOrganizador.isNew ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Seleccionar Usuario (Email)</label>
+                <select
+                  value={editOrganizador.usuario_id || ''}
+                  onChange={e => setEditOrganizador({ ...editOrganizador, usuario_id: Number(e.target.value) })}
+                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                  required
+                >
+                  <option value="">-- Seleccionar --</option>
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.nombre} {u.apellido} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Usuario Asignado</label>
+                <input
+                  type="text"
+                  value={editOrganizador.usuario_email || ''}
+                  disabled
+                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#64748b' }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Plan</label>
+                <select
+                  value={editOrganizador.plan || 'basico'}
+                  onChange={e => setEditOrganizador({ ...editOrganizador, plan: e.target.value })}
+                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                >
+                  <option value="basico">Básico</option>
+                  <option value="premium">Premium</option>
+                  <option value="ilimitado">Ilimitado</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Torneos Máximos</label>
+                <input
+                  type="number"
+                  value={editOrganizador.max_torneos || 3}
+                  onChange={e => setEditOrganizador({ ...editOrganizador, max_torneos: Number(e.target.value) })}
+                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                  min="1"
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" onClick={() => setEditOrganizador(null)} style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button type="submit" style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {editComplejo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <form onSubmit={handleSaveComplejo} style={{ background: '#fff', padding: 40, borderRadius: 24, width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: 16 }}>

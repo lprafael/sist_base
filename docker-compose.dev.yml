@@ -1,0 +1,97 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: micancha-db-dev
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: BBDD_micancha
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - micancha-dev-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: micancha-pgadmin-dev
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@micancha.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - micancha-dev-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: micancha-backend-dev
+    ports:
+      - "8002:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/BBDD_micancha
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./backend/static/uploads:/app/static/uploads
+    depends_on:
+      - db
+    networks:
+      - micancha-dev-network
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8002
+    container_name: micancha-web-dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - micancha-dev-network
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8002
+    container_name: micancha-admin-dev
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    networks:
+      - micancha-dev-network
+
+  public:
+    build:
+      context: ./public
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8002
+    container_name: micancha-public-dev
+    ports:
+      - "3002:3000"
+    depends_on:
+      - backend
+    networks:
+      - micancha-dev-network
+
+networks:
+  micancha-dev-network:
+    driver: bridge
+
+volumes:
+  postgres_data_dev:

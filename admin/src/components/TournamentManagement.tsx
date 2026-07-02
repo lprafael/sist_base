@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Trophy, Users, Calendar, Plus, Save, X, ChevronRight,
   ShieldCheck, Award, Clock, UserCheck, Swords, Star,
-  AlertTriangle, CheckCircle, Target, Minus, BarChart2, ScanFace, Edit2, Camera
+  AlertTriangle, CheckCircle, Target, Minus, BarChart2, ScanFace, Edit2, Camera,
+  Copy, FileSpreadsheet, Download, Loader2, Banknote, Newspaper
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
@@ -17,7 +18,7 @@ interface Tournament {
   equipos_confirmados?: number;
 }
 
-interface Equipo { id: string; nombre: string; logo_url?: string; color_principal?: string; }
+interface Equipo { id: string; nombre: string; logo_url?: string; color_principal?: string; foto_equipo_url?: string; token_jugadores?: string; }
 interface Jugador {
   id: string; nombre: string; dni: string; numero_camiseta?: number;
   posicion?: string; estado: string; amarillas_acum: number; rojas_acum: number; partidos_jugados: number;
@@ -37,6 +38,64 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTorneo, setSelectedTorneo] = useState<Tournament | null>(null);
   const [selectedEvento, setSelectedEvento] = useState<any>(null);
+
+  // ── Estado para Clonar Torneo
+  const [clonarModal, setClonarModal] = useState<{ open: boolean; eventoId: string; nombreOrigen: string }>(
+    { open: false, eventoId: '', nombreOrigen: '' }
+  );
+  const [clonarForm, setClonarForm] = useState({ nuevo_nombre: '', incluir_equipos: false });
+  const [clonarLoading, setClonarLoading] = useState(false);
+  const [clonarMsg, setClonarMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // ── Estado para Exportar XLSX
+  const [xlsxLoading, setXlsxLoading] = useState<string | null>(null); // stores eventoId being downloaded
+
+  const handleClonarTorneo = async () => {
+    if (!clonarModal.eventoId) return;
+    setClonarLoading(true);
+    setClonarMsg(null);
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/${clonarModal.eventoId}/clonar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nuevo_nombre: clonarForm.nuevo_nombre || undefined,
+          incluir_equipos: clonarForm.incluir_equipos,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClonarMsg({ type: 'ok', text: `✅ ${data.message}` });
+        loadEventos();
+        setTimeout(() => { setClonarModal({ open: false, eventoId: '', nombreOrigen: '' }); setClonarMsg(null); }, 2200);
+      } else {
+        setClonarMsg({ type: 'err', text: `❌ ${data.detail || 'Error al clonar'}` });
+      }
+    } catch {
+      setClonarMsg({ type: 'err', text: '❌ Error de conexión con el servidor.' });
+    } finally {
+      setClonarLoading(false);
+    }
+  };
+
+  const handleExportarXLSX = async (eventoId: string, eventoNombre: string) => {
+    setXlsxLoading(eventoId);
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/${eventoId}/exportar/xlsx`);
+      if (!res.ok) { alert('Error al generar el archivo Excel'); return; }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Torneo_${eventoNombre.replace(/\s+/g, '_')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch { alert('Error de conexión al exportar'); }
+    finally { setXlsxLoading(null); }
+  };
+
   const [formData, setFormData] = useState({
     nombre: '', descripcion: '', deporte: 'Fútbol 5',
     fecha_inicio: new Date().toISOString().split('T')[0],
@@ -155,7 +214,7 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {eventos.map(e => (
-            <div key={e.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-[2rem] p-8 hover:border-green-500/30 transition-all duration-300 group flex flex-col justify-between h-[360px]">
+            <div key={e.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-[2rem] p-8 hover:border-green-500/30 transition-all duration-300 group flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{e.estado}</span>
@@ -163,11 +222,35 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
                 </div>
                 <h3 className="text-2xl font-black text-white mb-3 tracking-tight group-hover:text-green-400 transition-colors line-clamp-1">{e.nombre}</h3>
                 <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-2">{e.descripcion || 'Sin descripción'}</p>
-                <div className="space-y-3 mb-8 border-t border-slate-800/60 pt-6">
+                <div className="space-y-3 mb-4 border-t border-slate-800/60 pt-4">
                   <div className="flex items-center gap-3 text-slate-400 text-sm font-semibold">
                     <Calendar size={16} className="text-green-400" /> Inicia: {new Date(e.fecha_inicio).toLocaleDateString()}
                   </div>
                 </div>
+              </div>
+              {/* Acciones secundarias: Clonar + Exportar */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => {
+                    setClonarModal({ open: true, eventoId: e.id, nombreOrigen: e.nombre });
+                    setClonarForm({ nuevo_nombre: `${e.nombre} [COPIA]`, incluir_equipos: false });
+                    setClonarMsg(null);
+                  }}
+                  title="Clonar este torneo para nueva temporada"
+                  className="flex-1 py-2.5 bg-slate-800/70 hover:bg-blue-500/20 hover:border-blue-500/40 text-slate-400 hover:text-blue-400 border border-slate-700/50 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Copy size={13} /> Clonar
+                </button>
+                <button
+                  onClick={() => handleExportarXLSX(e.id, e.nombre)}
+                  disabled={xlsxLoading === e.id}
+                  title="Exportar a Excel (.xlsx)"
+                  className="flex-1 py-2.5 bg-slate-800/70 hover:bg-emerald-500/20 hover:border-emerald-500/40 text-slate-400 hover:text-emerald-400 border border-slate-700/50 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                >
+                  {xlsxLoading === e.id
+                    ? <><Loader2 size={13} className="animate-spin" /> Generando...</>
+                    : <><FileSpreadsheet size={13} /> Excel</>}
+                </button>
               </div>
               <button onClick={() => setSelectedEvento(e)}
                 className="w-full py-4 bg-slate-800 hover:bg-green-500 hover:text-black text-white rounded-2xl font-extrabold flex items-center justify-center gap-2 transition-all duration-300">
@@ -216,7 +299,6 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
                     value={formData.fecha_inicio} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} />
                 </div>
               </div>
-
               <div className="mt-6 border-t border-slate-800 pt-6 space-y-6">
                 <div className="flex justify-between items-center">
                     <label className="block text-sm font-bold uppercase tracking-wider text-green-400">Categorías del Evento</label>
@@ -305,14 +387,83 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
           </div>
         </div>
       )}
+
+      {/* ── MODAL DE CLONAR TORNEO ── */}
+      {clonarModal.open && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-slate-950 border border-blue-500/30 w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center border border-blue-500/20 flex-shrink-0">
+                <Copy size={22} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">Clonar Torneo</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Nueva temporada desde <span className="text-blue-400 font-bold">{clonarModal.nombreOrigen}</span></p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Nombre del nuevo torneo
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-blue-500 font-semibold text-sm transition-colors"
+                  value={clonarForm.nuevo_nombre}
+                  onChange={e => setClonarForm({ ...clonarForm, nuevo_nombre: e.target.value })}
+                  placeholder="Ej. Torneo Clausura 2026"
+                />
+              </div>
+
+              <label className="flex items-center gap-3 bg-slate-900/50 border border-slate-800 rounded-2xl px-5 py-4 cursor-pointer hover:border-blue-500/30 transition-colors">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-blue-500"
+                  checked={clonarForm.incluir_equipos}
+                  onChange={e => setClonarForm({ ...clonarForm, incluir_equipos: e.target.checked })}
+                />
+                <div>
+                  <span className="text-sm font-bold text-white">Incluir equipos del torneo original</span>
+                  <p className="text-xs text-slate-400 mt-0.5">Se copian los equipos sin jugadores ni historial de pagos</p>
+                </div>
+              </label>
+
+              {clonarMsg && (
+                <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${clonarMsg.type === 'ok' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                  {clonarMsg.text}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setClonarModal({ open: false, eventoId: '', nombreOrigen: '' })}
+                  className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl font-bold text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleClonarTorneo}
+                  disabled={clonarLoading}
+                  className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                >
+                  {clonarLoading ? <><Loader2 size={16} className="animate-spin" /> Clonando...</> : <><Copy size={16} /> Clonar Torneo</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+
 // ─────────────────────────────────────────
 // DETALLE DEL TORNEO (tabs)
 // ─────────────────────────────────────────
-type ActiveTab = 'equipos' | 'jugadores' | 'fixture' | 'acta' | 'posiciones' | 'goleadores';
+// ─────────────────────────────────────────
+type ActiveTab = 'equipos' | 'jugadores' | 'fixture' | 'acta' | 'posiciones' | 'goleadores' | 'finanzas' | 'noticias';
 
 function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('equipos');
@@ -323,6 +474,17 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
   const [selectedPartido, setSelectedPartido] = useState<any>(null);
   const [isAddingEquipo, setIsAddingEquipo] = useState(false);
   const [newEquipo, setNewEquipo] = useState({ nombre: '', capitan: '', telefono: '', promocion: '' });
+  
+  // Finanzas states
+  const [selectedEquipoFinanzas, setSelectedEquipoFinanzas] = useState<string>('');
+  const [finanzasData, setFinanzasData] = useState<any>(null);
+
+  // Noticias states
+  const [noticias, setNoticias] = useState<any[]>([]);
+  const [loadingNoticias, setLoadingNoticias] = useState(false);
+  const [contextoIA, setContextoIA] = useState('');
+  const [cargoConcepto, setCargoConcepto] = useState('');
+  const [cargoMonto, setCargoMonto] = useState('');
 
   // States for Payment Management
   const [isPayingCash, setIsPayingCash] = useState(false);
@@ -403,6 +565,99 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
     }
   };
 
+  const loadFinanzas = async (equipoId: string) => {
+    if (!equipoId) {
+      setFinanzasData(null);
+      return;
+    }
+    const res = await fetch(`${API_URL}/cancha/torneos/equipos/${equipoId}/cuenta_corriente`);
+    if (res.ok) {
+      setFinanzasData(await res.json());
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'finanzas' && selectedEquipoFinanzas) {
+      loadFinanzas(selectedEquipoFinanzas);
+    }
+  }, [activeTab, selectedEquipoFinanzas]);
+
+  const handleAddCargo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEquipoFinanzas || !cargoConcepto || !cargoMonto) return;
+    const res = await fetch(`${API_URL}/cancha/torneos/equipos/${selectedEquipoFinanzas}/cuenta_corriente/cargos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        torneo_id: torneo.id,
+        concepto: cargoConcepto,
+        monto: parseFloat(cargoMonto)
+      })
+    });
+    if (res.ok) {
+      setCargoConcepto('');
+      setCargoMonto('');
+      loadFinanzas(selectedEquipoFinanzas);
+    }
+  };
+
+  const handlePagarCargo = async (cargoId: string) => {
+    if (!confirm('¿Marcar este cargo como pagado?')) return;
+    const res = await fetch(`${API_URL}/cancha/torneos/equipos/${selectedEquipoFinanzas}/cuenta_corriente/${cargoId}/pagar`, {
+      method: 'POST'
+    });
+    if (res.ok) {
+      loadFinanzas(selectedEquipoFinanzas);
+    }
+  };
+
+  const loadNoticias = async () => {
+    setLoadingNoticias(true);
+    try {
+      const res = await fetch(`${API_URL}/api/noticias/torneo/${torneo.id}`);
+      if (res.ok) setNoticias(await res.json());
+    } finally {
+      setLoadingNoticias(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'noticias') {
+      loadNoticias();
+    }
+  }, [activeTab]);
+
+  const handleGenerarIA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contextoIA) return;
+    const res = await fetch(`${API_URL}/api/noticias/generar-ia`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ torneo_id: torneo.id, contexto: contextoIA })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      // Publicar noticia mock
+      const pubRes = await fetch(`${API_URL}/api/noticias`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ torneo_id: torneo.id, titulo: data.titulo, contenido: data.contenido, autor: 'Gemini IA', es_ia: true, prompt_usado: contextoIA })
+      });
+      if (pubRes.ok) {
+        setContextoIA('');
+        loadNoticias();
+      }
+    }
+  };
+
+  const handleDeleteNoticia = async (id: string) => {
+    if (!confirm('¿Eliminar noticia?')) return;
+    const res = await fetch(`${API_URL}/api/noticias/${id}`, { method: 'DELETE' });
+    if (res.ok) loadNoticias();
+  };
+
   const loadEquipos = async () => {
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos`);
     if (res.ok) setEquipos(await res.json());
@@ -458,6 +713,26 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
     }
   };
 
+  const handleUploadFotoEquipo = async (e: React.ChangeEvent<HTMLInputElement>, equipoId: string) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos/${equipoId}/foto`, {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        loadEquipos();
+      } else {
+        alert("Error subiendo la foto del equipo");
+      }
+    } catch (err) {
+      alert("Error subiendo la foto del equipo");
+    }
+  };
+
   const generarFixture = async () => {
     if (!confirm('¿Generar fixture automático? Se eliminarán los partidos existentes.')) return;
     const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/fixture`, { method: 'POST' });
@@ -487,6 +762,8 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
     { key: 'acta',        label: 'Acta en Vivo', icon: <Swords size={14} /> },
     { key: 'posiciones',  label: 'Posiciones', icon: <BarChart2 size={14} /> },
     { key: 'goleadores',  label: 'Goleadores', icon: <Star size={14} /> },
+    { key: 'finanzas',    label: 'Finanzas',   icon: <Banknote size={14} /> },
+    { key: 'noticias',    label: 'Noticias IA', icon: <Newspaper size={14} /> },
   ];
 
   return (
@@ -531,6 +808,7 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
                 className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl flex flex-col gap-4 hover:border-slate-700 transition-all">
                 <div className="flex items-center gap-4 w-full">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg flex-shrink-0 cursor-pointer overflow-hidden relative group/logo"
+                    title="Subir Logo (Click)"
                     style={{ background: e.color_principal ? `${e.color_principal}20` : 'rgba(34,197,94,0.1)', color: e.color_principal || '#4ade80' }}
                     onClick={() => document.getElementById(`logo-upload-${e.id}`)?.click()}>
                     {e.logo_url ? <img src={`${API_URL.replace('/api', '')}${e.logo_url}`} alt={e.nombre} className="w-full h-full object-cover" /> : idx + 1}
@@ -551,6 +829,27 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
                       : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
                     {e.estado_inscripcion}
                   </span>
+                </div>
+                
+                <div className="flex flex-col gap-2 w-full mt-2 border-t border-slate-800/40 pt-4">
+                  <div className="flex justify-between items-center bg-slate-950/50 rounded-xl p-3 border border-slate-800/40 cursor-pointer hover:border-slate-700 transition-all group/foto"
+                       onClick={() => document.getElementById(`foto-upload-${e.id}`)?.click()}>
+                     <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Foto del Equipo</span>
+                     {e.foto_equipo_url ? 
+                        <span className="text-xs text-green-400 font-bold">Subida ✓</span> : 
+                        <span className="text-xs text-slate-500 font-bold group-hover/foto:text-white">Subir Imagen +</span>}
+                     <input type="file" id={`foto-upload-${e.id}`} accept="image/*" className="hidden" onChange={(evt) => handleUploadFotoEquipo(evt, e.id)} />
+                  </div>
+
+                  {e.token_jugadores && (
+                    <div className="bg-blue-500/5 rounded-xl p-3 border border-blue-500/20 flex flex-col gap-1.5">
+                      <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Enlace de Registro de Jugadores</span>
+                      <div className="flex items-center gap-2">
+                        <input type="text" readOnly value={`${window.location.origin}/jugadores/registro/${e.token_jugadores}`} className="bg-transparent text-xs text-slate-300 w-full outline-none" />
+                        <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/jugadores/registro/${e.token_jugadores}`); alert("Enlace copiado!"); }} className="text-blue-400 hover:text-white transition-colors">Copiar</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {torneo.costo_inscripcion > 0 && e.estado_inscripcion === 'pendiente' && (
@@ -645,10 +944,16 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
                   <div className="font-black text-white text-base line-clamp-1">{p.visitante_nombre}</div>
                   {p.es_wo && <div className="text-[9px] text-red-400 font-black uppercase">W.O.</div>}
                 </div>
-                <button onClick={() => { setSelectedPartido(p); setActiveTab('acta'); }}
-                  className="text-green-400 hover:text-green-300 p-2 rounded-xl hover:bg-green-500/10 transition-all" title="Abrir acta">
-                  <Swords size={16} />
-                </button>
+                <div className="flex gap-2">
+                  <a href={`${API_URL}/cancha/torneos/${torneo.id}/partidos/${p.id}/planilla-pdf`} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 p-2 rounded-xl hover:bg-blue-500/10 transition-all flex items-center" title="Descargar Planilla PDF">
+                    <Download size={16} />
+                  </a>
+                  <button onClick={() => { setSelectedPartido(p); setActiveTab('acta'); }}
+                    className="text-green-400 hover:text-green-300 p-2 rounded-xl hover:bg-green-500/10 transition-all flex items-center" title="Abrir acta digital">
+                    <Swords size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -767,6 +1072,172 @@ function TournamentDetails({ torneo, onBack }: { torneo: Tournament; onBack: () 
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB: FINANZAS */}
+      {activeTab === 'finanzas' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <h3 className="text-xl font-extrabold text-white flex items-center gap-2">
+            <Banknote size={20} className="text-emerald-400" /> Cuenta Corriente
+          </h3>
+          <div className="flex gap-4">
+            <select
+              className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm"
+              value={selectedEquipoFinanzas}
+              onChange={(e) => setSelectedEquipoFinanzas(e.target.value)}
+            >
+              <option value="">Seleccione un equipo...</option>
+              {equipos.map(eq => (
+                <option key={eq.id} value={eq.id}>{eq.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          {selectedEquipoFinanzas && finanzasData && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Resumen */}
+              <div className="bg-slate-900/50 border border-slate-800/60 rounded-2xl p-6">
+                <div className="text-sm font-bold text-slate-400 mb-2 uppercase">Deuda Total</div>
+                <div className={`text-4xl font-black ${finanzasData.bloqueado ? 'text-red-500' : finanzasData.deuda_total > 0 ? 'text-yellow-500' : 'text-green-500'}`}>
+                  ${finanzasData.deuda_total.toLocaleString()}
+                </div>
+                {finanzasData.limite_habilitado && (
+                  <div className="text-xs text-slate-500 mt-2">
+                    Límite: ${finanzasData.limite_monto.toLocaleString()}
+                  </div>
+                )}
+                {finanzasData.bloqueado && (
+                  <div className="mt-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl font-bold flex items-center gap-2">
+                    <AlertTriangle size={16} /> Equipo Bloqueado Financieramente
+                  </div>
+                )}
+              </div>
+
+              {/* Formulario Cargo */}
+              <div className="md:col-span-2 bg-slate-900/50 border border-slate-800/60 rounded-2xl p-6">
+                <div className="text-sm font-bold text-slate-400 mb-4 uppercase">Agregar Cargo Manual</div>
+                <form onSubmit={handleAddCargo} className="flex gap-3">
+                  <input type="text" placeholder="Concepto (Ej. Multa)" required
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm"
+                    value={cargoConcepto} onChange={e => setCargoConcepto(e.target.value)} />
+                  <input type="number" placeholder="Monto" required min={1}
+                    className="w-32 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm"
+                    value={cargoMonto} onChange={e => setCargoMonto(e.target.value)} />
+                  <button type="submit" className="bg-emerald-500 hover:bg-emerald-400 text-black px-6 py-3 rounded-xl font-bold text-sm transition-colors">
+                    + Cargo
+                  </button>
+                </form>
+
+                {/* Movimientos */}
+                <div className="mt-6">
+                  <div className="text-sm font-bold text-slate-400 mb-4 uppercase">Movimientos</div>
+                  {finanzasData.movimientos.length === 0 ? (
+                    <div className="text-slate-500 text-sm">Sin movimientos registrados.</div>
+                  ) : (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                      {finanzasData.movimientos.map((m: any) => (
+                        <div key={m.id} className="bg-slate-950 rounded-xl p-4 flex items-center justify-between border border-slate-800">
+                          <div>
+                            <div className="font-bold text-white text-sm">{m.concepto}</div>
+                            <div className="text-xs text-slate-500">{new Date(m.creado_en).toLocaleString()}</div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className={`font-black text-lg ${m.estado === 'pendiente' ? 'text-red-400' : 'text-emerald-400'}`}>
+                              ${m.monto.toLocaleString()}
+                            </div>
+                            {m.estado === 'pendiente' ? (
+                              <button onClick={() => handlePagarCargo(m.id)} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                Pagar
+                              </button>
+                            ) : (
+                              <div className="px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-500 bg-emerald-500/10 flex items-center gap-1">
+                                <CheckCircle size={12} /> Pagado
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: NOTICIAS IA */}
+      {activeTab === 'noticias' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-6 rounded-3xl">
+            <div>
+              <h2 className="text-2xl font-black text-white flex items-center gap-2">
+                <Newspaper className="text-green-500" />
+                Centro de Noticias IA
+              </h2>
+              <p className="text-slate-400 mt-1">Genera crónicas y resúmenes automáticos usando Gemini.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 bg-slate-900 border border-slate-800 p-6 rounded-3xl h-fit">
+              <h3 className="text-lg font-bold text-white mb-4">Generar Nueva Noticia</h3>
+              <form onSubmit={handleGenerarIA} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Contexto del Partido/Evento</label>
+                  <textarea 
+                    rows={4}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-sm focus:border-green-500 focus:outline-none"
+                    placeholder="Ej: El partido entre Lazio y Milan finalizó 3-2 en un encuentro emocionante con gol a último minuto..."
+                    value={contextoIA}
+                    onChange={(e) => setContextoIA(e.target.value)}
+                    required
+                  ></textarea>
+                </div>
+                <button type="submit" disabled={!contextoIA} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50">
+                  <Star size={18} />
+                  Generar con Gemini IA
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-lg font-bold text-white">Noticias Publicadas</h3>
+              {loadingNoticias ? (
+                <div className="text-center text-slate-500 py-8">Cargando noticias...</div>
+              ) : noticias.length === 0 ? (
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center">
+                  <Newspaper className="mx-auto text-slate-700 mb-4" size={48} />
+                  <p className="text-slate-400">No hay noticias publicadas aún.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {noticias.map((n: any) => (
+                    <div key={n.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 relative group overflow-hidden">
+                      {n.es_ia && (
+                        <div className="absolute top-0 right-0 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
+                          <Star size={10} /> Escrito por IA
+                        </div>
+                      )}
+                      <h4 className="text-xl font-black text-white mb-2 pr-24">{n.titulo}</h4>
+                      <p className="text-sm text-slate-300 mb-4 whitespace-pre-wrap">{n.contenido}</p>
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800/50">
+                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                          <UserCheck size={14} /> {n.autor}
+                          <span className="mx-2">•</span>
+                          <Calendar size={14} /> {new Date(n.fecha_publicacion).toLocaleDateString()}
+                        </div>
+                        <button onClick={() => handleDeleteNoticia(n.id)} className="text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1061,6 +1532,30 @@ function ActaPanel({ partido, torneo, equipos, onClose }: { partido: any; torneo
     setJugadoresLocal(jl); setJugadoresVisitante(jv);
   };
 
+  const iniciarPartido = async () => {
+    // Verificar estado financiero de ambos equipos
+    const [finLocal, finVis] = await Promise.all([
+      fetch(`${API_URL}/cancha/torneos/equipos/${partido.equipo_local_id}/cuenta_corriente`).then(r => r.ok ? r.json() : null),
+      fetch(`${API_URL}/cancha/torneos/equipos/${partido.equipo_visitante_id}/cuenta_corriente`).then(r => r.ok ? r.json() : null)
+    ]);
+    
+    let advertencia = '';
+    if (finLocal?.bloqueado) advertencia += `- ${partido.local_nombre} tiene deudas que superan el límite permitido.\n`;
+    if (finVis?.bloqueado) advertencia += `- ${partido.visitante_nombre} tiene deudas que superan el límite permitido.\n`;
+    
+    if (advertencia) {
+      if (!confirm(`ADVERTENCIA FINANCIERA\n\n${advertencia}\n¿Desea iniciar el partido bajo su propio riesgo?`)) return;
+    } else {
+      if (!confirm('¿Iniciar este partido?')) return;
+    }
+    
+    const res = await fetch(`${API_URL}/cancha/torneos/partidos/${partido.id}/iniciar`, { method: 'POST' });
+    if (res.ok) {
+      alert('Partido Iniciado exitosamente');
+      window.location.reload();
+    }
+  };
+
   useEffect(() => { loadData(); loadJugadores(); }, [partido.id]);
 
   const allJugadores = [...jugadoresLocal, ...jugadoresVisitante];
@@ -1104,9 +1599,16 @@ function ActaPanel({ partido, torneo, equipos, onClose }: { partido: any; torneo
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={onClose} className="text-slate-500 hover:text-white flex items-center gap-1.5 text-sm font-bold transition-all">
-          <X size={16} /> Cerrar acta
-        </button>
+        <div className="flex flex-col gap-2">
+          <button onClick={onClose} className="text-slate-500 hover:text-white flex items-center gap-1.5 text-sm font-bold transition-all">
+            <X size={16} /> Cerrar acta
+          </button>
+          {partido.estado === 'programado' && (
+            <button onClick={iniciarPartido} className="bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2 rounded-xl text-sm font-black flex items-center gap-2 transition-all">
+              <Swords size={16} /> Iniciar Partido
+            </button>
+          )}
+        </div>
         <div className="flex-1 bg-slate-900/60 border border-slate-800/80 rounded-2xl px-8 py-5 flex items-center justify-center gap-8">
           <div className="text-right flex-1">
             <div className="font-black text-white text-lg">{partido.local_nombre}</div>

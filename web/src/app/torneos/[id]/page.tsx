@@ -15,7 +15,8 @@ import {
   ArrowRight,
   ShieldCheck,
   X,
-  BarChart3
+  BarChart3,
+  Newspaper
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -34,6 +35,7 @@ export default function TournamentDetailPage() {
   const [equipos, setEquipos] = useState<any[]>([]);
   const [partidos, setPartidos] = useState<any[]>([]);
   const [posiciones, setPosiciones] = useState<any[]>([]);
+  const [noticias, setNoticias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [enrollData, setEnrollData] = useState({
@@ -84,21 +86,19 @@ export default function TournamentDetailPage() {
   };
 
   const loadData = async () => {
-    if (!id) return;
-    setLoading(true);
-    if (id === "demo" || id === "ficticio") {
-      loadMockData();
+    if (!id || id === "demo" || id === "ficticio") {
       setLoading(false);
       return;
     }
+    setLoading(true);
     try {
-      let succeeded = false;
       // 1. Fetch tournament details
       const tRes = await fetch(`${API_URL}/cancha/torneos/${id}`);
       if (tRes.ok) {
         const found = await tRes.json();
         setTournament(found);
-        succeeded = true;
+      } else {
+        throw new Error("Tournament not found");
       }
 
       // 2. Fetch enrolled teams
@@ -106,32 +106,27 @@ export default function TournamentDetailPage() {
       if (eRes.ok) {
         const eqData = await eRes.json();
         setEquipos(eqData);
-        // Check if user is already inscribed locally
         const localInscribed = localStorage.getItem(`inscribed_${id}`);
-        if (localInscribed) {
-          setIsInscribed(true);
-        }
+        if (localInscribed) setIsInscribed(true);
       }
 
       // 3. Fetch matches
       const mRes = await fetch(`${API_URL}/cancha/torneos/${id}/partidos`);
-      if (mRes.ok) {
-        setPartidos(await mRes.json());
-      }
+      if (mRes.ok) setPartidos(await mRes.json());
 
       // 4. Fetch standings
       const pRes = await fetch(`${API_URL}/cancha/torneos/${id}/posiciones`);
-      if (pRes.ok) {
-        setPosiciones(await pRes.json());
+      if (pRes.ok) setPosiciones(await pRes.json());
+
+      // 5. Fetch noticias
+      const nRes = await fetch(`${API_URL}/cancha/torneos/${id}/noticias`);
+      if (nRes.ok) {
+         const newsData = await nRes.json();
+         setNoticias(newsData.noticias || []);
       }
 
-      if (!succeeded) {
-        console.warn("Backend down, loading mock details...");
-        loadMockData();
-      }
     } catch (e) {
-      console.error("Error loading tournament details, loading mock...", e);
-      loadMockData();
+      console.error("Error loading tournament details", e);
     } finally {
       setLoading(false);
     }
@@ -327,7 +322,7 @@ export default function TournamentDetailPage() {
           <div className="lg:col-span-2 space-y-12">
             {/* Tabs */}
             <div className="flex border-b border-slate-200 overflow-x-auto whitespace-nowrap">
-              {["Información", "Equipos", "Fixture", "Posiciones", "Reglas"].map((tab) => (
+              {["Información", "Equipos", "Fixture", "Posiciones", "Reglas", "Noticias"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab.toLowerCase())}
@@ -497,6 +492,25 @@ export default function TournamentDetailPage() {
                         <span className="text-slate-600 font-medium leading-relaxed">{rule}</span>
                       </div>
                    ))}
+                </motion.div>
+              )}
+
+              {activeTab === "noticias" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  {noticias.length === 0 ? (
+                    <div className="py-16 text-center text-slate-500 italic">No hay noticias o crónicas generadas todavía.</div>
+                  ) : noticias.map((n, idx) => (
+                    <div key={n.id || idx} className="card !p-6 flex flex-col gap-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Newspaper className="text-primary w-6 h-6" />
+                        <h4 className="font-extrabold text-slate-900 text-xl">{n.titulo}</h4>
+                      </div>
+                      <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">{n.contenido}</p>
+                      <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest mt-4">
+                        Fecha: {new Date(n.fecha_publicacion).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
                 </motion.div>
               )}
             </AnimatePresence>

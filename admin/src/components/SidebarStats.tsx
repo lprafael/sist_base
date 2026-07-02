@@ -7,9 +7,11 @@ interface SidebarStatsProps {
   stats: { totalReservas: number; ingresos: number; canchasActivas: number; ocupacion: number };
   canchas: any[];
   reservas: any[];
+  analytics?: any;
+  view?: 'grid' | 'tournaments';
 }
 
-export default function SidebarStats({ stats, canchas, reservas }: SidebarStatsProps) {
+export default function SidebarStats({ stats, canchas, reservas, analytics, view = 'grid' }: SidebarStatsProps) {
   // Reservas por cancha
   const reservasPorCancha = useMemo(() => {
     const map: Record<string, number> = {};
@@ -34,27 +36,58 @@ export default function SidebarStats({ stats, canchas, reservas }: SidebarStatsP
 
   return (
     <aside className="admin-sidebar">
-      {/* Stats del día */}
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">📊 Hoy</div>
-        <div className="stat-card">
-          <div className="stat-card-label">Reservas</div>
-          <div className="stat-card-value">{stats.totalReservas}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-label">Ingresos estimados</div>
-          <div className="stat-card-value green">{formatGs(stats.ingresos)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-label">Ocupación</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-            <div className="stat-card-value amber">{stats.ocupacion}%</div>
-            <div style={{ flex: 1, height: 6, background: 'var(--border-default)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${stats.ocupacion}%`, background: 'var(--brand-accent)', borderRadius: 3, transition: 'width 0.5s' }} />
+      {view === 'grid' ? (
+        <>
+          {/* Stats del día */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">📊 Hoy</div>
+            <div className="stat-card">
+              <div className="stat-card-label">Reservas</div>
+              <div className="stat-card-value">{stats.totalReservas}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Ingresos estimados</div>
+              <div className="stat-card-value green">{formatGs(stats.ingresos)}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Ocupación</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                <div className="stat-card-value amber">{stats.ocupacion}%</div>
+                <div style={{ flex: 1, height: 6, background: 'var(--border-default)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${stats.ocupacion}%`, background: 'var(--brand-accent)', borderRadius: 3, transition: 'width 0.5s' }} />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          {/* Stats de Torneos */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">🏆 Torneos</div>
+            <div className="stat-card">
+              <div className="stat-card-label">Torneos Activos</div>
+              <div className="stat-card-value">{analytics?.torneos_activos || 0}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Partidos Hoy</div>
+              <div className="stat-card-value green">{analytics?.partidos_hoy || 0}</div>
+            </div>
+            {analytics?.equipos_pendientes_validacion > 0 && (
+              <div className="stat-card" style={{ borderColor: 'var(--amber)' }}>
+                <div className="stat-card-label">Equipos Pendientes</div>
+                <div className="stat-card-value amber">{analytics?.equipos_pendientes_validacion}</div>
+              </div>
+            )}
+            {analytics?.equipos_con_deuda > 0 && (
+              <div className="stat-card" style={{ borderColor: 'var(--red)' }}>
+                <div className="stat-card-label" style={{ color: 'var(--red)' }}>Equipos c/ Deuda</div>
+                <div className="stat-card-value red">{analytics?.equipos_con_deuda}</div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Canchas */}
       <div className="sidebar-section">

@@ -218,6 +218,7 @@
         <p style="color: var(--text-muted); max-width: 600px; margin: 0.5rem auto 0 auto; font-size: 0.95rem;">
             Estructura en 3NF con soporte multitenant y lógica de equipos y rosters aislados por torneo.
         </p>
+        <p style="color: var(--primary); font-size: 0.8rem; margin-top: 0.5rem; font-weight: 600;">Actualizado: 2026-07-01 — Post-Migración 009</p>
     </header>
 
     <div class="divider"></div>
@@ -226,8 +227,11 @@
     <div class="diagram-container">
         <pre class="mermaid" style="background: transparent;">
 erDiagram
-    USUARIOS ||--o{ TORNEOS : "organiza"
-    COMPLEJOS ||--o{ TORNEOS : "alberga"
+    USUARIOS ||--o{ TORNEOS : "organiza (creado_por)"
+    USUARIOS ||--o{ ORGANIZADORES : "asocia"
+    ORGANIZADORES ||--o{ TORNEOS : "organiza (organizador_id)"
+    ORGANIZADORES ||--o{ TORNEOS_EVENTOS : "organiza (organizador_id)"
+    COMPLEJOS ||--o{ TORNEOS : "alberga (complejo_id)"
     COMPLEJOS ||--o{ CANCHAS : "posee"
     COMPLEJOS ||--o{ ROLES_COMPLEJO : "define"
     USUARIOS ||--o{ ROLES_COMPLEJO : "asume_en"
@@ -242,7 +246,9 @@ erDiagram
     TORNEOS_PARTIDOS ||--o{ TORNEOS_PLANILLA : "registra_asistencia"
     TOURNAMENT_PLAYERS ||--o{ TORNEOS_PLANILLA : "participa"
     TORNEOS_PARTIDOS ||--o{ EVENTOS_PARTIDO : "registra_suceso"
-    TOURNAMENT_PLAYERS ||--o{ EVENTOS_PARTIDO : "ejecuta"
+    TOURNAMENT_PLAYERS ||--o{ EVENTOS_PARTIDO : "ejecuta_o_entra"
+    TOURNAMENT_PLAYERS ||--o{ EVENTOS_PARTIDO : "sale_sustitucion"
+    TIPOS_EVENTO ||--o{ EVENTOS_PARTIDO : "clasifica"
     TORNEOS_EQUIPOS ||--o{ EVENTOS_PARTIDO : "recibe_puntos"
     TORNEOS ||--o{ TORNEOS_POSICIONES : "calcula"
     TORNEOS_EQUIPOS ||--o{ TORNEOS_POSICIONES : "acumula_puntos"
@@ -417,6 +423,69 @@ erDiagram
         </table>
     </div>
 
+    <!-- NUEVA TABLA: ORGANIZADORES -->
+    <div class="table-card" style="border-color: rgba(16,185,129,0.3);">
+        <div class="table-header" style="background: rgba(16,185,129,0.05);">
+            <h3 class="table-name">cancha.organizadores <span style="color:var(--primary);font-size:0.8rem;">🆕 Migración 009</span></h3>
+            <span class="table-badge">Lookup Table</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">INTEGER</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span> GENERATED ALWAYS AS IDENTITY</td>
+                    <td>Identificador único autoincremental.</td>
+                </tr>
+                <tr>
+                    <td>usuario_id</td>
+                    <td class="type-code">INTEGER</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → sistema.usuarios(id)</span> UNIQUE</td>
+                    <td>Usuario del sistema asignado como organizador.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(200)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre de la organización de torneos o evento.</td>
+                </tr>
+                <tr>
+                    <td>plan</td>
+                    <td class="type-code">VARCHAR(30)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT 'basico'</td>
+                    <td>Plan contratado (basico, premium, ilimitado).</td>
+                </tr>
+                <tr>
+                    <td>max_torneos</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT 3</td>
+                    <td>Límite máximo de torneos permitidos en el plan.</td>
+                </tr>
+                <tr>
+                    <td>habilitado</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT TRUE</td>
+                    <td>Si el organizador está activo.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
     <!-- 4. TORNEOS -->
     <div class="table-card">
         <div class="table-header">
@@ -444,9 +513,16 @@ erDiagram
                 <tr>
                     <td>complejo_id</td>
                     <td class="type-code">UUID</td>
-                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>NULL</td>
                     <td><span class="badge badge-fk">FK → cancha.complejos(id)</span></td>
-                    <td>Filtro de pertenencia por tenant.</td>
+                    <td>Tenant dueño del torneo (opcional si es organizador libre).</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>organizador_id</strong> 🆕</td>
+                    <td class="type-code">INTEGER</td>
+                    <td>NULL</td>
+                    <td><span class="badge badge-fk">FK → cancha.organizadores(id)</span></td>
+                    <td>Organizador independiente dueño del torneo (opcional si pertenece a un complejo).</td>
                 </tr>
                 <tr>
                     <td>modalidad_id</td>
@@ -462,6 +538,13 @@ erDiagram
                     <td><span class="badge badge-fk">FK → cancha.categorias(id)</span></td>
                     <td>Categoría de la competencia.</td>
                 </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>creado_por</strong> 🆕</td>
+                    <td class="type-code">INTEGER</td>
+                    <td>NULL</td>
+                    <td><span class="badge badge-fk">FK → sistema.usuarios(id)</span></td>
+                    <td>Organizador que creó el torneo. Permite filtrar "mis torneos" directamente.</td>
+                </tr>
                 <tr>
                     <td>nombre</td>
                     <td class="type-code">VARCHAR(200)</td>
@@ -472,9 +555,102 @@ erDiagram
                 <tr>
                     <td>slug</td>
                     <td class="type-code">VARCHAR(170)</td>
-                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>NULL</td>
                     <td>UNIQUE</td>
                     <td>Slug de acceso para la landing pública del torneo.</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>limite_deuda_habilitado</strong> 🆕</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT FALSE</td>
+                    <td>Bloqueo por deuda límite (Mig. 012).</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>limite_deuda_monto</strong> 🆕</td>
+                    <td class="type-code">NUMERIC</td>
+                    <td>NULL</td>
+                    <td>DEFAULT 0</td>
+                    <td>Monto límite de bloqueo (Mig. 012).</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>multa_amarilla_monto</strong> 🆕</td>
+                    <td class="type-code">NUMERIC</td>
+                    <td>NULL</td>
+                    <td>DEFAULT 0</td>
+                    <td>Monto de multa amarilla (Mig. 012).</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>multa_roja_monto</strong> 🆕</td>
+                    <td class="type-code">NUMERIC</td>
+                    <td>NULL</td>
+                    <td>DEFAULT 0</td>
+                    <td>Monto de multa roja (Mig. 012).</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    </div>
+
+    <!-- 8.5 CUENTA CORRIENTE EQUIPOS -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">cancha.cuenta_corriente_equipos <span style="color:var(--primary);font-size:0.8rem;">🆕</span></h3>
+            <span class="table-badge">Financial</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador único</td>
+                </tr>
+                <tr>
+                    <td>torneo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.torneos(id)</span></td>
+                    <td>Torneo relacionado</td>
+                </tr>
+                <tr>
+                    <td>equipo_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → cancha.torneos_equipos(id)</span></td>
+                    <td>Equipo en cuestión</td>
+                </tr>
+                <tr>
+                    <td>concepto</td>
+                    <td class="type-code">VARCHAR(100)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Detalle del cargo/pago</td>
+                </tr>
+                <tr>
+                    <td>monto</td>
+                    <td class="type-code">NUMERIC(12,2)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Monto adeudado o pagado</td>
+                </tr>
+                <tr>
+                    <td>estado</td>
+                    <td class="type-code">VARCHAR(20)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT 'pendiente'</td>
+                    <td>`pendiente`, `pagado`</td>
                 </tr>
             </tbody>
         </table>
@@ -599,6 +775,69 @@ erDiagram
         </table>
     </div>
 
+    <!-- NUEVA TABLA: TIPOS EVENTO -->
+    <div class="table-card" style="border-color: rgba(16,185,129,0.3);">
+        <div class="table-header" style="background: rgba(16,185,129,0.05);">
+            <h3 class="table-name">cancha.tipos_evento <span style="color:var(--primary);font-size:0.8rem;">🆕 Migración 008</span></h3>
+            <span class="table-badge">Lookup Catalog</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo de Dato</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong></td>
+                    <td class="type-code">SMALLINT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span> GENERATED ALWAYS AS IDENTITY</td>
+                    <td>Identificador autoincremental.</td>
+                </tr>
+                <tr>
+                    <td>codigo</td>
+                    <td class="type-code">VARCHAR(30)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>UNIQUE</td>
+                    <td>Código del tipo. Ej: GOL, AMARILLA, SUSTITUCION.</td>
+                </tr>
+                <tr>
+                    <td>nombre</td>
+                    <td class="type-code">VARCHAR(100)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>—</td>
+                    <td>Nombre legible del tipo de evento.</td>
+                </tr>
+                <tr>
+                    <td>aplica_a</td>
+                    <td class="type-code">VARCHAR(20)</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>CHECK IN ('jugador', 'equipo', 'partido')</td>
+                    <td>A qué entidad aplica el evento.</td>
+                </tr>
+                <tr>
+                    <td>afecta_marcador</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT FALSE</td>
+                    <td>Si el evento modifica el score del partido.</td>
+                </tr>
+                <tr>
+                    <td>afecta_disciplina</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT FALSE</td>
+                    <td>Si el evento puede generar una sanción disciplinaria.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
     <!-- 7. EVENTOS PARTIDO -->
     <div class="table-card">
         <div class="table-header">
@@ -630,12 +869,26 @@ erDiagram
                     <td><span class="badge badge-fk">FK → cancha.torneos_partidos(id)</span></td>
                     <td>Partido en el que ocurre.</td>
                 </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>tipo_evento_id</strong> 🆕</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td>NULL</td>
+                    <td><span class="badge badge-fk">FK → cancha.tipos_evento(id)</span></td>
+                    <td>FK al catálogo normalizado de tipos de evento.</td>
+                </tr>
                 <tr>
                     <td>player_id</td>
                     <td class="type-code">UUID</td>
                     <td>NULL</td>
                     <td><span class="badge badge-fk">FK → cancha.tournament_players(id)</span></td>
-                    <td>Jugador protagonista.</td>
+                    <td>Jugador protagonista. En SUSTITUCION: el jugador que <strong>entra</strong>.</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>player_out_id</strong> 🆕</td>
+                    <td class="type-code">UUID</td>
+                    <td>NULL</td>
+                    <td><span class="badge badge-fk">FK → cancha.tournament_players(id)</span></td>
+                    <td>Solo para SUSTITUCION: jugador que <strong>sale</strong> del campo.</td>
                 </tr>
                 <tr>
                     <td>equipo_id</td>
@@ -648,15 +901,22 @@ erDiagram
                     <td>tipo</td>
                     <td class="type-code">VARCHAR(25)</td>
                     <td><span class="badge badge-nn">NOT NULL</span></td>
-                    <td>CHECK (tipo IN ('GOL','AUTOGOL','AMARILLA','ROJA'))</td>
-                    <td>Tipo de suceso cargado.</td>
+                    <td>—</td>
+                    <td>Código del tipo de suceso (GOL, AMARILLA, SUSTITUCION, etc.).</td>
                 </tr>
                 <tr>
                     <td>minuto</td>
                     <td class="type-code">SMALLINT</td>
                     <td><span class="badge badge-nn">NOT NULL</span></td>
-                    <td>—</td>
+                    <td>CHECK (0–150)</td>
                     <td>Minuto exacto del evento.</td>
+                </tr>
+                <tr>
+                    <td>periodo</td>
+                    <td class="type-code">SMALLINT</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT 1 — CHECK IN (1, 2)</td>
+                    <td>Primer o segundo tiempo.</td>
                 </tr>
             </tbody>
         </table>

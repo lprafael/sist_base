@@ -681,4 +681,4 @@ async def emitir_reembolso(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-print("✅ Router de pagos cargado")
+print("Router de pagos cargado")

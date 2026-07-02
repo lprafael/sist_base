@@ -27,9 +27,9 @@ async def revert_database():
     engine = create_async_engine(DATABASE_URL, echo=True)
     async with engine.begin() as conn:
         # 1. Eliminar schemas
-        print("Eliminando schemas sistema y playa...")
+        print("Eliminando schemas sistema y cancha...")
         await conn.execute(text('DROP SCHEMA IF EXISTS sistema CASCADE'))
-        await conn.execute(text('DROP SCHEMA IF EXISTS playa CASCADE'))
+        await conn.execute(text('DROP SCHEMA IF EXISTS cancha CASCADE'))
         
         # 2. Consultar y eliminar todas las tablas en el schema public
         print("Buscando tablas residuales en el schema public...")
