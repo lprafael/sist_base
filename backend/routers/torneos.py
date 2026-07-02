@@ -496,6 +496,17 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
             "estado_inscripcion","semilla","logo_url","color_principal","color_secundario", "creado_en", "foto_equipo_url", "token_jugadores"]
     return [_row_to_dict(keys, r) for r in rows]
 
+@router.get("/{torneo_id}/noticias", summary="Noticias del torneo")
+async def get_noticias_torneo_alias(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT id, titulo, contenido, autor, fecha_publicacion, es_ia 
+        FROM cancha.noticias_torneo 
+        WHERE torneo_id = :torneo_id
+        ORDER BY fecha_publicacion DESC
+    """)
+    res = await session.execute(q, {"torneo_id": torneo_id})
+    return [{"id": r.id, "titulo": r.titulo, "contenido": r.contenido, "autor": r.autor, "fecha_publicacion": r.fecha_publicacion, "es_ia": r.es_ia} for r in res.fetchall()]
+
 @router.get("/{torneo_id}/posiciones", summary="Tabla de posiciones")
 async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_session)):
     try:
