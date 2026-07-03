@@ -7,7 +7,11 @@ import json
 from datetime import datetime
 
 from database import get_session
-from models_generales import CheckInParticipante, PuntuacionJuez, ConfiguracionAgrupacion, TorneoGeneralCreate, TorneoGeneralUpdate, TorneoGeneralResponse, ParticipanteInscripcion
+from models_generales import (
+    TorneoGeneralCreate, TorneoGeneralUpdate, TorneoGeneralResponse,
+    ParticipanteInscripcion, CheckInParticipante, ConfiguracionAgrupacion,
+    PuntuacionJuez, MultaParticipante, PenalidadCreate
+)
 
 router = APIRouter(prefix="/api/marciales", tags=["Torneos Marciales"])
 
@@ -382,6 +386,82 @@ async def registrar_puntuacion(encuentro_id: str, payload: PuntuacionJuez, sessi
         await manager.broadcast(mensaje_ws, str(torneo_id))
 
     return {"mensaje": "Puntuación registrada."}
+
+
+# ==========================================
+# ENDPOINTS MULTAS Y PAGOS
+# ==========================================
+
+@router.get("/torneos/{torneo_id}/penalidades")
+async def listar_penalidades(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, descripcion, monto_gs 
+        FROM torneos_generales.penalidades_catalogo 
+        WHERE torneo_id = :tid
+        ORDER BY creado_en ASC
+    """)
+    res = await session.execute(query, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/torneos/{torneo_id}/penalidades")
+async def crear_penalidad(torneo_id: str, payload: PenalidadCreate, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        INSERT INTO torneos_generales.penalidades_catalogo (torneo_id, nombre, descripcion, monto_gs)
+        VALUES (:tid, :nom, :desc, :monto)
+        RETURNING id
+    """)
+    res = await session.execute(query, {
+        "tid": torneo_id,
+        "nom": payload.nombre,
+        "desc": payload.descripcion,
+        "monto": payload.monto_gs
+    })
+    await session.commit()
+    return {"id": res.scalar(), "mensaje": "Penalidad creada exitosamente."}
+
+@router.get("/participantes/{participante_id}/multas")
+async def listar_multas_participante(participante_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT pm.id as multa_id, pm.estado_pago, pc.nombre, pc.descripcion, pc.monto_gs, pm.creado_en
+        FROM torneos_generales.participantes_multas pm
+        JOIN torneos_generales.penalidades_catalogo pc ON pc.id = pm.penalidad_id
+        WHERE pm.participante_id = :pid
+        ORDER BY pm.creado_en DESC
+    """)
+    res = await session.execute(query, {"pid": participante_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/participantes/{participante_id}/multas")
+async def asignar_multa(participante_id: str, payload: MultaParticipante, session: AsyncSession = Depends(get_session)):
+    if str(payload.participante_id) != participante_id:
+        raise HTTPException(status_code=400, detail="ID de participante no coincide.")
+    
+    query = text("""
+        INSERT INTO torneos_generales.participantes_multas (participante_id, penalidad_id, estado_pago)
+        VALUES (:pid, :penid, 'Pendiente')
+        RETURNING id
+    """)
+    res = await session.execute(query, {
+        "pid": participante_id,
+        "penid": str(payload.penalidad_id)
+    })
+    await session.commit()
+    return {"id": res.scalar(), "mensaje": "Multa asignada exitosamente."}
+
+@router.put("/multas/{multa_id}/pagar")
+async def pagar_multa(multa_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        UPDATE torneos_generales.participantes_multas
+        SET estado_pago = 'Pagado'
+        WHERE id = :mid
+        RETURNING id
+    """)
+    res = await session.execute(query, {"mid": multa_id})
+    if not res.scalar():
+        raise HTTPException(status_code=404, detail="Multa no encontrada.")
+    
+    await session.commit()
+    return {"mensaje": "Multa pagada exitosamente."}
 
 
 @router.websocket("/torneos/{torneo_id}/ws")

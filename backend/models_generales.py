@@ -52,6 +52,11 @@ class MultaParticipante(BaseModel):
     penalidad_id: UUID
     participante_id: UUID
 
+class PenalidadCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    monto_gs: float
+
 class ConfiguracionAgrupacion(BaseModel):
     edades: List[List[int]]  # Ej: [[10,12], [13,15], [16,18], [19,99]]
     pesos: List[List[float]] # Ej: [[0, 60], [60.1, 70], [70.1, 80], [80.1, 200]]
