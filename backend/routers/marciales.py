@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 from database import get_session
-from models_generales import CheckInParticipante, PuntuacionJuez, ConfiguracionAgrupacion, TorneoGeneralCreate, TorneoGeneralUpdate, TorneoGeneralResponse
+from models_generales import CheckInParticipante, PuntuacionJuez, ConfiguracionAgrupacion, TorneoGeneralCreate, TorneoGeneralUpdate, TorneoGeneralResponse, ParticipanteInscripcion
 
 router = APIRouter(prefix="/api/marciales", tags=["Torneos Marciales"])
 
@@ -117,6 +117,32 @@ async def eliminar_torneo(torneo_id: str, session: AsyncSession = Depends(get_se
 # ==========================================
 # ENDPOINTS OPERATIVOS
 # ==========================================
+
+@router.post("/torneos/{torneo_id}/inscripcion")
+async def inscripcion_publica(torneo_id: str, payload: ParticipanteInscripcion, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        INSERT INTO torneos_generales.participantes 
+        (torneo_id, nombre, apellido, documento, fecha_nacimiento, genero, email, telefono, modalidad, nivel_experiencia, peso_declarado, estatura_declarada, estado)
+        VALUES (:tid, :nom, :ape, :doc, :fnac, :gen, :email, :tel, :mod, :niv, :peso, :est, 'Confirmado')
+        RETURNING id
+    """)
+    res = await session.execute(query, {
+        "tid": torneo_id,
+        "nom": payload.nombre,
+        "ape": payload.apellido,
+        "doc": payload.documento,
+        "fnac": payload.fecha_nacimiento,
+        "gen": payload.genero,
+        "email": payload.email,
+        "tel": payload.telefono,
+        "mod": payload.modalidad,
+        "niv": payload.nivel_experiencia,
+        "peso": payload.peso_declarado,
+        "est": payload.estatura_declarada
+    })
+    new_id = res.scalar()
+    await session.commit()
+    return {"id": new_id, "mensaje": "Inscripción confirmada con éxito. Listo para el check-in."}
 
 @router.get("/torneos/{torneo_id}/participantes/buscar")
 async def buscar_participantes(torneo_id: str, q: str, session: AsyncSession = Depends(get_session)):

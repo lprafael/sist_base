@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Activity, Users, ShieldAlert, Award } from "lucide-react";
 
 export default function TorneosGeneralesPage() {
   const [search, setSearch] = useState("");
   
-  // Mocks por ahora, luego se conectará a /api/marciales/torneos
-  const torneosMock = [
-    { id: 1, nombre: "Campeonato Nacional de Taekwondo 2026", modalidad: "Taekwondo", fecha: "15 Oct 2026", lugar: "Arena SND", estado: "Inscripciones Abiertas" },
-    { id: 2, nombre: "Open Karate Do Asunción", modalidad: "Karate", fecha: "02 Nov 2026", lugar: "Polideportivo UAA", estado: "Borrador" },
-    { id: 3, nombre: "Torneo de Jiu-Jitsu Brasileño", modalidad: "BJJ", fecha: "20 Nov 2026", lugar: "Complejo Deportivo", estado: "En Curso" },
-  ];
+  const [torneos, setTorneos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = torneosMock.filter(t => 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/marciales/torneos`)
+      .then(res => res.json())
+      .then(data => {
+        setTorneos(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  const filtered = torneos.filter(t => 
     t.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    t.modalidad.toLowerCase().includes(search.toLowerCase())
+    t.lugar.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -43,7 +54,7 @@ export default function TorneosGeneralesPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input 
               type="text"
-              placeholder="Buscar torneo o modalidad..."
+              placeholder="Buscar torneo o lugar..."
               className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-6 py-4 text-slate-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 shadow-sm font-semibold transition-all"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -51,13 +62,16 @@ export default function TorneosGeneralesPage() {
           </div>
         </div>
 
+        {loading ? (
+          <div className="text-center py-20 text-slate-500 font-bold">Cargando torneos...</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filtered.map(t => (
-            <div key={t.id} className="bg-white border border-slate-200 hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/5 transition-all duration-300 rounded-[2rem] overflow-hidden group flex flex-col h-full cursor-pointer">
+            <div key={t.id} onClick={() => window.location.href = `/torneos-generales/${t.id}/inscripcion`} className="bg-white border border-slate-200 hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/5 transition-all duration-300 rounded-[2rem] overflow-hidden group flex flex-col h-full cursor-pointer">
               <div className="p-8 flex-1">
                 <div className="flex justify-between items-start mb-6">
                   <span className="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-                    {t.modalidad}
+                    {Array.isArray(t.modalidades_permitidas) ? t.modalidades_permitidas[0] : t.modalidades_permitidas}
                   </span>
                   <span className={`px-3 py-1 text-xs font-bold rounded-full ${
                     t.estado === 'Inscripciones Abiertas' ? 'bg-green-100 text-green-700' :
@@ -72,7 +86,7 @@ export default function TorneosGeneralesPage() {
                 <div className="space-y-3">
                   <div className="flex items-center text-slate-600 font-medium">
                     <Activity className="w-5 h-5 mr-3 text-slate-400" />
-                    {t.fecha}
+                    {t.fecha_inicio}
                   </div>
                   <div className="flex items-center text-slate-600 font-medium">
                     <ShieldAlert className="w-5 h-5 mr-3 text-slate-400" />
@@ -83,6 +97,7 @@ export default function TorneosGeneralesPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );
