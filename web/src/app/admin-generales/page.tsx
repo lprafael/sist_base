@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
+import BracketViewer from '@/components/BracketViewer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -31,6 +32,10 @@ export default function AdminGeneralesPage() {
 
   // Agrupacion state
   const [agrupacionStatus, setAgrupacionStatus] = useState<{loading: boolean, success?: boolean, error?: string, message?: string}>({loading: false});
+  const [grupos, setGrupos] = useState<any[]>([]);
+  const [selectedGrupoId, setSelectedGrupoId] = useState<string | null>(null);
+  const [encuentros, setEncuentros] = useState<any[]>([]);
+  const [bracketStatus, setBracketStatus] = useState<{loading: boolean, error?: string}>({loading: false});
 
   // Veedores state
   const [puntajeRojo, setPuntajeRojo] = useState(0);
@@ -64,6 +69,42 @@ export default function AdminGeneralesPage() {
       console.error(err);
     }
     setLoading(false);
+  };
+
+  useEffect(() => {
+    if (selectedTorneoId && activeTab === 'agrupacion') {
+      fetchGrupos();
+    }
+  }, [selectedTorneoId, activeTab]);
+
+  useEffect(() => {
+    if (selectedGrupoId) {
+      fetchEncuentros();
+    } else {
+      setEncuentros([]);
+    }
+  }, [selectedGrupoId]);
+
+  const fetchGrupos = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/marciales/torneos/${selectedTorneoId}/grupos`);
+      const data = await res.json();
+      setGrupos(data);
+      if (data.length > 0) setSelectedGrupoId(data[0].id);
+      else setSelectedGrupoId(null);
+    } catch (err) {
+      console.error("Error fetching grupos:", err);
+    }
+  };
+
+  const fetchEncuentros = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/marciales/grupos/${selectedGrupoId}/encuentros`);
+      const data = await res.json();
+      setEncuentros(data);
+    } catch (err) {
+      console.error("Error fetching encuentros:", err);
+    }
   };
 
   const handleLogout = () => {
@@ -159,8 +200,25 @@ export default function AdminGeneralesPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error agrupando");
       setAgrupacionStatus({ loading: false, success: true, message: data.mensaje || "Agrupación completada" });
+      fetchGrupos();
     } catch (err: any) {
       setAgrupacionStatus({ loading: false, error: err.message });
+    }
+  };
+
+  const handleGenerarLlaves = async () => {
+    if (!selectedGrupoId) return;
+    setBracketStatus({ loading: true });
+    try {
+      const res = await fetch(`${API_URL}/api/marciales/grupos/${selectedGrupoId}/generar-llaves`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Error generando llaves");
+      setBracketStatus({ loading: false });
+      fetchEncuentros();
+    } catch (err: any) {
+      setBracketStatus({ loading: false, error: err.message });
     }
   };
 
@@ -458,9 +516,50 @@ export default function AdminGeneralesPage() {
                     disabled={agrupacionStatus.loading || !selectedTorneoId}
                     className="bg-red-600 hover:bg-red-500 text-white font-black text-lg py-4 px-12 rounded-xl shadow-lg shadow-red-900/20 transition-colors disabled:opacity-50"
                   >
-                    {agrupacionStatus.loading ? 'Ejecutando algoritmo...' : 'Generar Llaves Ahora'}
+                    {agrupacionStatus.loading ? 'Ejecutando algoritmo...' : 'Ejecutar Agrupación Dinámica'}
                   </button>
                 </div>
+
+                {/* Brackets / Grupos List */}
+                {grupos.length > 0 && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-8">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-bold text-white">Llaves del Torneo</h3>
+                      <select 
+                        value={selectedGrupoId || ''} 
+                        onChange={(e) => setSelectedGrupoId(e.target.value)}
+                        className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-red-500 max-w-sm"
+                      >
+                        {grupos.map(g => (
+                          <option key={g.id} value={g.id}>{g.nombre_categoria}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {bracketStatus.error && (
+                      <div className="p-4 bg-red-950/50 border border-red-900 text-red-400 rounded-xl text-sm font-bold mb-6 text-left">
+                        {bracketStatus.error}
+                      </div>
+                    )}
+
+                    {encuentros.length > 0 ? (
+                      <div className="h-[500px]">
+                        <BracketViewer matches={encuentros} />
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 border border-slate-800 border-dashed rounded-2xl">
+                        <p className="text-slate-400 mb-6">Este grupo aún no tiene las llaves generadas.</p>
+                        <button 
+                          onClick={handleGenerarLlaves}
+                          disabled={bracketStatus.loading}
+                          className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-xl transition-colors disabled:opacity-50"
+                        >
+                          {bracketStatus.loading ? 'Generando...' : 'Sortear y Generar Llaves'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

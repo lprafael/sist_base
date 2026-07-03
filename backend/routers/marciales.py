@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+import random
 from typing import List, Dict
 import json
 from datetime import datetime
@@ -243,6 +244,104 @@ async def agrupacion_dinamica(torneo_id: str, config: ConfiguracionAgrupacion, s
     
     await session.commit()
     return {"mensaje": f"Agrupación completada exitosamente. Se crearon {grupos_creados} grupos."}
+
+
+@router.get("/torneos/{torneo_id}/grupos")
+async def listar_grupos(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre_categoria, formato_competicion 
+        FROM torneos_generales.grupos 
+        WHERE torneo_id = :tid
+    """)
+    res = await session.execute(query, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/grupos/{grupo_id}/generar-llaves")
+async def generar_llaves(grupo_id: str, session: AsyncSession = Depends(get_session)):
+    # Obtener participantes del grupo
+    q_part = text("""
+        SELECT p.id, p.nombre, p.apellido 
+        FROM torneos_generales.participantes p
+        JOIN torneos_generales.grupo_participantes gp ON gp.participante_id = p.id
+        WHERE gp.grupo_id = :gid
+    """)
+    res = await session.execute(q_part, {"gid": grupo_id})
+    participantes = res.fetchall()
+
+    if len(participantes) < 2:
+        raise HTTPException(status_code=400, detail="No hay suficientes participantes para generar llaves")
+
+    # Aleatorizar
+    participantes = list(participantes)
+    random.shuffle(participantes)
+
+    # Determinar si hay bypasses (bye) si no es potencia de 2, pero para simplificar, 
+    # si son 3, 1 pasa directo.
+    import math
+    num_jugadores = len(participantes)
+    num_rondas = math.ceil(math.log2(num_jugadores))
+    potencia = 2 ** num_rondas
+    byes = potencia - num_jugadores
+    
+    # En esta versión simplificada creamos solo la primera ronda de Cuartos/Semis
+    # Idealmente creariamos todos los brackets vacíos (null) y llenaríamos los de primera ronda.
+    # Crearemos la ronda 1
+    
+    encuentros_creados = 0
+    idx = 0
+    # Jugadores que juegan ronda 1 (los que no tienen bye)
+    jugadores_ronda_1 = num_jugadores - byes
+    
+    q_insert = text("""
+        INSERT INTO torneos_generales.encuentros (grupo_id, participante1_id, participante2_id, ronda)
+        VALUES (:gid, :p1, :p2, :ronda)
+        RETURNING id
+    """)
+
+    while idx < jugadores_ronda_1:
+        p1 = participantes[idx].id
+        p2 = participantes[idx+1].id if idx+1 < jugadores_ronda_1 else None
+        
+        await session.execute(q_insert, {
+            "gid": grupo_id,
+            "p1": p1,
+            "p2": p2,
+            "ronda": "Ronda 1"
+        })
+        encuentros_creados += 1
+        idx += 2
+
+    # Los byes pasan a la Ronda 2 directamente, pero para la vista gráfica los mandamos con un NULL en p2 en ronda 1
+    # para que se vea que avanzan directo.
+    while idx < num_jugadores:
+        p1 = participantes[idx].id
+        await session.execute(q_insert, {
+            "gid": grupo_id,
+            "p1": p1,
+            "p2": None, # Pasa directo
+            "ronda": "Ronda 1"
+        })
+        encuentros_creados += 1
+        idx += 1
+
+    await session.commit()
+    return {"mensaje": f"Se generaron {encuentros_creados} encuentros para la primera ronda."}
+
+@router.get("/grupos/{grupo_id}/encuentros")
+async def listar_encuentros(grupo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT e.id, e.ronda, e.estado, e.ganador_id,
+               p1.id as p1_id, p1.nombre as p1_nombre, p1.apellido as p1_apellido,
+               p2.id as p2_id, p2.nombre as p2_nombre, p2.apellido as p2_apellido
+        FROM torneos_generales.encuentros e
+        LEFT JOIN torneos_generales.participantes p1 ON e.participante1_id = p1.id
+        LEFT JOIN torneos_generales.participantes p2 ON e.participante2_id = p2.id
+        WHERE e.grupo_id = :gid
+        ORDER BY e.ronda, e.id
+    """)
+    res = await session.execute(query, {"gid": grupo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
 
 
 @router.post("/encuentros/{encuentro_id}/puntuacion")
