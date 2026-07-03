@@ -10,6 +10,26 @@ class TorneoGeneralCreate(BaseModel):
     fecha_fin: date
     modalidades_permitidas: List[str]
 
+class TorneoGeneralUpdate(BaseModel):
+    nombre: Optional[str] = None
+    lugar: Optional[str] = None
+    fecha_inicio: Optional[date] = None
+    fecha_fin: Optional[date] = None
+    modalidades_permitidas: Optional[List[str]] = None
+    estado: Optional[str] = None
+
+class TorneoGeneralResponse(BaseModel):
+    id: UUID
+    nombre: str
+    lugar: str
+    fecha_inicio: date
+    fecha_fin: date
+    modalidades_permitidas: List[str]
+    estado: str
+    
+    class Config:
+        from_attributes = True
+
 class ParticipanteInscripcion(BaseModel):
     nombre: str
     apellido: str

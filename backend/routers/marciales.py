@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 from database import get_session
-from models_generales import CheckInParticipante, PuntuacionJuez, ConfiguracionAgrupacion
+from models_generales import CheckInParticipante, PuntuacionJuez, ConfiguracionAgrupacion, TorneoGeneralCreate, TorneoGeneralUpdate, TorneoGeneralResponse
 
 router = APIRouter(prefix="/api/marciales", tags=["Torneos Marciales"])
 
@@ -34,7 +34,88 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # ==========================================
-# ENDPOINTS
+# ENDPOINTS CRUD TORNEOS
+# ==========================================
+
+@router.get("/torneos")
+async def listar_torneos(session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, lugar, fecha_inicio, fecha_fin, modalidades_permitidas, estado 
+        FROM torneos_generales.torneos 
+        ORDER BY fecha_inicio DESC
+    """)
+    res = await session.execute(query)
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/torneos")
+async def crear_torneo(payload: TorneoGeneralCreate, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        INSERT INTO torneos_generales.torneos 
+        (nombre, lugar, fecha_inicio, fecha_fin, modalidades_permitidas, estado)
+        VALUES (:nombre, :lugar, :ini, :fin, :mods, 'Borrador')
+        RETURNING id
+    """)
+    res = await session.execute(query, {
+        "nombre": payload.nombre,
+        "lugar": payload.lugar,
+        "ini": payload.fecha_inicio,
+        "fin": payload.fecha_fin,
+        "mods": payload.modalidades_permitidas
+    })
+    new_id = res.scalar()
+    await session.commit()
+    return {"id": new_id, "mensaje": "Torneo creado con éxito"}
+
+@router.put("/torneos/{torneo_id}")
+async def actualizar_torneo(torneo_id: str, payload: TorneoGeneralUpdate, session: AsyncSession = Depends(get_session)):
+    updates = []
+    params = {"tid": torneo_id}
+    
+    if payload.nombre is not None:
+        updates.append("nombre = :nombre")
+        params["nombre"] = payload.nombre
+    if payload.lugar is not None:
+        updates.append("lugar = :lugar")
+        params["lugar"] = payload.lugar
+    if payload.fecha_inicio is not None:
+        updates.append("fecha_inicio = :ini")
+        params["ini"] = payload.fecha_inicio
+    if payload.fecha_fin is not None:
+        updates.append("fecha_fin = :fin")
+        params["fin"] = payload.fecha_fin
+    if payload.modalidades_permitidas is not None:
+        updates.append("modalidades_permitidas = :mods")
+        params["mods"] = payload.modalidades_permitidas
+    if payload.estado is not None:
+        updates.append("estado = :estado")
+        params["estado"] = payload.estado
+        
+    if not updates:
+        raise HTTPException(status_code=400, detail="No hay datos para actualizar")
+        
+    query = text(f"""
+        UPDATE torneos_generales.torneos 
+        SET {', '.join(updates)}
+        WHERE id = :tid
+    """)
+    res = await session.execute(query, params)
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+        
+    await session.commit()
+    return {"mensaje": "Torneo actualizado"}
+
+@router.delete("/torneos/{torneo_id}")
+async def eliminar_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("DELETE FROM torneos_generales.torneos WHERE id = :tid")
+    res = await session.execute(query, {"tid": torneo_id})
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+    await session.commit()
+    return {"mensaje": "Torneo eliminado"}
+
+# ==========================================
+# ENDPOINTS OPERATIVOS
 # ==========================================
 
 @router.get("/torneos/{torneo_id}/participantes/buscar")
@@ -170,6 +251,7 @@ async def registrar_puntuacion(encuentro_id: str, payload: PuntuacionJuez, sessi
             "participante_id": str(payload.participante_id),
             "puntos_agregados": payload.valor_puntos,
             "tipo": payload.tipo_registro,
+            "nota": payload.nota,
             "timestamp": datetime.now().isoformat()
         })
         await manager.broadcast(mensaje_ws, str(torneo_id))
