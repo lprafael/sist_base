@@ -86,7 +86,7 @@ export default function LoginPage() {
         authorized: true
       };
       localStorage.setItem('user_session', JSON.stringify(session));
-      window.location.href = '/admin';
+      window.location.href = '/admin-generales';
     } else {
       setAdminError('Usuario o contraseña incorrectos. (Pruebe admin / Admin123! o org_marcial / Marcial2026!)');
       addAuditLog('acceso', {
