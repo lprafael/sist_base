@@ -1,0 +1,44 @@
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
+from datetime import date
+from uuid import UUID
+
+class TorneoGeneralCreate(BaseModel):
+    nombre: str
+    lugar: str
+    fecha_inicio: date
+    fecha_fin: date
+    modalidades_permitidas: List[str]
+
+class ParticipanteInscripcion(BaseModel):
+    nombre: str
+    apellido: str
+    documento: str
+    fecha_nacimiento: date
+    genero: str
+    email: EmailStr
+    telefono: Optional[str] = None
+    modalidad: str
+    nivel_experiencia: str
+    peso_declarado: float
+    estatura_declarada: float
+
+class CheckInParticipante(BaseModel):
+    peso_verificado: float
+    estatura_verificada: float
+    pago_confirmado: bool
+
+class MultaParticipante(BaseModel):
+    penalidad_id: UUID
+    participante_id: UUID
+
+class ConfiguracionAgrupacion(BaseModel):
+    edades: List[List[int]]  # Ej: [[10,12], [13,15], [16,18], [19,99]]
+    pesos: List[List[float]] # Ej: [[0, 60], [60.1, 70], [70.1, 80], [80.1, 200]]
+
+class PuntuacionJuez(BaseModel):
+    participante_id: UUID
+    juez_id: str
+    valor_puntos: int
+    tipo_registro: str = "Punto" # 'Punto' o 'Falta'
+    nota: Optional[str] = None

@@ -33,6 +33,7 @@ MIGRATIONS = [
     {"name": "012_cuenta_corriente_equipos.py", "module": "m012"},
     {"name": "013_noticias_torneo.py", "module": "m013"},
     {"name": "014_jugador_activos.py", "module": "m014"},
+    {"name": "015_torneos_generales.py", "module": "m015"},
 ]
 
 def load_migration_module(file_name: str, module_name: str):

@@ -77,8 +77,18 @@ export default function LoginPage() {
       });
 
       window.location.href = '/admin';
+    } else if (adminUser.toLowerCase() === 'org_marcial' && adminPass === 'Marcial2026!') {
+      // Mock session for org_marcial
+      const session = {
+        role: 'organizador',
+        name: 'Organizador Artes Marciales',
+        email: 'artesmarciales@micancha.com',
+        authorized: true
+      };
+      localStorage.setItem('user_session', JSON.stringify(session));
+      window.location.href = '/admin';
     } else {
-      setAdminError('Usuario o contraseña incorrectos. (Pruebe admin / Admin123!)');
+      setAdminError('Usuario o contraseña incorrectos. (Pruebe admin / Admin123! o org_marcial / Marcial2026!)');
       addAuditLog('acceso', {
         usuario: adminUser || 'Desconocido',
         rol: 'Administrador',

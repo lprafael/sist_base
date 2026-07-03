@@ -166,6 +166,9 @@ app.include_router(noticias_router)
 from routers.reportes import router as reportes_router
 app.include_router(reportes_router)
 
+from routers.marciales import router as marciales_router
+app.include_router(marciales_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================
