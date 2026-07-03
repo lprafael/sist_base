@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Trophy, AlertTriangle } from 'lucide-react';
 
-export default function TVPantallaPage() {
+function TVPantallaContent() {
   const searchParams = useSearchParams();
   const torneoId = searchParams.get('torneo');
   
@@ -133,5 +133,13 @@ export default function TVPantallaPage() {
         <p className="text-2xl font-bold text-slate-300 uppercase tracking-widest">Semifinal - Categoría Adultos - Hasta 75kg</p>
       </div>
     </div>
+  );
+}
+
+export default function TVPantallaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white"><h1 className="text-4xl font-black">Cargando Tablero...</h1></div>}>
+      <TVPantallaContent />
+    </Suspense>
   );
 }
