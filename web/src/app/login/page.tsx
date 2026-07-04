@@ -55,47 +55,62 @@ export default function LoginPage() {
     { email: 'santi_gimenez@micancha.com', name: 'Santiago Giménez', role: 'jugador', authorized: true }
   ];
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminUser.toLowerCase() === 'admin' && adminPass === 'Admin123!') {
-      // Create session
-      const session = {
-        role: 'super',
-        name: 'Administrador Global',
-        email: 'admin@micancha.com.py',
-        authorized: true
-      };
-      localStorage.setItem('user_session', JSON.stringify(session));
+    setAdminError('');
 
-      // Access Log
-      addAuditLog('acceso', {
-        usuario: 'admin',
-        rol: 'Administrador',
-        accion: 'Login Exitoso',
-        ip: '192.168.10.15',
-        dispositivo: navigator.userAgent.substring(0, 50) + '...'
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+      const res = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: adminUser,
+          password: adminPass
+        })
       });
 
-      window.location.href = '/admin';
-    } else if (adminUser.toLowerCase() === 'org_marcial' && adminPass === 'Marcial2026!') {
-      // Mock session for org_marcial
-      const session = {
-        role: 'organizador',
-        name: 'Organizador Artes Marciales',
-        email: 'artesmarciales@micancha.com',
-        authorized: true
-      };
-      localStorage.setItem('user_session', JSON.stringify(session));
-      window.location.href = '/admin-generales';
-    } else {
-      setAdminError('Usuario o contraseña incorrectos. (Pruebe admin / Admin123! o org_marcial / Marcial2026!)');
-      addAuditLog('acceso', {
-        usuario: adminUser || 'Desconocido',
-        rol: 'Administrador',
-        accion: 'Intento Fallido (Password erróneo)',
-        ip: '192.168.10.15',
-        dispositivo: navigator.userAgent.substring(0, 50) + '...'
-      });
+      if (res.ok) {
+        const data = await res.json();
+        const session = {
+          access_token: data.access_token,
+          role: data.user.rol,
+          name: data.user.nombre_completo,
+          email: data.user.email,
+          usuario_id: data.user.id,
+          authorized: true
+        };
+        localStorage.setItem('user_session', JSON.stringify(session));
+
+        addAuditLog('acceso', {
+          usuario: adminUser,
+          rol: session.role,
+          accion: 'Login Exitoso',
+          ip: 'Web',
+          dispositivo: navigator.userAgent.substring(0, 50) + '...'
+        });
+
+        if (session.role === 'admin' || session.role === 'super') {
+          window.location.href = '/admin';
+        } else if (session.role === 'organizador') {
+          window.location.href = '/admin-generales';
+        } else {
+          window.location.href = '/';
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setAdminError(err.detail || 'Usuario o contraseña incorrectos.');
+        addAuditLog('acceso', {
+          usuario: adminUser,
+          rol: 'Desconocido',
+          accion: 'Intento Fallido',
+          ip: 'Web',
+          dispositivo: navigator.userAgent.substring(0, 50) + '...'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setAdminError('Error de red o servidor no disponible.');
     }
   };
 
