@@ -98,6 +98,31 @@ export default function AdminConsole() {
   // Tabs states
   const [activeSuperTab, setActiveSuperTab] = useState<'tenants' | 'sports' | 'requests' | 'audit'>('tenants');
 
+  // Pagination & Filter for Complejos
+  const [complejosFilter, setComplejosFilter] = useState('');
+  const [complejosPage, setComplejosPage] = useState(1);
+  const COMPLEJOS_PER_PAGE = 10;
+
+  const filteredComplejos = useMemo(() => {
+    if (!complejosFilter) return complejos;
+    return complejos.filter(c => 
+      c.nombre.toLowerCase().includes(complejosFilter.toLowerCase()) ||
+      c.direccion?.toLowerCase().includes(complejosFilter.toLowerCase()) ||
+      c.ciudad?.toLowerCase().includes(complejosFilter.toLowerCase()) ||
+      c.usuario_asignado?.toLowerCase().includes(complejosFilter.toLowerCase())
+    );
+  }, [complejos, complejosFilter]);
+
+  const totalComplejosPages = Math.max(1, Math.ceil(filteredComplejos.length / COMPLEJOS_PER_PAGE));
+  const currentComplejos = useMemo(() => {
+    const start = (complejosPage - 1) * COMPLEJOS_PER_PAGE;
+    return filteredComplejos.slice(start, start + COMPLEJOS_PER_PAGE);
+  }, [filteredComplejos, complejosPage]);
+
+  useEffect(() => {
+    setComplejosPage(1);
+  }, [complejosFilter]);
+
   // Request approvals state
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
@@ -617,15 +642,24 @@ export default function AdminConsole() {
             {/* TAB: TENANTS */}
             {activeSuperTab === 'tenants' && (
               <div style={{ background: '#fff', padding: 32, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
                   <h3 style={{ fontSize: 20, fontWeight: 900 }}>Lista de Complejos Habilitados</h3>
-                  <button
-                    onClick={() => setEditComplejo({ isNew: true, nombre: '', email: '', telefono: '', direccion: '', ciudad: 'Asunción', usuario_asignado: '', lat: -25.2867, lng: -57.647, horario_apertura: '07:00', horario_cierre: '23:00' })}
-                    style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                  >
-                    <Plus size={16} />
-                    Agregar Complejo
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input
+                      type="text"
+                      placeholder="Buscar complejo..."
+                      value={complejosFilter}
+                      onChange={e => setComplejosFilter(e.target.value)}
+                      style={{ padding: '8px 16px', borderRadius: 12, border: '1px solid #cbd5e1', outline: 'none', minWidth: 250 }}
+                    />
+                    <button
+                      onClick={() => setEditComplejo({ isNew: true, nombre: '', email: '', telefono: '', direccion: '', ciudad: 'Asunción', usuario_asignado: '', lat: -25.2867, lng: -57.647, horario_apertura: '07:00', horario_cierre: '23:00' })}
+                      style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <Plus size={16} />
+                      Agregar Complejo
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -640,7 +674,7 @@ export default function AdminConsole() {
                       </tr>
                     </thead>
                     <tbody>
-                      {complejos.map(c => (
+                      {currentComplejos.map(c => (
                         <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
                           <td style={{ padding: 16 }}>
                             <div style={{ fontWeight: 800, color: '#0f172a' }}>{c.nombre}</div>
@@ -700,6 +734,32 @@ export default function AdminConsole() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Controles de Paginación */}
+                {totalComplejosPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                    <span style={{ fontSize: 13, color: '#64748b' }}>
+                      Mostrando {currentComplejos.length} de {filteredComplejos.length} complejos
+                    </span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => setComplejosPage(p => Math.max(1, p - 1))}
+                        disabled={complejosPage === 1}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: complejosPage === 1 ? '#f1f5f9' : '#fff', cursor: complejosPage === 1 ? 'not-allowed' : 'pointer', color: complejosPage === 1 ? '#94a3b8' : '#0f172a' }}
+                      >
+                        Anterior
+                      </button>
+                      <span style={{ padding: '6px 12px', fontSize: 14, fontWeight: 600 }}>Página {complejosPage} de {totalComplejosPages}</span>
+                      <button
+                        onClick={() => setComplejosPage(p => Math.min(totalComplejosPages, p + 1))}
+                        disabled={complejosPage === totalComplejosPages}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: complejosPage === totalComplejosPages ? '#f1f5f9' : '#fff', cursor: complejosPage === totalComplejosPages ? 'not-allowed' : 'pointer', color: complejosPage === totalComplejosPages ? '#94a3b8' : '#0f172a' }}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ marginTop: 40, borderTop: '1px solid #f1f5f9', paddingTop: 32 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
