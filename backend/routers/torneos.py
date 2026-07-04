@@ -446,6 +446,77 @@ async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSessio
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ── ORGANIZADORES INDEPENDIENTES (Sin complejo físico) ──────
+
+@router.get("/organizadores", summary="Listar organizadores independientes")
+async def get_organizadores(session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text("""
+            SELECT o.id, o.usuario_id, o.nombre, o.habilitado, o.plan, o.max_torneos, o.creado_en,
+                   u.nombre_completo AS usuario_nombre, u.email AS usuario_email
+            FROM cancha.organizadores o
+            JOIN sistema.usuarios u ON u.id = o.usuario_id
+            ORDER BY o.nombre
+        """))
+        rows = result.fetchall()
+        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en", "usuario_nombre", "usuario_email"]
+        return [_row_to_dict(cols, r) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/organizadores", summary="Crear o actualizar organizador independiente")
+async def create_organizador(data: OrganizadorCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        # Verificar si ya existe un organizador para este usuario
+        chk = await session.execute(
+            text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid"),
+            {"uid": data.usuario_id}
+        )
+        row = chk.fetchone()
+        if row:
+            # Actualizar
+            await session.execute(text("""
+                UPDATE cancha.organizadores
+                SET nombre = :nombre, plan = :plan, max_torneos = :max_torneos
+                WHERE usuario_id = :uid
+            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+            await session.commit()
+            return {"status": "ok", "message": "Organizador actualizado exitosamente"}
+        else:
+            # Insertar
+            await session.execute(text("""
+                INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos)
+                VALUES (:uid, :nombre, :plan, :max_torneos)
+            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+            await session.commit()
+            return {"status": "ok", "message": "Organizador independiente creado exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/organizadores/usuario/{usuario_id}", summary="Obtener organizador por usuario")
+async def get_organizador_por_usuario(usuario_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text("""
+            SELECT id, usuario_id, nombre, habilitado, plan, max_torneos, creado_en
+            FROM cancha.organizadores
+            WHERE usuario_id = :uid AND habilitado = TRUE
+        """), {"uid": usuario_id})
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Organizador no habilitado para este usuario")
+        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en"]
+        return _row_to_dict(cols, row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
 @router.get("/{torneo_id}", summary="Detalle de torneo")
 async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
     result = await session.execute(text("""
@@ -2973,12 +3044,12 @@ async def get_roles_complejo(
     try:
         result = await session.execute(text("""
             SELECT rc.id, rc.usuario_id, rc.rol, rc.activo, rc.creado_en,
-                   u.nombre || ' ' || u.apellido AS usuario_nombre,
+                   u.nombre_completo AS usuario_nombre,
                    u.email AS usuario_email
             FROM cancha.roles_complejo rc
             JOIN sistema.usuarios u ON u.id = rc.usuario_id
             WHERE rc.complejo_id = :cid
-            ORDER BY rc.rol, u.apellido
+            ORDER BY rc.rol, u.nombre_completo
         """), {"cid": complejo_id})
         rows = result.fetchall()
         cols = ["id","usuario_id","rol","activo","creado_en","usuario_nombre","usuario_email"]
@@ -3024,76 +3095,6 @@ async def delete_rol_complejo(
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
-
-
-# ── ORGANIZADORES INDEPENDIENTES (Sin complejo físico) ──────
-
-@router.get("/organizadores", summary="Listar organizadores independientes")
-async def get_organizadores(session: AsyncSession = Depends(get_session)):
-    try:
-        result = await session.execute(text("""
-            SELECT o.id, o.usuario_id, o.nombre, o.habilitado, o.plan, o.max_torneos, o.creado_en,
-                   u.nombre || ' ' || u.apellido AS usuario_nombre, u.email AS usuario_email
-            FROM cancha.organizadores o
-            JOIN sistema.usuarios u ON u.id = o.usuario_id
-            ORDER BY o.nombre
-        """))
-        rows = result.fetchall()
-        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en", "usuario_nombre", "usuario_email"]
-        return [_row_to_dict(cols, r) for r in rows]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/organizadores", summary="Crear o actualizar organizador independiente")
-async def create_organizador(data: OrganizadorCreate, session: AsyncSession = Depends(get_session)):
-    try:
-        # Verificar si ya existe un organizador para este usuario
-        chk = await session.execute(
-            text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid"),
-            {"uid": data.usuario_id}
-        )
-        row = chk.fetchone()
-        if row:
-            # Actualizar
-            await session.execute(text("""
-                UPDATE cancha.organizadores
-                SET nombre = :nombre, plan = :plan, max_torneos = :max_torneos
-                WHERE usuario_id = :uid
-            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
-            await session.commit()
-            return {"status": "ok", "message": "Organizador actualizado exitosamente"}
-        else:
-            # Insertar
-            await session.execute(text("""
-                INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos)
-                VALUES (:uid, :nombre, :plan, :max_torneos)
-            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
-            await session.commit()
-            return {"status": "ok", "message": "Organizador independiente creado exitosamente"}
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/organizadores/usuario/{usuario_id}", summary="Obtener organizador por usuario")
-async def get_organizador_por_usuario(usuario_id: int, session: AsyncSession = Depends(get_session)):
-    try:
-        result = await session.execute(text("""
-            SELECT id, usuario_id, nombre, habilitado, plan, max_torneos, creado_en
-            FROM cancha.organizadores
-            WHERE usuario_id = :uid AND habilitado = TRUE
-        """), {"uid": usuario_id})
-        row = result.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Organizador no habilitado para este usuario")
-        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en"]
-        return _row_to_dict(cols, row)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 # ============================================================
 # MÓDULO A — CLONACIÓN DE TORNEOS
