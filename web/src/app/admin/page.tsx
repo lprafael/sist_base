@@ -211,10 +211,12 @@ export default function AdminConsole() {
       } catch (_e) { }
 
       try {
-        const resUsr = await fetch(`${API_URL}/auth/users`, fetchOpts);
-        if (resUsr.ok) {
-          const dataUsr = await resUsr.json();
-          setUsuarios(dataUsr);
+        if (token) {
+          const resUsr = await fetch(`${API_URL}/auth/users`, fetchOpts);
+          if (resUsr.ok) {
+            const dataUsr = await resUsr.json();
+            setUsuarios(dataUsr);
+          }
         }
       } catch (_e) { }
     };
