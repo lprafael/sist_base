@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Shield, User, Lock, Settings, FileText, CheckCircle,
   Trash2, LogOut, RefreshCw, Layers, Plus, Power, MapPin,
-  Mail, Phone, Clock, AlertTriangle
+  Mail, Phone, Clock, AlertTriangle, Search
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -645,13 +645,20 @@ export default function AdminConsole() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
                   <h3 style={{ fontSize: 20, fontWeight: 900 }}>Lista de Complejos Habilitados</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <input
-                      type="text"
-                      placeholder="Buscar complejo..."
-                      value={complejosFilter}
-                      onChange={e => setComplejosFilter(e.target.value)}
-                      style={{ padding: '8px 16px', borderRadius: 12, border: '1px solid #cbd5e1', outline: 'none', minWidth: 250 }}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                      <input
+                        type="text"
+                        placeholder="Buscar complejo..."
+                        value={complejosFilter}
+                        onChange={e => setComplejosFilter(e.target.value)}
+                        style={{ padding: '8px 16px', border: 'none', outline: 'none', minWidth: 220 }}
+                      />
+                      <button 
+                        style={{ background: '#f1f5f9', border: 'none', borderLeft: '1px solid #cbd5e1', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, color: '#475569' }}
+                      >
+                        <Search size={16} /> Buscar
+                      </button>
+                    </div>
                     <button
                       onClick={() => setEditComplejo({ isNew: true, nombre: '', email: '', telefono: '', direccion: '', ciudad: 'Asunción', usuario_asignado: '', lat: -25.2867, lng: -57.647, horario_apertura: '07:00', horario_cierre: '23:00' })}
                       style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
