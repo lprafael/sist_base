@@ -15,7 +15,7 @@ migration_up = """
 -- ============================================================
 CREATE TABLE IF NOT EXISTS cancha.tournament_players (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    torneo_equipo_id    UUID NOT NULL REFERENCES cancha.torneos_equipos(id) ON DELETE CASCADE,
+    torneo_equipo_id    UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     nombre              VARCHAR(200) NOT NULL,
     dni                 VARCHAR(20) NOT NULL,
     fecha_nacimiento    DATE,
@@ -39,9 +39,9 @@ CREATE INDEX IF NOT EXISTS idx_tp_dni    ON cancha.tournament_players(dni);
 -- ============================================================
 -- 2. PLANILLA DIGITAL DE PARTIDO (asistencia por jugador)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos_planilla (
+CREATE TABLE IF NOT EXISTS torneos.planilla (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    partido_id          UUID NOT NULL REFERENCES cancha.torneos_partidos(id) ON DELETE CASCADE,
+    partido_id          UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
     player_id           UUID NOT NULL REFERENCES cancha.tournament_players(id),
     presente            BOOLEAN NOT NULL DEFAULT false,
     capitan             BOOLEAN NOT NULL DEFAULT false,
@@ -52,17 +52,17 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_planilla (
     UNIQUE(partido_id, player_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_planilla_partido ON cancha.torneos_planilla(partido_id);
-CREATE INDEX IF NOT EXISTS idx_planilla_player  ON cancha.torneos_planilla(player_id);
+CREATE INDEX IF NOT EXISTS idx_planilla_partido ON torneos.planilla(partido_id);
+CREATE INDEX IF NOT EXISTS idx_planilla_player  ON torneos.planilla(player_id);
 
 -- ============================================================
 -- 3. GOLES CRONOMETRADOS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos_goles (
+CREATE TABLE IF NOT EXISTS torneos.goles (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    partido_id          UUID NOT NULL REFERENCES cancha.torneos_partidos(id) ON DELETE CASCADE,
+    partido_id          UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
     player_id           UUID REFERENCES cancha.tournament_players(id),
-    equipo_id           UUID NOT NULL REFERENCES cancha.torneos_equipos(id),
+    equipo_id           UUID NOT NULL REFERENCES torneos.equipos(id),
     minuto              SMALLINT,
     tipo                VARCHAR(20) NOT NULL DEFAULT 'normal',
                         -- normal | penal | autogol
@@ -70,18 +70,18 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_goles (
     creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_goles_partido ON cancha.torneos_goles(partido_id);
-CREATE INDEX IF NOT EXISTS idx_goles_player  ON cancha.torneos_goles(player_id);
-CREATE INDEX IF NOT EXISTS idx_goles_equipo  ON cancha.torneos_goles(equipo_id);
+CREATE INDEX IF NOT EXISTS idx_goles_partido ON torneos.goles(partido_id);
+CREATE INDEX IF NOT EXISTS idx_goles_player  ON torneos.goles(player_id);
+CREATE INDEX IF NOT EXISTS idx_goles_equipo  ON torneos.goles(equipo_id);
 
 -- ============================================================
 -- 4. TARJETAS (amarillas y rojas)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos_tarjetas (
+CREATE TABLE IF NOT EXISTS torneos.tarjetas (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    partido_id          UUID NOT NULL REFERENCES cancha.torneos_partidos(id) ON DELETE CASCADE,
+    partido_id          UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
     player_id           UUID NOT NULL REFERENCES cancha.tournament_players(id),
-    equipo_id           UUID NOT NULL REFERENCES cancha.torneos_equipos(id),
+    equipo_id           UUID NOT NULL REFERENCES torneos.equipos(id),
     minuto              SMALLINT,
     tipo                VARCHAR(20) NOT NULL,
                         -- amarilla | roja_directa | roja_segunda
@@ -92,17 +92,17 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_tarjetas (
     creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_tarjetas_partido ON cancha.torneos_tarjetas(partido_id);
-CREATE INDEX IF NOT EXISTS idx_tarjetas_player  ON cancha.torneos_tarjetas(player_id);
-CREATE INDEX IF NOT EXISTS idx_tarjetas_equipo  ON cancha.torneos_tarjetas(equipo_id);
+CREATE INDEX IF NOT EXISTS idx_tarjetas_partido ON torneos.tarjetas(partido_id);
+CREATE INDEX IF NOT EXISTS idx_tarjetas_player  ON torneos.tarjetas(player_id);
+CREATE INDEX IF NOT EXISTS idx_tarjetas_equipo  ON torneos.tarjetas(equipo_id);
 
 -- ============================================================
 -- 5. TABLA DE POSICIONES (actualizada al cerrar cada partido)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos_posiciones (
+CREATE TABLE IF NOT EXISTS torneos.posiciones (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    torneo_id           UUID NOT NULL REFERENCES cancha.torneos(id) ON DELETE CASCADE,
-    torneo_equipo_id    UUID NOT NULL REFERENCES cancha.torneos_equipos(id) ON DELETE CASCADE,
+    torneo_id           UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
+    torneo_equipo_id    UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     posicion            SMALLINT NOT NULL DEFAULT 0,
     pj                  SMALLINT NOT NULL DEFAULT 0,
     pg                  SMALLINT NOT NULL DEFAULT 0,
@@ -117,16 +117,16 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_posiciones (
     UNIQUE(torneo_id, torneo_equipo_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_posiciones_torneo ON cancha.torneos_posiciones(torneo_id, pts DESC);
+CREATE INDEX IF NOT EXISTS idx_posiciones_torneo ON torneos.posiciones(torneo_id, pts DESC);
 
 -- ============================================================
 -- 6. SANCIONES DISCIPLINARIAS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos_sanciones (
+CREATE TABLE IF NOT EXISTS torneos.sanciones (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    torneo_id           UUID NOT NULL REFERENCES cancha.torneos(id) ON DELETE CASCADE,
+    torneo_id           UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     player_id           UUID NOT NULL REFERENCES cancha.tournament_players(id),
-    tarjeta_id          UUID REFERENCES cancha.torneos_tarjetas(id),
+    tarjeta_id          UUID REFERENCES torneos.tarjetas(id),
     tipo                VARCHAR(30) NOT NULL DEFAULT 'suspension',
                         -- suspension | multa | descalificacion
     descripcion         TEXT,
@@ -138,16 +138,16 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_sanciones (
     actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_sanciones_torneo  ON cancha.torneos_sanciones(torneo_id);
-CREATE INDEX IF NOT EXISTS idx_sanciones_player  ON cancha.torneos_sanciones(player_id);
-CREATE INDEX IF NOT EXISTS idx_sanciones_estado  ON cancha.torneos_sanciones(estado);
+CREATE INDEX IF NOT EXISTS idx_sanciones_torneo  ON torneos.sanciones(torneo_id);
+CREATE INDEX IF NOT EXISTS idx_sanciones_player  ON torneos.sanciones(player_id);
+CREATE INDEX IF NOT EXISTS idx_sanciones_estado  ON torneos.sanciones(estado);
 
 -- ============================================================
 -- 7. COLUMNAS ADICIONALES EN torneos_partidos
 -- ============================================================
-ALTER TABLE cancha.torneos_partidos
+ALTER TABLE torneos.partidos
     ADD COLUMN IF NOT EXISTS es_wo          BOOLEAN NOT NULL DEFAULT false,
-    ADD COLUMN IF NOT EXISTS equipo_wo_id   UUID REFERENCES cancha.torneos_equipos(id),
+    ADD COLUMN IF NOT EXISTS equipo_wo_id   UUID REFERENCES torneos.equipos(id),
     ADD COLUMN IF NOT EXISTS fecha_hora_inicio_real  TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS fecha_hora_fin_real     TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS jornada        SMALLINT,
@@ -156,7 +156,7 @@ ALTER TABLE cancha.torneos_partidos
 -- ============================================================
 -- 8. COLUMNAS ADICIONALES EN torneos_equipos
 -- ============================================================
-ALTER TABLE cancha.torneos_equipos
+ALTER TABLE torneos.equipos
     ADD COLUMN IF NOT EXISTS logo_url       VARCHAR(500),
     ADD COLUMN IF NOT EXISTS color_principal VARCHAR(7),
     ADD COLUMN IF NOT EXISTS color_secundario VARCHAR(7);
@@ -164,9 +164,9 @@ ALTER TABLE cancha.torneos_equipos
 -- ============================================================
 -- 9. TABLA DE PAGOS (si no existe, compatibilidad con migration 001)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos_pagos (
+CREATE TABLE IF NOT EXISTS torneos.pagos (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    torneo_equipo_id        UUID NOT NULL REFERENCES cancha.torneos_equipos(id) ON DELETE CASCADE,
+    torneo_equipo_id        UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     monto                   NUMERIC(12,2) NOT NULL,
     moneda                  VARCHAR(3) NOT NULL DEFAULT 'PYG',
     proveedor               VARCHAR(20) NOT NULL DEFAULT 'mercadopago',
@@ -179,16 +179,16 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_pagos (
     actualizado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_pagos_equipo  ON cancha.torneos_pagos(torneo_equipo_id);
-CREATE INDEX IF NOT EXISTS idx_pagos_estado  ON cancha.torneos_pagos(estado);
+CREATE INDEX IF NOT EXISTS idx_pagos_equipo  ON torneos.pagos(torneo_equipo_id);
+CREATE INDEX IF NOT EXISTS idx_pagos_estado  ON torneos.pagos(estado);
 """
 
 migration_down = """
-DROP TABLE IF EXISTS cancha.torneos_sanciones CASCADE;
-DROP TABLE IF EXISTS cancha.torneos_posiciones CASCADE;
-DROP TABLE IF EXISTS cancha.torneos_tarjetas CASCADE;
-DROP TABLE IF EXISTS cancha.torneos_goles CASCADE;
-DROP TABLE IF EXISTS cancha.torneos_planilla CASCADE;
+DROP TABLE IF EXISTS torneos.sanciones CASCADE;
+DROP TABLE IF EXISTS torneos.posiciones CASCADE;
+DROP TABLE IF EXISTS torneos.tarjetas CASCADE;
+DROP TABLE IF EXISTS torneos.goles CASCADE;
+DROP TABLE IF EXISTS torneos.planilla CASCADE;
 DROP TABLE IF EXISTS cancha.tournament_players CASCADE;
 """
 

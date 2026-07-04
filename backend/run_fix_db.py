@@ -18,9 +18,9 @@ def run():
     try:
         print("Ejecutando parche a la DB para pts_victoria...")
         sql = """
-        ALTER TABLE cancha.torneos ADD COLUMN IF NOT EXISTS pts_victoria INTEGER DEFAULT 3;
-        ALTER TABLE cancha.torneos ADD COLUMN IF NOT EXISTS pts_empate INTEGER DEFAULT 1;
-        ALTER TABLE cancha.torneos ADD COLUMN IF NOT EXISTS pts_derrota INTEGER DEFAULT 0;
+        ALTER TABLE torneos.torneos ADD COLUMN IF NOT EXISTS pts_victoria INTEGER DEFAULT 3;
+        ALTER TABLE torneos.torneos ADD COLUMN IF NOT EXISTS pts_empate INTEGER DEFAULT 1;
+        ALTER TABLE torneos.torneos ADD COLUMN IF NOT EXISTS pts_derrota INTEGER DEFAULT 0;
         """
         cursor.execute(sql)
         print("✅ Parche aplicado con éxito")

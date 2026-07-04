@@ -1,10 +1,10 @@
 """
 Migration 009: Organizadores Independientes
 - cancha.organizadores: Nueva tabla para usuarios organizadores sin complejo físico.
-- cancha.torneos.complejo_id: Cambiar a nullable.
-- cancha.torneos.organizador_id: FK a cancha.organizadores.
-- cancha.torneos_eventos.complejo_id: Cambiar a nullable.
-- cancha.torneos_eventos.organizador_id: FK a cancha.organizadores.
+- torneos.torneos.complejo_id: Cambiar a nullable.
+- torneos.torneos.organizador_id: FK a cancha.organizadores.
+- torneos.eventos.complejo_id: Cambiar a nullable.
+- torneos.eventos.organizador_id: FK a cancha.organizadores.
 Timestamp: 2026-07-01
 """
 
@@ -22,21 +22,21 @@ migration_up = (
     # 1b. Índice
     "CREATE INDEX IF NOT EXISTS idx_organizadores_usuario ON cancha.organizadores(usuario_id);\n"
     # 2. Hacer complejo_id nullable en torneos y torneos_eventos
-    "ALTER TABLE cancha.torneos ALTER COLUMN complejo_id DROP NOT NULL;\n"
-    "ALTER TABLE cancha.torneos_eventos ALTER COLUMN complejo_id DROP NOT NULL;\n"
+    "ALTER TABLE torneos.torneos ALTER COLUMN complejo_id DROP NOT NULL;\n"
+    "ALTER TABLE torneos.eventos ALTER COLUMN complejo_id DROP NOT NULL;\n"
     # 3. Agregar FK organizador_id
-    "ALTER TABLE cancha.torneos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;\n"
-    "ALTER TABLE cancha.torneos_eventos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;\n"
+    "ALTER TABLE torneos.torneos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;\n"
+    "ALTER TABLE torneos.eventos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;\n"
     # 3b. Índices
-    "CREATE INDEX IF NOT EXISTS idx_torneos_organizador ON cancha.torneos(organizador_id);\n"
-    "CREATE INDEX IF NOT EXISTS idx_torneos_eventos_organizador ON cancha.torneos_eventos(organizador_id);\n"
+    "CREATE INDEX IF NOT EXISTS idx_torneos_organizador ON torneos.torneos(organizador_id);\n"
+    "CREATE INDEX IF NOT EXISTS idx_torneos_eventos_organizador ON torneos.eventos(organizador_id);\n"
 )
 
 migration_down = (
-    "ALTER TABLE cancha.torneos DROP COLUMN IF EXISTS organizador_id;\n"
-    "ALTER TABLE cancha.torneos_eventos DROP COLUMN IF EXISTS organizador_id;\n"
-    "ALTER TABLE cancha.torneos ALTER COLUMN complejo_id SET NOT NULL;\n"
-    "ALTER TABLE cancha.torneos_eventos ALTER COLUMN complejo_id SET NOT NULL;\n"
+    "ALTER TABLE torneos.torneos DROP COLUMN IF EXISTS organizador_id;\n"
+    "ALTER TABLE torneos.eventos DROP COLUMN IF EXISTS organizador_id;\n"
+    "ALTER TABLE torneos.torneos ALTER COLUMN complejo_id SET NOT NULL;\n"
+    "ALTER TABLE torneos.eventos ALTER COLUMN complejo_id SET NOT NULL;\n"
     "DROP TABLE IF EXISTS cancha.organizadores CASCADE;\n"
 )
 

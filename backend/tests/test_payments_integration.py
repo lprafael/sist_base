@@ -34,7 +34,7 @@ async def async_session_fixture():
         
         # Tablas básicas
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos (
+            CREATE TABLE IF NOT EXISTS torneos.torneos (
                 id TEXT PRIMARY KEY,
                 nombre TEXT NOT NULL,
                 precio_inscripcion DECIMAL DEFAULT 500,
@@ -43,7 +43,7 @@ async def async_session_fixture():
         """))
         
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos_equipos (
+            CREATE TABLE IF NOT EXISTS torneos.equipos (
                 id TEXT PRIMARY KEY,
                 torneo_id TEXT NOT NULL,
                 equipamiento TEXT NOT NULL,
@@ -93,13 +93,13 @@ class TestPaymentIntegration:
         
         # Insert: Torneo
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre, precio_inscripcion)
+            INSERT INTO torneos.torneos (id, nombre, precio_inscripcion)
             VALUES ('torneo-1', 'Copa Summer', 500)
         """))
         
         # Insert: Equipo
         await session.execute(text("""
-            INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social)
+            INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social)
             VALUES ('team-1', 'torneo-1', 'red', 'Real Madrid SA')
         """))
         
@@ -129,12 +129,12 @@ class TestPaymentIntegration:
         
         # Setup
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre) 
+            INSERT INTO torneos.torneos (id, nombre) 
             VALUES ('torneo-1', 'Copa Winter')
         """))
         
         await session.execute(text("""
-            INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social)
+            INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social)
             VALUES ('team-2', 'torneo-1', 'blue', 'Barcelona FC')
         """))
         
@@ -165,13 +165,13 @@ class TestPaymentIntegration:
         
         # Update team inscription status
         await session.execute(text(
-            "UPDATE cancha.torneos_equipos SET payment_status = 'approved' WHERE id = 'team-2'"
+            "UPDATE torneos.equipos SET payment_status = 'approved' WHERE id = 'team-2'"
         ))
         await session.commit()
         
         # Verify final state
         result = await session.execute(text(
-            "SELECT payment_status FROM cancha.torneos_equipos WHERE id = 'team-2'"
+            "SELECT payment_status FROM torneos.equipos WHERE id = 'team-2'"
         ))
         assert result.scalar() == 'approved'
 
@@ -183,12 +183,12 @@ class TestPaymentIntegration:
         
         # Setup: Pago aprobado
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre) 
+            INSERT INTO torneos.torneos (id, nombre) 
             VALUES ('torneo-1', 'Copa Spring')
         """))
         
         await session.execute(text("""
-            INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social)
+            INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social)
             VALUES ('team-3', 'torneo-1', 'white', 'Juventus SC')
         """))
         
@@ -222,12 +222,12 @@ class TestPaymentIntegration:
         
         # Setup
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre) 
+            INSERT INTO torneos.torneos (id, nombre) 
             VALUES ('torneo-1', 'Copa Otoño')
         """))
         
         await session.execute(text("""
-            INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social, payment_status)
+            INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social, payment_status)
             VALUES ('team-4', 'torneo-1', 'green', 'AC Milan', 'approved')
         """))
         
@@ -255,12 +255,12 @@ class TestPaymentIntegration:
         
         # Setup: Múltiples intentos de pago
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre) 
+            INSERT INTO torneos.torneos (id, nombre) 
             VALUES ('torneo-1', 'Copa Final')
         """))
         
         await session.execute(text("""
-            INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social)
+            INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social)
             VALUES ('team-5', 'torneo-1', 'yellow', 'Liverpool FC')
         """))
         
@@ -299,12 +299,12 @@ class TestPaymentIntegration:
         
         # Setup: Torneo con tarifa específica
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre, precio_inscripcion)
+            INSERT INTO torneos.torneos (id, nombre, precio_inscripcion)
             VALUES ('torneo-1', 'Copa Premium', 750)
         """))
         
         await session.execute(text("""
-            INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social)
+            INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social)
             VALUES ('team-6', 'torneo-1', 'orange', 'Chelsea FC')
         """))
         
@@ -319,8 +319,8 @@ class TestPaymentIntegration:
         # Verify: Monto coincide
         payment = await session.execute(text(
             "SELECT p.amount FROM cancha.payments p "
-            "JOIN cancha.torneos_equipos te ON p.tournament_team_id = te.id "
-            "JOIN cancha.torneos t ON te.torneo_id = t.id "
+            "JOIN torneos.equipos te ON p.tournament_team_id = te.id "
+            "JOIN torneos.torneos t ON te.torneo_id = t.id "
             "WHERE p.id = 'pay-6'"
         ))
         result = payment.scalar()
@@ -334,13 +334,13 @@ class TestPaymentIntegration:
         
         # Setup
         await session.execute(text("""
-            INSERT INTO cancha.torneos (id, nombre) 
+            INSERT INTO torneos.torneos (id, nombre) 
             VALUES ('torneo-1', 'Copa Analytics')
         """))
         
         for i in range(1, 4):
             await session.execute(text(f"""
-                INSERT INTO cancha.torneos_equipos (id, torneo_id, equipamiento, razon_social)
+                INSERT INTO torneos.equipos (id, torneo_id, equipamiento, razon_social)
                 VALUES ('team-{i}', 'torneo-1', 'kit{i}', 'Team {i}')
             """))
         

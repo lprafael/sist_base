@@ -33,7 +33,7 @@ async def async_session_fixture():
 
         # Torneos
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos (
+            CREATE TABLE IF NOT EXISTS torneos.torneos (
                 id TEXT PRIMARY KEY,
                 complejo_id TEXT,
                 nombre TEXT NOT NULL,
@@ -53,7 +53,7 @@ async def async_session_fixture():
         
         # Equipos
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos_equipos (
+            CREATE TABLE IF NOT EXISTS torneos.equipos (
                 id TEXT PRIMARY KEY,
                 torneo_id TEXT NOT NULL,
                 nombre TEXT NOT NULL,
@@ -91,7 +91,7 @@ async def async_session_fixture():
 
         # Partidos
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos_partidos (
+            CREATE TABLE IF NOT EXISTS torneos.partidos (
                 id TEXT PRIMARY KEY,
                 torneo_id TEXT NOT NULL,
                 equipo_local_id TEXT NOT NULL,
@@ -115,7 +115,7 @@ async def async_session_fixture():
 
         # Posiciones
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos_posiciones (
+            CREATE TABLE IF NOT EXISTS torneos.posiciones (
                 id TEXT PRIMARY KEY,
                 torneo_id TEXT NOT NULL,
                 torneo_equipo_id TEXT NOT NULL,
@@ -136,7 +136,7 @@ async def async_session_fixture():
 
         # Tarjetas
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cancha.torneos_tarjetas (
+            CREATE TABLE IF NOT EXISTS torneos.tarjetas (
                 id TEXT PRIMARY KEY,
                 partido_id TEXT NOT NULL,
                 player_id TEXT NOT NULL,
@@ -169,8 +169,8 @@ async def test_add_player_validation_exalumno_same_year(async_session_fixture):
     session = async_session_fixture
     
     # Setup Torneo & Equipo (Promo 2020)
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, categoria) VALUES ('t1', 'Liga A', 'Primera')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq1', 't1', 'Promo 2020', 2020)"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre, categoria) VALUES ('t1', 'Liga A', 'Primera')"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq1', 't1', 'Promo 2020', 2020)"))
     await session.commit()
 
     payload = JugadorCreate(
@@ -196,8 +196,8 @@ async def test_add_player_refuerzos_limit_standard(async_session_fixture):
     current_year = datetime.now().year
 
     # Torneo y equipo de promo nueva (antigüedad < 15 años)
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, categoria) VALUES ('t2', 'Liga B', 'Primera')"))
-    await session.execute(text(f"INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq2', 't2', 'Promo 2022', {current_year - 5})"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre, categoria) VALUES ('t2', 'Liga B', 'Primera')"))
+    await session.execute(text(f"INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq2', 't2', 'Promo 2022', {current_year - 5})"))
     
     # Registrar 4 refuerzos (es_exalumno = False)
     for i in range(4):
@@ -229,8 +229,8 @@ async def test_add_player_refuerzos_limit_old_promotion(async_session_fixture):
     session = async_session_fixture
     current_year = datetime.now().year
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, categoria) VALUES ('t3', 'Liga Ejecutivo', 'Ejecutivo')"))
-    await session.execute(text(f"INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq3', 't3', 'Promo 2005', {current_year - 20})"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre, categoria) VALUES ('t3', 'Liga Ejecutivo', 'Ejecutivo')"))
+    await session.execute(text(f"INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq3', 't3', 'Promo 2005', {current_year - 20})"))
     
     # Registrar 5 refuerzos
     for i in range(5):
@@ -274,8 +274,8 @@ async def test_add_player_viejas_glorias_exemption(async_session_fixture):
     session = async_session_fixture
     current_year = datetime.now().year
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, categoria) VALUES ('t4', 'Liga Senior', 'Senior')"))
-    await session.execute(text(f"INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq4', 't4', 'Promo 2015', {current_year - 9})"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre, categoria) VALUES ('t4', 'Liga Senior', 'Senior')"))
+    await session.execute(text(f"INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq4', 't4', 'Promo 2015', {current_year - 9})"))
     
     # Registrar 4 refuerzos regulares (es_exalumno = False)
     for i in range(4):
@@ -307,8 +307,8 @@ async def test_add_player_ejecutivo_age_rule(async_session_fixture):
     session = async_session_fixture
     current_year = datetime.now().year
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, categoria) VALUES ('t5', 'Liga Ejecutivo', 'Ejecutivo')"))
-    await session.execute(text(f"INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq5', 't5', 'Promo 2000', 2000)"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre, categoria) VALUES ('t5', 'Liga Ejecutivo', 'Ejecutivo')"))
+    await session.execute(text(f"INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq5', 't5', 'Promo 2000', 2000)"))
     
     # Agregar 1 refuerzo menor de 30 años (Ej. 28 años)
     payload_ok = JugadorCreate(
@@ -340,8 +340,8 @@ async def test_add_player_playoffs_block(async_session_fixture):
     """Impedir registros si el torneo ya está en playoffs"""
     session = async_session_fixture
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre, estado) VALUES ('t6', 'Playoffs Torneo', 'playoffs')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq6', 't6', 'Promo A', 2018)"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre, estado) VALUES ('t6', 'Playoffs Torneo', 'playoffs')"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq6', 't6', 'Promo A', 2018)"))
     await session.commit()
 
     payload = JugadorCreate(
@@ -364,14 +364,14 @@ async def test_walkover_disqualification_consecutive(async_session_fixture):
     """Un equipo es descalificado (estado_inscripcion = 'eliminado') tras 3 W.O.s consecutivos"""
     session = async_session_fixture
 
-    await session.execute(text("INSERT INTO cancha.torneos (id, nombre) VALUES ('t7', 'Liga WO')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq_ok', 't7', 'Equipo OK')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq_wo', 't7', 'Equipo Infractor')"))
+    await session.execute(text("INSERT INTO torneos.torneos (id, nombre) VALUES ('t7', 'Liga WO')"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre) VALUES ('eq_ok', 't7', 'Equipo OK')"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre) VALUES ('eq_wo', 't7', 'Equipo Infractor')"))
     
     # 3 partidos programados
     for i in range(1, 5):
         await session.execute(text(f"""
-            INSERT INTO cancha.torneos_partidos (id, torneo_id, equipo_local_id, equipo_visitante_id, estado, jornada)
+            INSERT INTO torneos.partidos (id, torneo_id, equipo_local_id, equipo_visitante_id, estado, jornada)
             VALUES ('partido_{i}', 't7', 'eq_wo', 'eq_ok', 'programado', {i})
         """))
     await session.commit()
@@ -382,7 +382,7 @@ async def test_walkover_disqualification_consecutive(async_session_fixture):
         await declarar_wo(partido_id=f"partido_{i}", payload=req, session=session)
 
     # Verificar que el equipo sigue activo
-    eq_res = await session.execute(text("SELECT estado_inscripcion FROM cancha.torneos_equipos WHERE id = 'eq_wo'"))
+    eq_res = await session.execute(text("SELECT estado_inscripcion FROM torneos.equipos WHERE id = 'eq_wo'"))
     assert eq_res.scalar() == 'pendiente' # o el estado default
 
     # Declarar el 3er walkover
@@ -392,11 +392,11 @@ async def test_walkover_disqualification_consecutive(async_session_fixture):
     assert res["eliminado"] == True
     
     # Verificar que el equipo está eliminado
-    eq_res2 = await session.execute(text("SELECT estado_inscripcion FROM cancha.torneos_equipos WHERE id = 'eq_wo'"))
+    eq_res2 = await session.execute(text("SELECT estado_inscripcion FROM torneos.equipos WHERE id = 'eq_wo'"))
     assert eq_res2.scalar() == 'eliminado'
 
     # Verificar que el 4to partido (restante/programado) se canceló automáticamente y se dio como WO 0-2
-    partido4 = await session.execute(text("SELECT estado, es_wo, goles_local, goles_visitante FROM cancha.torneos_partidos WHERE id = 'partido_4'"))
+    partido4 = await session.execute(text("SELECT estado, es_wo, goles_local, goles_visitante FROM torneos.partidos WHERE id = 'partido_4'"))
     p4 = partido4.fetchone()
     assert p4[0] == 'wo'
     assert p4[1] == 1 # es_wo
@@ -418,10 +418,10 @@ async def test_multitenant_custom_reinforcement_limits(async_session_fixture):
 
     # Vincular torneo al complejo
     await session.execute(text("""
-        INSERT INTO cancha.torneos (id, complejo_id, nombre, categoria) 
+        INSERT INTO torneos.torneos (id, complejo_id, nombre, categoria) 
         VALUES ('t_tenant_1', 'c_tenant_1', 'Torneo Tenant 1', 'Primera')
     """))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre, promocion) VALUES ('eq_tenant_1', 't_tenant_1', 'Promo A', 2022)"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre, promocion) VALUES ('eq_tenant_1', 't_tenant_1', 'Promo A', 2022)"))
     
     # Agregar 2 refuerzos (es_exalumno = False)
     for i in range(2):
@@ -457,16 +457,16 @@ async def test_multitenant_custom_wo_disqualification_limits(async_session_fixtu
         VALUES ('c_tenant_2', 'Complejo Tenant 2', '{"consecutivos_wo_descalificacion": 2}')
     """))
     await session.execute(text("""
-        INSERT INTO cancha.torneos (id, complejo_id, nombre) 
+        INSERT INTO torneos.torneos (id, complejo_id, nombre) 
         VALUES ('t_tenant_2', 'c_tenant_2', 'Torneo Tenant 2')
     """))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq_ok_t2', 't_tenant_2', 'Equipo OK')"))
-    await session.execute(text("INSERT INTO cancha.torneos_equipos (id, torneo_id, nombre) VALUES ('eq_wo_t2', 't_tenant_2', 'Equipo Infractor')"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre) VALUES ('eq_ok_t2', 't_tenant_2', 'Equipo OK')"))
+    await session.execute(text("INSERT INTO torneos.equipos (id, torneo_id, nombre) VALUES ('eq_wo_t2', 't_tenant_2', 'Equipo Infractor')"))
     
     # 3 partidos programados
     for i in range(1, 4):
         await session.execute(text(f"""
-            INSERT INTO cancha.torneos_partidos (id, torneo_id, equipo_local_id, equipo_visitante_id, estado, jornada)
+            INSERT INTO torneos.partidos (id, torneo_id, equipo_local_id, equipo_visitante_id, estado, jornada)
             VALUES ('partido_{i}', 't_tenant_2', 'eq_wo_t2', 'eq_ok_t2', 'programado', {i})
         """))
     await session.commit()
@@ -476,7 +476,7 @@ async def test_multitenant_custom_wo_disqualification_limits(async_session_fixtu
     await declarar_wo(partido_id="partido_1", payload=req, session=session)
 
     # Verificar que el equipo sigue activo
-    eq_res = await session.execute(text("SELECT estado_inscripcion FROM cancha.torneos_equipos WHERE id = 'eq_wo_t2'"))
+    eq_res = await session.execute(text("SELECT estado_inscripcion FROM torneos.equipos WHERE id = 'eq_wo_t2'"))
     assert eq_res.scalar() == 'pendiente'
 
     # Declarar el 2do walkover (debería descalificarlo inmediatamente por el límite custom de 2)
@@ -484,5 +484,5 @@ async def test_multitenant_custom_wo_disqualification_limits(async_session_fixtu
     assert res["eliminado"] == True
     
     # Verificar que el equipo está eliminado
-    eq_res2 = await session.execute(text("SELECT estado_inscripcion FROM cancha.torneos_equipos WHERE id = 'eq_wo_t2'"))
+    eq_res2 = await session.execute(text("SELECT estado_inscripcion FROM torneos.equipos WHERE id = 'eq_wo_t2'"))
     assert eq_res2.scalar() == 'eliminado'

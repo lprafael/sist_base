@@ -9,7 +9,7 @@ migration_up = """
 -- ==========================================
 CREATE TABLE IF NOT EXISTS cancha.payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tournament_team_id UUID NOT NULL REFERENCES cancha.torneos_equipos(id) ON DELETE CASCADE,
+    tournament_team_id UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     amount DECIMAL(10,2) NOT NULL,
     currency VARCHAR(3) DEFAULT 'ARS',
     provider VARCHAR(20) NOT NULL, -- mercadopago, stripe, cash
@@ -35,7 +35,7 @@ CREATE INDEX idx_payments_created ON cancha.payments(created_at);
 -- ==========================================
 CREATE TABLE IF NOT EXISTS cancha.tournament_players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tournament_team_id UUID NOT NULL REFERENCES cancha.torneos_equipos(id) ON DELETE CASCADE,
+    tournament_team_id UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     nombre VARCHAR(255) NOT NULL,
     dni VARCHAR(20) NOT NULL,
     fecha_nacimiento DATE,
@@ -57,9 +57,9 @@ CREATE INDEX idx_tournament_players_dni ON cancha.tournament_players(dni);
 -- ==========================================
 CREATE TABLE IF NOT EXISTS cancha.goals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    match_id UUID NOT NULL REFERENCES cancha.torneos_partidos(id) ON DELETE CASCADE,
+    match_id UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
     player_id UUID REFERENCES cancha.tournament_players(id),
-    team_id UUID NOT NULL REFERENCES cancha.torneos_equipos(id),
+    team_id UUID NOT NULL REFERENCES torneos.equipos(id),
     minute INT NOT NULL,
     type VARCHAR(20) DEFAULT 'normal', -- normal, penalty, own_goal, header
     created_by UUID,
@@ -76,9 +76,9 @@ CREATE INDEX idx_goals_team ON cancha.goals(team_id);
 -- ==========================================
 CREATE TABLE IF NOT EXISTS cancha.cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    match_id UUID NOT NULL REFERENCES cancha.torneos_partidos(id) ON DELETE CASCADE,
+    match_id UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
     player_id UUID NOT NULL REFERENCES cancha.tournament_players(id),
-    team_id UUID NOT NULL REFERENCES cancha.torneos_equipos(id),
+    team_id UUID NOT NULL REFERENCES torneos.equipos(id),
     minute INT NOT NULL,
     type VARCHAR(20) NOT NULL, -- yellow, red, second_yellow
     created_by UUID,
@@ -95,7 +95,7 @@ CREATE INDEX idx_cards_team ON cancha.cards(team_id);
 CREATE TABLE IF NOT EXISTS cancha.sanctions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     player_id UUID NOT NULL REFERENCES cancha.tournament_players(id) ON DELETE CASCADE,
-    tournament_id UUID NOT NULL REFERENCES cancha.torneos(id) ON DELETE CASCADE,
+    tournament_id UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     card_id UUID REFERENCES cancha.cards(id),
     reason VARCHAR(500) NOT NULL,
     severity VARCHAR(20) DEFAULT 'mild', -- mild, serious, very_serious
@@ -117,28 +117,28 @@ CREATE INDEX idx_sanctions_status ON cancha.sanctions(status);
 -- ==========================================
 -- 6. ALTERAR TABLA torneos_equipos
 -- ==========================================
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'pending';
 
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 ADD COLUMN IF NOT EXISTS delegado_nombre VARCHAR(255);
 
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 ADD COLUMN IF NOT EXISTS delegado_telefono VARCHAR(20);
 
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 ADD COLUMN IF NOT EXISTS delegado_email VARCHAR(255);
 
 -- ==========================================
 -- 7. ALTERAR TABLA torneos
 -- ==========================================
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 ADD COLUMN IF NOT EXISTS sorteo_ejecutado BOOLEAN DEFAULT FALSE;
 
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 ADD COLUMN IF NOT EXISTS sorteo_seed INT;
 
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}';
 
 -- ==========================================
@@ -182,9 +182,9 @@ SELECT
         WHEN m.resultado_local = m.resultado_visitante
         THEN m.id
     END)) AS points
-FROM cancha.torneos t
-JOIN cancha.torneos_equipos tte ON tte.torneo_id = t.id
-LEFT JOIN cancha.torneos_partidos m ON 
+FROM torneos.torneos t
+JOIN torneos.equipos tte ON tte.torneo_id = t.id
+LEFT JOIN torneos.partidos m ON 
     (m.equipo_local_id = tte.id OR m.equipo_visitante_id = tte.id)
     AND m.estado = 'finalizado'
 GROUP BY t.id, tte.id, tte.nombre_equipo
@@ -202,19 +202,19 @@ DROP TABLE IF EXISTS cancha.goals;
 DROP TABLE IF EXISTS cancha.tournament_players;
 DROP TABLE IF EXISTS cancha.payments;
 
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 DROP COLUMN IF EXISTS payment_status;
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 DROP COLUMN IF EXISTS delegado_nombre;
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 DROP COLUMN IF EXISTS delegado_telefono;
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
 DROP COLUMN IF EXISTS delegado_email;
 
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 DROP COLUMN IF EXISTS sorteo_ejecutado;
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 DROP COLUMN IF EXISTS sorteo_seed;
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 DROP COLUMN IF EXISTS config;
 """

@@ -90,19 +90,7 @@ services:
     networks:
       - micancha-network
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: micancha-pgadmin-local
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@micancha.local
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-    networks:
-      - micancha-network
+
 
 volumes:
   postgres_data_local:

@@ -52,13 +52,13 @@ migration_up = (
     # 3b. Índice player_out
     "CREATE INDEX IF NOT EXISTS idx_eventos_player_out ON cancha.eventos_partido(player_out_id);\n"
     # 4. creado_por en torneos
-    "ALTER TABLE cancha.torneos ADD COLUMN IF NOT EXISTS creado_por INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL;\n"
+    "ALTER TABLE torneos.torneos ADD COLUMN IF NOT EXISTS creado_por INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL;\n"
     # 4b. Índice creado_por
-    "CREATE INDEX IF NOT EXISTS idx_torneos_creado_por ON cancha.torneos(creado_por);\n"
+    "CREATE INDEX IF NOT EXISTS idx_torneos_creado_por ON torneos.torneos(creado_por);\n"
 )
 
 migration_down = (
-    "ALTER TABLE cancha.torneos DROP COLUMN IF EXISTS creado_por;\n"
+    "ALTER TABLE torneos.torneos DROP COLUMN IF EXISTS creado_por;\n"
     "ALTER TABLE cancha.eventos_partido DROP COLUMN IF EXISTS player_out_id;\n"
     "ALTER TABLE cancha.eventos_partido DROP COLUMN IF EXISTS tipo_evento_id;\n"
     "DROP TABLE IF EXISTS cancha.tipos_evento CASCADE;\n"

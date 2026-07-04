@@ -1,6 +1,6 @@
 """
 Migration 010: Documentación de Delegados e Integrantes de Equipos
-- cancha.torneos_equipos.token_delegado: Token de acceso (UUID) para carga sin contraseña.
+- torneos.equipos.token_delegado: Token de acceso (UUID) para carga sin contraseña.
 - cancha.tournament_players.documento_firmado_url: PDF/Imagen de deslinde firmado.
 - cancha.tournament_players.cedula_anverso_url: Foto cédula anverso.
 - cancha.tournament_players.cedula_reverso_url: Foto cédula reverso.
@@ -9,10 +9,10 @@ Timestamp: 2026-07-01
 
 migration_up = (
     # 1. Agregar token_delegado a torneos_equipos
-    "ALTER TABLE cancha.torneos_equipos ADD COLUMN IF NOT EXISTS token_delegado UUID DEFAULT gen_random_uuid();\n"
-    "CREATE INDEX IF NOT EXISTS idx_equipos_token ON cancha.torneos_equipos(token_delegado);\n"
+    "ALTER TABLE torneos.equipos ADD COLUMN IF NOT EXISTS token_delegado UUID DEFAULT gen_random_uuid();\n"
+    "CREATE INDEX IF NOT EXISTS idx_equipos_token ON torneos.equipos(token_delegado);\n"
     # 2. Rellenar existentes
-    "UPDATE cancha.torneos_equipos SET token_delegado = gen_random_uuid() WHERE token_delegado IS NULL;\n"
+    "UPDATE torneos.equipos SET token_delegado = gen_random_uuid() WHERE token_delegado IS NULL;\n"
     # 3. Agregar campos de documentación a tournament_players
     "ALTER TABLE cancha.tournament_players ADD COLUMN IF NOT EXISTS documento_firmado_url VARCHAR(500);\n"
     "ALTER TABLE cancha.tournament_players ADD COLUMN IF NOT EXISTS cedula_anverso_url VARCHAR(500);\n"
@@ -24,7 +24,7 @@ migration_down = (
     "ALTER TABLE cancha.tournament_players DROP COLUMN IF EXISTS cedula_anverso_url;\n"
     "ALTER TABLE cancha.tournament_players DROP COLUMN IF EXISTS cedula_reverso_url;\n"
     "DROP INDEX IF EXISTS cancha.idx_equipos_token;\n"
-    "ALTER TABLE cancha.torneos_equipos DROP COLUMN IF EXISTS token_delegado;\n"
+    "ALTER TABLE torneos.equipos DROP COLUMN IF EXISTS token_delegado;\n"
 )
 
 if __name__ == "__main__":

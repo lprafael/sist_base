@@ -11,21 +11,21 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
 migration_up = """
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
     ADD COLUMN IF NOT EXISTS foto_equipo_url VARCHAR(500);
 
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
     ADD COLUMN IF NOT EXISTS token_jugadores UUID DEFAULT gen_random_uuid();
 
 -- En caso de que ya existieran filas y la columna se añadiera como null, forzamos uuid
-UPDATE cancha.torneos_equipos SET token_jugadores = gen_random_uuid() WHERE token_jugadores IS NULL;
+UPDATE torneos.equipos SET token_jugadores = gen_random_uuid() WHERE token_jugadores IS NULL;
 
 -- Hacemos la columna NOT NULL para el futuro
-ALTER TABLE cancha.torneos_equipos ALTER COLUMN token_jugadores SET NOT NULL;
+ALTER TABLE torneos.equipos ALTER COLUMN token_jugadores SET NOT NULL;
 """
 
 migration_down = """
-ALTER TABLE cancha.torneos_equipos 
+ALTER TABLE torneos.equipos 
     DROP COLUMN IF EXISTS foto_equipo_url,
     DROP COLUMN IF EXISTS token_jugadores;
 """

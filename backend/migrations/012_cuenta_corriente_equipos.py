@@ -19,7 +19,7 @@ else:
     DATABASE_URL = DATABASE_URL.replace("host.docker.internal", "localhost")
 
 migration_up = """
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 ADD COLUMN IF NOT EXISTS limite_deuda_habilitado BOOLEAN NOT NULL DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS limite_deuda_monto NUMERIC(12,2) DEFAULT 0,
 ADD COLUMN IF NOT EXISTS multa_amarilla_monto NUMERIC(12,2) DEFAULT 0,
@@ -27,13 +27,13 @@ ADD COLUMN IF NOT EXISTS multa_roja_monto NUMERIC(12,2) DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS cancha.cuenta_corriente_equipos (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id   UUID NOT NULL REFERENCES cancha.torneos(id),
-    equipo_id   UUID NOT NULL REFERENCES cancha.torneos_equipos(id),
+    torneo_id   UUID NOT NULL REFERENCES torneos.torneos(id),
+    equipo_id   UUID NOT NULL REFERENCES torneos.equipos(id),
     concepto    VARCHAR(100) NOT NULL,
     monto       NUMERIC(12,2) NOT NULL,
     estado      VARCHAR(20) NOT NULL DEFAULT 'pendiente',
-    referencia_pago_id UUID REFERENCES cancha.torneos_pagos(id),
-    partido_id  UUID REFERENCES cancha.torneos_partidos(id),
+    referencia_pago_id UUID REFERENCES torneos.pagos(id),
+    partido_id  UUID REFERENCES torneos.partidos(id),
     creado_por  INTEGER REFERENCES sistema.usuarios(id),
     creado_en   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -48,7 +48,7 @@ DROP INDEX IF EXISTS idx_cc_estado;
 DROP INDEX IF EXISTS idx_cc_equipo;
 DROP INDEX IF EXISTS idx_cc_torneo;
 DROP TABLE IF EXISTS cancha.cuenta_corriente_equipos;
-ALTER TABLE cancha.torneos 
+ALTER TABLE torneos.torneos 
 DROP COLUMN IF EXISTS limite_deuda_habilitado,
 DROP COLUMN IF EXISTS limite_deuda_monto,
 DROP COLUMN IF EXISTS multa_amarilla_monto,

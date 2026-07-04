@@ -51,7 +51,7 @@ INSERT INTO cancha.categorias (codigo, nombre, edad_minima, edad_maxima) VALUES
 ON CONFLICT (codigo) DO NOTHING;
 
 -- 3. COLUMNAS ADICIONALES EN torneos
-ALTER TABLE cancha.torneos
+ALTER TABLE torneos.torneos
     ADD COLUMN IF NOT EXISTS modalidad_id           SMALLINT REFERENCES cancha.modalidades(id),
     ADD COLUMN IF NOT EXISTS categoria_id           SMALLINT REFERENCES cancha.categorias(id),
     ADD COLUMN IF NOT EXISTS slug                   VARCHAR(170),
@@ -66,7 +66,7 @@ ALTER TABLE cancha.torneos
     ADD COLUMN IF NOT EXISTS logo_url               TEXT;
 
 -- Generar slugs para torneos existentes
-UPDATE cancha.torneos
+UPDATE torneos.torneos
 SET slug = LOWER(REGEXP_REPLACE(REGEXP_REPLACE(nombre, '[^a-zA-Z0-9\\s]', '', 'g'), '[\\s]+', '-', 'g')) || '-' || SUBSTR(id::TEXT, 1, 8)
 WHERE slug IS NULL;
 
@@ -77,14 +77,14 @@ BEGIN
         SELECT 1 FROM pg_constraint
         WHERE conname = 'torneos_slug_key'
     ) THEN
-        ALTER TABLE cancha.torneos ADD CONSTRAINT torneos_slug_key UNIQUE (slug);
+        ALTER TABLE torneos.torneos ADD CONSTRAINT torneos_slug_key UNIQUE (slug);
     END IF;
 END $$;
 
 -- 4. TABLA: CANCHAS_TORNEO (N:M: qué canchas usa cada torneo)
 CREATE TABLE IF NOT EXISTS cancha.canchas_torneo (
     id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    torneo_id UUID NOT NULL REFERENCES cancha.torneos(id)  ON DELETE CASCADE,
+    torneo_id UUID NOT NULL REFERENCES torneos.torneos(id)  ON DELETE CASCADE,
     cancha_id UUID NOT NULL REFERENCES cancha.canchas(id)  ON DELETE CASCADE,
     CONSTRAINT uq_cancha_torneo UNIQUE (torneo_id, cancha_id)
 );
@@ -109,9 +109,9 @@ CREATE INDEX IF NOT EXISTS idx_roles_complejo ON cancha.roles_complejo(complejo_
 -- 6. TABLA: EVENTOS_PARTIDO (unificada para jugadores del torneo)
 CREATE TABLE IF NOT EXISTS cancha.eventos_partido (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    partido_id          UUID        NOT NULL REFERENCES cancha.torneos_partidos(id) ON DELETE CASCADE,
+    partido_id          UUID        NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
     player_id           UUID        REFERENCES cancha.tournament_players(id) ON DELETE CASCADE,
-    equipo_id           UUID        NOT NULL REFERENCES cancha.torneos_equipos(id) ON DELETE CASCADE,
+    equipo_id           UUID        NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     tipo                VARCHAR(25) NOT NULL CHECK (tipo IN ('GOL','GOL_PENAL','AUTOGOL','AMARILLA','ROJA','ROJA_DIRECTA','DOBLE_AMARILLA','LESION','SUSTITUCION')),
     minuto              SMALLINT    NOT NULL CHECK (minuto >= 0 AND minuto <= 150),
     periodo             SMALLINT    NOT NULL DEFAULT 1 CHECK (periodo IN (1, 2)),
@@ -125,19 +125,19 @@ CREATE INDEX IF NOT EXISTS idx_eventos_partido_j ON cancha.eventos_partido(playe
 CREATE INDEX IF NOT EXISTS idx_eventos_partido_t ON cancha.eventos_partido(tipo);
 
 -- 7. COLUMNAS ADICIONALES EN torneos_partidos
-ALTER TABLE cancha.torneos_partidos
+ALTER TABLE torneos.partidos
     ADD COLUMN IF NOT EXISTS resultado_local     SMALLINT,
     ADD COLUMN IF NOT EXISTS resultado_visitante SMALLINT,
     ADD COLUMN IF NOT EXISTS fase_nombre         VARCHAR(60),
     ADD COLUMN IF NOT EXISTS numero_ronda        SMALLINT;
 
 -- Mapear goles_ → resultado_ para compatibilidad
-UPDATE cancha.torneos_partidos
+UPDATE torneos.partidos
 SET resultado_local = goles_local, resultado_visitante = goles_visitante
 WHERE resultado_local IS NULL AND goles_local IS NOT NULL;
 
 -- 8. COLUMNAS ADICIONALES EN torneos_equipos
-ALTER TABLE cancha.torneos_equipos
+ALTER TABLE torneos.equipos
     ADD COLUMN IF NOT EXISTS wo_acumulados     SMALLINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS grupo             VARCHAR(5),
     ADD COLUMN IF NOT EXISTS seed_num          SMALLINT;
@@ -150,7 +150,7 @@ DROP TABLE IF EXISTS cancha.canchas_torneo CASCADE;
 DROP TABLE IF EXISTS cancha.categorias CASCADE;
 DROP TABLE IF EXISTS cancha.modalidades CASCADE;
 
-ALTER TABLE cancha.torneos
+ALTER TABLE torneos.torneos
     DROP COLUMN IF EXISTS modalidad_id,
     DROP COLUMN IF EXISTS categoria_id,
     DROP COLUMN IF EXISTS slug,
@@ -164,13 +164,13 @@ ALTER TABLE cancha.torneos
     DROP COLUMN IF EXISTS max_refuerzos,
     DROP COLUMN IF EXISTS logo_url;
 
-ALTER TABLE cancha.torneos_partidos
+ALTER TABLE torneos.partidos
     DROP COLUMN IF EXISTS resultado_local,
     DROP COLUMN IF EXISTS resultado_visitante,
     DROP COLUMN IF EXISTS fase_nombre,
     DROP COLUMN IF EXISTS numero_ronda;
 
-ALTER TABLE cancha.torneos_equipos
+ALTER TABLE torneos.equipos
     DROP COLUMN IF EXISTS wo_acumulados,
     DROP COLUMN IF EXISTS grupo,
     DROP COLUMN IF EXISTS seed_num;

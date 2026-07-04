@@ -30,7 +30,7 @@ class IA_Prompt(BaseModel):
 async def get_noticias_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
     q = text("""
         SELECT id, titulo, contenido, autor, fecha_publicacion, es_ia 
-        FROM cancha.noticias_torneo 
+        FROM torneos.noticias 
         WHERE torneo_id = :torneo_id
         ORDER BY fecha_publicacion DESC
     """)
@@ -40,7 +40,7 @@ async def get_noticias_torneo(torneo_id: str, session: AsyncSession = Depends(ge
 @router.post("/")
 async def create_noticia(payload: NoticiaCreate, session: AsyncSession = Depends(get_session), current_user = Depends(get_current_user)):
     q = text("""
-        INSERT INTO cancha.noticias_torneo (torneo_id, titulo, contenido, autor, es_ia, prompt_usado)
+        INSERT INTO torneos.noticias (torneo_id, titulo, contenido, autor, es_ia, prompt_usado)
         VALUES (:torneo_id, :titulo, :contenido, :autor, :es_ia, :prompt_usado)
         RETURNING id
     """)
@@ -57,7 +57,7 @@ async def create_noticia(payload: NoticiaCreate, session: AsyncSession = Depends
 
 @router.delete("/{noticia_id}")
 async def delete_noticia(noticia_id: str, session: AsyncSession = Depends(get_session), current_user = Depends(get_current_user)):
-    q = text("DELETE FROM cancha.noticias_torneo WHERE id = :id RETURNING id")
+    q = text("DELETE FROM torneos.noticias WHERE id = :id RETURNING id")
     res = await session.execute(q, {"id": noticia_id})
     if not res.scalar():
         raise HTTPException(status_code=404, detail="Noticia no encontrada")

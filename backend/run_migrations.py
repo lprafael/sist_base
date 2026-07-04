@@ -34,6 +34,7 @@ MIGRATIONS = [
     {"name": "013_noticias_torneo.py", "module": "m013"},
     {"name": "014_jugador_activos.py", "module": "m014"},
     {"name": "015_torneos_generales.py", "module": "m015"},
+    {"name": "016_schema_torneos.py", "module": "m016"},
 ]
 
 def load_migration_module(file_name: str, module_name: str):

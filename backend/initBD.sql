@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS cancha.notificaciones_cola (
 -- ============================================================
 -- TABLA: TORNEOS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cancha.torneos (
+CREATE TABLE IF NOT EXISTS torneos.torneos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     complejo_id UUID REFERENCES cancha.complejos(id) ON DELETE CASCADE,
     nombre VARCHAR(200) NOT NULL,
@@ -180,9 +180,9 @@ CREATE TABLE IF NOT EXISTS cancha.torneos (
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cancha.torneos_equipos (
+CREATE TABLE IF NOT EXISTS torneos.equipos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id UUID REFERENCES cancha.torneos(id) ON DELETE CASCADE,
+    torneo_id UUID REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     nombre VARCHAR(150) NOT NULL,
     capitan_nombre VARCHAR(150),
     capitan_telefono VARCHAR(50),
@@ -192,18 +192,18 @@ CREATE TABLE IF NOT EXISTS cancha.torneos_equipos (
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cancha.torneos_partidos (
+CREATE TABLE IF NOT EXISTS torneos.partidos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id UUID REFERENCES cancha.torneos(id) ON DELETE CASCADE,
+    torneo_id UUID REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     cancha_id UUID REFERENCES cancha.canchas(id),
-    equipo_local_id UUID REFERENCES cancha.torneos_equipos(id),
-    equipo_visitante_id UUID REFERENCES cancha.torneos_equipos(id),
+    equipo_local_id UUID REFERENCES torneos.equipos(id),
+    equipo_visitante_id UUID REFERENCES torneos.equipos(id),
     fase VARCHAR(50),                  -- Cuartos, Semi, Final, Grupo A
     numero_partido INTEGER,
     fecha_hora TIMESTAMPTZ,
     goles_local INTEGER,
     goles_visitante INTEGER,
-    ganador_id UUID REFERENCES cancha.torneos_equipos(id),
+    ganador_id UUID REFERENCES torneos.equipos(id),
     estado VARCHAR(30) DEFAULT 'programado' CHECK (estado IN ('programado','en_curso','finalizado')),
     notas TEXT,
     creado_en TIMESTAMPTZ DEFAULT NOW()
