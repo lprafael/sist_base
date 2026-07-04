@@ -173,8 +173,19 @@ export default function AdminConsole() {
   // Sync complexes, organizadores and users with actual DB if active
   useEffect(() => {
     const fetchData = async () => {
+      let token = '';
       try {
-        const res = await fetch(`${API_URL}/cancha/complejos`);
+        const sessionStr = localStorage.getItem('user_session');
+        if (sessionStr) {
+          const s = JSON.parse(sessionStr);
+          token = s.access_token || s.token || '';
+        }
+      } catch (e) {}
+
+      const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
+
+      try {
+        const res = await fetch(`${API_URL}/cancha/complejos`, fetchOpts);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -192,7 +203,7 @@ export default function AdminConsole() {
       } catch (_e) { }
 
       try {
-        const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`);
+        const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`, fetchOpts);
         if (resOrg.ok) {
           const dataOrg = await resOrg.json();
           setOrganizadores(dataOrg);
@@ -200,7 +211,7 @@ export default function AdminConsole() {
       } catch (_e) { }
 
       try {
-        const resUsr = await fetch(`${API_URL}/auth/users`);
+        const resUsr = await fetch(`${API_URL}/auth/users`, fetchOpts);
         if (resUsr.ok) {
           const dataUsr = await resUsr.json();
           setUsuarios(dataUsr);
@@ -285,10 +296,22 @@ export default function AdminConsole() {
     e.preventDefault();
     if (!editOrganizador) return;
 
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+    
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     try {
       const res = await fetch(`${API_URL}/cancha/torneos/organizadores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           usuario_id: Number(editOrganizador.usuario_id),
           nombre: editOrganizador.nombre,
@@ -298,7 +321,8 @@ export default function AdminConsole() {
       });
 
       if (res.ok) {
-        const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`);
+        const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
+        const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`, fetchOpts);
         if (resOrg.ok) {
           setOrganizadores(await resOrg.json());
         }
