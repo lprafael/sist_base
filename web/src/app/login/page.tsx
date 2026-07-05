@@ -311,6 +311,7 @@ export default function LoginPage() {
 
 
       <Footer />
-    </div>
+      </div>
+    </GoogleOAuthProvider>
   );
 }
