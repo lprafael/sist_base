@@ -19,10 +19,11 @@ export default function AdminGeneralesPage() {
   const [torneos, setTorneos] = useState<any[]>([]);
   const [selectedTorneoId, setSelectedTorneoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dbDeportes, setDbDeportes] = useState<any[]>([]);
 
   // Formularios Torneo
   const [showForm, setShowForm] = useState(false);
-  const [formTorneo, setFormTorneo] = useState({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: 'Karate, BJJ' });
+  const [formTorneo, setFormTorneo] = useState({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: '' });
 
   // Checkin state
   const [participanteIdCheckin, setParticipanteIdCheckin] = useState('1'); 
@@ -61,7 +62,15 @@ export default function AdminGeneralesPage() {
     }
     setSessionInfo(session);
     fetchTorneos();
+    fetchDeportes();
   }, []);
+
+  const fetchDeportes = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/deportes`);
+      if (res.ok) setDbDeportes(await res.json());
+    } catch (err) {}
+  };
 
   const fetchTorneos = async () => {
     setLoading(true);
@@ -168,7 +177,7 @@ export default function AdminGeneralesPage() {
         });
       }
       setShowForm(false);
-      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: 'Karate, BJJ' });
+      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: '' });
       fetchTorneos();
     } catch (err) {
       console.error(err);
@@ -361,7 +370,7 @@ export default function AdminGeneralesPage() {
                   </div>
                   <button 
                     onClick={() => {
-                      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: 'Karate, BJJ' });
+                      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: '' });
                       setShowForm(true);
                     }}
                     className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-colors"
@@ -391,8 +400,26 @@ export default function AdminGeneralesPage() {
                         <input type="date" required value={formTorneo.fecha_fin} onChange={e => setFormTorneo({...formTorneo, fecha_fin: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-bold text-slate-400 mb-2">Modalidades (separadas por coma)</label>
-                        <input type="text" required value={formTorneo.modalidades_permitidas} onChange={e => setFormTorneo({...formTorneo, modalidades_permitidas: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Modalidades Permitidas</label>
+                        <div className="flex flex-wrap gap-3 p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                          {dbDeportes.length > 0 ? dbDeportes.map(d => {
+                            const currentMods = formTorneo.modalidades_permitidas.split(',').map(m => m.trim()).filter(Boolean);
+                            const isChecked = currentMods.includes(d.nombre);
+                            return (
+                              <label key={d.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors border ${isChecked ? 'bg-red-600/20 border-red-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}>
+                                <input type="checkbox" className="hidden" checked={isChecked} onChange={() => {
+                                  let mods = [...currentMods];
+                                  if (isChecked) mods = mods.filter(m => m !== d.nombre);
+                                  else mods.push(d.nombre);
+                                  setFormTorneo({...formTorneo, modalidades_permitidas: mods.join(', ')});
+                                }} />
+                                {d.nombre}
+                              </label>
+                            );
+                          }) : (
+                            <span className="text-slate-500 text-sm">Cargando deportes...</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-4">
