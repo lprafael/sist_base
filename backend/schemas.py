@@ -59,12 +59,12 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    username: str
+    username: Optional[str] = None
     email: str
-    nombre_completo: str
-    rol: str
+    nombre_completo: Optional[str] = None
+    rol: Optional[str] = None
     activo: bool
-    fecha_creacion: datetime
+    fecha_creacion: Optional[datetime] = None
     ultimo_acceso: Optional[datetime] = None
     
     class Config:
