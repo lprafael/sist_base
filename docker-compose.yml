@@ -12,6 +12,7 @@ services:
       - "8002:8001"
     environment:
       - PORT=8001
+      - GOOGLE_CLIENT_ID=439455345371-dkvgmnbcvf4l5vcsukmm8io273mkk4ab.apps.googleusercontent.com
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
@@ -36,6 +37,7 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.micancha.com.py}
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=439455345371-dkvgmnbcvf4l5vcsukmm8io273mkk4ab.apps.googleusercontent.com
     container_name: micancha-web
     ports:
       - "3000:3000"
