@@ -33,6 +33,7 @@ interface Goleador { player_id: string; nombre: string; equipo_nombre: string; g
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────
 export default function TournamentManagement({ complejoId }: { complejoId: string }) {
+  const [tipoTorneo, setTipoTorneo] = useState<'futbol' | 'general'>('futbol');
   const [eventos, setEventos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,12 +111,17 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
   const loadEventos = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/cancha/torneos/eventos?complejo_id=${complejoId}`);
-      if (res.ok) setEventos(await res.json());
+      if (tipoTorneo === 'futbol') {
+        const res = await fetch(`${API_URL}/cancha/torneos/eventos?complejo_id=${complejoId}`);
+        if (res.ok) setEventos(await res.json());
+      } else {
+        const res = await fetch(`${API_URL}/cancha/torneos_generales/`);
+        if (res.ok) setEventos(await res.json());
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  useEffect(() => { if (complejoId) loadEventos(); }, [complejoId]);
+  useEffect(() => { if (complejoId) loadEventos(); }, [complejoId, tipoTorneo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +190,21 @@ export default function TournamentManagement({ complejoId }: { complejoId: strin
 
   return (
     <div className="p-6 h-full overflow-y-auto">
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={() => setTipoTorneo('futbol')}
+          className={`px-6 py-2 rounded-full font-bold transition-all ${tipoTorneo === 'futbol' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+        >
+          Torneos de Fútbol
+        </button>
+        <button
+          onClick={() => setTipoTorneo('general')}
+          className={`px-6 py-2 rounded-full font-bold transition-all ${tipoTorneo === 'general' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+        >
+          Torneos Generales
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
         <div>
           <div className="flex items-center gap-2 mb-1.5">

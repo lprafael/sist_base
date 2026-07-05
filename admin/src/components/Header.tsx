@@ -10,8 +10,8 @@ interface HeaderProps {
   audioEnabled: boolean;
   onToggleAudio: () => void;
   onAnuncioManual: (texto: string) => void;
-  onViewChange: (v: 'grid' | 'tournaments') => void;
-  currentView: 'grid' | 'tournaments';
+  onViewChange: (v: 'grid' | 'tournaments' | 'users' | 'catalogos') => void;
+  currentView: 'grid' | 'tournaments' | 'users' | 'catalogos';
 }
 
 export default function Header({
@@ -82,6 +82,20 @@ export default function Header({
           style={{ fontSize: 13, padding: '8px 16px' }}
         >
           🏆 Torneos
+        </button>
+        <button 
+          className={`btn ${currentView === 'users' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => onViewChange('users')}
+          style={{ fontSize: 13, padding: '8px 16px' }}
+        >
+          👥 Usuarios
+        </button>
+        <button 
+          className={`btn ${currentView === 'catalogos' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => onViewChange('catalogos')}
+          style={{ fontSize: 13, padding: '8px 16px' }}
+        >
+          📖 Catálogos
         </button>
       </div>
 

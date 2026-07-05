@@ -8,7 +8,7 @@ interface SidebarStatsProps {
   canchas: any[];
   reservas: any[];
   analytics?: any;
-  view?: 'grid' | 'tournaments';
+  view?: 'grid' | 'tournaments' | 'users' | 'catalogos';
 }
 
 export default function SidebarStats({ stats, canchas, reservas, analytics, view = 'grid' }: SidebarStatsProps) {
@@ -36,7 +36,7 @@ export default function SidebarStats({ stats, canchas, reservas, analytics, view
 
   return (
     <aside className="admin-sidebar">
-      {view === 'grid' ? (
+      {view === 'grid' || view === 'users' || view === 'catalogos' ? (
         <>
           {/* Stats del día */}
           <div className="sidebar-section">

@@ -35,6 +35,16 @@ MIGRATIONS = [
     {"name": "014_jugador_activos.py", "module": "m014"},
     {"name": "015_torneos_generales.py", "module": "m015"},
     {"name": "016_schema_torneos.py", "module": "m016"},
+    {"name": "017_organizador_tipo_torneo.py", "module": "m017"},
+    {"name": "018_catalogos.py", "module": "m018"},
+    {"name": "019_torneos_futbol_catalogos.py", "module": "m019"},
+    {"name": "020_normalizar_tipos_deporte.py", "module": "m020"},
+    {"name": "021_descripciones_tipos_deporte.py", "module": "m021"},
+    {"name": "022_mover_eventos_partido.py", "module": "m022"},
+    {"name": "023_roles.py", "module": "m023"},
+    {"name": "024_mover_formatos_torneo.py", "module": "m024"},
+    {"name": "025_schema_torneos_futbol.py", "module": "m025"},
+    {"name": "026_fix_schema_torneos_futbol.py", "module": "m026"},
 ]
 
 def load_migration_module(file_name: str, module_name: str):

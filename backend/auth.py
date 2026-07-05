@@ -270,6 +270,16 @@ async def create_user(
     await session.commit()
     await session.refresh(new_user)
     
+    if new_user.rol == "organizador":
+        from sqlalchemy import text
+        tipo = user_data.tipo_torneo if user_data.tipo_torneo else "futbol"
+        stmt = text("""
+            INSERT INTO cancha.organizadores (usuario_id, nombre, tipo_torneo)
+            VALUES (:uid, :nom, :tipo)
+        """)
+        await session.execute(stmt, {"uid": new_user.id, "nom": new_user.nombre_completo, "tipo": tipo})
+        await session.commit()
+    
     # Enviar email con credenciales
     email_service.send_welcome_email(
         user_data.email, 

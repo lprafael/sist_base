@@ -40,6 +40,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     nombre_completo: str
     rol: str = "user"
+    tipo_torneo: Optional[str] = None
     
     @validator('username')
     def username_must_be_valid(cls, v):

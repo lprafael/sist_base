@@ -33,10 +33,10 @@ async def run():
         """)
         res = await conn.execute(q_user, {"pwd": hashed_password})
         usuario_id = res.scalar()
-        print(f"✅ Usuario creado/actualizado. Username: org_marcial | Password: Marcial2026! | ID: {usuario_id}")
+        print(f"Usuario creado/actualizado. Username: org_marcial | Password: Marcial2026! | ID: {usuario_id}")
 
         # 2. Skip organizador independiente since table might not be ready
-        print("✅ Perfil de Organizador skip.")
+        print("Perfil de Organizador skip.")
 
         # 3. Crear un Torneo General de Prueba
         print("Creando torneo general de prueba...")
@@ -51,7 +51,7 @@ async def run():
         res_tor = await conn.execute(q_torneo, {"ini": fecha_ini, "fin": fecha_fin})
         torneo_id = res_tor.scalar()
         
-        print(f"✅ Torneo multidisciplinario creado con ID: {torneo_id}")
+        print(f"Torneo multidisciplinario creado con ID: {torneo_id}")
         
         # 4. Insertar un par de participantes para poder probar el endpoint de agrupación
         print("Creando participantes de prueba...")
@@ -64,10 +64,10 @@ async def run():
             (:tid, 'Luis', 'Gómez', '3456789', '2005-11-20', 'Masculino', 'Karate', 'Cinturón Negro', 70.8, 1.74, 'Confirmado', true)
         """)
         await conn.execute(q_part, {"tid": torneo_id})
-        print("✅ 3 Participantes de prueba (Karate) creados en estado 'Confirmado' (Listos para hacer Check-in).")
+        print("3 Participantes de prueba (Karate) creados en estado 'Confirmado' (Listos para hacer Check-in).")
 
     await engine.dispose()
-    print("\\n🚀 Todo listo. Ya puedes usar el sistema de Torneos Generales.")
+    print("\\nTodo listo. Ya puedes usar el sistema de Torneos Generales.")
 
 if __name__ == "__main__":
     if sys.platform == "win32":

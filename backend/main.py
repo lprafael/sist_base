@@ -29,6 +29,7 @@ from typing import List, Dict, Any, Optional
 # ============================================
 # 2. IMPORTACIONES DE TERCEROS
 # ============================================
+
 from fastapi import FastAPI, HTTPException, Depends, Response, status, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -171,6 +172,21 @@ app.include_router(reportes_router)
 
 from routers.marciales import router as marciales_router
 app.include_router(marciales_router)
+
+from routers.deportes import router as deportes_router
+app.include_router(deportes_router)
+
+from routers.catalogos_futbol import router as catalogos_futbol_router
+app.include_router(catalogos_futbol_router)
+
+from routers.torneos_generales import router as torneos_generales_router
+app.include_router(torneos_generales_router)
+
+from routers.cancha_roles import router as cancha_roles_router
+app.include_router(cancha_roles_router)
+
+from routers.formatos_torneo import router as formatos_torneo_router
+app.include_router(formatos_torneo_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
@@ -1016,8 +1032,8 @@ class PagoEfectivoRequest(BaseModel):
 async def generate_payment_link(torneo_equipo_id: str, request: Request, session: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT t.costo_inscripcion, t.nombre, e.nombre, e.estado_inscripcion
-        FROM torneos.equipos e
-        JOIN torneos.torneos t ON e.torneo_id = t.id
+        FROM torneos_futbol.equipos e
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
         WHERE e.id = :torneo_equipo_id
     """)
     res = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
@@ -1034,12 +1050,12 @@ async def generate_payment_link(torneo_equipo_id: str, request: Request, session
         return {"status": "already_paid", "message": "Esta inscripción ya está pagada y confirmada."}
         
     pref_id = f"pref_{torneo_equipo_id[:8]}"
-    check_p = await session.execute(text("SELECT id FROM torneos.pagos WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'"), {"torneo_equipo_id": torneo_equipo_id})
+    check_p = await session.execute(text("SELECT id FROM torneos_futbol.pagos WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'"), {"torneo_equipo_id": torneo_equipo_id})
     existing = check_p.fetchone()
     
     if not existing:
         await session.execute(text("""
-            INSERT INTO torneos.pagos
+            INSERT INTO torneos_futbol.pagos
                 (id, torneo_equipo_id, monto, moneda, proveedor, proveedor_preference_id, estado)
             VALUES
                 (uuid_generate_v4(), :torneo_equipo_id, :monto, 'PYG', 'mercadopago', :pref_id, 'pendiente')
@@ -1065,8 +1081,8 @@ from fastapi.responses import HTMLResponse
 async def checkout_simulado(torneo_equipo_id: str, session: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT t.nombre, e.nombre, t.costo_inscripcion, t.id
-        FROM torneos.equipos e
-        JOIN torneos.torneos t ON e.torneo_id = t.id
+        FROM torneos_futbol.equipos e
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
         WHERE e.id = :torneo_equipo_id
     """)
     res = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
@@ -1304,7 +1320,7 @@ async def mercadopago_webhook(torneo_equipo_id: str, status: str = "aprobado", s
     try:
         if status == "aprobado":
             update_team = text("""
-                UPDATE torneos.equipos
+                UPDATE torneos_futbol.equipos
                 SET estado_inscripcion = 'confirmado'
                 WHERE id = :torneo_equipo_id
                 RETURNING torneo_id
@@ -1316,25 +1332,25 @@ async def mercadopago_webhook(torneo_equipo_id: str, status: str = "aprobado", s
                 
             torneo_id = str(row_team[0])
             
-            check_p = await session.execute(text("SELECT id, monto FROM torneos.pagos WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'"), {"torneo_equipo_id": torneo_equipo_id})
+            check_p = await session.execute(text("SELECT id, monto FROM torneos_futbol.pagos WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'"), {"torneo_equipo_id": torneo_equipo_id})
             existing_p = check_p.fetchone()
             
             if existing_p:
                 pago_id = existing_p[0]
                 update_pago = text("""
-                    UPDATE torneos.pagos
+                    UPDATE torneos_futbol.pagos
                     SET estado = 'aprobado', pagado_en = NOW(), actualizado_en = NOW()
                     WHERE id = :pago_id
                 """)
                 await session.execute(update_pago, {"pago_id": pago_id})
             else:
-                t_query = text("SELECT costo_inscripcion FROM torneos.torneos WHERE id = :torneo_id")
+                t_query = text("SELECT costo_inscripcion FROM torneos_futbol.torneos WHERE id = :torneo_id")
                 t_res = await session.execute(t_query, {"torneo_id": torneo_id})
                 t_row = t_res.fetchone()
                 costo = float(t_row[0]) if t_row and t_row[0] else 0.0
                 
                 insert_pago = text("""
-                    INSERT INTO torneos.pagos
+                    INSERT INTO torneos_futbol.pagos
                         (id, torneo_equipo_id, monto, moneda, proveedor, estado, pagado_en)
                     VALUES
                         (uuid_generate_v4(), :torneo_equipo_id, :monto, 'PYG', 'mercadopago', 'aprobado', NOW())
@@ -1345,14 +1361,14 @@ async def mercadopago_webhook(torneo_equipo_id: str, status: str = "aprobado", s
             return {"status": "success", "message": "Inscripción confirmada y pago aprobado."}
         else:
             update_team = text("""
-                UPDATE torneos.equipos
+                UPDATE torneos_futbol.equipos
                 SET estado_inscripcion = 'pendiente'
                 WHERE id = :torneo_equipo_id
             """)
             await session.execute(update_team, {"torneo_equipo_id": torneo_equipo_id})
             
             update_pago = text("""
-                UPDATE torneos.pagos
+                UPDATE torneos_futbol.pagos
                 SET estado = 'rechazado', actualizado_en = NOW()
                 WHERE torneo_equipo_id = :torneo_equipo_id AND estado = 'pendiente'
             """)
@@ -1367,7 +1383,7 @@ async def mercadopago_webhook(torneo_equipo_id: str, status: str = "aprobado", s
 async def get_payment_status(torneo_equipo_id: str, session: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT estado, monto, pagado_en, proveedor
-        FROM torneos.pagos
+        FROM torneos_futbol.pagos
         WHERE torneo_equipo_id = :torneo_equipo_id
         ORDER BY creado_en DESC
         LIMIT 1
@@ -1389,8 +1405,8 @@ async def register_cash_payment(torneo_equipo_id: str, payload: PagoEfectivoRequ
     try:
         query = text("""
             SELECT t.costo_inscripcion, e.torneo_id
-            FROM torneos.equipos e
-            JOIN torneos.torneos t ON e.torneo_id = t.id
+            FROM torneos_futbol.equipos e
+            JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
             WHERE e.id = :torneo_equipo_id
         """)
         res = await session.execute(query, {"torneo_equipo_id": torneo_equipo_id})
@@ -1401,13 +1417,13 @@ async def register_cash_payment(torneo_equipo_id: str, payload: PagoEfectivoRequ
         costo = float(row[0]) if row[0] else 0.0
         
         await session.execute(text("""
-            UPDATE torneos.equipos
+            UPDATE torneos_futbol.equipos
             SET estado_inscripcion = 'confirmado'
             WHERE id = :torneo_equipo_id
         """), {"torneo_equipo_id": torneo_equipo_id})
         
         await session.execute(text("""
-            INSERT INTO torneos.pagos
+            INSERT INTO torneos_futbol.pagos
                 (id, torneo_equipo_id, monto, moneda, proveedor, estado, pagado_en, recibido_por)
             VALUES
                 (uuid_generate_v4(), :torneo_equipo_id, :monto, 'PYG', 'efectivo', 'aprobado', NOW(), :recibido_por)

@@ -36,7 +36,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.micancha.com.py}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8002}
         - NEXT_PUBLIC_GOOGLE_CLIENT_ID=439455345371-dkvgmnbcvf4l5vcsukmm8io273mkk4ab.apps.googleusercontent.com
     container_name: micancha-web
     ports:
@@ -52,7 +52,7 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.micancha.com.py}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8002}
     container_name: micancha-admin
     ports:
       - "3001:3000"
@@ -67,7 +67,7 @@ services:
       context: ./public
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.micancha.com.py}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8002}
     container_name: micancha-public
     ports:
       - "3002:3000"

@@ -81,8 +81,8 @@ async def get_payment_options(
         # Obtener monto del torneo
         query = text("""
             SELECT t.costo_inscripcion
-            FROM torneos.equipos te
-            JOIN torneos.torneos t ON te.torneo_id = t.id
+            FROM torneos_futbol.equipos te
+            JOIN torneos_futbol.torneos t ON te.torneo_id = t.id
             WHERE te.id = :team_id
         """)
         
@@ -153,8 +153,8 @@ async def generar_preferencia_pago(
         # 1. Obtener datos de inscripción
         query = text("""
             SELECT te.id, t.costo_inscripcion, t.nombre, te.nombre_equipo, t.id as torneo_id, te.capitan_email
-            FROM torneos.equipos te
-            JOIN torneos.torneos t ON te.torneo_id = t.id
+            FROM torneos_futbol.equipos te
+            JOIN torneos_futbol.torneos t ON te.torneo_id = t.id
             WHERE te.id = :id
         """)
         result = await session.execute(query, {"id": tournament_team_id})
@@ -501,7 +501,7 @@ async def webhook_mercadopago(
             # Si fue aprobado, actualizar estado de inscripción
             if new_status == "approved" and tournament_team_id:
                 update_team = text("""
-                    UPDATE torneos.equipos
+                    UPDATE torneos_futbol.equipos
                     SET estado_inscripcion = 'confirmado', 
                         payment_status = 'approved',
                         updated_at = NOW()
@@ -543,7 +543,7 @@ async def registrar_pago_manual(
         
         # Verificar que inscripción existe
         check = await session.execute(
-            text("SELECT id FROM torneos.equipos WHERE id = :id"),
+            text("SELECT id FROM torneos_futbol.equipos WHERE id = :id"),
             {"id": tournament_team_id}
         )
         
@@ -574,7 +574,7 @@ async def registrar_pago_manual(
         
         # Actualizar estado de inscripción
         update = text("""
-            UPDATE torneos.equipos
+            UPDATE torneos_futbol.equipos
             SET estado_inscripcion = 'confirmado',
                 payment_status = 'approved',
                 updated_at = NOW()

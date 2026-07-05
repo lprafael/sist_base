@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Lock, Mail, Shield, User, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, Shield, User, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
@@ -26,6 +26,7 @@ export default function LoginPage() {
   // Admin Form state
   const [adminUser, setAdminUser] = useState('');
   const [adminPass, setAdminPass] = useState('');
+  const [showAdminPass, setShowAdminPass] = useState(false);
   const [adminError, setAdminError] = useState('');
 
   // Audit logging utility helper
@@ -273,13 +274,19 @@ export default function LoginPage() {
                 <div style={{ position: 'relative' }}>
                   <Lock size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                   <input
-                    type="password"
+                    type={showAdminPass ? "text" : "password"}
                     value={adminPass}
                     onChange={e => setAdminPass(e.target.value)}
                     placeholder="••••••••"
-                    style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 10, border: '1px solid #cbd5e1', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px 40px 10px 36px', borderRadius: 10, border: '1px solid #cbd5e1', outline: 'none' }}
                     required
                   />
+                  <div 
+                    onClick={() => setShowAdminPass(!showAdminPass)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#64748b', display: 'flex' }}
+                  >
+                    {showAdminPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </div>
                 </div>
               </div>
 

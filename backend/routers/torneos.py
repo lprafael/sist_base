@@ -141,7 +141,7 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
     """Recalcula la tabla de posiciones completa para un torneo."""
     # Obtener configuración de puntos del torneo
     cfg = await session.execute(
-        text("SELECT puntos_victoria, puntos_empate, puntos_derrota FROM torneos.torneos WHERE id = :id"),
+        text("SELECT puntos_victoria, puntos_empate, puntos_derrota FROM torneos_futbol.torneos WHERE id = :id"),
         {"id": torneo_id}
     )
     cfg_row = cfg.fetchone()
@@ -151,7 +151,7 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
 
     # Obtener todos los equipos del torneo
     eq_res = await session.execute(
-        text("SELECT id FROM torneos.equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
+        text("SELECT id FROM torneos_futbol.equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
         {"tid": torneo_id}
     )
     equipos = [str(r[0]) for r in eq_res.fetchall()]
@@ -160,7 +160,7 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
     p_res = await session.execute(
         text("""
             SELECT equipo_local_id, equipo_visitante_id, goles_local, goles_visitante
-            FROM torneos.partidos
+            FROM torneos_futbol.partidos
             WHERE torneo_id = :tid AND estado IN ('finalizado', 'wo')
         """),
         {"tid": torneo_id}
@@ -225,8 +225,8 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
     fp_res = await session.execute(
         text("""
             SELECT tt.equipo_id, SUM(tt.pts_fair_play)
-            FROM torneos.tarjetas tt
-            JOIN torneos.partidos tp ON tt.partido_id = tp.id
+            FROM torneos_futbol.tarjetas tt
+            JOIN torneos_futbol.partidos tp ON tt.partido_id = tp.id
             WHERE tp.torneo_id = :tid
             GROUP BY tt.equipo_id
         """),
@@ -253,7 +253,7 @@ async def _recalcular_posiciones(torneo_id: str, session: AsyncSession):
         dg = s["gf"] - s["gc"]
         fp = fp_map.get(eid, 0)
         await session.execute(text("""
-            INSERT INTO torneos.posiciones
+            INSERT INTO torneos_futbol.posiciones
                 (id, torneo_id, torneo_equipo_id, posicion, pj, pg, pe, pp, gf, gc, dg, pts, pts_fair_play_neg, actualizado_en)
             VALUES
                 (:uuid, :tid, :eid, :pos, :pj, :pg, :pe, :pp, :gf, :gc, :dg, :pts, :fp, CURRENT_TIMESTAMP)
@@ -275,8 +275,8 @@ async def _aplicar_tarjeta_logica(player_id: str, tipo: str, torneo_id: str, ses
     # Contar amarillas acumuladas del jugador en el torneo
     if tipo == "amarilla":
         am_res = await session.execute(text("""
-            SELECT COUNT(*) FROM torneos.tarjetas tt
-            JOIN torneos.partidos tp ON tt.partido_id = tp.id
+            SELECT COUNT(*) FROM torneos_futbol.tarjetas tt
+            JOIN torneos_futbol.partidos tp ON tt.partido_id = tp.id
             WHERE tp.torneo_id = :tid AND tt.player_id = :pid AND tt.tipo = 'amarilla'
         """), {"tid": torneo_id, "pid": player_id})
         total_amarillas = (am_res.scalar() or 0) + 1  # +1 la actual
@@ -323,8 +323,8 @@ async def get_eventos(
         SELECT e.id, e.complejo_id, e.nombre, e.descripcion, e.fecha_inicio, e.fecha_fin, e.estado,
                c.nombre AS complejo_nombre,
                (SELECT json_agg(json_build_object('id', t.id, 'categoria', t.categoria, 'formato', t.formato)) 
-                FROM torneos.torneos t WHERE t.evento_id = e.id) as categorias
-        FROM torneos.eventos e
+                FROM torneos_futbol.torneos t WHERE t.evento_id = e.id) as categorias
+        FROM torneos_futbol.eventos e
         JOIN cancha.complejos c ON e.complejo_id = c.id
         WHERE 1=1
     """
@@ -367,9 +367,9 @@ async def get_torneos(
                c.nombre AS complejo_nombre, org.nombre AS organizador_nombre, t.formato,
                t.max_equipos, t.costo_inscripcion,
                t.evento_id, t.categoria,
-               (SELECT COUNT(*) FROM torneos.equipos te
+               (SELECT COUNT(*) FROM torneos_futbol.equipos te
                 WHERE te.torneo_id = t.id AND te.estado_inscripcion = 'confirmado') AS equipos_confirmados
-        FROM torneos.torneos t
+        FROM torneos_futbol.torneos t
         LEFT JOIN cancha.complejos c ON t.complejo_id = c.id
         LEFT JOIN cancha.organizadores org ON t.organizador_id = org.id
         WHERE 1=1
@@ -406,7 +406,7 @@ async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSessio
         # Insert Event
         evento_id = str(uuid.uuid4())
         await session.execute(text("""
-            INSERT INTO torneos.eventos
+            INSERT INTO torneos_futbol.eventos
                 (id, complejo_id, organizador_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
             VALUES
                 (:id, :complejo_id, :organizador_id, :nombre, :descripcion, :fecha_inicio, :fecha_fin, 'abierto')
@@ -420,7 +420,7 @@ async def create_evento_y_categorias(payload: EventoCreate, session: AsyncSessio
         for cat in payload.categorias:
             cat_id = str(uuid.uuid4())
             await session.execute(text("""
-                INSERT INTO torneos.torneos
+                INSERT INTO torneos_futbol.torneos
                     (id, evento_id, complejo_id, organizador_id, nombre, descripcion, deporte, formato,
                      fecha_inicio, max_equipos, costo_inscripcion, estado,
                      puntos_victoria, puntos_empate, puntos_derrota, reglas, premios, categoria, configuracion)
@@ -526,7 +526,7 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
                t.formato, t.max_equipos, t.costo_inscripcion,
                t.puntos_victoria, t.puntos_empate, t.puntos_derrota,
                t.reglas, t.premios
-        FROM torneos.torneos t
+        FROM torneos_futbol.torneos t
         LEFT JOIN cancha.complejos c ON t.complejo_id = c.id
         LEFT JOIN cancha.organizadores org ON t.organizador_id = org.id
         WHERE t.id = :tid
@@ -556,7 +556,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
             SELECT DISTINCT ON (nombre) id, nombre, capitan_nombre, capitan_telefono, capitan_email,
                    estado_inscripcion, semilla, logo_url, color_principal, color_secundario, creado_en,
                    foto_equipo_url, token_jugadores
-            FROM torneos.equipos
+            FROM torneos_futbol.equipos
             WHERE torneo_id = :tid 
             ORDER BY nombre ASC, creado_en ASC
         ) t
@@ -571,7 +571,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
 async def get_noticias_torneo_alias(torneo_id: str, session: AsyncSession = Depends(get_session)):
     q = text("""
         SELECT id, titulo, contenido, autor, fecha_publicacion, es_ia 
-        FROM torneos.noticias 
+        FROM torneos_futbol.noticias 
         WHERE torneo_id = :torneo_id
         ORDER BY fecha_publicacion DESC
     """)
@@ -582,7 +582,7 @@ async def get_noticias_torneo_alias(torneo_id: str, session: AsyncSession = Depe
 async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_session)):
     try:
         t_res = await session.execute(
-            text("SELECT puntos_victoria, puntos_empate, puntos_derrota FROM torneos.torneos WHERE id = :tid"),
+            text("SELECT puntos_victoria, puntos_empate, puntos_derrota FROM torneos_futbol.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         t_row = t_res.fetchone()
@@ -607,7 +607,7 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
                     CAST(CASE WHEN goles_local > goles_visitante THEN 1 ELSE 0 END AS INTEGER) AS pg,
                     CAST(CASE WHEN goles_local = goles_visitante THEN 1 ELSE 0 END AS INTEGER) AS pe,
                     CAST(CASE WHEN goles_local < goles_visitante THEN 1 ELSE 0 END AS INTEGER) AS pp
-                FROM torneos.partidos
+                FROM torneos_futbol.partidos
                 WHERE torneo_id = :tid AND estado = 'finalizado'
 
                 UNION ALL
@@ -624,12 +624,12 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
                     CAST(CASE WHEN goles_visitante > goles_local THEN 1 ELSE 0 END AS INTEGER) AS pg,
                     CAST(CASE WHEN goles_visitante = goles_local THEN 1 ELSE 0 END AS INTEGER) AS pe,
                     CAST(CASE WHEN goles_visitante < goles_local THEN 1 ELSE 0 END AS INTEGER) AS pp
-                FROM torneos.partidos
+                FROM torneos_futbol.partidos
                 WHERE torneo_id = :tid AND estado = 'finalizado'
             ),
             equipos_distinct AS (
                 SELECT DISTINCT ON (nombre) id, nombre, logo_url
-                FROM torneos.equipos
+                FROM torneos_futbol.equipos
                 WHERE torneo_id = :tid
                 ORDER BY nombre ASC, creado_en ASC
             )
@@ -670,7 +670,7 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
 async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSession = Depends(get_session)):
     try:
         t_res = await session.execute(
-            text("SELECT costo_inscripcion FROM torneos.torneos WHERE id = :tid"),
+            text("SELECT costo_inscripcion FROM torneos_futbol.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         t_row = t_res.fetchone()
@@ -681,7 +681,7 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
         estado_insc = "confirmado" if costo <= 0 else "pendiente"
 
         result = await session.execute(text("""
-            INSERT INTO torneos.equipos
+            INSERT INTO torneos_futbol.equipos
                 (id, torneo_id, nombre, capitan_nombre, capitan_telefono, capitan_email,
                  estado_inscripcion, logo_url, color_principal, color_secundario, promocion)
             VALUES
@@ -777,7 +777,7 @@ async def upload_equipo_logo(
 
         logo_url = f"/static/uploads/logos/{filename}"
 
-        sql = "UPDATE torneos.equipos SET logo_url = :logo_url WHERE id = :eid AND torneo_id = :tid RETURNING id"
+        sql = "UPDATE torneos_futbol.equipos SET logo_url = :logo_url WHERE id = :eid AND torneo_id = :tid RETURNING id"
         res = await session.execute(text(sql), {"logo_url": logo_url, "eid": equipo_id, "tid": torneo_id})
         await session.commit()
 
@@ -815,7 +815,7 @@ async def upload_equipo_foto(
 
         foto_url = f"/static/uploads/fotos_equipos/{filename}"
 
-        sql = "UPDATE torneos.equipos SET foto_equipo_url = :foto_url WHERE id = :eid AND torneo_id = :tid RETURNING id"
+        sql = "UPDATE torneos_futbol.equipos SET foto_equipo_url = :foto_url WHERE id = :eid AND torneo_id = :tid RETURNING id"
         res = await session.execute(text(sql), {"foto_url": foto_url, "eid": equipo_id, "tid": torneo_id})
         await session.commit()
 
@@ -838,8 +838,8 @@ async def get_equipo_by_token(token: str, session: AsyncSession = Depends(get_se
             SELECT te.id AS equipo_id, te.nombre AS equipo_nombre, te.logo_url, te.foto_equipo_url, te.color_principal, te.color_secundario,
                    te.capitan_nombre, te.capitan_telefono, te.capitan_email, te.promocion, te.token_jugadores,
                    t.id AS torneo_id, t.nombre AS torneo_nombre, t.deporte, t.formato, t.estado AS torneo_estado
-            FROM torneos.equipos te
-            JOIN torneos.torneos t ON te.torneo_id = t.id
+            FROM torneos_futbol.equipos te
+            JOIN torneos_futbol.torneos t ON te.torneo_id = t.id
             WHERE te.token_delegado = :token
         """), {"token": token})
         eq_row = eq_res.fetchone()
@@ -899,7 +899,7 @@ async def buscar_token_delegado(
 ):
     try:
         res = await session.execute(
-            text("SELECT token_delegado FROM torneos.equipos WHERE capitan_email = :email"),
+            text("SELECT token_delegado FROM torneos_futbol.equipos WHERE capitan_email = :email"),
             {"email": email.strip()}
         )
         row = res.fetchone()
@@ -924,7 +924,7 @@ async def upload_equipo_logo_by_token(
 
         # Validar token
         eq_res = await session.execute(
-            text("SELECT id, torneo_id FROM torneos.equipos WHERE token_delegado = :token"),
+            text("SELECT id, torneo_id FROM torneos_futbol.equipos WHERE token_delegado = :token"),
             {"token": token}
         )
         eq_row = eq_res.fetchone()
@@ -946,7 +946,7 @@ async def upload_equipo_logo_by_token(
         logo_url = f"/static/uploads/logos/{filename}"
 
         await session.execute(
-            text("UPDATE torneos.equipos SET logo_url = :logo_url WHERE id = :eid"),
+            text("UPDATE torneos_futbol.equipos SET logo_url = :logo_url WHERE id = :eid"),
             {"logo_url": logo_url, "eid": equipo_id}
         )
         await session.commit()
@@ -969,7 +969,7 @@ async def upload_equipo_foto_by_token(
 
         # Validar token
         eq_res = await session.execute(
-            text("SELECT id, torneo_id FROM torneos.equipos WHERE token_delegado = :token"),
+            text("SELECT id, torneo_id FROM torneos_futbol.equipos WHERE token_delegado = :token"),
             {"token": token}
         )
         eq_row = eq_res.fetchone()
@@ -991,7 +991,7 @@ async def upload_equipo_foto_by_token(
         foto_url = f"/static/uploads/fotos_equipos/{filename}"
 
         await session.execute(
-            text("UPDATE torneos.equipos SET foto_equipo_url = :foto_url WHERE id = :eid"),
+            text("UPDATE torneos_futbol.equipos SET foto_equipo_url = :foto_url WHERE id = :eid"),
             {"foto_url": foto_url, "eid": equipo_id}
         )
         await session.commit()
@@ -1013,7 +1013,7 @@ async def add_jugador_by_token(
     try:
         # Validar token
         eq_res = await session.execute(
-            text("SELECT id, torneo_id FROM torneos.equipos WHERE token_delegado = :token"),
+            text("SELECT id, torneo_id FROM torneos_futbol.equipos WHERE token_delegado = :token"),
             {"token": token}
         )
         eq_row = eq_res.fetchone()
@@ -1072,7 +1072,7 @@ async def self_register_jugador(
     try:
         # Validar token y obtener torneo_equipo_id
         eq_res = await session.execute(
-            text("SELECT id, torneo_id FROM torneos.equipos WHERE token_jugadores = :token"),
+            text("SELECT id, torneo_id FROM torneos_futbol.equipos WHERE token_jugadores = :token"),
             {"token": token_jugadores}
         )
         eq_row = eq_res.fetchone()
@@ -1170,7 +1170,7 @@ async def get_jugadores(torneo_id: str, equipo_id: str, session: AsyncSession = 
 async def _get_config_param(param_key: str, default_value, torneo_id: str, session: AsyncSession):
     """Retrieves a configuration parameter hierarchically: Torneo -> Complejo -> Default."""
     t_res = await session.execute(
-        text("SELECT config, configuracion, complejo_id FROM torneos.torneos WHERE id = :tid"),
+        text("SELECT config, configuracion, complejo_id FROM torneos_futbol.torneos WHERE id = :tid"),
         {"tid": torneo_id}
     )
     t_row = t_res.fetchone()
@@ -1228,8 +1228,8 @@ async def _add_jugador_logic(
     team_res = await session.execute(
         text("""
             SELECT te.promocion, t.categoria, t.estado
-            FROM torneos.equipos te
-            JOIN torneos.torneos t ON te.torneo_id = t.id
+            FROM torneos_futbol.equipos te
+            JOIN torneos_futbol.torneos t ON te.torneo_id = t.id
             WHERE te.id = :eid AND te.torneo_id = :tid
         """),
         {"eid": equipo_id, "tid": torneo_id}
@@ -1252,7 +1252,7 @@ async def _add_jugador_logic(
     # 3. Validar DNI no repetido en otro equipo del mismo torneo
     dup = await session.execute(text("""
         SELECT tp.id FROM cancha.tournament_players tp
-        JOIN torneos.equipos te ON tp.tournament_team_id = te.id
+        JOIN torneos_futbol.equipos te ON tp.tournament_team_id = te.id
         WHERE te.torneo_id = :tid AND tp.dni = :dni
     """), {"tid": torneo_id, "dni": payload.dni})
     if dup.fetchone():
@@ -1568,9 +1568,9 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
                el.nombre AS local_nombre, el.logo_url AS local_logo,
                ev.nombre AS visitante_nombre, ev.logo_url AS visitante_logo,
                c.nombre AS cancha_nombre
-        FROM torneos.partidos p
-        JOIN torneos.equipos el ON p.equipo_local_id = el.id
-        JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
+        FROM torneos_futbol.partidos p
+        JOIN torneos_futbol.equipos el ON p.equipo_local_id = el.id
+        JOIN torneos_futbol.equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
         WHERE p.torneo_id = :tid
         ORDER BY p.jornada ASC NULLS LAST, p.fecha_hora ASC
@@ -1586,7 +1586,7 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
 async def iniciar_partido(partido_id: str, session: AsyncSession = Depends(get_session)):
     try:
         result = await session.execute(text("""
-            UPDATE torneos.partidos
+            UPDATE torneos_futbol.partidos
             SET estado = 'en_curso', fecha_hora_inicio_real = NOW()
             WHERE id = :pid AND estado = 'programado'
             RETURNING id, estado
@@ -1608,7 +1608,7 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
     try:
         # Obtener IDs para determinar ganador
         p_res = await session.execute(
-            text("SELECT torneo_id, equipo_local_id, equipo_visitante_id FROM torneos.partidos WHERE id = :pid"),
+            text("SELECT torneo_id, equipo_local_id, equipo_visitante_id FROM torneos_futbol.partidos WHERE id = :pid"),
             {"pid": partido_id}
         )
         p_row = p_res.fetchone()
@@ -1624,7 +1624,7 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             ganador_id = ev_id
 
         await session.execute(text("""
-            UPDATE torneos.partidos
+            UPDATE torneos_futbol.partidos
             SET goles_local = :gl, goles_visitante = :gv,
                 estado = :estado, ganador_id = :ganador_id,
                 fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
@@ -1638,7 +1638,7 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
         # Sincronizar goles con la tabla de goles si el acta fue cargada
         # (solo si no hay goles registrados individualmente)
         goles_registrados = await session.execute(
-            text("SELECT COUNT(*) FROM torneos.goles WHERE partido_id = :pid AND NOT anulado"),
+            text("SELECT COUNT(*) FROM torneos_futbol.goles WHERE partido_id = :pid AND NOT anulado"),
             {"pid": partido_id}
         )
         total_goles = goles_registrados.scalar() or 0
@@ -1668,7 +1668,7 @@ async def _chequear_descalificacion_wo(equipo_id: str, torneo_id: str, session: 
     res = await session.execute(
         text("""
             SELECT id, estado, equipo_wo_id
-            FROM torneos.partidos
+            FROM torneos_futbol.partidos
             WHERE torneo_id = :tid 
               AND (equipo_local_id = :eid OR equipo_visitante_id = :eid)
               AND estado IN ('finalizado', 'wo')
@@ -1703,7 +1703,7 @@ async def _chequear_descalificacion_wo(equipo_id: str, torneo_id: str, session: 
         # Cambiar estado del equipo a 'eliminado'
         await session.execute(
             text("""
-                UPDATE torneos.equipos
+                UPDATE torneos_futbol.equipos
                 SET estado_inscripcion = 'eliminado', updated_at = CURRENT_TIMESTAMP
                 WHERE id = :eid
             """),
@@ -1714,7 +1714,7 @@ async def _chequear_descalificacion_wo(equipo_id: str, torneo_id: str, session: 
         partidos_restantes_res = await session.execute(
             text("""
                 SELECT id, equipo_local_id, equipo_visitante_id
-                FROM torneos.partidos
+                FROM torneos_futbol.partidos
                 WHERE torneo_id = :tid
                   AND (equipo_local_id = :eid OR equipo_visitante_id = :eid)
                   AND estado NOT IN ('finalizado', 'wo')
@@ -1737,7 +1737,7 @@ async def _chequear_descalificacion_wo(equipo_id: str, torneo_id: str, session: 
                 
             await session.execute(
                 text("""
-                    UPDATE torneos.partidos
+                    UPDATE torneos_futbol.partidos
                     SET estado = 'wo', es_wo = true,
                         equipo_wo_id = :infractor_id,
                         goles_local = :gl, goles_visitante = :gv,
@@ -1759,7 +1759,7 @@ async def declarar_wo(partido_id: str, payload: WORequest, session: AsyncSession
     """Declara walkover: equipo infractor pierde, se aplica marcador estándar."""
     try:
         p_res = await session.execute(
-            text("SELECT torneo_id, equipo_local_id, equipo_visitante_id FROM torneos.partidos WHERE id = :pid"),
+            text("SELECT torneo_id, equipo_local_id, equipo_visitante_id FROM torneos_futbol.partidos WHERE id = :pid"),
             {"pid": partido_id}
         )
         p_row = p_res.fetchone()
@@ -1777,7 +1777,7 @@ async def declarar_wo(partido_id: str, payload: WORequest, session: AsyncSession
             ganador_id = str(local_id)
  
         await session.execute(text("""
-            UPDATE torneos.partidos
+            UPDATE torneos_futbol.partidos
             SET estado = 'wo', es_wo = true,
                 equipo_wo_id = :infractor_id,
                 goles_local = :gl, goles_visitante = :gv,
@@ -1824,9 +1824,9 @@ async def get_goles(partido_id: str, session: AsyncSession = Depends(get_session
     result = await session.execute(text("""
         SELECT g.id, g.player_id, g.equipo_id, g.minuto, g.tipo, g.anulado,
                tp.nombre AS jugador_nombre, te.nombre AS equipo_nombre
-        FROM torneos.goles g
+        FROM torneos_futbol.goles g
         LEFT JOIN cancha.tournament_players tp ON g.player_id = tp.id
-        JOIN torneos.equipos te ON g.equipo_id = te.id
+        JOIN torneos_futbol.equipos te ON g.equipo_id = te.id
         WHERE g.partido_id = :pid
         ORDER BY g.minuto ASC NULLS LAST, g.creado_en ASC
     """), {"pid": partido_id})
@@ -1839,7 +1839,7 @@ async def get_goles(partido_id: str, session: AsyncSession = Depends(get_session
 async def add_gol(partido_id: str, payload: GolCreate, session: AsyncSession = Depends(get_session)):
     try:
         result = await session.execute(text("""
-            INSERT INTO torneos.goles
+            INSERT INTO torneos_futbol.goles
                 (id, partido_id, player_id, equipo_id, minuto, tipo)
             VALUES
                 (gen_random_uuid(), :pid, :player_id, :equipo_id, :minuto, :tipo)
@@ -1855,14 +1855,14 @@ async def add_gol(partido_id: str, payload: GolCreate, session: AsyncSession = D
         if payload.tipo == "autogol":
             # autogol suma al rival
             await session.execute(text("""
-                UPDATE torneos.partidos
+                UPDATE torneos_futbol.partidos
                 SET goles_local = CASE WHEN equipo_visitante_id = :eid THEN goles_local + 1 ELSE goles_local END,
                     goles_visitante = CASE WHEN equipo_local_id = :eid THEN goles_visitante + 1 ELSE goles_visitante END
                 WHERE id = :pid
             """), {"pid": partido_id, "eid": payload.equipo_id})
         else:
             await session.execute(text("""
-                UPDATE torneos.partidos
+                UPDATE torneos_futbol.partidos
                 SET goles_local = CASE WHEN equipo_local_id = :eid THEN goles_local + 1 ELSE goles_local END,
                     goles_visitante = CASE WHEN equipo_visitante_id = :eid THEN goles_visitante + 1 ELSE goles_visitante END
                 WHERE id = :pid
@@ -1879,7 +1879,7 @@ async def add_gol(partido_id: str, payload: GolCreate, session: AsyncSession = D
 async def anular_gol(partido_id: str, gol_id: str, session: AsyncSession = Depends(get_session)):
     try:
         gol_res = await session.execute(
-            text("SELECT equipo_id, tipo FROM torneos.goles WHERE id = :gid AND partido_id = :pid AND NOT anulado"),
+            text("SELECT equipo_id, tipo FROM torneos_futbol.goles WHERE id = :gid AND partido_id = :pid AND NOT anulado"),
             {"gid": gol_id, "pid": partido_id}
         )
         gol_row = gol_res.fetchone()
@@ -1888,20 +1888,20 @@ async def anular_gol(partido_id: str, gol_id: str, session: AsyncSession = Depen
 
         equipo_id, tipo = str(gol_row[0]), gol_row[1]
         await session.execute(
-            text("UPDATE torneos.goles SET anulado = true WHERE id = :gid"),
+            text("UPDATE torneos_futbol.goles SET anulado = true WHERE id = :gid"),
             {"gid": gol_id}
         )
         # Restar del marcador
         if tipo == "autogol":
             await session.execute(text("""
-                UPDATE torneos.partidos
+                UPDATE torneos_futbol.partidos
                 SET goles_local = CASE WHEN equipo_visitante_id = :eid THEN GREATEST(goles_local - 1, 0) ELSE goles_local END,
                     goles_visitante = CASE WHEN equipo_local_id = :eid THEN GREATEST(goles_visitante - 1, 0) ELSE goles_visitante END
                 WHERE id = :pid
             """), {"pid": partido_id, "eid": equipo_id})
         else:
             await session.execute(text("""
-                UPDATE torneos.partidos
+                UPDATE torneos_futbol.partidos
                 SET goles_local = CASE WHEN equipo_local_id = :eid THEN GREATEST(goles_local - 1, 0) ELSE goles_local END,
                     goles_visitante = CASE WHEN equipo_visitante_id = :eid THEN GREATEST(goles_visitante - 1, 0) ELSE goles_visitante END
                 WHERE id = :pid
@@ -1925,9 +1925,9 @@ async def get_tarjetas(partido_id: str, session: AsyncSession = Depends(get_sess
         SELECT t.id, t.player_id, t.equipo_id, t.minuto, t.tipo,
                t.pts_fair_play, t.genera_suspension, t.partidos_suspension,
                tp.nombre AS jugador_nombre, te.nombre AS equipo_nombre
-        FROM torneos.tarjetas t
+        FROM torneos_futbol.tarjetas t
         JOIN cancha.tournament_players tp ON t.player_id = tp.id
-        JOIN torneos.equipos te ON t.equipo_id = te.id
+        JOIN torneos_futbol.equipos te ON t.equipo_id = te.id
         WHERE t.partido_id = :pid
         ORDER BY t.minuto ASC NULLS LAST
     """), {"pid": partido_id})
@@ -1942,7 +1942,7 @@ async def add_tarjeta(partido_id: str, payload: TarjetaCreate, session: AsyncSes
     try:
         # Obtener torneo_id
         tid_res = await session.execute(
-            text("SELECT torneo_id FROM torneos.partidos WHERE id = :pid"),
+            text("SELECT torneo_id FROM torneos_futbol.partidos WHERE id = :pid"),
             {"pid": partido_id}
         )
         tid_row = tid_res.fetchone()
@@ -1954,7 +1954,7 @@ async def add_tarjeta(partido_id: str, payload: TarjetaCreate, session: AsyncSes
         logica = await _aplicar_tarjeta_logica(payload.player_id, payload.tipo, torneo_id, session)
 
         result = await session.execute(text("""
-            INSERT INTO torneos.tarjetas
+            INSERT INTO torneos_futbol.tarjetas
                 (id, partido_id, player_id, equipo_id, minuto, tipo,
                  pts_fair_play, genera_suspension, partidos_suspension)
             VALUES
@@ -1974,7 +1974,7 @@ async def add_tarjeta(partido_id: str, payload: TarjetaCreate, session: AsyncSes
         # Crear sanción si corresponde
         if logica["genera_suspension"]:
             await session.execute(text("""
-                INSERT INTO torneos.sanciones
+                INSERT INTO torneos_futbol.sanciones
                     (id, torneo_id, player_id, tarjeta_id, tipo, descripcion,
                      partidos_suspension, estado)
                 VALUES
@@ -1989,7 +1989,7 @@ async def add_tarjeta(partido_id: str, payload: TarjetaCreate, session: AsyncSes
 
         # B.7 Integrar cargo automático
         cfg_res = await session.execute(
-            text("SELECT multa_amarilla_monto, multa_roja_monto FROM torneos.torneos WHERE id = :tid"),
+            text("SELECT multa_amarilla_monto, multa_roja_monto FROM torneos_futbol.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         cfg_row = cfg_res.fetchone()
@@ -2034,8 +2034,8 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
     result = await session.execute(text("""
         SELECT tp.posicion, te.id AS equipo_id, te.nombre, te.logo_url, te.color_principal,
                tp.pj, tp.pg, tp.pe, tp.pp, tp.gf, tp.gc, tp.dg, tp.pts, tp.pts_fair_play_neg
-        FROM torneos.posiciones tp
-        JOIN torneos.equipos te ON tp.torneo_equipo_id = te.id
+        FROM torneos_futbol.posiciones tp
+        JOIN torneos_futbol.equipos te ON tp.torneo_equipo_id = te.id
         WHERE tp.torneo_id = :tid
         ORDER BY tp.posicion ASC
     """), {"tid": torneo_id})
@@ -2054,9 +2054,9 @@ async def get_goleadores(torneo_id: str, session: AsyncSession = Depends(get_ses
                COUNT(CASE WHEN g.tipo = 'penal' AND NOT g.anulado THEN 1 END) AS penales,
                COUNT(CASE WHEN g.tipo = 'autogol' AND NOT g.anulado THEN 1 END) AS autogoles
         FROM cancha.tournament_players tp
-        JOIN torneos.equipos te ON tp.tournament_team_id = te.id
-        LEFT JOIN torneos.goles g ON g.player_id = tp.id
-        LEFT JOIN torneos.partidos p ON g.partido_id = p.id
+        JOIN torneos_futbol.equipos te ON tp.tournament_team_id = te.id
+        LEFT JOIN torneos_futbol.goles g ON g.player_id = tp.id
+        LEFT JOIN torneos_futbol.partidos p ON g.partido_id = p.id
         WHERE te.torneo_id = :tid
         GROUP BY tp.id, tp.nombre, tp.foto_url, tp.numero_camiseta, te.nombre, te.color_principal
         HAVING COUNT(CASE WHEN g.tipo != 'autogol' AND NOT g.anulado THEN 1 END) > 0
@@ -2075,9 +2075,9 @@ async def get_fair_play(torneo_id: str, session: AsyncSession = Depends(get_sess
                COALESCE(SUM(tt.pts_fair_play), 0) AS pts_negativos,
                COUNT(CASE WHEN tt.tipo = 'amarilla' THEN 1 END) AS amarillas,
                COUNT(CASE WHEN tt.tipo IN ('roja_directa','roja_segunda') THEN 1 END) AS rojas
-        FROM torneos.equipos te
-        LEFT JOIN torneos.tarjetas tt ON tt.equipo_id = te.id
-        LEFT JOIN torneos.partidos p ON tt.partido_id = p.id AND p.torneo_id = :tid
+        FROM torneos_futbol.equipos te
+        LEFT JOIN torneos_futbol.tarjetas tt ON tt.equipo_id = te.id
+        LEFT JOIN torneos_futbol.partidos p ON tt.partido_id = p.id AND p.torneo_id = :tid
         WHERE te.torneo_id = :tid AND te.estado_inscripcion = 'confirmado'
         GROUP BY te.id, te.nombre, te.logo_url
         ORDER BY pts_negativos ASC, te.nombre ASC
@@ -2094,9 +2094,9 @@ async def get_sanciones(torneo_id: str, session: AsyncSession = Depends(get_sess
                tp.numero_camiseta, te.nombre AS equipo_nombre,
                s.tipo, s.descripcion, s.partidos_suspension, s.partidos_cumplidos,
                s.estado, s.creado_en
-        FROM torneos.sanciones s
+        FROM torneos_futbol.sanciones s
         JOIN cancha.tournament_players tp ON s.player_id = tp.id
-        JOIN torneos.equipos te ON tp.tournament_team_id = te.id
+        JOIN torneos_futbol.equipos te ON tp.tournament_team_id = te.id
         WHERE s.torneo_id = :tid
         ORDER BY s.estado ASC, s.creado_en DESC
     """), {"tid": torneo_id})
@@ -2135,7 +2135,7 @@ def _generar_primera_ronda_eliminatoria(equipos: list) -> tuple[str, list, any]:
 async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
     """Verifica si todos los partidos de la fase eliminatoria actual terminaron y genera la siguiente fase."""
     t_res = await session.execute(
-        text("SELECT formato, estado, fecha_inicio FROM torneos.torneos WHERE id = :tid"),
+        text("SELECT formato, estado, fecha_inicio FROM torneos_futbol.torneos WHERE id = :tid"),
         {"tid": torneo_id}
     )
     t_row = t_res.fetchone()
@@ -2152,7 +2152,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
     f_res = await session.execute(
         text("""
             SELECT fase, MAX(jornada) 
-            FROM torneos.partidos 
+            FROM torneos_futbol.partidos 
             WHERE torneo_id = :tid 
               AND (fase LIKE '%Final%' OR fase LIKE '%Semifinal%')
             GROUP BY fase
@@ -2181,7 +2181,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
     p_res = await session.execute(
         text("""
             SELECT id, estado, ganador_id, equipo_local_id, equipo_visitante_id, es_wo
-            FROM torneos.partidos
+            FROM torneos_futbol.partidos
             WHERE torneo_id = :tid AND fase = :fase
         """),
         {"tid": torneo_id, "fase": fase_actual}
@@ -2202,7 +2202,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
     # ¿Hay algún equipo que tuvo BYE?
     eq_res = await session.execute(
         text("""
-            SELECT id FROM torneos.equipos 
+            SELECT id FROM torneos_futbol.equipos 
             WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'
         """),
         {"tid": torneo_id}
@@ -2221,7 +2221,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
     idx_actual = jerarquia.index(fase_actual)
     if idx_actual == len(jerarquia) - 1:
         await session.execute(
-            text("UPDATE torneos.torneos SET estado = 'finalizado' WHERE id = :tid"),
+            text("UPDATE torneos_futbol.torneos SET estado = 'finalizado' WHERE id = :tid"),
             {"tid": torneo_id}
         )
         return
@@ -2241,7 +2241,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
     for i, (local, visitante) in enumerate(partidos_siguiente):
         hora = dtime(18 + i, 0)
         await session.execute(text("""
-            INSERT INTO torneos.partidos
+            INSERT INTO torneos_futbol.partidos
                 (id, torneo_id, equipo_local_id, equipo_visitante_id,
                  fase, jornada, numero_partido, fecha_hora, estado)
             VALUES
@@ -2260,7 +2260,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
         bye_team = ganadores[m // 2]
         hora = dtime(18 + total_creados, 0)
         await session.execute(text("""
-            INSERT INTO torneos.partidos
+            INSERT INTO torneos_futbol.partidos
                 (id, torneo_id, equipo_local_id, equipo_visitante_id,
                  fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
             VALUES
@@ -2278,7 +2278,7 @@ async def _avanzar_ronda_eliminatoria(torneo_id: str, session: AsyncSession):
 async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
     """Para torneos mixtos, verifica si terminó la fase de grupos y genera las semifinales de playoffs."""
     t_res = await session.execute(
-        text("SELECT formato, estado, fecha_inicio FROM torneos.torneos WHERE id = :tid"),
+        text("SELECT formato, estado, fecha_inicio FROM torneos_futbol.torneos WHERE id = :tid"),
         {"tid": torneo_id}
     )
     t_row = t_res.fetchone()
@@ -2290,14 +2290,14 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
         fecha_inicio = date.fromisoformat(fecha_inicio)
 
     playoffs_res = await session.execute(
-        text("SELECT COUNT(*) FROM torneos.partidos WHERE torneo_id = :tid AND (fase = 'Semifinal' OR fase = 'Final')"),
+        text("SELECT COUNT(*) FROM torneos_futbol.partidos WHERE torneo_id = :tid AND (fase = 'Semifinal' OR fase = 'Final')"),
         {"tid": torneo_id}
     )
     if playoffs_res.scalar() > 0:
         return
 
     p_res = await session.execute(
-        text("SELECT id, estado, fase FROM torneos.partidos WHERE torneo_id = :tid AND fase LIKE 'Grupo%'"),
+        text("SELECT id, estado, fase FROM torneos_futbol.partidos WHERE torneo_id = :tid AND fase LIKE 'Grupo%'"),
         {"tid": torneo_id}
     )
     group_partidos = p_res.fetchall()
@@ -2309,7 +2309,7 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
             return
 
     eq_res = await session.execute(
-        text("SELECT id, nombre FROM torneos.equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
+        text("SELECT id, nombre FROM torneos_futbol.equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
         {"tid": torneo_id}
     )
     equipos = [str(r[0]) for r in eq_res.fetchall()]
@@ -2318,7 +2318,7 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
     grupo_b_teams = set()
     for pid, estado, fase in group_partidos:
         eqs_res = await session.execute(
-            text("SELECT equipo_local_id, equipo_visitante_id FROM torneos.partidos WHERE id = :pid"),
+            text("SELECT equipo_local_id, equipo_visitante_id FROM torneos_futbol.partidos WHERE id = :pid"),
             {"pid": pid}
         )
         el, ev = eqs_res.fetchone()
@@ -2330,7 +2330,7 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
             if ev: grupo_b_teams.add(str(ev))
 
     pos_res = await session.execute(
-        text("SELECT torneo_equipo_id, pts, dg, gf FROM torneos.posiciones WHERE torneo_id = :tid"),
+        text("SELECT torneo_equipo_id, pts, dg, gf FROM torneos_futbol.posiciones WHERE torneo_id = :tid"),
         {"tid": torneo_id}
     )
     pos_map = {str(r[0]): (r[1] or 0, r[2] or 0, r[3] or 0) for r in pos_res.fetchall()}
@@ -2353,7 +2353,7 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
     b1, b2 = sorted_b[0], sorted_b[1]
 
     jornada_max_res = await session.execute(
-        text("SELECT MAX(jornada) FROM torneos.partidos WHERE torneo_id = :tid"),
+        text("SELECT MAX(jornada) FROM torneos_futbol.partidos WHERE torneo_id = :tid"),
         {"tid": torneo_id}
     )
     jornada_max = (jornada_max_res.scalar() or 0) + 1
@@ -2365,7 +2365,7 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
     for i, (local, visitante) in enumerate(cruces):
         hora = dtime(18 + i, 0)
         await session.execute(text("""
-            INSERT INTO torneos.partidos
+            INSERT INTO torneos_futbol.partidos
                 (id, torneo_id, equipo_local_id, equipo_visitante_id,
                  fase, jornada, numero_partido, fecha_hora, estado)
             VALUES
@@ -2379,7 +2379,7 @@ async def _verificar_fin_fase_grupos(torneo_id: str, session: AsyncSession):
         })
     
     await session.execute(
-        text("UPDATE torneos.torneos SET estado = 'playoffs' WHERE id = :tid"),
+        text("UPDATE torneos_futbol.torneos SET estado = 'playoffs' WHERE id = :tid"),
         {"tid": torneo_id}
     )
 
@@ -2420,7 +2420,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         from datetime import timedelta, time as dtime
 
         torneo_res = await session.execute(
-            text("SELECT id, formato, fecha_inicio, configuracion FROM torneos.torneos WHERE id = :tid"),
+            text("SELECT id, formato, fecha_inicio, configuracion FROM torneos_futbol.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         torneo = torneo_res.fetchone()
@@ -2444,7 +2444,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         tipo_sorteo = configuracion.get("tipo_sorteo_playoffs", "random")
 
         equipos_res = await session.execute(
-            text("SELECT id, semilla FROM torneos.equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
+            text("SELECT id, semilla FROM torneos_futbol.equipos WHERE torneo_id = :tid AND estado_inscripcion = 'confirmado'"),
             {"tid": torneo_id}
         )
         equipos_db = equipos_res.fetchall()
@@ -2462,7 +2462,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
 
         # Limpiar fixture anterior
         await session.execute(
-            text("DELETE FROM torneos.partidos WHERE torneo_id = :tid"),
+            text("DELETE FROM torneos_futbol.partidos WHERE torneo_id = :tid"),
             {"tid": torneo_id}
         )
 
@@ -2477,7 +2477,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
                 for i, (local, visitante) in enumerate(partidos_ronda):
                     hora = dtime(18 + i, 0)
                     await session.execute(text("""
-                        INSERT INTO torneos.partidos
+                        INSERT INTO torneos_futbol.partidos
                             (id, torneo_id, equipo_local_id, equipo_visitante_id,
                              fase, jornada, numero_partido, fecha_hora, estado)
                         VALUES
@@ -2499,7 +2499,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
             for i, (local, visitante) in enumerate(partidos_ronda):
                 hora = dtime(18 + i, 0)
                 await session.execute(text("""
-                    INSERT INTO torneos.partidos
+                    INSERT INTO torneos_futbol.partidos
                         (id, torneo_id, equipo_local_id, equipo_visitante_id,
                          fase, jornada, numero_partido, fecha_hora, estado)
                     VALUES
@@ -2516,7 +2516,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
             if bye_team:
                 hora = dtime(18 + total, 0)
                 await session.execute(text("""
-                    INSERT INTO torneos.partidos
+                    INSERT INTO torneos_futbol.partidos
                         (id, torneo_id, equipo_local_id, equipo_visitante_id,
                          fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
                     VALUES
@@ -2549,7 +2549,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
                     for local, visitante in rondas_a[r_num]:
                         hora = dtime(18 + i_partido, 0)
                         await session.execute(text("""
-                            INSERT INTO torneos.partidos
+                            INSERT INTO torneos_futbol.partidos
                                 (id, torneo_id, equipo_local_id, equipo_visitante_id,
                                  fase, jornada, numero_partido, fecha_hora, estado)
                             VALUES
@@ -2570,7 +2570,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
                     for local, visitante in rondas_b[r_num]:
                         hora = dtime(18 + i_partido, 0)
                         await session.execute(text("""
-                            INSERT INTO torneos.partidos
+                            INSERT INTO torneos_futbol.partidos
                                 (id, torneo_id, equipo_local_id, equipo_visitante_id,
                                  fase, jornada, numero_partido, fecha_hora, estado)
                             VALUES
@@ -2600,7 +2600,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
             for i, (local, visitante) in enumerate(partidos_ronda):
                 hora = dtime(18 + i, 0)
                 await session.execute(text("""
-                    INSERT INTO torneos.partidos
+                    INSERT INTO torneos_futbol.partidos
                         (id, torneo_id, equipo_local_id, equipo_visitante_id,
                          fase, jornada, numero_partido, fecha_hora, estado)
                     VALUES
@@ -2617,7 +2617,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
             if bye_team:
                 hora = dtime(18 + total, 0)
                 await session.execute(text("""
-                    INSERT INTO torneos.partidos
+                    INSERT INTO torneos_futbol.partidos
                         (id, torneo_id, equipo_local_id, equipo_visitante_id,
                          fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
                     VALUES
@@ -2634,7 +2634,7 @@ async def generar_fixture(torneo_id: str, session: AsyncSession = Depends(get_se
         # Inicializar tabla de posiciones vacía para todos los equipos
         for eid in equipos:
             await session.execute(text("""
-                INSERT INTO torneos.posiciones
+                INSERT INTO torneos_futbol.posiciones
                     (id, torneo_id, torneo_equipo_id, posicion)
                 VALUES
                     (:uuid, :tid, :eid, 0)
@@ -2656,7 +2656,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
         from datetime import timedelta, time as dtime
 
         torneo_res = await session.execute(
-            text("SELECT id, formato, fecha_inicio FROM torneos.torneos WHERE id = :tid"),
+            text("SELECT id, formato, fecha_inicio FROM torneos_futbol.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         torneo = torneo_res.fetchone()
@@ -2670,7 +2670,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
             raise HTTPException(status_code=400, detail="Este torneo no es de formato suizo")
 
         ronda_res = await session.execute(
-            text("SELECT MAX(jornada) FROM torneos.partidos WHERE torneo_id = :tid"),
+            text("SELECT MAX(jornada) FROM torneos_futbol.partidos WHERE torneo_id = :tid"),
             {"tid": torneo_id}
         )
         ronda_actual = ronda_res.scalar()
@@ -2679,7 +2679,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
 
         activos_res = await session.execute(
             text("""
-                SELECT COUNT(*) FROM torneos.partidos 
+                SELECT COUNT(*) FROM torneos_futbol.partidos 
                 WHERE torneo_id = :tid AND jornada = :ronda AND estado NOT IN ('finalizado', 'wo')
             """),
             {"tid": torneo_id, "ronda": ronda_actual}
@@ -2689,7 +2689,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
 
         enfrentamientos_res = await session.execute(
             text("""
-                SELECT equipo_local_id, equipo_visitante_id FROM torneos.partidos
+                SELECT equipo_local_id, equipo_visitante_id FROM torneos_futbol.partidos
                 WHERE torneo_id = :tid AND equipo_local_id IS NOT NULL AND equipo_visitante_id IS NOT NULL
             """),
             {"tid": torneo_id}
@@ -2702,8 +2702,8 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
         equipos_res = await session.execute(
             text("""
                 SELECT tp.torneo_equipo_id, tp.pts, tp.dg, tp.gf 
-                FROM torneos.posiciones tp
-                JOIN torneos.equipos te ON tp.torneo_equipo_id = te.id
+                FROM torneos_futbol.posiciones tp
+                JOIN torneos_futbol.equipos te ON tp.torneo_equipo_id = te.id
                 WHERE tp.torneo_id = :tid AND te.estado_inscripcion = 'confirmado'
             """),
             {"tid": torneo_id}
@@ -2723,7 +2723,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
 
         if len(posiciones) % 2 != 0:
             byes_res = await session.execute(
-                text("SELECT equipo_local_id FROM torneos.partidos WHERE torneo_id = :tid AND equipo_visitante_id IS NULL"),
+                text("SELECT equipo_local_id FROM torneos_futbol.partidos WHERE torneo_id = :tid AND equipo_visitante_id IS NULL"),
                 {"tid": torneo_id}
             )
             equipos_con_bye = {str(r[0]) for r in byes_res.fetchall()}
@@ -2770,7 +2770,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
         for idx, (local, visitante) in enumerate(partidos_ronda):
             hora = dtime(18 + idx, 0)
             await session.execute(text("""
-                INSERT INTO torneos.partidos
+                INSERT INTO torneos_futbol.partidos
                     (id, torneo_id, equipo_local_id, equipo_visitante_id,
                      fase, jornada, numero_partido, fecha_hora, estado)
                 VALUES
@@ -2788,7 +2788,7 @@ async def generar_siguiente_ronda_suizo(torneo_id: str, session: AsyncSession = 
         if bye_team:
             hora = dtime(18 + total_creados, 0)
             await session.execute(text("""
-                INSERT INTO torneos.partidos
+                INSERT INTO torneos_futbol.partidos
                     (id, torneo_id, equipo_local_id, equipo_visitante_id,
                      fase, jornada, numero_partido, fecha_hora, estado, es_wo, ganador_id, goles_local, goles_visitante, fecha_hora_fin_real, acta_cerrada_en)
                 VALUES
@@ -2906,7 +2906,7 @@ async def get_eventos_partido(
                    ep.tipo_evento_id,
                    tp_in.nombre  AS jugador_nombre,
                    tp_out.nombre AS jugador_sale_nombre
-            FROM cancha.eventos_partido ep
+            FROM torneos_futbol.eventos_partido ep
             LEFT JOIN cancha.tournament_players tp_in  ON tp_in.id  = ep.player_id
             LEFT JOIN cancha.tournament_players tp_out ON tp_out.id = ep.player_out_id
             WHERE ep.partido_id = :pid
@@ -2930,7 +2930,7 @@ async def create_evento_partido(
     try:
         # Verificar que el partido pertenece al torneo
         chk = await session.execute(
-            text("SELECT estado FROM torneos.partidos WHERE id = :pid AND torneo_id = :tid"),
+            text("SELECT estado FROM torneos_futbol.partidos WHERE id = :pid AND torneo_id = :tid"),
             {"pid": partido_id, "tid": torneo_id}
         )
         row = chk.fetchone()
@@ -2952,7 +2952,7 @@ async def create_evento_partido(
 
         new_id = str(uuid.uuid4())
         await session.execute(text("""
-            INSERT INTO cancha.eventos_partido
+            INSERT INTO torneos_futbol.eventos_partido
                 (id, partido_id, player_id, equipo_id, tipo, tipo_evento_id,
                  minuto, periodo, es_tiempo_adicional, observaciones)
             VALUES
@@ -2985,7 +2985,7 @@ async def add_sustitucion(
     """Registra el cambio de un jugador: quién entra (player_id) y quién sale (player_out_id)."""
     try:
         chk = await session.execute(
-            text("SELECT estado FROM torneos.partidos WHERE id = :pid AND torneo_id = :tid"),
+            text("SELECT estado FROM torneos_futbol.partidos WHERE id = :pid AND torneo_id = :tid"),
             {"pid": partido_id, "tid": torneo_id}
         )
         row = chk.fetchone()
@@ -3003,7 +3003,7 @@ async def add_sustitucion(
 
         new_id = str(uuid.uuid4())
         await session.execute(text("""
-            INSERT INTO cancha.eventos_partido
+            INSERT INTO torneos_futbol.eventos_partido
                 (id, partido_id, player_id, player_out_id, equipo_id,
                  tipo, tipo_evento_id, minuto, observaciones)
             VALUES
@@ -3123,7 +3123,7 @@ async def clonar_torneo(torneo_id: str, payload: ClonarTorneoRequest, session: A
                        puntos_victoria, puntos_empate, puntos_derrota,
                        max_equipos, costo_inscripcion, es_publico,
                        reglas, premios, configuracion
-                FROM torneos.torneos WHERE id = :tid
+                FROM torneos_futbol.torneos WHERE id = :tid
             """),
             {"tid": torneo_id}
         )
@@ -3144,7 +3144,7 @@ async def clonar_torneo(torneo_id: str, payload: ClonarTorneoRequest, session: A
 
         # 3. Insertar torneo clonado (estado siempre 'borrador')
         await session.execute(text("""
-            INSERT INTO torneos.torneos
+            INSERT INTO torneos_futbol.torneos
                 (id, complejo_id, organizador_id, modalidad_id, categoria_id, creado_por,
                  nombre, deporte, descripcion, estado,
                  puntos_victoria, puntos_empate, puntos_derrota,
@@ -3185,7 +3185,7 @@ async def clonar_torneo(torneo_id: str, payload: ClonarTorneoRequest, session: A
                 text("""
                     SELECT nombre, logo_url, color_principal, color_secundario,
                            capitan_nombre, capitan_telefono, capitan_email, promocion
-                    FROM torneos.equipos
+                    FROM torneos_futbol.equipos
                     WHERE torneo_id = :tid AND estado_inscripcion != 'descalificado'
                 """),
                 {"tid": torneo_id}
@@ -3194,7 +3194,7 @@ async def clonar_torneo(torneo_id: str, payload: ClonarTorneoRequest, session: A
             for eq in equipos_origen:
                 eq_id = str(uuid.uuid4())
                 await session.execute(text("""
-                    INSERT INTO torneos.equipos
+                    INSERT INTO torneos_futbol.equipos
                         (id, torneo_id, nombre, logo_url, color_principal, color_secundario,
                          capitan_nombre, capitan_telefono, capitan_email, promocion,
                          estado_inscripcion, payment_status)
@@ -3252,7 +3252,7 @@ async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(g
 
         # Verificar que el torneo existe
         t_res = await session.execute(
-            text("SELECT nombre FROM torneos.torneos WHERE id = :tid"),
+            text("SELECT nombre FROM torneos_futbol.torneos WHERE id = :tid"),
             {"tid": torneo_id}
         )
         t_row = t_res.fetchone()
@@ -3305,7 +3305,7 @@ async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(g
         _header_row(ws_eq, ["#", "Equipo", "Capitán", "Teléfono", "Estado Inscripción", "Estado Pago", "Promoción"])
         eq_res = await session.execute(text("""
             SELECT nombre, capitan_nombre, capitan_telefono, estado_inscripcion, payment_status, promocion
-            FROM torneos.equipos
+            FROM torneos_futbol.equipos
             WHERE torneo_id = :tid
             ORDER BY nombre
         """), {"tid": torneo_id})
@@ -3322,8 +3322,8 @@ async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(g
         pl_res = await session.execute(text("""
             SELECT te.nombre as equipo, tp.nombre, tp.dni, tp.numero_camiseta,
                    tp.posicion, tp.estado, tp.egreso_ano
-            FROM torneos.torneos_jugadores tp
-            JOIN torneos.equipos te ON te.id = tp.torneo_equipo_id
+            FROM torneos_futbol.tournament_players tp
+            JOIN torneos_futbol.equipos te ON te.id = tp.torneo_equipo_id
             WHERE te.torneo_id = :tid
             ORDER BY te.nombre, tp.nombre
         """), {"tid": torneo_id})
@@ -3341,9 +3341,9 @@ async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(g
             SELECT tp.jornada, tp.fase,
                    TO_CHAR(tp.fecha_hora AT TIME ZONE 'America/Asuncion', 'DD/MM/YYYY HH24:MI'),
                    el.nombre, tp.goles_local, tp.goles_visitante, ev.nombre, tp.estado
-            FROM torneos.partidos tp
-            JOIN torneos.equipos el ON el.id = tp.equipo_local_id
-            JOIN torneos.equipos ev ON ev.id = tp.equipo_visitante_id
+            FROM torneos_futbol.partidos tp
+            JOIN torneos_futbol.equipos el ON el.id = tp.equipo_local_id
+            JOIN torneos_futbol.equipos ev ON ev.id = tp.equipo_visitante_id
             WHERE tp.torneo_id = :tid
             ORDER BY tp.jornada, tp.fecha_hora
         """), {"tid": torneo_id})
@@ -3363,8 +3363,8 @@ async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(g
         pos_res = await session.execute(text("""
             SELECT po.posicion, te.nombre,
                    po.pj, po.pg, po.pe, po.pp, po.gf, po.gc, (po.gf - po.gc), po.pts
-            FROM torneos.posiciones po
-            JOIN torneos.equipos te ON te.id = po.equipo_id
+            FROM torneos_futbol.posiciones po
+            JOIN torneos_futbol.equipos te ON te.id = po.equipo_id
             WHERE po.torneo_id = :tid
             ORDER BY po.posicion
         """), {"tid": torneo_id})
@@ -3384,9 +3384,9 @@ async def exportar_torneo_xlsx(torneo_id: str, session: AsyncSession = Depends(g
                    COUNT(*) FILTER (WHERE tt.tipo IN ('roja_directa')) as rojas,
                    COUNT(*) FILTER (WHERE tt.tipo = 'roja_segunda') as doble_amarilla,
                    COALESCE(SUM(tt.pts_fair_play), 0) as total_pts_fp
-            FROM torneos.tarjetas tt
-            JOIN torneos.partidos tp ON tt.partido_id = tp.id
-            JOIN torneos.equipos te ON te.id = tt.equipo_id
+            FROM torneos_futbol.tarjetas tt
+            JOIN torneos_futbol.partidos tp ON tt.partido_id = tp.id
+            JOIN torneos_futbol.equipos te ON te.id = tt.equipo_id
             WHERE tp.torneo_id = :tid
             GROUP BY te.nombre
             ORDER BY total_pts_fp DESC
@@ -3452,7 +3452,7 @@ async def get_cuenta_corriente(equipo_id: str, session: AsyncSession = Depends(g
         # Obtener configuración del torneo para saber los límites
         # Necesitamos el torneo_id del equipo
         t_res = await session.execute(
-            text("SELECT torneo_id FROM torneos.equipos WHERE id = :eid"),
+            text("SELECT torneo_id FROM torneos_futbol.equipos WHERE id = :eid"),
             {"eid": equipo_id}
         )
         torneo_id = t_res.scalar()
@@ -3460,7 +3460,7 @@ async def get_cuenta_corriente(equipo_id: str, session: AsyncSession = Depends(g
         torneo_cfg = {"limite_deuda_habilitado": False, "limite_deuda_monto": 0.0}
         if torneo_id:
             cfg_res = await session.execute(
-                text("SELECT limite_deuda_habilitado, limite_deuda_monto FROM torneos.torneos WHERE id = :tid"),
+                text("SELECT limite_deuda_habilitado, limite_deuda_monto FROM torneos_futbol.torneos WHERE id = :tid"),
                 {"tid": str(torneo_id)}
             )
             cfg_row = cfg_res.fetchone()
