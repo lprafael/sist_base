@@ -122,6 +122,124 @@ export default function AdminConsole() {
     } catch (e) {}
   };
 
+  // Sorting & Filtering for Catalogs
+  const [catalogSortField, setCatalogSortField] = useState<string>('nombre');
+  const [catalogSortAsc, setCatalogSortAsc] = useState<boolean>(true);
+  const [catalogFilters, setCatalogFilters] = useState({
+    deportes_nombre: '',
+    deportes_tipo: '',
+    tipos_nombre: '',
+    tipos_descripcion: '',
+    formatos_nombre: '',
+    formatos_descripcion: '',
+    roles_nombre: '',
+    roles_descripcion: ''
+  });
+
+  const handleToggleCatalogSort = (field: string) => {
+    if (catalogSortField === field) {
+      setCatalogSortAsc(!catalogSortAsc);
+    } else {
+      setCatalogSortField(field);
+      setCatalogSortAsc(true);
+    }
+  };
+
+  const filteredSortedDeportes = useMemo(() => {
+    let result = [...dbDeportes];
+    if (catalogFilters.deportes_nombre) {
+      result = result.filter(d => d.nombre.toLowerCase().includes(catalogFilters.deportes_nombre.toLowerCase()));
+    }
+    if (catalogFilters.deportes_tipo) {
+      result = result.filter(d => {
+        const tipoName = d.tipo_deporte?.nombre || `ID: ${d.tipo_id}`;
+        return tipoName.toLowerCase().includes(catalogFilters.deportes_tipo.toLowerCase());
+      });
+    }
+    result.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (catalogSortField === 'nombre') {
+        valA = a.nombre;
+        valB = b.nombre;
+      } else if (catalogSortField === 'tipo') {
+        valA = a.tipo_deporte?.nombre || `ID: ${a.tipo_id}`;
+        valB = b.tipo_deporte?.nombre || `ID: ${b.tipo_id}`;
+      }
+      return catalogSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+    return result;
+  }, [dbDeportes, catalogFilters.deportes_nombre, catalogFilters.deportes_tipo, catalogSortField, catalogSortAsc]);
+
+  const filteredSortedTiposDeporte = useMemo(() => {
+    let result = [...dbTiposDeporte];
+    if (catalogFilters.tipos_nombre) {
+      result = result.filter(t => t.nombre.toLowerCase().includes(catalogFilters.tipos_nombre.toLowerCase()));
+    }
+    if (catalogFilters.tipos_descripcion) {
+      result = result.filter(t => (t.descripcion || '').toLowerCase().includes(catalogFilters.tipos_descripcion.toLowerCase()));
+    }
+    result.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (catalogSortField === 'nombre') {
+        valA = a.nombre;
+        valB = b.nombre;
+      } else if (catalogSortField === 'descripcion') {
+        valA = a.descripcion || '';
+        valB = b.descripcion || '';
+      }
+      return catalogSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+    return result;
+  }, [dbTiposDeporte, catalogFilters.tipos_nombre, catalogFilters.tipos_descripcion, catalogSortField, catalogSortAsc]);
+
+  const filteredSortedFormatosTorneo = useMemo(() => {
+    let result = [...dbFormatosTorneo];
+    if (catalogFilters.formatos_nombre) {
+      result = result.filter(f => f.nombre.toLowerCase().includes(catalogFilters.formatos_nombre.toLowerCase()));
+    }
+    if (catalogFilters.formatos_descripcion) {
+      result = result.filter(f => (f.descripcion || '').toLowerCase().includes(catalogFilters.formatos_descripcion.toLowerCase()));
+    }
+    result.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (catalogSortField === 'nombre') {
+        valA = a.nombre;
+        valB = b.nombre;
+      } else if (catalogSortField === 'descripcion') {
+        valA = a.descripcion || '';
+        valB = b.descripcion || '';
+      }
+      return catalogSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+    return result;
+  }, [dbFormatosTorneo, catalogFilters.formatos_nombre, catalogFilters.formatos_descripcion, catalogSortField, catalogSortAsc]);
+
+  const filteredSortedRoles = useMemo(() => {
+    let result = [...dbRoles];
+    if (catalogFilters.roles_nombre) {
+      result = result.filter(r => r.nombre.toLowerCase().includes(catalogFilters.roles_nombre.toLowerCase()));
+    }
+    if (catalogFilters.roles_descripcion) {
+      result = result.filter(r => (r.descripcion || '').toLowerCase().includes(catalogFilters.roles_descripcion.toLowerCase()));
+    }
+    result.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (catalogSortField === 'nombre') {
+        valA = a.nombre;
+        valB = b.nombre;
+      } else if (catalogSortField === 'descripcion') {
+        valA = a.descripcion || '';
+        valB = b.descripcion || '';
+      }
+      return catalogSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+    return result;
+  }, [dbRoles, catalogFilters.roles_nombre, catalogFilters.roles_descripcion, catalogSortField, catalogSortAsc]);
+
   // Tabs states
   const [activeSuperTab, setActiveSuperTab] = useState<'tenants' | 'sports' | 'requests' | 'audit'>('tenants');
 
@@ -1062,18 +1180,43 @@ export default function AdminConsole() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
-                          <th style={{ padding: 10 }}>Nombre</th>
-                          <th style={{ padding: 10 }}>Tipo de Deporte</th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('nombre')}>
+                            Nombre {catalogSortField === 'nombre' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('tipo')}>
+                            Tipo de Deporte {catalogSortField === 'tipo' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
                           <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar nombre..."
+                              value={catalogFilters.deportes_nombre}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, deportes_nombre: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar tipo..."
+                              value={catalogFilters.deportes_tipo}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, deportes_tipo: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}></td>
                         </tr>
                       </thead>
                       <tbody>
-                        {dbDeportes.length === 0 ? (
+                        {filteredSortedDeportes.length === 0 ? (
                           <tr>
-                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay deportes guardados en la base de datos.</td>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay deportes guardados o no coinciden con la búsqueda.</td>
                           </tr>
                         ) : (
-                          dbDeportes.map(d => (
+                          filteredSortedDeportes.map(d => (
                             <tr key={d.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: 10, fontWeight: 700 }}>{d.nombre}</td>
                               <td style={{ padding: 10 }}>{d.tipo_deporte?.nombre || `ID: ${d.tipo_id}`}</td>
@@ -1114,18 +1257,43 @@ export default function AdminConsole() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
-                          <th style={{ padding: 10 }}>Nombre</th>
-                          <th style={{ padding: 10 }}>Descripción</th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('nombre')}>
+                            Nombre {catalogSortField === 'nombre' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('descripcion')}>
+                            Descripción {catalogSortField === 'descripcion' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
                           <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar nombre..."
+                              value={catalogFilters.tipos_nombre}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, tipos_nombre: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar descripción..."
+                              value={catalogFilters.tipos_descripcion}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, tipos_descripcion: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}></td>
                         </tr>
                       </thead>
                       <tbody>
-                        {dbTiposDeporte.length === 0 ? (
+                        {filteredSortedTiposDeporte.length === 0 ? (
                           <tr>
-                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay tipos de deporte guardados.</td>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay tipos de deporte guardados o no coinciden con la búsqueda.</td>
                           </tr>
                         ) : (
-                          dbTiposDeporte.map(t => (
+                          filteredSortedTiposDeporte.map(t => (
                             <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: 10, fontWeight: 700 }}>{t.nombre}</td>
                               <td style={{ padding: 10, color: '#64748b' }}>{t.descripcion || 'Sin descripción'}</td>
@@ -1166,18 +1334,43 @@ export default function AdminConsole() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
-                          <th style={{ padding: 10 }}>Nombre</th>
-                          <th style={{ padding: 10 }}>Descripción</th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('nombre')}>
+                            Nombre {catalogSortField === 'nombre' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('descripcion')}>
+                            Descripción {catalogSortField === 'descripcion' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
                           <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar nombre..."
+                              value={catalogFilters.formatos_nombre}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, formatos_nombre: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar descripción..."
+                              value={catalogFilters.formatos_descripcion}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, formatos_descripcion: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}></td>
                         </tr>
                       </thead>
                       <tbody>
-                        {dbFormatosTorneo.length === 0 ? (
+                        {filteredSortedFormatosTorneo.length === 0 ? (
                           <tr>
-                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay formatos de torneo guardados.</td>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay formatos de torneo guardados o no coinciden con la búsqueda.</td>
                           </tr>
                         ) : (
-                          dbFormatosTorneo.map(f => (
+                          filteredSortedFormatosTorneo.map(f => (
                             <tr key={f.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: 10, fontWeight: 700 }}>{f.nombre}</td>
                               <td style={{ padding: 10, color: '#64748b' }}>{f.descripcion || 'Sin descripción'}</td>
@@ -1218,18 +1411,43 @@ export default function AdminConsole() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
-                          <th style={{ padding: 10 }}>Nombre</th>
-                          <th style={{ padding: 10 }}>Descripción</th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('nombre')}>
+                            Nombre {catalogSortField === 'nombre' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
+                          <th style={{ padding: 10, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleCatalogSort('descripcion')}>
+                            Descripción {catalogSortField === 'descripcion' ? (catalogSortAsc ? '▲' : '▼') : ''}
+                          </th>
                           <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar nombre..."
+                              value={catalogFilters.roles_nombre}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, roles_nombre: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}>
+                            <input
+                              type="text"
+                              placeholder="Filtrar descripción..."
+                              value={catalogFilters.roles_descripcion}
+                              onChange={e => setCatalogFilters({ ...catalogFilters, roles_descripcion: e.target.value })}
+                              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', outline: 'none', fontSize: 11 }}
+                            />
+                          </td>
+                          <td style={{ padding: 6 }}></td>
                         </tr>
                       </thead>
                       <tbody>
-                        {dbRoles.length === 0 ? (
+                        {filteredSortedRoles.length === 0 ? (
                           <tr>
-                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay roles guardados en la base de datos.</td>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay roles guardados o no coinciden con la búsqueda.</td>
                           </tr>
                         ) : (
-                          dbRoles.map(r => (
+                          filteredSortedRoles.map(r => (
                             <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: 10, fontWeight: 700 }}>{r.nombre}</td>
                               <td style={{ padding: 10, color: '#64748b' }}>{r.descripcion || 'Sin descripción'}</td>
