@@ -99,7 +99,8 @@ export default function AdminConsole() {
   const [dbDeportes, setDbDeportes] = useState<any[]>([]);
   const [dbTiposDeporte, setDbTiposDeporte] = useState<any[]>([]);
   const [dbFormatosTorneo, setDbFormatosTorneo] = useState<any[]>([]);
-  const [activeCatalogTab, setActiveCatalogTab] = useState<'deportes' | 'tipos' | 'formatos'>('deportes');
+  const [dbRoles, setDbRoles] = useState<any[]>([]);
+  const [activeCatalogTab, setActiveCatalogTab] = useState<'deportes' | 'tipos' | 'formatos' | 'roles'>('deportes');
   const [editCatalogItem, setEditCatalogItem] = useState<any | null>(null);
 
   const fetchCatalogs = async () => {
@@ -114,6 +115,10 @@ export default function AdminConsole() {
     try {
       const resFormatos = await fetch(`${API_URL}/api/torneos/formatos`);
       if (resFormatos.ok) setDbFormatosTorneo(await resFormatos.json());
+    } catch (e) {}
+    try {
+      const resRoles = await fetch(`${API_URL}/api/cancha/roles`);
+      if (resRoles.ok) setDbRoles(await resRoles.json());
     } catch (e) {}
   };
 
@@ -471,6 +476,9 @@ export default function AdminConsole() {
     } else if (editCatalogItem.type === 'formatos') {
       url = `${API_URL}/api/torneos/formatos` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
       bodyData = { nombre: editCatalogItem.nombre, descripcion: editCatalogItem.descripcion || '' };
+    } else if (editCatalogItem.type === 'roles') {
+      url = `${API_URL}/api/cancha/roles` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
+      bodyData = { nombre: editCatalogItem.nombre, descripcion: editCatalogItem.descripcion || '' };
     }
 
     try {
@@ -493,7 +501,7 @@ export default function AdminConsole() {
     }
   };
 
-  const handleDeleteCatalogItem = async (type: 'deportes' | 'tipos' | 'formatos', id: number, name: string) => {
+  const handleDeleteCatalogItem = async (type: 'deportes' | 'tipos' | 'formatos' | 'roles', id: number, name: string) => {
     if (!confirm(`¿Estás seguro de eliminar "${name}"?`)) return;
 
     let token = '';
@@ -515,6 +523,8 @@ export default function AdminConsole() {
       url = `${API_URL}/api/deportes/tipos/${id}`;
     } else if (type === 'formatos') {
       url = `${API_URL}/api/torneos/formatos/${id}`;
+    } else if (type === 'roles') {
+      url = `${API_URL}/api/cancha/roles/${id}`;
     }
 
     try {
@@ -1015,7 +1025,8 @@ export default function AdminConsole() {
                   {[
                     { id: 'deportes', label: '🏆 Deportes' },
                     { id: 'tipos', label: '📁 Tipos de Deporte' },
-                    { id: 'formatos', label: '⚙️ Formatos de Torneo' }
+                    { id: 'formatos', label: '⚙️ Formatos de Torneo' },
+                    { id: 'roles', label: '👥 Roles de Cancha' }
                   ].map(sub => (
                     <button
                       key={sub.id}
@@ -1179,6 +1190,58 @@ export default function AdminConsole() {
                                 </button>
                                 <button
                                   onClick={() => handleDeleteCatalogItem('formatos', f.id, f.nombre)}
+                                  style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Eliminar
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-tab: ROLES */}
+                {activeCatalogTab === 'roles' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h4 style={{ fontWeight: 800, fontSize: 16 }}>Roles de Cancha (cancha.roles)</h4>
+                      <button
+                        onClick={() => setEditCatalogItem({ type: 'roles', isNew: true, nombre: '', descripcion: '' })}
+                        style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        + Agregar Rol
+                      </button>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
+                          <th style={{ padding: 10 }}>Nombre</th>
+                          <th style={{ padding: 10 }}>Descripción</th>
+                          <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbRoles.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay roles guardados en la base de datos.</td>
+                          </tr>
+                        ) : (
+                          dbRoles.map(r => (
+                            <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: 10, fontWeight: 700 }}>{r.nombre}</td>
+                              <td style={{ padding: 10, color: '#64748b' }}>{r.descripcion || 'Sin descripción'}</td>
+                              <td style={{ padding: 10, textAlign: 'right' }}>
+                                <button
+                                  onClick={() => setEditCatalogItem({ type: 'roles', id: r.id, nombre: r.nombre, descripcion: r.descripcion })}
+                                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, marginRight: 6, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCatalogItem('roles', r.id, r.nombre)}
                                   style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
                                 >
                                   Eliminar
@@ -1629,7 +1692,8 @@ export default function AdminConsole() {
             <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
               {editCatalogItem.id ? '✏️ Editar Registro' : '➕ Agregar Registro'} - {
                 editCatalogItem.type === 'deportes' ? 'Deporte' : 
-                editCatalogItem.type === 'tipos' ? 'Tipo de Deporte' : 'Formato de Torneo'
+                editCatalogItem.type === 'tipos' ? 'Tipo de Deporte' : 
+                editCatalogItem.type === 'formatos' ? 'Formato de Torneo' : 'Rol de Cancha'
               }
             </h3>
 
@@ -1664,7 +1728,7 @@ export default function AdminConsole() {
               </div>
             )}
 
-            {(editCatalogItem.type === 'tipos' || editCatalogItem.type === 'formatos') && (
+            {(editCatalogItem.type === 'tipos' || editCatalogItem.type === 'formatos' || editCatalogItem.type === 'roles') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 12, fontWeight: 700 }}>Descripción</label>
                 <textarea
