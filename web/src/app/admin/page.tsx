@@ -95,6 +95,28 @@ export default function AdminConsole() {
   const [organizadores, setOrganizadores] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
 
+  // Catalog Data states
+  const [dbDeportes, setDbDeportes] = useState<any[]>([]);
+  const [dbTiposDeporte, setDbTiposDeporte] = useState<any[]>([]);
+  const [dbFormatosTorneo, setDbFormatosTorneo] = useState<any[]>([]);
+  const [activeCatalogTab, setActiveCatalogTab] = useState<'deportes' | 'tipos' | 'formatos'>('deportes');
+  const [editCatalogItem, setEditCatalogItem] = useState<any | null>(null);
+
+  const fetchCatalogs = async () => {
+    try {
+      const resDeportes = await fetch(`${API_URL}/api/deportes`);
+      if (resDeportes.ok) setDbDeportes(await resDeportes.json());
+    } catch (e) {}
+    try {
+      const resTipos = await fetch(`${API_URL}/api/deportes/tipos`);
+      if (resTipos.ok) setDbTiposDeporte(await resTipos.json());
+    } catch (e) {}
+    try {
+      const resFormatos = await fetch(`${API_URL}/api/torneos/formatos`);
+      if (resFormatos.ok) setDbFormatosTorneo(await resFormatos.json());
+    } catch (e) {}
+  };
+
   // Tabs states
   const [activeSuperTab, setActiveSuperTab] = useState<'tenants' | 'sports' | 'requests' | 'audit'>('tenants');
 
@@ -244,6 +266,8 @@ export default function AdminConsole() {
           }
         }
       } catch (_e) { }
+
+      await fetchCatalogs();
     };
     fetchData();
   }, []);
@@ -418,29 +442,97 @@ export default function AdminConsole() {
     }
   };
 
-  const handleAddSport = (e: React.FormEvent) => {
+  const handleSaveCatalogItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSport.trim()) return;
-    if (deportes.includes(newSport.trim())) {
-      addToast(`⚠️ El deporte "${newSport}" ya existe.`);
-      return;
+    if (!editCatalogItem) return;
+
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    let url = '';
+    let method = editCatalogItem.id ? 'PUT' : 'POST';
+    let bodyData: any = {};
+
+    if (editCatalogItem.type === 'deportes') {
+      url = `${API_URL}/api/deportes` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
+      bodyData = { nombre: editCatalogItem.nombre, tipo_id: Number(editCatalogItem.tipo_id) };
+    } else if (editCatalogItem.type === 'tipos') {
+      url = `${API_URL}/api/deportes/tipos` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
+      bodyData = { nombre: editCatalogItem.nombre, descripcion: editCatalogItem.descripcion || '' };
+    } else if (editCatalogItem.type === 'formatos') {
+      url = `${API_URL}/api/torneos/formatos` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
+      bodyData = { nombre: editCatalogItem.nombre, descripcion: editCatalogItem.descripcion || '' };
     }
-    setDeportes(prev => [...prev, newSport.trim()]);
-    logEvent('auditoria', {
-      accion: 'Agregar Deporte',
-      detalles: `Se agregó el deporte "${newSport.trim()}" al catálogo global de disciplinas`
-    });
-    addToast(`🏀 Deporte "${newSport.trim()}" agregado.`);
-    setNewSport('');
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(bodyData)
+      });
+
+      if (res.ok) {
+        addToast(`🎉 Registro guardado con éxito.`);
+        await fetchCatalogs();
+        setEditCatalogItem(null);
+      } else {
+        const error = await res.json();
+        alert(`Error al guardar: ${error.detail || 'Error desconocido'}`);
+      }
+    } catch (e: any) {
+      alert(`Error de red: ${e.message}`);
+    }
   };
 
-  const handleRemoveSport = (sport: string) => {
-    setDeportes(prev => prev.filter(s => s !== sport));
-    logEvent('auditoria', {
-      accion: 'Eliminar Deporte',
-      detalles: `Se retiró el deporte "${sport}" del catálogo global`
-    });
-    addToast(`🗑️ Deporte "${sport}" eliminado.`);
+  const handleDeleteCatalogItem = async (type: 'deportes' | 'tipos' | 'formatos', id: number, name: string) => {
+    if (!confirm(`¿Estás seguro de eliminar "${name}"?`)) return;
+
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+
+    const headers: any = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    let url = '';
+    if (type === 'deportes') {
+      url = `${API_URL}/api/deportes/${id}`;
+    } else if (type === 'tipos') {
+      url = `${API_URL}/api/deportes/tipos/${id}`;
+    } else if (type === 'formatos') {
+      url = `${API_URL}/api/torneos/formatos/${id}`;
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers
+      });
+
+      if (res.ok || res.status === 204) {
+        addToast(`🗑️ "${name}" eliminado.`);
+        await fetchCatalogs();
+      } else {
+        const error = await res.json();
+        alert(`Error al eliminar: ${error.detail || 'Error desconocido'}`);
+      }
+    } catch (e: any) {
+      alert(`Error de red: ${e.message}`);
+    }
   };
 
   // Tenant Owner Actions
@@ -608,7 +700,7 @@ export default function AdminConsole() {
               {[
                 { id: 'tenants', label: '🏟️ Complejos (Tenants)', count: complejos.length },
                 { id: 'requests', label: '📥 Solicitudes Registro', count: pendingRequests.filter(r => r.estado === 'pendiente').length },
-                { id: 'sports', label: '🏆 Deportes', count: deportes.length },
+                { id: 'sports', label: '🏆 Deportes y Catálogos', count: dbDeportes.length },
                 { id: 'audit', label: '📜 Auditoría y Logs', count: accessLogs.length + auditLogs.length }
               ].map(tab => (
                 <button
@@ -914,33 +1006,192 @@ export default function AdminConsole() {
 
             {/* TAB: SPORTS */}
             {activeSuperTab === 'sports' && (
-              <div style={{ maxWidth: '600px', background: '#fff', padding: 32, borderRadius: 24, border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
-                <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>🏆 Catálogo de Deportes</h3>
-                <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>Disciplinas habilitadas para las reservas y grillas horarias de los complejos.</p>
+              <div style={{ background: '#fff', padding: 32, borderRadius: 24, border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>🏆 Catálogos y Deportes</h3>
+                <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>Administración de deportes, categorías y formatos de torneos en la base de datos.</p>
 
-                <form onSubmit={handleAddSport} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                  <input
-                    type="text"
-                    placeholder="Nuevo deporte (Ej: Pádel Singulares)..."
-                    value={newSport}
-                    onChange={e => setNewSport(e.target.value)}
-                    style={{ flex: 1, padding: 12, borderRadius: 10, border: '1px solid #cbd5e1', outline: 'none' }}
-                  />
-                  <button type="submit" style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}>
-                    + Agregar
-                  </button>
-                </form>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {deportes.map(sport => (
-                    <div key={sport} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                      <span style={{ fontWeight: 700, color: '#0f172a' }}>{sport}</span>
-                      <button onClick={() => handleRemoveSport(sport)} style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-                        ✕
-                      </button>
-                    </div>
+                {/* Sub-tabs for catalogs */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
+                  {[
+                    { id: 'deportes', label: '🏆 Deportes' },
+                    { id: 'tipos', label: '📁 Tipos de Deporte' },
+                    { id: 'formatos', label: '⚙️ Formatos de Torneo' }
+                  ].map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setActiveCatalogTab(sub.id as any)}
+                      style={{
+                        border: 'none',
+                        background: activeCatalogTab === sub.id ? '#1e293b' : 'transparent',
+                        color: activeCatalogTab === sub.id ? '#ffffff' : '#64748b',
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {sub.label}
+                    </button>
                   ))}
                 </div>
+
+                {/* Sub-tab: DEPORTES */}
+                {activeCatalogTab === 'deportes' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h4 style={{ fontWeight: 800, fontSize: 16 }}>Lista de Deportes (cancha.deportes)</h4>
+                      <button
+                        onClick={() => setEditCatalogItem({ type: 'deportes', isNew: true, nombre: '', tipo_id: dbTiposDeporte[0]?.id || 1 })}
+                        style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        + Agregar Deporte
+                      </button>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
+                          <th style={{ padding: 10 }}>Nombre</th>
+                          <th style={{ padding: 10 }}>Tipo de Deporte</th>
+                          <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbDeportes.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay deportes guardados en la base de datos.</td>
+                          </tr>
+                        ) : (
+                          dbDeportes.map(d => (
+                            <tr key={d.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: 10, fontWeight: 700 }}>{d.nombre}</td>
+                              <td style={{ padding: 10 }}>{d.tipo_deporte?.nombre || `ID: ${d.tipo_id}`}</td>
+                              <td style={{ padding: 10, textAlign: 'right' }}>
+                                <button
+                                  onClick={() => setEditCatalogItem({ type: 'deportes', id: d.id, nombre: d.nombre, tipo_id: d.tipo_id })}
+                                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, marginRight: 6, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCatalogItem('deportes', d.id, d.nombre)}
+                                  style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Eliminar
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-tab: TIPOS DE DEPORTE */}
+                {activeCatalogTab === 'tipos' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h4 style={{ fontWeight: 800, fontSize: 16 }}>Tipos de Deporte (cancha.tipos_deporte)</h4>
+                      <button
+                        onClick={() => setEditCatalogItem({ type: 'tipos', isNew: true, nombre: '', descripcion: '' })}
+                        style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        + Agregar Tipo
+                      </button>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
+                          <th style={{ padding: 10 }}>Nombre</th>
+                          <th style={{ padding: 10 }}>Descripción</th>
+                          <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbTiposDeporte.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay tipos de deporte guardados.</td>
+                          </tr>
+                        ) : (
+                          dbTiposDeporte.map(t => (
+                            <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: 10, fontWeight: 700 }}>{t.nombre}</td>
+                              <td style={{ padding: 10, color: '#64748b' }}>{t.descripcion || 'Sin descripción'}</td>
+                              <td style={{ padding: 10, textAlign: 'right' }}>
+                                <button
+                                  onClick={() => setEditCatalogItem({ type: 'tipos', id: t.id, nombre: t.nombre, descripcion: t.descripcion })}
+                                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, marginRight: 6, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCatalogItem('tipos', t.id, t.nombre)}
+                                  style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Eliminar
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-tab: FORMATOS DE TORNEO */}
+                {activeCatalogTab === 'formatos' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h4 style={{ fontWeight: 800, fontSize: 16 }}>Formatos de Torneo (cancha.formatos_torneo)</h4>
+                      <button
+                        onClick={() => setEditCatalogItem({ type: 'formatos', isNew: true, nombre: '', descripcion: '' })}
+                        style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        + Agregar Formato
+                      </button>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700 }}>
+                          <th style={{ padding: 10 }}>Nombre</th>
+                          <th style={{ padding: 10 }}>Descripción</th>
+                          <th style={{ padding: 10, textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbFormatosTorneo.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} style={{ padding: 16, textAlign: 'center', color: '#64748b' }}>No hay formatos de torneo guardados.</td>
+                          </tr>
+                        ) : (
+                          dbFormatosTorneo.map(f => (
+                            <tr key={f.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: 10, fontWeight: 700 }}>{f.nombre}</td>
+                              <td style={{ padding: 10, color: '#64748b' }}>{f.descripcion || 'Sin descripción'}</td>
+                              <td style={{ padding: 10, textAlign: 'right' }}>
+                                <button
+                                  onClick={() => setEditCatalogItem({ type: 'formatos', id: f.id, nombre: f.nombre, descripcion: f.descripcion })}
+                                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, marginRight: 6, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCatalogItem('formatos', f.id, f.nombre)}
+                                  style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+                                >
+                                  Eliminar
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
               </div>
             )}
 
@@ -1087,7 +1338,7 @@ export default function AdminConsole() {
                     onChange={e => setNewCancha({ ...newCancha, deporte: e.target.value })}
                     style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}
                   >
-                    {deportes.map(d => <option key={d} value={d}>{d}</option>)}
+                    {(dbDeportes.length > 0 ? dbDeportes.map(d => d.nombre) : deportes).map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
 
@@ -1365,6 +1616,72 @@ export default function AdminConsole() {
               </button>
               <button type="submit" style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                 Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* -------------------- POPUP FORM FOR DB CATALOGS (ADD / EDIT) -------------------- */}
+      {editCatalogItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <form onSubmit={handleSaveCatalogItem} style={{ background: '#fff', padding: 40, borderRadius: 24, width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
+              {editCatalogItem.id ? '✏️ Editar Registro' : '➕ Agregar Registro'} - {
+                editCatalogItem.type === 'deportes' ? 'Deporte' : 
+                editCatalogItem.type === 'tipos' ? 'Tipo de Deporte' : 'Formato de Torneo'
+              }
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700 }}>Nombre</label>
+              <input
+                type="text"
+                value={editCatalogItem.nombre}
+                onChange={e => setEditCatalogItem({ ...editCatalogItem, nombre: e.target.value })}
+                placeholder="Ej: Pádel, Liga, etc."
+                style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                required
+              />
+            </div>
+
+            {editCatalogItem.type === 'deportes' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Tipo de Deporte</label>
+                <select
+                  value={editCatalogItem.tipo_id || ''}
+                  onChange={e => setEditCatalogItem({ ...editCatalogItem, tipo_id: Number(e.target.value) })}
+                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                  required
+                >
+                  <option value="">-- Seleccionar --</option>
+                  {dbTiposDeporte.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(editCatalogItem.type === 'tipos' || editCatalogItem.type === 'formatos') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Descripción</label>
+                <textarea
+                  value={editCatalogItem.descripcion || ''}
+                  onChange={e => setEditCatalogItem({ ...editCatalogItem, descripcion: e.target.value })}
+                  placeholder="Descripción del catálogo..."
+                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', minHeight: '80px', resize: 'vertical' }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" onClick={() => setEditCatalogItem(null)} style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button type="submit" style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                Guardar
               </button>
             </div>
           </form>
