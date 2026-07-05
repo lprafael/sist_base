@@ -487,7 +487,7 @@ export default function AdminConsole() {
     if (session) {
       logEvent('acceso', {
         usuario: session.email,
-        rol: session.role === 'super' ? 'Administrador' : 'Local Deportivo',
+        rol: (session.role === 'super' || session.role === 'admin') ? 'Administrador' : 'Local Deportivo',
         accion: 'Cierre de Sesión',
         ip: '192.168.1.1',
         dispositivo: 'Navegador Web'
@@ -567,11 +567,11 @@ export default function AdminConsole() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Shield size={20} style={{ color: '#16a34a' }} />
               <span style={{ fontSize: 12, background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: 100, fontWeight: 800, textTransform: 'uppercase' }}>
-                {session.role === 'super' ? 'Super Administrador Global' : 'Local Deportivo Autorizado'}
+                {(session.role === 'super' || session.role === 'admin') ? 'Super Administrador Global' : 'Local Deportivo Autorizado'}
               </span>
             </div>
             <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.8px', marginTop: 6 }}>
-              {session.role === 'super' ? 'Consola de Control Central' : `Gestión de Complejo: ${selectedComplejo?.nombre}`}
+              {(session.role === 'super' || session.role === 'admin') ? 'Consola de Control Central' : `Gestión de Complejo: ${selectedComplejo?.nombre}`}
             </h1>
             <p style={{ color: '#475569', fontSize: 14, marginTop: 4 }}>Sesión activa: {session.name} ({session.email})</p>
           </div>
@@ -601,7 +601,7 @@ export default function AdminConsole() {
         </div>
 
         {/* -------------------- SUPER ADMIN CONSOLE FLOW -------------------- */}
-        {session.role === 'super' && (
+        {(session.role === 'super' || session.role === 'admin') && (
           <div>
             {/* Super Admin internal Sub-tabs */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 30, borderBottom: '1px solid #e2e8f0', paddingBottom: 16, flexWrap: 'wrap' }}>
