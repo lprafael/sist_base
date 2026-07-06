@@ -18,6 +18,7 @@ router = APIRouter(
 # ==============================================================================
 class CategoriaCreate(BaseModel):
     nombre: str
+    torneo_id: UUID4
     edad_min: Optional[int] = None
     edad_max: Optional[int] = None
     genero: Optional[str] = None
@@ -25,6 +26,7 @@ class CategoriaCreate(BaseModel):
 
 class CategoriaUpdate(BaseModel):
     nombre: Optional[str] = None
+    torneo_id: Optional[UUID4] = None
     edad_min: Optional[int] = None
     edad_max: Optional[int] = None
     genero: Optional[str] = None
@@ -39,7 +41,7 @@ class CategoriaUpdate(BaseModel):
 async def listar_categorias(organizador_id: int, session: AsyncSession = Depends(get_session)):
     """Lista todas las categorías propias de un organizador."""
     query = text("""
-        SELECT id, organizador_id, nombre, edad_min, edad_max, genero, descripcion, creado_en
+        SELECT id, organizador_id, torneo_id, nombre, edad_min, edad_max, genero, descripcion, creado_en
         FROM torneos_generales.categorias
         WHERE organizador_id = :oid
         ORDER BY nombre
@@ -58,13 +60,14 @@ async def crear_categoria(
     """Crea una nueva categoría para un organizador."""
     query = text("""
         INSERT INTO torneos_generales.categorias 
-            (organizador_id, nombre, edad_min, edad_max, genero, descripcion)
+            (organizador_id, torneo_id, nombre, edad_min, edad_max, genero, descripcion)
         VALUES 
-            (:oid, :nombre, :emin, :emax, :genero, :desc)
-        RETURNING id, organizador_id, nombre, edad_min, edad_max, genero, descripcion, creado_en
+            (:oid, :tid, :nombre, :emin, :emax, :genero, :desc)
+        RETURNING id, organizador_id, torneo_id, nombre, edad_min, edad_max, genero, descripcion, creado_en
     """)
     res = await session.execute(query, {
         "oid": organizador_id,
+        "tid": payload.torneo_id,
         "nombre": payload.nombre,
         "emin": payload.edad_min,
         "emax": payload.edad_max,
@@ -91,6 +94,9 @@ async def editar_categoria(
     if payload.nombre is not None:
         updates.append("nombre = :nombre")
         params["nombre"] = payload.nombre
+    if payload.torneo_id is not None:
+        updates.append("torneo_id = :tid")
+        params["tid"] = payload.torneo_id
     if payload.edad_min is not None:
         updates.append("edad_min = :emin")
         params["emin"] = payload.edad_min
@@ -111,7 +117,7 @@ async def editar_categoria(
         UPDATE torneos_generales.categorias
         SET {', '.join(updates)}
         WHERE id = :cat_id AND organizador_id = :oid
-        RETURNING id, nombre, edad_min, edad_max, genero, descripcion
+        RETURNING id, torneo_id, nombre, edad_min, edad_max, genero, descripcion
     """)
     res = await session.execute(query, params)
     row = res.fetchone()

@@ -19,6 +19,7 @@ class TorneoGeneralCreate(BaseModel):
     fecha_inicio: date
     fecha_fin: date
     modalidades_permitidas: List[str]
+    deporte_id: Optional[int] = None
 
 class TorneoGeneralUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -27,6 +28,7 @@ class TorneoGeneralUpdate(BaseModel):
     fecha_fin: Optional[date] = None
     modalidades_permitidas: Optional[List[str]] = None
     estado: Optional[str] = None
+    deporte_id: Optional[int] = None
 
 @router.get("/", summary="Listar torneos generales")
 async def get_torneos_generales(session: AsyncSession = Depends(get_session)):
@@ -41,6 +43,7 @@ async def get_torneos_generales(session: AsyncSession = Depends(get_session)):
             "fecha_inicio": row.fecha_inicio,
             "fecha_fin": row.fecha_fin,
             "estado": row.estado,
+            "deporte_id": row.deporte_id,
             "creado_en": row.creado_en,
             "categorias": [{
                 "id": row.id,
@@ -54,8 +57,8 @@ async def get_torneos_generales(session: AsyncSession = Depends(get_session)):
 async def create_torneo_general(data: TorneoGeneralCreate, session: AsyncSession = Depends(get_session)):
     query = text("""
         INSERT INTO torneos_generales.torneos 
-        (nombre, lugar, fecha_inicio, fecha_fin, modalidades_permitidas)
-        VALUES (:nombre, :lugar, :fecha_inicio, :fecha_fin, :modalidades)
+        (nombre, lugar, fecha_inicio, fecha_fin, modalidades_permitidas, deporte_id)
+        VALUES (:nombre, :lugar, :fecha_inicio, :fecha_fin, :modalidades, :deporte_id)
         RETURNING id
     """)
     result = await session.execute(query, {
@@ -63,7 +66,8 @@ async def create_torneo_general(data: TorneoGeneralCreate, session: AsyncSession
         "lugar": data.lugar,
         "fecha_inicio": data.fecha_inicio,
         "fecha_fin": data.fecha_fin,
-        "modalidades": data.modalidades_permitidas
+        "modalidades": data.modalidades_permitidas,
+        "deporte_id": data.deporte_id
     })
     await session.commit()
     new_id = result.scalar()
