@@ -61,21 +61,39 @@ export default function AdminGeneralesPage() {
   const [formDiv, setFormDiv] = useState({ id: '', nombre: '', categoria_id: '', formato_id: '' });
 
   useEffect(() => {
-    const sessionStr = localStorage.getItem('user_session');
-    if (!sessionStr) {
-      window.location.href = '/login';
-      return;
-    }
-    const session = JSON.parse(sessionStr);
-    if (session.role !== 'super' && session.role !== 'organizador') {
-      window.location.href = '/login';
-      return;
-    }
-    setSessionInfo(session);
-    fetchTorneos();
-    fetchDeportes();
-    fetchFormatos();
+    const initSession = async () => {
+      const sessionStr = localStorage.getItem('user_session');
+      if (!sessionStr) {
+        window.location.href = '/login';
+        return;
+      }
+      let session = JSON.parse(sessionStr);
+      if (session.role !== 'super' && session.role !== 'organizador') {
+        window.location.href = '/login';
+        return;
+      }
+      
+      if (session.role === 'organizador' && !session.organizador_id && session.usuario_id) {
+        try {
+          const res = await fetch(`${API_URL}/cancha/torneos/organizadores/usuario/${session.usuario_id}`);
+          if (res.ok) {
+            const orgData = await res.json();
+            session.organizador_id = orgData.id;
+            localStorage.setItem('user_session', JSON.stringify(session));
+          }
+        } catch (err) {
+          console.error('Error fetching organizador info:', err);
+        }
+      }
+      
+      setSessionInfo(session);
+      fetchTorneos();
+      fetchDeportes();
+      fetchFormatos();
+    };
+    initSession();
   }, []);
+
 
   const fetchFormatos = async () => {
     try {
