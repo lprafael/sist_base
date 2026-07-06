@@ -132,11 +132,23 @@ export default function AdminConsole() {
   };
 
   const handleToggleDeporteFormato = async (deporteId: number, formatoId: number, isLinked: boolean) => {
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+
+    const headers: any = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     try {
       if (isLinked) {
-        await fetch(`${API_URL}/api/deportes/${deporteId}/formatos/${formatoId}`, { method: 'DELETE' });
+        await fetch(`${API_URL}/api/deportes/${deporteId}/formatos/${formatoId}`, { method: 'DELETE', headers });
       } else {
-        await fetch(`${API_URL}/api/deportes/${deporteId}/formatos/${formatoId}`, { method: 'POST' });
+        await fetch(`${API_URL}/api/deportes/${deporteId}/formatos/${formatoId}`, { method: 'POST', headers });
       }
       fetchDeporteFormatos(deporteId);
     } catch (e) {}
