@@ -19,11 +19,12 @@ export default function AdminGeneralesPage() {
   const [torneos, setTorneos] = useState<any[]>([]);
   const [selectedTorneoId, setSelectedTorneoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [dbDeportes, setDbDeportes] = useState<any[]>([]);
+  const [dbDeportes, setDbDeportes] = useState<any[]>([]);         // todos los deportes
+  const [deportesPermitidos, setDeportesPermitidos] = useState<any[]>([]); // deportes del org
 
   // Formularios Torneo
   const [showForm, setShowForm] = useState(false);
-  const [formTorneo, setFormTorneo] = useState({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: '' });
+  const [formTorneo, setFormTorneo] = useState({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '' });
 
   // Checkin state
   const [participanteIdCheckin, setParticipanteIdCheckin] = useState('1'); 
@@ -56,7 +57,8 @@ export default function AdminGeneralesPage() {
 
   // Divisiones del torneo state
   const [divisiones, setDivisiones] = useState<any[]>([]);
-  const [dbFormatos, setDbFormatos] = useState<any[]>([]);
+  const [dbFormatos, setDbFormatos] = useState<any[]>([]);          // todos los formatos
+  const [formatosFiltrados, setFormatosFiltrados] = useState<any[]>([]); // filtrados por deporte
   const [showDivForm, setShowDivForm] = useState(false);
   const [formDiv, setFormDiv] = useState({ id: '', nombre: '', categoria_id: '', formato_id: '' });
 
@@ -87,9 +89,12 @@ export default function AdminGeneralesPage() {
       }
       
       setSessionInfo(session);
-      fetchTorneos();
+      fetchTorneos(session);
       fetchDeportes();
       fetchFormatos();
+      if (session.organizador_id) {
+        fetchDeportesPermitidos(session.organizador_id);
+      }
     };
     initSession();
   }, []);
@@ -102,11 +107,26 @@ export default function AdminGeneralesPage() {
     } catch (err) {}
   };
 
-  const fetchCategorias = async (organizadorId: number) => {
+  const fetchCategorias = async (torneoId: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/organizadores/${organizadorId}/categorias`);
+      const res = await fetch(`${API_URL}/api/torneos/${torneoId}/categorias`);
       if (res.ok) setCategorias(await res.json());
     } catch (err) {}
+  };
+
+  const fetchDeportesPermitidos = async (organizadorId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizadores/${organizadorId}/deportes`);
+      if (res.ok) setDeportesPermitidos(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchFormatosPorDeporte = async (deporteId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/deportes/${deporteId}/formatos`);
+      if (res.ok) setFormatosFiltrados(await res.json());
+      else setFormatosFiltrados([]);
+    } catch (err) { setFormatosFiltrados([]); }
   };
 
   const fetchDivisiones = async (torneoId: string) => {
@@ -123,10 +143,15 @@ export default function AdminGeneralesPage() {
     } catch (err) {}
   };
 
-  const fetchTorneos = async () => {
+  const fetchTorneos = async (session?: any) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/marciales/torneos`);
+      const sess = session || sessionInfo;
+      let url = `${API_URL}/cancha/torneos_generales/`;
+      if (sess?.organizador_id) {
+        url = `${API_URL}/cancha/torneos_generales/organizador/${sess.organizador_id}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       setTorneos(data);
       if (data.length > 0 && !selectedTorneoId) {
@@ -144,13 +169,18 @@ export default function AdminGeneralesPage() {
     }
     if (selectedTorneoId && activeTab === 'divisiones') {
       fetchDivisiones(selectedTorneoId);
+      // Cargar formatos del deporte del torneo activo
+      const torneoActivo = torneos.find((t: any) => t.id === selectedTorneoId);
+      if (torneoActivo?.deporte_id) fetchFormatosPorDeporte(torneoActivo.deporte_id);
+    }
+    if (selectedTorneoId && activeTab === 'categorias') {
+      fetchCategorias(selectedTorneoId);
     }
   }, [selectedTorneoId, activeTab]);
 
   useEffect(() => {
-    if (sessionInfo?.organizador_id && activeTab === 'categorias') {
-      fetchCategorias(sessionInfo.organizador_id);
-    }
+    // categorias ahora se obtiene por torneo, no por organizador
+    // (el useEffect de selectedTorneoId/activeTab ya lo maneja)
   }, [sessionInfo, activeTab]);
 
   useEffect(() => {
@@ -207,37 +237,30 @@ export default function AdminGeneralesPage() {
   const handleSubmitTorneo = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const mods = formTorneo.modalidades_permitidas.split(',').map(m => m.trim());
     try {
+      const body: any = {
+        nombre: formTorneo.nombre,
+        lugar: formTorneo.lugar,
+        fecha_inicio: formTorneo.fecha_inicio,
+        fecha_fin: formTorneo.fecha_fin,
+        deporte_id: formTorneo.deporte_id ? Number(formTorneo.deporte_id) : null,
+        organizador_id: sessionInfo?.organizador_id || null,
+      };
       if (formTorneo.id) {
-        // Edit
-        await fetch(`${API_URL}/api/marciales/torneos/${formTorneo.id}`, {
+        await fetch(`${API_URL}/cancha/torneos_generales/${formTorneo.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nombre: formTorneo.nombre,
-            lugar: formTorneo.lugar,
-            fecha_inicio: formTorneo.fecha_inicio,
-            fecha_fin: formTorneo.fecha_fin,
-            modalidades_permitidas: mods
-          })
+          body: JSON.stringify(body)
         });
       } else {
-        // Create
-        await fetch(`${API_URL}/api/marciales/torneos`, {
+        await fetch(`${API_URL}/cancha/torneos_generales/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nombre: formTorneo.nombre,
-            lugar: formTorneo.lugar,
-            fecha_inicio: formTorneo.fecha_inicio,
-            fecha_fin: formTorneo.fecha_fin,
-            modalidades_permitidas: mods
-          })
+          body: JSON.stringify(body)
         });
       }
       setShowForm(false);
-      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: '' });
+      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '' });
       fetchTorneos();
     } catch (err) {
       console.error(err);
@@ -248,7 +271,7 @@ export default function AdminGeneralesPage() {
   const handleDeleteTorneo = async (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar este torneo?')) return;
     try {
-      await fetch(`${API_URL}/api/marciales/torneos/${id}`, { method: 'DELETE' });
+      await fetch(`${API_URL}/cancha/torneos_generales/${id}`, { method: 'DELETE' });
       if (selectedTorneoId === id) setSelectedTorneoId(null);
       fetchTorneos();
     } catch (err) {
@@ -432,7 +455,7 @@ export default function AdminGeneralesPage() {
                   </div>
                   <button 
                     onClick={() => {
-                      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', modalidades_permitidas: '' });
+                      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '' });
                       setShowForm(true);
                     }}
                     className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-colors"
@@ -462,26 +485,21 @@ export default function AdminGeneralesPage() {
                         <input type="date" required value={formTorneo.fecha_fin} onChange={e => setFormTorneo({...formTorneo, fecha_fin: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-bold text-slate-400 mb-2">Modalidades Permitidas</label>
-                        <div className="flex flex-wrap gap-3 p-4 bg-slate-950 border border-slate-800 rounded-xl">
-                          {dbDeportes.length > 0 ? dbDeportes.map(d => {
-                            const currentMods = formTorneo.modalidades_permitidas.split(',').map(m => m.trim()).filter(Boolean);
-                            const isChecked = currentMods.includes(d.nombre);
-                            return (
-                              <label key={d.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors border ${isChecked ? 'bg-red-600/20 border-red-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'}`}>
-                                <input type="checkbox" className="hidden" checked={isChecked} onChange={() => {
-                                  let mods = [...currentMods];
-                                  if (isChecked) mods = mods.filter(m => m !== d.nombre);
-                                  else mods.push(d.nombre);
-                                  setFormTorneo({...formTorneo, modalidades_permitidas: mods.join(', ')});
-                                }} />
-                                {d.nombre}
-                              </label>
-                            );
-                          }) : (
-                            <span className="text-slate-500 text-sm">Cargando deportes...</span>
-                          )}
-                        </div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Deporte *</label>
+                        <select
+                          required
+                          value={formTorneo.deporte_id}
+                          onChange={e => setFormTorneo({...formTorneo, deporte_id: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500"
+                        >
+                          <option value="">-- Seleccionar deporte --</option>
+                          {(deportesPermitidos.length > 0 ? deportesPermitidos : dbDeportes).map((d: any) => (
+                            <option key={d.id} value={d.id}>{d.nombre}</option>
+                          ))}
+                        </select>
+                        {deportesPermitidos.length === 0 && (
+                          <p className="text-xs text-amber-400 mt-1">⚠ No tenés deportes habilitados. Mostrando todos los deportes disponibles.</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-4">
@@ -500,7 +518,7 @@ export default function AdminGeneralesPage() {
                           </div>
                           <span className="bg-red-500/10 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-500/20">{t.estado}</span>
                         </div>
-                        <p className="text-slate-300 text-sm mb-6"><strong>Modalidades:</strong> {Array.isArray(t.modalidades_permitidas) ? t.modalidades_permitidas.join(', ') : t.modalidades_permitidas}</p>
+                        <p className="text-slate-300 text-sm mb-6"><strong>Deporte:</strong> {t.deporte_nombre || `ID ${t.deporte_id}` || '—'}</p>
                         
                         <div className="flex gap-3 pt-4 border-t border-slate-800">
                           <button 
@@ -511,7 +529,14 @@ export default function AdminGeneralesPage() {
                           </button>
                           <button 
                             onClick={() => { 
-                              setFormTorneo({ ...t, modalidades_permitidas: Array.isArray(t.modalidades_permitidas) ? t.modalidades_permitidas.join(', ') : t.modalidades_permitidas }); 
+                              setFormTorneo({ 
+                                id: t.id, 
+                                nombre: t.nombre, 
+                                lugar: t.lugar || '',
+                                fecha_inicio: t.fecha_inicio || '',
+                                fecha_fin: t.fecha_fin || '',
+                                deporte_id: t.deporte_id?.toString() || '',
+                              }); 
                               setShowForm(true); 
                             }}
                             className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
@@ -543,9 +568,13 @@ export default function AdminGeneralesPage() {
                 <div className="flex justify-between items-center mb-8">
                   <div>
                     <h1 className="text-3xl font-black text-white mb-2">Mis Categorías</h1>
-                    <p className="text-slate-400 font-medium">Define las categorías de competición para tus torneos.</p>
+                    <p className="text-slate-400 font-medium">Categorías del torneo activo. Seleccioná un torneo para verlas.</p>
                   </div>
-                  <button onClick={() => { setFormCat({ id: '', nombre: '', edad_min: '', edad_max: '', genero: '', descripcion: '' }); setShowCatForm(true); }}
+                  <button onClick={() => {
+                    if (!selectedTorneoId) { alert('Seleccioná un torneo primero'); return; }
+                    setFormCat({ id: '', nombre: '', edad_min: '', edad_max: '', genero: '', descripcion: '' }); 
+                    setShowCatForm(true); 
+                  }}
                     className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
                     <Plus size={20} /> Nueva Categoría
                   </button>
@@ -553,25 +582,38 @@ export default function AdminGeneralesPage() {
                 {showCatForm && (
                   <form onSubmit={async (e) => {
                     e.preventDefault();
-                    if (!sessionInfo?.organizador_id) return;
+                    if (!selectedTorneoId) return alert('Seleccioná un torneo primero');
                     const token = JSON.parse(localStorage.getItem('user_session') || '{}').access_token || '';
-                    const method = formCat.id ? 'PUT' : 'POST';
-                    const url = formCat.id
-                      ? `${API_URL}/api/organizadores/${sessionInfo.organizador_id}/categorias/${formCat.id}`
-                      : `${API_URL}/api/organizadores/${sessionInfo.organizador_id}/categorias`;
-                    await fetch(url, {
-                      method,
-                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                      body: JSON.stringify({
-                        nombre: formCat.nombre,
-                        edad_min: formCat.edad_min ? Number(formCat.edad_min) : null,
-                        edad_max: formCat.edad_max ? Number(formCat.edad_max) : null,
-                        genero: formCat.genero || null,
-                        descripcion: formCat.descripcion || null,
-                      })
-                    });
+                    if (formCat.id) {
+                      // Editar: usa endpoint por organizador
+                      if (!sessionInfo?.organizador_id) return;
+                      await fetch(`${API_URL}/api/organizadores/${sessionInfo.organizador_id}/categorias/${formCat.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({
+                          nombre: formCat.nombre,
+                          edad_min: formCat.edad_min ? Number(formCat.edad_min) : null,
+                          edad_max: formCat.edad_max ? Number(formCat.edad_max) : null,
+                          genero: formCat.genero || null,
+                          descripcion: formCat.descripcion || null,
+                        })
+                      });
+                    } else {
+                      // Crear: usa endpoint por torneo
+                      await fetch(`${API_URL}/api/torneos/${selectedTorneoId}/categorias`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({
+                          nombre: formCat.nombre,
+                          edad_min: formCat.edad_min ? Number(formCat.edad_min) : null,
+                          edad_max: formCat.edad_max ? Number(formCat.edad_max) : null,
+                          genero: formCat.genero || null,
+                          descripcion: formCat.descripcion || null,
+                        })
+                      });
+                    }
                     setShowCatForm(false);
-                    fetchCategorias(sessionInfo.organizador_id);
+                    fetchCategorias(selectedTorneoId);
                   }} className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-8">
                     <h2 className="text-xl font-bold text-white mb-6">{formCat.id ? 'Editar' : 'Nueva'} Categoría</h2>
                     <div className="grid grid-cols-2 gap-6 mb-6">
@@ -633,9 +675,15 @@ export default function AdminGeneralesPage() {
                       </div>
                     </div>
                   ))}
-                  {categorias.length === 0 && !showCatForm && (
+                  {!selectedTorneoId && (
+                    <div className="col-span-3 text-center p-12 border border-amber-800/50 border-dashed rounded-3xl bg-amber-950/10">
+                      <p className="text-amber-400 font-bold mb-2">⚠ Seleccioná un torneo activo</p>
+                      <p className="text-slate-500 text-sm">Las categorías están asociadas a un torneo específico.</p>
+                    </div>
+                  )}
+                  {selectedTorneoId && categorias.length === 0 && !showCatForm && (
                     <div className="col-span-3 text-center p-12 border border-slate-800 border-dashed rounded-3xl">
-                      <p className="text-slate-400 mb-4">No tenés categorías creadas aún.</p>
+                      <p className="text-slate-400 mb-4">Este torneo no tiene categorías aún.</p>
                     </div>
                   )}
                 </div>
@@ -707,8 +755,11 @@ export default function AdminGeneralesPage() {
                             <select value={formDiv.formato_id} onChange={e => setFormDiv({...formDiv, formato_id: e.target.value})}
                               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-red-500 text-sm">
                               <option value="">Sin formato</option>
-                              {dbFormatos.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
+                              {(formatosFiltrados.length > 0 ? formatosFiltrados : dbFormatos).map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
                             </select>
+                            {formatosFiltrados.length === 0 && (
+                              <p className="text-xs text-amber-400 mt-1">⚠ Sin formatos asignados a este deporte. Mostrando todos.</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-3">

@@ -13,12 +13,18 @@ router = APIRouter(
     tags=["Categorías del Organizador"]
 )
 
+# Router adicional para acceso por torneo
+torneo_cat_router = APIRouter(
+    prefix="/api/torneos",
+    tags=["Categorías por Torneo"]
+)
+
 # ==============================================================================
 # SCHEMAS
 # ==============================================================================
 class CategoriaCreate(BaseModel):
     nombre: str
-    torneo_id: UUID4
+    torneo_id: Optional[UUID4] = None  # puede venir del body o de la URL
     edad_min: Optional[int] = None
     edad_max: Optional[int] = None
     genero: Optional[str] = None
@@ -144,3 +150,58 @@ async def eliminar_categoria(
     if not res.scalar():
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
     await session.commit()
+
+
+# ==============================================================================
+# ENDPOINTS POR TORNEO (alias)
+# ==============================================================================
+
+@torneo_cat_router.get("/{torneo_id}/categorias", summary="Listar categorías de un torneo")
+async def listar_categorias_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    """Lista todas las categorías de un torneo específico."""
+    query = text("""
+        SELECT id, organizador_id, torneo_id, nombre, edad_min, edad_max, genero, descripcion, creado_en
+        FROM torneos_generales.categorias
+        WHERE torneo_id = :tid
+        ORDER BY nombre
+    """)
+    res = await session.execute(query, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+
+@torneo_cat_router.post("/{torneo_id}/categorias", status_code=status.HTTP_201_CREATED,
+                        summary="Crear categoría para un torneo")
+async def crear_categoria_torneo(
+    torneo_id: str,
+    payload: CategoriaCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Crea una nueva categoría asociada directamente a un torneo."""
+    # El org_id se obtiene del torneo
+    torneo_row = await session.execute(
+        text("SELECT organizador_id FROM torneos_generales.torneos WHERE id = :tid"),
+        {"tid": torneo_id}
+    )
+    torneo = torneo_row.fetchone()
+    if not torneo:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+
+    query = text("""
+        INSERT INTO torneos_generales.categorias
+            (organizador_id, torneo_id, nombre, edad_min, edad_max, genero, descripcion)
+        VALUES
+            (:oid, :tid, :nombre, :emin, :emax, :genero, :desc)
+        RETURNING id, organizador_id, torneo_id, nombre, edad_min, edad_max, genero, descripcion, creado_en
+    """)
+    res = await session.execute(query, {
+        "oid": torneo.organizador_id,
+        "tid": torneo_id,
+        "nombre": payload.nombre,
+        "emin": payload.edad_min,
+        "emax": payload.edad_max,
+        "genero": payload.genero,
+        "desc": payload.descripcion,
+    })
+    await session.commit()
+    return dict(res.fetchone()._mapping)
