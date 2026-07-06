@@ -227,34 +227,32 @@ async def agrupacion_dinamica(torneo_id: str, config: ConfiguracionAgrupacion, s
                     # Crear Grupo en la BD
                     nombre_cat = f"{gen} - {mod} - {niv} ({edad_min}-{edad_max} años, {peso_min}-{peso_max} kg)"
                     q_grupo = text("""
-                        INSERT INTO torneos_generales.grupos (torneo_id, nombre_categoria, rango_edad_min, rango_edad_max, rango_peso_min, rango_peso_max, genero, modalidad, nivel)
-                        VALUES (:tid, :nombre, :emin, :emax, :pmin, :pmax, :gen, :mod, :niv)
+                        INSERT INTO torneos_generales.divisiones (torneo_id, nombre, estado)
+                        VALUES (:tid, :nombre, 'activa')
                         RETURNING id
                     """)
                     res_grupo = await session.execute(q_grupo, {
-                        "tid": torneo_id, "nombre": nombre_cat,
-                        "emin": edad_min, "emax": edad_max,
-                        "pmin": peso_min, "pmax": peso_max,
-                        "gen": gen, "mod": mod, "niv": niv
+                        "tid": torneo_id, "nombre": nombre_cat
                     })
                     grupo_id = res_grupo.scalar()
                     
-                    # Insertar los participantes al grupo
-                    q_vincular = text("INSERT INTO torneos_generales.grupo_participantes (grupo_id, participante_id) VALUES (:gid, :pid)")
+                    # Insertar los participantes a la división
+                    q_vincular = text("INSERT INTO torneos_generales.divisiones_participantes (division_id, participante_id) VALUES (:gid, :pid)")
                     for competidor in lista_peso:
                         await session.execute(q_vincular, {"gid": grupo_id, "pid": competidor.id})
                     
                     grupos_creados += 1
     
     await session.commit()
-    return {"mensaje": f"Agrupación completada exitosamente. Se crearon {grupos_creados} grupos."}
+    return {"mensaje": f"Agrupación completada exitosamente. Se crearon {grupos_creados} divisiones."}
 
 
 @router.get("/torneos/{torneo_id}/grupos")
-async def listar_grupos(torneo_id: str, session: AsyncSession = Depends(get_session)):
+async def listar_divisiones_compat(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    """Alias de compatibilidad: apunta a divisiones."""
     query = text("""
-        SELECT id, nombre_categoria, formato_competicion 
-        FROM torneos_generales.grupos 
+        SELECT id, nombre AS nombre_categoria, estado AS formato_competicion 
+        FROM torneos_generales.divisiones 
         WHERE torneo_id = :tid
     """)
     res = await session.execute(query, {"tid": torneo_id})
@@ -262,12 +260,12 @@ async def listar_grupos(torneo_id: str, session: AsyncSession = Depends(get_sess
 
 @router.post("/grupos/{grupo_id}/generar-llaves")
 async def generar_llaves(grupo_id: str, session: AsyncSession = Depends(get_session)):
-    # Obtener participantes del grupo
+    # Obtener participantes de la división
     q_part = text("""
         SELECT p.id, p.nombre, p.apellido 
         FROM torneos_generales.participantes p
-        JOIN torneos_generales.grupo_participantes gp ON gp.participante_id = p.id
-        WHERE gp.grupo_id = :gid
+        JOIN torneos_generales.divisiones_participantes dp ON dp.participante_id = p.id
+        WHERE dp.division_id = :gid
     """)
     res = await session.execute(q_part, {"gid": grupo_id})
     participantes = res.fetchall()
@@ -297,7 +295,7 @@ async def generar_llaves(grupo_id: str, session: AsyncSession = Depends(get_sess
     jugadores_ronda_1 = num_jugadores - byes
     
     q_insert = text("""
-        INSERT INTO torneos_generales.encuentros (grupo_id, participante1_id, participante2_id, ronda)
+        INSERT INTO torneos_generales.encuentros (division_id, participante1_id, participante2_id, ronda)
         VALUES (:gid, :p1, :p2, :ronda)
         RETURNING id
     """)
@@ -340,7 +338,7 @@ async def listar_encuentros(grupo_id: str, session: AsyncSession = Depends(get_s
         FROM torneos_generales.encuentros e
         LEFT JOIN torneos_generales.participantes p1 ON e.participante1_id = p1.id
         LEFT JOIN torneos_generales.participantes p2 ON e.participante2_id = p2.id
-        WHERE e.grupo_id = :gid
+        WHERE e.division_id = :gid
         ORDER BY e.ronda, e.id
     """)
     res = await session.execute(query, {"gid": grupo_id})
@@ -365,10 +363,10 @@ async def registrar_puntuacion(encuentro_id: str, payload: PuntuacionJuez, sessi
     })
     await session.commit()
     
-    # Aquí obtenemos el torneo_id asociado al encuentro para notificar vía WS
+    # Obtener el torneo_id asociado al encuentro para notificar vía WS
     q_torneo = text("""
-        SELECT g.torneo_id FROM torneos_generales.encuentros e
-        JOIN torneos_generales.grupos g ON e.grupo_id = g.id
+        SELECT d.torneo_id FROM torneos_generales.encuentros e
+        JOIN torneos_generales.divisiones d ON e.division_id = d.id
         WHERE e.id = :eid
     """)
     t_res = await session.execute(q_torneo, {"eid": encuentro_id})

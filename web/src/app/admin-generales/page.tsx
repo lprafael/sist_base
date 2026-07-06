@@ -49,6 +49,17 @@ export default function AdminGeneralesPage() {
   const [multasAtleta, setMultasAtleta] = useState<any>(null);
   const [multasAsignadas, setMultasAsignadas] = useState<any[]>([]);
 
+  // Categorías del organizador state
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [showCatForm, setShowCatForm] = useState(false);
+  const [formCat, setFormCat] = useState({ id: '', nombre: '', edad_min: '', edad_max: '', genero: '', descripcion: '' });
+
+  // Divisiones del torneo state
+  const [divisiones, setDivisiones] = useState<any[]>([]);
+  const [dbFormatos, setDbFormatos] = useState<any[]>([]);
+  const [showDivForm, setShowDivForm] = useState(false);
+  const [formDiv, setFormDiv] = useState({ id: '', nombre: '', categoria_id: '', formato_id: '' });
+
   useEffect(() => {
     const sessionStr = localStorage.getItem('user_session');
     if (!sessionStr) {
@@ -63,7 +74,29 @@ export default function AdminGeneralesPage() {
     setSessionInfo(session);
     fetchTorneos();
     fetchDeportes();
+    fetchFormatos();
   }, []);
+
+  const fetchFormatos = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/torneos/formatos`);
+      if (res.ok) setDbFormatos(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchCategorias = async (organizadorId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/organizadores/${organizadorId}/categorias`);
+      if (res.ok) setCategorias(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchDivisiones = async (torneoId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/torneos/${torneoId}/divisiones`);
+      if (res.ok) setDivisiones(await res.json());
+    } catch (err) {}
+  };
 
   const fetchDeportes = async () => {
     try {
@@ -91,7 +124,16 @@ export default function AdminGeneralesPage() {
     if (selectedTorneoId && activeTab === 'agrupacion') {
       fetchGrupos();
     }
+    if (selectedTorneoId && activeTab === 'divisiones') {
+      fetchDivisiones(selectedTorneoId);
+    }
   }, [selectedTorneoId, activeTab]);
+
+  useEffect(() => {
+    if (sessionInfo?.organizador_id && activeTab === 'categorias') {
+      fetchCategorias(sessionInfo.organizador_id);
+    }
+  }, [sessionInfo, activeTab]);
 
   useEffect(() => {
     if (selectedGrupoId) {
@@ -299,8 +341,10 @@ export default function AdminGeneralesPage() {
           <nav className="flex-1 p-4 space-y-2">
             {[
               { id: 'torneos', icon: Activity, label: 'Mis Torneos' },
+              { id: 'categorias', icon: Users, label: 'Mis Categorías' },
+              { id: 'divisiones', icon: Layers, label: 'Divisiones' },
               { id: 'checkin', icon: Scale, label: 'Check-in (Pesaje)' },
-              { id: 'agrupacion', icon: Layers, label: 'Agrupación (Llaves)' },
+              { id: 'agrupacion', icon: RefreshCw, label: 'Agrupación (Llaves)' },
               { id: 'veedores', icon: Trophy, label: 'Mesa Veedores' },
               { id: 'multas', icon: DollarSign, label: 'Multas y Pagos' },
             ].map(tab => (
@@ -471,6 +515,220 @@ export default function AdminGeneralesPage() {
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: CATEGORÍAS */}
+            {activeTab === 'categorias' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h1 className="text-3xl font-black text-white mb-2">Mis Categorías</h1>
+                    <p className="text-slate-400 font-medium">Define las categorías de competición para tus torneos.</p>
+                  </div>
+                  <button onClick={() => { setFormCat({ id: '', nombre: '', edad_min: '', edad_max: '', genero: '', descripcion: '' }); setShowCatForm(true); }}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                    <Plus size={20} /> Nueva Categoría
+                  </button>
+                </div>
+                {showCatForm && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!sessionInfo?.organizador_id) return;
+                    const token = JSON.parse(localStorage.getItem('user_session') || '{}').access_token || '';
+                    const method = formCat.id ? 'PUT' : 'POST';
+                    const url = formCat.id
+                      ? `${API_URL}/api/organizadores/${sessionInfo.organizador_id}/categorias/${formCat.id}`
+                      : `${API_URL}/api/organizadores/${sessionInfo.organizador_id}/categorias`;
+                    await fetch(url, {
+                      method,
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify({
+                        nombre: formCat.nombre,
+                        edad_min: formCat.edad_min ? Number(formCat.edad_min) : null,
+                        edad_max: formCat.edad_max ? Number(formCat.edad_max) : null,
+                        genero: formCat.genero || null,
+                        descripcion: formCat.descripcion || null,
+                      })
+                    });
+                    setShowCatForm(false);
+                    fetchCategorias(sessionInfo.organizador_id);
+                  }} className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-8">
+                    <h2 className="text-xl font-bold text-white mb-6">{formCat.id ? 'Editar' : 'Nueva'} Categoría</h2>
+                    <div className="grid grid-cols-2 gap-6 mb-6">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Nombre *</label>
+                        <input required value={formCat.nombre} onChange={e => setFormCat({...formCat, nombre: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Edad Mínima</label>
+                        <input type="number" value={formCat.edad_min} onChange={e => setFormCat({...formCat, edad_min: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Edad Máxima</label>
+                        <input type="number" value={formCat.edad_max} onChange={e => setFormCat({...formCat, edad_max: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Género</label>
+                        <select value={formCat.genero} onChange={e => setFormCat({...formCat, genero: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500">
+                          <option value="">Todos</option>
+                          <option value="M">Masculino</option>
+                          <option value="F">Femenino</option>
+                          <option value="Mixto">Mixto</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Descripción</label>
+                        <input value={formCat.descripcion} onChange={e => setFormCat({...formCat, descripcion: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <button type="submit" className="bg-red-600 hover:bg-red-500 text-white font-bold px-8 py-3 rounded-xl">Guardar</button>
+                      <button type="button" onClick={() => setShowCatForm(false)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-8 py-3 rounded-xl">Cancelar</button>
+                    </div>
+                  </form>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {categorias.map(c => (
+                    <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                      <h3 className="text-lg font-bold text-white mb-1">{c.nombre}</h3>
+                      <div className="text-slate-400 text-sm space-y-1 mb-4">
+                        {(c.edad_min || c.edad_max) && <p>🎂 {c.edad_min ?? '?'} - {c.edad_max ?? '?'} años</p>}
+                        {c.genero && <p>⚥ {c.genero}</p>}
+                        {c.descripcion && <p>{c.descripcion}</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setFormCat({ id: c.id, nombre: c.nombre, edad_min: c.edad_min?.toString() || '', edad_max: c.edad_max?.toString() || '', genero: c.genero || '', descripcion: c.descripcion || '' }); setShowCatForm(true); }}
+                          className="flex-1 py-2 bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white rounded-lg text-sm font-bold transition-colors">Editar</button>
+                        <button onClick={async () => {
+                          if (!confirm('¿Eliminar esta categoría?')) return;
+                          const token = JSON.parse(localStorage.getItem('user_session') || '{}').access_token || '';
+                          await fetch(`${API_URL}/api/organizadores/${sessionInfo.organizador_id}/categorias/${c.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                          fetchCategorias(sessionInfo.organizador_id);
+                        }} className="p-2 bg-slate-800 hover:bg-red-900/50 hover:text-red-400 text-slate-400 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                      </div>
+                    </div>
+                  ))}
+                  {categorias.length === 0 && !showCatForm && (
+                    <div className="col-span-3 text-center p-12 border border-slate-800 border-dashed rounded-3xl">
+                      <p className="text-slate-400 mb-4">No tenés categorías creadas aún.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DIVISIONES */}
+            {activeTab === 'divisiones' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h1 className="text-3xl font-black text-white mb-2">Divisiones del Torneo</h1>
+                    <p className="text-slate-400 font-medium">Gestioná las divisiones del torneo seleccionado.</p>
+                  </div>
+                </div>
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Seleccionar Torneo</label>
+                  <select value={selectedTorneoId || ''} onChange={e => setSelectedTorneoId(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 w-full max-w-md">
+                    <option value="">-- Elegir torneo --</option>
+                    {torneos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                  </select>
+                </div>
+                {selectedTorneoId && (
+                  <>
+                    <div className="flex justify-end mb-4">
+                      <button onClick={() => { setFormDiv({ id: '', nombre: '', categoria_id: '', formato_id: '' }); setShowDivForm(true); }}
+                        className="bg-red-600 hover:bg-red-500 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-colors text-sm">
+                        <Plus size={16} /> Nueva División
+                      </button>
+                    </div>
+                    {showDivForm && (
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const token = JSON.parse(localStorage.getItem('user_session') || '{}').access_token || '';
+                        const method = formDiv.id ? 'PUT' : 'POST';
+                        const url = formDiv.id
+                          ? `${API_URL}/api/torneos/${selectedTorneoId}/divisiones/${formDiv.id}`
+                          : `${API_URL}/api/torneos/${selectedTorneoId}/divisiones`;
+                        await fetch(url, {
+                          method,
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({
+                            nombre: formDiv.nombre,
+                            categoria_id: formDiv.categoria_id || null,
+                            formato_id: formDiv.formato_id ? Number(formDiv.formato_id) : null,
+                          })
+                        });
+                        setShowDivForm(false);
+                        fetchDivisiones(selectedTorneoId);
+                      }} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-6">
+                        <h2 className="font-bold text-white mb-4">{formDiv.id ? 'Editar' : 'Nueva'} División</h2>
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1">Nombre *</label>
+                            <input required value={formDiv.nombre} onChange={e => setFormDiv({...formDiv, nombre: e.target.value})}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-red-500 text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1">Categoría</label>
+                            <select value={formDiv.categoria_id} onChange={e => setFormDiv({...formDiv, categoria_id: e.target.value})}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-red-500 text-sm">
+                              <option value="">Sin categoría</option>
+                              {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1">Formato</label>
+                            <select value={formDiv.formato_id} onChange={e => setFormDiv({...formDiv, formato_id: e.target.value})}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-red-500 text-sm">
+                              <option value="">Sin formato</option>
+                              {dbFormatos.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <button type="submit" className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-2.5 rounded-lg text-sm">Guardar</button>
+                          <button type="button" onClick={() => setShowDivForm(false)} className="bg-slate-800 text-slate-300 font-bold px-6 py-2.5 rounded-lg text-sm">Cancelar</button>
+                        </div>
+                      </form>
+                    )}
+                    <div className="space-y-3">
+                      {divisiones.map(d => (
+                        <div key={d.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+                          <div>
+                            <h3 className="font-bold text-white">{d.nombre}</h3>
+                            <div className="flex gap-4 mt-1 text-sm text-slate-400">
+                              {d.categoria_nombre && <span>📋 {d.categoria_nombre}{d.edad_min ? ` (${d.edad_min}-${d.edad_max} años)` : ''}</span>}
+                              {d.formato_nombre && <span>⚙️ {d.formato_nombre}</span>}
+                              <span>👤 {d.total_participantes ?? 0} participantes</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => { setFormDiv({ id: d.id, nombre: d.nombre, categoria_id: d.categoria_id || '', formato_id: d.formato_id?.toString() || '' }); setShowDivForm(true); }}
+                              className="p-2 bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white rounded-lg transition-colors"><Edit2 size={16}/></button>
+                            <button onClick={async () => {
+                              if (!confirm('¿Eliminar esta división?')) return;
+                              const token = JSON.parse(localStorage.getItem('user_session') || '{}').access_token || '';
+                              await fetch(`${API_URL}/api/torneos/${selectedTorneoId}/divisiones/${d.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                              fetchDivisiones(selectedTorneoId);
+                            }} className="p-2 bg-slate-800 hover:bg-red-900/50 hover:text-red-400 text-slate-400 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                          </div>
+                        </div>
+                      ))}
+                      {divisiones.length === 0 && !showDivForm && (
+                        <div className="text-center p-12 border border-slate-800 border-dashed rounded-3xl">
+                          <p className="text-slate-400">Este torneo no tiene divisiones aún.</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}

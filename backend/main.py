@@ -188,6 +188,12 @@ app.include_router(cancha_roles_router)
 from routers.formatos_torneo import router as formatos_torneo_router
 app.include_router(formatos_torneo_router)
 
+from routers.categorias_org import router as categorias_org_router
+app.include_router(categorias_org_router)
+
+from routers.divisiones import router as divisiones_router
+app.include_router(divisiones_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================
