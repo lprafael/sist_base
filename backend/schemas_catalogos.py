@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 # ==============================================================================
@@ -84,6 +84,13 @@ class DeporteResponse(DeporteBase):
     tipo_deporte: Optional[TipoDeporteResponse] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+class DeporteConFormatos(DeporteResponse):
+    formatos: List[FormatoTorneoResponse] = []
+
+class DeporteFormatoLink(BaseModel):
+    deporte_id: int
+    formato_id: int
 
 
 # ==============================================================================

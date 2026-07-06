@@ -1,7 +1,19 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from models import Base
+
+# ==============================================================================
+# TABLAS INTERMEDIAS
+# ==============================================================================
+deporte_formato = Table(
+    "deporte_formato",
+    Base.metadata,
+    Column("deporte_id", Integer, ForeignKey("cancha.deportes.id", ondelete="CASCADE"), primary_key=True),
+    Column("formato_id", Integer, ForeignKey("cancha.formatos_torneo.id", ondelete="CASCADE"), primary_key=True),
+    Column("creado_en", DateTime, default=func.now()),
+    schema="cancha"
+)
 
 # ==============================================================================
 # CATÁLOGOS - DEPORTES
@@ -34,6 +46,7 @@ class Deporte(Base):
     creado_en = Column(DateTime, default=func.now())
     
     tipo_deporte = relationship("TipoDeporte")
+    formatos = relationship("FormatoTorneo", secondary=deporte_formato, back_populates="deportes")
 
 # ==============================================================================
 # CATÁLOGOS - FORMATOS DE TORNEO
@@ -46,6 +59,8 @@ class FormatoTorneo(Base):
     nombre = Column(String(100), unique=True, nullable=False)
     descripcion = Column(Text)
     creado_en = Column(DateTime, default=func.now())
+
+    deportes = relationship("Deporte", secondary=deporte_formato, back_populates="formatos")
 
 # ==============================================================================
 # CATÁLOGOS - CATEGORÍAS

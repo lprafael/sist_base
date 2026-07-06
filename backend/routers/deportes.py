@@ -5,10 +5,10 @@ from sqlalchemy.orm import joinedload
 from typing import List
 
 from database import get_session
-from models_catalogos import Deporte, TipoDeporte
+from models_catalogos import Deporte, TipoDeporte, FormatoTorneo, deporte_formato
 from schemas_catalogos import (
-    DeporteCreate, DeporteUpdate, DeporteResponse,
-    TipoDeporteCreate, TipoDeporteUpdate, TipoDeporteResponse
+    DeporteCreate, DeporteUpdate, DeporteResponse, DeporteConFormatos,
+    TipoDeporteCreate, TipoDeporteUpdate, TipoDeporteResponse, FormatoTorneoResponse
 )
 from security import get_current_user
 
@@ -167,4 +167,54 @@ async def delete_deporte(
         raise HTTPException(status_code=404, detail="Deporte no encontrado")
         
     await session.delete(deporte)
+    await session.commit()
+
+# ==============================================================================
+# DEPORTE <-> FORMATOS (N:M)
+# ==============================================================================
+@router.get("/{id}/formatos", response_model=List[FormatoTorneoResponse])
+async def get_deporte_formatos(id: int, session: AsyncSession = Depends(get_session)):
+    deporte = await session.get(Deporte, id, options=[joinedload(Deporte.formatos)])
+    if not deporte:
+        raise HTTPException(status_code=404, detail="Deporte no encontrado")
+    return deporte.formatos
+
+@router.post("/{id}/formatos/{formato_id}", status_code=status.HTTP_201_CREATED)
+async def add_formato_to_deporte(
+    id: int, 
+    formato_id: int, 
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    deporte = await session.get(Deporte, id, options=[joinedload(Deporte.formatos)])
+    if not deporte:
+        raise HTTPException(status_code=404, detail="Deporte no encontrado")
+        
+    formato = await session.get(FormatoTorneo, formato_id)
+    if not formato:
+        raise HTTPException(status_code=404, detail="Formato no encontrado")
+        
+    if any(f.id == formato_id for f in deporte.formatos):
+        raise HTTPException(status_code=400, detail="El formato ya está vinculado a este deporte")
+        
+    deporte.formatos.append(formato)
+    await session.commit()
+    return {"message": "Formato vinculado exitosamente"}
+
+@router.delete("/{id}/formatos/{formato_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_formato_from_deporte(
+    id: int, 
+    formato_id: int, 
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    deporte = await session.get(Deporte, id, options=[joinedload(Deporte.formatos)])
+    if not deporte:
+        raise HTTPException(status_code=404, detail="Deporte no encontrado")
+        
+    formato = next((f for f in deporte.formatos if f.id == formato_id), None)
+    if not formato:
+        raise HTTPException(status_code=404, detail="El formato no está vinculado a este deporte")
+        
+    deporte.formatos.remove(formato)
     await session.commit()

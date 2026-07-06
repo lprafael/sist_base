@@ -100,8 +100,10 @@ export default function AdminConsole() {
   const [dbTiposDeporte, setDbTiposDeporte] = useState<any[]>([]);
   const [dbFormatosTorneo, setDbFormatosTorneo] = useState<any[]>([]);
   const [dbRoles, setDbRoles] = useState<any[]>([]);
-  const [activeCatalogTab, setActiveCatalogTab] = useState<'deportes' | 'tipos' | 'formatos' | 'roles'>('deportes');
+  const [activeCatalogTab, setActiveCatalogTab] = useState<'deportes' | 'tipos' | 'formatos' | 'roles' | 'deporte_formatos'>('deportes');
   const [editCatalogItem, setEditCatalogItem] = useState<any | null>(null);
+  const [selectedDeporteForFormatos, setSelectedDeporteForFormatos] = useState<number | null>(null);
+  const [deporteFormatos, setDeporteFormatos] = useState<any[]>([]);
 
   const fetchCatalogs = async () => {
     try {
@@ -121,6 +123,30 @@ export default function AdminConsole() {
       if (resRoles.ok) setDbRoles(await resRoles.json());
     } catch (e) {}
   };
+
+  const fetchDeporteFormatos = async (deporteId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/deportes/${deporteId}/formatos`);
+      if (res.ok) setDeporteFormatos(await res.json());
+    } catch (e) {}
+  };
+
+  const handleToggleDeporteFormato = async (deporteId: number, formatoId: number, isLinked: boolean) => {
+    try {
+      if (isLinked) {
+        await fetch(`${API_URL}/api/deportes/${deporteId}/formatos/${formatoId}`, { method: 'DELETE' });
+      } else {
+        await fetch(`${API_URL}/api/deportes/${deporteId}/formatos/${formatoId}`, { method: 'POST' });
+      }
+      fetchDeporteFormatos(deporteId);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (selectedDeporteForFormatos !== null) {
+      fetchDeporteFormatos(selectedDeporteForFormatos);
+    }
+  }, [selectedDeporteForFormatos]);
 
   // Sorting & Filtering for Catalogs
   const [catalogSortField, setCatalogSortField] = useState<string>('nombre');
@@ -1144,7 +1170,8 @@ export default function AdminConsole() {
                     { id: 'deportes', label: '🏆 Deportes' },
                     { id: 'tipos', label: '📁 Tipos de Deporte' },
                     { id: 'formatos', label: '⚙️ Formatos de Torneo' },
-                    { id: 'roles', label: '👥 Roles de Cancha' }
+                    { id: 'roles', label: '👥 Roles de Cancha' },
+                    { id: 'deporte_formatos', label: '🔗 Deporte ↔ Formato' }
                   ].map(sub => (
                     <button
                       key={sub.id}
@@ -1470,6 +1497,64 @@ export default function AdminConsole() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {/* Sub-tab: DEPORTE <-> FORMATOS */}
+                {activeCatalogTab === 'deporte_formatos' && (
+                  <div>
+                    <h4 style={{ fontWeight: 800, fontSize: 16, marginBottom: 16 }}>Asociar Formatos a Deportes</h4>
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: 14 }}>1. Selecciona un Deporte</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+                          {dbDeportes.map(d => (
+                            <button
+                              key={d.id}
+                              onClick={() => setSelectedDeporteForFormatos(d.id)}
+                              style={{
+                                background: selectedDeporteForFormatos === d.id ? '#3b82f6' : '#fff',
+                                color: selectedDeporteForFormatos === d.id ? '#fff' : '#1e293b',
+                                border: '1px solid #cbd5e1',
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                fontSize: 13,
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {d.nombre}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div style={{ flex: 1, background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: 14 }}>2. Formatos Permitidos</h5>
+                        {selectedDeporteForFormatos ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {dbFormatosTorneo.map(f => {
+                              const isLinked = deporteFormatos.some(df => df.id === f.id);
+                              return (
+                                <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isLinked ? '#dcfce7' : '#fff', padding: '12px', borderRadius: 8, border: `1px solid ${isLinked ? '#86efac' : '#cbd5e1'}`, cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isLinked} 
+                                    onChange={() => handleToggleDeporteFormato(selectedDeporteForFormatos, f.id, isLinked)}
+                                    style={{ width: 18, height: 18, accentColor: '#16a34a' }}
+                                  />
+                                  <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>{f.nombre}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p style={{ color: '#64748b', fontSize: 13 }}>← Selecciona un deporte a la izquierda para configurar sus formatos.</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
