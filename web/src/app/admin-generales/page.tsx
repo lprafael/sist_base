@@ -5,7 +5,7 @@ import {
   LogOut, RefreshCw, Layers, Power, 
   Activity, Users, ShieldAlert, Scale,
   Trophy, UserCheck, AlertTriangle, Plus,
-  Edit2, Trash2, Calendar, DollarSign, MapPin, X, Share2, Copy, CheckCheck
+  Edit2, Trash2, Calendar, DollarSign, MapPin, X, Share2, Copy, CheckCheck, Tv
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -34,6 +34,7 @@ export default function AdminGeneralesPage() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [tempLocation, setTempLocation] = useState<{lat: number, lng: number} | null>(null);
   const [shareModal, setShareModal] = useState<{torneoId: string; torneoNombre: string} | null>(null);
+  const [tvModal, setTvModal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const SITE_URL = typeof window !== 'undefined' ? window.location.origin : '';
@@ -599,6 +600,13 @@ export default function AdminGeneralesPage() {
                             title="Compartir torneo"
                           >
                             <Share2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => setTvModal(t.id)}
+                            className="p-2 bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-300 rounded-lg transition-colors"
+                            title="Probar pantalla de TV"
+                          >
+                            <Tv size={18} />
                           </button>
                         </div>
                       </div>
@@ -1247,6 +1255,32 @@ export default function AdminGeneralesPage() {
             >
               📱 Compartir por WhatsApp
             </a>
+          </div>
+        </div>
+      )}
+
+      {tvModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-3xl p-6 w-full max-w-6xl border border-slate-700 shadow-2xl relative flex flex-col h-[85vh]">
+            <button 
+              onClick={() => setTvModal(null)}
+              className="absolute -top-4 -right-4 bg-red-600 text-white p-2 rounded-full hover:bg-red-500 transition-colors shadow-lg z-10"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-4 text-white">
+              <Tv size={24} className="text-emerald-400" />
+              <h2 className="text-2xl font-black">Previsualización TV en Vivo</h2>
+            </div>
+            
+            <div className="flex-1 rounded-xl overflow-hidden border border-slate-700 bg-black">
+              <iframe 
+                src={`${SITE_URL}/torneos/${tvModal}/tv-live`} 
+                className="w-full h-full border-0"
+                title="TV Live Preview"
+              ></iframe>
+            </div>
           </div>
         </div>
       )}

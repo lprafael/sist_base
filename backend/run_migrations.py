@@ -45,6 +45,10 @@ MIGRATIONS = [
     {"name": "024_mover_formatos_torneo.py", "module": "m024"},
     {"name": "025_schema_torneos_futbol.py", "module": "m025"},
     {"name": "026_fix_schema_torneos_futbol.py", "module": "m026"},
+    {"name": "027_organizador_deporte.py", "module": "m027"},
+    {"name": "028_torneos_ubicacion.py", "module": "m028"},
+    {"name": "029_asistencia_torneo.py", "module": "m029"},
+    {"name": "030_asam_y_multas.py", "module": "m030"},
 ]
 
 def load_migration_module(file_name: str, module_name: str):
