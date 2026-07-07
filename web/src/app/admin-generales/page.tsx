@@ -5,11 +5,14 @@ import {
   LogOut, RefreshCw, Layers, Power, 
   Activity, Users, ShieldAlert, Scale,
   Trophy, UserCheck, AlertTriangle, Plus,
-  Edit2, Trash2, Calendar, DollarSign
+  Edit2, Trash2, Calendar, DollarSign, MapPin
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import BracketViewer from '@/components/BracketViewer';
+import dynamic from 'next/dynamic';
+
+const LocationPickerMap = dynamic(() => import('@/components/LocationPickerMap'), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -24,7 +27,12 @@ export default function AdminGeneralesPage() {
 
   // Formularios Torneo
   const [showForm, setShowForm] = useState(false);
-  const [formTorneo, setFormTorneo] = useState({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '' });
+  const [formTorneo, setFormTorneo] = useState({ 
+    id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '',
+    ubicacion_lat: null as number | null, ubicacion_lng: null as number | null
+  });
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [tempLocation, setTempLocation] = useState<{lat: number, lng: number} | null>(null);
 
   // Checkin state
   const [participanteIdCheckin, setParticipanteIdCheckin] = useState('1'); 
@@ -245,6 +253,8 @@ export default function AdminGeneralesPage() {
         fecha_fin: formTorneo.fecha_fin,
         deporte_id: formTorneo.deporte_id ? Number(formTorneo.deporte_id) : null,
         organizador_id: sessionInfo?.organizador_id || null,
+        ubicacion_lat: formTorneo.ubicacion_lat,
+        ubicacion_lng: formTorneo.ubicacion_lng,
       };
       if (formTorneo.id) {
         await fetch(`${API_URL}/cancha/torneos_generales/${formTorneo.id}`, {
@@ -260,7 +270,7 @@ export default function AdminGeneralesPage() {
         });
       }
       setShowForm(false);
-      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '' });
+      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '', ubicacion_lat: null, ubicacion_lng: null });
       fetchTorneos();
     } catch (err) {
       console.error(err);
@@ -455,7 +465,7 @@ export default function AdminGeneralesPage() {
                   </div>
                   <button 
                     onClick={() => {
-                      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '' });
+                      setFormTorneo({ id: '', nombre: '', lugar: '', fecha_inicio: '', fecha_fin: '', deporte_id: '', ubicacion_lat: null, ubicacion_lng: null });
                       setShowForm(true);
                     }}
                     className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-colors"
@@ -475,6 +485,31 @@ export default function AdminGeneralesPage() {
                       <div>
                         <label className="block text-sm font-bold text-slate-400 mb-2">Sede / Lugar</label>
                         <input type="text" required value={formTorneo.lugar} onChange={e => setFormTorneo({...formTorneo, lugar: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">Ubicación en el Mapa</label>
+                        <div className="flex gap-2">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setTempLocation(formTorneo.ubicacion_lat && formTorneo.ubicacion_lng ? { lat: formTorneo.ubicacion_lat, lng: formTorneo.ubicacion_lng } : null);
+                              setShowMapModal(true);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 border rounded-xl px-4 py-3 font-bold transition-colors ${formTorneo.ubicacion_lat ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                          >
+                            <MapPin size={18} />
+                            {formTorneo.ubicacion_lat ? 'Ubicación Establecida' : 'Seleccionar Mapa'}
+                          </button>
+                          {formTorneo.ubicacion_lat && (
+                            <button 
+                              type="button" 
+                              onClick={() => setFormTorneo({...formTorneo, ubicacion_lat: null, ubicacion_lng: null})}
+                              className="px-4 py-3 border border-slate-800 rounded-xl bg-slate-950 text-slate-400 hover:text-red-400"
+                            >
+                              <X size={18} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-slate-400 mb-2">Fecha Inicio</label>
@@ -518,7 +553,10 @@ export default function AdminGeneralesPage() {
                           </div>
                           <span className="bg-red-500/10 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-500/20">{t.estado}</span>
                         </div>
-                        <p className="text-slate-300 text-sm mb-6"><strong>Deporte:</strong> {t.deporte_nombre || `ID ${t.deporte_id}` || '—'}</p>
+                        <p className="text-slate-300 text-sm mb-2"><strong>Deporte:</strong> {t.deporte_nombre || `ID ${t.deporte_id}` || '—'}</p>
+                        <p className="text-slate-300 text-sm mb-6">
+                          <strong>Ubicación:</strong> {t.ubicacion_lat ? <span className="text-green-400 flex items-center gap-1 inline-flex"><MapPin size={14}/> Fijada en mapa</span> : <span className="text-slate-500">Sin mapa</span>}
+                        </p>
                         
                         <div className="flex gap-3 pt-4 border-t border-slate-800">
                           <button 
@@ -536,6 +574,8 @@ export default function AdminGeneralesPage() {
                                 fecha_inicio: t.fecha_inicio || '',
                                 fecha_fin: t.fecha_fin || '',
                                 deporte_id: t.deporte_id?.toString() || '',
+                                ubicacion_lat: t.ubicacion_lat || null,
+                                ubicacion_lng: t.ubicacion_lng || null,
                               }); 
                               setShowForm(true); 
                             }}
@@ -1114,6 +1154,48 @@ export default function AdminGeneralesPage() {
           </div>
         </main>
       </div>
+      {/* MODAL MAPA */}
+      {showMapModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl overflow-hidden flex flex-col h-[600px]">
+            <div className="flex justify-between items-center p-4 border-b border-slate-800">
+              <h3 className="font-bold text-white text-lg">Seleccionar Ubicación</h3>
+              <button onClick={() => setShowMapModal(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="flex-1 bg-slate-800 relative">
+              <LocationPickerMap 
+                defaultLocation={tempLocation || undefined} 
+                onLocationSelect={(loc) => setTempLocation(loc)} 
+              />
+            </div>
+            <div className="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-950">
+              <p className="text-slate-400 text-sm">
+                {tempLocation ? `Coordenadas: ${tempLocation.lat.toFixed(4)}, ${tempLocation.lng.toFixed(4)}` : 'Hacé clic en el mapa para marcar'}
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowMapModal(false)}
+                  className="px-6 py-2 rounded-xl text-slate-300 hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => {
+                    if (tempLocation) {
+                      setFormTorneo({ ...formTorneo, ubicacion_lat: tempLocation.lat, ubicacion_lng: tempLocation.lng });
+                    }
+                    setShowMapModal(false);
+                  }}
+                  disabled={!tempLocation}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold rounded-xl"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

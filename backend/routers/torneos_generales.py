@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -20,6 +20,8 @@ class TorneoGeneralCreate(BaseModel):
     fecha_fin: date
     deporte_id: Optional[int] = None
     organizador_id: Optional[int] = None
+    ubicacion_lat: Optional[float] = None
+    ubicacion_lng: Optional[float] = None
 
 
 class TorneoGeneralUpdate(BaseModel):
@@ -29,6 +31,8 @@ class TorneoGeneralUpdate(BaseModel):
     fecha_fin: Optional[date] = None
     estado: Optional[str] = None
     deporte_id: Optional[int] = None
+    ubicacion_lat: Optional[float] = None
+    ubicacion_lng: Optional[float] = None
 
 
 @router.get("/", summary="Listar todos los torneos generales")
@@ -79,8 +83,8 @@ async def create_torneo_general(
 
     query = text("""
         INSERT INTO torneos_generales.torneos
-        (nombre, lugar, fecha_inicio, fecha_fin, deporte_id, organizador_id)
-        VALUES (:nombre, :lugar, :fecha_inicio, :fecha_fin, :deporte_id, :organizador_id)
+        (nombre, lugar, fecha_inicio, fecha_fin, deporte_id, organizador_id, ubicacion_lat, ubicacion_lng)
+        VALUES (:nombre, :lugar, :fecha_inicio, :fecha_fin, :deporte_id, :organizador_id, :ubicacion_lat, :ubicacion_lng)
         RETURNING id
     """)
     result = await session.execute(query, {
@@ -90,6 +94,8 @@ async def create_torneo_general(
         "fecha_fin": data.fecha_fin,
         "deporte_id": data.deporte_id,
         "organizador_id": data.organizador_id,
+        "ubicacion_lat": data.ubicacion_lat,
+        "ubicacion_lng": data.ubicacion_lng,
     })
     await session.commit()
     new_id = result.scalar()
@@ -116,6 +122,10 @@ async def update_torneo_general(
         updates.append("estado = :estado"); params["estado"] = data.estado
     if data.deporte_id is not None:
         updates.append("deporte_id = :did"); params["did"] = data.deporte_id
+    if data.ubicacion_lat is not None:
+        updates.append("ubicacion_lat = :lat"); params["lat"] = data.ubicacion_lat
+    if data.ubicacion_lng is not None:
+        updates.append("ubicacion_lng = :lng"); params["lng"] = data.ubicacion_lng
     if not updates:
         raise HTTPException(status_code=400, detail="No hay campos a actualizar")
 
@@ -123,7 +133,7 @@ async def update_torneo_general(
         UPDATE torneos_generales.torneos
         SET {', '.join(updates)}, actualizado_en = NOW()
         WHERE id = :tid
-        RETURNING id, nombre, lugar, estado, deporte_id
+        RETURNING id, nombre, lugar, estado, deporte_id, ubicacion_lat, ubicacion_lng
     """)
     res = await session.execute(query, params)
     row = res.fetchone()

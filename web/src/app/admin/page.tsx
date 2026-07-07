@@ -535,9 +535,35 @@ export default function AdminConsole() {
       if (res.ok) {
         const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
         const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`, fetchOpts);
+        let updatedOrgs = organizadores;
         if (resOrg.ok) {
-          setOrganizadores(await resOrg.json());
+          updatedOrgs = await resOrg.json();
+          setOrganizadores(updatedOrgs);
         }
+
+        // Obtener el ID del organizador recién creado/editado.
+        const orgMatch = updatedOrgs.find((o: any) => o.usuario_id === Number(editOrganizador.usuario_id));
+        if (orgMatch && editOrganizador.deportesHabilitados) {
+           const orgId = orgMatch.id;
+           const resDeportes = await fetch(`${API_URL}/api/organizadores/${orgId}/deportes`);
+           let deportesActuales = [];
+           if (resDeportes.ok) {
+              const jsonDeportes = await resDeportes.json();
+              deportesActuales = jsonDeportes.map((d: any) => d.id);
+           }
+           
+           const nuevosDeportes = editOrganizador.deportesHabilitados;
+           const toAdd = nuevosDeportes.filter((id: number) => !deportesActuales.includes(id));
+           const toRemove = deportesActuales.filter((id: number) => !nuevosDeportes.includes(id));
+
+           for (const depId of toAdd) {
+             await fetch(`${API_URL}/api/organizadores/${orgId}/deportes/${depId}`, { method: 'POST', ...fetchOpts });
+           }
+           for (const depId of toRemove) {
+             await fetch(`${API_URL}/api/organizadores/${orgId}/deportes/${depId}`, { method: 'DELETE', ...fetchOpts });
+           }
+        }
+
         addToast(editOrganizador.isNew ? '🎉 Organizador independiente habilitado.' : '✏️ Organizador actualizado.');
         setEditOrganizador(null);
       } else {
@@ -1033,7 +1059,7 @@ export default function AdminConsole() {
                       <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Usuarios habilitados para crear torneos sin un complejo físico.</p>
                     </div>
                     <button
-                      onClick={() => setEditOrganizador({ isNew: true, usuario_id: usuarios[0]?.id || 0, nombre: '', plan: 'basico', max_torneos: 3 })}
+                      onClick={() => setEditOrganizador({ isNew: true, usuario_id: usuarios[0]?.id || 0, nombre: '', plan: 'basico', max_torneos: 3, deportesHabilitados: [] })}
                       style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                     >
                       <Plus size={16} />
@@ -1100,7 +1126,19 @@ export default function AdminConsole() {
                                     {o.habilitado ? 'Suspender' : 'Activar'}
                                   </button>
                                   <button
-                                    onClick={() => setEditOrganizador(o)}
+                                    onClick={async () => {
+                                      try {
+                                        const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
+                                        if (res.ok) {
+                                          const deps = await res.json();
+                                          setEditOrganizador({ ...o, deportesHabilitados: deps.map((d: any) => d.id) });
+                                        } else {
+                                          setEditOrganizador({ ...o, deportesHabilitados: [] });
+                                        }
+                                      } catch {
+                                        setEditOrganizador({ ...o, deportesHabilitados: [] });
+                                      }
+                                    }}
                                     style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                                   >
                                     Editar
@@ -1872,6 +1910,30 @@ export default function AdminConsole() {
                   min="1"
                   required
                 />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700 }}>Deportes Permitidos</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 12, border: '1px solid #cbd5e1', borderRadius: 8, maxHeight: 150, overflowY: 'auto' }}>
+                {dbDeportes.map(d => (
+                  <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={(editOrganizador.deportesHabilitados || []).includes(d.id)}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        setEditOrganizador((prev: any) => ({
+                          ...prev,
+                          deportesHabilitados: isChecked 
+                            ? [...(prev.deportesHabilitados || []), d.id]
+                            : (prev.deportesHabilitados || []).filter((id: number) => id !== d.id)
+                        }));
+                      }}
+                    />
+                    {d.nombre}
+                  </label>
+                ))}
               </div>
             </div>
 
