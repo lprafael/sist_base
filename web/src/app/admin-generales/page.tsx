@@ -5,7 +5,7 @@ import {
   LogOut, RefreshCw, Layers, Power, 
   Activity, Users, ShieldAlert, Scale,
   Trophy, UserCheck, AlertTriangle, Plus,
-  Edit2, Trash2, Calendar, DollarSign, MapPin
+  Edit2, Trash2, Calendar, DollarSign, MapPin, X
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
