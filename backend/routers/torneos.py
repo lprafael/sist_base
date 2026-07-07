@@ -892,6 +892,34 @@ async def get_equipo_by_token(token: str, session: AsyncSession = Depends(get_se
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/equipos/token-jugadores/{token_jugadores}", summary="Info del equipo por token de jugadores")
+async def get_equipo_by_token_jugadores(token_jugadores: str, session: AsyncSession = Depends(get_session)):
+    """Endpoint público para que la página de auto-registro cargue el nombre del equipo y torneo."""
+    try:
+        res = await session.execute(text("""
+            SELECT te.nombre AS equipo_nombre, te.token_jugadores,
+                   t.nombre AS torneo_nombre, t.deporte
+            FROM torneos_futbol.equipos te
+            JOIN torneos_futbol.torneos t ON te.torneo_id = t.id
+            WHERE te.token_jugadores = :token
+        """), {"token": token_jugadores})
+        row = res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Token de jugadores no válido")
+        return {
+            "nombre": row.equipo_nombre,
+            "torneo_nombre": row.torneo_nombre,
+            "deporte": row.deporte,
+            "token_jugadores": str(row.token_jugadores)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
 @router.get("/equipos/buscar-token", summary="Buscar token de delegado por email")
 async def buscar_token_delegado(
     email: str,
@@ -3534,3 +3562,173 @@ async def pagar_cargo(equipo_id: str, cargo_id: str, session: AsyncSession = Dep
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# ENDPOINTS — ASISTENCIA (CHECK-IN FACIAL)
+# ============================================================
+
+@router.post("/checkin-torneo/{torneo_id}", summary="Check-in facial al torneo (venue)")
+async def checkin_torneo_facial(
+    torneo_id: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Recibe foto de un jugador y lo identifica contra todos los jugadores del torneo.
+    Si lo reconoce, registra su asistencia al torneo (una sola vez por día).
+    """
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+        file_bytes = await file.read()
+
+        # Extraer encoding de la foto enviada
+        try:
+            encoding_test = FacialRecognitionService.extract_encoding(file_bytes)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+
+        # Traer todos los jugadores del torneo que tienen face_encoding
+        result = await session.execute(text("""
+            SELECT tp.id, tp.nombre, tp.face_encoding
+            FROM cancha.tournament_players tp
+            INNER JOIN torneos.equipos te ON te.id = tp.torneo_equipo_id
+            WHERE te.torneo_id = :torneo_id AND tp.face_encoding IS NOT NULL
+        """), {"torneo_id": torneo_id})
+        players = result.fetchall()
+
+        recognized = None
+        for row in players:
+            try:
+                db_enc = row.face_encoding if isinstance(row.face_encoding, list) else json.loads(row.face_encoding)
+                if FacialRecognitionService.compare_encodings(db_enc, encoding_test):
+                    recognized = {"id": str(row.id), "nombre": row.nombre}
+                    break
+            except Exception:
+                continue
+
+        if not recognized:
+            return {"status": "no_match", "match": False, "message": "No se reconoció el rostro en este torneo"}
+
+        # Registrar asistencia (ignorar duplicado por UNIQUE)
+        try:
+            await session.execute(text("""
+                INSERT INTO cancha.asistencia_torneo (jugador_id, torneo_id, metodo)
+                VALUES (:jid, :tid, 'facial')
+                ON CONFLICT (jugador_id, torneo_id) DO NOTHING
+            """), {"jid": recognized["id"], "tid": torneo_id})
+            await session.commit()
+        except Exception:
+            await session.rollback()
+
+        return {"status": "ok", "match": True, "jugador": recognized,
+                "message": f"✅ ¡Bienvenido, {recognized['nombre']}! Asistencia registrada al torneo."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/checkin-partido/{partido_id}", summary="Check-in facial por partido")
+async def checkin_partido_facial(
+    partido_id: str,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Identifica al jugador y registra su participación en un partido específico.
+    Primero busca en los equipos que juegan ese partido.
+    """
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+        file_bytes = await file.read()
+
+        try:
+            encoding_test = FacialRecognitionService.extract_encoding(file_bytes)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+
+        # Obtener info del partido (equipos y torneo)
+        partido_res = await session.execute(text("""
+            SELECT equipo_local_id, equipo_visitante_id, torneo_id
+            FROM torneos.partidos WHERE id = :pid
+        """), {"pid": partido_id})
+        partido = partido_res.fetchone()
+        if not partido:
+            raise HTTPException(status_code=404, detail="Partido no encontrado")
+
+        equipo_ids = [str(partido.equipo_local_id), str(partido.equipo_visitante_id)]
+        torneo_id = str(partido.torneo_id)
+
+        # Traer jugadores de ambos equipos con encoding
+        result = await session.execute(text("""
+            SELECT tp.id, tp.nombre, tp.face_encoding, te.nombre AS equipo_nombre
+            FROM cancha.tournament_players tp
+            INNER JOIN torneos.equipos te ON te.id = tp.torneo_equipo_id
+            WHERE te.id = ANY(:eids) AND tp.face_encoding IS NOT NULL
+        """), {"eids": equipo_ids})
+        players = result.fetchall()
+
+        recognized = None
+        for row in players:
+            try:
+                db_enc = row.face_encoding if isinstance(row.face_encoding, list) else json.loads(row.face_encoding)
+                if FacialRecognitionService.compare_encodings(db_enc, encoding_test):
+                    recognized = {"id": str(row.id), "nombre": row.nombre, "equipo": row.equipo_nombre}
+                    break
+            except Exception:
+                continue
+
+        if not recognized:
+            return {"status": "no_match", "match": False, "message": "No se reconoció al jugador en este partido"}
+
+        # Registrar asistencia al partido
+        try:
+            await session.execute(text("""
+                INSERT INTO cancha.asistencia_partido (jugador_id, partido_id, torneo_id, metodo)
+                VALUES (:jid, :pid, :tid, 'facial')
+                ON CONFLICT (jugador_id, partido_id) DO NOTHING
+            """), {"jid": recognized["id"], "pid": partido_id, "tid": torneo_id})
+            await session.commit()
+        except Exception:
+            await session.rollback()
+
+        return {"status": "ok", "match": True, "jugador": recognized,
+                "message": f"✅ {recognized['nombre']} ({recognized['equipo']}) registrado en el partido."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/asistencia-torneo/{torneo_id}", summary="Listar asistencias al torneo")
+async def get_asistencias_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text("""
+        SELECT at.id, at.jugador_id, at.fecha_hora, at.metodo,
+               tp.nombre AS jugador_nombre, te.nombre AS equipo_nombre
+        FROM cancha.asistencia_torneo at
+        INNER JOIN cancha.tournament_players tp ON tp.id = at.jugador_id
+        INNER JOIN torneos.equipos te ON te.id = tp.torneo_equipo_id
+        WHERE at.torneo_id = :tid
+        ORDER BY at.fecha_hora DESC
+    """), {"tid": torneo_id})
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+@router.get("/asistencia-partido/{partido_id}", summary="Listar asistencias de un partido")
+async def get_asistencias_partido(partido_id: str, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text("""
+        SELECT ap.id, ap.jugador_id, ap.fecha_hora, ap.metodo,
+               tp.nombre AS jugador_nombre, te.nombre AS equipo_nombre
+        FROM cancha.asistencia_partido ap
+        INNER JOIN cancha.tournament_players tp ON tp.id = ap.jugador_id
+        INNER JOIN torneos.equipos te ON te.id = tp.torneo_equipo_id
+        WHERE ap.partido_id = :pid
+        ORDER BY ap.fecha_hora DESC
+    """), {"pid": partido_id})
+    return [dict(r._mapping) for r in result.fetchall()]
+

@@ -18,7 +18,11 @@ import {
   Calendar,
   CreditCard,
   Mail,
-  UserPlus
+  UserPlus,
+  Share2,
+  Copy,
+  CheckCheck,
+  QrCode
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,6 +35,8 @@ export default function DelegadoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null); // { equipo, torneo, jugadores }
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const SITE_URL = typeof window !== 'undefined' ? window.location.origin : '';
   
   // Estados para la carga de logo
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -322,6 +328,44 @@ export default function DelegadoPage() {
             </div>
           </div>
         </section>
+
+        {/* INVITAR JUGADORES */}
+        {equipo.token_jugadores && (
+          <section className="mb-10 p-6 rounded-3xl bg-gradient-to-br from-emerald-950/40 to-slate-900/60 border border-emerald-500/20">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-shrink-0 flex justify-center">
+                <div className="bg-white p-3 rounded-2xl shadow-lg">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(SITE_URL + '/jugadores/registro/' + equipo.token_jugadores)}`}
+                    alt="QR Jugadores"
+                    className="w-32 h-32"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-lg font-black text-white mb-1">Invitar Jugadores al Plantel</h3>
+                <p className="text-slate-400 text-sm mb-4">Compartí este link o QR a tus jugadores para que se registren solos desde su celular.</p>
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 mb-3">
+                  <span className="text-slate-400 text-xs truncate flex-1">{SITE_URL}/jugadores/registro/{equipo.token_jugadores}</span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(SITE_URL + '/jugadores/registro/' + equipo.token_jugadores); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }}
+                    className="flex-shrink-0 text-slate-400 hover:text-white transition-colors"
+                  >
+                    {inviteCopied ? <CheckCheck size={16} className="text-green-400" /> : <Copy size={16} />}
+                  </button>
+                </div>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent('Registrate en el plantel de ' + equipo.nombre + ' aqui: ' + SITE_URL + '/jugadores/registro/' + equipo.token_jugadores)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-black font-bold py-2 px-5 rounded-xl text-sm transition-all"
+                >
+                  📱 Enviar por WhatsApp
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* PLANTEL DE JUGADORES */}
         <section>

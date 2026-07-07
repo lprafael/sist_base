@@ -5,7 +5,7 @@ import {
   LogOut, RefreshCw, Layers, Power, 
   Activity, Users, ShieldAlert, Scale,
   Trophy, UserCheck, AlertTriangle, Plus,
-  Edit2, Trash2, Calendar, DollarSign, MapPin, X
+  Edit2, Trash2, Calendar, DollarSign, MapPin, X, Share2, Copy, CheckCheck
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -33,6 +33,10 @@ export default function AdminGeneralesPage() {
   });
   const [showMapModal, setShowMapModal] = useState(false);
   const [tempLocation, setTempLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [shareModal, setShareModal] = useState<{torneoId: string; torneoNombre: string} | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const SITE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Checkin state
   const [participanteIdCheckin, setParticipanteIdCheckin] = useState('1'); 
@@ -588,6 +592,13 @@ export default function AdminGeneralesPage() {
                             className="p-2 bg-slate-800 hover:bg-red-900/50 hover:text-red-400 text-slate-300 rounded-lg transition-colors"
                           >
                             <Trash2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => setShareModal({ torneoId: t.id, torneoNombre: t.nombre })}
+                            className="p-2 bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-300 rounded-lg transition-colors"
+                            title="Compartir torneo"
+                          >
+                            <Share2 size={18} />
                           </button>
                         </div>
                       </div>
@@ -1193,6 +1204,49 @@ export default function AdminGeneralesPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHARE / QR MODAL */}
+      {shareModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-sm relative">
+            <button onClick={() => { setShareModal(null); setCopied(false); }} className="absolute top-4 right-4 text-slate-500 hover:text-white">
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-black text-white mb-1">Compartir Torneo</h2>
+            <p className="text-slate-400 text-sm mb-6">{shareModal.torneoNombre}</p>
+
+            {/* QR Code (via free API) */}
+            <div className="flex justify-center mb-6">
+              <div className="bg-white p-3 rounded-2xl">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(SITE_URL + '/torneos-generales/' + shareModal.torneoId)}`}
+                  alt="QR Torneo"
+                  className="w-44 h-44"
+                />
+              </div>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-2 mb-3">
+              <span className="text-slate-400 text-xs truncate flex-1">{SITE_URL}/torneos-generales/{shareModal.torneoId}</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(SITE_URL + '/torneos-generales/' + shareModal.torneoId); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                className="flex-shrink-0 text-slate-400 hover:text-white transition-colors"
+              >
+                {copied ? <CheckCheck size={16} className="text-green-400" /> : <Copy size={16} />}
+              </button>
+            </div>
+
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent('Te invito a registrar tu equipo en el torneo "' + shareModal.torneoNombre + '": ' + SITE_URL + '/torneos-generales/' + shareModal.torneoId)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-[#25D366] hover:bg-[#1ebe5c] text-black font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm transition-all"
+            >
+              📱 Compartir por WhatsApp
+            </a>
           </div>
         </div>
       )}
