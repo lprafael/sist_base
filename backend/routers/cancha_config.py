@@ -10,7 +10,7 @@ router = APIRouter(tags=["Configuracion Cancha"])
 async def obtener_deportes_formatos_organizador(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     # 1. Obtener organizador_id del usuario actual
     q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
-    res_org = await session.execute(q_org, {"uid": current_user["usuario_id"]})
+    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
     row_org = res_org.fetchone()
     
     if not row_org:
