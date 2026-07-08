@@ -13,6 +13,15 @@ router = APIRouter(tags=["Futbol Core"])
 # 1. Torneos y Categorías
 # ==========================================
 
+def map_formato(nombre: str) -> str:
+    n = nombre.lower()
+    if 'liga' in n or 'todos contra' in n: return 'liga'
+    elif 'grupos' in n or 'mundial' in n: return 'grupos'
+    elif 'doble' in n: return 'eliminacion_doble'
+    elif 'eliminatoria' in n or 'directa' in n or 'simple' in n: return 'eliminacion_simple'
+    elif 'suizo' in n: return 'suizo'
+    return 'liga'
+
 class DivisionCreate(BaseModel):
     nombre: str
 
@@ -32,16 +41,24 @@ class TorneoFutbolCreate(BaseModel):
 async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     torneo_id = str(uuid.uuid4())
     
+    # Obtener organizador_id real
+    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
+    row_org = res_org.fetchone()
+    if not row_org:
+        raise HTTPException(status_code=400, detail="El usuario no es un organizador válido.")
+    organizador_id = row_org[0]
+    
     # Insert Torneo
     await session.execute(text("""
         INSERT INTO torneos_futbol.torneos 
-            (id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en)
+            (id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en, fecha_inicio)
         VALUES 
-            (:id, :nombre, :tipo, :oid, :deporte, :formato, 'borrador', NOW())
+            (:id, :nombre, :tipo, :oid, :deporte, :formato, 'abierto', NOW(), NOW())
     """), {
         "id": torneo_id, "nombre": data.nombre, 
-        "tipo": data.tipo_campeonato, "oid": current_user["user_id"],
-        "deporte": data.deporte, "formato": data.formato
+        "tipo": data.tipo_campeonato, "oid": organizador_id,
+        "deporte": data.deporte, "formato": map_formato(data.formato)
     })
     
     if data.tipo_campeonato == "categorias" and data.categorias:
