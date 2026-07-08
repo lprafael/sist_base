@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, ThumbsUp, UserCog, Menu, X } from 'lucide-react';
+import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X } from 'lucide-react';
 
 export default function AdminFutbolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,7 +14,6 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
     { name: "Registro de jugadores", href: "/admin-futbol/jugadores", icon: <Users size={22} /> },
     { name: "Página del organizador", href: "/admin-futbol/perfil", icon: <LayoutTemplate size={22} /> },
     { name: "Planes de suscripción", href: "/admin-futbol/suscripciones", icon: <BookOpen size={22} /> },
-    { name: "Campeonatos que sigo", href: "/admin-futbol/siguiendo", icon: <ThumbsUp size={22} /> },
     { name: "Arbitraje", href: "/admin-futbol/arbitraje", icon: <UserCog size={22} /> },
   ];
 

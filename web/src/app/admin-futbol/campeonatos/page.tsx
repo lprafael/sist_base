@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, LayoutGrid, ArrowRight, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
 export default function CampeonatosPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -24,8 +26,10 @@ export default function CampeonatosPage() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch("http://localhost:8001/organizador/deportes-formatos", {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const res = await fetch(`${API_URL}/organizador/deportes-formatos`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if(res.ok) {
         const data = await res.json();
@@ -43,11 +47,13 @@ export default function CampeonatosPage() {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("http://localhost:8001/futbol/torneos", {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const res = await fetch(`${API_URL}/futbol/torneos`, {
         method: "POST",
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(formData)
       });
