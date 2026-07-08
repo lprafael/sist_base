@@ -207,6 +207,15 @@ app.include_router(sorteos_router)
 from routers.multas import router as multas_router
 app.include_router(multas_router)
 
+from routers.perfil_organizador import router as perfil_organizador_router
+app.include_router(perfil_organizador_router)
+
+from routers.futbol_core import router as futbol_core_router
+app.include_router(futbol_core_router)
+
+from routers.futbol_live import router as futbol_live_router
+app.include_router(futbol_live_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================
