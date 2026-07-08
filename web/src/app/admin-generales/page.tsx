@@ -5,7 +5,7 @@ import {
   LogOut, RefreshCw, Layers, Power, 
   Activity, Users, ShieldAlert, Scale,
   Trophy, UserCheck, AlertTriangle, Plus,
-  Edit2, Trash2, Calendar, DollarSign, MapPin, X, Share2, Copy, CheckCheck, Tv
+  Edit2, Trash2, Calendar, DollarSign, MapPin, X, Share2, Copy, CheckCheck, Tv, Maximize
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -1271,11 +1271,23 @@ export default function AdminGeneralesPage() {
             
             <div className="flex items-center gap-3 mb-4 text-white">
               <Tv size={24} className="text-emerald-400" />
-              <h2 className="text-2xl font-black">Previsualización TV en Vivo</h2>
+              <h2 className="text-2xl font-black flex-1">Previsualización TV en Vivo</h2>
+              <button 
+                onClick={() => {
+                  const iframe = document.getElementById('tv-preview-iframe');
+                  if (iframe && iframe.requestFullscreen) {
+                    iframe.requestFullscreen();
+                  }
+                }}
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg font-bold transition"
+              >
+                <Maximize size={18} /> Pantalla Completa
+              </button>
             </div>
             
             <div className="flex-1 rounded-xl overflow-hidden border border-slate-700 bg-black">
               <iframe 
+                id="tv-preview-iframe"
                 src={`${SITE_URL}/torneos/${tvModal}/tv-live`} 
                 className="w-full h-full border-0"
                 title="TV Live Preview"
