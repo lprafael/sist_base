@@ -67,7 +67,11 @@ export default function LoginPage() {
           usuario_id: data.user.id,
           authorized: true
         };
-        localStorage.setItem('user_session', JSON.stringify(session));
+        const sessionData = {
+          ...session,
+          tipo_torneo: data.user.tipo_torneo || null
+        };
+        localStorage.setItem('user_session', JSON.stringify(sessionData));
 
         addAuditLog('acceso', {
           usuario: adminUser,
@@ -79,6 +83,8 @@ export default function LoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
+        } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
+          window.location.href = '/admin-futbol/campeonatos';
         } else if (session.role === 'organizador') {
           window.location.href = '/admin-generales';
         } else {
@@ -120,7 +126,11 @@ export default function LoginPage() {
           usuario_id: data.user.id,
           authorized: true
         };
-        localStorage.setItem('user_session', JSON.stringify(session));
+        const sessionData = {
+          ...session,
+          tipo_torneo: data.user.tipo_torneo || null
+        };
+        localStorage.setItem('user_session', JSON.stringify(sessionData));
 
         addAuditLog('acceso', {
           usuario: session.email,
@@ -132,6 +142,8 @@ export default function LoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
+        } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
+          window.location.href = '/admin-futbol/campeonatos';
         } else if (session.role === 'organizador') {
           window.location.href = '/admin-generales';
         } else {

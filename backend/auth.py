@@ -92,10 +92,25 @@ async def login(
         user_agent=request.headers.get("user-agent")
     ))
     
+    # Obtener tipo_torneo si el usuario es organizador
+    tipo_torneo = None
+    if user.rol == "organizador":
+        from sqlalchemy import text as sql_text
+        org_result = await session.execute(
+            sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
+            {"uid": user.id}
+        )
+        org_row = org_result.fetchone()
+        if org_row:
+            tipo_torneo = org_row[0]
+    
+    user_response = UserResponse.from_orm(user)
+    user_response.tipo_torneo = tipo_torneo
+    
     return Token(
         access_token=access_token,
         token_type="bearer",
-        user=UserResponse.from_orm(user)
+        user=user_response
     )
 
 @router.post("/google-login", response_model=Token)

@@ -66,6 +66,7 @@ class UserResponse(BaseModel):
     activo: bool
     fecha_creacion: Optional[datetime] = None
     ultimo_acceso: Optional[datetime] = None
+    tipo_torneo: Optional[str] = None
     
     class Config:
         from_attributes = True
