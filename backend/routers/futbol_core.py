@@ -24,6 +24,8 @@ class CategoriaCreate(BaseModel):
 class TorneoFutbolCreate(BaseModel):
     nombre: str
     tipo_campeonato: str # "unico" o "categorias"
+    deporte: str # Ej. "Fútbol 5", "Fútbol 7"
+    formato: str # Ej. "Eliminación Directa", "Liga"
     categorias: List[CategoriaCreate] = [] # Vacio si es unico
 
 @router.post("/futbol/torneos")
@@ -33,12 +35,13 @@ async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Dep
     # Insert Torneo
     await session.execute(text("""
         INSERT INTO torneos_futbol.torneos 
-            (id, nombre, tipo_campeonato, organizador_id, deporte, estado, creado_en)
+            (id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en)
         VALUES 
-            (:id, :nombre, :tipo, :oid, 'Fútbol', 'borrador', NOW())
+            (:id, :nombre, :tipo, :oid, :deporte, :formato, 'borrador', NOW())
     """), {
         "id": torneo_id, "nombre": data.nombre, 
-        "tipo": data.tipo_campeonato, "oid": current_user["usuario_id"]
+        "tipo": data.tipo_campeonato, "oid": current_user["usuario_id"],
+        "deporte": data.deporte, "formato": data.formato
     })
     
     if data.tipo_campeonato == "categorias" and data.categorias:

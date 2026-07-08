@@ -8,12 +8,36 @@ export default function CampeonatosPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [deportes, setDeportes] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     nombre: "",
     tipo_campeonato: "",
+    deporte: "",
+    formato: "",
     categorias: [] as { nombre: string, divisiones: {nombre: string}[] }[]
   });
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch("http://localhost:8001/organizador/deportes-formatos", {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if(res.ok) {
+        const data = await res.json();
+        setDeportes(data.deportes);
+        if(data.deportes.length > 0) {
+          setFormData(f => ({ ...f, deporte: data.deportes[0].nombre, formato: data.deportes[0].formatos[0]?.nombre || "" }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleCreate = async () => {
     setLoading(true);
@@ -133,6 +157,41 @@ export default function CampeonatosPage() {
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#1b264f] outline-none transition"
                 placeholder="Ej. Copa de Verano 2026"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Deporte</label>
+                <select
+                  value={formData.deporte}
+                  onChange={e => {
+                    const dep = deportes.find(d => d.nombre === e.target.value);
+                    setFormData({
+                      ...formData, 
+                      deporte: e.target.value, 
+                      formato: dep?.formatos[0]?.nombre || ""
+                    });
+                  }}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#1b264f] outline-none transition"
+                >
+                  {deportes.map(d => (
+                    <option key={d.id} value={d.nombre}>{d.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Formato</label>
+                <select
+                  value={formData.formato}
+                  onChange={e => setFormData({...formData, formato: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#1b264f] outline-none transition"
+                >
+                  {deportes.find(d => d.nombre === formData.deporte)?.formatos.map((f: any) => (
+                    <option key={f.id} value={f.nombre}>{f.nombre}</option>
+                  )) || <option value="">-</option>}
+                </select>
+              </div>
             </div>
 
             {formData.tipo_campeonato === 'categorias' && (

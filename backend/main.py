@@ -216,6 +216,9 @@ app.include_router(futbol_core_router)
 from routers.futbol_live import router as futbol_live_router
 app.include_router(futbol_live_router)
 
+from routers.cancha_config import router as cancha_config_router
+app.include_router(cancha_config_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================
