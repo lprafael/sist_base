@@ -40,7 +40,7 @@ async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Dep
             (:id, :nombre, :tipo, :oid, :deporte, :formato, 'borrador', NOW())
     """), {
         "id": torneo_id, "nombre": data.nombre, 
-        "tipo": data.tipo_campeonato, "oid": current_user["usuario_id"],
+        "tipo": data.tipo_campeonato, "oid": current_user["user_id"],
         "deporte": data.deporte, "formato": data.formato
     })
     

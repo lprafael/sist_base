@@ -25,7 +25,7 @@ async def obtener_perfil_organizador(current_user: dict = Depends(get_current_us
         FROM sistema.perfil_organizador 
         WHERE usuario_id = :uid
     """)
-    res = await session.execute(query, {"uid": current_user["usuario_id"]})
+    res = await session.execute(query, {"uid": current_user["user_id"]})
     row = res.fetchone()
     
     if not row:
@@ -46,7 +46,7 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
     
     # 1. Verificar si el enlace está tomado por otro usuario
     if data.enlace_sitio:
-        check = await session.execute(text("SELECT usuario_id FROM sistema.perfil_organizador WHERE enlace_sitio = :enlace AND usuario_id != :uid"), {"enlace": data.enlace_sitio, "uid": current_user["usuario_id"]})
+        check = await session.execute(text("SELECT usuario_id FROM sistema.perfil_organizador WHERE enlace_sitio = :enlace AND usuario_id != :uid"), {"enlace": data.enlace_sitio, "uid": current_user["user_id"]})
         if check.fetchone():
             raise HTTPException(status_code=400, detail="El enlace del sitio ya está en uso por otro organizador.")
 
@@ -69,7 +69,7 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
     """)
     
     await session.execute(query, {
-        "uid": current_user["usuario_id"],
+        "uid": current_user["user_id"],
         "enlace": data.enlace_sitio,
         "logo": data.logo_url,
         "banner": data.banner_url,

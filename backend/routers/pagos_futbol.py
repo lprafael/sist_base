@@ -47,7 +47,7 @@ async def generar_multa(data: MultaCreate, current_user: dict = Depends(get_curr
         "concepto": data.concepto,
         "monto": data.monto,
         "partido": data.partido_id,
-        "uid": current_user["usuario_id"]
+        "uid": current_user["user_id"]
     })
     await session.commit()
     return {"message": "Multa / Cargo generado exitosamente", "id": multa_id}
@@ -72,6 +72,6 @@ async def actualizar_plan_organizador(data: PlanUpdate, current_user: dict = Dep
         UPDATE cancha.organizadores
         SET plan = :plan
         WHERE usuario_id = :uid
-    """), {"plan": data.plan, "uid": current_user["usuario_id"]})
+    """), {"plan": data.plan, "uid": current_user["user_id"]})
     await session.commit()
     return {"message": f"Suscripción actualizada al plan {data.plan}"}
