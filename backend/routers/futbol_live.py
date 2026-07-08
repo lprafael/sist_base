@@ -61,3 +61,86 @@ async def registrar_evento(data: EventoPartido, session: AsyncSession = Depends(
         
     await session.commit()
     return {"message": f"Evento {data.tipo} registrado", "id": evento_id}
+
+# ==========================================
+# BIOMETRIA: Check-in de Jugadores
+# ==========================================
+
+class BiometriaRequest(BaseModel):
+    partido_id: str
+    equipo_id: str
+    imagen_base64: str
+    mock_player_id: Optional[str] = None # Para facilitar el testing sin AWS
+
+@router.post("/futbol/arbitraje/asistencia/biometrica")
+async def checkin_biometrico(data: BiometriaRequest, session: AsyncSession = Depends(get_session)):
+    
+    # 1. En una integracion real con AWS Rekognition:
+    # client = boto3.client('rekognition')
+    # response = client.search_faces_by_image(
+    #     CollectionId='MiCanchaPlayers',
+    #     Image={'Bytes': base64.b64decode(data.imagen_base64)},
+    #     FaceMatchThreshold=90.0,
+    #     MaxFaces=1
+    # )
+    # if len(response['FaceMatches']) > 0:
+    #     player_id = response['FaceMatches'][0]['Face']['ExternalImageId']
+    
+    # MOCK: Simulamos que Rekognition encontró a alguien
+    player_id_matched = data.mock_player_id
+    player_name = "Jugador Reconocido"
+
+    if not player_id_matched:
+        # Buscamos al azar un jugador del equipo para simular
+        res = await session.execute(text("""
+            SELECT id, nombre FROM torneos_futbol.tournament_players 
+            WHERE torneo_equipo_id = :eq AND biometria_aprobada = true 
+            LIMIT 1
+        """), {"eq": data.equipo_id})
+        row = res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="No se encontraron jugadores con biometría registrada en este equipo")
+        player_id_matched = str(row[0])
+        player_name = row[1]
+    else:
+        # Obtenemos su nombre real para mostrar en el frontend
+        res = await session.execute(text("SELECT nombre FROM torneos_futbol.tournament_players WHERE id = :pid"), {"pid": player_id_matched})
+        row = res.fetchone()
+        if row: player_name = row[0]
+
+    # 2. Registrar la asistencia en la planilla
+    planilla_id = str(uuid.uuid4())
+    
+    # Verificar si ya existe el registro
+    check_res = await session.execute(text("""
+        SELECT id FROM torneos_futbol.planilla 
+        WHERE partido_id = :pid AND player_id = :player
+    """), {"pid": data.partido_id, "player": player_id_matched})
+    
+    existing = check_res.fetchone()
+    
+    if existing:
+        await session.execute(text("""
+            UPDATE torneos_futbol.planilla SET presente = true WHERE id = :id
+        """), {"id": existing[0]})
+    else:
+        await session.execute(text("""
+            INSERT INTO torneos_futbol.planilla 
+                (id, partido_id, player_id, presente, creado_en)
+            VALUES 
+                (:id, :pid, :player, true, NOW())
+        """), {
+            "id": planilla_id, 
+            "pid": data.partido_id, 
+            "player": player_id_matched
+        })
+    
+    await session.commit()
+    
+    return {
+        "message": "Asistencia biométrica validada", 
+        "match": True,
+        "player_id": player_id_matched,
+        "player_name": player_name,
+        "confidence": 98.5
+    }

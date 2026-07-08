@@ -124,6 +124,17 @@ export default function VeedorFutbolPage() {
           </div>
 
         </div>
+        
+        {/* CHECK-IN BUTTON */}
+        <div className="w-full flex justify-center mt-8">
+          <button 
+            onClick={() => window.location.href = '/admin-futbol/checkin'}
+            className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center gap-2"
+          >
+            <ShieldAlert size={20} />
+            Realizar Check-in Biométrico
+          </button>
+        </div>
       </div>
 
       {/* CONTROLES DE EVENTOS */}
