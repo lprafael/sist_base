@@ -33,14 +33,9 @@ async def seed_mock_data():
             complejo_id, complejo_nombre = comp_row[0], comp_row[1]
             print(f"🏟️  Asociando torneo al complejo: '{complejo_nombre}' (ID: {complejo_id})")
 
-            # 2. Obtener categorías y modalidades de los catálogos
-            res_cat = await session.execute(text("SELECT id, codigo FROM cancha.categorias WHERE codigo = 'PRIMERA' LIMIT 1"))
-            cat_row = res_cat.fetchone()
-            categoria_id = cat_row[0] if cat_row else 1
-
-            res_mod = await session.execute(text("SELECT id, codigo FROM cancha.modalidades WHERE codigo = 'LIGA' LIMIT 1"))
-            mod_row = res_mod.fetchone()
-            modalidad_id = mod_row[0] if mod_row else 1
+            # 2. Asignar valores por defecto para categorías y modalidades
+            categoria_id = 1
+            modalidad_id = 1
 
             # 3. Obtener el mapa de tipos de evento
             res_tipos = await session.execute(text("SELECT id, codigo FROM cancha.tipos_evento"))
@@ -62,22 +57,17 @@ async def seed_mock_data():
             torneo_id = str(uuid.uuid4())
             await session.execute(text("""
                 INSERT INTO torneos_futbol.torneos (
-                    id, evento_id, complejo_id, nombre, descripcion, deporte, formato,
-                    fecha_inicio, max_equipos, costo_inscripcion, estado, categoria_id, modalidad_id,
-                    puntos_victoria, puntos_empate, puntos_derrota, reglas, premios, categoria, configuracion
+                    id, evento_id, complejo_id, categoria, nombre, descripcion, deporte, formato,
+                    fecha_inicio, max_equipos, costo_inscripcion, premio_1, premio_2, estado, configuracion
                 ) VALUES (
-                    :id, :ev_id, :cid, :nombre, :desc, 'Fútbol 5', 'liga',
-                    :f_ini, 4, 350000.0, 'en_curso', :cat_id, :mod_id,
-                    3, 1, 0, :reglas, :premios, 'Primera', :config
+                    :id, :ev_id, :cid, 'Primera', :nombre, :desc, 'Fútbol 5', 'liga',
+                    :f_ini, 4, 350000.0, 'Copa + Gs. 2.000.000 + Equipamiento deportivo', 'Gs. 500.000 + Medallas', 'en_curso', :config
                 )
             """), {
                 "id": torneo_id, "ev_id": evento_id, "cid": complejo_id,
                 "nombre": "Copa de Campeones Apertura 2026 - Primera",
                 "desc": "División de honor de la Copa de Campeones.",
                 "f_ini": date.today() - timedelta(days=10),
-                "cat_id": categoria_id, "mod_id": modalidad_id,
-                "reglas": json.dumps(["Zapatos de fútbol de goma o sintéticos únicamente.", "Partidos de 2 tiempos de 25 minutos.", "Se permiten hasta 3 sustituciones por partido."]),
-                "premios": json.dumps([{"puesto": 1, "premio": "Copa + Gs. 2.000.000 + Equipamiento deportivo"}, {"puesto": 2, "premio": "Gs. 500.000 + Medallas"}]),
                 "config": json.dumps({})
             })
             print(f"🏆 Torneo creado: 'Copa de Campeones Apertura 2026 - Primera' (ID: {torneo_id})")
@@ -366,10 +356,31 @@ async def seed_mock_data():
             await _recalcular_posiciones(torneo_id, session)
             await session.commit()
 
+            # 12. Crear Usuario Organizador de prueba para este torneo
+            from security import get_password_hash
+            hashed_pwd = get_password_hash("Futbol2026!")
+            
+            res_org = await session.execute(text("""
+                INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo)
+                VALUES ('org_futbol', 'futbol@micancha.com', :pwd, 'Organizador Fútbol', 'organizador', true)
+                ON CONFLICT (username) DO UPDATE SET hashed_password = EXCLUDED.hashed_password, rol = 'organizador'
+                RETURNING id
+            """), {"pwd": hashed_pwd})
+            org_id = res_org.scalar()
+            
+            await session.execute(text("""
+                INSERT INTO cancha.organizadores (usuario_id, tipo_torneo)
+                VALUES (:uid, 'futbol')
+                ON CONFLICT (usuario_id) DO UPDATE SET tipo_torneo = 'futbol'
+            """), {"uid": org_id})
+            
+            await session.commit()
+            
             print("=" * 60)
             print("🚀 MOCK TORNEO COMPLETADO DE MANERA EXITOSA")
             print(f"👉 Torneo ID: {torneo_id}")
             print(f"👉 Complejo ID: {complejo_id}")
+            print(f"👉 Usuario Creado: org_futbol | Clave: Futbol2026!")
             print("=" * 60)
 
         except Exception as e:
