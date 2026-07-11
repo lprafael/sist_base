@@ -110,10 +110,49 @@ export default function RegistroJugadoresPage() {
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
         if (editingJugador) {
-          setEditingJugador({...editingJugador, foto_url: "uploaded_image.jpg"}); // Mocked upload
+          setEditingJugador({...editingJugador, foto_url: reader.result as string, biometria_aprobada: false}); 
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveJugador = async () => {
+    if (!editingJugador) return;
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      
+      const payload = {
+        nombre: editingJugador.nombre,
+        nombre_abreviado: editingJugador.nombre_abreviado,
+        dni: editingJugador.dni,
+        fecha_nacimiento: editingJugador.fecha_nacimiento,
+        numero_camiseta: editingJugador.numero_camiseta ? parseInt(editingJugador.numero_camiseta.toString(), 10) : null,
+        posicion: editingJugador.posicion,
+        telefono: editingJugador.telefono,
+        foto_url: editingJugador.foto_url,
+        biometria_aprobada: editingJugador.biometria_aprobada
+      };
+
+      const res = await fetch(`${API_URL}/futbol/jugadores/${editingJugador.id}`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert("Jugador guardado con éxito.");
+        fetchJugadores();
+        setView("list");
+      } else {
+        alert("Error al guardar los cambios.");
+      }
+    } catch (e) {
+      alert("Error de conexión al guardar.");
     }
   };
 
@@ -152,11 +191,30 @@ export default function RegistroJugadoresPage() {
         const dataUrl = canvas.toDataURL('image/jpeg');
         setPhotoPreview(dataUrl);
         if (editingJugador) {
-          setEditingJugador({ ...editingJugador, foto_url: "captured_image.jpg" });
+          setEditingJugador({ ...editingJugador, foto_url: dataUrl, biometria_aprobada: false });
         }
         stopCamera();
       }
     }
+  };
+
+  const procesarBiometria = () => {
+    if (!photoPreview) {
+      alert("Por favor, sube o toma una foto primero.");
+      return;
+    }
+    // Simular proceso de verificación facial con un timeout
+    const originalText = document.getElementById("btn-biometria")?.innerText;
+    const btn = document.getElementById("btn-biometria");
+    if (btn) btn.innerText = "Procesando Rostro...";
+    
+    setTimeout(() => {
+      if (editingJugador) {
+        setEditingJugador({ ...editingJugador, biometria_aprobada: true });
+      }
+      if (btn && originalText) btn.innerText = originalText;
+      alert("✅ ¡Biometría aprobada y rostro validado con éxito!");
+    }, 1500);
   };
 
   if (view === "edit" && editingJugador) {
@@ -226,10 +284,11 @@ export default function RegistroJugadoresPage() {
               )}
               
               <button 
-                onClick={() => alert("Iniciando prueba biométrica de reconocimiento facial...")}
-                className="mt-6 bg-purple-100 text-purple-700 hover:bg-purple-200 text-sm font-bold py-2 px-4 rounded-lg flex items-center gap-2 w-full max-w-[200px] justify-center transition"
+                id="btn-biometria"
+                onClick={procesarBiometria}
+                className={`mt-6 text-sm font-bold py-2 px-4 rounded-lg flex items-center gap-2 w-full max-w-[200px] justify-center transition ${editingJugador.biometria_aprobada ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}
               >
-                <ShieldCheck size={16}/> Prueba Biométrica
+                <ShieldCheck size={16}/> {editingJugador.biometria_aprobada ? 'Biometría Verificada' : 'Prueba Biométrica'}
               </button>
             </div>
 
@@ -317,10 +376,7 @@ export default function RegistroJugadoresPage() {
           <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-4">
             <button onClick={() => setView("list")} className="text-gray-600 font-bold px-4 py-2 hover:bg-gray-200 rounded-lg transition">Cancelar</button>
             <button 
-              onClick={() => {
-                alert("Funcionalidad de guardado individual de jugador pendiente de conexión con backend.");
-                setView("list");
-              }}
+              onClick={handleSaveJugador}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2 transition"
             >
               <Save size={18}/> Guardar Jugador

@@ -373,3 +373,60 @@ async def delete_jugador(jugador_id: str, current_user: dict = Depends(get_curre
     await session.execute(text("DELETE FROM torneos_futbol.tournament_players WHERE id = :jid"), {"jid": jugador_id})
     await session.commit()
     return {"message": "Jugador eliminado"}
+
+class JugadorUpdate(BaseModel):
+    nombre: Optional[str] = None
+    nombre_abreviado: Optional[str] = None
+    dni: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
+    numero_camiseta: Optional[int] = None
+    posicion: Optional[str] = None
+    telefono: Optional[str] = None
+    foto_url: Optional[str] = None
+    biometria_aprobada: Optional[bool] = None
+
+@router.put("/futbol/jugadores/{jugador_id}")
+async def update_jugador(jugador_id: str, data: JugadorUpdate, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
+    row_org = res_org.fetchone()
+    if not row_org:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    organizador_id = row_org[0]
+
+    # Verificar propiedad
+    res = await session.execute(text("""
+        SELECT j.id FROM torneos_futbol.tournament_players j
+        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        WHERE j.id = :jid AND t.organizador_id = :oid
+    """), {"jid": jugador_id, "oid": organizador_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=403, detail="No autorizado o jugador no existe")
+        
+    await session.execute(text("""
+        UPDATE torneos_futbol.tournament_players
+        SET nombre = COALESCE(:nombre, nombre),
+            nombre_abreviado = COALESCE(:nombre_abreviado, nombre_abreviado),
+            dni = COALESCE(:dni, dni),
+            fecha_nacimiento = COALESCE(CAST(:fecha_nacimiento AS DATE), fecha_nacimiento),
+            numero_camiseta = COALESCE(:numero_camiseta, numero_camiseta),
+            posicion = COALESCE(:posicion, posicion),
+            telefono = COALESCE(:telefono, telefono),
+            foto_url = COALESCE(:foto_url, foto_url),
+            biometria_aprobada = COALESCE(:biometria_aprobada, biometria_aprobada)
+        WHERE id = :jid
+    """), {
+        "jid": jugador_id,
+        "nombre": data.nombre,
+        "nombre_abreviado": data.nombre_abreviado,
+        "dni": data.dni,
+        "fecha_nacimiento": data.fecha_nacimiento if data.fecha_nacimiento else None,
+        "numero_camiseta": data.numero_camiseta,
+        "posicion": data.posicion,
+        "telefono": data.telefono,
+        "foto_url": data.foto_url,
+        "biometria_aprobada": data.biometria_aprobada
+    })
+    await session.commit()
+    return {"message": "Jugador actualizado con éxito"}
