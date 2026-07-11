@@ -192,9 +192,14 @@ async def get_equipos_torneo(torneo_id: str, session: AsyncSession = Depends(get
     for r in res.fetchall():
         eq = dict(r._mapping)
         # Fetch jugadores
-        q_j = text("SELECT nombre, dni FROM torneos_futbol.tournament_players WHERE torneo_equipo_id = :eid")
+        q_j = text("SELECT nombre, nombre_abreviado, dni, fecha_nacimiento, numero_camiseta, posicion, telefono, foto_url FROM torneos_futbol.tournament_players WHERE torneo_equipo_id = :eid")
         res_j = await session.execute(q_j, {"eid": eq["id"]})
-        eq["jugadores"] = [dict(j._mapping) for j in res_j.fetchall()]
+        eq["jugadores"] = []
+        for j in res_j.fetchall():
+            jd = dict(j._mapping)
+            if jd.get("fecha_nacimiento"):
+                jd["fecha_nacimiento"] = str(jd["fecha_nacimiento"])
+            eq["jugadores"].append(jd)
         
         # Fetch tecnicos
         q_t = text("SELECT nombre, rol FROM torneos_futbol.equipo_tecnico WHERE equipo_id = :eid")
@@ -238,10 +243,26 @@ async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession 
     import uuid
     for j in data.jugadores:
         if not j.get("nombre"): continue
+        dni = j.get("dni") or f"sd_{uuid.uuid4().hex[:8]}"
         await session.execute(text("""
-            INSERT INTO torneos_futbol.tournament_players (torneo_equipo_id, nombre, dni, estado)
-            VALUES (:eid, :n, :dni, 'habilitado')
-        """), {"eid": equipo_id, "n": j.get("nombre", ""), "dni": f"sd_{uuid.uuid4().hex[:8]}"})
+            INSERT INTO torneos_futbol.tournament_players (
+                torneo_equipo_id, nombre, nombre_abreviado, dni, fecha_nacimiento, 
+                numero_camiseta, posicion, telefono, foto_url, estado
+            )
+            VALUES (
+                :eid, :n, :na, :dni, :fn, :nc, :pos, :tel, :foto, 'habilitado'
+            )
+        """), {
+            "eid": equipo_id, 
+            "n": j.get("nombre", ""), 
+            "na": j.get("nombre_abreviado") or None,
+            "dni": dni,
+            "fn": j.get("fecha_nacimiento") or None,
+            "nc": int(j.get("numero_camiseta")) if j.get("numero_camiseta") else None,
+            "pos": j.get("posicion") or None,
+            "tel": j.get("telefono") or None,
+            "foto": j.get("foto_url") or None
+        })
         
     # Insert tecnicos + entrenador
     tecnicos = [t for t in data.tecnicos if t.get("nombre")]

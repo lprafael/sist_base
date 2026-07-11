@@ -4,6 +4,17 @@ import { X, Users, UserCog, ArrowLeft, Trash2, Download, User, Trophy } from 'lu
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+export interface Jugador {
+  nombre: string;
+  nombre_abreviado?: string;
+  dni?: string;
+  fecha_nacimiento?: string;
+  numero_camiseta?: string;
+  posicion?: string;
+  telefono?: string;
+  foto_url?: string;
+}
+
 export default function RegistroEquipoPage() {
   const [formData, setFormData] = useState({
     nombre: "",
@@ -13,7 +24,7 @@ export default function RegistroEquipoPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   
-  const [view, setView] = useState<"list" | "main" | "jugadores" | "tecnicos">("list");
+  const [view, setView] = useState<"list" | "main" | "jugadores" | "tecnicos" | "jugador_edit">("list");
   
   const [equiposList, setEquiposList] = useState<any[]>([]);
   const [nuevoEquipo, setNuevoEquipo] = useState("");
@@ -86,8 +97,10 @@ export default function RegistroEquipoPage() {
     setView("main");
   };
   
-  const [jugadores, setJugadores] = useState<{nombre: string}[]>([]);
+  const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [nuevoJugador, setNuevoJugador] = useState("");
+  const [selectedJugadorIndex, setSelectedJugadorIndex] = useState<number | null>(null);
+  const [editingJugador, setEditingJugador] = useState<Jugador>({ nombre: "" });
 
   const [tecnicos, setTecnicos] = useState<{nombre: string}[]>([]);
   const [nuevoTecnico, setNuevoTecnico] = useState("");
@@ -98,6 +111,30 @@ export default function RegistroEquipoPage() {
       setJugadores([{nombre: nuevoJugador.trim()}, ...jugadores]);
       setNuevoJugador("");
     }
+  };
+
+  const handleSelectJugador = (idx: number) => {
+    setSelectedJugadorIndex(idx);
+    setEditingJugador({ ...jugadores[idx] });
+    setView("jugador_edit");
+  };
+
+  const handleSaveJugador = () => {
+    if (selectedJugadorIndex !== null) {
+      const newJugadores = [...jugadores];
+      newJugadores[selectedJugadorIndex] = editingJugador;
+      setJugadores(newJugadores);
+    }
+    setView("jugadores");
+  };
+  
+  const handleRemoveJugador = () => {
+    if (selectedJugadorIndex !== null) {
+      const newJugadores = [...jugadores];
+      newJugadores.splice(selectedJugadorIndex, 1);
+      setJugadores(newJugadores);
+    }
+    setView("jugadores");
   };
 
   const handleAddTecnico = (e?: React.FormEvent) => {
@@ -357,9 +394,15 @@ export default function RegistroEquipoPage() {
               {/* LISTA */}
               <div className="flex-1 overflow-y-auto space-y-4">
                 {(view === "jugadores" ? jugadores : tecnicos).map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-4 py-2 border-b border-gray-100 last:border-0">
+                  <div key={idx} 
+                       onClick={() => view === "jugadores" ? handleSelectJugador(idx) : null}
+                       className={`flex items-center gap-4 py-2 border-b border-gray-100 last:border-0 ${view === "jugadores" ? 'cursor-pointer hover:bg-gray-50' : ''}`}>
                     <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                      <User size={36} className="text-white mt-2" fill="currentColor" />
+                      {(item as any).foto_url ? (
+                        <img src={(item as any).foto_url} alt={item.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={36} className="text-white mt-2" fill="currentColor" />
+                      )}
                     </div>
                     <span className="text-gray-800 text-lg">{item.nombre}</span>
                   </div>
@@ -370,6 +413,104 @@ export default function RegistroEquipoPage() {
               <div className="mt-4 text-red-500 text-sm">
                 Atención: Para cambiar equipos que ya están en campeonatos, es necesario cambiar el equipo en la configuración del campeonato.
               </div>
+            </div>
+          </div>
+        )}
+
+        {view === "jugador_edit" && (
+          <div className="flex-1 flex flex-col h-full bg-white relative">
+            {/* SUB-HEADER */}
+            <div className="bg-[#1b264f] text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setView("jugadores")} className="hover:bg-white/10 p-2 rounded-full transition">
+                  <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-xl font-medium">Editar Jugador</h2>
+              </div>
+            </div>
+
+            <div className="p-6 flex-1 overflow-y-auto">
+              <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+                {/* FOTO y Nombre Abreviado */}
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="w-[120px] h-[140px] bg-gray-300 rounded-lg flex flex-col items-center justify-center relative cursor-pointer group shrink-0">
+                    {editingJugador.foto_url ? (
+                       <img src={editingJugador.foto_url} className="w-full h-full object-cover rounded-lg" alt="Foto" />
+                    ) : (
+                      <>
+                        <span className="text-3xl text-gray-500 mb-1">+</span>
+                        <span className="text-xs text-gray-600 font-bold">200x240</span>
+                      </>
+                    )}
+                     <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center rounded-lg">
+                        <input 
+                          type="text" 
+                          placeholder="URL Foto" 
+                          value={editingJugador.foto_url || ''}
+                          onChange={e => setEditingJugador({...editingJugador, foto_url: e.target.value})}
+                          className="w-10/12 text-black px-1 py-1 text-xs rounded"
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                  </div>
+                  
+                  <div className="flex-1 space-y-4">
+                    <div className="relative">
+                      <input type="text" value={editingJugador.nombre} onChange={e => setEditingJugador({...editingJugador, nombre: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                      <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Nombre del jugador</label>
+                    </div>
+                    
+                    <div className="relative">
+                      <input type="text" value={editingJugador.nombre_abreviado || ''} onChange={e => setEditingJugador({...editingJugador, nombre_abreviado: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                      <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Nombre abreviado</label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Otros campos */}
+                <div className="relative">
+                  <select value={editingJugador.posicion || ''} onChange={e => setEditingJugador({...editingJugador, posicion: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer">
+                    <option value="">Seleccione...</option>
+                    <option value="Portero">Portero</option>
+                    <option value="Defensa">Defensa</option>
+                    <option value="Mediocampista">Mediocampista</option>
+                    <option value="Delantero">Delantero</option>
+                  </select>
+                  <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 left-1">Posición de jugador</label>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <input type="text" value={editingJugador.numero_camiseta || ''} onChange={e => setEditingJugador({...editingJugador, numero_camiseta: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                    <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">N° de camiseta/Registro</label>
+                  </div>
+                  
+                  <div className="relative">
+                    <input type="text" value={editingJugador.dni || ''} onChange={e => setEditingJugador({...editingJugador, dni: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                    <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Documento</label>
+                  </div>
+                  
+                  <div className="relative">
+                    <input type="date" value={editingJugador.fecha_nacimiento || ''} onChange={e => setEditingJugador({...editingJugador, fecha_nacimiento: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                    <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 left-1">Fecha de nacimiento</label>
+                  </div>
+                  
+                  <div className="relative">
+                    <input type="text" value={editingJugador.telefono || ''} onChange={e => setEditingJugador({...editingJugador, telefono: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                    <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Teléfono</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* FOOTER ACCIONES */}
+            <div className="p-6 border-t border-gray-200 flex justify-between items-center bg-white mt-auto">
+              <button onClick={handleRemoveJugador} className="text-red-500 font-bold text-lg hover:text-red-600 transition">
+                Quitar
+              </button>
+              <button onClick={handleSaveJugador} className="text-blue-500 font-bold text-lg hover:text-blue-600 transition">
+                Guardar
+              </button>
             </div>
           </div>
         )}
