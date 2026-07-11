@@ -235,12 +235,13 @@ async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession 
     await session.execute(text("DELETE FROM torneos_futbol.equipo_tecnico WHERE equipo_id = :eid"), {"eid": equipo_id})
     
     # Insert new jugadores
+    import uuid
     for j in data.jugadores:
         if not j.get("nombre"): continue
         await session.execute(text("""
             INSERT INTO torneos_futbol.tournament_players (torneo_equipo_id, nombre, dni, estado)
-            VALUES (:eid, :n, '0', 'habilitado')
-        """), {"eid": equipo_id, "n": j.get("nombre", "")})
+            VALUES (:eid, :n, :dni, 'habilitado')
+        """), {"eid": equipo_id, "n": j.get("nombre", ""), "dni": f"sd_{uuid.uuid4().hex[:8]}"})
         
     # Insert tecnicos + entrenador
     tecnicos = [t for t in data.tecnicos if t.get("nombre")]
