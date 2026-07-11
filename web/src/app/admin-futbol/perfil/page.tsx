@@ -26,11 +26,20 @@ export default function PerfilOrganizadorPage() {
 
   const API_URL = "https://api.micancha.com.py";
 
+  const getToken = () => {
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      return sessionData.access_token || sessionData.token || localStorage.getItem('token') || '';
+    } catch (e) {
+      return localStorage.getItem('token') || '';
+    }
+  };
+
   const cargarPerfil = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/organizador/perfil`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       if(res.ok) {
         const data = await res.json();
@@ -57,7 +66,7 @@ export default function PerfilOrganizadorPage() {
         method: "POST",
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getToken()}`
         },
         body: JSON.stringify(payload)
       });
