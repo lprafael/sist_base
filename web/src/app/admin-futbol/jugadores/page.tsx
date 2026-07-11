@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Save, UserPlus, Upload, ShieldCheck, X, Trash2, ArrowUpDown, User, ArrowLeft } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -26,6 +26,20 @@ export default function RegistroJugadoresPage() {
   const [view, setView] = useState<"list" | "edit">("list");
   const [editingJugador, setEditingJugador] = useState<Jugador | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+
+  // Limpiar la cámara si el componente se desmonta o cambia de vista
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   const fetchJugadores = async () => {
     try {
@@ -103,6 +117,48 @@ export default function RegistroJugadoresPage() {
     }
   };
 
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setStream(mediaStream);
+      setIsCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (err) {
+      alert("No se pudo acceder a la cámara. Por favor, verifica los permisos.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setPhotoPreview(dataUrl);
+        if (editingJugador) {
+          setEditingJugador({ ...editingJugador, foto_url: "captured_image.jpg" });
+        }
+        stopCamera();
+      }
+    }
+  };
+
   if (view === "edit" && editingJugador) {
     return (
       <div className="p-8 max-w-4xl mx-auto">
@@ -125,30 +181,53 @@ export default function RegistroJugadoresPage() {
           <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* FOTO BIOMETRICA */}
             <div className="col-span-1 flex flex-col items-center">
-              <div className="w-48 h-48 bg-gray-100 border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center relative overflow-hidden mb-4">
-                {photoPreview ? (
-                  <img src={photoPreview} className="w-full h-full object-cover" alt="Biometria" />
-                ) : (
-                  <>
-                    <Camera size={40} className="text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-500 font-bold text-center px-4">Foto para<br/>reconocimiento facial</span>
-                  </>
-                )}
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="user"
-                  onChange={handlePhotoUpload}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-              </div>
-              <button className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                <Upload size={16}/> {photoPreview ? 'Cambiar Foto' : 'Subir o Tomar Foto'}
-              </button>
+              {isCameraOpen ? (
+                <div className="w-full flex flex-col items-center mb-4">
+                  <div className="w-48 h-48 rounded-full overflow-hidden relative border-4 border-blue-500 bg-black">
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover transform -scale-x-100"></video>
+                  </div>
+                  <canvas ref={canvasRef} className="hidden"></canvas>
+                  <div className="flex gap-2 mt-4">
+                    <button onClick={stopCamera} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-bold transition">Cancelar</button>
+                    <button onClick={capturePhoto} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 transition">
+                      <Camera size={16}/> Capturar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-48 h-48 bg-gray-100 border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center relative overflow-hidden mb-4 group">
+                    {photoPreview ? (
+                      <img src={photoPreview} className="w-full h-full object-cover" alt="Biometria" />
+                    ) : (
+                      <>
+                        <Camera size={40} className="text-gray-400 mb-2" />
+                        <span className="text-sm text-gray-500 font-bold text-center px-4">Foto para<br/>reconocimiento facial</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 w-full max-w-[200px]">
+                    <button onClick={startCamera} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition">
+                      <Camera size={16}/> Tomar Foto
+                    </button>
+                    <div className="relative">
+                      <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition w-full">
+                        <Upload size={16}/> Subir Foto
+                      </button>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handlePhotoUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <button 
                 onClick={() => alert("Iniciando prueba biométrica de reconocimiento facial...")}
-                className="mt-4 bg-purple-100 text-purple-700 hover:bg-purple-200 text-sm font-bold py-2 px-4 rounded-lg flex items-center gap-2 w-full justify-center"
+                className="mt-6 bg-purple-100 text-purple-700 hover:bg-purple-200 text-sm font-bold py-2 px-4 rounded-lg flex items-center gap-2 w-full max-w-[200px] justify-center transition"
               >
                 <ShieldCheck size={16}/> Prueba Biométrica
               </button>
