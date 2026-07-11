@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Facebook, Instagram, Youtube, Twitch, Twitter, Phone, Mail } from 'lucide-react';
+import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Facebook, Instagram, Phone, Mail, Link as LinkIcon } from 'lucide-react';
 
 const API_URL = "https://api.micancha.com.py";
 
@@ -185,9 +185,9 @@ export default function PublicOrganizerPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 {perfil.facebook && <a href={perfil.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition"><Facebook size={20}/></a>}
                 {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center hover:bg-pink-100 transition"><Instagram size={20}/></a>}
-                {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition"><Youtube size={20}/></a>}
-                {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 transition"><Twitter size={20}/></a>}
-                {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition"><Twitch size={20}/></a>}
+                {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition" title="YouTube"><LinkIcon size={20}/></a>}
+                {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 transition" title="Twitter"><LinkIcon size={20}/></a>}
+                {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition" title="Twitch"><LinkIcon size={20}/></a>}
               </div>
 
               <div className="mt-6 pt-6 border-t border-gray-100 flex justify-between text-center">
