@@ -79,6 +79,34 @@ async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Dep
     await session.commit()
     return {"message": "Torneo de Fútbol creado exitosamente", "id": torneo_id}
 
+@router.get("/futbol/torneos")
+async def get_torneos_futbol(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
+    row_org = res_org.fetchone()
+    if not row_org:
+        return []
+    
+    organizador_id = row_org[0]
+    
+    query = text("""
+        SELECT id, nombre, deporte, formato, tipo_campeonato, estado, creado_en
+        FROM torneos_futbol.torneos
+        WHERE organizador_id = :oid
+        ORDER BY creado_en DESC
+    """)
+    result = await session.execute(query, {"oid": organizador_id})
+    
+    # Format date slightly
+    torneos = []
+    for r in result.fetchall():
+        d = dict(r._mapping)
+        if d.get("creado_en"):
+            d["creado_en"] = d["creado_en"].isoformat() if hasattr(d["creado_en"], 'isoformat') else str(d["creado_en"])
+        torneos.append(d)
+        
+    return torneos
+
 
 # ==========================================
 # 2. Equipos (con Logo) y Equipo Técnico

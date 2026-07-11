@@ -7,10 +7,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function CampeonatosPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [deportes, setDeportes] = useState<any[]>([]);
+  const [torneos, setTorneos] = useState<any[]>([]);
+  const [loadingTorneos, setLoadingTorneos] = useState(true);
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -22,7 +24,25 @@ export default function CampeonatosPage() {
 
   useEffect(() => {
     fetchConfig();
+    fetchTorneos();
   }, []);
+
+  const fetchTorneos = async () => {
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const res = await fetch(`${API_URL}/futbol/torneos`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if(res.ok) {
+        const data = await res.json();
+        setTorneos(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoadingTorneos(false);
+  };
 
   const fetchConfig = async () => {
     try {
@@ -60,8 +80,9 @@ export default function CampeonatosPage() {
       const data = await res.json();
       if(res.ok) {
         setMessage("✅ Campeonato creado exitosamente.");
+        fetchTorneos();
         setTimeout(() => {
-          router.push("/admin-futbol/equipos");
+          setStep(0);
         }, 1500);
       } else {
         setMessage("❌ " + data.detail);
@@ -107,8 +128,56 @@ export default function CampeonatosPage() {
         </div>
       )}
 
+      {step === 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-800">Tus Campeonatos</h2>
+            <button 
+              onClick={() => { setStep(1); setMessage(""); }} 
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition"
+            >
+              <Plus size={20} /> Nuevo Campeonato
+            </button>
+          </div>
+          
+          {loadingTorneos ? (
+            <div className="flex justify-center p-8"><Loader2 size={32} className="animate-spin text-gray-400" /></div>
+          ) : torneos.length === 0 ? (
+            <div className="text-center p-8 border-2 border-dashed border-gray-200 rounded-xl">
+              <p className="text-gray-500 mb-4">Aún no tienes ningún campeonato creado.</p>
+              <button onClick={() => { setStep(1); setMessage(""); }} className="text-green-600 font-bold hover:underline">¡Crea el primero ahora!</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {torneos.map((t) => (
+                <div key={t.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition bg-gray-50">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2 truncate" title={t.nombre}>{t.nombre}</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{t.deporte}</span>
+                    <span className="bg-gray-200 text-gray-800 text-xs font-bold px-2 py-1 rounded capitalize">{t.formato.replace('_', ' ')}</span>
+                  </div>
+                  <div className="text-sm text-gray-500 flex flex-col gap-1">
+                    <span><strong>Tipo:</strong> {t.tipo_campeonato === 'unico' ? 'Único' : 'Con Categorías'}</span>
+                    <span><strong>Estado:</strong> <span className="capitalize">{t.estado}</span></span>
+                    <span><strong>Creado:</strong> {new Date(t.creado_en).toLocaleDateString()}</span>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button onClick={() => router.push("/admin-futbol/equipos")} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                      Gestionar <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {step === 1 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <button onClick={() => setStep(0)} className="text-gray-400 hover:text-gray-800 mb-6 flex items-center gap-2 text-sm font-bold">
+            Volver a mis campeonatos
+          </button>
           <h2 className="text-xl font-bold mb-6 text-gray-800">Elige el tipo de campeonato</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

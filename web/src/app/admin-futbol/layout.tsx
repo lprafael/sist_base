@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X } from 'lucide-react';
+import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, LogOut } from 'lucide-react';
 
 export default function AdminFutbolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -53,14 +53,50 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center md:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="text-[#1b264f]">
-            <Menu size={28} />
-          </button>
-          <span className="ml-4 font-bold text-lg text-[#1b264f]">Menu</span>
+        <header className="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center justify-between z-10">
+          <div className="flex items-center">
+            <button onClick={() => setSidebarOpen(true)} className="text-[#1b264f] md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100">
+              <Menu size={28} />
+            </button>
+            <span className="ml-2 font-bold text-lg text-[#1b264f] md:hidden">Menu</span>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end hidden sm:flex">
+              <span className="text-sm font-bold text-gray-800" id="user-name-display">Cargando...</span>
+              <span className="text-xs text-gray-500">Organizador</span>
+            </div>
+            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border-2 border-indigo-200">
+              <UserCog size={20} />
+            </div>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('user_session');
+                window.location.href = '/login';
+              }}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-2"
+              title="Cerrar Sesión"
+            >
+              <LogOut size={20} className="hidden sm:block" />
+              <span className="text-sm font-bold sm:hidden">Salir</span>
+            </button>
+          </div>
         </header>
         
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+          {/* Script para cargar el nombre de usuario de localStorage */}
+          <script dangerouslySetInnerHTML={{__html: `
+            setTimeout(function() {
+              try {
+                var s = localStorage.getItem('user_session');
+                if(s) {
+                  var data = JSON.parse(s);
+                  var el = document.getElementById('user-name-display');
+                  if(el && data.username) el.textContent = data.username;
+                }
+              } catch(e) {}
+            }, 100);
+          `}} />
           {children}
         </main>
       </div>
