@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, UserCog, ArrowLeft, Trash2, Download, User, Trophy } from 'lucide-react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function RegistroEquipoPage() {
   const [formData, setFormData] = useState({
     nombre: "",
@@ -23,8 +25,10 @@ export default function RegistroEquipoPage() {
   useEffect(() => {
     const fetchTorneos = async () => {
       try {
-        const res = await fetch("http://localhost:8000/futbol/torneos", {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+        const token = sessionData.access_token || sessionData.token || '';
+        const res = await fetch(`${API_URL}/futbol/torneos`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
@@ -39,8 +43,10 @@ export default function RegistroEquipoPage() {
   const fetchEquipos = async () => {
     if (!selectedTorneoId) return;
     try {
-      const res = await fetch(`http://localhost:8000/futbol/torneos/${selectedTorneoId}/equipos`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const res = await fetch(`${API_URL}/futbol/torneos/${selectedTorneoId}/equipos`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -57,9 +63,11 @@ export default function RegistroEquipoPage() {
     e?.preventDefault();
     if(nuevoEquipo.trim() && selectedTorneoId) {
       try {
-        const res = await fetch("http://localhost:8000/futbol/equipos", {
+        const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+        const token = sessionData.access_token || sessionData.token || '';
+        const res = await fetch(`${API_URL}/futbol/equipos`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ nombre: nuevoEquipo.trim(), torneo_id: selectedTorneoId })
         });
         if(res.ok) {
@@ -109,16 +117,19 @@ export default function RegistroEquipoPage() {
     setMessage("");
     
     try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      
       if (selectedEquipoId) {
-        await fetch(`http://localhost:8000/futbol/equipos/${selectedEquipoId}`, {
+        await fetch(`${API_URL}/futbol/equipos/${selectedEquipoId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ nombre: formData.nombre, logo_url: formData.logo_url })
         });
 
-        await fetch(`http://localhost:8000/futbol/equipos/${selectedEquipoId}/plantel`, {
+        await fetch(`${API_URL}/futbol/equipos/${selectedEquipoId}/plantel`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             jugadores: jugadores,
             tecnicos: tecnicos,
