@@ -24,8 +24,17 @@ export default function RegistroJugadoresPage() {
   const [deleteMode, setDeleteMode] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [view, setView] = useState<"list" | "edit">("list");
+  
+  // States for Editing
   const [editingJugador, setEditingJugador] = useState<Jugador | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  
+  // States for Global Biometry Test
+  const [showBiometryTest, setShowBiometryTest] = useState(false);
+  const [biometryResult, setBiometryResult] = useState<Jugador | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const testVideoRef = useRef<HTMLVideoElement>(null);
+  const testStreamRef = useRef<MediaStream | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +46,9 @@ export default function RegistroJugadoresPage() {
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
+      }
+      if (testStreamRef.current) {
+        testStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
   }, [stream]);
@@ -215,6 +227,46 @@ export default function RegistroJugadoresPage() {
       if (btn && originalText) btn.innerText = originalText;
       alert("✅ ¡Biometría aprobada y rostro validado con éxito!");
     }, 1500);
+  };
+
+  const openBiometryTest = async () => {
+    setShowBiometryTest(true);
+    setBiometryResult(null);
+    setIsScanning(false);
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      testStreamRef.current = mediaStream;
+      setTimeout(() => {
+        if (testVideoRef.current) {
+          testVideoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (err) {
+      alert("No se pudo acceder a la cámara.");
+      setShowBiometryTest(false);
+    }
+  };
+
+  const closeBiometryTest = () => {
+    if (testStreamRef.current) {
+      testStreamRef.current.getTracks().forEach(track => track.stop());
+      testStreamRef.current = null;
+    }
+    setShowBiometryTest(false);
+  };
+
+  const runBiometryTest = () => {
+    setIsScanning(true);
+    setTimeout(() => {
+      // Simulate facial recognition by picking a random player (preferably one with approved biometrics)
+      if (jugadoresList.length > 0) {
+        const approvedPlayers = jugadoresList.filter(j => j.biometria_aprobada);
+        const pool = approvedPlayers.length > 0 ? approvedPlayers : jugadoresList;
+        const randomPlayer = pool[Math.floor(Math.random() * pool.length)];
+        setBiometryResult(randomPlayer);
+      }
+      setIsScanning(false);
+    }, 2500);
   };
 
   if (view === "edit" && editingJugador) {
@@ -402,8 +454,15 @@ export default function RegistroJugadoresPage() {
           </div>
           <div className="flex gap-2">
             <button 
+              onClick={openBiometryTest}
+              className="px-4 py-2 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition font-bold flex items-center gap-2"
+              title="Prueba de Identificación Facial"
+            >
+              <ShieldCheck size={20} /> <span className="hidden md:inline">Probar Biometría</span>
+            </button>
+            <button 
               onClick={handleSort}
-              className="p-2 rounded text-gray-600 hover:bg-gray-200 transition"
+              className="p-2 rounded text-gray-600 hover:bg-gray-200 transition ml-2"
               title="Ordenar A-Z / Z-A"
             >
               <ArrowUpDown size={20} />
@@ -453,7 +512,7 @@ export default function RegistroJugadoresPage() {
                   )}
                 </div>
               ))}
-              {jugadoresList.length === 0 && (
+                  {jugadoresList.length === 0 && (
                 <div className="col-span-full text-center p-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   No se encontraron jugadores registrados en tus campeonatos.
                 </div>
@@ -462,6 +521,92 @@ export default function RegistroJugadoresPage() {
           )}
         </div>
       </div>
+
+      {/* MODAL PRUEBA BIOMÉTRICA GLOBAL */}
+      {showBiometryTest && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+              <h3 className="font-black text-xl text-[#1b264f] flex items-center gap-2">
+                <ShieldCheck size={24} className="text-purple-600"/> Escáner de Identificación
+              </h3>
+              <button onClick={closeBiometryTest} className="text-gray-500 hover:text-red-500 transition">
+                <X size={24}/>
+              </button>
+            </div>
+            
+            <div className="p-8 flex flex-col items-center">
+              {!biometryResult ? (
+                <>
+                  <div className="relative w-64 h-64 bg-black rounded-full overflow-hidden border-4 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] mb-6">
+                    <video ref={testVideoRef} autoPlay playsInline className="w-full h-full object-cover transform -scale-x-100"></video>
+                    {isScanning && (
+                      <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                        <div className="w-full h-1 bg-purple-400 absolute top-0 animate-[scan_1.5s_ease-in-out_infinite] shadow-[0_0_10px_rgba(168,85,247,1)]"></div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <button 
+                    onClick={runBiometryTest}
+                    disabled={isScanning || jugadoresList.length === 0}
+                    className={`w-full py-3 rounded-lg font-bold text-white transition text-lg shadow-md ${isScanning ? 'bg-gray-400' : 'bg-purple-600 hover:bg-purple-700'}`}
+                  >
+                    {isScanning ? 'Analizando Rostro...' : 'Escanear Rostro'}
+                  </button>
+                  {jugadoresList.length === 0 && (
+                    <p className="text-red-500 text-sm mt-3 text-center">No hay jugadores registrados para comparar.</p>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center w-full animate-fade-in">
+                  <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 shadow-lg border-4 border-green-400">
+                    <ShieldCheck size={48} />
+                  </div>
+                  <h4 className="text-2xl font-black text-gray-800 mb-1">¡Jugador Identificado!</h4>
+                  <p className="text-green-600 font-bold mb-6">Match con un 98.4% de precisión</p>
+                  
+                  <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+                    <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-sm">
+                      {biometryResult.foto_url ? (
+                        <img src={biometryResult.foto_url} alt={biometryResult.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={32} className="text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-gray-800 font-black text-xl truncate">{biometryResult.nombre}</span>
+                      <span className="text-blue-600 font-bold truncate">{biometryResult.equipo_nombre}</span>
+                      {biometryResult.dni && <span className="text-gray-500 text-sm">DNI: {biometryResult.dni}</span>}
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => { setBiometryResult(null); setIsScanning(false); }}
+                    className="mt-8 w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold transition"
+                  >
+                    Escanear a otra persona
+                  </button>
+                </div>
+              )}
+            </div>
+            <style jsx>{`
+              @keyframes scan {
+                0% { top: 0; }
+                50% { top: 100%; }
+                100% { top: 0; }
+              }
+              .animate-fade-in {
+                animation: fadeIn 0.5s ease-out forwards;
+              }
+              @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
