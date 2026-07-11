@@ -107,6 +107,26 @@ async def get_torneos_futbol(current_user: dict = Depends(get_current_user), ses
         
     return torneos
 
+@router.delete("/futbol/torneos/{torneo_id}")
+async def delete_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
+    row_org = res_org.fetchone()
+    if not row_org:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    organizador_id = row_org[0]
+
+    # Verify ownership
+    check_query = text("SELECT id FROM torneos_futbol.torneos WHERE id = :tid AND organizador_id = :oid")
+    res = await session.execute(check_query, {"tid": torneo_id, "oid": organizador_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Torneo no encontrado o no tienes permisos")
+
+    # DELETE
+    await session.execute(text("DELETE FROM torneos_futbol.torneos WHERE id = :tid"), {"tid": torneo_id})
+    await session.commit()
+    return {"message": "Campeonato eliminado correctamente"}
 
 # ==========================================
 # 2. Equipos (con Logo) y Equipo Técnico

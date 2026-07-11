@@ -44,6 +44,28 @@ export default function CampeonatosPage() {
     setLoadingTorneos(false);
   };
 
+  const handleDelete = async (id: string, nombre: string) => {
+    if(!confirm(`¿Estás seguro de que deseas eliminar el campeonato "${nombre}"? Esta acción no se puede deshacer y borrará todos sus equipos y partidos.`)) return;
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const res = await fetch(`${API_URL}/futbol/torneos/${id}`, {
+        method: "DELETE",
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if(res.ok) {
+        setMessage(`✅ Campeonato "${nombre}" eliminado exitosamente.`);
+        fetchTorneos();
+        setTimeout(() => setMessage(""), 4000);
+      } else {
+        const data = await res.json();
+        setMessage("❌ " + data.detail);
+      }
+    } catch(e) {
+      setMessage("❌ Error de conexión al eliminar.");
+    }
+  };
+
   const fetchConfig = async () => {
     try {
       const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
@@ -161,9 +183,12 @@ export default function CampeonatosPage() {
                     <span><strong>Estado:</strong> <span className="capitalize">{t.estado}</span></span>
                     <span><strong>Creado:</strong> {new Date(t.creado_en).toLocaleDateString()}</span>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                     <button onClick={() => router.push("/admin-futbol/equipos")} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
                       Gestionar <ArrowRight size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(t.id, t.nombre)} className="text-gray-400 hover:text-red-500 transition p-1.5 rounded-full hover:bg-red-50" title="Eliminar campeonato">
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
