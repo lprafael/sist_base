@@ -97,6 +97,62 @@ export default function PerfilOrganizadorPage() {
     setSaving(false);
   };
 
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("El archivo es demasiado grande. Máximo 5MB.");
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const res = await fetch(`${API_URL}/organizador/perfil/logo`, {
+        method: "POST",
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPerfil({...perfil, logo_url: data.url});
+      } else {
+        alert("Error al subir el logo");
+      }
+    } catch(err) {
+      alert("Error de conexión al subir imagen");
+    }
+  };
+
+  const handleUploadBanner = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("El archivo es demasiado grande. Máximo 5MB.");
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const res = await fetch(`${API_URL}/organizador/perfil/banner`, {
+        method: "POST",
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPerfil({...perfil, banner_url: data.url});
+      } else {
+        alert("Error al subir el banner");
+      }
+    } catch(err) {
+      alert("Error de conexión al subir imagen");
+    }
+  };
+
   if (loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-blue-500" size={48}/></div>;
 
   return (
@@ -145,7 +201,15 @@ export default function PerfilOrganizadorPage() {
                       <span className="text-xs text-gray-500">200x240</span>
                     </>
                   )}
-                  <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 hidden group-hover:flex flex-col items-center justify-center gap-2">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleUploadLogo}
+                      className="w-11/12 text-white text-xs"
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span className="text-xs text-white">o pega una URL:</span>
                     <input 
                       type="text" 
                       placeholder="URL del Logo" 
@@ -167,7 +231,15 @@ export default function PerfilOrganizadorPage() {
                       <span className="text-xs text-gray-500">1440x482</span>
                     </>
                   )}
-                   <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center">
+                   <div className="absolute inset-0 bg-black/50 hidden group-hover:flex flex-col items-center justify-center gap-2">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleUploadBanner}
+                      className="w-8/12 text-white text-sm"
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span className="text-sm text-white">o pega una URL:</span>
                     <input 
                       type="text" 
                       placeholder="URL del Banner" 

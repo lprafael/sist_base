@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import os
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -139,3 +141,51 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
     
     await session.commit()
     return {"message": "Perfil de organizador guardado exitosamente"}
+
+@router.post("/organizador/perfil/logo", summary="Subir logo del organizador")
+async def upload_organizador_logo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "perfil_org")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+        filename = f"logo_org_{current_user['user_id']}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            buffer.write(await file.read())
+
+        url = f"https://api.micancha.com.py/static/uploads/perfil_org/{filename}"
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/organizador/perfil/banner", summary="Subir banner del organizador")
+async def upload_organizador_banner(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "perfil_org")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"banner_org_{current_user['user_id']}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, "wb") as buffer:
+            buffer.write(await file.read())
+
+        url = f"https://api.micancha.com.py/static/uploads/perfil_org/{filename}"
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
