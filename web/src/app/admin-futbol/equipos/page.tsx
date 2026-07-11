@@ -8,6 +8,8 @@ export default function RegistroEquipoPage() {
     entrenador: "",
     logo_url: ""
   });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
   
   const [view, setView] = useState<"main" | "jugadores" | "tecnicos">("main");
   
@@ -33,6 +35,22 @@ export default function RegistroEquipoPage() {
     }
   };
 
+  const handleSave = () => {
+    if (!formData.nombre) {
+      setMessage("❌ Ingresa el nombre del equipo.");
+      return;
+    }
+    setLoading(true);
+    setMessage("");
+    
+    // Simular guardado
+    setTimeout(() => {
+      setLoading(false);
+      setMessage("✅ Equipo guardado con éxito.");
+      setTimeout(() => setMessage(""), 4000);
+    }, 1000);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center py-10">
       <div className="bg-white w-full max-w-2xl min-h-[600px] shadow-2xl relative flex flex-col overflow-hidden rounded-t-xl">
@@ -48,7 +66,11 @@ export default function RegistroEquipoPage() {
 
             {/* CONTENIDO PRINCIPAL */}
             <div className="p-6 flex-1 flex flex-col">
-              
+              {message && (
+                <div className={`p-3 mb-4 rounded-lg font-bold text-sm ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {message}
+                </div>
+              )}
               <div className="flex gap-6 mb-8">
                 {/* ÁREA DE LOGO */}
                 <div className="w-[120px] h-[140px] bg-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-400 transition relative group">
@@ -123,8 +145,12 @@ export default function RegistroEquipoPage() {
               <button className="text-red-500 font-bold text-lg hover:text-red-600 transition">
                 Quitar
               </button>
-              <button className="text-blue-500 font-bold text-lg hover:text-blue-600 transition">
-                Guardar
+              <button 
+                onClick={handleSave}
+                disabled={loading}
+                className="text-blue-500 font-bold text-lg hover:text-blue-600 transition disabled:text-blue-300"
+              >
+                {loading ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </>
