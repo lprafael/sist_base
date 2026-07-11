@@ -6,6 +6,11 @@ from typing import Optional, List
 from database import get_session
 from security import get_current_user
 import uuid
+import face_recognition
+import numpy as np
+import base64
+import io
+from PIL import Image
 
 router = APIRouter(tags=["Futbol Core"])
 
@@ -440,3 +445,75 @@ async def update_jugador(jugador_id: str, data: JugadorUpdate, current_user: dic
         await session.execute(text(query), params)
         await session.commit()
     return {"message": "Jugador actualizado con éxito"}
+
+# ==========================================
+# 4. Reconocimiento Facial Biomédico (Prueba)
+# ==========================================
+
+def get_face_encoding_from_base64(b64_string):
+    try:
+        if "," in b64_string:
+            b64_string = b64_string.split(",")[1]
+        
+        image_data = base64.b64decode(b64_string)
+        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        image_np = np.array(image)
+        
+        encodings = face_recognition.face_encodings(image_np)
+        if len(encodings) > 0:
+            return encodings[0]
+        return None
+    except Exception as e:
+        print("Error decodificando imagen:", e)
+        return None
+
+class BiometryScanRequest(BaseModel):
+    imagen_base64: str
+
+@router.post("/futbol/biometria/reconocer")
+async def reconocer_jugador_global(data: BiometryScanRequest, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
+    row_org = res_org.fetchone()
+    if not row_org:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    organizador_id = row_org[0]
+
+    target_encoding = get_face_encoding_from_base64(data.imagen_base64)
+    if target_encoding is None:
+        raise HTTPException(status_code=400, detail="No se detectó ningún rostro en la captura. Acerca la cámara.")
+
+    # Cargar jugadores con fotos
+    q = text("""
+        SELECT j.id, j.foto_url
+        FROM torneos_futbol.tournament_players j
+        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        WHERE t.organizador_id = :oid AND j.biometria_aprobada = true AND j.foto_url IS NOT NULL
+    """)
+    res = await session.execute(q, {"oid": organizador_id})
+    jugadores = res.fetchall()
+
+    if not jugadores:
+        raise HTTPException(status_code=404, detail="No hay jugadores registrados con foto aprobada para comparar.")
+
+    best_match_id = None
+    best_distance = 0.55  # Umbral estricto
+
+    for j in jugadores:
+        if not j.foto_url or not j.foto_url.startswith("data:image"):
+            continue
+            
+        known_encoding = get_face_encoding_from_base64(j.foto_url)
+        if known_encoding is not None:
+            distances = face_recognition.face_distance([known_encoding], target_encoding)
+            distance = distances[0]
+            if distance < best_distance:
+                best_distance = distance
+                best_match_id = j.id
+                
+    if best_match_id:
+        accuracy = round((1.0 - best_distance) * 100, 2)
+        return {"match": True, "jugador_id": best_match_id, "precision": accuracy}
+    else:
+        return {"match": False}

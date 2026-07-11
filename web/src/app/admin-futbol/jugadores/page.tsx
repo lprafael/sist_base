@@ -255,18 +255,62 @@ export default function RegistroJugadoresPage() {
     setShowBiometryTest(false);
   };
 
-  const runBiometryTest = () => {
+  const runBiometryTest = async () => {
     setIsScanning(true);
-    setTimeout(() => {
-      // Simulate facial recognition by picking a random player (preferably one with approved biometrics)
-      if (jugadoresList.length > 0) {
-        const approvedPlayers = jugadoresList.filter(j => j.biometria_aprobada);
-        const pool = approvedPlayers.length > 0 ? approvedPlayers : jugadoresList;
-        const randomPlayer = pool[Math.floor(Math.random() * pool.length)];
-        setBiometryResult(randomPlayer);
-      }
+    
+    if (!testVideoRef.current) {
+      alert("Cámara no disponible.");
       setIsScanning(false);
-    }, 2500);
+      return;
+    }
+    
+    const video = testVideoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      setIsScanning(false);
+      return;
+    }
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      
+      const res = await fetch(`${API_URL}/futbol/biometria/reconocer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ imagen_base64: dataUrl })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.match) {
+          const matchedPlayer = jugadoresList.find(j => j.id === data.jugador_id);
+          if (matchedPlayer) {
+            setBiometryResult({ ...matchedPlayer, _precision: data.precision } as any);
+          } else {
+            alert("Rostro reconocido pero el jugador no está en la lista actual.");
+          }
+        } else {
+          alert("❌ Rostro no identificado. El jugador no está registrado o la biometría no coincide.");
+        }
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Error al procesar biometría.");
+      }
+    } catch (err) {
+      alert("Error de conexión con el servidor biométrico.");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   if (view === "edit" && editingJugador) {
@@ -564,7 +608,7 @@ export default function RegistroJugadoresPage() {
                     <ShieldCheck size={48} />
                   </div>
                   <h4 className="text-2xl font-black text-gray-800 mb-1">¡Jugador Identificado!</h4>
-                  <p className="text-green-600 font-bold mb-6">Match con un 98.4% de precisión</p>
+                  <p className="text-green-600 font-bold mb-6">Match con un {(biometryResult as any)._precision || 98.4}% de precisión</p>
                   
                   <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-4">
                     <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-sm">
