@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Trophy, CalendarDays, MapPin, Share2, Users, Medal } from 'lucide-react';
+import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Facebook, Instagram, Youtube, Twitch, Twitter, Phone, Mail } from 'lucide-react';
 
 const API_URL = "https://api.micancha.com.py";
 
@@ -11,6 +11,21 @@ interface PerfilLiga {
   color_primario: string;
   nombre_liga: string;
   descripcion: string;
+  acerca_de: string;
+  idioma: string;
+  pais: string;
+  departamento: string;
+  ciudad: string;
+  ubicacion_exacta: string;
+  facebook: string;
+  instagram: string;
+  youtube: string;
+  twitch: string;
+  twitter: string;
+  whatsapp: string;
+  email: string;
+  telefono: string;
+  opcion_chat: boolean;
 }
 
 interface Torneo {
@@ -137,10 +152,44 @@ export default function PublicOrganizerPage() {
                 </span>
                 Acerca de
               </h3>
-              <p className="text-gray-600 leading-relaxed text-sm">
-                Esta es la página pública oficial de {perfil.nombre_liga || "esta liga"}. Aquí podrás encontrar todos los torneos activos, estadísticas y resultados de nuestros eventos deportivos.
+              
+              {/* UBICACION */}
+              {(perfil.pais || perfil.departamento || perfil.ubicacion_exacta) && (
+                <p className="text-gray-500 text-sm mb-4 font-medium flex items-center gap-2">
+                  <MapPin size={14} />
+                  {[perfil.ubicacion_exacta, perfil.departamento, perfil.pais].filter(Boolean).join(', ')}
+                </p>
+              )}
+
+              <p className="text-gray-600 leading-relaxed text-sm whitespace-pre-line">
+                {perfil.acerca_de || `Esta es la página pública oficial de ${perfil.nombre_liga || "esta liga"}. Aquí podrás encontrar todos los torneos activos, estadísticas y resultados de nuestros eventos deportivos.`}
               </p>
               
+              {/* CONTACTOS */}
+              {(perfil.email || perfil.telefono) && (
+                 <div className="mt-6 space-y-3">
+                   {perfil.email && (
+                     <a href={`mailto:${perfil.email}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-blue-600 transition">
+                       <Mail size={16} /> {perfil.email}
+                     </a>
+                   )}
+                   {perfil.telefono && (
+                     <a href={`tel:${perfil.telefono}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-blue-600 transition">
+                       <Phone size={16} /> {perfil.telefono}
+                     </a>
+                   )}
+                 </div>
+              )}
+
+              {/* REDES SOCIALES */}
+              <div className="mt-6 flex flex-wrap gap-3">
+                {perfil.facebook && <a href={perfil.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition"><Facebook size={20}/></a>}
+                {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center hover:bg-pink-100 transition"><Instagram size={20}/></a>}
+                {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition"><Youtube size={20}/></a>}
+                {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 transition"><Twitter size={20}/></a>}
+                {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition"><Twitch size={20}/></a>}
+              </div>
+
               <div className="mt-6 pt-6 border-t border-gray-100 flex justify-between text-center">
                  <div>
                    <p className="text-2xl font-black text-gray-800">{torneos.length}</p>

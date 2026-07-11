@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy } from 'lucide-react';
+import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PerfilOrganizadorPage() {
@@ -17,7 +17,22 @@ export default function PerfilOrganizadorPage() {
     texto_1: "",
     texto_2: "",
     visibilidad: "publico",
-    tipo_sede: "fisico"
+    tipo_sede: "fisico",
+    acerca_de: "",
+    idioma: "Spanish; Castilian",
+    pais: "Paraguay",
+    departamento: "Departamento Central",
+    ciudad: "",
+    ubicacion_exacta: "",
+    facebook: "",
+    instagram: "",
+    youtube: "",
+    twitch: "",
+    twitter: "",
+    whatsapp: "",
+    email: "",
+    telefono: "",
+    opcion_chat: false
   });
 
   useEffect(() => {
@@ -182,14 +197,24 @@ export default function PerfilOrganizadorPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Texto 1</label>
-                  <input type="text" value={perfil.texto_1} onChange={e => setPerfil({...perfil, texto_1: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500" placeholder="Ej. Bienvenido a nuestra liga" />
+                  <input type="text" value={perfil.texto_1 || ''} onChange={e => setPerfil({...perfil, texto_1: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500" placeholder="Ej. Bienvenido a nuestra liga" />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-500 mb-1 flex justify-between">
                     <span>Información del organizador (Texto 2)</span>
-                    <span className="text-xs">{perfil.texto_2.length}/70</span>
+                    <span className="text-xs">{(perfil.texto_2 || '').length}/180</span>
                   </label>
-                  <input type="text" maxLength={70} value={perfil.texto_2} onChange={e => setPerfil({...perfil, texto_2: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500" placeholder="Ej. Liga oficial de la ciudad..." />
+                  <input type="text" maxLength={180} value={perfil.texto_2 || ''} onChange={e => setPerfil({...perfil, texto_2: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500" placeholder="Ej. Liga oficial de la ciudad..." />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-500 mb-1">Acerca de</label>
+                  <textarea 
+                    rows={4} 
+                    value={perfil.acerca_de || ''} 
+                    onChange={e => setPerfil({...perfil, acerca_de: e.target.value})} 
+                    className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500" 
+                    placeholder="Acá va acerca de...."
+                  ></textarea>
                 </div>
               </div>
             </div>
@@ -266,6 +291,100 @@ export default function PerfilOrganizadorPage() {
                   <p className="font-medium text-gray-800">Campeonato jugado en internet</p>
                 </label>
               </div>
+
+              <div>
+                <h3 className="font-bold text-blue-600 mb-2">Idioma</h3>
+                <select value={perfil.idioma} onChange={e => setPerfil({...perfil, idioma: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500 bg-transparent">
+                  <option value="Spanish; Castilian">Spanish; Castilian</option>
+                  <option value="English">English</option>
+                  <option value="Portuguese">Portuguese</option>
+                </select>
+              </div>
+
+              {perfil.tipo_sede === 'fisico' && (
+                <div>
+                  <h3 className="font-bold text-blue-600 mb-3">Ubicación de la sede</h3>
+                  <div className="space-y-4">
+                    <select value={perfil.pais} onChange={e => setPerfil({...perfil, pais: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500 bg-transparent">
+                      <option value="Paraguay">Paraguay</option>
+                      <option value="Argentina">Argentina</option>
+                      <option value="Brasil">Brasil</option>
+                    </select>
+                    <select value={perfil.departamento} onChange={e => setPerfil({...perfil, departamento: e.target.value})} className="w-full border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500 bg-transparent">
+                      <option value="Departamento Central">Departamento Central</option>
+                      <option value="Asunción">Asunción</option>
+                      <option value="Alto Paraná">Alto Paraná</option>
+                    </select>
+                    <div className="flex items-center gap-2 border-b border-gray-300 py-2">
+                      <MapPin size={20} className="text-gray-500" />
+                      <input type="text" value={perfil.ubicacion_exacta || ''} onChange={e => setPerfil({...perfil, ubicacion_exacta: e.target.value})} placeholder="Ubicación" className="flex-1 focus:outline-none focus:border-blue-500 bg-transparent" />
+                      <span className="text-blue-500 cursor-pointer text-sm font-medium">Editar</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            <hr />
+
+            {/* REDES SOCIALES Y CONTACTO */}
+            <div>
+               <h3 className="font-bold text-blue-600 mb-4">Redes sociales y contactos</h3>
+               <div className="space-y-4">
+                 {[
+                   { name: 'facebook', label: 'facebook' },
+                   { name: 'instagram', label: 'instagram' },
+                   { name: 'youtube', label: 'youtube' },
+                   { name: 'twitch', label: 'twitch' },
+                   { name: 'twitter', label: 'twitter' },
+                   { name: 'whatsapp', label: 'whatsapp' },
+                 ].map(red => (
+                   <div key={red.name} className="relative">
+                     <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500">{red.label}</label>
+                     <input 
+                       type="text" 
+                       value={(perfil as any)[red.name] || ''} 
+                       onChange={e => setPerfil({...perfil, [red.name]: e.target.value})} 
+                       placeholder="Pega el enlace aquí" 
+                       className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500"
+                     />
+                   </div>
+                 ))}
+                 
+                 <div className="relative mt-6">
+                   <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500">Email</label>
+                   <input 
+                     type="email" 
+                     value={perfil.email || ''} 
+                     onChange={e => setPerfil({...perfil, email: e.target.value})} 
+                     className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500"
+                   />
+                 </div>
+
+                 <div className="relative mt-4">
+                   <label className="absolute -top-2.5 left-2 bg-white px-1 text-xs text-gray-500">Teléfono</label>
+                   <input 
+                     type="tel" 
+                     value={perfil.telefono || ''} 
+                     onChange={e => setPerfil({...perfil, telefono: e.target.value})} 
+                     className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:border-blue-500"
+                   />
+                 </div>
+
+                 <div className="mt-6 flex items-center gap-3">
+                   <input 
+                     type="checkbox" 
+                     id="opcion_chat" 
+                     checked={perfil.opcion_chat} 
+                     onChange={e => setPerfil({...perfil, opcion_chat: e.target.checked})} 
+                     className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500"
+                   />
+                   <label htmlFor="opcion_chat" className="text-gray-700 font-medium cursor-pointer">
+                     Opción de chat de la aplicación
+                   </label>
+                 </div>
+               </div>
             </div>
 
           </div>

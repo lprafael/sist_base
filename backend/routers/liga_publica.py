@@ -8,9 +8,10 @@ router = APIRouter(tags=["Liga Publica"])
 
 @router.get("/liga/{enlace_sitio}")
 async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depends(get_session)):
-    # Obtener perfil organizador
     res = await session.execute(text("""
-        SELECT o.id as org_id, po.logo_url, po.banner_url, po.color_primario, po.texto_1, po.texto_2
+        SELECT o.id as org_id, po.logo_url, po.banner_url, po.color_primario, po.texto_1, po.texto_2,
+               po.acerca_de, po.idioma, po.pais, po.departamento, po.ciudad, po.ubicacion_exacta,
+               po.facebook, po.instagram, po.youtube, po.twitch, po.twitter, po.whatsapp, po.email, po.telefono, po.opcion_chat
         FROM sistema.perfil_organizador po
         JOIN cancha.organizadores o ON o.usuario_id = po.usuario_id
         WHERE po.enlace_sitio = :enlace AND po.visibilidad = 'publico'
@@ -37,7 +38,22 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
             "banner_url": perfil[2],
             "color_primario": perfil[3],
             "nombre_liga": perfil[4],
-            "descripcion": perfil[5]
+            "descripcion": perfil[5],
+            "acerca_de": perfil[6],
+            "idioma": perfil[7],
+            "pais": perfil[8],
+            "departamento": perfil[9],
+            "ciudad": perfil[10],
+            "ubicacion_exacta": perfil[11],
+            "facebook": perfil[12],
+            "instagram": perfil[13],
+            "youtube": perfil[14],
+            "twitch": perfil[15],
+            "twitter": perfil[16],
+            "whatsapp": perfil[17],
+            "email": perfil[18],
+            "telefono": perfil[19],
+            "opcion_chat": perfil[20]
         },
         "torneos": torneos
     }

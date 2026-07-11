@@ -17,11 +17,28 @@ class PerfilOrganizadorRequest(BaseModel):
     texto_2: Optional[str] = None
     visibilidad: Optional[str] = 'publico'
     tipo_sede: Optional[str] = 'fisico'
+    acerca_de: Optional[str] = None
+    idioma: Optional[str] = 'Spanish'
+    pais: Optional[str] = None
+    departamento: Optional[str] = None
+    ciudad: Optional[str] = None
+    ubicacion_exacta: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    youtube: Optional[str] = None
+    twitch: Optional[str] = None
+    twitter: Optional[str] = None
+    whatsapp: Optional[str] = None
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+    opcion_chat: Optional[bool] = False
 
 @router.get("/organizador/perfil")
 async def obtener_perfil_organizador(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     query = text("""
-        SELECT enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede
+        SELECT enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede,
+               acerca_de, idioma, pais, departamento, ciudad, ubicacion_exacta,
+               facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat
         FROM sistema.perfil_organizador 
         WHERE usuario_id = :uid
     """)
@@ -32,13 +49,19 @@ async def obtener_perfil_organizador(current_user: dict = Depends(get_current_us
         return {
             "enlace_sitio": None, "logo_url": None, "banner_url": None,
             "color_primario": "#1e3a8a", "texto_1": "", "texto_2": "",
-            "visibilidad": "publico", "tipo_sede": "fisico"
+            "visibilidad": "publico", "tipo_sede": "fisico",
+            "acerca_de": "", "idioma": "Spanish", "pais": "", "departamento": "", "ciudad": "", "ubicacion_exacta": "",
+            "facebook": "", "instagram": "", "youtube": "", "twitch": "", "twitter": "", "whatsapp": "",
+            "email": "", "telefono": "", "opcion_chat": False
         }
         
     return {
         "enlace_sitio": row[0], "logo_url": row[1], "banner_url": row[2],
         "color_primario": row[3], "texto_1": row[4], "texto_2": row[5],
-        "visibilidad": row[6], "tipo_sede": row[7]
+        "visibilidad": row[6], "tipo_sede": row[7],
+        "acerca_de": row[8], "idioma": row[9], "pais": row[10], "departamento": row[11], "ciudad": row[12], "ubicacion_exacta": row[13],
+        "facebook": row[14], "instagram": row[15], "youtube": row[16], "twitch": row[17], "twitter": row[18], "whatsapp": row[19],
+        "email": row[20], "telefono": row[21], "opcion_chat": row[22]
     }
 
 @router.post("/organizador/perfil")
@@ -53,9 +76,13 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
     # 2. Upsert
     query = text("""
         INSERT INTO sistema.perfil_organizador 
-            (usuario_id, enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede)
+            (usuario_id, enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede,
+             acerca_de, idioma, pais, departamento, ciudad, ubicacion_exacta,
+             facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat)
         VALUES 
-            (:uid, :enlace, :logo, :banner, :color, :t1, :t2, :vis, :sede)
+            (:uid, :enlace, :logo, :banner, :color, :t1, :t2, :vis, :sede,
+             :acerca_de, :idioma, :pais, :departamento, :ciudad, :ubicacion_exacta,
+             :facebook, :instagram, :youtube, :twitch, :twitter, :whatsapp, :email, :telefono, :opcion_chat)
         ON CONFLICT (usuario_id) DO UPDATE SET
             enlace_sitio = EXCLUDED.enlace_sitio,
             logo_url = EXCLUDED.logo_url,
@@ -65,6 +92,21 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
             texto_2 = EXCLUDED.texto_2,
             visibilidad = EXCLUDED.visibilidad,
             tipo_sede = EXCLUDED.tipo_sede,
+            acerca_de = EXCLUDED.acerca_de,
+            idioma = EXCLUDED.idioma,
+            pais = EXCLUDED.pais,
+            departamento = EXCLUDED.departamento,
+            ciudad = EXCLUDED.ciudad,
+            ubicacion_exacta = EXCLUDED.ubicacion_exacta,
+            facebook = EXCLUDED.facebook,
+            instagram = EXCLUDED.instagram,
+            youtube = EXCLUDED.youtube,
+            twitch = EXCLUDED.twitch,
+            twitter = EXCLUDED.twitter,
+            whatsapp = EXCLUDED.whatsapp,
+            email = EXCLUDED.email,
+            telefono = EXCLUDED.telefono,
+            opcion_chat = EXCLUDED.opcion_chat,
             actualizado_en = NOW()
     """)
     
@@ -77,7 +119,22 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
         "t1": data.texto_1,
         "t2": data.texto_2,
         "vis": data.visibilidad,
-        "sede": data.tipo_sede
+        "sede": data.tipo_sede,
+        "acerca_de": data.acerca_de,
+        "idioma": data.idioma,
+        "pais": data.pais,
+        "departamento": data.departamento,
+        "ciudad": data.ciudad,
+        "ubicacion_exacta": data.ubicacion_exacta,
+        "facebook": data.facebook,
+        "instagram": data.instagram,
+        "youtube": data.youtube,
+        "twitch": data.twitch,
+        "twitter": data.twitter,
+        "whatsapp": data.whatsapp,
+        "email": data.email,
+        "telefono": data.telefono,
+        "opcion_chat": data.opcion_chat
     })
     
     await session.commit()
