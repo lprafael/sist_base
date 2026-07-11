@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2 } from 'lucide-react';
+import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PerfilOrganizadorPage() {
@@ -44,6 +44,12 @@ export default function PerfilOrganizadorPage() {
     e.preventDefault();
     setSaving(true);
     setMessage("");
+    let payload = { ...perfil };
+    if (!payload.enlace_sitio) {
+      payload.enlace_sitio = "org-" + Math.random().toString(36).substring(2, 8);
+      setPerfil(payload);
+    }
+
     try {
       const res = await fetch("http://localhost:8001/organizador/perfil", {
         method: "POST",
@@ -51,7 +57,7 @@ export default function PerfilOrganizadorPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(perfil)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if(res.ok) {
@@ -182,17 +188,43 @@ export default function PerfilOrganizadorPage() {
             {/* ENLACES Y PRIVACIDAD */}
             <div className="space-y-6">
               <div>
-                <h3 className="font-bold text-blue-600 mb-2">Establecer enlace de sitio</h3>
-                <div className="flex items-center">
-                  <span className="text-gray-500 whitespace-nowrap">https://copafacil.com/</span>
-                  <input 
-                    type="text" 
-                    value={perfil.enlace_sitio} 
-                    onChange={e => setPerfil({...perfil, enlace_sitio: e.target.value})}
-                    className="flex-1 ml-2 border-b border-gray-300 py-2 focus:outline-none focus:border-blue-500" 
-                    placeholder="mi-liga-2027" 
-                  />
+                <h3 className="font-bold text-blue-600 mb-2">Enlace de tu Página Pública</h3>
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  <div className="flex flex-1 items-center bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
+                    <span className="text-gray-500 pl-4 py-3 whitespace-nowrap font-mono text-sm bg-gray-200">micancha.com.py/organizador/</span>
+                    <input 
+                      type="text" 
+                      value={perfil.enlace_sitio} 
+                      onChange={e => setPerfil({...perfil, enlace_sitio: e.target.value})}
+                      className="flex-1 px-2 py-3 bg-gray-100 focus:outline-none focus:bg-white text-blue-700 font-bold" 
+                      placeholder="mi-liga-2027" 
+                    />
+                  </div>
+                  {perfil.enlace_sitio && (
+                    <div className="flex gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const url = `${window.location.origin}/organizador/${perfil.enlace_sitio}`;
+                          navigator.clipboard.writeText(url);
+                          alert("Enlace copiado: " + url);
+                        }}
+                        className="p-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition flex items-center justify-center"
+                        title="Copiar enlace"
+                      >
+                        <Copy size={20} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => window.open(`/organizador/${perfil.enlace_sitio}`, '_blank')}
+                        className="px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-bold transition flex items-center justify-center gap-2"
+                      >
+                        <ExternalLink size={20} /> Visitar Página
+                      </button>
+                    </div>
+                  )}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">Este es el enlace que compartirás con jugadores y público para que vean tus torneos.</p>
               </div>
 
               <div>
