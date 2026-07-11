@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.tournament_players (
     fecha_nacimiento    DATE,
     numero_camiseta     SMALLINT,
     posicion            VARCHAR(40),
-    foto_url            VARCHAR(500),
+    foto_url            TEXT,
     estado              VARCHAR(20) NOT NULL DEFAULT 'habilitado',
     partidos_jugados    SMALLINT NOT NULL DEFAULT 0,
     amarillas_acum      SMALLINT NOT NULL DEFAULT 0,
