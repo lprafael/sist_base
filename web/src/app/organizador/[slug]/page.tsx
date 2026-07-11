@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Trophy, CalendarDays, MapPin, Share2, Users, Medal } from 'lucide-react';
 
-const API_URL = "http://localhost:8001";
+const API_URL = "https://api.micancha.com.py";
 
 interface PerfilLiga {
   logo_url: string;
