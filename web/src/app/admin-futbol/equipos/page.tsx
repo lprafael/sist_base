@@ -14,7 +14,7 @@ export default function RegistroEquipoPage() {
   const [view, setView] = useState<"list" | "main" | "jugadores" | "tecnicos">("list");
   
   const [equiposList, setEquiposList] = useState<any[]>([
-    { id: 1, nombre: "Equipo2", jugadores: 2 }
+    { id: 1, nombre: "Equipo2", entrenador: "", logo_url: "", jugadores: [], tecnicos: [] }
   ]);
   const [nuevoEquipo, setNuevoEquipo] = useState("");
   const [selectedEquipoId, setSelectedEquipoId] = useState<number | null>(null);
@@ -25,7 +25,10 @@ export default function RegistroEquipoPage() {
       const newTeam = {
         id: Date.now(),
         nombre: nuevoEquipo.trim(),
-        jugadores: 0
+        entrenador: "",
+        logo_url: "",
+        jugadores: [],
+        tecnicos: []
       };
       setEquiposList([newTeam, ...equiposList]);
       setNuevoEquipo("");
@@ -34,9 +37,9 @@ export default function RegistroEquipoPage() {
 
   const openEquipoDetails = (equipo: any) => {
     setSelectedEquipoId(equipo.id);
-    setFormData({ nombre: equipo.nombre, entrenador: "", logo_url: "" });
-    setJugadores([]); // Reset
-    setTecnicos([]); // Reset
+    setFormData({ nombre: equipo.nombre, entrenador: equipo.entrenador || "", logo_url: equipo.logo_url || "" });
+    setJugadores(equipo.jugadores || []);
+    setTecnicos(equipo.tecnicos || []);
     setView("main");
   };
   
@@ -71,6 +74,20 @@ export default function RegistroEquipoPage() {
     setMessage("");
     
     // Simular guardado
+    setEquiposList(prev => prev.map(eq => {
+      if(eq.id === selectedEquipoId) {
+        return {
+          ...eq,
+          nombre: formData.nombre,
+          entrenador: formData.entrenador,
+          logo_url: formData.logo_url,
+          jugadores: [...jugadores],
+          tecnicos: [...tecnicos]
+        };
+      }
+      return eq;
+    }));
+
     setTimeout(() => {
       setLoading(false);
       setMessage("✅ Equipo guardado con éxito.");
@@ -112,7 +129,7 @@ export default function RegistroEquipoPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-gray-800 font-medium text-lg">{eq.nombre}</span>
-                      <span className="text-gray-500 text-sm">{eq.jugadores} Jugadores</span>
+                      <span className="text-gray-500 text-sm">{eq.jugadores?.length || 0} Jugadores</span>
                     </div>
                   </div>
                   <Users size={28} className="text-green-500" />
