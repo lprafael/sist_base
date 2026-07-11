@@ -228,6 +228,21 @@ async def update_equipo(equipo_id: str, data: EquipoUpdate, session: AsyncSessio
     return {"message": "Equipo actualizado"}
 
 
+@router.delete("/futbol/equipos/{equipo_id}")
+async def delete_equipo(equipo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    res = await session.execute(text("""
+        SELECT e.id FROM torneos_futbol.equipos e
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        WHERE e.id = :eid AND t.organizador_id = :oid
+    """), {"eid": equipo_id, "oid": current_user["id"]})
+    if not res.fetchone():
+        raise HTTPException(status_code=403, detail="No autorizado o equipo no existe")
+        
+    await session.execute(text("DELETE FROM torneos_futbol.equipos WHERE id = :eid"), {"eid": equipo_id})
+    await session.commit()
+    return {"message": "Equipo eliminado con éxito"}
+
+
 class PlantelSync(BaseModel):
     jugadores: List[dict] # {nombre: str}
     tecnicos: List[dict] # {nombre: str}

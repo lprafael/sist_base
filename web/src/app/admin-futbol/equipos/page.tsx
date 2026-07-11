@@ -23,6 +23,7 @@ export default function RegistroEquipoPage() {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [deleteMode, setDeleteMode] = useState(false);
   
   const [view, setView] = useState<"list" | "main" | "jugadores" | "tecnicos" | "jugador_edit">("list");
   
@@ -86,6 +87,25 @@ export default function RegistroEquipoPage() {
           fetchEquipos();
         }
       } catch (err) {}
+    }
+  };
+
+  const handleDeleteEquipo = async (id: string) => {
+    if(!confirm("¿Seguro que deseas eliminar este equipo y todos sus jugadores?")) return;
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const res = await fetch(`${API_URL}/futbol/equipos/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if(res.ok) {
+        fetchEquipos();
+      } else {
+        alert("Error al eliminar equipo");
+      }
+    } catch (e) {
+      alert("Error de conexión");
     }
   };
 
@@ -220,13 +240,22 @@ export default function RegistroEquipoPage() {
                   </button>
                 </form>
                 
-                <div className="text-sm font-bold text-gray-500 mb-4 px-1">
-                  Total: {equiposList.length}
+                <div className="flex justify-between items-center mb-4 px-1">
+                  <div className="text-sm font-bold text-gray-500">
+                    Total: {equiposList.length}
+                  </div>
+                  <button 
+                    onClick={() => setDeleteMode(!deleteMode)}
+                    className={`p-2 rounded transition ${deleteMode ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:bg-gray-100'}`}
+                    title="Eliminar equipos"
+                  >
+                    <Trash2 size={20} />
+                  </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-3">
                   {equiposList.map((eq) => (
-                    <div key={eq.id} onClick={() => openEquipoDetails(eq)} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition">
+                    <div key={eq.id} onClick={() => !deleteMode && openEquipoDetails(eq)} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between transition ${!deleteMode ? 'cursor-pointer hover:shadow-md' : ''}`}>
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-gradient-to-b from-[#1b264f] to-blue-900 rounded-lg flex flex-col items-center justify-center text-white shrink-0 relative overflow-hidden">
                           <Trophy size={24} className="text-yellow-400 mb-1 z-10" />
@@ -237,7 +266,16 @@ export default function RegistroEquipoPage() {
                           <span className="text-gray-500 text-sm">{eq.jugadores?.length || 0} Jugadores</span>
                         </div>
                       </div>
-                      <Users size={28} className="text-green-500" />
+                      {deleteMode ? (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteEquipo(eq.id); }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-full transition"
+                        >
+                          <X size={24} />
+                        </button>
+                      ) : (
+                        <Users size={28} className="text-green-500" />
+                      )}
                     </div>
                   ))}
                   {equiposList.length === 0 && (
