@@ -240,6 +240,17 @@ Crea un nuevo cargo manual (ej. Multa, Inscripción).
 **Endpoint:** `POST /cancha/torneos/equipos/{equipo_id}/cuenta_corriente/{cargo_id}/pagar`
 Marca un cargo específico como "pagado" actualizando el estado de cuenta.
 
+### Levantar Sanción por Multa
+**Endpoint:** `POST /cancha/torneos/sanciones/{sancion_id}/levantar-por-multa`
+Cambia el estado de una sanción deportiva (ej. suspensión por roja) a `levantada_por_pago` e inserta automáticamente el registro de cobro en cuenta corriente.
+**Payload:**
+```json
+{
+  "monto": 25000.0,
+  "metodo_pago": "Efectivo"
+}
+```
+
 ---
 
 ## 9. Nuevos Endpoints - Módulo C (Dashboard KPIs)
@@ -282,6 +293,26 @@ Guarda una noticia generada (manual o por IA) en la base de datos.
 ### Obtener Noticias de Torneo
 **Endpoint:** `GET /api/noticias/torneo/{torneo_id}`
 Retorna el historial de noticias ordenadas por fecha.
+
+---
+
+## 11. Nuevos Endpoints - Módulo E (Jerarquía Regional)
+
+### Gestión de Regiones y Ciudades
+- **Crear Región:** `POST /cancha/torneos/eventos/{evento_id}/regiones` (Incluye flag `determinar_campeon_regional`)
+- **Listar Regiones:** `GET /cancha/torneos/eventos/{evento_id}/regiones`
+- **Crear Ciudad:** `POST /cancha/torneos/regiones/{region_id}/ciudades`
+- **Listar Ciudades:** `GET /cancha/torneos/regiones/{region_id}/ciudades`
+
+### Generador de Playoff Regional Interciudades
+**Endpoint:** `POST /cancha/torneos/regiones/{region_id}/generar-playoff-regional`
+Busca a los mejores equipos de todos los torneos finalizados en las ciudades de la región, y clona sus equipos y planteles completos (incluyendo biometría) hacia un nuevo Campeonato "Playoff Regional" de eliminación directa.
+**Payload:**
+```json
+{
+  "cupos_por_ciudad": 2
+}
+```
 
 ---
 ## 6. Instrucciones para Agente IA (Prompt de Despliegue)

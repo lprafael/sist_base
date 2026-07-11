@@ -13,6 +13,9 @@ erDiagram
     USUARIOS ||--o{ ORGANIZADORES : "asocia"
     ORGANIZADORES ||--o{ TORNEOS : "organiza (organizador_id)"
     ORGANIZADORES ||--o{ TORNEOS_EVENTOS : "organiza (organizador_id)"
+    TORNEOS_EVENTOS ||--o{ REGIONES : "tiene"
+    REGIONES ||--o{ CIUDADES : "incluye"
+    CIUDADES ||--o{ TORNEOS : "alberga (ciudad_id)"
     COMPLEJOS ||--o{ TORNEOS : "alberga (complejo_id)"
     COMPLEJOS ||--o{ CANCHAS : "posee"
     COMPLEJOS ||--o{ ROLES_COMPLEJO : "define"
@@ -139,6 +142,24 @@ Catálogo de usuarios que actúan como organizadores independientes (sin complej
 | `habilitado` | `BOOLEAN` | NOT NULL | DEFAULT TRUE | Si el organizador está habilitado |
 | `creado_en` | `TIMESTAMPTZ` | NOT NULL | DEFAULT now() | Fecha de registro |
 
+### 7.1 `regiones` y `ciudades` 🆕 *Migración 032*
+Estructura jerárquica para campeonatos interciudades (Playoffs Regionales).
+
+**Tabla `regiones`:**
+| Campo | Tipo | Nulos | Restricción | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | NOT NULL | PRIMARY KEY | Identificador único |
+| `evento_id` | `UUID` | NOT NULL | FK → `eventos(id)` | Evento Global Padre |
+| `nombre` | `VARCHAR(150)` | NOT NULL | — | Nombre de la región (ej: "Conmebol") |
+| `determinar_campeon_regional` | `BOOLEAN` | NOT NULL | DEFAULT false | Habilita Playoff Regional |
+
+**Tabla `ciudades`:**
+| Campo | Tipo | Nulos | Restricción | Descripción |
+|---|---|---|---|---|
+| `id` | `UUID` | NOT NULL | PRIMARY KEY | Identificador único |
+| `region_id` | `UUID` | NOT NULL | FK → `regiones(id)` | Región a la que pertenece |
+| `nombre` | `VARCHAR(150)` | NOT NULL | — | Nombre de la ciudad |
+
 ---
 
 ### 8. `torneos`
@@ -149,6 +170,7 @@ Centraliza la información de un torneo asociado a un complejo (tenant) o a un o
 | `id` | `UUID` | NOT NULL | PRIMARY KEY | Identificador único |
 | `complejo_id` | `UUID` | NULL | FK → `complejos(id)` | Tenant dueño del torneo (opcional si es organizador libre) |
 | `organizador_id` | `INTEGER` | NULL | FK → `organizadores(id)` | 🆕 FK al organizador independiente (opcional) |
+| `ciudad_id` | `UUID` | NULL | FK → `ciudades(id)` | 🆕 FK a ciudad para campeonatos locales |
 | `modalidad_id` | `SMALLINT` | NULL | FK → `modalidades(id)` | Sistema de juego |
 | `categoria_id` | `SMALLINT` | NULL | FK → `categorias(id)` | Categoría del torneo |
 | `creado_por` | `INTEGER` | NULL | FK → `sistema.usuarios(id)` | Organizador que creó el torneo |

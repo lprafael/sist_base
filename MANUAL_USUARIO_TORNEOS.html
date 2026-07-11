@@ -728,11 +728,21 @@
         <div class="alert-box warning">
           <i data-lucide="alert-octagon" class="alert-icon"></i>
           <div class="alert-content">
-            <h4>Restricción en Fase Eliminatoria</h4>
+            <h4>Restricción en Fase Eliminatoria y Sanciones</h4>
             <p>Un jugador suspendido o que cuente con sanciones pendientes registradas en la tabla de disciplina no
               podrá ser alineado en la mesa de control ni registrar firma digital hasta cumplir las fechas indicadas.
             </p>
           </div>
+        </div>
+        
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-icon" style="background:rgba(239,68,68,0.12); color:#ef4444;"><i data-lucide="shield-check"></i></div>
+          <h3 class="card-title">Levantamiento de Sanciones por Pago (Flexibilización)</h3>
+          <p class="card-text">
+            Si la configuración del complejo lo permite, el delegado o jugador infractor puede **levantar la suspensión**
+            (ej. tarjeta roja) de forma automática mediante el pago de una **Multa Disciplinaria**. Al registrarse el pago,
+            las fechas de suspensión se reducen a cero y el jugador vuelve a quedar habilitado para el próximo partido.
+          </p>
         </div>
       </section>
 
@@ -801,22 +811,27 @@
                 <p class="card-text">Una vez generado, el archivo <code>Torneo_[nombre].xlsx</code> se descargará automáticamente en su carpeta de Descargas.</p>
               </div>
             </div>
-            <p class="card-text" style="margin-top:1.5rem; font-weight:600; color:var(--text-muted);">Contenido del archivo Excel:</p>
-            <table style="width:100%; border-collapse:collapse; margin-top:0.75rem; font-size:0.82rem;">
-              <thead>
-                <tr>
-                  <th style="text-align:left; padding:0.5rem; border-bottom:1px solid var(--border-color); color:var(--primary);">Hoja</th>
-                  <th style="text-align:left; padding:0.5rem; border-bottom:1px solid var(--border-color); color:var(--primary);">Contenido</th>
-                </tr>
-              </thead>
-              <tbody style="color:var(--text-muted);">
-                <tr><td style="padding:0.5rem;">📋 Equipos</td><td style="padding:0.5rem;">Nombre, capitán, teléfono, estado inscripción y pago</td></tr>
-                <tr style="background:rgba(255,255,255,0.02);"><td style="padding:0.5rem;">👥 Planteles</td><td style="padding:0.5rem;">Jugadores por equipo con DNI, camiseta, posición y estado</td></tr>
-                <tr><td style="padding:0.5rem;">📅 Fixture</td><td style="padding:0.5rem;">Todos los partidos con marcadores y estados</td></tr>
-                <tr style="background:rgba(255,255,255,0.02);"><td style="padding:0.5rem;">🏆 Posiciones</td><td style="padding:0.5rem;">Tabla completa con PJ, PG, PE, PP, GF, GC, DG, PTS</td></tr>
-                <tr><td style="padding:0.5rem;">🟨 Fair Play</td><td style="padding:0.5rem;">Ranking de tarjetas y puntos disciplinarios por equipo</td></tr>
-              </tbody>
-            </table>
+          </div>
+          
+          <!-- PLAYOFF REGIONAL -->
+          <div class="card">
+            <div class="card-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">
+              <i data-lucide="trophy"></i>
+            </div>
+            <h3 class="card-title">Generar Playoff Regional (Interciudades)</h3>
+            <p class="card-text">
+              Convoca a los mejores equipos de múltiples campeonatos locales finalizados (por ciudad) a disputar 
+              la gran final Regional de Campeones.
+            </p>
+            <div class="step-flow" style="margin-top:1.5rem;">
+              <div class="step-node">
+                <div class="step-number">Características:</div>
+                <h4 class="step-title">Clonación Total Automática</h4>
+                <p class="card-text">
+                  El sistema no solo crea la nueva competencia en formato de eliminación directa, sino que clona automáticamente las identidades de los clubes clasificados y sus <strong>listas de buena fe (jugadores y biometría)</strong>. No requiere recarga manual de datos.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

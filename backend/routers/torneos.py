@@ -23,6 +23,9 @@ from email_service import email_service
 import secrets
 import string
 
+# Import schemas from schemas_regiones
+from schemas_regiones import RegionCreate, CiudadCreate, PlayoffRegionalCreate
+
 router = APIRouter(prefix="/cancha/torneos", tags=["Torneos"])
 
 def generate_random_password(length: int = 10) -> str:
@@ -2134,6 +2137,57 @@ async def get_sanciones(torneo_id: str, session: AsyncSession = Depends(get_sess
     return [_row_to_dict(keys, r) for r in rows]
 
 
+@router.post("/sanciones/{sancion_id}/levantar-por-multa", summary="Levantar una sanción registrando pago de multa")
+async def levantar_sancion_por_multa(
+    sancion_id: str,
+    monto: float,
+    metodo_pago: str = "Efectivo",
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Buscar la sanción
+        s_res = await session.execute(
+            text("""
+                SELECT s.torneo_id, s.player_id, tp.tournament_team_id
+                FROM torneos_futbol.sanciones s
+                JOIN cancha.tournament_players tp ON s.player_id = tp.id
+                WHERE s.id = :sid AND s.estado = 'vigente'
+            """),
+            {"sid": sancion_id}
+        )
+        s_row = s_res.fetchone()
+        if not s_row:
+            raise HTTPException(status_code=404, detail="Sanción no encontrada o no está vigente")
+        
+        torneo_id, player_id, equipo_id = s_row
+
+        # 1. Registrar el cargo como pagado en cuenta corriente
+        import uuid
+        cargo_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO cancha.cuenta_corriente_equipos
+            (id, torneo_id, equipo_id, concepto, monto, estado, creado_en)
+            VALUES
+            (:id, :tid, :eid, 'Levantamiento de sanción por pago', :monto, 'pagado', NOW())
+        """), {
+            "id": cargo_id, "tid": str(torneo_id), "eid": str(equipo_id), "monto": monto
+        })
+
+        # 2. Levantar la sanción
+        await session.execute(text("""
+            UPDATE torneos_futbol.sanciones
+            SET estado = 'levantada_por_pago', partidos_suspension = 0
+            WHERE id = :sid
+        """), {"sid": sancion_id})
+
+        await session.commit()
+        return {"status": "ok", "message": "Sanción levantada correctamente y pago registrado."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============================================================
 # FIXTURE (mantenido desde main.py pero mejorado)
 # ============================================================
@@ -3731,4 +3785,159 @@ async def get_asistencias_partido(partido_id: str, session: AsyncSession = Depen
         ORDER BY ap.fecha_hora DESC
     """), {"pid": partido_id})
     return [dict(r._mapping) for r in result.fetchall()]
+
+
+# ============================================================
+# ENDPOINTS — JERARQUIA REGIONAL Y PLAYOFFS
+# ============================================================
+
+@router.post("/eventos/{evento_id}/regiones", summary="Crear Región")
+async def create_region(evento_id: str, payload: RegionCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        region_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO torneos_futbol.regiones (id, evento_id, nombre, determinar_campeon_regional)
+            VALUES (:id, :eid, :nombre, :dcr)
+        """), {"id": region_id, "eid": evento_id, "nombre": payload.nombre, "dcr": payload.determinar_campeon_regional})
+        await session.commit()
+        return {"id": region_id, "mensaje": "Región creada exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/eventos/{evento_id}/regiones", summary="Listar Regiones del Evento")
+async def get_regiones(evento_id: str, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text("""
+        SELECT id, nombre, determinar_campeon_regional, creado_en 
+        FROM torneos_futbol.regiones 
+        WHERE evento_id = :eid
+    """), {"eid": evento_id})
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+@router.post("/regiones/{region_id}/ciudades", summary="Crear Ciudad")
+async def create_ciudad(region_id: str, payload: CiudadCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        ciudad_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO torneos_futbol.ciudades (id, region_id, nombre)
+            VALUES (:id, :rid, :nombre)
+        """), {"id": ciudad_id, "rid": region_id, "nombre": payload.nombre})
+        await session.commit()
+        return {"id": ciudad_id, "mensaje": "Ciudad creada exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/regiones/{region_id}/ciudades", summary="Listar Ciudades de una Región")
+async def get_ciudades(region_id: str, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text("""
+        SELECT id, nombre, creado_en 
+        FROM torneos_futbol.ciudades 
+        WHERE region_id = :rid
+    """), {"rid": region_id})
+    return [dict(r._mapping) for r in result.fetchall()]
+
+
+@router.post("/regiones/{region_id}/generar-playoff-regional", summary="Generar Campeonato de Campeones Regionales")
+async def generar_playoff_regional(region_id: str, payload: PlayoffRegionalCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        # 1. Validar que la región permita campeón regional
+        r_res = await session.execute(text("""
+            SELECT evento_id, nombre, determinar_campeon_regional 
+            FROM torneos_futbol.regiones WHERE id = :rid
+        """), {"rid": region_id})
+        r_row = r_res.fetchone()
+        if not r_row:
+            raise HTTPException(status_code=404, detail="Región no encontrada")
+        if not r_row.determinar_campeon_regional:
+            raise HTTPException(status_code=400, detail="Esta región no permite generar un Playoff Regional")
+        
+        evento_id = str(r_row.evento_id)
+        region_nombre = r_row.nombre
+
+        # 2. Buscar todas las ciudades de esta región
+        c_res = await session.execute(text("SELECT id FROM torneos_futbol.ciudades WHERE region_id = :rid"), {"rid": region_id})
+        ciudades_ids = [str(r[0]) for r in c_res.fetchall()]
+        if not ciudades_ids:
+            raise HTTPException(status_code=400, detail="No hay ciudades en esta región")
+
+        # 3. Buscar los torneos asociados a esas ciudades
+        t_res = await session.execute(text("""
+            SELECT id FROM torneos_futbol.torneos WHERE ciudad_id = ANY(:cids) AND estado = 'finalizado'
+        """), {"cids": ciudades_ids})
+        torneos_ids = [str(r[0]) for r in t_res.fetchall()]
+        
+        if not torneos_ids:
+            raise HTTPException(status_code=400, detail="No hay campeonatos locales finalizados en esta región para clonar")
+
+        # 4. Obtener los mejores N equipos de cada campeonato
+        equipos_clasificados = []
+        for tid in torneos_ids:
+            eq_res = await session.execute(text("""
+                SELECT equipo_id FROM torneos_futbol.posiciones
+                WHERE torneo_id = :tid
+                ORDER BY pts DESC, (gf - gc) DESC
+                LIMIT :limite
+            """), {"tid": tid, "limite": payload.cupos_por_ciudad})
+            equipos_clasificados.extend([str(r[0]) for r in eq_res.fetchall()])
+
+        if not equipos_clasificados:
+            raise HTTPException(status_code=400, detail="No se encontraron equipos clasificados.")
+
+        # 5. Crear el nuevo "Campeonato de Campeones Regionales"
+        nuevo_torneo_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO torneos_futbol.torneos 
+            (id, evento_id, nombre, deporte, formato, fecha_inicio, estado, configuracion)
+            VALUES 
+            (:id, :eid, :nombre, 'Futbol', 'eliminacion_simple', CURRENT_DATE, 'abierto', '{}'::jsonb)
+        """), {"id": nuevo_torneo_id, "eid": evento_id, "nombre": f"Playoff Regional - {region_nombre}"})
+
+        # 6. Clonar Equipos y Jugadores
+        for eid in equipos_clasificados:
+            # Obtener datos del equipo
+            eq_info = await session.execute(text("SELECT nombre, capitan_nombre, capitan_telefono, capitan_email, logo_url FROM torneos_futbol.equipos WHERE id = :eid"), {"eid": eid})
+            eq = eq_info.fetchone()
+            if not eq: continue
+
+            nuevo_equipo_id = str(uuid.uuid4())
+            await session.execute(text("""
+                INSERT INTO torneos_futbol.equipos (id, torneo_id, nombre, capitan_nombre, capitan_telefono, capitan_email, logo_url, estado_inscripcion)
+                VALUES (:nid, :tid, :nombre, :cn, :ct, :ce, :logo, 'confirmado')
+            """), {"nid": nuevo_equipo_id, "tid": nuevo_torneo_id, "nombre": eq.nombre, "cn": eq.capitan_nombre, "ct": eq.capitan_telefono, "ce": eq.capitan_email, "logo": eq.logo_url})
+
+            # Clonar Jugadores de Buena Fe
+            pl_res = await session.execute(text("""
+                SELECT nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, face_encoding, estado
+                FROM cancha.tournament_players
+                WHERE tournament_team_id = :eid AND estado IN ('habilitado', 'en_revision')
+            """), {"eid": eid})
+            jugadores = pl_res.fetchall()
+
+            for pl in jugadores:
+                await session.execute(text("""
+                    INSERT INTO cancha.tournament_players 
+                    (torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, face_encoding, estado)
+                    VALUES (:tid, :nombre, :dni, :fn, :nc, :pos, :foto, :face, :estado)
+                """), {
+                    "tid": nuevo_equipo_id, "nombre": pl.nombre, "dni": pl.dni, 
+                    "fn": pl.fecha_nacimiento, "nc": pl.numero_camiseta, "pos": pl.posicion, 
+                    "foto": pl.foto_url, "face": pl.face_encoding, "estado": pl.estado
+                })
+
+        await session.commit()
+        return {
+            "status": "ok", 
+            "mensaje": f"Playoff Regional creado exitosamente con {len(equipos_clasificados)} equipos clasificados.",
+            "nuevo_torneo_id": nuevo_torneo_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 

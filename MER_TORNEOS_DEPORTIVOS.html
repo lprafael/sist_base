@@ -231,6 +231,9 @@ erDiagram
     USUARIOS ||--o{ ORGANIZADORES : "asocia"
     ORGANIZADORES ||--o{ TORNEOS : "organiza (organizador_id)"
     ORGANIZADORES ||--o{ TORNEOS_EVENTOS : "organiza (organizador_id)"
+    TORNEOS_EVENTOS ||--o{ REGIONES : "tiene"
+    REGIONES ||--o{ CIUDADES : "incluye"
+    CIUDADES ||--o{ TORNEOS : "alberga (ciudad_id)"
     COMPLEJOS ||--o{ TORNEOS : "alberga (complejo_id)"
     COMPLEJOS ||--o{ CANCHAS : "posee"
     COMPLEJOS ||--o{ ROLES_COMPLEJO : "define"
@@ -485,6 +488,64 @@ erDiagram
             </tbody>
         </table>
     </div>
+    
+    <!-- 7.1 REGIONES Y CIUDADES -->
+    <div class="table-card">
+        <div class="table-header">
+            <h3 class="table-name">torneos_futbol.regiones / ciudades <span style="color:var(--primary);font-size:0.8rem;">🆕</span></h3>
+            <span class="table-badge" style="background-color: var(--indigo-glow); color: var(--indigo); border-color: rgba(99,102,241,0.3);">Hierarchy</span>
+        </div>
+        <p class="table-desc">Estructura jerárquica para campeonatos interciudades (Playoffs Regionales).</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo</th>
+                    <th>Nulos</th>
+                    <th>Restricciones / Claves</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>id</strong> (regiones)</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador de la región.</td>
+                </tr>
+                <tr>
+                    <td>evento_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → torneos_futbol.eventos(id)</span></td>
+                    <td>Evento Global Padre.</td>
+                </tr>
+                <tr>
+                    <td>determinar_campeon_regional</td>
+                    <td class="type-code">BOOLEAN</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td>DEFAULT FALSE</td>
+                    <td>Habilita la lógica de Playoff Regional.</td>
+                </tr>
+                <tr style="background: rgba(255,255,255,0.02);">
+                    <td><strong>id</strong> (ciudades)</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-pk">PRIMARY KEY</span></td>
+                    <td>Identificador de la ciudad.</td>
+                </tr>
+                <tr style="background: rgba(255,255,255,0.02);">
+                    <td>region_id</td>
+                    <td class="type-code">UUID</td>
+                    <td><span class="badge badge-nn">NOT NULL</span></td>
+                    <td><span class="badge badge-fk">FK → torneos_futbol.regiones(id)</span></td>
+                    <td>Región a la que pertenece.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <!-- 4. TORNEOS -->
     <div class="table-card">
@@ -523,6 +584,13 @@ erDiagram
                     <td>NULL</td>
                     <td><span class="badge badge-fk">FK → cancha.organizadores(id)</span></td>
                     <td>Organizador independiente dueño del torneo (opcional si pertenece a un complejo).</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.04);">
+                    <td><strong>ciudad_id</strong> 🆕</td>
+                    <td class="type-code">UUID</td>
+                    <td>NULL</td>
+                    <td><span class="badge badge-fk">FK → torneos_futbol.ciudades(id)</span></td>
+                    <td>Asocia el campeonato a una ciudad para los Playoffs Regionales.</td>
                 </tr>
                 <tr>
                     <td>modalidad_id</td>
