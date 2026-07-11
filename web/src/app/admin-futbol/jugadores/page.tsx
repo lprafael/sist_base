@@ -580,29 +580,29 @@ export default function RegistroJugadoresPage() {
             </div>
             
             <div className="p-8 flex flex-col items-center">
-              {!biometryResult ? (
-                <>
-                  <div className="relative w-64 h-64 bg-black rounded-full overflow-hidden border-4 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] mb-6">
-                    <video ref={testVideoRef} autoPlay playsInline className="w-full h-full object-cover transform -scale-x-100"></video>
-                    {isScanning && (
-                      <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                        <div className="w-full h-1 bg-purple-400 absolute top-0 animate-[scan_1.5s_ease-in-out_infinite] shadow-[0_0_10px_rgba(168,85,247,1)]"></div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <button 
-                    onClick={runBiometryTest}
-                    disabled={isScanning || jugadoresList.length === 0}
-                    className={`w-full py-3 rounded-lg font-bold text-white transition text-lg shadow-md ${isScanning ? 'bg-gray-400' : 'bg-purple-600 hover:bg-purple-700'}`}
-                  >
-                    {isScanning ? 'Analizando Rostro...' : 'Escanear Rostro'}
-                  </button>
-                  {jugadoresList.length === 0 && (
-                    <p className="text-red-500 text-sm mt-3 text-center">No hay jugadores registrados para comparar.</p>
+              <div className={`flex-col items-center w-full ${biometryResult ? 'hidden' : 'flex'}`}>
+                <div className="relative w-64 h-64 bg-black rounded-full overflow-hidden border-4 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] mb-6">
+                  <video ref={testVideoRef} autoPlay playsInline className="w-full h-full object-cover transform -scale-x-100"></video>
+                  {isScanning && (
+                    <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                      <div className="w-full h-1 bg-purple-400 absolute top-0 animate-[scan_1.5s_ease-in-out_infinite] shadow-[0_0_10px_rgba(168,85,247,1)]"></div>
+                    </div>
                   )}
-                </>
-              ) : (
+                </div>
+                
+                <button 
+                  onClick={runBiometryTest}
+                  disabled={isScanning || jugadoresList.length === 0}
+                  className={`w-full py-3 rounded-lg font-bold text-white transition text-lg shadow-md ${isScanning ? 'bg-gray-400' : 'bg-purple-600 hover:bg-purple-700'}`}
+                >
+                  {isScanning ? 'Analizando Rostro...' : 'Escanear Rostro'}
+                </button>
+                {jugadoresList.length === 0 && (
+                  <p className="text-red-500 text-sm mt-3 text-center">No hay jugadores registrados para comparar.</p>
+                )}
+              </div>
+
+              {biometryResult && (
                 <div className="flex flex-col items-center w-full animate-fade-in">
                   <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 shadow-lg border-4 border-green-400">
                     <ShieldCheck size={48} />
