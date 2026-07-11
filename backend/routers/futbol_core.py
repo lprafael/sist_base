@@ -325,3 +325,37 @@ async def registrar_jugadores(equipo_id: str, jugadores: List[JugadorFutbol], se
         
     await session.commit()
     return {"message": f"{len(jugadores)} jugadores registrados."}
+
+@router.get("/futbol/jugadores")
+async def get_all_jugadores(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT j.id, j.nombre, j.nombre_abreviado, j.dni, j.fecha_nacimiento, j.numero_camiseta, j.posicion, j.telefono, j.foto_url, j.biometria_aprobada, e.nombre as equipo_nombre
+        FROM torneos_futbol.tournament_players j
+        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        WHERE t.organizador_id = :oid
+        ORDER BY j.nombre ASC
+    """)
+    res = await session.execute(q, {"oid": current_user["id"]})
+    jugadores = []
+    for r in res.fetchall():
+        jd = dict(r._mapping)
+        if jd.get("fecha_nacimiento"):
+            jd["fecha_nacimiento"] = str(jd["fecha_nacimiento"])
+        jugadores.append(jd)
+    return jugadores
+
+@router.delete("/futbol/jugadores/{jugador_id}")
+async def delete_jugador(jugador_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    res = await session.execute(text("""
+        SELECT j.id FROM torneos_futbol.tournament_players j
+        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        WHERE j.id = :jid AND t.organizador_id = :oid
+    """), {"jid": jugador_id, "oid": current_user["id"]})
+    if not res.fetchone():
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    await session.execute(text("DELETE FROM torneos_futbol.tournament_players WHERE id = :jid"), {"jid": jugador_id})
+    await session.commit()
+    return {"message": "Jugador eliminado"}
