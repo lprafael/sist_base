@@ -404,29 +404,39 @@ async def update_jugador(jugador_id: str, data: JugadorUpdate, current_user: dic
     if not res.fetchone():
         raise HTTPException(status_code=403, detail="No autorizado o jugador no existe")
         
-    await session.execute(text("""
-        UPDATE torneos_futbol.tournament_players
-        SET nombre = COALESCE(:nombre, nombre),
-            nombre_abreviado = COALESCE(:nombre_abreviado, nombre_abreviado),
-            dni = COALESCE(:dni, dni),
-            fecha_nacimiento = COALESCE(CAST(:fecha_nacimiento AS DATE), fecha_nacimiento),
-            numero_camiseta = COALESCE(:numero_camiseta, numero_camiseta),
-            posicion = COALESCE(:posicion, posicion),
-            telefono = COALESCE(:telefono, telefono),
-            foto_url = COALESCE(:foto_url, foto_url),
-            biometria_aprobada = COALESCE(:biometria_aprobada, biometria_aprobada)
-        WHERE id = :jid
-    """), {
-        "jid": jugador_id,
-        "nombre": data.nombre,
-        "nombre_abreviado": data.nombre_abreviado,
-        "dni": data.dni,
-        "fecha_nacimiento": data.fecha_nacimiento if data.fecha_nacimiento else None,
-        "numero_camiseta": data.numero_camiseta,
-        "posicion": data.posicion,
-        "telefono": data.telefono,
-        "foto_url": data.foto_url,
-        "biometria_aprobada": data.biometria_aprobada
-    })
-    await session.commit()
+    update_fields = []
+    params = {"jid": jugador_id}
+    
+    if data.nombre is not None:
+        update_fields.append("nombre = :nombre")
+        params["nombre"] = data.nombre
+    if data.nombre_abreviado is not None:
+        update_fields.append("nombre_abreviado = :nombre_abreviado")
+        params["nombre_abreviado"] = data.nombre_abreviado
+    if data.dni is not None:
+        update_fields.append("dni = :dni")
+        params["dni"] = data.dni
+    if data.fecha_nacimiento is not None:
+        update_fields.append("fecha_nacimiento = CAST(:fecha_nacimiento AS DATE)")
+        params["fecha_nacimiento"] = data.fecha_nacimiento if data.fecha_nacimiento else None
+    if data.numero_camiseta is not None:
+        update_fields.append("numero_camiseta = :numero_camiseta")
+        params["numero_camiseta"] = data.numero_camiseta
+    if data.posicion is not None:
+        update_fields.append("posicion = :posicion")
+        params["posicion"] = data.posicion
+    if data.telefono is not None:
+        update_fields.append("telefono = :telefono")
+        params["telefono"] = data.telefono
+    if data.foto_url is not None:
+        update_fields.append("foto_url = :foto_url")
+        params["foto_url"] = data.foto_url
+    if data.biometria_aprobada is not None:
+        update_fields.append("biometria_aprobada = :biometria_aprobada")
+        params["biometria_aprobada"] = data.biometria_aprobada
+
+    if update_fields:
+        query = f"UPDATE torneos_futbol.tournament_players SET {', '.join(update_fields)} WHERE id = :jid"
+        await session.execute(text(query), params)
+        await session.commit()
     return {"message": "Jugador actualizado con éxito"}
