@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { X, Users, UserCog, ArrowLeft, Trash2, Download, User } from 'lucide-react';
+import { X, Users, UserCog, ArrowLeft, Trash2, Download, User, Trophy } from 'lucide-react';
 
 export default function RegistroEquipoPage() {
   const [formData, setFormData] = useState({
@@ -11,7 +11,34 @@ export default function RegistroEquipoPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   
-  const [view, setView] = useState<"main" | "jugadores" | "tecnicos">("main");
+  const [view, setView] = useState<"list" | "main" | "jugadores" | "tecnicos">("list");
+  
+  const [equiposList, setEquiposList] = useState<any[]>([
+    { id: 1, nombre: "Equipo2", jugadores: 2 }
+  ]);
+  const [nuevoEquipo, setNuevoEquipo] = useState("");
+  const [selectedEquipoId, setSelectedEquipoId] = useState<number | null>(null);
+
+  const handleAddEquipo = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if(nuevoEquipo.trim()) {
+      const newTeam = {
+        id: Date.now(),
+        nombre: nuevoEquipo.trim(),
+        jugadores: 0
+      };
+      setEquiposList([newTeam, ...equiposList]);
+      setNuevoEquipo("");
+    }
+  };
+
+  const openEquipoDetails = (equipo: any) => {
+    setSelectedEquipoId(equipo.id);
+    setFormData({ nombre: equipo.nombre, entrenador: "", logo_url: "" });
+    setJugadores([]); // Reset
+    setTecnicos([]); // Reset
+    setView("main");
+  };
   
   const [jugadores, setJugadores] = useState<{nombre: string}[]>([]);
   const [nuevoJugador, setNuevoJugador] = useState("");
@@ -55,13 +82,59 @@ export default function RegistroEquipoPage() {
     <div className="min-h-screen bg-gray-50 flex justify-center py-10">
       <div className="bg-white w-full max-w-2xl min-h-[600px] shadow-2xl relative flex flex-col overflow-hidden rounded-t-xl">
         
+        {view === "list" && (
+          <div className="flex-1 flex flex-col h-full bg-gray-50 p-6">
+            <h2 className="text-2xl font-bold text-[#1b264f] mb-6 hidden">Equipos</h2>
+            <form onSubmit={handleAddEquipo} className="flex gap-2 mb-2">
+              <input 
+                type="text"
+                placeholder="Nombre del equipo"
+                value={nuevoEquipo}
+                onChange={(e) => setNuevoEquipo(e.target.value)}
+                className="flex-1 border border-green-500 rounded-md px-4 py-3 outline-none focus:ring-2 focus:ring-green-200 text-gray-800 text-lg shadow-sm"
+              />
+              <button type="submit" className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-md font-bold transition shadow-sm">
+                Añadir
+              </button>
+            </form>
+            
+            <div className="text-sm font-bold text-gray-500 mb-4 px-1">
+              Total: {equiposList.length}
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {equiposList.map((eq) => (
+                <div key={eq.id} onClick={() => openEquipoDetails(eq)} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-b from-[#1b264f] to-blue-900 rounded-lg flex flex-col items-center justify-center text-white shrink-0 relative overflow-hidden">
+                      <Trophy size={24} className="text-yellow-400 mb-1 z-10" />
+                      <div className="absolute bottom-0 w-full h-1/2 bg-green-400 rounded-t-full opacity-90"></div>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-gray-800 font-medium text-lg">{eq.nombre}</span>
+                      <span className="text-gray-500 text-sm">{eq.jugadores} Jugadores</span>
+                    </div>
+                  </div>
+                  <Users size={28} className="text-green-500" />
+                </div>
+              ))}
+              {equiposList.length === 0 && (
+                <div className="text-center p-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl mt-4">
+                  Aún no hay equipos en el campeonato.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {view === "main" && (
           <>
             {/* HEADER */}
-            <div className="p-4 border-b border-gray-200">
-              <button className="p-2 hover:bg-gray-100 rounded-full transition">
-                <X size={24} className="text-gray-700" />
+            <div className="p-4 border-b border-gray-200 flex items-center">
+              <button onClick={() => setView("list")} className="p-2 hover:bg-gray-100 rounded-full transition">
+                <ArrowLeft size={24} className="text-gray-700" />
               </button>
+              <h2 className="text-xl font-bold text-gray-800 ml-2">Detalles del Equipo</h2>
             </div>
 
             {/* CONTENIDO PRINCIPAL */}
