@@ -7,8 +7,26 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "MiCancha — Reserva canchas deportivas en Paraguay",
-  description: "Encontrá las mejores canchas de fútbol, pádel y tenis cerca tuyo. Reservá online en segundos. Paraguay.",
-  keywords: "canchas deportivas, fútbol, pádel, tenis, reservas, Asunción, Paraguay",
+  description: "Encuentra y reserva al instante las mejores canchas de fútbol, pádel, tenis y más en Paraguay. Gestiona tus torneos, organiza partidos y disfruta del deporte.",
+  keywords: "canchas deportivas, alquiler de canchas, reserva de canchas, fútbol, pádel, tenis, torneos, campeonatos, Asunción, Paraguay, micancha, deportes, sintético",
+  authors: [{ name: "MiCancha" }],
+  openGraph: {
+    title: "MiCancha — Reserva de Canchas en Paraguay",
+    description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos.",
+    url: "https://micancha.com.py",
+    siteName: "MiCancha",
+    locale: "es_PY",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MiCancha — Reserva de Canchas",
+    description: "Reserva canchas de fútbol, pádel y más en Paraguay al instante.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
