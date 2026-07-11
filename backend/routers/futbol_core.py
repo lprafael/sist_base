@@ -120,8 +120,8 @@ class EquipoTecnico(BaseModel):
 
 class EquipoFutbolCreate(BaseModel):
     nombre: str
-    capitan_nombre: str
-    capitan_telefono: str
+    capitan_nombre: Optional[str] = ""
+    capitan_telefono: Optional[str] = ""
     logo_url: Optional[str] = None
     division_id: Optional[str] = None # Solo si el campeonato es por categorias
     torneo_id: str
@@ -158,6 +158,84 @@ async def registrar_equipo(data: EquipoFutbolCreate, session: AsyncSession = Dep
     await session.commit()
     return {"message": "Equipo registrado con éxito", "id": equipo_id}
 
+
+@router.get("/futbol/torneos/{torneo_id}/equipos")
+async def get_equipos_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, logo_url
+        FROM torneos_futbol.equipos
+        WHERE torneo_id = :tid
+        ORDER BY creado_en DESC
+    """)
+    res = await session.execute(query, {"tid": torneo_id})
+    equipos = []
+    for r in res.fetchall():
+        eq = dict(r._mapping)
+        # Fetch jugadores
+        q_j = text("SELECT nombre, dni FROM torneos_futbol.tournament_players WHERE torneo_equipo_id = :eid")
+        res_j = await session.execute(q_j, {"eid": eq["id"]})
+        eq["jugadores"] = [dict(j._mapping) for j in res_j.fetchall()]
+        
+        # Fetch tecnicos
+        q_t = text("SELECT nombre, rol FROM torneos_futbol.equipo_tecnico WHERE equipo_id = :eid")
+        res_t = await session.execute(q_t, {"eid": eq["id"]})
+        eq["tecnicos"] = [dict(t._mapping) for t in res_t.fetchall()]
+        
+        # Entrenador string
+        eq["entrenador"] = next((t["nombre"] for t in eq["tecnicos"] if t["rol"] == 'Entrenador'), "")
+        
+        equipos.append(eq)
+    return equipos
+
+
+class EquipoUpdate(BaseModel):
+    nombre: str
+    logo_url: Optional[str] = None
+
+@router.put("/futbol/equipos/{equipo_id}")
+async def update_equipo(equipo_id: str, data: EquipoUpdate, session: AsyncSession = Depends(get_session)):
+    await session.execute(text("""
+        UPDATE torneos_futbol.equipos
+        SET nombre = :n, logo_url = :logo
+        WHERE id = :eid
+    """), {"n": data.nombre, "logo": data.logo_url, "eid": equipo_id})
+    await session.commit()
+    return {"message": "Equipo actualizado"}
+
+
+class PlantelSync(BaseModel):
+    jugadores: List[dict] # {nombre: str}
+    tecnicos: List[dict] # {nombre: str}
+    entrenador: Optional[str] = ""
+
+@router.post("/futbol/equipos/{equipo_id}/plantel")
+async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession = Depends(get_session)):
+    # Delete old
+    await session.execute(text("DELETE FROM torneos_futbol.tournament_players WHERE torneo_equipo_id = :eid"), {"eid": equipo_id})
+    await session.execute(text("DELETE FROM torneos_futbol.equipo_tecnico WHERE equipo_id = :eid"), {"eid": equipo_id})
+    
+    # Insert new jugadores
+    for j in data.jugadores:
+        if not j.get("nombre"): continue
+        await session.execute(text("""
+            INSERT INTO torneos_futbol.tournament_players (torneo_equipo_id, nombre, dni, estado)
+            VALUES (:eid, :n, '0', 'habilitado')
+        """), {"eid": equipo_id, "n": j.get("nombre", "")})
+        
+    # Insert tecnicos + entrenador
+    tecnicos = [t for t in data.tecnicos if t.get("nombre")]
+    if data.entrenador and not any(t.get("nombre") == data.entrenador for t in tecnicos):
+        tecnicos.append({"nombre": data.entrenador, "rol": "Entrenador"})
+        
+    for t in tecnicos:
+        rol = t.get("rol", "Entrenador") if t.get("nombre") == data.entrenador else "Asistente"
+        await session.execute(text("""
+            INSERT INTO torneos_futbol.equipo_tecnico (equipo_id, nombre, dni, rol)
+            VALUES (:eid, :n, '0', :r)
+        """), {"eid": equipo_id, "n": t.get("nombre", ""), "r": rol})
+        
+    await session.commit()
+    return {"message": "Plantel sincronizado"}
 
 # ==========================================
 # 3. Jugadores (con Biometría)

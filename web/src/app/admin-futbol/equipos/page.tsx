@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Users, UserCog, ArrowLeft, Trash2, Download, User, Trophy } from 'lucide-react';
 
 export default function RegistroEquipoPage() {
@@ -13,25 +13,60 @@ export default function RegistroEquipoPage() {
   
   const [view, setView] = useState<"list" | "main" | "jugadores" | "tecnicos">("list");
   
-  const [equiposList, setEquiposList] = useState<any[]>([
-    { id: 1, nombre: "Equipo2", entrenador: "", logo_url: "", jugadores: [], tecnicos: [] }
-  ]);
+  const [equiposList, setEquiposList] = useState<any[]>([]);
   const [nuevoEquipo, setNuevoEquipo] = useState("");
-  const [selectedEquipoId, setSelectedEquipoId] = useState<number | null>(null);
+  const [selectedEquipoId, setSelectedEquipoId] = useState<string | null>(null);
 
-  const handleAddEquipo = (e?: React.FormEvent) => {
+  const [torneos, setTorneos] = useState<any[]>([]);
+  const [selectedTorneoId, setSelectedTorneoId] = useState("");
+
+  useEffect(() => {
+    const fetchTorneos = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/futbol/torneos", {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setTorneos(data);
+          if (data.length > 0) setSelectedTorneoId(data[0].id);
+        }
+      } catch (err) {}
+    };
+    fetchTorneos();
+  }, []);
+
+  const fetchEquipos = async () => {
+    if (!selectedTorneoId) return;
+    try {
+      const res = await fetch(`http://localhost:8000/futbol/torneos/${selectedTorneoId}/equipos`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEquiposList(data);
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    fetchEquipos();
+  }, [selectedTorneoId]);
+
+  const handleAddEquipo = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if(nuevoEquipo.trim()) {
-      const newTeam = {
-        id: Date.now(),
-        nombre: nuevoEquipo.trim(),
-        entrenador: "",
-        logo_url: "",
-        jugadores: [],
-        tecnicos: []
-      };
-      setEquiposList([newTeam, ...equiposList]);
-      setNuevoEquipo("");
+    if(nuevoEquipo.trim() && selectedTorneoId) {
+      try {
+        const res = await fetch("http://localhost:8000/futbol/equipos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ nombre: nuevoEquipo.trim(), torneo_id: selectedTorneoId })
+        });
+        if(res.ok) {
+          setNuevoEquipo("");
+          fetchEquipos();
+        }
+      } catch (err) {}
     }
   };
 
@@ -65,7 +100,7 @@ export default function RegistroEquipoPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nombre) {
       setMessage("❌ Ingresa el nombre del equipo.");
       return;
@@ -73,26 +108,33 @@ export default function RegistroEquipoPage() {
     setLoading(true);
     setMessage("");
     
-    // Simular guardado
-    setEquiposList(prev => prev.map(eq => {
-      if(eq.id === selectedEquipoId) {
-        return {
-          ...eq,
-          nombre: formData.nombre,
-          entrenador: formData.entrenador,
-          logo_url: formData.logo_url,
-          jugadores: [...jugadores],
-          tecnicos: [...tecnicos]
-        };
-      }
-      return eq;
-    }));
+    try {
+      if (selectedEquipoId) {
+        await fetch(`http://localhost:8000/futbol/equipos/${selectedEquipoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ nombre: formData.nombre, logo_url: formData.logo_url })
+        });
 
-    setTimeout(() => {
-      setLoading(false);
+        await fetch(`http://localhost:8000/futbol/equipos/${selectedEquipoId}/plantel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({
+            jugadores: jugadores,
+            tecnicos: tecnicos,
+            entrenador: formData.entrenador
+          })
+        });
+      }
+
       setMessage("✅ Equipo guardado con éxito.");
+      fetchEquipos();
       setTimeout(() => setMessage(""), 4000);
-    }, 1000);
+    } catch (err) {
+      setMessage("❌ Error al guardar.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -101,46 +143,65 @@ export default function RegistroEquipoPage() {
         
         {view === "list" && (
           <div className="flex-1 flex flex-col h-full bg-gray-50 p-6">
-            <h2 className="text-2xl font-bold text-[#1b264f] mb-6 hidden">Equipos</h2>
-            <form onSubmit={handleAddEquipo} className="flex gap-2 mb-2">
-              <input 
-                type="text"
-                placeholder="Nombre del equipo"
-                value={nuevoEquipo}
-                onChange={(e) => setNuevoEquipo(e.target.value)}
-                className="flex-1 border border-green-500 rounded-md px-4 py-3 outline-none focus:ring-2 focus:ring-green-200 text-gray-800 text-lg shadow-sm"
-              />
-              <button type="submit" className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-md font-bold transition shadow-sm">
-                Añadir
-              </button>
-            </form>
+            <h2 className="text-2xl font-bold text-[#1b264f] mb-4">Registro de Equipos</h2>
             
-            <div className="text-sm font-bold text-gray-500 mb-4 px-1">
-              Total: {equiposList.length}
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Campeonato</label>
+              <select 
+                className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 bg-white outline-none focus:border-green-500 font-medium text-gray-700 shadow-sm"
+                value={selectedTorneoId}
+                onChange={e => setSelectedTorneoId(e.target.value)}
+              >
+                {torneos.length === 0 && <option value="">No hay campeonatos creados</option>}
+                {torneos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3">
-              {equiposList.map((eq) => (
-                <div key={eq.id} onClick={() => openEquipoDetails(eq)} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-b from-[#1b264f] to-blue-900 rounded-lg flex flex-col items-center justify-center text-white shrink-0 relative overflow-hidden">
-                      <Trophy size={24} className="text-yellow-400 mb-1 z-10" />
-                      <div className="absolute bottom-0 w-full h-1/2 bg-green-400 rounded-t-full opacity-90"></div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-gray-800 font-medium text-lg">{eq.nombre}</span>
-                      <span className="text-gray-500 text-sm">{eq.jugadores?.length || 0} Jugadores</span>
-                    </div>
-                  </div>
-                  <Users size={28} className="text-green-500" />
+            {selectedTorneoId ? (
+              <>
+                <form onSubmit={handleAddEquipo} className="flex gap-2 mb-2">
+                  <input 
+                    type="text"
+                    placeholder="Nombre del equipo"
+                    value={nuevoEquipo}
+                    onChange={(e) => setNuevoEquipo(e.target.value)}
+                    className="flex-1 border border-green-500 rounded-md px-4 py-3 outline-none focus:ring-2 focus:ring-green-200 text-gray-800 text-lg shadow-sm"
+                  />
+                  <button type="submit" className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-md font-bold transition shadow-sm">
+                    Añadir
+                  </button>
+                </form>
+                
+                <div className="text-sm font-bold text-gray-500 mb-4 px-1">
+                  Total: {equiposList.length}
                 </div>
-              ))}
-              {equiposList.length === 0 && (
-                <div className="text-center p-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl mt-4">
-                  Aún no hay equipos en el campeonato.
+
+                <div className="flex-1 overflow-y-auto space-y-3">
+                  {equiposList.map((eq) => (
+                    <div key={eq.id} onClick={() => openEquipoDetails(eq)} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-gradient-to-b from-[#1b264f] to-blue-900 rounded-lg flex flex-col items-center justify-center text-white shrink-0 relative overflow-hidden">
+                          <Trophy size={24} className="text-yellow-400 mb-1 z-10" />
+                          <div className="absolute bottom-0 w-full h-1/2 bg-green-400 rounded-t-full opacity-90"></div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-gray-800 font-medium text-lg">{eq.nombre}</span>
+                          <span className="text-gray-500 text-sm">{eq.jugadores?.length || 0} Jugadores</span>
+                        </div>
+                      </div>
+                      <Users size={28} className="text-green-500" />
+                    </div>
+                  ))}
+                  {equiposList.length === 0 && (
+                    <div className="text-center p-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl mt-4">
+                      Aún no hay equipos en el campeonato.
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              <div className="text-center p-8 text-gray-500">Crea o selecciona un campeonato primero.</div>
+            )}
           </div>
         )}
 
