@@ -91,7 +91,7 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
              </div>
              <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
                <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">ORGANIZADOR</span>
-               <span className="font-bold text-base">{tournament?.organizador_nombre || 'No definido'}</span>
+               <span className="font-bold text-base">{tournament?.organizador_nombre || tournament?.complejo_nombre || 'No definido'}</span>
              </div>
           </div>
           <button onClick={() => setIsRulesModalOpen(true)} className="absolute bottom-6 right-8 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-6 py-3 flex items-center gap-2 font-bold rounded-lg transition border border-white/20 text-sm shadow-lg">
