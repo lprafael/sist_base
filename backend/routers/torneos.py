@@ -75,10 +75,18 @@ class EquipoCreate(BaseModel):
     color_secundario: Optional[str] = None
     promocion: int = 0
 
+class EquipoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    capitan_nombre: Optional[str] = None
+    capitan_telefono: Optional[str] = None
+    capitan_email: Optional[str] = None
+    inscripcion_confirmada: Optional[bool] = None
+
 class JugadorCreate(BaseModel):
     nombre: str
     dni: str
     email: Optional[str] = None
+    telefono: Optional[str] = None
     fecha_nacimiento: Optional[str] = None
     numero_camiseta: Optional[int] = None
     posicion: Optional[str] = None
@@ -94,6 +102,7 @@ class JugadorUpdate(BaseModel):
     numero_camiseta: Optional[int] = None
     posicion: Optional[str] = None
     estado: Optional[str] = None
+    telefono: Optional[str] = None
     egreso_ano: Optional[int] = None
     es_exalumno: Optional[bool] = None
 
@@ -560,7 +569,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
         SELECT * FROM (
             SELECT DISTINCT ON (nombre) id, nombre, capitan_nombre, capitan_telefono, capitan_email,
                    estado_inscripcion, semilla, logo_url, color_principal, color_secundario, creado_en,
-                   foto_equipo_url, token_jugadores
+                   foto_equipo_url, token_jugadores, inscripcion_confirmada
             FROM torneos.equipos
             WHERE torneo_id = :tid 
             ORDER BY nombre ASC, creado_en ASC
@@ -569,7 +578,7 @@ async def get_equipos(torneo_id: str, session: AsyncSession = Depends(get_sessio
     """), {"tid": torneo_id})
     rows = result.fetchall()
     keys = ["id","nombre","capitan_nombre","capitan_telefono","capitan_email",
-            "estado_inscripcion","semilla","logo_url","color_principal","color_secundario", "creado_en", "foto_equipo_url", "token_jugadores"]
+            "estado_inscripcion","semilla","logo_url","color_principal","color_secundario", "creado_en", "foto_equipo_url", "token_jugadores", "inscripcion_confirmada"]
     return [_row_to_dict(keys, r) for r in rows]
 
 @router.get("/{torneo_id}/noticias", summary="Noticias del torneo")
@@ -758,6 +767,54 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.patch("/{torneo_id}/equipos/{equipo_id}", summary="Actualizar equipo (incluyendo delegado y confirmación)")
+async def update_equipo(
+    torneo_id: str,
+    equipo_id: str,
+    payload: EquipoUpdate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Verificar existencia
+        res = await session.execute(
+            text("SELECT id FROM torneos.equipos WHERE id = CAST(:eid AS UUID) AND torneo_id = CAST(:tid AS UUID)"),
+            {"eid": equipo_id, "tid": torneo_id}
+        )
+        if not res.fetchone():
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+
+        updates = []
+        params = {"eid": equipo_id, "tid": torneo_id}
+
+        if payload.nombre is not None:
+            updates.append("nombre = :nombre")
+            params["nombre"] = payload.nombre
+        if payload.capitan_nombre is not None:
+            updates.append("capitan_nombre = :cn")
+            params["cn"] = payload.capitan_nombre
+        if payload.capitan_telefono is not None:
+            updates.append("capitan_telefono = :ct")
+            params["ct"] = payload.capitan_telefono
+        if payload.capitan_email is not None:
+            updates.append("capitan_email = :ce")
+            params["ce"] = payload.capitan_email
+        if payload.inscripcion_confirmada is not None:
+            updates.append("inscripcion_confirmada = :ic")
+            params["ic"] = payload.inscripcion_confirmada
+
+        if not updates:
+            return {"status": "ok", "message": "Sin cambios"}
+
+        sql = f"UPDATE torneos.equipos SET {', '.join(updates)} WHERE id = CAST(:eid AS UUID) AND torneo_id = CAST(:tid AS UUID)"
+        await session.execute(text(sql), params)
+        await session.commit()
+
+        return {"status": "ok", "message": "Equipo actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{torneo_id}/equipos/{equipo_id}/logo", summary="Subir logo del equipo")
 async def upload_equipo_logo(

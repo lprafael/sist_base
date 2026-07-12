@@ -345,9 +345,18 @@ async def delete_equipo(equipo_id: str, current_user: dict = Depends(get_current
     if not res.fetchone():
         raise HTTPException(status_code=403, detail="No autorizado o equipo no existe")
         
-    await session.execute(text("DELETE FROM torneos.equipos WHERE id = :eid"), {"eid": equipo_id})
-    await session.commit()
-    return {"message": "Equipo eliminado con éxito"}
+    try:
+        # Eliminar dependencias primero
+        await session.execute(text("DELETE FROM torneos.tournament_players WHERE torneo_equipo_id = :eid"), {"eid": equipo_id})
+        await session.execute(text("DELETE FROM torneos.equipo_tecnico WHERE equipo_id = :eid"), {"eid": equipo_id})
+        
+        await session.execute(text("DELETE FROM torneos.equipos WHERE id = :eid"), {"eid": equipo_id})
+        await session.commit()
+        return {"message": "Equipo eliminado con éxito"}
+    except Exception as e:
+        await session.rollback()
+        print(f"Error deleting equipo {equipo_id}: {e}")
+        raise HTTPException(status_code=400, detail=f"No se pudo eliminar el equipo: {str(e)}")
 
 
 class PlantelSync(BaseModel):

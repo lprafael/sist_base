@@ -18,7 +18,30 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
+  const [equipos, setEquipos] = useState<any[]>([]);
+
+  const [isInscriptionModalOpen, setIsInscriptionModalOpen] = useState(false);
+  const [inscrEquipoNombre, setInscrEquipoNombre] = useState('');
+  const [inscrDelegadoNombre, setInscrDelegadoNombre] = useState('');
+  const [inscrDelegadoEmail, setInscrDelegadoEmail] = useState('');
+  const [inscrDelegadoTelefono, setInscrDelegadoTelefono] = useState('');
+  const [isSubmittingInsc, setIsSubmittingInsc] = useState(false);
   
+  React.useEffect(() => {
+    if (tournament?.id) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'}/cancha/torneos/${tournament.id}/equipos`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setEquipos(data);
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  }, [tournament?.id]);
+
+  const equiposConfirmados = equipos.filter(eq => eq.inscripcion_confirmada);
+
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/torneos/${tournament?.id}` : '';
   const colorSidebar = tournament?.configuracion?.color_sidebar || '#0c112b';
   
@@ -64,7 +87,7 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             <button onClick={() => setIsShareModalOpen(true)} className="flex items-center gap-2 text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded border border-blue-200 hover:bg-blue-100 transition text-sm">
               <Share2 size={16} /> Compartir
             </button>
-            <button className="flex items-center gap-2 text-white font-bold bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700 transition text-sm">
+            <button onClick={() => setIsInscriptionModalOpen(true)} className="flex items-center gap-2 text-white font-bold bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700 transition text-sm">
               Inscribirse
             </button>
           </div>
@@ -210,6 +233,42 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
           </div>
           
         </div>
+
+        {/* Equipos Confirmados Grid */}
+        <div className="px-8 pb-32 max-w-[1400px] w-full">
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
+              <span className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center"><Users size={20}/></span>
+              Equipos Confirmados
+            </h3>
+            
+            {equiposConfirmados.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                {equiposConfirmados.map((eq: any) => (
+                  <div key={eq.id} className="flex flex-col items-center justify-center text-center group cursor-default">
+                    <div className="w-20 h-20 bg-slate-50 border-2 border-slate-200 rounded-full flex items-center justify-center overflow-hidden shadow-sm group-hover:border-blue-400 group-hover:shadow-md transition-all duration-300 mb-3 relative">
+                      {eq.logo_url ? (
+                        <img src={eq.logo_url} alt={eq.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-slate-400">
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-bold text-slate-700 text-sm line-clamp-2 px-2">{eq.nombre}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-10 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-center">
+                <Users size={48} className="text-slate-300 mb-4" />
+                <p className="text-slate-500 font-medium">Aún no hay equipos confirmados inscritos.</p>
+              </div>
+            )}
+          </div>
+        </div>
         
         {/* Messages Input Box fixed at bottom right */}
         <div className="fixed bottom-6 right-8 w-96 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden flex flex-col z-40 transition-all duration-300">
@@ -317,6 +376,75 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
               <button onClick={() => setIsRulesModalOpen(false)} className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-700 transition shadow-sm">Entendido</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inscription Modal */}
+      {isInscriptionModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg relative shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-xl font-bold text-slate-800">Solicitar Inscripción</h3>
+              <button onClick={() => setIsInscriptionModalOpen(false)} className="text-slate-400 hover:text-slate-800 bg-white p-2 rounded-full shadow-sm">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setIsSubmittingInsc(true);
+              try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'}/cancha/torneos/${tournament?.id}/equipos`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    nombre: inscrEquipoNombre,
+                    capitan_nombre: inscrDelegadoNombre,
+                    capitan_email: inscrDelegadoEmail,
+                    capitan_telefono: inscrDelegadoTelefono,
+                  })
+                });
+                if (res.ok) {
+                  alert("Solicitud de inscripción enviada con éxito. El organizador se pondrá en contacto.");
+                  setIsInscriptionModalOpen(false);
+                  setInscrEquipoNombre('');
+                  setInscrDelegadoNombre('');
+                  setInscrDelegadoEmail('');
+                  setInscrDelegadoTelefono('');
+                } else {
+                  alert("Error al solicitar inscripción.");
+                }
+              } catch(err) {
+                console.error(err);
+                alert("Error de conexión");
+              }
+              setIsSubmittingInsc(false);
+            }} className="p-8 space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-slate-700">Nombre del equipo *</label>
+                <input required type="text" value={inscrEquipoNombre} onChange={e => setInscrEquipoNombre(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Ej: Los Pumas FC" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-slate-700">Nombre del Delegado *</label>
+                <input required type="text" value={inscrDelegadoNombre} onChange={e => setInscrDelegadoNombre(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Ej: Juan Pérez" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-bold text-slate-700">Teléfono *</label>
+                  <input required type="tel" value={inscrDelegadoTelefono} onChange={e => setInscrDelegadoTelefono(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Ej: 0981 123 456" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-bold text-slate-700">Email</label>
+                  <input type="email" value={inscrDelegadoEmail} onChange={e => setInscrDelegadoEmail(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Ej: correo@gmail.com" />
+                </div>
+              </div>
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setIsInscriptionModalOpen(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition">Cancelar</button>
+                <button type="submit" disabled={isSubmittingInsc} className="px-6 py-2.5 bg-green-600 text-white font-bold rounded-lg shadow-sm hover:bg-green-700 transition disabled:opacity-50">
+                  {isSubmittingInsc ? 'Enviando...' : 'Solicitar Inscripción'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
