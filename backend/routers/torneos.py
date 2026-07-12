@@ -1672,41 +1672,63 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
         if not players:
             return {"status": "ok", "message": "No hay jugadores habilitados"}
 
-        # 2. Agrupar por género y edad (bloques de 3 años)
-        from datetime import date
-        from collections import defaultdict
-        import random
-        import uuid
+        # 2. Obtener categorías existentes y parsear sus rangos
+        import re
+        cat_res = await session.execute(
+            text("SELECT id, nombre FROM torneos.categorias WHERE torneo_id = :tid"),
+            {"tid": torneo_id}
+        )
+        categorias_db = cat_res.fetchall()
 
-        groups = defaultdict(list)
+        if not categorias_db:
+            return {"status": "error", "message": "No hay categorías creadas. Crea las categorías (ej: Masculino 2021-2023) antes de autoalinear."}
+
+        parsed_cats = []
+        for c in categorias_db:
+            name_lower = c.nombre.lower()
+            years = re.findall(r'(\d{4})', name_lower)
+            min_y = min(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
+            max_y = max(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
+            
+            gender = None
+            if "fem" in name_lower or "mujer" in name_lower or "niña" in name_lower:
+                gender = "Femenino"
+            elif "masc" in name_lower or "hom" in name_lower or "niño" in name_lower or "varon" in name_lower:
+                gender = "Masculino"
+
+            parsed_cats.append({
+                "id": str(c.id),
+                "nombre": c.nombre,
+                "min_y": min_y,
+                "max_y": max_y,
+                "gender": gender,
+                "players": []
+            })
+
+        # 3. Asignar jugadores a las categorías
+        from datetime import date
+        import random
+
         for p in players:
-            genero = p.genero or "Masculino"
             year = p.fecha_nacimiento.year if p.fecha_nacimiento else date.today().year
-            # Agrupar en bloques de 3 (ej. 2021-2023)
-            base_year = year - (year % 3)
-            rango = f"{base_year}-{base_year+2}"
-            cat_name = f"{genero} {rango}"
-            groups[cat_name].append(p)
+            genero = p.genero or "Masculino"
+            
+            for c in parsed_cats:
+                if c["gender"] and c["gender"] != genero:
+                    continue
+                if c["min_y"] and c["max_y"] and not (c["min_y"] <= year <= c["max_y"]):
+                    continue
+                # Si pasa los filtros, entra en esta categoría
+                c["players"].append(p)
+                break
 
         matches_created = 0
-        for cat_name, group_players in groups.items():
+        for cat in parsed_cats:
+            group_players = cat["players"]
             if len(group_players) < 2:
                 continue
                 
-            # Random shuffle
             random.shuffle(group_players)
-            
-            # Create Category if not exists
-            cat_res = await session.execute(text("SELECT id FROM torneos.categorias WHERE torneo_id = :tid AND nombre = :name"), 
-                                          {"tid": torneo_id, "name": cat_name})
-            cat_row = cat_res.fetchone()
-            if not cat_row:
-                cat_id = str(uuid.uuid4())
-                await session.execute(text("""
-                    INSERT INTO torneos.categorias (id, torneo_id, nombre) VALUES (:id, :tid, :name)
-                """), {"id": cat_id, "tid": torneo_id, "name": cat_name})
-            else:
-                cat_id = str(cat_row[0])
 
             # Generar partidos 1v1
             for i in range(0, len(group_players) - 1, 2):
