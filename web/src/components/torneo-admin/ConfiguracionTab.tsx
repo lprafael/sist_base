@@ -354,7 +354,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500" 
                 />
               </div>
-              <div className="flex-1 min-h-[300px] border border-slate-300 rounded overflow-hidden">
+              <div className="w-full h-[400px] shrink-0 border border-slate-300 rounded overflow-hidden relative z-0">
                  <LocationPickerMap 
                    defaultLocation={ubicacionCoords || undefined} 
                    onLocationSelect={(loc) => setUbicacionCoords(loc)} 
