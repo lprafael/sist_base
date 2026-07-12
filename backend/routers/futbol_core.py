@@ -178,22 +178,22 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
         if str(data.fecha_inicio).strip() == "":
             pass # ignorar si esta vacio para evitar error
         else:
-            update_fields.append("fecha_inicio = CAST(:fecha_inicio AS DATE)")
+            update_fields.append("fecha_inicio = CAST(:fecha_inicio AS TEXT)::DATE")
             params["fecha_inicio"] = data.fecha_inicio
     if data.fecha_fin is not None:
         if str(data.fecha_fin).strip() == "":
             update_fields.append("fecha_fin = NULL")
         else:
-            update_fields.append("fecha_fin = CAST(:fecha_fin AS DATE)")
+            update_fields.append("fecha_fin = CAST(:fecha_fin AS TEXT)::DATE")
             params["fecha_fin"] = data.fecha_fin
     if data.reglas is not None:
-        update_fields.append("reglas = CAST(:reglas AS JSONB)")
+        update_fields.append("reglas = CAST(:reglas AS TEXT)::JSONB")
         params["reglas"] = json.dumps(data.reglas)
     if data.premios is not None:
-        update_fields.append("premios = CAST(:premios AS JSONB)")
+        update_fields.append("premios = CAST(:premios AS TEXT)::JSONB")
         params["premios"] = json.dumps(data.premios)
     if data.configuracion is not None:
-        update_fields.append("configuracion = CAST(:configuracion AS JSONB)")
+        update_fields.append("configuracion = CAST(:configuracion AS TEXT)::JSONB")
         params["configuracion"] = json.dumps(data.configuracion)
 
     if not update_fields:
