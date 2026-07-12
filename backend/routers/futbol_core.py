@@ -175,10 +175,10 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
         update_fields.append("estado = :estado")
         params["estado"] = data.estado
     if data.fecha_inicio is not None:
-        update_fields.append("fecha_inicio = :fecha_inicio")
+        update_fields.append("fecha_inicio = CAST(:fecha_inicio AS TIMESTAMP)")
         params["fecha_inicio"] = data.fecha_inicio
     if data.fecha_fin is not None:
-        update_fields.append("fecha_fin = :fecha_fin")
+        update_fields.append("fecha_fin = CAST(:fecha_fin AS TIMESTAMP)")
         params["fecha_fin"] = data.fecha_fin
     if data.reglas is not None:
         update_fields.append("reglas = CAST(:reglas AS JSONB)")
@@ -194,8 +194,15 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
         return {"message": "Sin cambios"}
 
     set_clause = ", ".join(update_fields)
-    await session.execute(text(f"UPDATE torneos.torneos SET {set_clause} WHERE id = CAST(:tid AS UUID)"), params)
-    await session.commit()
+    try:
+        await session.execute(text(f"UPDATE torneos.torneos SET {set_clause} WHERE id = CAST(:tid AS UUID)"), params)
+        await session.commit()
+    except Exception as e:
+        import traceback
+        print("ERROR IN update_torneo_futbol:", str(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    
     return {"message": "Torneo actualizado correctamente"}
 
 @router.delete("/futbol/torneos/{torneo_id}")
