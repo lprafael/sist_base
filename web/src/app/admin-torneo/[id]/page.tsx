@@ -180,7 +180,10 @@ export default function TorneoAdminPage() {
               : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
           </h1>
           <div className="flex gap-2">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm transition shadow">
+            <button 
+              onClick={() => window.open(`/liga/${id}`, '_blank')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm transition shadow"
+            >
               Ver página pública
             </button>
           </div>
