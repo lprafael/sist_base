@@ -39,7 +39,7 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
   const handleAutoalineacion = async () => {
     if(!confirm("¿Generar partidos automáticamente para los atletas inscritos (MMA)?")) return;
     try {
-      const res = await fetch(`${API_URL}/futbol/${torneoId}/autoalineacion`, {
+      const res = await fetch(`${API_URL}/futbol/torneos/${torneoId}/autoalineacion`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({})
