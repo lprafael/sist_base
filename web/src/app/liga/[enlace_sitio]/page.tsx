@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, ChevronRight, Users, Activity, ExternalLink, Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
 export default function LigaPublicaPage() {
   const { enlace_sitio } = useParams();
   
@@ -18,7 +20,7 @@ export default function LigaPublicaPage() {
 
   const fetchLiga = async () => {
     try {
-      const res = await fetch(`http://localhost:8001/liga/${enlace_sitio}`);
+      const res = await fetch(`${API_URL}/liga/${enlace_sitio}`);
       if (res.ok) {
         const d = await res.json();
         setData(d);
@@ -35,7 +37,7 @@ export default function LigaPublicaPage() {
   const fetchStats = async (torneoId: string) => {
     setSelectedTorneo(torneoId);
     try {
-      const res = await fetch(`http://localhost:8001/liga/torneo/${torneoId}/estadisticas`);
+      const res = await fetch(`${API_URL}/liga/torneo/${torneoId}/estadisticas`);
       if(res.ok) {
         setStats(await res.json());
       }

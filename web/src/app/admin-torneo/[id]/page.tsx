@@ -181,7 +181,7 @@ export default function TorneoAdminPage() {
           </h1>
           <div className="flex gap-2">
             <button 
-              onClick={() => window.open(`/liga/${id}`, '_blank')}
+              onClick={() => window.open(`/torneos/${id}`, '_blank')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm transition shadow"
             >
               Ver página pública
