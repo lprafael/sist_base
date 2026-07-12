@@ -244,7 +244,7 @@ export default function TournamentDetailPage() {
                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-red-400 shrink-0">
                    <MapPin size={20} />
                  </div>
-                 {tournament.complejo_nombre || 'Ubicación no especificada'}
+                 {tournament.configuracion?.ubicacion_texto || tournament.complejo_nombre || 'Ubicación no especificada'}
                </p>
             </div>
           </div>

@@ -28,6 +28,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     email: torneo.configuracion?.contacto?.email || ''
   });
   const [colorSidebar, setColorSidebar] = useState(torneo.configuracion?.color_sidebar || '#0c112b');
+  const [ubicacionTexto, setUbicacionTexto] = useState(torneo.configuracion?.ubicacion_texto || '');
   const [reglasData, setReglasData] = useState<string>((torneo.reglas || []).join('\n'));
   const [premiosData, setPremiosData] = useState({
     puesto1: torneo.premios?.find((p:any) => p.puesto === 1)?.desc || '',
@@ -214,7 +215,12 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           </label>
           {formData.tipo_ubicacion === 'persona' && (
             <div className="ml-8 mt-2">
-              <button className="text-blue-500 hover:underline font-medium">Establecer localización</button>
+              <button 
+                onClick={() => setActiveModal('ubicacion')} 
+                className="text-blue-500 hover:underline font-medium"
+              >
+                {torneo.configuracion?.ubicacion_texto ? `Localización: ${torneo.configuracion.ubicacion_texto}` : 'Establecer localización'}
+              </button>
             </div>
           )}
         </div>
@@ -327,6 +333,34 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     </div>
       
       {/* MODALS */}
+      {activeModal === 'ubicacion' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-[400px] max-w-full">
+            <h3 className="font-bold text-lg mb-4">Localización del Torneo</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">Dirección o Lugar (Cancha)</label>
+                <input 
+                  type="text" 
+                  value={ubicacionTexto} 
+                  onChange={e => setUbicacionTexto(e.target.value)} 
+                  placeholder="Ej: Cancha Los Álamos, Calle Falsa 123"
+                  className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500" 
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+              <button onClick={() => {
+                const conf = { ...torneo.configuracion, ubicacion_texto: ubicacionTexto };
+                onUpdate({ configuracion: conf });
+                setActiveModal(null);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeModal === 'contacto' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-96 max-w-full">
