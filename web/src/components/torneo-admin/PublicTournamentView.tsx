@@ -6,6 +6,12 @@ import {
   BarChart3, Image as ImageIcon, LogIn, ArrowRight, X, Phone, Mail, FileText
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from 'next/dynamic';
+
+const LocationPickerMap = dynamic(() => 
+  import('@/components/LocationPickerMap'), 
+  { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> }
+);
 
 export default function PublicTournamentView({ tournament }: { tournament: any }) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -141,12 +147,21 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             
             <div className="mt-10 pt-8 border-t border-slate-100">
                <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest mb-4">Ubicación</h4>
-               <p className="text-slate-700 font-bold flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+               <p className="text-slate-700 font-bold flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
                  <span className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-red-400 shrink-0">
                    <MapPin size={20} />
                  </span>
                  {tournament?.configuracion?.ubicacion_texto || tournament?.complejo_nombre || 'Ubicación no especificada'}
                </p>
+               
+               {tournament?.configuracion?.ubicacion_coords && (
+                 <div className="w-full h-[300px] border border-slate-200 rounded-xl overflow-hidden z-0">
+                   <LocationPickerMap 
+                     defaultLocation={tournament.configuracion.ubicacion_coords}
+                     readOnly={true}
+                   />
+                 </div>
+               )}
             </div>
           </div>
 

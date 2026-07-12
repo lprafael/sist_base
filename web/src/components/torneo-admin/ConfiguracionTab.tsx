@@ -357,7 +357,14 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
               <div className="w-full h-[400px] shrink-0 border border-slate-300 rounded overflow-hidden relative z-0">
                  <LocationPickerMap 
                    defaultLocation={ubicacionCoords || undefined} 
-                   onLocationSelect={(loc) => setUbicacionCoords(loc)} 
+                   onLocationSelect={(loc, name) => {
+                     setUbicacionCoords(loc);
+                     if (name) {
+                       // Format the long Nominatim string to a shorter version
+                       const shortName = name.split(',').slice(0, 3).join(',');
+                       setUbicacionTexto(shortName.trim());
+                     }
+                   }} 
                  />
               </div>
               <p className="text-xs text-slate-500 text-center">Puedes buscar un lugar o hacer clic en el mapa para ajustar la ubicación exacta.</p>
