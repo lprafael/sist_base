@@ -185,7 +185,7 @@ export default function CampeonatosPage() {
                     <span><strong>Creado:</strong> {new Date(t.creado_en).toLocaleDateString()}</span>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-                    <button onClick={() => router.push("/admin-futbol/equipos")} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <button onClick={() => router.push(`/admin-torneo/${t.id}`)} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
                       Gestionar <ArrowRight size={16} />
                     </button>
                     <button onClick={() => handleDelete(t.id, t.nombre)} className="text-gray-400 hover:text-red-500 transition p-1.5 rounded-full hover:bg-red-50" title="Eliminar campeonato">

@@ -112,6 +112,69 @@ async def get_torneos_futbol(current_user: dict = Depends(get_current_user), ses
         
     return torneos
 
+class TorneoFutbolUpdate(BaseModel):
+    nombre: Optional[str] = None
+    subtitulo: Optional[str] = None
+    descripcion: Optional[str] = None
+    imagen_portada: Optional[str] = None
+    tipo_ubicacion: Optional[str] = None
+    privacidad: Optional[str] = None
+    estado: Optional[str] = None
+
+@router.get("/futbol/torneos/{torneo_id}")
+async def get_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT id, nombre, deporte, formato, tipo_campeonato, estado, creado_en,
+               subtitulo, descripcion, imagen_portada, tipo_ubicacion, privacidad
+        FROM torneos_futbol.torneos
+        WHERE id = :tid
+    """)
+    res = await session.execute(query, {"tid": torneo_id})
+    row = res.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+        
+    d = dict(row._mapping)
+    if d.get("creado_en"):
+        d["creado_en"] = d["creado_en"].isoformat() if hasattr(d["creado_en"], 'isoformat') else str(d["creado_en"])
+    return d
+
+@router.put("/futbol/torneos/{torneo_id}")
+async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    # Very basic ownership check could go here
+    update_fields = []
+    params = {"tid": torneo_id}
+    
+    if data.nombre is not None:
+        update_fields.append("nombre = :nombre")
+        params["nombre"] = data.nombre
+    if data.subtitulo is not None:
+        update_fields.append("subtitulo = :subtitulo")
+        params["subtitulo"] = data.subtitulo
+    if data.descripcion is not None:
+        update_fields.append("descripcion = :descripcion")
+        params["descripcion"] = data.descripcion
+    if data.imagen_portada is not None:
+        update_fields.append("imagen_portada = :imagen")
+        params["imagen"] = data.imagen_portada
+    if data.tipo_ubicacion is not None:
+        update_fields.append("tipo_ubicacion = :ubicacion")
+        params["ubicacion"] = data.tipo_ubicacion
+    if data.privacidad is not None:
+        update_fields.append("privacidad = :privacidad")
+        params["privacidad"] = data.privacidad
+    if data.estado is not None:
+        update_fields.append("estado = :estado")
+        params["estado"] = data.estado
+
+    if not update_fields:
+        return {"message": "Sin cambios"}
+
+    set_clause = ", ".join(update_fields)
+    await session.execute(text(f"UPDATE torneos_futbol.torneos SET {set_clause} WHERE id = :tid"), params)
+    await session.commit()
+    return {"message": "Torneo actualizado correctamente"}
+
 @router.delete("/futbol/torneos/{torneo_id}")
 async def delete_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
