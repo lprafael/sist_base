@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trophy } from 'lucide-react';
 import SidebarTorneo from '@/components/torneo-admin/SidebarTorneo';
 import ConfiguracionTab from '@/components/torneo-admin/ConfiguracionTab';
 
@@ -98,14 +98,39 @@ export default function TorneoAdminPage() {
           />
         );
       case 'inicio':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+              <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trophy size={40} />
+              </div>
+              <h2 className="text-3xl font-black text-slate-800 mb-2">{torneo.nombre}</h2>
+              <p className="text-slate-500 mb-6">{torneo.subtitulo || "Organiza y gestiona tu torneo de manera profesional"}</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl">
+                  <div className="text-2xl font-bold text-slate-800">0</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide">Equipos</div>
+                </div>
+                <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl">
+                  <div className="text-2xl font-bold text-slate-800">0</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide">Jugadores</div>
+                </div>
+                <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl">
+                  <div className="text-2xl font-bold text-slate-800">0</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide">Partidos</div>
+                </div>
+                <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl">
+                  <div className="text-2xl font-bold text-slate-800 text-green-600">{torneo.estado === 'curso' ? 'Activo' : 'Prep.'}</div>
+                  <div className="text-xs text-slate-500 uppercase tracking-wide">Estado</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       case 'clasificacion':
       case 'rankings':
       case 'multimedia':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh] flex items-center justify-center">
-            <p className="text-slate-500">Módulo <strong>{activeTab}</strong> en construcción.</p>
-          </div>
-        );
       default:
         return null;
     }

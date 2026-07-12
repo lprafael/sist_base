@@ -13,6 +13,18 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     estado: torneo.estado || 'preparacion'
   });
 
+  // Keep local state in sync if parent updates it (e.g. after a save)
+  React.useEffect(() => {
+    setFormData({
+      nombre: torneo.nombre || '',
+      subtitulo: torneo.subtitulo || '',
+      descripcion: torneo.descripcion || '',
+      tipo_ubicacion: torneo.tipo_ubicacion || 'persona',
+      privacidad: torneo.privacidad || 'publico',
+      estado: torneo.estado || 'preparacion'
+    });
+  }, [torneo]);
+
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -93,7 +105,10 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
             <input 
               type="radio" name="tipo_ubicacion" value="internet" 
               checked={formData.tipo_ubicacion === 'internet'} 
-              onChange={handleChange} onBlur={handleBlur}
+              onChange={(e) => {
+                handleChange(e);
+                onUpdate({ tipo_ubicacion: 'internet' });
+              }}
               className="w-5 h-5 text-blue-500 border-slate-300 focus:ring-blue-500" 
             />
             <span className="text-slate-700">Campeonato jugado en internet</span>
@@ -102,7 +117,10 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
             <input 
               type="radio" name="tipo_ubicacion" value="persona" 
               checked={formData.tipo_ubicacion === 'persona'} 
-              onChange={handleChange} onBlur={handleBlur}
+              onChange={(e) => {
+                handleChange(e);
+                onUpdate({ tipo_ubicacion: 'persona' });
+              }}
               className="w-5 h-5 text-blue-500 border-slate-300 focus:ring-blue-500" 
             />
             <span className="text-slate-700">Campeonato jugado en persona</span>
