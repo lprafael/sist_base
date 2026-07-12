@@ -75,9 +75,10 @@ export default function CampeonatosPage() {
       });
       if(res.ok) {
         const data = await res.json();
-        setDeportes(data.deportes);
-        if(data.deportes.length > 0) {
-          setFormData(f => ({ ...f, deporte: data.deportes[0].nombre, formato: data.deportes[0].formatos[0]?.nombre || "" }));
+        const deportesValidos = data.deportes.filter((d: any) => d.formatos && d.formatos.length > 0);
+        setDeportes(deportesValidos);
+        if(deportesValidos.length > 0) {
+          setFormData(f => ({ ...f, deporte: deportesValidos[0].nombre, formato: deportesValidos[0].formatos[0]?.nombre || "" }));
         }
       }
     } catch (e) {
