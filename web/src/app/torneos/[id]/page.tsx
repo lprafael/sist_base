@@ -73,6 +73,15 @@ export default function TournamentDetailPage() {
   const premios = tournament?.premios || [];
   const reglas = tournament?.reglas || [];
 
+  const formatDate = (dateStr: any) => {
+    if (!dateStr) return 'No definida';
+    try {
+      return String(dateStr).split('T')[0].split('-').reverse().join('/');
+    } catch(e) {
+      return 'Fecha inválida';
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-slate-100 font-sans">
       {/* Left Sidebar */}
@@ -91,29 +100,29 @@ export default function TournamentDetailPage() {
           <ul className="space-y-2">
             <li>
               <a href="#" className="flex items-center gap-3 px-8 py-4 bg-white/10 font-bold border-l-4 border-white text-sm transition">
-                <Trophy size={18} /> Home
+                <Trophy size={18} /> Inicio
               </a>
             </li>
             <li>
               <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
-                <BarChart3 size={18} /> Leaderboard
+                <BarChart3 size={18} /> Tabla de posiciones
               </a>
             </li>
             <li>
               <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
-                <Users size={18} /> Rankings and voting
+                <Users size={18} /> Rankings y votaciones
               </a>
             </li>
             <li>
               <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
-                <ImageIcon size={18} /> Photos, videos and news
+                <ImageIcon size={18} /> Fotos, videos y noticias
               </a>
             </li>
           </ul>
         </nav>
         <div className="p-6 mt-auto">
           <button className="flex items-center gap-3 text-white/70 hover:text-white transition font-bold text-sm w-full py-2">
-            <LogIn size={18} /> Login
+            <LogIn size={18} /> Iniciar sesión
           </button>
         </div>
       </aside>
@@ -147,20 +156,20 @@ export default function TournamentDetailPage() {
           
           <div className="absolute bottom-6 left-8 flex gap-6 text-white text-sm">
              <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
-               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">START</span>
-               <span className="font-bold text-base">{new Date(tournament.fecha_inicio).toLocaleDateString()}</span>
+               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">INICIO</span>
+               <span className="font-bold text-base">{formatDate(tournament.fecha_inicio)}</span>
              </div>
              <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
-               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">END</span>
-               <span className="font-bold text-base">{new Date(tournament.fecha_fin).toLocaleDateString()}</span>
+               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">FIN</span>
+               <span className="font-bold text-base">{formatDate(tournament.fecha_fin)}</span>
              </div>
              <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
-               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">ORGANIZER</span>
+               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">ORGANIZADOR</span>
                <span className="font-bold text-base">{tournament.organizador_nombre || 'No definido'}</span>
              </div>
           </div>
           <button onClick={() => setIsRulesModalOpen(true)} className="absolute bottom-6 right-8 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-6 py-3 flex items-center gap-2 font-bold rounded-lg transition border border-white/20 text-sm shadow-lg">
-            <FileText size={18} /> TOURNAMENT RULES
+            <FileText size={18} /> REGLAS DEL TORNEO
           </button>
         </div>
 
@@ -171,11 +180,11 @@ export default function TournamentDetailPage() {
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 h-fit">
             <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
               <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-serif italic text-xl">i</span>
-              About
+              Acerca de
             </h3>
             
             <div className="space-y-6">
-              <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest">Contacts</h4>
+              <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest">Contactos</h4>
               
               <div className="grid grid-cols-1 gap-5">
                 <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-slate-300 transition">
@@ -211,7 +220,7 @@ export default function TournamentDetailPage() {
             </div>
             
             <div className="mt-10 pt-8 border-t border-slate-100">
-               <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest mb-4">Location</h4>
+               <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest mb-4">Ubicación</h4>
                <p className="text-slate-700 font-bold flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-red-400 shrink-0">
                    <MapPin size={20} />
@@ -225,7 +234,7 @@ export default function TournamentDetailPage() {
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 h-fit">
             <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
               <span className="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center"><Trophy size={20}/></span>
-              Awards
+              Premios
             </h3>
             
             <div className="space-y-4">
@@ -270,7 +279,7 @@ export default function TournamentDetailPage() {
         {/* Messages Input Box fixed at bottom right */}
         <div className="fixed bottom-6 right-8 w-96 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden flex flex-col">
            <div className="bg-[#1e3a8a] p-4 text-white font-bold flex justify-between items-center" style={{backgroundColor: colorSidebar}}>
-             <span className="flex items-center gap-2"><Mail size={16}/> Messages</span>
+             <span className="flex items-center gap-2"><Mail size={16}/> Mensajes</span>
              <button className="hover:bg-white/10 p-1 rounded transition">
                <ChevronLeft size={20} className="rotate-[270deg]" />
              </button>
