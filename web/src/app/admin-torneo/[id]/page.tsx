@@ -129,6 +129,11 @@ export default function TorneoAdminPage() {
       case 'inicio':
         return <PublicTournamentView tournament={torneo} />;
       case 'clasificacion':
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
+            <ClasificacionView torneoId={id as string} torneo={torneo} />
+          </div>
+        );
       case 'rankings':
       case 'multimedia':
       default:
