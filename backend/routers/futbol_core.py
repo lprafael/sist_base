@@ -132,6 +132,7 @@ async def get_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_cur
     query = text("""
         SELECT t.id, t.nombre, t.deporte, t.formato, t.tipo_campeonato, t.estado, t.creado_en,
                t.subtitulo, t.descripcion, t.imagen_portada, t.tipo_ubicacion, t.privacidad,
+               t.fecha_inicio, t.fecha_fin, t.reglas, t.premios, t.configuracion,
                t.organizador_id, o.usuario_id AS organizador_usuario_id
         FROM torneos.torneos t
         LEFT JOIN cancha.organizadores o ON t.organizador_id = o.id
