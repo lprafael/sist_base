@@ -42,7 +42,7 @@ export default function TorneoAdminPage() {
       if(res.ok) {
         const data = await res.json();
         setTorneo(data);
-        if (sessionData.user_id && data.organizador_usuario_id === sessionData.user_id) {
+        if (sessionData.usuario_id && data.organizador_usuario_id === sessionData.usuario_id) {
           setIsOrganizer(true);
         }
       } else {

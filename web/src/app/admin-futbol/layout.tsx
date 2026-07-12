@@ -7,6 +7,16 @@ import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, Lo
 export default function AdminFutbolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userName, setUserName] = useState("Cargando...");
+
+  React.useEffect(() => {
+    const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+    if (sessionData.name) {
+      setUserName(sessionData.name);
+    } else {
+      setUserName("Organizador");
+    }
+  }, []);
 
   const navItems = [
     { name: "Mis campeonatos", href: "/admin-futbol/campeonatos", icon: <Trophy size={22} /> },
@@ -63,7 +73,7 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
           
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end hidden sm:flex">
-              <span className="text-sm font-bold text-gray-800" id="user-name-display">Cargando...</span>
+              <span className="text-sm font-bold text-gray-800" id="user-name-display">{userName}</span>
               <span className="text-xs text-gray-500">Organizador</span>
             </div>
             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border-2 border-indigo-200">
