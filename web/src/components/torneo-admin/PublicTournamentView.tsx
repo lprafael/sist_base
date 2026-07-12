@@ -32,8 +32,8 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
   };
 
   const contacto = tournament?.configuracion?.contacto || {};
-  const reglas = tournament?.configuracion?.reglas || [];
-  const premios = tournament?.configuracion?.premios || [];
+  const reglas = tournament?.reglas || [];
+  const premios = tournament?.premios || [];
 
   const sendMessage = () => {
     if (!chatMessage.trim()) return;
@@ -154,10 +154,10 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
                  {tournament?.configuracion?.ubicacion_texto || tournament?.complejo_nombre || 'Ubicación no especificada'}
                </p>
                
-               {tournament?.configuracion?.ubicacion_coords && (
+               {tournament?.configuracion?.ubicacion_lat && (
                  <div className="w-full h-[300px] border border-slate-200 rounded-xl overflow-hidden z-0">
                    <LocationPickerMap 
-                     defaultLocation={tournament.configuracion.ubicacion_coords}
+                     defaultLocation={{ lat: tournament.configuracion.ubicacion_lat, lng: tournament.configuracion.ubicacion_lng }}
                      readOnly={true}
                    />
                  </div>
