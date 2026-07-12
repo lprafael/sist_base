@@ -9,7 +9,7 @@ export default function SidebarTorneo({ torneo, activeTab, setActiveTab, isOrgan
 
   const menu = [
     { id: 'inicio', label: 'Inicio', icon: Trophy },
-    { id: 'clasificacion', label: 'Tabla de posiciones', icon: BarChart2 },
+    { id: 'clasificacion', label: 'Partidos y Clasificación', icon: BarChart2 },
     { id: 'rankings', label: 'Rankings y encuestas', icon: Users },
     { id: 'multimedia', label: 'Fotos, videos y noticias', icon: ImageIcon }
   ];

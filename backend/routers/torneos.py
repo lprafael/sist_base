@@ -99,17 +99,37 @@ class JugadorCreate(BaseModel):
 
 class JugadorUpdate(BaseModel):
     nombre: Optional[str] = None
+    dni: Optional[str] = None
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
     numero_camiseta: Optional[int] = None
     posicion: Optional[str] = None
+    foto_url: Optional[str] = None
     estado: Optional[str] = None
-    telefono: Optional[str] = None
     egreso_ano: Optional[int] = None
     es_exalumno: Optional[bool] = None
+    documento_firmado_url: Optional[str] = None
+    cedula_anverso_url: Optional[str] = None
+    cedula_reverso_url: Optional[str] = None
+
+class EquipoTecnicoCreate(BaseModel):
+    nombre: str
+    dni: Optional[str] = None
+    rol: Optional[str] = "Entrenador"
+    foto_url: Optional[str] = None
+
+class EquipoTecnicoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    dni: Optional[str] = None
+    rol: Optional[str] = None
+    foto_url: Optional[str] = None
 
 class PartidoUpdate(BaseModel):
     goles_local: int = 0
     goles_visitante: int = 0
     estado: str = "finalizado"
+    estadisticas: Optional[dict] = None
 
 class GolCreate(BaseModel):
     player_id: Optional[str] = None
@@ -1457,12 +1477,101 @@ async def upload_face(
             raise HTTPException(status_code=404, detail="Jugador no encontrado")
 
         return {"status": "ok", "message": "Identidad verificada y registrada correctamente", "id": jugador_id}
-
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"Error procesando el rostro: {str(e)}")
+
+@router.delete("/{torneo_id}/equipos/{equipo_id}/jugadores/{jugador_id}", summary="Eliminar jugador")
+async def delete_jugador(
+    torneo_id: str, equipo_id: str, jugador_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        await session.execute(text("DELETE FROM torneos.tournament_players WHERE id = :pid AND torneo_equipo_id = :eid"), {"pid": jugador_id, "eid": equipo_id})
+        await session.commit()
+        return {"status": "ok", "message": "Jugador eliminado"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ============================================================
+# ENDPOINTS — EQUIPO TÉCNICO
+# ============================================================
+
+@router.get("/{torneo_id}/equipos/{equipo_id}/tecnicos", summary="Cuerpo técnico del equipo")
+async def get_tecnicos(torneo_id: str, equipo_id: str, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text("""
+        SELECT id, nombre, dni, rol, foto_url
+        FROM torneos.equipo_tecnico
+        WHERE equipo_id = CAST(:eid AS UUID)
+        ORDER BY nombre ASC
+    """), {"eid": equipo_id})
+    return [dict(row._mapping) for row in result.fetchall()]
+
+@router.post("/{torneo_id}/equipos/{equipo_id}/tecnicos", summary="Agregar miembro técnico")
+async def add_tecnico(
+    torneo_id: str, equipo_id: str,
+    payload: EquipoTecnicoCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        tecnico_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO torneos.equipo_tecnico (id, equipo_id, nombre, dni, rol, foto_url)
+            VALUES (:id, CAST(:eid AS UUID), :nombre, :dni, :rol, :foto_url)
+        """), {
+            "id": tecnico_id, "eid": equipo_id, "nombre": payload.nombre,
+            "dni": payload.dni, "rol": payload.rol, "foto_url": payload.foto_url
+        })
+        await session.commit()
+        return {"status": "ok", "message": "Cuerpo técnico agregado", "id": tecnico_id}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/{torneo_id}/equipos/{equipo_id}/tecnicos/{tecnico_id}", summary="Actualizar miembro técnico")
+async def update_tecnico(
+    torneo_id: str, equipo_id: str, tecnico_id: str,
+    payload: EquipoTecnicoUpdate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        updates = []
+        params = {"tid": tecnico_id, "eid": equipo_id}
+        if payload.nombre is not None:
+            updates.append("nombre = :nombre"); params["nombre"] = payload.nombre
+        if payload.dni is not None:
+            updates.append("dni = :dni"); params["dni"] = payload.dni
+        if payload.rol is not None:
+            updates.append("rol = :rol"); params["rol"] = payload.rol
+        if payload.foto_url is not None:
+            updates.append("foto_url = :foto_url"); params["foto_url"] = payload.foto_url
+            
+        if not updates:
+            raise HTTPException(status_code=400, detail="Sin campos para actualizar")
+            
+        sql = f"UPDATE torneos.equipo_tecnico SET {', '.join(updates)} WHERE id = CAST(:tid AS UUID) AND equipo_id = CAST(:eid AS UUID)"
+        await session.execute(text(sql), params)
+        await session.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/{torneo_id}/equipos/{equipo_id}/tecnicos/{tecnico_id}", summary="Eliminar miembro técnico")
+async def delete_tecnico(
+    torneo_id: str, equipo_id: str, tecnico_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        await session.execute(text("DELETE FROM torneos.equipo_tecnico WHERE id = CAST(:tid AS UUID) AND equipo_id = CAST(:eid AS UUID)"), {"tid": tecnico_id, "eid": equipo_id})
+        await session.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/jugadores/test-face", summary="Probar reconocimiento facial libremente")
@@ -1528,20 +1637,101 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
                p.fecha_hora, p.estado, p.jornada, p.fase, p.es_wo,
                el.nombre AS local_nombre, el.logo_url AS local_logo,
                ev.nombre AS visitante_nombre, ev.logo_url AS visitante_logo,
-               c.nombre AS cancha_nombre
+               c.nombre AS cancha_nombre,
+               p.jugador_local_id, p.jugador_visitante_id, p.estadisticas,
+               jl.nombre AS jugador_local_nombre, jv.nombre AS jugador_visitante_nombre
         FROM torneos.partidos p
         JOIN torneos.equipos el ON p.equipo_local_id = el.id
         JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
+        LEFT JOIN torneos.tournament_players jl ON p.jugador_local_id = jl.id
+        LEFT JOIN torneos.tournament_players jv ON p.jugador_visitante_id = jv.id
         WHERE p.torneo_id = :tid
         ORDER BY p.jornada ASC NULLS LAST, p.fecha_hora ASC
     """), {"tid": torneo_id})
     rows = result.fetchall()
     keys = ["id","equipo_local_id","equipo_visitante_id","goles_local","goles_visitante",
             "fecha_hora","estado","jornada","fase","es_wo",
-            "local_nombre","local_logo","visitante_nombre","visitante_logo","cancha_nombre"]
+            "local_nombre","local_logo","visitante_nombre","visitante_logo","cancha_nombre",
+            "jugador_local_id", "jugador_visitante_id", "estadisticas", 
+            "jugador_local_nombre", "jugador_visitante_nombre"]
     return [_row_to_dict(keys, r) for r in rows]
 
+@router.post("/{torneo_id}/autoalineacion", summary="Autoalineación de competencias (MMA)")
+async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = Depends(get_session)):
+    try:
+        # 1. Obtener todos los jugadores del torneo
+        result = await session.execute(text("""
+            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento
+            FROM torneos.tournament_players tp
+            JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
+            WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
+        """), {"tid": torneo_id})
+        players = result.fetchall()
+
+        if not players:
+            return {"status": "ok", "message": "No hay jugadores habilitados"}
+
+        # 2. Agrupar por género y edad (bloques de 3 años)
+        from datetime import date
+        from collections import defaultdict
+        import random
+        import uuid
+
+        groups = defaultdict(list)
+        for p in players:
+            genero = p.genero or "Masculino"
+            year = p.fecha_nacimiento.year if p.fecha_nacimiento else date.today().year
+            # Agrupar en bloques de 3 (ej. 2021-2023)
+            base_year = year - (year % 3)
+            rango = f"{base_year}-{base_year+2}"
+            cat_name = f"{genero} {rango}"
+            groups[cat_name].append(p)
+
+        matches_created = 0
+        for cat_name, group_players in groups.items():
+            if len(group_players) < 2:
+                continue
+                
+            # Random shuffle
+            random.shuffle(group_players)
+            
+            # Create Category if not exists
+            cat_res = await session.execute(text("SELECT id FROM torneos.categorias WHERE torneo_id = :tid AND nombre = :name"), 
+                                          {"tid": torneo_id, "name": cat_name})
+            cat_row = cat_res.fetchone()
+            if not cat_row:
+                cat_id = str(uuid.uuid4())
+                await session.execute(text("""
+                    INSERT INTO torneos.categorias (id, torneo_id, nombre) VALUES (:id, :tid, :name)
+                """), {"id": cat_id, "tid": torneo_id, "name": cat_name})
+            else:
+                cat_id = str(cat_row[0])
+
+            # Generar partidos 1v1
+            for i in range(0, len(group_players) - 1, 2):
+                p1 = group_players[i]
+                p2 = group_players[i+1]
+                await session.execute(text("""
+                    INSERT INTO torneos.partidos 
+                    (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
+                    VALUES (:tid, :el, :ev, :jl, :jv, :fase)
+                """), {
+                    "tid": torneo_id, 
+                    "el": p1.torneo_equipo_id, 
+                    "ev": p2.torneo_equipo_id,
+                    "jl": p1.id, 
+                    "jv": p2.id,
+                    "fase": "1º Fase"
+                })
+                matches_created += 1
+
+        await session.commit()
+        return {"status": "ok", "message": f"Se generaron {matches_created} partidos"}
+
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/partidos/{partido_id}/iniciar", summary="Iniciar partido")
 async def iniciar_partido(partido_id: str, session: AsyncSession = Depends(get_session)):
@@ -1584,19 +1774,44 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
         elif payload.goles_visitante > payload.goles_local:
             ganador_id = ev_id
 
-        await session.execute(text("""
+        import json
+        params = {
+            "pid": partido_id, "gl": payload.goles_local,
+            "gv": payload.goles_visitante, "estado": payload.estado,
+            "ganador_id": ganador_id
+        }
+        
+        # Guardar estadisticas si vienen en el payload (MMA)
+        update_stats = ""
+        if payload.estadisticas is not None:
+            update_stats = ", estadisticas = :estadisticas"
+            params["estadisticas"] = json.dumps(payload.estadisticas)
+
+        await session.execute(text(f"""
             UPDATE torneos.partidos
             SET goles_local = :gl, goles_visitante = :gv,
                 estado = :estado, ganador_id = :ganador_id,
                 fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
+                {update_stats}
             WHERE id = :pid
-        """), {
-            "pid": partido_id, "gl": payload.goles_local,
-            "gv": payload.goles_visitante, "estado": payload.estado,
-            "ganador_id": ganador_id
-        })
-
-        # Sincronizar goles con la tabla de goles si el acta fue cargada
+        """), params)
+        
+        # Broadcast via WebSockets si se requiere
+        try:
+            from main import active_connections
+            import asyncio
+            msg = json.dumps({
+                "type": "SCORE_UPDATE", 
+                "partido_id": partido_id, 
+                "goles_local": payload.goles_local, 
+                "goles_visitante": payload.goles_visitante,
+                "estado": payload.estado,
+                "estadisticas": payload.estadisticas
+            })
+            for ws in list(active_connections):
+                asyncio.create_task(ws.send_text(msg))
+        except Exception as e:
+            print("Error broadcasting WebSocket:", e)        # Sincronizar goles con la tabla de goles si el acta fue cargada
         # (solo si no hay goles registrados individualmente)
         goles_registrados = await session.execute(
             text("SELECT COUNT(*) FROM torneos.goles WHERE partido_id = :pid AND NOT anulado"),

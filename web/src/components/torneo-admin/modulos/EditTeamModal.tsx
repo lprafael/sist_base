@@ -22,10 +22,34 @@ export default function EditTeamModal({
   const [nuevoJugadorRapido, setNuevoJugadorRapido] = useState('');
   const [savingJugador, setSavingJugador] = useState(false);
 
+  const [tecnicos, setTecnicos] = useState<any[]>([]);
+  const [loadingTecnicos, setLoadingTecnicos] = useState(false);
+  const [nuevoTecnicoRapido, setNuevoTecnicoRapido] = useState('');
+  const [savingTecnico, setSavingTecnico] = useState(false);
+
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem('user_session') || '{}');
     return session.access_token || session.token || '';
   };
+
+  const fetchTecnicos = async () => {
+    setLoadingTecnicos(true);
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos/${equipo.id}/tecnicos`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (res.ok) {
+        setTecnicos(await res.json());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoadingTecnicos(false);
+  };
+
+  React.useEffect(() => {
+    fetchTecnicos();
+  }, [equipo.id]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -79,6 +103,48 @@ export default function EditTeamModal({
       console.error(e);
     }
     setSavingJugador(false);
+  };
+
+  const handleFastAddTecnico = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevoTecnicoRapido.trim()) return;
+    
+    setSavingTecnico(true);
+    try {
+      const payload = {
+        nombre: nuevoTecnicoRapido,
+        rol: "Entrenador"
+      };
+
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos/${equipo.id}/tecnicos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify(payload)
+      });
+      
+      if(res.ok) {
+        setNuevoTecnicoRapido('');
+        fetchTecnicos();
+      } else {
+        alert("Error al añadir técnico");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setSavingTecnico(false);
+  };
+
+  const handleDeleteTecnico = async (tecnicoId: string) => {
+    if (!confirm("¿Eliminar este miembro del cuerpo técnico?")) return;
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos/${equipo.id}/tecnicos/${tecnicoId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if(res.ok) fetchTecnicos();
+    } catch(e) {
+      console.error(e);
+    }
   };
 
   const linkInvitacion = typeof window !== 'undefined' 
@@ -196,8 +262,43 @@ export default function EditTeamModal({
               <Settings size={18} className="text-blue-500" />
               Equipo técnico
             </h4>
-            <div className="text-center text-sm text-slate-400 p-4 border border-dashed border-slate-300 rounded">
-              Próximamente
+            <form onSubmit={handleFastAddTecnico} className="mb-4 flex gap-2">
+              <input 
+                type="text"
+                placeholder="Nombre del Técnico [Enter]"
+                value={nuevoTecnicoRapido}
+                onChange={e => setNuevoTecnicoRapido(e.target.value)}
+                className="flex-1 border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50"
+              />
+              <button type="submit" disabled={savingTecnico} className="px-4 py-2 bg-blue-100 text-blue-700 font-bold rounded text-sm hover:bg-blue-200 disabled:opacity-50">
+                {savingTecnico ? <Loader2 size={16} className="animate-spin" /> : 'Añadir'}
+              </button>
+            </form>
+
+            <div className="space-y-1">
+              {loadingTecnicos ? (
+                <div className="flex justify-center p-4"><Loader2 className="animate-spin text-slate-300" /></div>
+              ) : tecnicos.length === 0 ? (
+                <div className="text-center text-sm text-slate-400 p-4">No hay cuerpo técnico cargado.</div>
+              ) : (
+                tecnicos.map((t: any) => (
+                  <div 
+                    key={t.id} 
+                    className="flex justify-between items-center p-3 hover:bg-slate-50 border border-transparent hover:border-slate-200 rounded group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-700">{t.nombre}</span>
+                      <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{t.rol}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteTecnico(t.id)}
+                      className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition hover:bg-red-50 px-2 py-1 rounded"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

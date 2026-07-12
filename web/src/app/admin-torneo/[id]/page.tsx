@@ -106,7 +106,7 @@ export default function TorneoAdminPage() {
           ) : activeSubSection === 'arbitraje' ? (
             <ArbitrajeView torneoId={id as string} />
           ) : activeSubSection === 'clasificacion' ? (
-            <ClasificacionView torneoId={id as string} />
+            <ClasificacionView torneoId={id as string} torneo={torneo} />
           ) : (
             <div className="p-8 border-2 border-dashed border-slate-300 rounded-xl text-center">
               <p className="text-slate-500 mb-2">Aquí se inyectará la lógica correspondiente a <strong>{activeSubSection}</strong></p>
