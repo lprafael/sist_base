@@ -19,7 +19,7 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/torneos/${tournament?.id}` : '';
   const colorSidebar = tournament?.configuracion?.color_sidebar || '#0c112b';
   
   const formatDate = (dateStr: string) => {
