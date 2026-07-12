@@ -1,6 +1,9 @@
 "use client";
 import React, { useState } from 'react';
 import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -29,6 +32,9 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
   });
   const [colorSidebar, setColorSidebar] = useState(torneo.configuracion?.color_sidebar || '#0c112b');
   const [ubicacionTexto, setUbicacionTexto] = useState(torneo.configuracion?.ubicacion_texto || '');
+  const [ubicacionCoords, setUbicacionCoords] = useState<{lat: number, lng: number} | null>(
+    torneo.configuracion?.ubicacion_lat ? { lat: torneo.configuracion.ubicacion_lat, lng: torneo.configuracion.ubicacion_lng } : null
+  );
   const [reglasData, setReglasData] = useState<string>((torneo.reglas || []).join('\n'));
   const [premiosData, setPremiosData] = useState({
     puesto1: torneo.premios?.find((p:any) => p.puesto === 1)?.desc || '',
@@ -334,12 +340,12 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       
       {/* MODALS */}
       {activeModal === 'ubicacion' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-[400px] max-w-full">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-[800px] max-w-full max-h-[90vh] flex flex-col">
             <h3 className="font-bold text-lg mb-4">Localización del Torneo</h3>
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
               <div>
-                <label className="block text-sm text-slate-600 mb-1">Dirección o Lugar (Cancha)</label>
+                <label className="block text-sm text-slate-600 mb-1">Nombre del Lugar o Dirección (público)</label>
                 <input 
                   type="text" 
                   value={ubicacionTexto} 
@@ -348,11 +354,23 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500" 
                 />
               </div>
+              <div className="flex-1 min-h-[300px] border border-slate-300 rounded overflow-hidden">
+                 <LocationPickerMap 
+                   defaultLocation={ubicacionCoords || undefined} 
+                   onLocationSelect={(loc) => setUbicacionCoords(loc)} 
+                 />
+              </div>
+              <p className="text-xs text-slate-500 text-center">Puedes buscar un lugar o hacer clic en el mapa para ajustar la ubicación exacta.</p>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3 shrink-0">
               <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
               <button onClick={() => {
-                const conf = { ...torneo.configuracion, ubicacion_texto: ubicacionTexto };
+                const conf = { 
+                  ...torneo.configuracion, 
+                  ubicacion_texto: ubicacionTexto,
+                  ubicacion_lat: ubicacionCoords?.lat,
+                  ubicacion_lng: ubicacionCoords?.lng
+                };
                 onUpdate({ configuracion: conf });
                 setActiveModal(null);
               }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
