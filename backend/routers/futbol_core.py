@@ -133,9 +133,11 @@ async def get_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_cur
         SELECT t.id, t.nombre, t.deporte, t.formato, t.tipo_campeonato, t.estado, t.creado_en,
                t.subtitulo, t.descripcion, t.imagen_portada, t.tipo_ubicacion, t.privacidad,
                t.fecha_inicio, t.fecha_fin, t.reglas, t.premios, t.configuracion,
-               t.organizador_id, o.usuario_id AS organizador_usuario_id
+               t.organizador_id, o.usuario_id AS organizador_usuario_id,
+               o.nombre AS organizador_nombre, c.nombre AS complejo_nombre
         FROM torneos.torneos t
         LEFT JOIN cancha.organizadores o ON t.organizador_id = o.id
+        LEFT JOIN cancha.complejos c ON t.complejo_id = c.id
         WHERE t.id = CAST(:tid AS UUID)
     """)
     res = await session.execute(query, {"tid": torneo_id})
