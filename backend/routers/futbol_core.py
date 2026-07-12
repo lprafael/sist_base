@@ -10,6 +10,7 @@ import face_recognition
 import numpy as np
 import base64
 import io
+import json
 from PIL import Image
 
 router = APIRouter(tags=["Futbol Core"])
@@ -120,14 +121,21 @@ class TorneoFutbolUpdate(BaseModel):
     tipo_ubicacion: Optional[str] = None
     privacidad: Optional[str] = None
     estado: Optional[str] = None
+    fecha_inicio: Optional[str] = None
+    fecha_fin: Optional[str] = None
+    reglas: Optional[list] = None
+    premios: Optional[list] = None
+    configuracion: Optional[dict] = None
 
 @router.get("/futbol/torneos/{torneo_id}")
 async def get_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     query = text("""
-        SELECT id, nombre, deporte, formato, tipo_campeonato, estado, creado_en,
-               subtitulo, descripcion, imagen_portada, tipo_ubicacion, privacidad
-        FROM torneos.torneos
-        WHERE id = CAST(:tid AS UUID)
+        SELECT t.id, t.nombre, t.deporte, t.formato, t.tipo_campeonato, t.estado, t.creado_en,
+               t.subtitulo, t.descripcion, t.imagen_portada, t.tipo_ubicacion, t.privacidad,
+               t.organizador_id, o.usuario_id AS organizador_usuario_id
+        FROM torneos.torneos t
+        LEFT JOIN cancha.organizadores o ON t.organizador_id = o.id
+        WHERE t.id = CAST(:tid AS UUID)
     """)
     res = await session.execute(query, {"tid": torneo_id})
     row = res.fetchone()
@@ -166,6 +174,21 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
     if data.estado is not None:
         update_fields.append("estado = :estado")
         params["estado"] = data.estado
+    if data.fecha_inicio is not None:
+        update_fields.append("fecha_inicio = :fecha_inicio")
+        params["fecha_inicio"] = data.fecha_inicio
+    if data.fecha_fin is not None:
+        update_fields.append("fecha_fin = :fecha_fin")
+        params["fecha_fin"] = data.fecha_fin
+    if data.reglas is not None:
+        update_fields.append("reglas = CAST(:reglas AS JSONB)")
+        params["reglas"] = json.dumps(data.reglas)
+    if data.premios is not None:
+        update_fields.append("premios = CAST(:premios AS JSONB)")
+        params["premios"] = json.dumps(data.premios)
+    if data.configuracion is not None:
+        update_fields.append("configuracion = CAST(:configuracion AS JSONB)")
+        params["configuracion"] = json.dumps(data.configuracion)
 
     if not update_fields:
         return {"message": "Sin cambios"}

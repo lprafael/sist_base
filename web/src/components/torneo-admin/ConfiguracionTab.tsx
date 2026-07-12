@@ -1,6 +1,8 @@
 "use client";
 import React, { useState } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2 } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect }: { torneo: any, onUpdate: (data: any) => void, onSubSectionSelect: (section: string) => void }) {
   // Local state for basic fields to allow typing before saving (or we can save on blur)
@@ -10,7 +12,28 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     descripcion: torneo.descripcion || '',
     tipo_ubicacion: torneo.tipo_ubicacion || 'persona',
     privacidad: torneo.privacidad || 'publico',
-    estado: torneo.estado || 'preparacion'
+    estado: torneo.estado || 'preparacion',
+    fecha_inicio: torneo.fecha_inicio ? torneo.fecha_inicio.split('T')[0] : '',
+    fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : '',
+    imagen_portada: torneo.imagen_portada || ''
+  });
+  
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  // States for modals
+  const [contactoData, setContactoData] = useState({
+    telefono1: torneo.configuracion?.contacto?.telefono1 || '',
+    telefono2: torneo.configuracion?.contacto?.telefono2 || '',
+    email: torneo.configuracion?.contacto?.email || ''
+  });
+  const [colorSidebar, setColorSidebar] = useState(torneo.configuracion?.color_sidebar || '#0c112b');
+  const [reglasData, setReglasData] = useState<string>((torneo.reglas || []).join('\n'));
+  const [premiosData, setPremiosData] = useState({
+    puesto1: torneo.premios?.find((p:any) => p.puesto === 1)?.desc || '',
+    puesto2: torneo.premios?.find((p:any) => p.puesto === 2)?.desc || '',
+    puesto3: torneo.premios?.find((p:any) => p.puesto === 3)?.desc || '',
+    otros: torneo.premios?.find((p:any) => p.puesto === 'otros')?.desc || '',
   });
 
   // Keep local state in sync if parent updates it (e.g. after a save)
@@ -21,7 +44,10 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       descripcion: torneo.descripcion || '',
       tipo_ubicacion: torneo.tipo_ubicacion || 'persona',
       privacidad: torneo.privacidad || 'publico',
-      estado: torneo.estado || 'preparacion'
+      estado: torneo.estado || 'preparacion',
+      fecha_inicio: torneo.fecha_inicio ? torneo.fecha_inicio.split('T')[0] : '',
+      fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : '',
+      imagen_portada: torneo.imagen_portada || ''
     });
   }, [torneo]);
 
@@ -33,8 +59,45 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     onUpdate({ [e.target.name]: e.target.value });
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      
+      const res = await fetch(`${API_URL}/organizador/perfil/banner`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(prev => ({ ...prev, imagen_portada: data.url }));
+        onUpdate({ imagen_portada: data.url });
+      } else {
+        console.error('Error uploading image');
+        alert('Error al subir la imagen.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión al subir imagen.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
+    <>
+      <div className="max-w-4xl mx-auto space-y-6 pb-20">
       
       {/* DATOS BÁSICOS */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -42,10 +105,34 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           <h3 className="font-bold text-blue-600">Datos básicos</h3>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1 border-2 border-dashed border-slate-300 rounded-lg h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
-            <ImageIcon size={32} className="mb-2" />
-            <span className="text-sm font-bold">Imagen de portada</span>
-            <span className="text-xs">1600x533</span>
+          <div className="md:col-span-1 border-2 border-dashed border-slate-300 rounded-lg h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50 relative hover:bg-slate-100 transition overflow-hidden">
+            {uploadingImage ? (
+              <div className="flex flex-col items-center justify-center text-blue-500">
+                <Loader2 size={32} className="animate-spin mb-2" />
+                <span className="text-sm font-bold">Subiendo...</span>
+              </div>
+            ) : formData.imagen_portada ? (
+              <>
+                <img src={formData.imagen_portada} alt="Portada" className="w-full h-full object-cover absolute inset-0" />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <span className="text-white font-bold text-sm">Cambiar Imagen</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <ImageIcon size={32} className="mb-2" />
+                <span className="text-sm font-bold">Imagen de portada</span>
+                <span className="text-xs mb-2">1600x533</span>
+                <span className="text-xs text-blue-500 hover:underline">Click para subir</span>
+              </>
+            )}
+            <input 
+              type="file" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploadingImage}
+            />
           </div>
           
           <div className="md:col-span-2 space-y-4">
@@ -76,24 +163,24 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de inicio</label>
                 <div className="flex items-center gap-2 border border-slate-300 rounded px-3 py-2">
                   <Calendar size={16} className="text-slate-400" />
-                  <input type="date" className="w-full outline-none text-sm text-slate-700" />
+                  <input type="date" name="fecha_inicio" value={formData.fecha_inicio} onChange={handleChange} onBlur={handleBlur} className="w-full outline-none text-sm text-slate-700 bg-transparent" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de finalización</label>
                 <div className="flex items-center gap-2 border border-slate-300 rounded px-3 py-2">
                   <Calendar size={16} className="text-slate-400" />
-                  <input type="date" className="w-full outline-none text-sm text-slate-700" />
+                  <input type="date" name="fecha_fin" value={formData.fecha_fin} onChange={handleChange} onBlur={handleBlur} className="w-full outline-none text-sm text-slate-700 bg-transparent" />
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-6 text-sm text-slate-700">
-          <div className="flex gap-2 items-center"><Users size={16} className="text-slate-400"/> Contacto <button className="text-blue-500 hover:underline">Editar</button></div>
-          <div className="flex gap-2 items-center"><div className="w-4 h-4 rounded-full bg-blue-600"></div> Color <button className="text-blue-500 hover:underline">Editar</button></div>
-          <div className="flex gap-2 items-center"><FileText size={16} className="text-slate-400"/> Reglas del campeonato <button className="text-blue-500 hover:underline">Editar</button></div>
-          <div className="flex gap-2 items-center"><Trophy size={16} className="text-slate-400"/> Premios <button className="text-blue-500 hover:underline">Editar</button></div>
+          <div className="flex gap-2 items-center"><Users size={16} className="text-slate-400"/> Contacto <button onClick={() => setActiveModal('contacto')} className="text-blue-500 hover:underline">Editar</button></div>
+          <div className="flex gap-2 items-center"><div className="w-4 h-4 rounded-full" style={{backgroundColor: colorSidebar}}></div> Color <button onClick={() => setActiveModal('color')} className="text-blue-500 hover:underline">Editar</button></div>
+          <div className="flex gap-2 items-center"><FileText size={16} className="text-slate-400"/> Reglas del campeonato <button onClick={() => setActiveModal('reglas')} className="text-blue-500 hover:underline">Editar</button></div>
+          <div className="flex gap-2 items-center"><Trophy size={16} className="text-slate-400"/> Premios <button onClick={() => setActiveModal('premios')} className="text-blue-500 hover:underline">Editar</button></div>
         </div>
       </div>
 
@@ -238,5 +325,114 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         </div>
       </div>
     </div>
+      
+      {/* MODALS */}
+      {activeModal === 'contacto' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 max-w-full">
+            <h3 className="font-bold text-lg mb-4">Contacto</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">Teléfono 1</label>
+                <input type="text" value={contactoData.telefono1} onChange={e => setContactoData({...contactoData, telefono1: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">Teléfono 2</label>
+                <input type="text" value={contactoData.telefono2} onChange={e => setContactoData({...contactoData, telefono2: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">Email</label>
+                <input type="email" value={contactoData.email} onChange={e => setContactoData({...contactoData, email: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+              <button onClick={() => {
+                const conf = { ...torneo.configuracion, contacto: contactoData };
+                onUpdate({ configuracion: conf });
+                setActiveModal(null);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'color' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 max-w-full">
+            <h3 className="font-bold text-lg mb-4">Color del Sidebar</h3>
+            <div className="space-y-4 text-center">
+              <input type="color" value={colorSidebar} onChange={e => setColorSidebar(e.target.value)} className="w-24 h-24 p-1 rounded cursor-pointer" />
+              <div className="text-slate-600 font-mono">{colorSidebar}</div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+              <button onClick={() => {
+                const conf = { ...torneo.configuracion, color_sidebar: colorSidebar };
+                onUpdate({ configuracion: conf });
+                setActiveModal(null);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'reglas' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
+            <h3 className="font-bold text-lg mb-4">Reglas del Campeonato</h3>
+            <div className="space-y-4">
+              <textarea rows={8} value={reglasData} onChange={e => setReglasData(e.target.value)} placeholder="Escribe las reglas aquí (una por línea)..." className="w-full border border-slate-300 rounded px-3 py-2 resize-none"></textarea>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+              <button onClick={() => {
+                const reglasArr = reglasData.split('\n').filter(r => r.trim() !== '');
+                onUpdate({ reglas: reglasArr });
+                setActiveModal(null);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'premios' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
+            <h3 className="font-bold text-lg mb-4">Premios</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">1er Puesto</label>
+                <input type="text" value={premiosData.puesto1} onChange={e => setPremiosData({...premiosData, puesto1: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">2do Puesto</label>
+                <input type="text" value={premiosData.puesto2} onChange={e => setPremiosData({...premiosData, puesto2: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">3er Puesto</label>
+                <input type="text" value={premiosData.puesto3} onChange={e => setPremiosData({...premiosData, puesto3: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1">Otros Premios</label>
+                <input type="text" value={premiosData.otros} onChange={e => setPremiosData({...premiosData, otros: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2" />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+              <button onClick={() => {
+                const premiosArr = [];
+                if (premiosData.puesto1) premiosArr.push({ puesto: 1, desc: premiosData.puesto1 });
+                if (premiosData.puesto2) premiosArr.push({ puesto: 2, desc: premiosData.puesto2 });
+                if (premiosData.puesto3) premiosArr.push({ puesto: 3, desc: premiosData.puesto3 });
+                if (premiosData.otros) premiosArr.push({ puesto: 'otros', desc: premiosData.otros });
+                onUpdate({ premios: premiosArr });
+                setActiveModal(null);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

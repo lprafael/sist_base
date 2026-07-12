@@ -2,23 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Trophy, 
-  Calendar, 
-  MapPin, 
-  Users, 
-  DollarSign, 
-  ChevronLeft, 
-  Share2, 
-  CheckCircle2,
-  Clock,
-  Zap,
-  ArrowRight,
-  ShieldCheck,
-  X,
-  BarChart3,
-  Newspaper
+  Trophy, Calendar, MapPin, Users, ChevronLeft, Share2, 
+  BarChart3, Image as ImageIcon, LogIn, ArrowRight, X, Phone, Mail, FileText
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
@@ -26,64 +12,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function TournamentDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params?.id;
+  const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState("información");
-  const [isInscribed, setIsInscribed] = useState(false);
   const [tournament, setTournament] = useState<any>(null);
-  const [equipos, setEquipos] = useState<any[]>([]);
-  const [partidos, setPartidos] = useState<any[]>([]);
-  const [posiciones, setPosiciones] = useState<any[]>([]);
-  const [noticias, setNoticias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [enrollData, setEnrollData] = useState({
-    nombre: "",
-    capitan_nombre: "",
-    capitan_telefono: "",
-    capitan_email: ""
-  });
-  const [submitting, setSubmitting] = useState(false);
-
-  const loadMockData = () => {
-    setTournament({
-      id: "demo",
-      nombre: "Copa Mi Cancha 2026 (Demostración)",
-      deporte: "Fútbol 5",
-      formato: "liga",
-      complejo_nombre: "Complejo Deportivo Mi Cancha",
-      fecha_inicio: "2026-06-01",
-      fecha_fin: "2026-07-15",
-      descripcion: "Torneo demo interactivo. Visualiza la tabla de posiciones, fixture, equipos, goleadores y estadísticas completas de la competencia.",
-      max_equipos: 8,
-      costo_inscripcion: 150000,
-    });
-
-    setEquipos([
-      { id: "e1", nombre: "Real Mandril FC" },
-      { id: "e2", nombre: "Barcelona Cancha FC" },
-      { id: "e3", nombre: "Múnich United" },
-      { id: "e4", nombre: "Milán Amateur" },
-      { id: "e5", nombre: "PSG F5" },
-      { id: "e6", nombre: "Chelsea Amateur" },
-      { id: "e7", nombre: "Liverpool Cancha" },
-      { id: "e8", nombre: "Boca Juniors F5" },
-    ]);
-
-    setPartidos([
-      { id: "m1", local_nombre: "Real Mandril FC", visitante_nombre: "Barcelona Cancha FC", goles_local: 3, goles_visitante: 2, estado: "finalizado", fase: "Jornada 1" },
-      { id: "m2", local_nombre: "Múnich United", visitante_nombre: "Milán Amateur", goles_local: 2, goles_visitante: 1, estado: "finalizado", fase: "Jornada 1" },
-      { id: "m3", local_nombre: "PSG F5", visitante_nombre: "Liverpool Cancha", goles_local: 1, goles_visitante: 1, estado: "finalizado", fase: "Jornada 1" },
-      { id: "m4", local_nombre: "Chelsea Amateur", visitante_nombre: "Boca Juniors F5", goles_local: 0, goles_visitante: 2, estado: "finalizado", fase: "Jornada 1" },
-    ]);
-
-    setPosiciones([
-      { id: "p1", torneo_equipo_id: "e1", nombre_equipo: "Real Mandril FC", pj: 5, pg: 4, pe: 1, pp: 0, gf: 18, gc: 8, dg: 10, pts: 13 },
-      { id: "p2", torneo_equipo_id: "e2", nombre_equipo: "Barcelona Cancha FC", pj: 5, pg: 3, pe: 1, pp: 1, gf: 14, gc: 9, dg: 5, pts: 10 },
-      { id: "p3", torneo_equipo_id: "e3", nombre_equipo: "Múnich United", pj: 5, pg: 3, pe: 0, pp: 2, gf: 12, gc: 10, dg: 2, pts: 9 },
-    ]);
-  };
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  
+  // For the QR code modal
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const loadData = async () => {
     if (!id || id === "demo" || id === "ficticio") {
@@ -92,7 +30,6 @@ export default function TournamentDetailPage() {
     }
     setLoading(true);
     try {
-      // 1. Fetch tournament details
       const tRes = await fetch(`${API_URL}/cancha/torneos/${id}`);
       if (tRes.ok) {
         const found = await tRes.json();
@@ -100,31 +37,6 @@ export default function TournamentDetailPage() {
       } else {
         throw new Error("Tournament not found");
       }
-
-      // 2. Fetch enrolled teams
-      const eRes = await fetch(`${API_URL}/cancha/torneos/${id}/equipos`);
-      if (eRes.ok) {
-        const eqData = await eRes.json();
-        setEquipos(eqData);
-        const localInscribed = localStorage.getItem(`inscribed_${id}`);
-        if (localInscribed) setIsInscribed(true);
-      }
-
-      // 3. Fetch matches
-      const mRes = await fetch(`${API_URL}/cancha/torneos/${id}/partidos`);
-      if (mRes.ok) setPartidos(await mRes.json());
-
-      // 4. Fetch standings
-      const pRes = await fetch(`${API_URL}/cancha/torneos/${id}/posiciones`);
-      if (pRes.ok) setPosiciones(await pRes.json());
-
-      // 5. Fetch noticias
-      const nRes = await fetch(`${API_URL}/cancha/torneos/${id}/noticias`);
-      if (nRes.ok) {
-         const newsData = await nRes.json();
-         setNoticias(newsData.noticias || []);
-      }
-
     } catch (e) {
       console.error("Error loading tournament details", e);
     } finally {
@@ -136,520 +48,311 @@ export default function TournamentDetailPage() {
     loadData();
   }, [id]);
 
-  const handleEnrollSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      // 1. Enroll the team in backend
-      const res = await fetch(`${API_URL}/cancha/torneos/${id}/equipos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(enrollData)
-      });
-      
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Error al inscribir equipo");
-      }
-      
-      const team = await res.json();
-      
-      // Save enrollment locally
-      localStorage.setItem(`inscribed_${id}`, team.id);
-      
-      // 2. If it requires payment, redirect to real checkout
-      if (tournament?.costo_inscripcion > 0) {
-        const payRes = await fetch(`${API_URL}/api/pagos/inscripcion/${team.id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ provider: "mercadopago" })
-        });
-        if (payRes.ok) {
-          const payData = await payRes.json();
-          if (payData.checkout_url) {
-            window.location.href = payData.checkout_url;
-            return;
-          }
-        }
-      }
-      
-      // 3. Otherwise confirm directly
-      alert("¡Tu equipo se ha inscrito con éxito!");
-      setIsInscribed(true);
-      setIsModalOpen(false);
-      loadData();
-    } catch (err: any) {
-      alert(err.message || "Error al inscribir equipo.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <Trophy className="w-16 h-16 text-primary animate-bounce mb-4" />
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Cargando Torneo...</p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Trophy className="w-16 h-16 text-blue-500 animate-bounce mb-4" />
       </div>
     );
   }
 
   if (!tournament) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6 text-center">
-        <Trophy className="w-16 h-16 text-slate-700 mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-2">Torneo no encontrado</h2>
-        <p className="text-slate-500 mb-8 max-w-sm">La competencia que buscas no existe o fue dada de baja por el complejo.</p>
-        <Link href="/buscar" className="bg-primary hover:bg-primary/90 text-black font-bold px-8 py-4 rounded-[2rem] transition-colors">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <Trophy className="w-16 h-16 text-slate-400 mb-4" />
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">Torneo no encontrado</h2>
+        <Link href="/buscar" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded transition-colors mt-4">
           Volver a Buscar
         </Link>
       </div>
     );
   }
 
-  const getFixturesByRound = () => {
-    const rounds: Record<string, any[]> = {};
-    partidos.forEach(p => {
-      const roundName = p.fase || "Fase de Grupos";
-      if (!rounds[roundName]) {
-        rounds[roundName] = [];
-      }
-      rounds[roundName].push(p);
-    });
-    return Object.entries(rounds).map(([roundName, matches]) => ({
-      round: roundName,
-      matches: matches.map(m => ({
-        team1: m.local_nombre,
-        team2: m.visitante_nombre,
-        score1: m.goles_local,
-        score2: m.goles_visitante,
-        winner: m.goles_local > m.goles_visitante ? m.local_nombre : (m.goles_visitante > m.goles_local ? m.visitante_nombre : null)
-      }))
-    }));
-  };
-
-  const roundsData = getFixturesByRound();
-
-  // Extract dynamic rules and prizes with fallbacks
-  const rules = tournament?.reglas?.length > 0 ? tournament.reglas : [
-    "No hay reglas definidas para este torneo aún."
-  ];
-
-  const prizes = tournament?.premios?.length > 0 ? tournament.premios : [
-    { rank: "-", reward: "Premios a confirmar" }
-  ];
+  const colorSidebar = tournament?.configuracion?.color_sidebar || '#1e3a8a';
+  const contacto = tournament?.configuracion?.contacto || {};
+  const premios = tournament?.premios || [];
+  const reglas = tournament?.reglas || [];
 
   return (
-    <div className="min-h-screen bg-subtle">
-      {/* Hero Banner */}
-      <div className="relative h-[450px] w-full overflow-hidden bg-slate-900">
-        <div className="absolute inset-0 z-10">
-          <img 
-            src="https://images.unsplash.com/photo-1526232759583-02f2969744b7?auto=format&fit=crop&q=80&w=1200" 
-            alt="Tournament Banner" 
-            className="w-full h-full object-cover opacity-50 scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
-        </div>
-        
-        <div className="container relative h-full flex items-end pb-12 z-20">
-          <div className="w-full">
-            <Link href="/buscar" className="inline-flex items-center gap-2 text-slate-300 hover:text-primary transition-colors mb-8 text-xs font-bold uppercase tracking-widest">
-              <ChevronLeft size={16} /> Volver a Torneos
-            </Link>
-            
-            <div className="flex flex-col lg:flex-row justify-between items-end gap-10">
-              <div className="max-w-3xl">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold uppercase tracking-widest mb-6 backdrop-blur-md">
-                   {tournament.deporte} • {tournament.formato === 'liga' ? 'Liga' : 'Eliminación Directa'}
-                </span>
-                <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight">
-                  {tournament.nombre}
-                </h1>
-                <div className="flex flex-wrap gap-6 text-slate-300 font-semibold text-sm">
-                  <span className="flex items-center gap-2"><MapPin size={18} className="text-primary" /> {tournament.complejo_nombre}</span>
-                  <span className="flex items-center gap-2"><Calendar size={18} className="text-primary" /> {new Date(tournament.fecha_inicio).toLocaleDateString()}</span>
-                </div>
-              </div>
-              
-              <div className="flex gap-4">
-                <Link 
-                  href={`/torneos/${id}/resumen`}
-                  className="px-6 py-5 rounded-[2rem] bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg transition-all flex items-center gap-2"
-                >
-                  <BarChart3 size={20} /> VER ESTADÍSTICAS
-                </Link>
-                <button className="p-4 rounded-2xl bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all backdrop-blur-md">
-                   <Share2 size={24} />
-                </button>
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  disabled={isInscribed || equipos.length >= tournament.max_equipos}
-                  className={`btn px-10 py-5 rounded-[2rem] text-lg transition-all ${isInscribed ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'btn-primary'}`}
-                >
-                  {isInscribed ? 'ESTÁS INSCRITO' : (equipos.length >= tournament.max_equipos ? 'COMPLETO' : 'INSCRIBIR EQUIPO')}
-                </button>
-              </div>
-            </div>
+    <div className="min-h-screen flex bg-slate-100 font-sans">
+      {/* Left Sidebar */}
+      <aside className="w-64 text-white flex flex-col shrink-0" style={{ backgroundColor: colorSidebar }}>
+        <div className="p-8 flex flex-col items-center text-center border-b border-white/10">
+          <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-4 overflow-hidden shadow-lg border-2 border-white/20">
+            {tournament.imagen_portada ? (
+              <img src={tournament.imagen_portada} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <Trophy size={40} className="text-white" />
+            )}
           </div>
+          <h2 className="text-xl font-bold leading-tight">{tournament.nombre}</h2>
         </div>
-      </div>
+        <nav className="flex-1 py-4">
+          <ul className="space-y-2">
+            <li>
+              <a href="#" className="flex items-center gap-3 px-8 py-4 bg-white/10 font-bold border-l-4 border-white text-sm transition">
+                <Trophy size={18} /> Home
+              </a>
+            </li>
+            <li>
+              <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
+                <BarChart3 size={18} /> Leaderboard
+              </a>
+            </li>
+            <li>
+              <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
+                <Users size={18} /> Rankings and voting
+              </a>
+            </li>
+            <li>
+              <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
+                <ImageIcon size={18} /> Photos, videos and news
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <div className="p-6 mt-auto">
+          <button className="flex items-center gap-3 text-white/70 hover:text-white transition font-bold text-sm w-full py-2">
+            <LogIn size={18} /> Login
+          </button>
+        </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="container py-12">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-          {[
-            { label: "Equipos", val: `${equipos.length}/${tournament.max_equipos}`, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
-            { label: "Premio Mayor", val: "Copa + Medallas", icon: Trophy, color: "text-yellow-500", bg: "bg-yellow-50" },
-            { label: "Inscripción", val: tournament.costo_inscripcion > 0 ? `G. ${tournament.costo_inscripcion.toLocaleString()}` : "Gratuito", icon: DollarSign, color: "text-primary", bg: "bg-primary/10" },
-            { label: "Cierre", val: "Faltan pocos días", icon: Clock, color: "text-orange-500", bg: "bg-orange-50" },
-          ].map((stat, i) => (
-            <div key={i} className="card !p-6 flex items-center gap-5 hover:!translate-y-0">
-              <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center shrink-0`}>
-                <stat.icon size={28} />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest mb-1">{stat.label}</div>
-                <div className="text-xl font-extrabold text-slate-900 leading-none">{stat.val}</div>
-              </div>
-            </div>
-          ))}
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto relative">
+        {/* Top Header */}
+        <header className="bg-white px-8 py-4 flex justify-between items-center shadow-sm z-10 sticky top-0">
+          <Link href="/buscar" className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-bold transition">
+            <ChevronLeft size={16} /> Regresar a explorar campeonatos
+          </Link>
+          <div className="flex gap-3">
+            <button onClick={() => setIsShareModalOpen(true)} className="flex items-center gap-2 text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded border border-blue-200 hover:bg-blue-100 transition text-sm">
+              <Share2 size={16} /> Compartir
+            </button>
+            <button className="flex items-center gap-2 text-white font-bold bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700 transition text-sm">
+              Inscribirse
+            </button>
+          </div>
+        </header>
+
+        {/* Hero Banner */}
+        <div className="relative h-64 bg-slate-800 shrink-0 border-b border-slate-200">
+          {tournament.imagen_portada ? (
+            <img src={tournament.imagen_portada} alt="Banner" className="w-full h-full object-cover opacity-50" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-slate-900 to-indigo-900 opacity-90" />
+          )}
+          
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          
+          <div className="absolute bottom-6 left-8 flex gap-6 text-white text-sm">
+             <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
+               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">START</span>
+               <span className="font-bold text-base">{new Date(tournament.fecha_inicio).toLocaleDateString()}</span>
+             </div>
+             <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
+               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">END</span>
+               <span className="font-bold text-base">{new Date(tournament.fecha_fin).toLocaleDateString()}</span>
+             </div>
+             <div className="flex flex-col bg-black/50 px-5 py-2.5 rounded backdrop-blur-md border border-white/10 shadow-lg">
+               <span className="text-white/60 uppercase text-[10px] font-bold tracking-widest mb-0.5">ORGANIZER</span>
+               <span className="font-bold text-base">{tournament.organizador_nombre || 'No definido'}</span>
+             </div>
+          </div>
+          <button onClick={() => setIsRulesModalOpen(true)} className="absolute bottom-6 right-8 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-6 py-3 flex items-center gap-2 font-bold rounded-lg transition border border-white/20 text-sm shadow-lg">
+            <FileText size={18} /> TOURNAMENT RULES
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Main Info Area */}
-          <div className="lg:col-span-2 space-y-12">
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200 overflow-x-auto whitespace-nowrap">
-              {["Información", "Equipos", "Fixture", "Posiciones", "Reglas", "Noticias"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab.toLowerCase())}
-                  className={`px-8 py-5 text-sm font-bold tracking-widest uppercase transition-all relative ${activeTab === tab.toLowerCase() ? 'text-primary' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  {tab}
-                  {activeTab === tab.toLowerCase() && (
-                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <AnimatePresence mode="wait">
-              {activeTab === "información" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-12"
-                >
-                  <section>
-                    <h3 className="text-2xl font-extrabold text-slate-900 mb-6 flex items-center gap-3">
-                      <Zap className="text-primary" /> Detalles del Evento
-                    </h3>
-                    <p className="text-slate-500 text-lg leading-relaxed">{tournament.descripcion || "¡Prepárate para la competencia! Un espacio ideal para demostrar todo el talento de tu equipo y competir por grandes premios."}</p>
-                  </section>
-
-                  <section className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm">
-                    <h3 className="text-xl font-extrabold text-slate-900 mb-8 flex items-center gap-3">
-                      <Trophy size={24} className="text-yellow-500" /> Bolsa de Premios
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4">
-                      {prizes.map((p, i) => (
-                        <div key={i} className="flex justify-between items-center p-6 bg-subtle rounded-2xl border border-slate-50 group hover:border-primary/30 transition-all">
-                          <div className="flex items-center gap-4">
-                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-slate-400 border border-slate-100 group-hover:text-primary group-hover:border-primary/20">{i+1}</div>
-                             <span className="font-bold text-slate-700 text-lg">{p.rank}</span>
-                          </div>
-                          <span className="font-extrabold text-primary text-lg">{p.reward}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </motion.div>
-              )}
-
-              {activeTab === "equipos" && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                >
-                  {equipos.length === 0 ? (
-                    <div className="col-span-full py-16 text-center text-slate-500 italic">No hay equipos inscritos todavía. ¡Sé el primero en sumarte!</div>
-                  ) : equipos.map((e, idx) => (
-                    <div key={e.id} className="card !p-6 flex items-center gap-5 group hover:border-primary/30 transition-all">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg overflow-hidden">
-                        {e.logo_url ? <img src={`${API_URL.replace('/api', '')}${e.logo_url}`} alt={e.nombre} className="w-full h-full object-cover" /> : idx + 1}
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-slate-900 text-lg">{e.nombre}</h4>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">Capitán: {e.capitan_nombre || "Sin Capitán"}</p>
-                      </div>
-                      {e.estado_inscripcion === 'confirmado' && (
-                        <span className="ml-auto bg-green-100 text-green-700 font-bold text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full">CONFIRMADO</span>
-                      )}
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-
-              {activeTab === "posiciones" && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
-                >
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-500 uppercase text-xs tracking-wider border-b border-slate-200">
-                          <th className="p-4 font-bold text-center w-12">Pos</th>
-                          <th className="p-4 font-bold">Equipo</th>
-                          <th className="p-4 font-bold text-center" title="Partidos Jugados">PJ</th>
-                          <th className="p-4 font-bold text-center" title="Partidos Ganados">G</th>
-                          <th className="p-4 font-bold text-center" title="Partidos Empatados">E</th>
-                          <th className="p-4 font-bold text-center" title="Partidos Perdidos">P</th>
-                          <th className="p-4 font-bold text-center hidden md:table-cell" title="Goles a Favor">GF</th>
-                          <th className="p-4 font-bold text-center hidden md:table-cell" title="Goles en Contra">GC</th>
-                          <th className="p-4 font-bold text-center" title="Diferencia de Goles">DIF</th>
-                          <th className="p-4 font-bold text-center text-primary text-sm">PTS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {posiciones.length === 0 ? (
-                          <tr>
-                            <td colSpan={10} className="p-12 text-center text-slate-500 italic">No hay resultados todavía.</td>
-                          </tr>
-                        ) : posiciones.map((pos, idx) => (
-                          <tr key={pos.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                            <td className="p-4 text-center font-bold text-slate-400">{idx + 1}</td>
-                            <td className="p-4 flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-bold overflow-hidden">
-                                {pos.logo_url ? <img src={`${API_URL.replace('/api', '')}${pos.logo_url}`} alt={pos.nombre} className="w-full h-full object-cover" /> : pos.nombre.charAt(0)}
-                              </div>
-                              <span className="font-bold text-slate-800">{pos.nombre}</span>
-                            </td>
-                            <td className="p-4 text-center font-semibold text-slate-600">{pos.pj}</td>
-                            <td className="p-4 text-center text-slate-600">{pos.pg}</td>
-                            <td className="p-4 text-center text-slate-600">{pos.pe}</td>
-                            <td className="p-4 text-center text-slate-600">{pos.pp}</td>
-                            <td className="p-4 text-center text-slate-500 hidden md:table-cell">{pos.gf}</td>
-                            <td className="p-4 text-center text-slate-500 hidden md:table-cell">{pos.gc}</td>
-                            <td className="p-4 text-center font-semibold text-slate-600">{pos.dif > 0 ? `+${pos.dif}` : pos.dif}</td>
-                            <td className="p-4 text-center font-extrabold text-primary text-lg">{pos.pts}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+        {/* Content Grids */}
+        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-[1400px] w-full pb-32">
+          
+          {/* About Section */}
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 h-fit">
+            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
+              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-serif italic text-xl">i</span>
+              About
+            </h3>
+            
+            <div className="space-y-6">
+              <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest">Contacts</h4>
+              
+              <div className="grid grid-cols-1 gap-5">
+                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-slate-300 transition">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 shrink-0">
+                    <Phone size={20} />
                   </div>
-                </motion.div>
-              )}
-
-              {activeTab === "fixture" && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.02 }}
-                  className="flex flex-col md:flex-row gap-8 overflow-x-auto pb-8 scrollbar-hide w-full"
-                >
-                  {roundsData.length === 0 ? (
-                    <div className="w-full py-20 bg-white border border-slate-100 rounded-[2rem] text-center">
-                      <Trophy className="mx-auto text-slate-300 w-16 h-16 mb-4 animate-bounce" />
-                      <h4 className="text-xl font-bold text-slate-900 mb-2">Fixture en Preparación</h4>
-                      <p className="text-slate-500 max-w-sm mx-auto text-sm">El organizador realizará el sorteo una vez que se completen los cupos de inscripción y estén todos confirmados.</p>
-                    </div>
-                  ) : roundsData.map((round, i) => (
-                    <div key={i} className="flex-1 min-w-[320px]">
-                      <h4 className="text-center font-bold text-xs uppercase tracking-[0.2em] text-slate-400 mb-8 py-3 bg-white rounded-xl border border-slate-100 italic">
-                        {round.round}
-                      </h4>
-                      <div className="space-y-6">
-                        {round.matches.map((match, mi) => (
-                          <div key={mi} className="card !p-0 overflow-hidden !border-slate-100">
-                            <div className={`p-4 flex justify-between items-center border-b border-slate-50 ${match.winner === match.team1 ? 'bg-primary/5' : ''}`}>
-                              <span className={`font-bold text-sm ${match.winner === match.team1 ? 'text-primary' : 'text-slate-600'}`}>{match.team1}</span>
-                              <span className="font-extrabold text-lg text-slate-900">{match.score1 ?? "-"}</span>
-                            </div>
-                            <div className={`p-4 flex justify-between items-center ${match.winner === match.team2 ? 'bg-primary/5' : ''}`}>
-                              <span className={`font-bold text-sm ${match.winner === match.team2 ? 'text-primary' : 'text-slate-600'}`}>{match.team2}</span>
-                              <span className="font-extrabold text-lg text-slate-900">{match.score2 ?? "-"}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-
-              {activeTab === "reglas" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {rules.map((rule, i) => (
-                      <div key={i} className="card !p-8 flex items-start gap-4">
-                        <CheckCircle2 size={24} className="text-primary shrink-0" />
-                        <span className="text-slate-600 font-medium leading-relaxed">{rule}</span>
-                      </div>
-                   ))}
-                </motion.div>
-              )}
-
-              {activeTab === "noticias" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  {noticias.length === 0 ? (
-                    <div className="py-16 text-center text-slate-500 italic">No hay noticias o crónicas generadas todavía.</div>
-                  ) : noticias.map((n, idx) => (
-                    <div key={n.id || idx} className="card !p-6 flex flex-col gap-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Newspaper className="text-primary w-6 h-6" />
-                        <h4 className="font-extrabold text-slate-900 text-xl">{n.titulo}</h4>
-                      </div>
-                      <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">{n.contenido}</p>
-                      <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest mt-4">
-                        Fecha: {new Date(n.fecha_publicacion).toLocaleDateString()}
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Sidebar Area */}
-          <div className="space-y-8">
-            {/* Registration Card */}
-            <div className="bg-secondary rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center animate-pulse">
-                    <Clock size={20} />
+                  <div>
+                    <div className="font-bold text-slate-800 text-lg">{contacto.telefono1 || 'No definido'}</div>
+                    <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">WhatsApp / Llamadas</div>
                   </div>
-                  <span className="font-bold tracking-widest uppercase text-[10px]">Cierre de Inscripción</span>
                 </div>
                 
-                <div className="flex justify-between mb-10">
-                  {['05', '12', '45'].map((v, i) => (
-                     <div key={i} className="text-center">
-                       <div className="text-5xl font-extrabold leading-none mb-1">{v}</div>
-                       <div className="text-[10px] uppercase font-bold opacity-60 tracking-widest">{['Días', 'Horas', 'Min'][i]}</div>
-                     </div>
-                  ))}
+                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-slate-300 transition">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 shrink-0">
+                    <Phone size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-800 text-lg">{contacto.telefono2 || 'No definido'}</div>
+                    <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Llamadas</div>
+                  </div>
                 </div>
-
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  disabled={isInscribed || equipos.length >= tournament.max_equipos}
-                  className={`w-full py-5 rounded-[2rem] font-extrabold text-lg transition-all shadow-xl ${isInscribed ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white text-secondary hover:bg-slate-100'}`}
-                >
-                  {isInscribed ? 'ESTÁS INSCRITO' : 'UNIRME AHORA'}
-                </button>
-              </div>
-            </div>
-
-            {/* Organizer Card */}
-            <div className="card">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">Organizador</h4>
-              <div className="flex items-center gap-5 mb-8">
-                <div className="w-16 h-16 rounded-[1.5rem] bg-subtle border border-slate-100 flex items-center justify-center font-extrabold text-2xl text-primary">LQ</div>
-                <div>
-                  <div className="font-extrabold text-xl text-slate-900 leading-none mb-2">{tournament.complejo_nombre}</div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">
-                    <ShieldCheck size={14} /> Club Verificado
+                
+                <div className="flex items-center gap-4 text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-slate-300 transition">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 shrink-0">
+                    <Mail size={20} />
+                  </div>
+                  <div className="overflow-hidden">
+                    <div className="font-bold text-slate-800 text-lg truncate">{contacto.email || 'No definido'}</div>
+                    <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Email</div>
                   </div>
                 </div>
               </div>
-              <div className="space-y-4">
-                 <button className="w-full btn btn-white py-4 rounded-2xl text-sm lowercase">contactar organizador</button>
-                 <button className="w-full flex items-center justify-center gap-2 text-primary font-bold text-sm hover:translate-x-1 transition-transform">
-                    Ver otros torneos <ArrowRight size={16} />
-                 </button>
+            </div>
+            
+            <div className="mt-10 pt-8 border-t border-slate-100">
+               <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest mb-4">Location</h4>
+               <p className="text-slate-700 font-bold flex items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                 <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-red-400 shrink-0">
+                   <MapPin size={20} />
+                 </div>
+                 {tournament.complejo_nombre || 'Ubicación no especificada'}
+               </p>
+            </div>
+          </div>
+
+          {/* Awards Section */}
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 h-fit">
+            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
+              <span className="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-500 flex items-center justify-center"><Trophy size={20}/></span>
+              Awards
+            </h3>
+            
+            <div className="space-y-4">
+               {premios.length > 0 ? (
+                 premios.map((premio: any, idx: number) => {
+                   let iconColor = "text-yellow-500";
+                   let bgColor = "bg-yellow-50";
+                   let borderColor = "border-yellow-100";
+                   let rankText = "1º Puesto";
+                   
+                   if (premio.puesto === 2) { 
+                     iconColor = "text-slate-400"; bgColor = "bg-slate-100"; borderColor = "border-slate-200"; rankText = "2º Puesto"; 
+                   } else if (premio.puesto === 3) { 
+                     iconColor = "text-amber-600"; bgColor = "bg-amber-50"; borderColor = "border-amber-100"; rankText = "3º Puesto"; 
+                   } else if (premio.puesto === 'otros') { 
+                     iconColor = "text-blue-500"; bgColor = "bg-blue-50"; borderColor = "border-blue-100"; rankText = "Otros Premios"; 
+                   }
+                   
+                   return (
+                     <div key={idx} className={`flex items-center gap-5 p-5 rounded-xl border ${borderColor} hover:shadow-md transition-shadow`}>
+                        <div className={`w-14 h-14 rounded-full ${bgColor} ${iconColor} flex items-center justify-center shrink-0`}>
+                          <Trophy size={24} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800 text-lg mb-1">{rankText}</div>
+                          <div className="text-sm text-slate-600 font-medium leading-relaxed">{premio.desc}</div>
+                        </div>
+                     </div>
+                   );
+                 })
+               ) : (
+                 <div className="p-10 border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-center">
+                   <Trophy size={48} className="text-slate-300 mb-4" />
+                   <p className="text-slate-500 font-medium">No hay premios definidos aún.</p>
+                 </div>
+               )}
+            </div>
+          </div>
+          
+        </div>
+        
+        {/* Messages Input Box fixed at bottom right */}
+        <div className="fixed bottom-6 right-8 w-96 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden flex flex-col">
+           <div className="bg-[#1e3a8a] p-4 text-white font-bold flex justify-between items-center" style={{backgroundColor: colorSidebar}}>
+             <span className="flex items-center gap-2"><Mail size={16}/> Messages</span>
+             <button className="hover:bg-white/10 p-1 rounded transition">
+               <ChevronLeft size={20} className="rotate-[270deg]" />
+             </button>
+           </div>
+           <div className="p-6 bg-slate-50 h-40 flex flex-col items-center justify-center text-center">
+             <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
+               <Mail className="text-slate-300" size={24} />
+             </div>
+             <p className="text-slate-400 text-sm font-medium">Envía un mensaje o consulta directamente a la organización del torneo.</p>
+           </div>
+           <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
+             <input type="text" placeholder="Escribe aquí..." className="flex-1 outline-none text-sm px-3 py-2 bg-slate-100 rounded-lg border border-transparent focus:border-slate-300 transition" />
+             <button className="w-10 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shrink-0" style={{backgroundColor: colorSidebar}}>
+               <ArrowRight size={18} />
+             </button>
+           </div>
+        </div>
+      </main>
+
+      {/* Share Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-[#f7f5f9] rounded-[2rem] w-full max-w-sm relative overflow-hidden shadow-2xl scale-100">
+            <button onClick={() => setIsShareModalOpen(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-800 transition">
+              <X size={24} />
+            </button>
+            <div className="p-8 text-center pt-8">
+              <h3 className="text-2xl font-bold text-slate-800 mb-8 text-left">Compartir</h3>
+              
+              <div className="bg-white p-6 rounded-3xl mx-auto w-64 h-64 flex items-center justify-center shadow-sm border border-slate-100 mb-8">
+                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}&margin=0`} alt="QR Code" className="w-full h-full" />
+              </div>
+              
+              <div 
+                className="mt-4 border border-slate-300 rounded-2xl bg-transparent p-4 flex items-center justify-between cursor-pointer hover:bg-slate-200/50 transition active:scale-95"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl);
+                  alert("¡Enlace copiado al portapapeles!");
+                }}
+              >
+                <span className="text-sm text-slate-600 truncate mr-2 border-b border-slate-400 font-medium pb-0.5">{shareUrl}</span>
+                <span className="text-slate-600">
+                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Enrollment Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl p-8 relative">
-            <button 
-              onClick={() => setIsModalOpen(false)} 
-              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
-            
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Trophy size={32} />
-              </div>
-              <h3 className="text-2xl font-extrabold text-white">Inscribir Equipo</h3>
-              <p className="text-slate-400 text-sm mt-1">Completa los datos de tu plantel para el torneo</p>
+      {/* Rules Modal */}
+      {isRulesModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-3xl relative shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3"><FileText size={28} className="text-blue-600" /> Reglas del Campeonato</h3>
+              <button onClick={() => setIsRulesModalOpen(false)} className="text-slate-400 hover:text-slate-800 bg-white p-2 rounded-full shadow-sm">
+                <X size={24} />
+              </button>
             </div>
-            
-            <form onSubmit={handleEnrollSubmit} className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Nombre del Equipo</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="Ej. Real Canchita FC"
-                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
-                  value={enrollData.nombre}
-                  onChange={e => setEnrollData({ ...enrollData, nombre: e.target.value })}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Nombre del Capitán</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="Ej. Juan Pérez"
-                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
-                  value={enrollData.capitan_nombre}
-                  onChange={e => setEnrollData({ ...enrollData, capitan_nombre: e.target.value })}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Teléfono</label>
-                  <input 
-                    type="tel"
-                    required
-                    placeholder="Ej. 0981123456"
-                    className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
-                    value={enrollData.capitan_telefono}
-                    onChange={e => setEnrollData({ ...enrollData, capitan_telefono: e.target.value })}
-                  />
+            <div className="p-8 overflow-y-auto flex-1 bg-white">
+              {reglas.length > 0 ? (
+                <ul className="space-y-6">
+                  {reglas.map((r: string, i: number) => (
+                    <li key={i} className="flex gap-4 text-slate-700 leading-relaxed items-start">
+                      <span className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex items-center justify-center shrink-0 border border-blue-100 shadow-sm">{i+1}</span>
+                      <span className="mt-1 text-[15px] font-medium">{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <FileText size={32} className="text-slate-300" />
+                  </div>
+                  <p className="text-slate-500 font-medium text-lg">Las reglas de este torneo no han sido publicadas aún.</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Email</label>
-                  <input 
-                    type="email"
-                    required
-                    placeholder="capitan@gmail.com"
-                    className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary transition-colors text-sm"
-                    value={enrollData.capitan_email}
-                    onChange={e => setEnrollData({ ...enrollData, capitan_email: e.target.value })}
-                  />
-                </div>
-              </div>
-              
-              <div className="pt-4">
-                <button 
-                  type="submit" 
-                  disabled={submitting}
-                  className="w-full py-5 bg-primary hover:bg-primary/90 text-black font-extrabold rounded-[2rem] flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-base uppercase"
-                >
-                  {submitting ? 'Procesando...' : (tournament?.costo_inscripcion > 0 ? `Proceder al Pago (G. ${tournament.costo_inscripcion.toLocaleString()})` : 'Confirmar Registro')}
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setIsRulesModalOpen(false)} className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-700 transition shadow-sm">Entendido</button>
+            </div>
           </div>
         </div>
       )}

@@ -20,7 +20,8 @@ export default function TorneoAdminPage() {
   
   const [torneo, setTorneo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('configuracion');
+  const [activeTab, setActiveTab] = useState('inicio');
+  const [isOrganizer, setIsOrganizer] = useState(false);
   
   // Si en la configuración se selecciona una sub-sección (ej. 'categorias', 'grupos', 'checkin')
   const [activeSubSection, setActiveSubSection] = useState<string | null>(null);
@@ -41,6 +42,9 @@ export default function TorneoAdminPage() {
       if(res.ok) {
         const data = await res.json();
         setTorneo(data);
+        if (sessionData.user_id && data.organizador_usuario_id === sessionData.user_id) {
+          setIsOrganizer(true);
+        }
       } else {
         console.error("No se pudo cargar el torneo");
       }
@@ -169,6 +173,7 @@ export default function TorneoAdminPage() {
           setActiveTab(tab);
           setActiveSubSection(null); // Reset sub section if switching main tabs
         }} 
+        isOrganizer={isOrganizer}
       />
       
       <main className="flex-1 ml-0 h-screen overflow-y-auto">

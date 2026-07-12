@@ -528,7 +528,7 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
                org.nombre AS organizador_nombre,
                t.formato, t.max_equipos, t.costo_inscripcion,
                t.puntos_victoria, t.puntos_empate, t.puntos_derrota,
-               t.reglas, t.premios
+               t.reglas, t.premios, t.configuracion
         FROM torneos.torneos t
         LEFT JOIN cancha.complejos c ON t.complejo_id = c.id
         LEFT JOIN cancha.organizadores org ON t.organizador_id = org.id
@@ -540,11 +540,12 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
     keys = ["id","complejo_id","organizador_id","nombre","descripcion","deporte","fecha_inicio",
             "fecha_fin","estado","complejo_nombre","organizador_nombre","formato","max_equipos",
             "costo_inscripcion","pts_victoria","pts_empate","pts_derrota",
-            "reglas","premios"]
+            "reglas","premios","configuracion"]
     d = _row_to_dict(keys, row)
     import json
     d["reglas"] = json.loads(d["reglas"]) if isinstance(d["reglas"], str) else (d["reglas"] or [])
     d["premios"] = json.loads(d["premios"]) if isinstance(d["premios"], str) else (d["premios"] or [])
+    d["configuracion"] = json.loads(d["configuracion"]) if isinstance(d["configuracion"], str) else (d["configuracion"] or {})
     return d
 
 
