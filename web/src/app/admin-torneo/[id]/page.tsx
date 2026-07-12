@@ -167,7 +167,7 @@ export default function TorneoAdminPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans">
       <SidebarTorneo 
-        torneoNombre={torneo.nombre} 
+        torneo={torneo} 
         activeTab={activeTab} 
         setActiveTab={(tab) => {
           setActiveTab(tab);

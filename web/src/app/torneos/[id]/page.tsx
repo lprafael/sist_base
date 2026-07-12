@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import SidebarTorneo from '@/components/torneo-admin/SidebarTorneo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -103,48 +104,14 @@ export default function TournamentDetailPage() {
 
   return (
     <div className="min-h-screen flex bg-slate-100 font-sans">
-      {/* Left Sidebar */}
-      <aside className="w-64 text-white flex flex-col shrink-0" style={{ backgroundColor: colorSidebar }}>
-        <div className="p-8 flex flex-col items-center text-center border-b border-white/10">
-          <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-4 overflow-hidden shadow-lg border-2 border-white/20">
-            {tournament.imagen_portada ? (
-              <img src={tournament.imagen_portada} alt="Logo" className="w-full h-full object-cover" />
-            ) : (
-              <Trophy size={40} className="text-white" />
-            )}
-          </div>
-          <h2 className="text-xl font-bold leading-tight">{tournament.nombre}</h2>
-        </div>
-        <nav className="flex-1 py-4">
-          <ul className="space-y-2">
-            <li>
-              <a href="#" className="flex items-center gap-3 px-8 py-4 bg-white/10 font-bold border-l-4 border-white text-sm transition">
-                <Trophy size={18} /> Inicio
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
-                <BarChart3 size={18} /> Tabla de posiciones
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
-                <Users size={18} /> Rankings y votaciones
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-3 px-8 py-4 text-white/70 hover:bg-white/5 hover:text-white transition font-medium text-sm border-l-4 border-transparent">
-                <ImageIcon size={18} /> Fotos, videos y noticias
-              </a>
-            </li>
-          </ul>
-        </nav>
-        <div className="p-6 mt-auto">
-          <button className="flex items-center gap-3 text-white/70 hover:text-white transition font-bold text-sm w-full py-2">
-            <LogIn size={18} /> Iniciar sesión
-          </button>
-        </div>
-      </aside>
+      {/* Left Sidebar via Unified Component */}
+      <SidebarTorneo 
+        torneo={tournament} 
+        activeTab="inicio" 
+        setActiveTab={() => {}} 
+        isOrganizer={false}
+        isPublicView={true}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto relative">
