@@ -175,11 +175,17 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
         update_fields.append("estado = :estado")
         params["estado"] = data.estado
     if data.fecha_inicio is not None:
-        update_fields.append("fecha_inicio = CAST(:fecha_inicio AS TIMESTAMP)")
-        params["fecha_inicio"] = data.fecha_inicio
+        if str(data.fecha_inicio).strip() == "":
+            pass # ignorar si esta vacio para evitar error
+        else:
+            update_fields.append("fecha_inicio = CAST(:fecha_inicio AS DATE)")
+            params["fecha_inicio"] = data.fecha_inicio
     if data.fecha_fin is not None:
-        update_fields.append("fecha_fin = CAST(:fecha_fin AS TIMESTAMP)")
-        params["fecha_fin"] = data.fecha_fin
+        if str(data.fecha_fin).strip() == "":
+            update_fields.append("fecha_fin = NULL")
+        else:
+            update_fields.append("fecha_fin = CAST(:fecha_fin AS DATE)")
+            params["fecha_fin"] = data.fecha_fin
     if data.reglas is not None:
         update_fields.append("reglas = CAST(:reglas AS JSONB)")
         params["reglas"] = json.dumps(data.reglas)
