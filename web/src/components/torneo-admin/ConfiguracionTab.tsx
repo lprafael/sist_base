@@ -194,10 +194,10 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   name="estado" value={formData.estado} onChange={(e) => { handleChange(e); onUpdate({estado: e.target.value}); }}
                   className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-3 py-1 text-sm font-bold outline-none"
                 >
-                  <option value="preparacion">En preparación</option>
-                  <option value="inscripciones">Inscripciones abiertas</option>
-                  <option value="curso">En curso</option>
+                  <option value="abierto">En preparación / Abierto</option>
+                  <option value="en_curso">En curso</option>
                   <option value="finalizado">Finalizado</option>
+                  <option value="cancelado">Cancelado</option>
                 </select>
               </div>
 

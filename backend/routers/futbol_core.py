@@ -127,7 +127,7 @@ async def get_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_cur
         SELECT id, nombre, deporte, formato, tipo_campeonato, estado, creado_en,
                subtitulo, descripcion, imagen_portada, tipo_ubicacion, privacidad
         FROM torneos_futbol.torneos
-        WHERE id = :tid
+        WHERE id = :tid::uuid
     """)
     res = await session.execute(query, {"tid": torneo_id})
     row = res.fetchone()
@@ -171,7 +171,7 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
         return {"message": "Sin cambios"}
 
     set_clause = ", ".join(update_fields)
-    await session.execute(text(f"UPDATE torneos_futbol.torneos SET {set_clause} WHERE id = :tid"), params)
+    await session.execute(text(f"UPDATE torneos_futbol.torneos SET {set_clause} WHERE id = :tid::uuid"), params)
     await session.commit()
     return {"message": "Torneo actualizado correctamente"}
 

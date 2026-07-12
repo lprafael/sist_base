@@ -121,7 +121,7 @@ export default function TorneoAdminPage() {
                   <div className="text-xs text-slate-500 uppercase tracking-wide">Partidos</div>
                 </div>
                 <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl">
-                  <div className="text-2xl font-bold text-slate-800 text-green-600">{torneo.estado === 'curso' ? 'Activo' : 'Prep.'}</div>
+                  <div className="text-2xl font-bold text-slate-800 text-green-600">{torneo.estado === 'en_curso' ? 'Activo' : 'Prep.'}</div>
                   <div className="text-xs text-slate-500 uppercase tracking-wide">Estado</div>
                 </div>
               </div>
