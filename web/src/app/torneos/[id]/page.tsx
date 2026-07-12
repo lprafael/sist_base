@@ -19,6 +19,8 @@ export default function TournamentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessage, setChatMessage] = useState("");
   
   // For the QR code modal
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -80,6 +82,23 @@ export default function TournamentDetailPage() {
     } catch(e) {
       return 'Fecha inválida';
     }
+  };
+
+  const sendMessage = () => {
+    if (!chatMessage.trim()) return;
+    const phone = contacto?.telefono1 || contacto?.telefono2;
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(chatMessage)}`;
+      window.open(url, '_blank');
+    } else if (contacto?.email) {
+      const url = `mailto:${contacto.email}?subject=Consulta sobre torneo ${tournament?.nombre}&body=${encodeURIComponent(chatMessage)}`;
+      window.open(url, '_blank');
+    } else {
+      alert("No hay información de contacto disponible para este torneo.");
+    }
+    setChatMessage("");
+    setIsChatOpen(false);
   };
 
   return (
@@ -277,25 +296,45 @@ export default function TournamentDetailPage() {
         </div>
         
         {/* Messages Input Box fixed at bottom right */}
-        <div className="fixed bottom-6 right-8 w-96 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden flex flex-col">
-           <div className="bg-[#1e3a8a] p-4 text-white font-bold flex justify-between items-center" style={{backgroundColor: colorSidebar}}>
+        <div className="fixed bottom-6 right-8 w-96 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden flex flex-col z-40 transition-all duration-300">
+           <div 
+             className="bg-[#1e3a8a] p-4 text-white font-bold flex justify-between items-center cursor-pointer" 
+             style={{backgroundColor: colorSidebar}}
+             onClick={() => setIsChatOpen(!isChatOpen)}
+           >
              <span className="flex items-center gap-2"><Mail size={16}/> Mensajes</span>
              <button className="hover:bg-white/10 p-1 rounded transition">
-               <ChevronLeft size={20} className="rotate-[270deg]" />
+               <ChevronLeft size={20} className={`transition-transform duration-300 ${isChatOpen ? 'rotate-90' : 'rotate-[270deg]'}`} />
              </button>
            </div>
-           <div className="p-6 bg-slate-50 h-40 flex flex-col items-center justify-center text-center">
-             <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
-               <Mail className="text-slate-300" size={24} />
-             </div>
-             <p className="text-slate-400 text-sm font-medium">Envía un mensaje o consulta directamente a la organización del torneo.</p>
-           </div>
-           <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
-             <input type="text" placeholder="Escribe aquí..." className="flex-1 outline-none text-sm px-3 py-2 bg-slate-100 rounded-lg border border-transparent focus:border-slate-300 transition" />
-             <button className="w-10 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shrink-0" style={{backgroundColor: colorSidebar}}>
-               <ArrowRight size={18} />
-             </button>
-           </div>
+           
+           {isChatOpen && (
+             <>
+               <div className="p-6 bg-slate-50 h-40 flex flex-col items-center justify-center text-center">
+                 <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
+                   <Mail className="text-slate-300" size={24} />
+                 </div>
+                 <p className="text-slate-400 text-sm font-medium">Envía un mensaje o consulta directamente a la organización del torneo.</p>
+               </div>
+               <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
+                 <input 
+                   type="text" 
+                   placeholder="Escribe aquí..." 
+                   className="flex-1 outline-none text-sm px-3 py-2 bg-slate-100 rounded-lg border border-transparent focus:border-slate-300 transition" 
+                   value={chatMessage}
+                   onChange={(e) => setChatMessage(e.target.value)}
+                   onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                 />
+                 <button 
+                   onClick={sendMessage}
+                   className="w-10 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shrink-0" 
+                   style={{backgroundColor: colorSidebar}}
+                 >
+                   <ArrowRight size={18} />
+                 </button>
+               </div>
+             </>
+           )}
         </div>
       </main>
 
