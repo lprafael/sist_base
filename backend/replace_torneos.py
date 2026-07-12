@@ -23,7 +23,7 @@ for file_path in files_to_update:
 
     for table in tables:
         pattern = r'\btorneos\.' + table + r'\b'
-        replacement = 'torneos_futbol.' + table
+        replacement = 'torneos.' + table
         content = re.sub(pattern, replacement, content)
         
     with open(file_path, 'w', encoding='utf-8') as f:

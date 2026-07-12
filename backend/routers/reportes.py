@@ -29,10 +29,10 @@ async def generar_planilla_pdf(torneo_id: str, partido_id: str, session: AsyncSe
                    el.id as local_id, el.nombre as local_nombre, 
                    ev.id as visitante_id, ev.nombre as visitante_nombre,
                    t.nombre as torneo_nombre, t.deporte, t.formato
-            FROM torneos_futbol.partidos p
-            JOIN torneos_futbol.equipos el ON p.equipo_local_id = el.id
-            JOIN torneos_futbol.equipos ev ON p.equipo_visitante_id = ev.id
-            JOIN torneos_futbol.torneos t ON p.torneo_id = t.id
+            FROM torneos.partidos p
+            JOIN torneos.equipos el ON p.equipo_local_id = el.id
+            JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
+            JOIN torneos.torneos t ON p.torneo_id = t.id
             WHERE p.id = :pid AND p.torneo_id = :tid
         """
         res_partido = await session.execute(text(partido_sql), {"pid": partido_id, "tid": torneo_id})

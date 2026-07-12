@@ -1,5 +1,5 @@
 """
-Migration 022: Mover cancha.eventos_partido a torneos_futbol.eventos_partido
+Migration 022: Mover cancha.eventos_partido a torneos.eventos_partido
 """
 
 import asyncio
@@ -14,7 +14,7 @@ ALTER TABLE IF EXISTS cancha.eventos_partido SET SCHEMA torneos_futbol;
 """
 
 migration_down = """
-ALTER TABLE IF EXISTS torneos_futbol.eventos_partido SET SCHEMA cancha;
+ALTER TABLE IF EXISTS torneos.eventos_partido SET SCHEMA cancha;
 """
 
 if __name__ == "__main__":

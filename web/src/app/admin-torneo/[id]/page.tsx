@@ -4,6 +4,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2, Trophy } from 'lucide-react';
 import SidebarTorneo from '@/components/torneo-admin/SidebarTorneo';
 import ConfiguracionTab from '@/components/torneo-admin/ConfiguracionTab';
+import CategoriasView from '@/components/torneo-admin/modulos/CategoriasView';
+import CheckinView from '@/components/torneo-admin/modulos/CheckinView';
+import GruposView from '@/components/torneo-admin/modulos/GruposView';
+import AgrupacionView from '@/components/torneo-admin/modulos/AgrupacionView';
+import ParticipantesView from '@/components/torneo-admin/modulos/ParticipantesView';
+import ArbitrajeView from '@/components/torneo-admin/modulos/ArbitrajeView';
+import ClasificacionView from '@/components/torneo-admin/modulos/ClasificacionView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -80,10 +87,27 @@ export default function TorneoAdminPage() {
             &larr; Volver a Configuración
           </button>
           <h2 className="text-2xl font-bold mb-4 capitalize text-slate-800">Gestionar {activeSubSection}</h2>
-          <div className="p-8 border-2 border-dashed border-slate-300 rounded-xl text-center">
-            <p className="text-slate-500 mb-2">Aquí se inyectará la lógica correspondiente a <strong>{activeSubSection}</strong></p>
-            <p className="text-xs text-slate-400"> (Por ejemplo, el gestor de llaves, el check-in, o las categorías, tal como estaban en admin-generales)</p>
-          </div>
+          
+          {activeSubSection === 'categorias' ? (
+            <CategoriasView torneoId={id as string} />
+          ) : activeSubSection === 'checkin' ? (
+            <CheckinView torneoId={id as string} />
+          ) : activeSubSection === 'grupos' ? (
+            <GruposView torneoId={id as string} />
+          ) : activeSubSection === 'agrupacion' ? (
+            <AgrupacionView torneoId={id as string} />
+          ) : activeSubSection === 'participantes' ? (
+            <ParticipantesView torneoId={id as string} />
+          ) : activeSubSection === 'arbitraje' ? (
+            <ArbitrajeView torneoId={id as string} />
+          ) : activeSubSection === 'clasificacion' ? (
+            <ClasificacionView torneoId={id as string} />
+          ) : (
+            <div className="p-8 border-2 border-dashed border-slate-300 rounded-xl text-center">
+              <p className="text-slate-500 mb-2">Aquí se inyectará la lógica correspondiente a <strong>{activeSubSection}</strong></p>
+              <p className="text-xs text-slate-400"> (Por ejemplo, el gestor de llaves, el check-in, o las categorías, tal como estaban en admin-generales)</p>
+            </div>
+          )}
         </div>
       );
     }

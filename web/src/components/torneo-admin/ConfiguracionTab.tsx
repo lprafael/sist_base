@@ -142,8 +142,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           <ul className="divide-y divide-slate-100">
             {[
               { id: 'categorias', icon: Activity, label: 'Categorías y Divisiones' },
-              { id: 'equipos', icon: Users, label: 'Equipos (0)' },
-              { id: 'jugadores', icon: Users, label: 'Jugadores (0)' },
+              { id: 'participantes', icon: Users, label: 'Participantes / Equipos' },
               { id: 'checkin', icon: Scale, label: 'Check-in (Pesaje)' },
               { id: 'grupos', icon: Activity, label: 'Grupos' },
               { id: 'agrupacion', icon: Trophy, label: 'Fases / Llaves' },

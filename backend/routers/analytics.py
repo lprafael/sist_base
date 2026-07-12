@@ -43,13 +43,13 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session), curr
     tendencia = [{"semana": r.semana, "ingresos": r.ingresos} for r in res_tend.fetchall()]
     
     # KPIs de Torneos
-    q_torneos_activos = text("SELECT COUNT(id) FROM torneos_futbol.torneos WHERE estado IN ('abierto', 'en_curso')")
+    q_torneos_activos = text("SELECT COUNT(id) FROM torneos.torneos WHERE estado IN ('abierto', 'en_curso')")
     torneos_activos = (await session.execute(q_torneos_activos)).scalar() or 0
 
-    q_partidos_hoy = text("SELECT COUNT(id) FROM torneos_futbol.partidos WHERE DATE(fecha_hora) = CURRENT_DATE AND estado != 'finalizado'")
+    q_partidos_hoy = text("SELECT COUNT(id) FROM torneos.partidos WHERE DATE(fecha_hora) = CURRENT_DATE AND estado != 'finalizado'")
     partidos_hoy = (await session.execute(q_partidos_hoy)).scalar() or 0
 
-    q_equipos_pendientes = text("SELECT COUNT(id) FROM torneos_futbol.equipos WHERE estado_inscripcion = 'pendiente'")
+    q_equipos_pendientes = text("SELECT COUNT(id) FROM torneos.equipos WHERE estado_inscripcion = 'pendiente'")
     equipos_pendientes = (await session.execute(q_equipos_pendientes)).scalar() or 0
 
     q_equipos_deuda = text("""
@@ -64,9 +64,9 @@ async def get_dashboard_stats(session: AsyncSession = Depends(get_session), curr
             el.nombre as local,
             ev.nombre as visitante,
             COALESCE(c.nombre, 'Sin Asignar') as cancha
-        FROM torneos_futbol.partidos p
-        JOIN torneos_futbol.equipos el ON p.equipo_local_id = el.id
-        JOIN torneos_futbol.equipos ev ON p.equipo_visitante_id = ev.id
+        FROM torneos.partidos p
+        JOIN torneos.equipos el ON p.equipo_local_id = el.id
+        JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
         WHERE p.fecha_hora >= CURRENT_TIMESTAMP 
           AND p.fecha_hora < CURRENT_DATE + INTERVAL '2 days'

@@ -10,7 +10,7 @@ async def run():
             print(f"Testing for jid: {jugador_id}")
             
             await conn.execute(text("""
-                UPDATE torneos_futbol.tournament_players
+                UPDATE torneos.tournament_players
                 SET nombre = COALESCE(:nombre, nombre),
                     nombre_abreviado = COALESCE(:nombre_abreviado, nombre_abreviado),
                     dni = COALESCE(:dni, dni),

@@ -6,19 +6,19 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 migration_up = """
 -- 1. Agregar organizador_id y quitar NOT NULL de complejo_id en torneos y eventos
-ALTER TABLE torneos_futbol.torneos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;
-ALTER TABLE torneos_futbol.eventos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;
-ALTER TABLE torneos_futbol.torneos ALTER COLUMN complejo_id DROP NOT NULL;
-ALTER TABLE torneos_futbol.eventos ALTER COLUMN complejo_id DROP NOT NULL;
+ALTER TABLE torneos.torneos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;
+ALTER TABLE torneos.eventos ADD COLUMN IF NOT EXISTS organizador_id INTEGER REFERENCES cancha.organizadores(id) ON DELETE SET NULL;
+ALTER TABLE torneos.torneos ALTER COLUMN complejo_id DROP NOT NULL;
+ALTER TABLE torneos.eventos ALTER COLUMN complejo_id DROP NOT NULL;
 
 -- 2. Agregar email y activo a tournament_players
-ALTER TABLE torneos_futbol.tournament_players ADD COLUMN IF NOT EXISTS email VARCHAR(150);
-ALTER TABLE torneos_futbol.tournament_players ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE torneos.tournament_players ADD COLUMN IF NOT EXISTS email VARCHAR(150);
+ALTER TABLE torneos.tournament_players ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- 3. Crear tabla documentos_jugador
-CREATE TABLE IF NOT EXISTS torneos_futbol.documentos_jugador (
+CREATE TABLE IF NOT EXISTS torneos.documentos_jugador (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    jugador_id UUID NOT NULL REFERENCES torneos_futbol.tournament_players(id) ON DELETE CASCADE,
+    jugador_id UUID NOT NULL REFERENCES torneos.tournament_players(id) ON DELETE CASCADE,
     tipo_documento VARCHAR(50) NOT NULL,
     archivo_url VARCHAR(500) NOT NULL,
     estado VARCHAR(30) DEFAULT 'pendiente',
@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.documentos_jugador (
 );
 
 -- 4. Crear tabla cargos_equipo
-CREATE TABLE IF NOT EXISTS torneos_futbol.cargos_equipo (
+CREATE TABLE IF NOT EXISTS torneos.cargos_equipo (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    equipo_id UUID NOT NULL REFERENCES torneos_futbol.equipos(id) ON DELETE CASCADE,
+    equipo_id UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     concepto VARCHAR(200) NOT NULL,
     monto NUMERIC(12,2) NOT NULL,
     saldo NUMERIC(12,2) NOT NULL,
@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.cargos_equipo (
 );
 
 -- 5. Crear tabla pagos_cargo
-CREATE TABLE IF NOT EXISTS torneos_futbol.pagos_cargo (
+CREATE TABLE IF NOT EXISTS torneos.pagos_cargo (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    cargo_id UUID NOT NULL REFERENCES torneos_futbol.cargos_equipo(id) ON DELETE CASCADE,
+    cargo_id UUID NOT NULL REFERENCES torneos.cargos_equipo(id) ON DELETE CASCADE,
     monto NUMERIC(12,2) NOT NULL,
     metodo_pago VARCHAR(50) NOT NULL,
     referencia VARCHAR(100),
@@ -52,15 +52,15 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.pagos_cargo (
 """
 
 migration_down = """
-DROP TABLE IF EXISTS torneos_futbol.pagos_cargo CASCADE;
-DROP TABLE IF EXISTS torneos_futbol.cargos_equipo CASCADE;
-DROP TABLE IF EXISTS torneos_futbol.documentos_jugador CASCADE;
+DROP TABLE IF EXISTS torneos.pagos_cargo CASCADE;
+DROP TABLE IF EXISTS torneos.cargos_equipo CASCADE;
+DROP TABLE IF EXISTS torneos.documentos_jugador CASCADE;
 
-ALTER TABLE torneos_futbol.tournament_players DROP COLUMN IF EXISTS email;
-ALTER TABLE torneos_futbol.tournament_players DROP COLUMN IF EXISTS activo;
+ALTER TABLE torneos.tournament_players DROP COLUMN IF EXISTS email;
+ALTER TABLE torneos.tournament_players DROP COLUMN IF EXISTS activo;
 
-ALTER TABLE torneos_futbol.torneos DROP COLUMN IF EXISTS organizador_id;
-ALTER TABLE torneos_futbol.eventos DROP COLUMN IF EXISTS organizador_id;
+ALTER TABLE torneos.torneos DROP COLUMN IF EXISTS organizador_id;
+ALTER TABLE torneos.eventos DROP COLUMN IF EXISTS organizador_id;
 -- No revertimos el DROP NOT NULL de complejo_id porque podria violar restricciones.
 """
 

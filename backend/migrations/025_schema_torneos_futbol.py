@@ -21,7 +21,7 @@ migration_up = """
 CREATE SCHEMA IF NOT EXISTS torneos_futbol;
 
 -- 1. Eventos
-CREATE TABLE IF NOT EXISTS torneos_futbol.eventos (
+CREATE TABLE IF NOT EXISTS torneos.eventos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     complejo_id UUID REFERENCES cancha.complejos(id) ON DELETE CASCADE,
     nombre VARCHAR(200) NOT NULL,
@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.eventos (
 );
 
 -- 2. Torneos (Categorias)
-CREATE TABLE IF NOT EXISTS torneos_futbol.torneos (
+CREATE TABLE IF NOT EXISTS torneos.torneos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    evento_id UUID REFERENCES torneos_futbol.eventos(id) ON DELETE CASCADE,
+    evento_id UUID REFERENCES torneos.eventos(id) ON DELETE CASCADE,
     complejo_id UUID REFERENCES cancha.complejos(id) ON DELETE CASCADE,
     categoria VARCHAR(100),
     nombre VARCHAR(200) NOT NULL,
@@ -56,9 +56,9 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.torneos (
 );
 
 -- 3. Equipos
-CREATE TABLE IF NOT EXISTS torneos_futbol.equipos (
+CREATE TABLE IF NOT EXISTS torneos.equipos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id UUID REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
+    torneo_id UUID REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     nombre VARCHAR(150) NOT NULL,
     capitan_nombre VARCHAR(150),
     capitan_telefono VARCHAR(50),
@@ -69,27 +69,27 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.equipos (
 );
 
 -- 4. Partidos
-CREATE TABLE IF NOT EXISTS torneos_futbol.partidos (
+CREATE TABLE IF NOT EXISTS torneos.partidos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id UUID REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
+    torneo_id UUID REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     cancha_id UUID REFERENCES cancha.canchas(id),
-    equipo_local_id UUID REFERENCES torneos_futbol.equipos(id),
-    equipo_visitante_id UUID REFERENCES torneos_futbol.equipos(id),
+    equipo_local_id UUID REFERENCES torneos.equipos(id),
+    equipo_visitante_id UUID REFERENCES torneos.equipos(id),
     fecha_hora TIMESTAMPTZ,
     fase VARCHAR(50) DEFAULT 'grupos',
     jornada INTEGER DEFAULT 1,
     estado VARCHAR(30) DEFAULT 'programado' CHECK (estado IN ('programado','en_curso','finalizado','cancelado','wo')),
     goles_local INTEGER,
     goles_visitante INTEGER,
-    ganador_id UUID REFERENCES torneos_futbol.equipos(id),
+    ganador_id UUID REFERENCES torneos.equipos(id),
     observaciones TEXT,
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 5. Tournament Players
-CREATE TABLE IF NOT EXISTS torneos_futbol.tournament_players (
+CREATE TABLE IF NOT EXISTS torneos.tournament_players (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_equipo_id    UUID NOT NULL REFERENCES torneos_futbol.equipos(id) ON DELETE CASCADE,
+    torneo_equipo_id    UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     nombre              VARCHAR(200) NOT NULL,
     dni                 VARCHAR(20) NOT NULL,
     fecha_nacimiento    DATE,
@@ -106,13 +106,13 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.tournament_players (
     UNIQUE(torneo_equipo_id, numero_camiseta)
 );
 
-CREATE INDEX IF NOT EXISTS idx_tp_equipo ON torneos_futbol.tournament_players(torneo_equipo_id);
+CREATE INDEX IF NOT EXISTS idx_tp_equipo ON torneos.tournament_players(torneo_equipo_id);
 
 -- 6. Planilla
-CREATE TABLE IF NOT EXISTS torneos_futbol.planilla (
+CREATE TABLE IF NOT EXISTS torneos.planilla (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    partido_id          UUID NOT NULL REFERENCES torneos_futbol.partidos(id) ON DELETE CASCADE,
-    player_id           UUID NOT NULL REFERENCES torneos_futbol.tournament_players(id),
+    partido_id          UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
+    player_id           UUID NOT NULL REFERENCES torneos.tournament_players(id),
     presente            BOOLEAN NOT NULL DEFAULT false,
     capitan             BOOLEAN NOT NULL DEFAULT false,
     es_titular          BOOLEAN NOT NULL DEFAULT false,
@@ -123,11 +123,11 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.planilla (
 );
 
 -- 7. Goles
-CREATE TABLE IF NOT EXISTS torneos_futbol.goles (
+CREATE TABLE IF NOT EXISTS torneos.goles (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    partido_id          UUID NOT NULL REFERENCES torneos_futbol.partidos(id) ON DELETE CASCADE,
-    player_id           UUID REFERENCES torneos_futbol.tournament_players(id),
-    equipo_id           UUID NOT NULL REFERENCES torneos_futbol.equipos(id),
+    partido_id          UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
+    player_id           UUID REFERENCES torneos.tournament_players(id),
+    equipo_id           UUID NOT NULL REFERENCES torneos.equipos(id),
     minuto              SMALLINT,
     tipo                VARCHAR(20) NOT NULL DEFAULT 'normal',
     anulado             BOOLEAN NOT NULL DEFAULT false,
@@ -135,11 +135,11 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.goles (
 );
 
 -- 8. Tarjetas
-CREATE TABLE IF NOT EXISTS torneos_futbol.tarjetas (
+CREATE TABLE IF NOT EXISTS torneos.tarjetas (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    partido_id          UUID NOT NULL REFERENCES torneos_futbol.partidos(id) ON DELETE CASCADE,
-    player_id           UUID NOT NULL REFERENCES torneos_futbol.tournament_players(id),
-    equipo_id           UUID NOT NULL REFERENCES torneos_futbol.equipos(id),
+    partido_id          UUID NOT NULL REFERENCES torneos.partidos(id) ON DELETE CASCADE,
+    player_id           UUID NOT NULL REFERENCES torneos.tournament_players(id),
+    equipo_id           UUID NOT NULL REFERENCES torneos.equipos(id),
     minuto              SMALLINT,
     tipo                VARCHAR(20) NOT NULL,
     pts_fair_play       SMALLINT NOT NULL DEFAULT 0,
@@ -149,10 +149,10 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.tarjetas (
 );
 
 -- 9. Posiciones
-CREATE TABLE IF NOT EXISTS torneos_futbol.posiciones (
+CREATE TABLE IF NOT EXISTS torneos.posiciones (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id           UUID NOT NULL REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
-    equipo_id           UUID NOT NULL REFERENCES torneos_futbol.equipos(id) ON DELETE CASCADE,
+    torneo_id           UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
+    equipo_id           UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     pj                  SMALLINT NOT NULL DEFAULT 0,
     pg                  SMALLINT NOT NULL DEFAULT 0,
     pe                  SMALLINT NOT NULL DEFAULT 0,
@@ -167,10 +167,10 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.posiciones (
 );
 
 -- 10. Sanciones
-CREATE TABLE IF NOT EXISTS torneos_futbol.sanciones (
+CREATE TABLE IF NOT EXISTS torneos.sanciones (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id           UUID NOT NULL REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
-    player_id           UUID NOT NULL REFERENCES torneos_futbol.tournament_players(id),
+    torneo_id           UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
+    player_id           UUID NOT NULL REFERENCES torneos.tournament_players(id),
     partidos_suspension SMALLINT NOT NULL DEFAULT 1,
     partidos_cumplidos  SMALLINT NOT NULL DEFAULT 0,
     estado              VARCHAR(20) NOT NULL DEFAULT 'vigente',
@@ -180,10 +180,10 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.sanciones (
 );
 
 -- 11. Pagos
-CREATE TABLE IF NOT EXISTS torneos_futbol.pagos (
+CREATE TABLE IF NOT EXISTS torneos.pagos (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id           UUID NOT NULL REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
-    equipo_id           UUID NOT NULL REFERENCES torneos_futbol.equipos(id) ON DELETE CASCADE,
+    torneo_id           UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
+    equipo_id           UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
     monto               NUMERIC(10,2) NOT NULL,
     fecha_pago          DATE NOT NULL DEFAULT CURRENT_DATE,
     comprobante_url     VARCHAR(500),
@@ -192,9 +192,9 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.pagos (
 );
 
 -- 12. Noticias
-CREATE TABLE IF NOT EXISTS torneos_futbol.noticias (
+CREATE TABLE IF NOT EXISTS torneos.noticias (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    torneo_id           UUID NOT NULL REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
+    torneo_id           UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
     titulo              VARCHAR(255) NOT NULL,
     contenido           TEXT NOT NULL,
     imagen_url          VARCHAR(500),
@@ -208,18 +208,18 @@ CREATE TABLE IF NOT EXISTS torneos_futbol.noticias (
 """
 
 migration_down = """
-DROP TABLE IF EXISTS torneos_futbol.noticias;
-DROP TABLE IF EXISTS torneos_futbol.pagos;
-DROP TABLE IF EXISTS torneos_futbol.sanciones;
-DROP TABLE IF EXISTS torneos_futbol.posiciones;
-DROP TABLE IF EXISTS torneos_futbol.tarjetas;
-DROP TABLE IF EXISTS torneos_futbol.goles;
-DROP TABLE IF EXISTS torneos_futbol.planilla;
-DROP TABLE IF EXISTS torneos_futbol.tournament_players;
-DROP TABLE IF EXISTS torneos_futbol.partidos;
-DROP TABLE IF EXISTS torneos_futbol.equipos;
-DROP TABLE IF EXISTS torneos_futbol.torneos;
-DROP TABLE IF EXISTS torneos_futbol.eventos;
+DROP TABLE IF EXISTS torneos.noticias;
+DROP TABLE IF EXISTS torneos.pagos;
+DROP TABLE IF EXISTS torneos.sanciones;
+DROP TABLE IF EXISTS torneos.posiciones;
+DROP TABLE IF EXISTS torneos.tarjetas;
+DROP TABLE IF EXISTS torneos.goles;
+DROP TABLE IF EXISTS torneos.planilla;
+DROP TABLE IF EXISTS torneos.tournament_players;
+DROP TABLE IF EXISTS torneos.partidos;
+DROP TABLE IF EXISTS torneos.equipos;
+DROP TABLE IF EXISTS torneos.torneos;
+DROP TABLE IF EXISTS torneos.eventos;
 """
 
 async def run():

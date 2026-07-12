@@ -26,7 +26,7 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
     # Obtener torneos publicos (estado = 'activo' o 'borrador' pero para MVP traemos todos)
     res_torneos = await session.execute(text("""
         SELECT id, nombre, deporte, formato, tipo_campeonato
-        FROM torneos_futbol.torneos
+        FROM torneos.torneos
         WHERE organizador_id = :oid
     """), {"oid": org_id})
     

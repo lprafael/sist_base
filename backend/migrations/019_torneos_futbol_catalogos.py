@@ -1,7 +1,7 @@
 """
 Migration 019: Mover catálogos de fútbol al esquema torneos_futbol
-- Mueve cancha.tipos_evento a torneos_futbol.tipos_eventos
-- Mueve cancha.modalidades a torneos_futbol.modalidades
+- Mueve cancha.tipos_evento a torneos.tipos_eventos
+- Mueve cancha.modalidades a torneos.modalidades
 """
 
 import asyncio
@@ -16,7 +16,7 @@ CREATE SCHEMA IF NOT EXISTS torneos_futbol;
 
 -- 1. Mover y renombrar tipos_evento
 ALTER TABLE cancha.tipos_evento SET SCHEMA torneos_futbol;
-ALTER TABLE torneos_futbol.tipos_evento RENAME TO tipos_eventos;
+ALTER TABLE torneos.tipos_evento RENAME TO tipos_eventos;
 
 -- 2. Mover modalidades
 ALTER TABLE cancha.modalidades SET SCHEMA torneos_futbol;
@@ -24,11 +24,11 @@ ALTER TABLE cancha.modalidades SET SCHEMA torneos_futbol;
 
 migration_down = """
 -- 1. Revertir modalidades
-ALTER TABLE torneos_futbol.modalidades SET SCHEMA cancha;
+ALTER TABLE torneos.modalidades SET SCHEMA cancha;
 
 -- 2. Revertir tipos_eventos
-ALTER TABLE torneos_futbol.tipos_eventos RENAME TO tipos_evento;
-ALTER TABLE torneos_futbol.tipos_evento SET SCHEMA cancha;
+ALTER TABLE torneos.tipos_eventos RENAME TO tipos_evento;
+ALTER TABLE torneos.tipos_evento SET SCHEMA cancha;
 
 DROP SCHEMA IF EXISTS torneos_futbol;
 """

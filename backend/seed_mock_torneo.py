@@ -45,7 +45,7 @@ async def seed_mock_data():
             # 4. Crear Evento Padre de Torneo
             evento_id = str(uuid.uuid4())
             await session.execute(text("""
-                INSERT INTO torneos_futbol.eventos (id, complejo_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
+                INSERT INTO torneos.eventos (id, complejo_id, nombre, descripcion, fecha_inicio, fecha_fin, estado)
                 VALUES (:id, :cid, :nombre, :desc, :f_ini, :f_fin, 'en_curso')
             """), {
                 "id": evento_id, "cid": complejo_id, "nombre": "Copa de Campeones Apertura 2026",
@@ -56,7 +56,7 @@ async def seed_mock_data():
             # 5. Crear Torneo / Categoría
             torneo_id = str(uuid.uuid4())
             await session.execute(text("""
-                INSERT INTO torneos_futbol.torneos (
+                INSERT INTO torneos.torneos (
                     id, evento_id, complejo_id, categoria, nombre, descripcion, deporte, formato,
                     fecha_inicio, max_equipos, costo_inscripcion, premio_1, premio_2, estado, configuracion
                 ) VALUES (
@@ -82,7 +82,7 @@ async def seed_mock_data():
 
             for eq in equipos_data:
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.equipos (id, torneo_id, nombre, color_principal, color_secundario, estado_inscripcion)
+                    INSERT INTO torneos.equipos (id, torneo_id, nombre, color_principal, color_secundario, estado_inscripcion)
                     VALUES (:id, :tid, :nombre, :col, :sec, 'confirmado')
                 """), {"id": eq["id"], "tid": torneo_id, "nombre": eq["nombre"], "col": eq["color"], "sec": eq["sec"]})
                 print(f"  👕 Equipo inscrito: {eq['nombre']} (ID: {eq['id']})")
@@ -168,7 +168,7 @@ async def seed_mock_data():
                 p_id = str(uuid.uuid4())
                 p_date = datetime.now() + timedelta(days=p["offset_d"])
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.partidos (id, torneo_id, cancha_id, equipo_local_id, equipo_visitante_id, fecha_hora, goles_local, goles_visitante, jornada, fase, estado)
+                    INSERT INTO torneos.partidos (id, torneo_id, cancha_id, equipo_local_id, equipo_visitante_id, fecha_hora, goles_local, goles_visitante, jornada, fase, estado)
                     VALUES (:id, :tid, :cid, :elid, :evid, :dt, :gl, :gv, :jornada, 'Ronda Regular', :estado)
                 """), {
                     "id": p_id, "tid": torneo_id, "cid": cancha_id, "elid": p["local"], "evid": p["visitante"],
@@ -213,21 +213,21 @@ async def seed_mock_data():
                 player_out_id = players_by_dni.get(ev.get("p_out_dni")) if ev.get("p_out_dni") else None
                 tipo_ev_id = tipos_evento_map.get(ev["tipo"])
 
-                # Insertar en torneos_futbol.eventos_partido
+                # Insertar en torneos.eventos_partido
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.eventos_partido (id, partido_id, tipo_evento_id, player_id, player_out_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
+                    INSERT INTO torneos.eventos_partido (id, partido_id, tipo_evento_id, player_id, player_out_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
                     VALUES (:id, :pid, :teid, :plid, :ploutid, :eqid, :tipo, :min, 1, false)
                 """), {
                     "id": ev_id, "pid": p1_id, "teid": tipo_ev_id, "plid": player_id, "ploutid": player_out_id,
                     "eqid": ev["eq"], "tipo": ev["tipo"], "min": ev["min"]
                 })
 
-                # Si es amarilla o roja, alimentar torneos_futbol.tarjetas para Fair Play
+                # Si es amarilla o roja, alimentar torneos.tarjetas para Fair Play
                 tarjeta_id = str(uuid.uuid4())
                 if ev["tipo"] in ("AMARILLA", "ROJA", "ROJA_DIRECTA", "DOBLE_AMARILLA"):
                     pts_fp = 1 if ev["tipo"] == "AMARILLA" else 3
                     await session.execute(text("""
-                        INSERT INTO torneos_futbol.tarjetas (id, partido_id, player_id, equipo_id, tipo, minuto, pts_fair_play)
+                        INSERT INTO torneos.tarjetas (id, partido_id, player_id, equipo_id, tipo, minuto, pts_fair_play)
                         VALUES (:id, :pid, :plid, :eqid, :tipo, :min, :pts)
                     """), {
                         "id": tarjeta_id, "pid": p1_id, "plid": player_id, "eqid": ev["eq"],
@@ -237,7 +237,7 @@ async def seed_mock_data():
                 # Si es roja_directa, también creamos una sanción asociada a esa tarjeta_id
                 if ev["tipo"] == "ROJA_DIRECTA":
                     await session.execute(text("""
-                        INSERT INTO torneos_futbol.sanciones (id, torneo_id, player_id, tarjeta_id, partidos_suspension, tipo, descripcion, estado)
+                        INSERT INTO torneos.sanciones (id, torneo_id, player_id, tarjeta_id, partidos_suspension, tipo, descripcion, estado)
                         VALUES (:id, :tid, :plid, :tarid, 2, 'Expulsión', 'Conducta antideportiva y juego brusco grave', 'pendiente')
                     """), {
                         "id": str(uuid.uuid4()), "tid": torneo_id, "plid": player_id, "tarid": tarjeta_id
@@ -268,7 +268,7 @@ async def seed_mock_data():
                 tipo_ev_id = tipos_evento_map.get(ev["tipo"])
 
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.eventos_partido (id, partido_id, tipo_evento_id, player_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
+                    INSERT INTO torneos.eventos_partido (id, partido_id, tipo_evento_id, player_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
                     VALUES (:id, :pid, :teid, :plid, :eqid, :tipo, :min, 1, false)
                 """), {
                     "id": ev_id, "pid": p2_id, "teid": tipo_ev_id, "plid": player_id, "eqid": ev["eq"], "tipo": ev["tipo"], "min": ev["min"]
@@ -276,7 +276,7 @@ async def seed_mock_data():
 
                 if ev["tipo"] == "AMARILLA":
                     await session.execute(text("""
-                        INSERT INTO torneos_futbol.tarjetas (id, partido_id, player_id, equipo_id, tipo, minuto, pts_fair_play)
+                        INSERT INTO torneos.tarjetas (id, partido_id, player_id, equipo_id, tipo, minuto, pts_fair_play)
                         VALUES (:id, :pid, :plid, :eqid, 'amarilla', :min, 1)
                     """), {
                         "id": str(uuid.uuid4()), "pid": p2_id, "plid": player_id, "eqid": ev["eq"], "min": ev["min"]
@@ -301,7 +301,7 @@ async def seed_mock_data():
                 tipo_ev_id = tipos_evento_map.get(ev["tipo"])
 
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.eventos_partido (id, partido_id, tipo_evento_id, player_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
+                    INSERT INTO torneos.eventos_partido (id, partido_id, tipo_evento_id, player_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
                     VALUES (:id, :pid, :teid, :plid, :eqid, :tipo, :min, 2, false)
                 """), {
                     "id": ev_id, "pid": p3_id, "teid": tipo_ev_id, "plid": player_id, "eqid": ev["eq"], "tipo": ev["tipo"], "min": ev["min"]
@@ -334,7 +334,7 @@ async def seed_mock_data():
                 tipo_ev_id = tipos_evento_map.get(ev["tipo"])
 
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.eventos_partido (id, partido_id, tipo_evento_id, player_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
+                    INSERT INTO torneos.eventos_partido (id, partido_id, tipo_evento_id, player_id, equipo_id, tipo, minuto, periodo, es_tiempo_adicional)
                     VALUES (:id, :pid, :teid, :plid, :eqid, :tipo, :min, 2, false)
                 """), {
                     "id": ev_id, "pid": p4_id, "teid": tipo_ev_id, "plid": player_id, "eqid": ev["eq"], "tipo": ev["tipo"], "min": ev["min"]
@@ -342,7 +342,7 @@ async def seed_mock_data():
 
                 if ev["tipo"] == "AMARILLA":
                     await session.execute(text("""
-                        INSERT INTO torneos_futbol.tarjetas (id, partido_id, player_id, equipo_id, tipo, minuto, pts_fair_play)
+                        INSERT INTO torneos.tarjetas (id, partido_id, player_id, equipo_id, tipo, minuto, pts_fair_play)
                         VALUES (:id, :pid, :plid, :eqid, 'amarilla', :min, 1)
                     """), {
                         "id": str(uuid.uuid4()), "pid": p4_id, "plid": player_id, "eqid": ev["eq"], "min": ev["min"]

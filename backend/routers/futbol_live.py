@@ -21,7 +21,7 @@ async def registrar_evento(data: EventoPartido, session: AsyncSession = Depends(
     
     # Insert in general event table
     await session.execute(text("""
-        INSERT INTO torneos_futbol.eventos_partido 
+        INSERT INTO torneos.eventos_partido 
             (id, partido_id, player_id, equipo_id, tipo, minuto, registrado_en)
         VALUES 
             (:id, :pid, :player, :eq, :tipo, :minuto, NOW())
@@ -35,7 +35,7 @@ async def registrar_evento(data: EventoPartido, session: AsyncSession = Depends(
     if data.tipo == 'Gol':
         gol_id = str(uuid.uuid4())
         await session.execute(text("""
-            INSERT INTO torneos_futbol.goles (id, partido_id, player_id, equipo_id, minuto, tipo)
+            INSERT INTO torneos.goles (id, partido_id, player_id, equipo_id, minuto, tipo)
             VALUES (:id, :pid, :player, :eq, :minuto, 'jugada')
         """), {
             "id": gol_id, "pid": data.partido_id, "player": data.player_id, 
@@ -43,7 +43,7 @@ async def registrar_evento(data: EventoPartido, session: AsyncSession = Depends(
         })
         # Update match score (simplified logic)
         await session.execute(text("""
-            UPDATE torneos_futbol.partidos
+            UPDATE torneos.partidos
             SET goles_local = COALESCE(goles_local, 0) + CASE WHEN equipo_local_id = :eq THEN 1 ELSE 0 END,
                 goles_visitante = COALESCE(goles_visitante, 0) + CASE WHEN equipo_visitante_id = :eq THEN 1 ELSE 0 END
             WHERE id = :pid
@@ -52,7 +52,7 @@ async def registrar_evento(data: EventoPartido, session: AsyncSession = Depends(
     elif data.tipo in ['Amarilla', 'Roja']:
         tarjeta_id = str(uuid.uuid4())
         await session.execute(text("""
-            INSERT INTO torneos_futbol.tarjetas (id, partido_id, player_id, equipo_id, minuto, tipo)
+            INSERT INTO torneos.tarjetas (id, partido_id, player_id, equipo_id, minuto, tipo)
             VALUES (:id, :pid, :player, :eq, :minuto, :tipo)
         """), {
             "id": tarjeta_id, "pid": data.partido_id, "player": data.player_id, 
@@ -93,7 +93,7 @@ async def checkin_biometrico(data: BiometriaRequest, session: AsyncSession = Dep
     if not player_id_matched:
         # Buscamos al azar un jugador del equipo para simular
         res = await session.execute(text("""
-            SELECT id, nombre FROM torneos_futbol.tournament_players 
+            SELECT id, nombre FROM torneos.tournament_players 
             WHERE torneo_equipo_id = :eq AND biometria_aprobada = true 
             LIMIT 1
         """), {"eq": data.equipo_id})
@@ -104,7 +104,7 @@ async def checkin_biometrico(data: BiometriaRequest, session: AsyncSession = Dep
         player_name = row[1]
     else:
         # Obtenemos su nombre real para mostrar en el frontend
-        res = await session.execute(text("SELECT nombre FROM torneos_futbol.tournament_players WHERE id = :pid"), {"pid": player_id_matched})
+        res = await session.execute(text("SELECT nombre FROM torneos.tournament_players WHERE id = :pid"), {"pid": player_id_matched})
         row = res.fetchone()
         if row: player_name = row[0]
 
@@ -113,7 +113,7 @@ async def checkin_biometrico(data: BiometriaRequest, session: AsyncSession = Dep
     
     # Verificar si ya existe el registro
     check_res = await session.execute(text("""
-        SELECT id FROM torneos_futbol.planilla 
+        SELECT id FROM torneos.planilla 
         WHERE partido_id = :pid AND player_id = :player
     """), {"pid": data.partido_id, "player": player_id_matched})
     
@@ -121,11 +121,11 @@ async def checkin_biometrico(data: BiometriaRequest, session: AsyncSession = Dep
     
     if existing:
         await session.execute(text("""
-            UPDATE torneos_futbol.planilla SET presente = true WHERE id = :id
+            UPDATE torneos.planilla SET presente = true WHERE id = :id
         """), {"id": existing[0]})
     else:
         await session.execute(text("""
-            INSERT INTO torneos_futbol.planilla 
+            INSERT INTO torneos.planilla 
                 (id, partido_id, player_id, presente, creado_en)
             VALUES 
                 (:id, :pid, :player, true, NOW())

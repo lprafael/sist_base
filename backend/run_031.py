@@ -36,17 +36,17 @@ async def run_migration():
                 );
             """))
 
-            # 2. Modificar torneos_futbol.torneos
+            # 2. Modificar torneos.torneos
             await conn.execute(text("""
-                ALTER TABLE torneos_futbol.torneos 
+                ALTER TABLE torneos.torneos 
                 ADD COLUMN IF NOT EXISTS tipo_campeonato VARCHAR(50) DEFAULT 'categorias';
             """))
 
             # 3. Categorías
             await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS torneos_futbol.categorias (
+                CREATE TABLE IF NOT EXISTS torneos.categorias (
                     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                    torneo_id UUID NOT NULL REFERENCES torneos_futbol.torneos(id) ON DELETE CASCADE,
+                    torneo_id UUID NOT NULL REFERENCES torneos.torneos(id) ON DELETE CASCADE,
                     nombre VARCHAR(100) NOT NULL,
                     descripcion TEXT,
                     creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -55,9 +55,9 @@ async def run_migration():
 
             # 4. Divisiones
             await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS torneos_futbol.divisiones (
+                CREATE TABLE IF NOT EXISTS torneos.divisiones (
                     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                    categoria_id UUID NOT NULL REFERENCES torneos_futbol.categorias(id) ON DELETE CASCADE,
+                    categoria_id UUID NOT NULL REFERENCES torneos.categorias(id) ON DELETE CASCADE,
                     nombre VARCHAR(100) NOT NULL,
                     creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
@@ -65,23 +65,23 @@ async def run_migration():
 
             # 5. Clubes / Equipos
             await conn.execute(text("""
-                ALTER TABLE torneos_futbol.equipos 
-                ADD COLUMN IF NOT EXISTS division_id UUID REFERENCES torneos_futbol.divisiones(id) ON DELETE CASCADE,
+                ALTER TABLE torneos.equipos 
+                ADD COLUMN IF NOT EXISTS division_id UUID REFERENCES torneos.divisiones(id) ON DELETE CASCADE,
                 ADD COLUMN IF NOT EXISTS logo_url VARCHAR(255);
             """))
 
             # 6. Biometría Jugadores
             await conn.execute(text("""
-                ALTER TABLE torneos_futbol.tournament_players
+                ALTER TABLE torneos.tournament_players
                 ADD COLUMN IF NOT EXISTS biometria_aprobada BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS biometria_hash VARCHAR(255);
             """))
 
             # 7. Equipo Técnico
             await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS torneos_futbol.equipo_tecnico (
+                CREATE TABLE IF NOT EXISTS torneos.equipo_tecnico (
                     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                    equipo_id UUID NOT NULL REFERENCES torneos_futbol.equipos(id) ON DELETE CASCADE,
+                    equipo_id UUID NOT NULL REFERENCES torneos.equipos(id) ON DELETE CASCADE,
                     nombre VARCHAR(150) NOT NULL,
                     dni VARCHAR(50),
                     rol VARCHAR(50) DEFAULT 'Entrenador',

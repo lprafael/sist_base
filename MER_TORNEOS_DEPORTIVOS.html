@@ -492,7 +492,7 @@ erDiagram
     <!-- 7.1 REGIONES Y CIUDADES -->
     <div class="table-card">
         <div class="table-header">
-            <h3 class="table-name">torneos_futbol.regiones / ciudades <span style="color:var(--primary);font-size:0.8rem;">🆕</span></h3>
+            <h3 class="table-name">torneos.regiones / ciudades <span style="color:var(--primary);font-size:0.8rem;">🆕</span></h3>
             <span class="table-badge" style="background-color: var(--indigo-glow); color: var(--indigo); border-color: rgba(99,102,241,0.3);">Hierarchy</span>
         </div>
         <p class="table-desc">Estructura jerárquica para campeonatos interciudades (Playoffs Regionales).</p>
@@ -519,7 +519,7 @@ erDiagram
                     <td>evento_id</td>
                     <td class="type-code">UUID</td>
                     <td><span class="badge badge-nn">NOT NULL</span></td>
-                    <td><span class="badge badge-fk">FK → torneos_futbol.eventos(id)</span></td>
+                    <td><span class="badge badge-fk">FK → torneos.eventos(id)</span></td>
                     <td>Evento Global Padre.</td>
                 </tr>
                 <tr>
@@ -540,7 +540,7 @@ erDiagram
                     <td>region_id</td>
                     <td class="type-code">UUID</td>
                     <td><span class="badge badge-nn">NOT NULL</span></td>
-                    <td><span class="badge badge-fk">FK → torneos_futbol.regiones(id)</span></td>
+                    <td><span class="badge badge-fk">FK → torneos.regiones(id)</span></td>
                     <td>Región a la que pertenece.</td>
                 </tr>
             </tbody>
@@ -589,7 +589,7 @@ erDiagram
                     <td><strong>ciudad_id</strong> 🆕</td>
                     <td class="type-code">UUID</td>
                     <td>NULL</td>
-                    <td><span class="badge badge-fk">FK → torneos_futbol.ciudades(id)</span></td>
+                    <td><span class="badge badge-fk">FK → torneos.ciudades(id)</span></td>
                     <td>Asocia el campeonato a una ciudad para los Playoffs Regionales.</td>
                 </tr>
                 <tr>

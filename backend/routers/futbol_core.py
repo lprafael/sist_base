@@ -56,7 +56,7 @@ async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Dep
     
     # Insert Torneo
     await session.execute(text("""
-        INSERT INTO torneos_futbol.torneos 
+        INSERT INTO torneos.torneos 
             (id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en, fecha_inicio)
         VALUES 
             (:id, :nombre, :tipo, :oid, :deporte, :formato, 'abierto', NOW(), NOW())
@@ -70,14 +70,14 @@ async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Dep
         for cat in data.categorias:
             cat_id = str(uuid.uuid4())
             await session.execute(text("""
-                INSERT INTO torneos_futbol.categorias (id, torneo_id, nombre, descripcion)
+                INSERT INTO torneos.categorias (id, torneo_id, nombre, descripcion)
                 VALUES (:id, :tid, :nombre, :desc)
             """), {"id": cat_id, "tid": torneo_id, "nombre": cat.nombre, "desc": cat.descripcion})
             
             for div in cat.divisiones:
                 div_id = str(uuid.uuid4())
                 await session.execute(text("""
-                    INSERT INTO torneos_futbol.divisiones (id, categoria_id, nombre)
+                    INSERT INTO torneos.divisiones (id, categoria_id, nombre)
                     VALUES (:id, :cid, :nombre)
                 """), {"id": div_id, "cid": cat_id, "nombre": div.nombre})
 
@@ -96,7 +96,7 @@ async def get_torneos_futbol(current_user: dict = Depends(get_current_user), ses
     
     query = text("""
         SELECT id, nombre, deporte, formato, tipo_campeonato, estado, creado_en
-        FROM torneos_futbol.torneos
+        FROM torneos.torneos
         WHERE organizador_id = :oid
         ORDER BY creado_en DESC
     """)
@@ -126,7 +126,7 @@ async def get_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_cur
     query = text("""
         SELECT id, nombre, deporte, formato, tipo_campeonato, estado, creado_en,
                subtitulo, descripcion, imagen_portada, tipo_ubicacion, privacidad
-        FROM torneos_futbol.torneos
+        FROM torneos.torneos
         WHERE id = CAST(:tid AS UUID)
     """)
     res = await session.execute(query, {"tid": torneo_id})
@@ -171,7 +171,7 @@ async def update_torneo_futbol(torneo_id: str, data: TorneoFutbolUpdate, current
         return {"message": "Sin cambios"}
 
     set_clause = ", ".join(update_fields)
-    await session.execute(text(f"UPDATE torneos_futbol.torneos SET {set_clause} WHERE id = CAST(:tid AS UUID)"), params)
+    await session.execute(text(f"UPDATE torneos.torneos SET {set_clause} WHERE id = CAST(:tid AS UUID)"), params)
     await session.commit()
     return {"message": "Torneo actualizado correctamente"}
 
@@ -186,13 +186,13 @@ async def delete_torneo_futbol(torneo_id: str, current_user: dict = Depends(get_
     organizador_id = row_org[0]
 
     # Verify ownership
-    check_query = text("SELECT id FROM torneos_futbol.torneos WHERE id = :tid AND organizador_id = :oid")
+    check_query = text("SELECT id FROM torneos.torneos WHERE id = :tid AND organizador_id = :oid")
     res = await session.execute(check_query, {"tid": torneo_id, "oid": organizador_id})
     if not res.fetchone():
         raise HTTPException(status_code=404, detail="Torneo no encontrado o no tienes permisos")
 
     # DELETE
-    await session.execute(text("DELETE FROM torneos_futbol.torneos WHERE id = :tid"), {"tid": torneo_id})
+    await session.execute(text("DELETE FROM torneos.torneos WHERE id = :tid"), {"tid": torneo_id})
     await session.commit()
     return {"message": "Campeonato eliminado correctamente"}
 
@@ -221,7 +221,7 @@ async def registrar_equipo(data: EquipoFutbolCreate, session: AsyncSession = Dep
     
     # 1. Registrar Equipo
     await session.execute(text("""
-        INSERT INTO torneos_futbol.equipos 
+        INSERT INTO torneos.equipos 
             (id, torneo_id, division_id, nombre, capitan_nombre, capitan_telefono, logo_url, estado_inscripcion)
         VALUES 
             (:id, :tid, :did, :nombre, :cn, :ct, :logo, 'pendiente')
@@ -234,7 +234,7 @@ async def registrar_equipo(data: EquipoFutbolCreate, session: AsyncSession = Dep
     # 2. Registrar Equipo Técnico
     for et in data.equipo_tecnico:
         await session.execute(text("""
-            INSERT INTO torneos_futbol.equipo_tecnico 
+            INSERT INTO torneos.equipo_tecnico 
                 (equipo_id, nombre, dni, rol, foto_url)
             VALUES 
                 (:eid, :nombre, :dni, :rol, :foto)
@@ -251,7 +251,7 @@ async def registrar_equipo(data: EquipoFutbolCreate, session: AsyncSession = Dep
 async def get_equipos_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT id, nombre, logo_url
-        FROM torneos_futbol.equipos
+        FROM torneos.equipos
         WHERE torneo_id = :tid
         ORDER BY creado_en DESC
     """)
@@ -260,7 +260,7 @@ async def get_equipos_torneo(torneo_id: str, session: AsyncSession = Depends(get
     for r in res.fetchall():
         eq = dict(r._mapping)
         # Fetch jugadores
-        q_j = text("SELECT nombre, nombre_abreviado, dni, fecha_nacimiento, numero_camiseta, posicion, telefono, foto_url FROM torneos_futbol.tournament_players WHERE torneo_equipo_id = :eid")
+        q_j = text("SELECT nombre, nombre_abreviado, dni, fecha_nacimiento, numero_camiseta, posicion, telefono, foto_url FROM torneos.tournament_players WHERE torneo_equipo_id = :eid")
         res_j = await session.execute(q_j, {"eid": eq["id"]})
         eq["jugadores"] = []
         for j in res_j.fetchall():
@@ -270,7 +270,7 @@ async def get_equipos_torneo(torneo_id: str, session: AsyncSession = Depends(get
             eq["jugadores"].append(jd)
         
         # Fetch tecnicos
-        q_t = text("SELECT nombre, rol FROM torneos_futbol.equipo_tecnico WHERE equipo_id = :eid")
+        q_t = text("SELECT nombre, rol FROM torneos.equipo_tecnico WHERE equipo_id = :eid")
         res_t = await session.execute(q_t, {"eid": eq["id"]})
         eq["tecnicos"] = [dict(t._mapping) for t in res_t.fetchall()]
         
@@ -288,7 +288,7 @@ class EquipoUpdate(BaseModel):
 @router.put("/futbol/equipos/{equipo_id}")
 async def update_equipo(equipo_id: str, data: EquipoUpdate, session: AsyncSession = Depends(get_session)):
     await session.execute(text("""
-        UPDATE torneos_futbol.equipos
+        UPDATE torneos.equipos
         SET nombre = :n, logo_url = :logo
         WHERE id = :eid
     """), {"n": data.nombre, "logo": data.logo_url, "eid": equipo_id})
@@ -299,14 +299,14 @@ async def update_equipo(equipo_id: str, data: EquipoUpdate, session: AsyncSessio
 @router.delete("/futbol/equipos/{equipo_id}")
 async def delete_equipo(equipo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     res = await session.execute(text("""
-        SELECT e.id FROM torneos_futbol.equipos e
-        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        SELECT e.id FROM torneos.equipos e
+        JOIN torneos.torneos t ON e.torneo_id = t.id
         WHERE e.id = :eid AND t.organizador_id = :oid
     """), {"eid": equipo_id, "oid": current_user["id"]})
     if not res.fetchone():
         raise HTTPException(status_code=403, detail="No autorizado o equipo no existe")
         
-    await session.execute(text("DELETE FROM torneos_futbol.equipos WHERE id = :eid"), {"eid": equipo_id})
+    await session.execute(text("DELETE FROM torneos.equipos WHERE id = :eid"), {"eid": equipo_id})
     await session.commit()
     return {"message": "Equipo eliminado con éxito"}
 
@@ -319,8 +319,8 @@ class PlantelSync(BaseModel):
 @router.post("/futbol/equipos/{equipo_id}/plantel")
 async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession = Depends(get_session)):
     # Delete old
-    await session.execute(text("DELETE FROM torneos_futbol.tournament_players WHERE torneo_equipo_id = :eid"), {"eid": equipo_id})
-    await session.execute(text("DELETE FROM torneos_futbol.equipo_tecnico WHERE equipo_id = :eid"), {"eid": equipo_id})
+    await session.execute(text("DELETE FROM torneos.tournament_players WHERE torneo_equipo_id = :eid"), {"eid": equipo_id})
+    await session.execute(text("DELETE FROM torneos.equipo_tecnico WHERE equipo_id = :eid"), {"eid": equipo_id})
     
     # Insert new jugadores
     import uuid
@@ -328,7 +328,7 @@ async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession 
         if not j.get("nombre"): continue
         dni = j.get("dni") or f"sd_{uuid.uuid4().hex[:8]}"
         await session.execute(text("""
-            INSERT INTO torneos_futbol.tournament_players (
+            INSERT INTO torneos.tournament_players (
                 torneo_equipo_id, nombre, nombre_abreviado, dni, fecha_nacimiento, 
                 numero_camiseta, posicion, telefono, foto_url, estado
             )
@@ -355,7 +355,7 @@ async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession 
     for t in tecnicos:
         rol = t.get("rol", "Entrenador") if t.get("nombre") == data.entrenador else "Asistente"
         await session.execute(text("""
-            INSERT INTO torneos_futbol.equipo_tecnico (equipo_id, nombre, dni, rol)
+            INSERT INTO torneos.equipo_tecnico (equipo_id, nombre, dni, rol)
             VALUES (:eid, :n, '0', :r)
         """), {"eid": equipo_id, "n": t.get("nombre", ""), "r": rol})
         
@@ -380,7 +380,7 @@ async def registrar_jugadores(equipo_id: str, jugadores: List[JugadorFutbol], se
     for j in jugadores:
         aprobado = True if j.biometria_hash else False
         await session.execute(text("""
-            INSERT INTO torneos_futbol.tournament_players
+            INSERT INTO torneos.tournament_players
                 (torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, biometria_hash, biometria_aprobada, estado, activo)
             VALUES
                 (:eid, :nombre, :dni, :fecha, :num, :pos, :foto, :hash, :aprob, 'habilitado', true)
@@ -405,9 +405,9 @@ async def get_all_jugadores(current_user: dict = Depends(get_current_user), sess
 
     q = text("""
         SELECT j.id, j.nombre, j.nombre_abreviado, j.dni, j.fecha_nacimiento, j.numero_camiseta, j.posicion, j.telefono, j.foto_url, j.biometria_aprobada, e.nombre as equipo_nombre
-        FROM torneos_futbol.tournament_players j
-        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
-        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        FROM torneos.tournament_players j
+        JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos.torneos t ON e.torneo_id = t.id
         WHERE t.organizador_id = :oid
         ORDER BY j.nombre ASC
     """)
@@ -430,15 +430,15 @@ async def delete_jugador(jugador_id: str, current_user: dict = Depends(get_curre
     organizador_id = row_org[0]
 
     res = await session.execute(text("""
-        SELECT j.id FROM torneos_futbol.tournament_players j
-        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
-        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        SELECT j.id FROM torneos.tournament_players j
+        JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos.torneos t ON e.torneo_id = t.id
         WHERE j.id = :jid AND t.organizador_id = :oid
     """), {"jid": jugador_id, "oid": organizador_id})
     if not res.fetchone():
         raise HTTPException(status_code=403, detail="No autorizado")
         
-    await session.execute(text("DELETE FROM torneos_futbol.tournament_players WHERE id = :jid"), {"jid": jugador_id})
+    await session.execute(text("DELETE FROM torneos.tournament_players WHERE id = :jid"), {"jid": jugador_id})
     await session.commit()
     return {"message": "Jugador eliminado"}
 
@@ -464,9 +464,9 @@ async def update_jugador(jugador_id: str, data: JugadorUpdate, current_user: dic
 
     # Verificar propiedad
     res = await session.execute(text("""
-        SELECT j.id FROM torneos_futbol.tournament_players j
-        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
-        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        SELECT j.id FROM torneos.tournament_players j
+        JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos.torneos t ON e.torneo_id = t.id
         WHERE j.id = :jid AND t.organizador_id = :oid
     """), {"jid": jugador_id, "oid": organizador_id})
     if not res.fetchone():
@@ -504,7 +504,7 @@ async def update_jugador(jugador_id: str, data: JugadorUpdate, current_user: dic
         params["biometria_aprobada"] = data.biometria_aprobada
 
     if update_fields:
-        query = f"UPDATE torneos_futbol.tournament_players SET {', '.join(update_fields)} WHERE id = :jid"
+        query = f"UPDATE torneos.tournament_players SET {', '.join(update_fields)} WHERE id = :jid"
         await session.execute(text(query), params)
         await session.commit()
     return {"message": "Jugador actualizado con éxito"}
@@ -549,9 +549,9 @@ async def reconocer_jugador_global(data: BiometryScanRequest, current_user: dict
     # Cargar jugadores con fotos
     q = text("""
         SELECT j.id, j.foto_url
-        FROM torneos_futbol.tournament_players j
-        JOIN torneos_futbol.equipos e ON j.torneo_equipo_id = e.id
-        JOIN torneos_futbol.torneos t ON e.torneo_id = t.id
+        FROM torneos.tournament_players j
+        JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
+        JOIN torneos.torneos t ON e.torneo_id = t.id
         WHERE t.organizador_id = :oid AND j.biometria_aprobada = true AND j.foto_url IS NOT NULL
     """)
     res = await session.execute(q, {"oid": organizador_id})
@@ -580,3 +580,367 @@ async def reconocer_jugador_global(data: BiometryScanRequest, current_user: dict
         return {"match": True, "jugador_id": best_match_id, "precision": accuracy}
     else:
         return {"match": False}
+
+
+# ==============================================================================
+# CATEGORIAS Y DIVISIONES (torneos.categorias / torneos.divisiones)
+# ==============================================================================
+
+class CategoriaCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+
+class CategoriaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+
+@router.get("/futbol/torneos/{torneo_id}/categorias")
+async def get_categorias_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT id, torneo_id, nombre, descripcion, creado_en
+        FROM torneos.categorias
+        WHERE torneo_id = CAST(:tid AS UUID)
+        ORDER BY creado_en ASC
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/futbol/torneos/{torneo_id}/categorias", status_code=201)
+async def create_categoria_torneo(torneo_id: str, data: CategoriaCreate, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        INSERT INTO torneos.categorias (torneo_id, nombre, descripcion)
+        VALUES (CAST(:tid AS UUID), :nombre, :descripcion)
+        RETURNING id, torneo_id, nombre, descripcion, creado_en
+    """)
+    res = await session.execute(q, {"tid": torneo_id, "nombre": data.nombre, "descripcion": data.descripcion})
+    await session.commit()
+    row = res.fetchone()
+    return dict(row._mapping)
+
+@router.put("/futbol/categorias/{categoria_id}")
+async def update_categoria(categoria_id: str, data: CategoriaUpdate, session: AsyncSession = Depends(get_session)):
+    updates = []
+    params = {"cid": categoria_id}
+    if data.nombre is not None:
+        updates.append("nombre = :nombre")
+        params["nombre"] = data.nombre
+    if data.descripcion is not None:
+        updates.append("descripcion = :descripcion")
+        params["descripcion"] = data.descripcion
+        
+    if not updates:
+        return {"message": "Sin cambios"}
+        
+    set_clause = ", ".join(updates)
+    q = text(f"UPDATE torneos.categorias SET {set_clause} WHERE id = CAST(:cid AS UUID)")
+    await session.execute(q, params)
+    await session.commit()
+    return {"message": "Categoría actualizada"}
+
+@router.delete("/futbol/categorias/{categoria_id}")
+async def delete_categoria(categoria_id: str, session: AsyncSession = Depends(get_session)):
+    await session.execute(text("DELETE FROM torneos.categorias WHERE id = CAST(:cid AS UUID)"), {"cid": categoria_id})
+    await session.commit()
+    return {"message": "Categoría eliminada"}
+
+class DivisionCreate(BaseModel):
+    nombre: str
+
+class DivisionUpdate(BaseModel):
+    nombre: Optional[str] = None
+
+@router.get("/futbol/torneos/{torneo_id}/divisiones")
+async def get_divisiones_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    # Trae divisiones uniendo con categorias
+    q = text("""
+        SELECT d.id, d.categoria_id, d.nombre, d.creado_en, c.nombre as categoria_nombre
+        FROM torneos.divisiones d
+        JOIN torneos.categorias c ON d.categoria_id = c.id
+        WHERE c.torneo_id = CAST(:tid AS UUID)
+        ORDER BY d.creado_en ASC
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/futbol/categorias/{categoria_id}/divisiones", status_code=201)
+async def create_division(categoria_id: str, data: DivisionCreate, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        INSERT INTO torneos.divisiones (categoria_id, nombre)
+        VALUES (CAST(:cid AS UUID), :nombre)
+        RETURNING id, categoria_id, nombre, creado_en
+    """)
+    res = await session.execute(q, {"cid": categoria_id, "nombre": data.nombre})
+    await session.commit()
+    row = res.fetchone()
+    return dict(row._mapping)
+
+@router.put("/futbol/divisiones/{division_id}")
+async def update_division(division_id: str, data: DivisionUpdate, session: AsyncSession = Depends(get_session)):
+    if data.nombre is not None:
+        q = text("UPDATE torneos.divisiones SET nombre = :nombre WHERE id = CAST(:did AS UUID)")
+        await session.execute(q, {"nombre": data.nombre, "did": division_id})
+        await session.commit()
+    return {"message": "División actualizada"}
+
+@router.delete("/futbol/divisiones/{division_id}")
+async def delete_division(division_id: str, session: AsyncSession = Depends(get_session)):
+    await session.execute(text("DELETE FROM torneos.divisiones WHERE id = CAST(:did AS UUID)"), {"did": division_id})
+    await session.commit()
+    return {"message": "División eliminada"}
+
+
+# ==============================================================================
+# CHECK-IN (PESAJE Y PAGO) PARA DEPORTES COMO ARTES MARCIALES
+# ==============================================================================
+
+@router.get("/futbol/torneos/{torneo_id}/checkin-list")
+async def get_checkin_list(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT j.id, j.nombre, j.dni, j.estado, j.peso_verificado, j.estatura_verificada, j.pago_confirmado, 
+               j.modalidad, j.nivel_experiencia, e.nombre as equipo_nombre
+        FROM torneos.tournament_players j
+        JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
+        WHERE e.torneo_id = CAST(:tid AS UUID)
+        ORDER BY j.nombre ASC
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+class CheckInJugador(BaseModel):
+    peso_verificado: Optional[float] = None
+    estatura_verificada: Optional[float] = None
+    pago_confirmado: Optional[bool] = None
+
+@router.post("/futbol/jugadores/{jugador_id}/checkin")
+async def checkin_jugador(jugador_id: str, payload: CheckInJugador, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        UPDATE torneos.tournament_players
+        SET peso_verificado = :peso, estatura_verificada = :estatura, pago_confirmado = :pago, estado = 'habilitado'
+        WHERE id = CAST(:jid AS UUID)
+    """)
+    await session.execute(q, {
+        "jid": jugador_id,
+        "peso": payload.peso_verificado,
+        "estatura": payload.estatura_verificada,
+        "pago": payload.pago_confirmado
+    })
+    await session.commit()
+    return {"message": "Check-in actualizado correctamente"}
+
+
+# ==============================================================================
+# GRUPOS (PARA FORMATOS DE COMPETICIÓN: ARTES MARCIALES, FÚTBOL)
+# ==============================================================================
+
+class GrupoCreate(BaseModel):
+    division_id: str
+    nombre: str
+
+@router.get("/futbol/torneos/{torneo_id}/grupos")
+async def get_grupos(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT g.id, g.nombre, g.division_id, d.nombre as division_nombre, c.nombre as categoria_nombre
+        FROM torneos.grupos g
+        LEFT JOIN torneos.divisiones d ON g.division_id = d.id
+        LEFT JOIN torneos.categorias c ON d.categoria_id = c.id
+        WHERE g.torneo_id = CAST(:tid AS UUID)
+        ORDER BY c.nombre, d.nombre, g.nombre
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+@router.post("/futbol/torneos/{torneo_id}/grupos")
+async def create_grupo(torneo_id: str, payload: GrupoCreate, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        INSERT INTO torneos.grupos (torneo_id, division_id, nombre)
+        VALUES (CAST(:tid AS UUID), CAST(:did AS UUID), :nom)
+        RETURNING id
+    """)
+    res = await session.execute(q, {
+        "tid": torneo_id,
+        "did": payload.division_id,
+        "nom": payload.nombre
+    })
+    await session.commit()
+    return {"id": str(res.scalar()), "message": "Grupo creado exitosamente"}
+
+@router.delete("/futbol/grupos/{grupo_id}")
+async def delete_grupo(grupo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("DELETE FROM torneos.grupos WHERE id = CAST(:gid AS UUID)")
+    await session.execute(q, {"gid": grupo_id})
+    await session.commit()
+    return {"message": "Grupo eliminado"}
+
+@router.get("/futbol/grupos/{grupo_id}/participantes")
+async def get_grupo_participantes(grupo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT p.id as posicion_id, j.id as jugador_id, j.nombre as jugador_nombre, j.peso_verificado, e.nombre as equipo_nombre
+        FROM torneos.posiciones p
+        JOIN torneos.tournament_players j ON p.jugador_id = j.id
+        LEFT JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
+        WHERE p.grupo_id = CAST(:gid AS UUID)
+    """)
+    res = await session.execute(q, {"gid": grupo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+class ParticipanteGrupo(BaseModel):
+    jugador_id: str
+
+@router.post("/futbol/grupos/{grupo_id}/participantes")
+async def add_grupo_participante(grupo_id: str, payload: ParticipanteGrupo, session: AsyncSession = Depends(get_session)):
+    # Add a row to posiciones to link player to group. 
+    # Get the torneo_id from the group to set it in posiciones.
+    q_torneo = text("SELECT torneo_id FROM torneos.grupos WHERE id = CAST(:gid AS UUID)")
+    res_torneo = await session.execute(q_torneo, {"gid": grupo_id})
+    tid = res_torneo.scalar()
+    
+    q = text("""
+        INSERT INTO torneos.posiciones (torneo_id, grupo_id, jugador_id)
+        VALUES (:tid, CAST(:gid AS UUID), CAST(:jid AS UUID))
+        ON CONFLICT DO NOTHING
+        RETURNING id
+    """)
+    await session.execute(q, {"tid": tid, "gid": grupo_id, "jid": payload.jugador_id})
+    await session.commit()
+    return {"message": "Participante agregado al grupo"}
+
+@router.delete("/futbol/grupos/{grupo_id}/participantes/{jugador_id}")
+async def delete_grupo_participante(grupo_id: str, jugador_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("DELETE FROM torneos.posiciones WHERE grupo_id = CAST(:gid AS UUID) AND jugador_id = CAST(:jid AS UUID)")
+    await session.execute(q, {"gid": grupo_id, "jid": jugador_id})
+    await session.commit()
+    return {"message": "Participante removido del grupo"}
+
+
+# ==============================================================================
+# LLAVES / FASES (BRACKETS)
+# ==============================================================================
+
+@router.get("/futbol/torneos/{torneo_id}/llaves")
+async def get_llaves(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT p.id, p.ronda, p.division_id, d.nombre as division_nombre,
+               p.jugador_local_id, j1.nombre as jugador_local_nombre,
+               p.jugador_visitante_id, j2.nombre as jugador_visitante_nombre,
+               p.ganador_jugador_id, p.estado
+        FROM torneos.partidos p
+        LEFT JOIN torneos.divisiones d ON p.division_id = d.id
+        LEFT JOIN torneos.tournament_players j1 ON p.jugador_local_id = j1.id
+        LEFT JOIN torneos.tournament_players j2 ON p.jugador_visitante_id = j2.id
+        WHERE p.torneo_id = CAST(:tid AS UUID) AND p.ronda IS NOT NULL
+        ORDER BY d.nombre, p.ronda
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+class LlaveCreate(BaseModel):
+    division_id: str
+    ronda: str
+    jugador_local_id: str
+    jugador_visitante_id: str
+
+@router.post("/futbol/torneos/{torneo_id}/llaves")
+async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        INSERT INTO torneos.partidos (torneo_id, division_id, ronda, jugador_local_id, jugador_visitante_id, estado)
+        VALUES (CAST(:tid AS UUID), CAST(:did AS UUID), :ronda, CAST(:j1 AS UUID), CAST(:j2 AS UUID), 'programado')
+        RETURNING id
+    """)
+    res = await session.execute(q, {
+        "tid": torneo_id,
+        "did": payload.division_id,
+        "ronda": payload.ronda,
+        "j1": payload.jugador_local_id,
+        "j2": payload.jugador_visitante_id
+    })
+    await session.commit()
+    return {"id": str(res.scalar()), "message": "Llave creada exitosamente"}
+
+@router.delete("/futbol/llaves/{llave_id}")
+async def delete_llave(llave_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("DELETE FROM torneos.partidos WHERE id = CAST(:lid AS UUID) AND ronda IS NOT NULL")
+    await session.execute(q, {"lid": llave_id})
+    await session.commit()
+    return {"message": "Llave eliminada"}
+
+
+# ==============================================================================
+# ARBITRAJE / VEEDORES
+# ==============================================================================
+
+@router.get("/futbol/torneos/{torneo_id}/arbitros")
+async def get_arbitros(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT id, torneo_id, nombre, dni, rol, creado_en 
+        FROM torneos.arbitros 
+        WHERE torneo_id = CAST(:tid AS UUID)
+        ORDER BY nombre
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+class ArbitroCreate(BaseModel):
+    nombre: str
+    dni: Optional[str] = None
+    rol: Optional[str] = "Arbitro Principal"
+
+@router.post("/futbol/torneos/{torneo_id}/arbitros")
+async def create_arbitro(torneo_id: str, payload: ArbitroCreate, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        INSERT INTO torneos.arbitros (torneo_id, nombre, dni, rol)
+        VALUES (CAST(:tid AS UUID), :nombre, :dni, :rol)
+        RETURNING id
+    """)
+    res = await session.execute(q, {
+        "tid": torneo_id,
+        "nombre": payload.nombre,
+        "dni": payload.dni,
+        "rol": payload.rol
+    })
+    await session.commit()
+    return {"id": str(res.scalar()), "message": "Arbitro creado exitosamente"}
+
+@router.delete("/futbol/arbitros/{arbitro_id}")
+async def delete_arbitro(arbitro_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("DELETE FROM torneos.arbitros WHERE id = CAST(:aid AS UUID)")
+    await session.execute(q, {"aid": arbitro_id})
+    await session.commit()
+    return {"message": "Arbitro eliminado"}
+
+# ==============================================================================
+# CLASIFICACION (PUNTOS)
+# ==============================================================================
+
+class PuntosUpdate(BaseModel):
+    pts_victoria: int
+    pts_empate: int
+    pts_derrota: int
+    criterio_desempate: Optional[str] = None
+
+@router.put("/futbol/categorias/{categoria_id}/puntos")
+async def update_categoria_puntos(categoria_id: str, payload: PuntosUpdate, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        UPDATE torneos.categorias 
+        SET pts_victoria = :v, pts_empate = :e, pts_derrota = :d, criterio_desempate = :crit
+        WHERE id = CAST(:cid AS UUID)
+    """)
+    await session.execute(q, {
+        "cid": categoria_id,
+        "v": payload.pts_victoria,
+        "e": payload.pts_empate,
+        "d": payload.pts_derrota,
+        "crit": payload.criterio_desempate
+    })
+    await session.commit()
+    return {"message": "Puntos de categoria actualizados"}
+
+@router.get("/futbol/torneos/{torneo_id}/categorias-puntos")
+async def get_categorias_puntos(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    q = text("""
+        SELECT id, nombre, pts_victoria, pts_empate, pts_derrota, criterio_desempate
+        FROM torneos.categorias
+        WHERE torneo_id = CAST(:tid AS UUID)
+        ORDER BY nombre
+    """)
+    res = await session.execute(q, {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]

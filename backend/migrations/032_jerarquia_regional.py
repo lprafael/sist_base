@@ -17,29 +17,29 @@ if "host.docker.internal" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("host.docker.internal", "localhost")
 
 migration_up = """
-CREATE TABLE IF NOT EXISTS torneos_futbol.regiones (
+CREATE TABLE IF NOT EXISTS torneos.regiones (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    evento_id UUID NOT NULL REFERENCES torneos_futbol.eventos(id) ON DELETE CASCADE,
+    evento_id UUID NOT NULL REFERENCES torneos.eventos(id) ON DELETE CASCADE,
     nombre VARCHAR(150) NOT NULL,
     determinar_campeon_regional BOOLEAN NOT NULL DEFAULT false,
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS torneos_futbol.ciudades (
+CREATE TABLE IF NOT EXISTS torneos.ciudades (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    region_id UUID NOT NULL REFERENCES torneos_futbol.regiones(id) ON DELETE CASCADE,
+    region_id UUID NOT NULL REFERENCES torneos.regiones(id) ON DELETE CASCADE,
     nombre VARCHAR(150) NOT NULL,
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE torneos_futbol.torneos
-ADD COLUMN IF NOT EXISTS ciudad_id UUID REFERENCES torneos_futbol.ciudades(id) ON DELETE SET NULL;
+ALTER TABLE torneos.torneos
+ADD COLUMN IF NOT EXISTS ciudad_id UUID REFERENCES torneos.ciudades(id) ON DELETE SET NULL;
 """
 
 migration_down = """
-ALTER TABLE torneos_futbol.torneos DROP COLUMN IF EXISTS ciudad_id;
-DROP TABLE IF EXISTS torneos_futbol.ciudades CASCADE;
-DROP TABLE IF EXISTS torneos_futbol.regiones CASCADE;
+ALTER TABLE torneos.torneos DROP COLUMN IF EXISTS ciudad_id;
+DROP TABLE IF EXISTS torneos.ciudades CASCADE;
+DROP TABLE IF EXISTS torneos.regiones CASCADE;
 """
 
 async def run():

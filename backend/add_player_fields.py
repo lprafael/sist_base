@@ -17,13 +17,13 @@ async def add_columns():
     async with engine.connect() as conn:
         print("Adding nombre_abreviado...")
         try:
-            await conn.execute(text("ALTER TABLE torneos_futbol.tournament_players ADD COLUMN nombre_abreviado VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE torneos.tournament_players ADD COLUMN nombre_abreviado VARCHAR(100);"))
         except Exception as e:
             print(f"Error (maybe already exists): {e}")
 
         print("Adding telefono...")
         try:
-            await conn.execute(text("ALTER TABLE torneos_futbol.tournament_players ADD COLUMN telefono VARCHAR(50);"))
+            await conn.execute(text("ALTER TABLE torneos.tournament_players ADD COLUMN telefono VARCHAR(50);"))
         except Exception as e:
             print(f"Error (maybe already exists): {e}")
             
