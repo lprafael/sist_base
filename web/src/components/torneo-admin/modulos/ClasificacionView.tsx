@@ -28,8 +28,8 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
       const res = await fetch(`${API_URL}/futbol/torneos/${torneoId}/categorias-puntos`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-      if (res.ok) setCategorias(await res.json());
-    } catch (e) { console.error(e); }
+      if(res.ok) setCategorias(await res.json());
+    } catch(e) { console.error(e); }
     setLoading(false);
   };
 
@@ -50,7 +50,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           criterio_desempate: cat.criterio_desempate || 'Diferencia de puntos'
         })
       });
-    } catch (e) { console.error(e); }
+    } catch(e) { console.error(e); }
     setSavingId(null);
   };
 
@@ -58,12 +58,12 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4 pb-4">
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200">
         <div>
           <h3 className="text-xl font-bold text-slate-800">{torneo?.nombre || 'Campeonato'}</h3>
           <p className="text-sm text-slate-500">Gestión de Partidos y Clasificación</p>
         </div>
-        <button
+        <button 
           onClick={() => setShowConfig(!showConfig)}
           className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
         >
@@ -79,65 +79,42 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
               Estos valores se utilizarán para calcular automáticamente la tabla de posiciones cuando se registren los resultados.
             </p>
           </div>
-
+          
           {categorias.length === 0 ? (
-            <div className="text-center p-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-              <p className="text-slate-500">Primero debes crear Categorías en el submódulo correspondiente.</p>
-            </div>
+            <p className="text-slate-500 text-center">Primero debes crear Categorías.</p>
           ) : (
             <div className="space-y-4">
               {categorias.map(cat => (
-                <div key={cat.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+                <div key={cat.id} className="border border-slate-200 rounded-xl p-4">
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-bold text-slate-700 text-lg">{cat.nombre}</h4>
-                    <button
+                    <h4 className="font-bold text-slate-700">{cat.nombre}</h4>
+                    <button 
                       onClick={() => handleSave(cat)}
                       disabled={savingId === cat.id}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition disabled:opacity-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2"
                     >
-                      {savingId === cat.id ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      {savingId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                       Guardar
                     </button>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-green-600 mb-1 uppercase">Puntos por Victoria</label>
-                      <input
-                        type="number"
-                        value={cat.pts_victoria ?? 3}
-                        onChange={e => handleChange(cat.id, 'pts_victoria', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      />
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Pts. Victoria</label>
+                      <input type="number" value={cat.pts_victoria ?? 3} onChange={e => handleChange(cat.id, 'pts_victoria', e.target.value)} className="w-full border p-2 rounded text-sm"/>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-amber-500 mb-1 uppercase">Puntos por Empate</label>
-                      <input
-                        type="number"
-                        value={cat.pts_empate ?? 1}
-                        onChange={e => handleChange(cat.id, 'pts_empate', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      />
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Pts. Empate</label>
+                      <input type="number" value={cat.pts_empate ?? 1} onChange={e => handleChange(cat.id, 'pts_empate', e.target.value)} className="w-full border p-2 rounded text-sm"/>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-red-500 mb-1 uppercase">Puntos por Derrota</label>
-                      <input
-                        type="number"
-                        value={cat.pts_derrota ?? 0}
-                        onChange={e => handleChange(cat.id, 'pts_derrota', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      />
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Pts. Derrota</label>
+                      <input type="number" value={cat.pts_derrota ?? 0} onChange={e => handleChange(cat.id, 'pts_derrota', e.target.value)} className="w-full border p-2 rounded text-sm"/>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Criterio de Desempate principal</label>
-                      <select
-                        value={cat.criterio_desempate || 'Diferencia de puntos'}
-                        onChange={e => handleChange(cat.id, 'criterio_desempate', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      >
-                        <option value="Diferencia de puntos">Diferencia de puntos/goles</option>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Desempate</label>
+                      <select value={cat.criterio_desempate || 'Diferencia de puntos'} onChange={e => handleChange(cat.id, 'criterio_desempate', e.target.value)} className="w-full border p-2 rounded text-sm">
+                        <option value="Diferencia de puntos">Dif. puntos/goles</option>
                         <option value="Enfrentamiento directo">Enfrentamiento directo</option>
-                        <option value="Mayor cantidad de victorias">Mayor cantidad de victorias</option>
                         <option value="Sorteo">Sorteo</option>
                       </select>
                     </div>
@@ -147,5 +124,24 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
             </div>
           )}
         </div>
-      );
+      )}
+
+      {/* Split View */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 h-[70vh]">
+        {/* Tabla de Posiciones */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-y-auto">
+          <h4 className="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2">
+            <BarChart2 className="text-blue-600" size={20} />
+            Tabla de Posiciones
+          </h4>
+          <div className="text-center text-slate-400 mt-12 text-sm">
+            La tabla se calculará automáticamente a medida que finalicen los juegos.
+          </div>
+        </div>
+
+        {/* Partidos */}
+        <PartidosView torneoId={torneoId} deporte={torneo?.deporte} />
+      </div>
+    </div>
+  );
 }
