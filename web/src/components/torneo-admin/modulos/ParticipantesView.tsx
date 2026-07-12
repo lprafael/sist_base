@@ -124,17 +124,29 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col mb-6 space-y-4">
         <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
           <Users size={20} className="text-blue-500"/>
           Participantes (Equipos / Academias)
         </h3>
-        <button 
-          onClick={() => setIsCreatingEquipo(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 transition flex items-center gap-2"
-        >
-          <Building size={18} /> Inscribir Equipo/Academia
-        </button>
+
+        {/* Carga rápida de equipos */}
+        <form onSubmit={handleCreateEquipo} className="flex items-center gap-2">
+          <input 
+            type="text" 
+            placeholder="Nombre del equipo" 
+            className="flex-1 px-4 py-2 border-2 border-blue-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={nuevoEquipo}
+            onChange={e => setNuevoEquipo(e.target.value)}
+          />
+          <button 
+            type="submit" 
+            disabled={saving || !nuevoEquipo}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {saving ? 'Añadiendo...' : 'Añadir'}
+          </button>
+        </form>
       </div>
 
       <div className="relative mb-6">
@@ -160,15 +172,26 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition"
                 onClick={() => toggleEquipo(eq.id)}
               >
-                <div className="flex items-center gap-3">
-                  {expandedEquipo === eq.id ? <ChevronDown size={20} className="text-slate-400" /> : <ChevronRight size={20} className="text-slate-400" />}
-                  <h4 className="font-bold text-slate-700 text-lg">{eq.nombre}</h4>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#1e293b] rounded flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute top-1 text-yellow-400 text-[10px]">👑</div>
+                    <div className="mt-2 text-emerald-400">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM7 10.82C5.84 10.4 5 9.3 5 8V7h2v3.82zM19 8c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-slate-700 text-base">{eq.nombre}</h4>
+                    <p className="text-xs text-slate-400">{jugadoresPorEquipo[eq.id] ? jugadoresPorEquipo[eq.id].length : 0} Jugador(es)</p>
+                  </div>
                 </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); setIsAddingJugador(eq.id); }}
-                  className="flex items-center gap-1 text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 transition"
+                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition shadow-sm border border-slate-200"
+                  title="Añadir Atleta"
                 >
-                  <UserPlus size={16} /> Añadir Atleta
+                  <Users size={18} />
                 </button>
               </div>
 
@@ -211,28 +234,7 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
         )}
       </div>
 
-      {/* Modal Crear Equipo */}
-      {isCreatingEquipo && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800">Inscribir Equipo/Academia</h3>
-            </div>
-            <form onSubmit={handleCreateEquipo} className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre</label>
-                <input type="text" required value={nuevoEquipo} onChange={e => setNuevoEquipo(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: Academia Gracie" />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setIsCreatingEquipo(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded text-sm">Cancelar</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium">
-                  {saving ? 'Guardando...' : 'Crear Equipo'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal Crear Equipo removed as it's now inline */}
 
       {/* Modal Añadir Jugador */}
       {isAddingJugador && (

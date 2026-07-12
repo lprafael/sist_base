@@ -1189,14 +1189,14 @@ async def get_jugadores(torneo_id: str, equipo_id: str, session: AsyncSession = 
     result = await session.execute(text("""
         SELECT tp.id, tp.nombre, tp.dni, tp.fecha_nacimiento, tp.numero_camiseta,
                tp.posicion, tp.foto_url, tp.estado, tp.partidos_jugados,
-               tp.amarillas_acum, tp.rojas_acum, tp.egreso_ano, tp.es_exalumno
-        FROM cancha.tournament_players tp
-        WHERE tp.tournament_team_id = :eid
+               tp.amarillas_acum, tp.rojas_acum
+        FROM torneos.tournament_players tp
+        WHERE tp.torneo_equipo_id = CAST(:eid AS UUID)
         ORDER BY tp.numero_camiseta ASC NULLS LAST, tp.nombre ASC
     """), {"eid": equipo_id})
     rows = result.fetchall()
     keys = ["id","nombre","dni","fecha_nacimiento","numero_camiseta",
-            "posicion","foto_url","estado","partidos_jugados","amarillas_acum","rojas_acum","egreso_ano","es_exalumno"]
+            "posicion","foto_url","estado","partidos_jugados","amarillas_acum","rojas_acum"]
     return [_row_to_dict(keys, r) for r in rows]
 
 
@@ -1260,10 +1260,10 @@ async def _add_jugador_logic(
     # 1. Obtener datos del equipo y del torneo
     team_res = await session.execute(
         text("""
-            SELECT te.promocion, t.categoria, t.estado
+            SELECT te.id, t.estado
             FROM torneos.equipos te
             JOIN torneos.torneos t ON te.torneo_id = t.id
-            WHERE te.id = :eid AND te.torneo_id = :tid
+            WHERE te.id = CAST(:eid AS UUID) AND te.torneo_id = CAST(:tid AS UUID)
         """),
         {"eid": equipo_id, "tid": torneo_id}
     )
@@ -1271,9 +1271,7 @@ async def _add_jugador_logic(
     if not team_row:
         raise HTTPException(status_code=404, detail="Equipo no encontrado en este torneo")
     
-    team_promocion, torneo_categoria, torneo_estado = team_row
-    team_promocion = team_promocion or 0
-    torneo_categoria = torneo_categoria or 'Primera'
+    torneo_estado = team_row[1]
 
     # 2. Bloqueo de adición de jugadores en fases finales (playoffs)
     if torneo_estado in ('playoffs', 'finalizado'):
@@ -1284,166 +1282,39 @@ async def _add_jugador_logic(
 
     # 3. Validar DNI no repetido en otro equipo del mismo torneo
     dup = await session.execute(text("""
-        SELECT tp.id FROM cancha.tournament_players tp
-        JOIN torneos.equipos te ON tp.tournament_team_id = te.id
-        WHERE te.torneo_id = :tid AND tp.dni = :dni
+        SELECT tp.id FROM torneos.tournament_players tp
+        JOIN torneos.equipos te ON tp.torneo_equipo_id = te.id
+        WHERE te.torneo_id = CAST(:tid AS UUID) AND tp.dni = :dni
     """), {"tid": torneo_id, "dni": payload.dni})
     if dup.fetchone():
         raise HTTPException(status_code=409, detail=f"El jugador con DNI {payload.dni} ya está inscripto en otro equipo de este torneo")
 
     # 4. Validar edad y fecha de nacimiento
-    current_year = datetime.now().year
-    player_age = None
     fnac = None
     if payload.fecha_nacimiento:
         try:
             fnac = date.fromisoformat(payload.fecha_nacimiento)
-            player_age = current_year - fnac.year
         except Exception:
             fnac = None
 
-    # 5. Determinar si el jugador es considerado refuerzo
-    is_refuerzo = False
-    anos_exencion_vg = await _get_config_param("anos_exencion_viejas_glorias", 25, torneo_id, session)
-    if not payload.es_exalumno or payload.egreso_ano != team_promocion:
-        is_refuerzo = True
-        
-        # Exención de viejas glorias
-        if payload.es_exalumno and payload.egreso_ano:
-            years_since_egreso = current_year - payload.egreso_ano
-            if years_since_egreso >= anos_exencion_vg:
-                is_refuerzo = False
-
-    # 6. Si es refuerzo, aplicar validaciones de cupo de refuerzos
-    if is_refuerzo:
-        existing_players_res = await session.execute(
-            text("""
-                SELECT es_exalumno, egreso_ano, fecha_nacimiento
-                FROM cancha.tournament_players
-                WHERE tournament_team_id = :eid
-            """),
-            {"eid": equipo_id}
-        )
-        existing_players = existing_players_res.fetchall()
-        
-        refuerzos_count = 0
-        refuerzos_menores_30_count = 0
-        
-        for p_es_exalumno, p_egreso_ano, p_fnac in existing_players:
-            p_is_refuerzo = False
-            if not p_es_exalumno or p_egreso_ano != team_promocion:
-                p_is_refuerzo = True
-                if p_es_exalumno and p_egreso_ano:
-                    p_years = current_year - p_egreso_ano
-                    if p_years >= anos_exencion_vg:
-                        p_is_refuerzo = False
-            
-            if p_is_refuerzo:
-                refuerzos_count += 1
-                if p_fnac:
-                    if isinstance(p_fnac, str):
-                        try:
-                            p_year = int(p_fnac.split('-')[0])
-                        except Exception:
-                            p_year = current_year
-                    else:
-                        p_year = p_fnac.year
-                    p_age = current_year - p_year
-                    if p_age < 30:
-                        refuerzos_menores_30_count += 1
-
-        # Calcular límite máximo de refuerzos permitido
-        antiguedad_promo = current_year - team_promocion
-        if antiguedad_promo > 15 and torneo_categoria != 'Primera':
-            max_refuerzos = await _get_config_param("limite_refuerzos_antiguedad", 6, torneo_id, session)
-        else:
-            max_refuerzos = await _get_config_param("limite_refuerzos_estandar", 4, torneo_id, session)
-            
-        if refuerzos_count >= max_refuerzos:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Cupo de refuerzos completo. Límite máximo para este equipo: {max_refuerzos} refuerzos."
-            )
-
-        if torneo_categoria == 'Ejecutivo':
-            if player_age is not None and player_age < 30:
-                max_menores_30 = await _get_config_param("limite_refuerzos_menores_30_ejecutivo", 1, torneo_id, session)
-                if refuerzos_menores_30_count >= max_menores_30:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Categoría Ejecutivo: Solo se permite {max_menores_30} refuerzo(s) menor(es) de 30 años por equipo, y ya hay uno registrado."
-                    )
-    # 7. Insertar jugador
+    # 5. Insertar jugador
     player_uuid = str(uuid.uuid4())
     result = await session.execute(text("""
-        INSERT INTO cancha.tournament_players
-            (id, tournament_team_id, nombre, dni, email, fecha_nacimiento, numero_camiseta, posicion, foto_url, egreso_ano, es_exalumno,
-             documento_firmado_url, cedula_anverso_url, cedula_reverso_url)
+        INSERT INTO torneos.tournament_players
+            (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url)
         VALUES
-            (:id, :eid, :nombre, :dni, :email, :fnac, :camiseta, :posicion, :foto_url, :egreso_ano, :es_exalumno,
-             :doc_firmado, :ced_anverso, :ced_reverso)
-        RETURNING id, nombre, dni, email, numero_camiseta, posicion, estado, egreso_ano, es_exalumno, documento_firmado_url, cedula_anverso_url, cedula_reverso_url
+            (:id, CAST(:eid AS UUID), :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url)
+        RETURNING id, nombre, dni, numero_camiseta, posicion, estado
     """), {
         "id": player_uuid,
         "eid": equipo_id, "nombre": payload.nombre, "dni": payload.dni,
-        "email": payload.email.strip() if payload.email else None,
         "fnac": fnac, "camiseta": payload.numero_camiseta,
-        "posicion": payload.posicion, "foto_url": payload.foto_url,
-        "egreso_ano": payload.egreso_ano, "es_exalumno": payload.es_exalumno,
-        "doc_firmado": payload.documento_firmado_url,
-        "ced_anverso": payload.cedula_anverso_url,
-        "ced_reverso": payload.cedula_reverso_url
+        "posicion": payload.posicion, "foto_url": payload.foto_url
     })
     await session.commit()
     row = result.fetchone()
 
-    # Crear usuario para el jugador (si tiene email cargado)
-    if payload.email:
-        email_jug = payload.email.strip()
-        # Verificar si existe el usuario
-        u_res = await session.execute(
-            text("SELECT id FROM sistema.usuarios WHERE email = :email"),
-            {"email": email_jug}
-        )
-        if not u_res.fetchone():
-            # Generar username
-            usr_base = email_jug.split('@')[0]
-            usr_check = await session.execute(
-                text("SELECT id FROM sistema.usuarios WHERE username = :username"),
-                {"username": usr_base}
-            )
-            username_final = usr_base
-            if usr_check.fetchone():
-                username_final = f"{usr_base}_{secrets.token_hex(2)}"
-            
-            # Contraseña inicial = DNI
-            pass_temp = payload.dni.strip()
-            pass_hash = get_password_hash(pass_temp)
-            
-            # Insertar usuario
-            await session.execute(text("""
-                INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo, fecha_creacion)
-                VALUES (:username, :email, :pass_hash, :nombre, 'jugador', true, NOW())
-            """), {
-                "username": username_final,
-                "email": email_jug,
-                "pass_hash": pass_hash,
-                "nombre": payload.nombre
-            })
-            await session.commit()
-
-            # Enviar correo de bienvenida al jugador
-            try:
-                email_service.send_welcome_email(
-                    to_email=email_jug,
-                    username=username_final,
-                    password=pass_temp,
-                    role="Jugador"
-                )
-            except Exception as mail_err:
-                print("Error al enviar email a jugador:", str(mail_err))
-
-    return _row_to_dict(["id","nombre","dni","email","numero_camiseta","posicion","estado","egreso_ano","es_exalumno","documento_firmado_url","cedula_anverso_url","cedula_reverso_url"], row)
+    return {"status": "ok", "message": "Jugador agregado exitosamente"}
 
 
 @router.post("/{torneo_id}/equipos/{equipo_id}/jugadores", summary="Agregar jugador al plantel")
@@ -1481,7 +1352,7 @@ async def update_jugador(
         if not updates:
             raise HTTPException(status_code=400, detail="Sin campos para actualizar")
 
-        sql = f"UPDATE cancha.tournament_players SET {', '.join(updates)}, actualizado_en=NOW() WHERE id = :pid RETURNING id, nombre, estado"
+        sql = f"UPDATE torneos.tournament_players SET {', '.join(updates)}, actualizado_en=NOW() WHERE id = :pid RETURNING id, nombre, estado"
         result = await session.execute(text(sql), params)
         await session.commit()
         row = result.fetchone()
