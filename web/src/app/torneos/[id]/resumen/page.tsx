@@ -232,6 +232,7 @@ export default function TorneoResumenPage() {
         .row-hover:hover { background: rgba(255,255,255,0.035) !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse-live { 0%,100% { opacity:1; box-shadow:0 0 6px #ef4444; } 50% { opacity:0.4; box-shadow:0 0 12px #ef4444; } }
         .fade-in { animation: fadeIn 0.3s ease; }
       `}</style>
 
@@ -289,32 +290,38 @@ export default function TorneoResumenPage() {
                   <p style={{ color: "#64748b", marginTop: "0.75rem", fontSize: 15, maxWidth: 600, lineHeight: 1.6 }}>{tournament.descripcion}</p>
                 )}
 
-                <div style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                   <Pill icon={<Calendar size={13} />} text={`${fmtDate(tournament.fecha_inicio)}${tournament.fecha_fin ? ` → ${fmtDate(tournament.fecha_fin)}` : ""}`} />
                   <Pill icon={<Users size={13} />} text={`${equipos.length}${tournament.max_equipos ? `/${tournament.max_equipos}` : ""} equipos`} />
                   <Pill icon={<Swords size={13} />} text={`${jugados} partidos jugados`} />
                 </div>
-              </div>
 
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                {/* LIVE BUTTON - destacado debajo del título */}
                 <Link
                   href={`/torneos/${id}/tv-live`}
                   target="_blank"
                   style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))",
-                    border: "1px solid rgba(239,68,68,0.4)",
-                    borderRadius: 12, padding: "10px 18px",
-                    color: "#ef4444", fontSize: 13, fontWeight: 800,
-                    textDecoration: "none", flexShrink: 0,
-                    letterSpacing: "0.05em",
-                    boxShadow: "0 0 20px rgba(239,68,68,0.15)",
-                    transition: "all 0.2s",
+                    display: "inline-flex", alignItems: "center", gap: 10, marginTop: "1.25rem",
+                    background: "linear-gradient(135deg, rgba(239,68,68,0.2), rgba(239,68,68,0.08))",
+                    border: "1px solid rgba(239,68,68,0.5)",
+                    borderRadius: 14, padding: "12px 22px",
+                    color: "#ef4444", fontSize: 14, fontWeight: 800,
+                    textDecoration: "none", letterSpacing: "0.06em",
+                    boxShadow: "0 0 24px rgba(239,68,68,0.2), inset 0 1px 0 rgba(255,255,255,0.05)",
                   }}
                 >
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "inline-block", animation: "spin 0s linear, fadeIn 0s" }} />
-                  📺 Ver EN VIVO
+                  <span style={{
+                    width: 9, height: 9, borderRadius: "50%", background: "#ef4444",
+                    display: "inline-block", flexShrink: 0,
+                    boxShadow: "0 0 6px #ef4444",
+                    animation: "pulse-live 1.2s ease-in-out infinite"
+                  }} />
+                  📺 Ver Resultados EN VIVO
+                  <ChevronRight size={16} />
                 </Link>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button onClick={loadAll} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 18px", color: "#64748b", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>
                   <RefreshCw size={14} /> Actualizar
                 </button>
