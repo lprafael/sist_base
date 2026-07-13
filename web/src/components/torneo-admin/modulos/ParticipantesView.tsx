@@ -183,8 +183,14 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
                   <div>
                     <h4 className="font-medium text-slate-700 text-base">{eq.nombre}</h4>
                     <p className="text-xs text-slate-400">{jugadoresPorEquipo[eq.id] ? jugadoresPorEquipo[eq.id].length : 0} Jugador(es)</p>
-                    {eq.inscripcion_confirmada && (
-                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold ml-2">Confirmado</span>
+                    {eq.inscripcion_confirmada === true && (
+                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold ml-2">✓ Confirmado</span>
+                    )}
+                    {eq.inscripcion_confirmada === null || eq.inscripcion_confirmada === undefined ? (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold ml-2">⏳ Pendiente</span>
+                    ) : null}
+                    {eq.inscripcion_confirmada === false && (
+                      <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold ml-2">✗ Eliminado</span>
                     )}
                   </div>
                 </div>

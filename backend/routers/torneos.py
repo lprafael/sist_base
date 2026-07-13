@@ -795,13 +795,23 @@ async def update_equipo(
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        # Verificar existencia
+        # Verificar existencia y traer datos necesarios para el email
         res = await session.execute(
-            text("SELECT id FROM torneos.equipos WHERE id = CAST(:eid AS UUID) AND torneo_id = CAST(:tid AS UUID)"),
+            text("""
+                SELECT e.id, e.nombre, e.capitan_email, e.capitan_nombre,
+                       e.inscripcion_confirmada, e.token_delegado, e.token_jugadores,
+                       t.nombre AS torneo_nombre
+                FROM torneos.equipos e
+                JOIN torneos.torneos t ON e.torneo_id = t.id
+                WHERE e.id = CAST(:eid AS UUID) AND e.torneo_id = CAST(:tid AS UUID)
+            """),
             {"eid": equipo_id, "tid": torneo_id}
         )
-        if not res.fetchone():
+        row = res.fetchone()
+        if not row:
             raise HTTPException(status_code=404, detail="Equipo no encontrado")
+
+        was_confirmed = row.inscripcion_confirmada  # previous state
 
         updates = []
         params = {"eid": equipo_id, "tid": torneo_id}
@@ -821,6 +831,13 @@ async def update_equipo(
         if payload.inscripcion_confirmada is not None:
             updates.append("inscripcion_confirmada = :ic")
             params["ic"] = payload.inscripcion_confirmada
+            # Sync estado_inscripcion with the boolean
+            if payload.inscripcion_confirmada is True:
+                updates.append("estado_inscripcion = 'confirmado'")
+            elif payload.inscripcion_confirmada is False:
+                updates.append("estado_inscripcion = 'eliminado'")
+            else:
+                updates.append("estado_inscripcion = 'pendiente'")
 
         if not updates:
             return {"status": "ok", "message": "Sin cambios"}
@@ -829,12 +846,28 @@ async def update_equipo(
         await session.execute(text(sql), params)
         await session.commit()
 
+        # Send approval email if just confirmed (was not confirmed before)
+        if payload.inscripcion_confirmada is True and not was_confirmed:
+            capitan_email = row.capitan_email
+            if capitan_email:
+                try:
+                    email_service.send_inscription_approved_email(
+                        to_email=capitan_email,
+                        equipo_nombre=row.nombre,
+                        torneo_nombre=row.torneo_nombre,
+                        token_delegado=str(row.token_delegado),
+                        token_jugadores=str(row.token_jugadores) if row.token_jugadores else ""
+                    )
+                except Exception as mail_err:
+                    print("Error al enviar email de aprobación:", str(mail_err))
+
         return {"status": "ok", "message": "Equipo actualizado correctamente"}
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/{torneo_id}/equipos/{equipo_id}/logo", summary="Subir logo del equipo")
 async def upload_equipo_logo(
