@@ -323,3 +323,29 @@ class RoleInfo(BaseModel):
 class PermissionCheck(BaseModel):
     permission: str
     has_permission: bool
+
+# ===== SCHEMAS DE MÓDULOS DEL SISTEMA =====
+
+class ModuloSistemaBase(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    ruta: str
+    icono: Optional[str] = None
+    activo: bool = True
+
+class ModuloSistemaCreate(ModuloSistemaBase):
+    pass
+
+class ModuloSistemaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    ruta: Optional[str] = None
+    icono: Optional[str] = None
+    activo: Optional[bool] = None
+
+class ModuloSistemaResponse(ModuloSistemaBase):
+    id: int
+    fecha_creacion: datetime
+
+    class Config:
+        from_attributes = True

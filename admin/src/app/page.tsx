@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import TournamentManagement from '@/components/TournamentManagement';
 import UserManagement from '@/components/UserManagement';
 import CatalogosManagement from '@/components/CatalogosManagement';
+import SystemModulesManagement from '@/components/SystemModulesManagement';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 const COMPLEJO_ID = process.env.NEXT_PUBLIC_COMPLEJO_ID || '11111111-1111-1111-1111-111111111111';
@@ -150,7 +151,7 @@ export default function AdminDashboard() {
       : 0,
   };
 
-  const [view, setView] = useState<'grid' | 'tournaments' | 'users' | 'catalogos'>('grid');
+  const [view, setView] = useState<'grid' | 'tournaments' | 'users' | 'catalogos' | 'system_modules'>('grid');
 
   return (
     <div className="admin-layout">
@@ -187,8 +188,10 @@ export default function AdminDashboard() {
             <TournamentManagement complejoId={COMPLEJO_ID} />
           ) : view === 'users' ? (
             <UserManagement />
-          ) : (
+          ) : view === 'catalogos' ? (
             <CatalogosManagement />
+          ) : (
+            <SystemModulesManagement />
           )}
         </main>
       </div>

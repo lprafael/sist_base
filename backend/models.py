@@ -233,3 +233,17 @@ class Reporte(Base):
     ruta_archivo = Column(String(500))
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'), nullable=False)
     detalles = Column(JSON)
+
+# ===== CATÁLOGO DE MÓDULOS DEL SISTEMA =====
+
+class ModuloSistema(Base):
+    __tablename__ = "modulos"
+    __table_args__ = {"schema": "sistema"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), unique=True, index=True, nullable=False)
+    descripcion = Column(String(255))
+    ruta = Column(String(100), nullable=False)
+    icono = Column(String(50))
+    activo = Column(Boolean, default=True)
+    fecha_creacion = Column(DateTime, default=func.now())

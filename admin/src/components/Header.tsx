@@ -10,8 +10,8 @@ interface HeaderProps {
   audioEnabled: boolean;
   onToggleAudio: () => void;
   onAnuncioManual: (texto: string) => void;
-  onViewChange: (v: 'grid' | 'tournaments' | 'users' | 'catalogos') => void;
-  currentView: 'grid' | 'tournaments' | 'users' | 'catalogos';
+  onViewChange: (v: 'grid' | 'tournaments' | 'users' | 'catalogos' | 'system_modules') => void;
+  currentView: 'grid' | 'tournaments' | 'users' | 'catalogos' | 'system_modules';
 }
 
 export default function Header({
@@ -96,6 +96,13 @@ export default function Header({
           style={{ fontSize: 13, padding: '8px 16px' }}
         >
           📖 Catálogos
+        </button>
+        <button 
+          className={`btn ${currentView === 'system_modules' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => onViewChange('system_modules')}
+          style={{ fontSize: 13, padding: '8px 16px' }}
+        >
+          ⚙️ Módulos
         </button>
       </div>
 

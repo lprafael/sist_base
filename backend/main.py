@@ -225,6 +225,9 @@ app.include_router(pagos_futbol_router)
 from routers.liga_publica import router as liga_publica_router
 app.include_router(liga_publica_router)
 
+from routers.modulos_sistema import router as modulos_sistema_router
+app.include_router(modulos_sistema_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================

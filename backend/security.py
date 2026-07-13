@@ -101,17 +101,39 @@ ROLES = {
             "sistema_config", "sistema_backup", "sistema_reportes"
         ]
     },
-    "manager": {
-        "description": "Gerente con acceso completo a datos",
-        "permissions": ["read", "write", "delete", "usuarios_read", "auditoria_read", "sistema_backup"]
+    "administrador": {
+        "description": "dueño del sistema",
+        "permissions": [
+            "read", "write", "delete", "manage_users", "manage_roles",
+            "usuarios_read", "usuarios_write", "usuarios_delete", "usuarios_manage",
+            "roles_read", "roles_write", "roles_delete", "roles_manage",
+            "auditoria_read", "auditoria_export",
+            "sistema_config", "sistema_backup", "sistema_reportes"
+        ]
     },
-    "user": {
-        "description": "Usuario básico",
-        "permissions": ["read", "write"]
+    "complejo": {
+        "description": "dueño de los locales deportivos",
+        "permissions": ["read", "write", "manage_canchas", "manage_reservas"]
     },
-    "viewer": {
-        "description": "Solo lectura",
+    "organizador": {
+        "description": "el que puede organizar torneos y campeonatos",
+        "permissions": ["read", "write", "manage_torneos"]
+    },
+    "veedor": {
+        "description": "el que puede cargar resultados de partidos en los torneos",
+        "permissions": ["read", "update_resultados"]
+    },
+    "delegado": {
+        "description": "el que crea un equipo y le pasa a los jugadores el enlace para que se anoten",
+        "permissions": ["read", "write_equipo"]
+    },
+    "jugadores": {
+        "description": "miembros de los equipos",
         "permissions": ["read"]
+    },
+    "academia": {
+        "description": "para los que tienen academias deportivas",
+        "permissions": ["read", "write", "manage_academia"]
     }
 }
 

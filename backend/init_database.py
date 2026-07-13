@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text, select
-from models import Base, Usuario, Rol, Permiso, ParametroSistema, ConfiguracionEmail
+from models import Base, Usuario, Rol, Permiso, ParametroSistema, ConfiguracionEmail, ModuloSistema
 from security import get_password_hash
 from datetime import datetime, timedelta
 
@@ -90,10 +90,10 @@ async def init_sistema(session, engine):
     # ===== CREAR ROLES POR DEFECTO =====
     print("👥 Creando roles...")
     
-    # Rol Admin - Todos los permisos
+    # Rol Administrador - Todos los permisos
     rol_admin = Rol(
-        nombre="admin",
-        descripcion="Administrador del sistema con acceso completo"
+        nombre="administrador",
+        descripcion="dueño del sistema, el que puede ver, crear todo, etc"
     )
     session.add(rol_admin)
     await session.commit()
@@ -105,40 +105,20 @@ async def init_sistema(session, engine):
             {"rol_id": rol_admin.id, "permiso_id": permiso_id}
         )
     
-    # Rol Manager - Permisos de gestión
-    rol_manager = Rol(
-        nombre="manager",
-        descripcion="Gerente con permisos de gestión y lectura"
-    )
-    session.add(rol_manager)
-    await session.commit()
-    
-    # Permisos para manager
-    permisos_manager = [
-        "usuarios_read", "auditoria_read", "sistema_backup"
+    # Roles Secundarios
+    roles_secundarios = [
+        {"nombre": "complejo", "descripcion": "dueño de los locales deportivos"},
+        {"nombre": "organizador", "descripcion": "el que puede organizar torneos y campeonatos"},
+        {"nombre": "veedor", "descripcion": "el que puede cargar resultados de partidos en los torneos"},
+        {"nombre": "delegado", "descripcion": "el que crea un equipo y le pasa a los jugadores el enlace para que se anoten"},
+        {"nombre": "jugadores", "descripcion": "miembros de los equipos"},
+        {"nombre": "academia", "descripcion": "para los que tienen academias deportivas"}
     ]
     
-    for permiso_nombre in permisos_manager:
-        if permiso_nombre in permisos_dict:
-            await session.execute(
-                text("INSERT INTO sistema.rol_permiso (rol_id, permiso_id) VALUES (:rol_id, :permiso_id)"),
-                {"rol_id": rol_manager.id, "permiso_id": permisos_dict[permiso_nombre]}
-            )
-    
-    # Rol User - Permisos básicos
-    rol_user = Rol(
-        nombre="user",
-        descripcion="Usuario con permisos básicos de lectura y escritura"
-    )
-    session.add(rol_user)
-    await session.commit()
-    
-    # Rol Viewer - Solo lectura
-    rol_viewer = Rol(
-        nombre="viewer",
-        descripcion="Visualizador con permisos de solo lectura"
-    )
-    session.add(rol_viewer)
+    for r_data in roles_secundarios:
+        r = Rol(**r_data)
+        session.add(r)
+        
     await session.commit()
     
     await session.commit()
@@ -164,6 +144,20 @@ async def init_sistema(session, engine):
         text("INSERT INTO sistema.usuario_rol (usuario_id, rol_id) VALUES (:usuario_id, :rol_id)"),
         {"usuario_id": admin_user.id, "rol_id": rol_admin.id}
     )
+    
+    # ===== CREAR MÓDULOS POR DEFECTO =====
+    print("📦 Creando módulos del sistema...")
+    
+    modulos = [
+        ModuloSistema(nombre="Gestión de reservas", ruta="/reservas", descripcion="Módulo para administrar reservas de locales deportivos", icono="Calendar", activo=True),
+        ModuloSistema(nombre="Gestión de torneos", ruta="/torneos", descripcion="Módulo para crear y gestionar torneos y campeonatos", icono="Trophy", activo=True),
+        ModuloSistema(nombre="Gestión de academias", ruta="/academias", descripcion="Módulo para el control de academias deportivas", icono="GraduationCap", activo=True),
+    ]
+    
+    for mod in modulos:
+        session.add(mod)
+        
+    await session.commit()
     
     # ===== CREAR PARÁMETROS DEL SISTEMA =====
     print("⚙️  Creando parámetros del sistema...")
