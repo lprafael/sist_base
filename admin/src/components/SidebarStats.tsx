@@ -8,7 +8,7 @@ interface SidebarStatsProps {
   canchas: any[];
   reservas: any[];
   analytics?: any;
-  view?: 'grid' | 'tournaments' | 'users' | 'catalogos';
+  view?: 'grid' | 'tournaments' | 'users' | 'catalogos' | 'system_modules';
 }
 
 export default function SidebarStats({ stats, canchas, reservas, analytics, view = 'grid' }: SidebarStatsProps) {
