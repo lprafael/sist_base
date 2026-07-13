@@ -63,7 +63,11 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
         if (formCat.id) {
           setShowCatForm(false);
         } else {
-          setTimeout(() => nombreInputRef.current?.focus(), 10);
+          setTimeout(() => {
+            if (nombreInputRef.current) {
+              nombreInputRef.current.focus();
+            }
+          }, 100);
         }
         setFormCat({ id: '', nombre: '', descripcion: '' });
         fetchData();
