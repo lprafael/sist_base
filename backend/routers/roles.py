@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from database import get_session
@@ -15,7 +16,7 @@ router = APIRouter(
 
 @router.get("", response_model=List[RolResponse])
 async def get_roles(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Rol).order_by(Rol.id))
+    result = await session.execute(select(Rol).options(selectinload(Rol.permisos)).order_by(Rol.id))
     return result.scalars().all()
 
 @router.post("", response_model=RolResponse, status_code=status.HTTP_201_CREATED)
@@ -34,8 +35,9 @@ async def create_rol(
         
     session.add(nuevo)
     await session.commit()
-    await session.refresh(nuevo)
-    return nuevo
+    # Para refresh con relaciones necesitamos recargar
+    result = await session.execute(select(Rol).options(selectinload(Rol.permisos)).where(Rol.id == nuevo.id))
+    return result.scalar_one()
 
 @router.put("/{id}", response_model=RolResponse)
 async def update_rol(
@@ -44,21 +46,22 @@ async def update_rol(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    rol = await session.get(Rol, id)
+    result = await session.execute(select(Rol).options(selectinload(Rol.permisos)).where(Rol.id == id))
+    rol = result.scalar_one_or_none()
     if not rol:
         raise HTTPException(status_code=404, detail="Rol no encontrado")
     
     if rol_in.nombre and rol_in.nombre != rol.nombre:
-        result = await session.execute(select(Rol).where(Rol.nombre == rol_in.nombre))
-        if result.scalar_one_or_none():
+        result_check = await session.execute(select(Rol).where(Rol.nombre == rol_in.nombre))
+        if result_check.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Ya existe otro rol con este nombre")
 
     update_data = rol_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
-        setattr(rol, key, value)
+        if key != 'permisos':  # Ignoramos permisos por ahora, se actualizarían diferente si se requiere
+            setattr(rol, key, value)
 
     await session.commit()
-    await session.refresh(rol)
     return rol
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
