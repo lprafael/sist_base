@@ -44,7 +44,13 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({})
       });
-      if(res.ok) fetchPartidos();
+      const data = await res.json();
+      if(res.ok && data.status !== 'error') {
+        alert(data.message || 'Partidos generados correctamente');
+        fetchPartidos();
+      } else {
+        alert(data.message || 'Ocurrió un error al generar partidos');
+      }
     } catch(e) {
       console.error(e);
     }
