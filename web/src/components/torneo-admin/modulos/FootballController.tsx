@@ -38,7 +38,7 @@ export default function FootballController({ match, onClose }: { match: any, onC
   const handleSave = async (nuevoEstado?: string) => {
     const estadoFinal = nuevoEstado || estado;
     try {
-      await fetch(`${API_URL}/futbol/partidos/${match.id}`, {
+      await fetch(`${API_URL}/cancha/torneos/partidos/${match.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({
