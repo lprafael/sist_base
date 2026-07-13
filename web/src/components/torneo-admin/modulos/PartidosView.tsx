@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy } from 'lucide-react';
 import MatchController from './MatchController';
+import MatchAddModal from './MatchAddModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -13,8 +14,9 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
   // Dropdown context menu
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
-  // Match controller
+  // Match controller & modals
   const [activeMatch, setActiveMatch] = useState<any>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchPartidos();
@@ -92,7 +94,10 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
       </div>
 
       <div className="flex justify-center mb-4 gap-2">
-        <button className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1">
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1"
+        >
           <Plus size={14} /> AGREGAR PARTIDO
         </button>
         {deporte === 'Artes Marciales Mixtas' && (
@@ -167,6 +172,18 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
           match={activeMatch} 
           deporte={deporte}
           onClose={() => { setActiveMatch(null); fetchPartidos(); }} 
+        />
+      )}
+
+      {showAddModal && (
+        <MatchAddModal
+          torneoId={torneoId}
+          deporte={deporte}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            fetchPartidos();
+          }}
         />
       )}
     </div>

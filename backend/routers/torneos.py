@@ -1657,6 +1657,36 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
             "jugador_local_nombre", "jugador_visitante_nombre"]
     return [_row_to_dict(keys, r) for r in rows]
 
+class PartidoManualCreate(BaseModel):
+    equipo_local_id: str
+    equipo_visitante_id: str
+    jugador_local_id: Optional[str] = None
+    jugador_visitante_id: Optional[str] = None
+    fase: str
+    fecha_hora: Optional[str] = None
+
+@router.post("/{torneo_id}/partidos", summary="Crear partido manualmente")
+async def create_partido(torneo_id: str, payload: PartidoManualCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        await session.execute(text("""
+            INSERT INTO torneos.partidos 
+            (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase, fecha_hora, estado)
+            VALUES (:tid, :el, :ev, :jl, :jv, :fase, :fecha, 'programado')
+        """), {
+            "tid": torneo_id,
+            "el": payload.equipo_local_id,
+            "ev": payload.equipo_visitante_id,
+            "jl": payload.jugador_local_id,
+            "jv": payload.jugador_visitante_id,
+            "fase": payload.fase,
+            "fecha": payload.fecha_hora if payload.fecha_hora else None
+        })
+        await session.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/{torneo_id}/autoalineacion", summary="Autoalineación de competencias (MMA)")
 async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = Depends(get_session)):
     try:
