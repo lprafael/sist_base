@@ -851,11 +851,19 @@ async def update_equipo(
             capitan_email = row.capitan_email
             if capitan_email:
                 try:
+                    # Look up the username created during inscription
+                    u_res = await session.execute(
+                        text("SELECT username FROM sistema.usuarios WHERE email = :email"),
+                        {"email": capitan_email.strip()}
+                    )
+                    u_row = u_res.fetchone()
+                    delegado_username = u_row[0] if u_row else capitan_email
+
                     email_service.send_inscription_approved_email(
                         to_email=capitan_email,
                         equipo_nombre=row.nombre,
                         torneo_nombre=row.torneo_nombre,
-                        token_delegado=str(row.token_delegado),
+                        username=delegado_username,
                         token_jugadores=str(row.token_jugadores) if row.token_jugadores else ""
                     )
                 except Exception as mail_err:

@@ -112,13 +112,13 @@ class EmailService:
         to_email: str,
         equipo_nombre: str,
         torneo_nombre: str,
-        token_delegado: str,
+        username: str,
         token_jugadores: str,
         site_url: str = "https://micancha.com.py"
     ) -> bool:
         """Envía email de aprobación de inscripción al delegado del equipo"""
         subject = f"🏆 ¡Inscripción Aprobada! — {equipo_nombre} en {torneo_nombre}"
-        enlace_delegado = f"{site_url}/delegados/{token_delegado}"
+        enlace_login = f"{site_url}/login"
         enlace_jugadores = f"{site_url}/jugadores/{token_jugadores}" if token_jugadores else None
 
         link_jugadores_html = ""
@@ -166,12 +166,13 @@ class EmailService:
                   <tr>
                     <td style="padding:20px 30px;">
                       <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:20px; text-align:center;">
-                        <p style="margin:0 0 12px; font-weight:700; color:#1e40af; font-size:15px;">Panel del Delegado</p>
-                        <p style="margin:0 0 16px; color:#3b82f6; font-size:13px;">Accede con tu enlace exclusivo para gestionar el equipo</p>
-                        <a href="{enlace_delegado}" style="display:inline-block; background:#1d4ed8; color:white; text-decoration:none; padding:14px 32px; border-radius:10px; font-weight:700; font-size:15px; letter-spacing:0.5px;">
-                          👤 Ir a mi Panel
+                        <p style="margin:0 0 8px; font-weight:700; color:#1e40af; font-size:15px;">Acceso al Sistema</p>
+                        <p style="margin:0 0 4px; color:#475569; font-size:13px;">Inicia sesión con tu usuario para gestionar el equipo:</p>
+                        <p style="margin:0 0 16px; background:#dbeafe; display:inline-block; padding:6px 16px; border-radius:6px; font-weight:700; color:#1e40af; font-size:14px; letter-spacing:1px;">{username}</p><br>
+                        <a href="{enlace_login}" style="display:inline-block; background:#1d4ed8; color:white; text-decoration:none; padding:14px 32px; border-radius:10px; font-weight:700; font-size:15px; letter-spacing:0.5px;">
+                          👤 Iniciar Sesión
                         </a>
-                        <p style="margin:12px 0 0; color:#64748b; font-size:11px;">O copia este enlace: {enlace_delegado}</p>
+                        <p style="margin:12px 0 0; color:#64748b; font-size:11px;">{enlace_login}</p>
                       </div>
                     </td>
                   </tr>
