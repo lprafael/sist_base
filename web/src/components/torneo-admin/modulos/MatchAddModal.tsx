@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 interface MatchAddModalProps {
@@ -20,7 +20,7 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
     equipo_visitante_id: '',
     jugador_local_id: '',
     jugador_visitante_id: '',
-    fase: '1º Fase',
+    fase: '1Âº Fase',
     fecha_hora: ''
   });
 
@@ -80,7 +80,7 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
       }
     } catch(err) {
       console.error(err);
-      alert("Error de conexión");
+      alert("Error de conexiÃ³n");
     }
     setSaving(false);
   };
@@ -109,7 +109,7 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
                 onChange={e => setFormData({...formData, fase: e.target.value})}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
               >
-                <option value="1º Fase">1º Fase</option>
+                <option value="1Âº Fase">1Âº Fase</option>
                 <option value="4tos de Final">4tos de Final</option>
                 <option value="Semifinal">Semifinal</option>
                 <option value="Final">Final</option>
@@ -118,7 +118,7 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Local (Rincón Rojo)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Local (RincÃ³n Rojo)</label>
                 <select 
                   required
                   value={formData.equipo_local_id} 
@@ -133,7 +133,7 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Visitante (Rincón Azul)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Visitante (RincÃ³n Azul)</label>
                 <select 
                   required
                   value={formData.equipo_visitante_id} 
