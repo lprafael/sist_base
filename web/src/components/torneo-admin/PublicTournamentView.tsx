@@ -84,6 +84,14 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             <ChevronLeft size={16} /> Regresar a explorar campeonatos
           </Link>
           <div className="flex gap-3">
+            <Link 
+              href={`/torneos/${tournament?.id}/tv-live`}
+              target="_blank"
+              className="flex items-center gap-2 text-red-500 font-bold bg-red-50 px-4 py-2 rounded border border-red-200 hover:bg-red-100 transition text-sm"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              Ver EN VIVO
+            </Link>
             <button onClick={() => setIsShareModalOpen(true)} className="flex items-center gap-2 text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded border border-blue-200 hover:bg-blue-100 transition text-sm">
               <Share2 size={16} /> Compartir
             </button>
