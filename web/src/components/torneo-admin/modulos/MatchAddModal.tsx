@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 interface MatchAddModalProps {
@@ -35,8 +35,9 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
 
   const fetchEquipos = async () => {
     try {
-      const res = await fetch(${API_URL}/cancha/torneos//equipos, {
-        headers: { 'Authorization': "Bearer " }
+      const token = JSON.parse(localStorage.getItem('user_session') || '{}')?.access_token || '';
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         setEquipos(await res.json());
@@ -63,11 +64,12 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
         fecha_hora: formData.fecha_hora || null
       };
 
-      const res = await fetch(${API_URL}/cancha/torneos//partidos, {
+      const token = JSON.parse(localStorage.getItem('user_session') || '{}')?.access_token || '';
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': "Bearer "
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
