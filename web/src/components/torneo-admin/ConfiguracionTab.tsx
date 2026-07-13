@@ -57,7 +57,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       estado: torneo.estado || 'preparacion',
       fecha_inicio: torneo.fecha_inicio ? torneo.fecha_inicio.split('T')[0] : '',
       fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : '',
-      imagen_portada: torneo.imagen_portada || ''
+      imagen_portada: torneo.imagen_portada || '',
+      imagen_banner: torneo.imagen_banner || ''
     });
   }, [torneo]);
 
