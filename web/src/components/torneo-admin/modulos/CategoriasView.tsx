@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, Layers, Tag, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
@@ -12,6 +12,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
   // States for Category Form
   const [showCatForm, setShowCatForm] = useState(false);
   const [formCat, setFormCat] = useState({ id: '', nombre: '', descripcion: '' });
+  const nombreInputRef = useRef<HTMLInputElement>(null);
 
   // States for Division Form
   const [showDivForm, setShowDivForm] = useState(false);
@@ -59,7 +60,11 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
         body: JSON.stringify(formCat)
       });
       if(res.ok) {
-        setShowCatForm(false);
+        if (formCat.id) {
+          setShowCatForm(false);
+        } else {
+          setTimeout(() => nombreInputRef.current?.focus(), 10);
+        }
         setFormCat({ id: '', nombre: '', descripcion: '' });
         fetchData();
       }
@@ -137,7 +142,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Nombre de Categoría *</label>
-                <input required type="text" value={formCat.nombre} onChange={e => setFormCat({...formCat, nombre: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: Masculino, Libre, Sub-18" />
+                <input ref={nombreInputRef} required type="text" value={formCat.nombre} onChange={e => setFormCat({...formCat, nombre: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: Masculino, Libre, Sub-18" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
