@@ -119,7 +119,7 @@ export default function AdminConsole() {
       if (resFormatos.ok) setDbFormatosTorneo(await resFormatos.json());
     } catch (e) {}
     try {
-      const resRoles = await fetch(`${API_URL}/api/cancha/roles`);
+      const resRoles = await fetch(`${API_URL}/api/roles`);
       if (resRoles.ok) setDbRoles(await resRoles.json());
     } catch (e) {}
   };
@@ -659,7 +659,7 @@ export default function AdminConsole() {
       url = `${API_URL}/api/torneos/formatos` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
       bodyData = { nombre: editCatalogItem.nombre, descripcion: editCatalogItem.descripcion || '' };
     } else if (editCatalogItem.type === 'roles') {
-      url = `${API_URL}/api/cancha/roles` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
+      url = `${API_URL}/api/roles` + (editCatalogItem.id ? `/${editCatalogItem.id}` : '');
       bodyData = { nombre: editCatalogItem.nombre, descripcion: editCatalogItem.descripcion || '' };
     }
 
@@ -706,7 +706,7 @@ export default function AdminConsole() {
     } else if (type === 'formatos') {
       url = `${API_URL}/api/torneos/formatos/${id}`;
     } else if (type === 'roles') {
-      url = `${API_URL}/api/cancha/roles/${id}`;
+      url = `${API_URL}/api/roles/${id}`;
     }
 
     try {
@@ -1220,7 +1220,7 @@ export default function AdminConsole() {
                     { id: 'deportes', label: '🏆 Deportes' },
                     { id: 'tipos', label: '📁 Tipos de Deporte' },
                     { id: 'formatos', label: '⚙️ Formatos de Torneo' },
-                    { id: 'roles', label: '👥 Roles de Cancha' },
+                    { id: 'roles', label: '👥 Roles del Sistema' },
                     { id: 'deporte_formatos', label: '🔗 Deporte ↔ Formato' }
                   ].map(sub => (
                     <button
@@ -1477,7 +1477,7 @@ export default function AdminConsole() {
                 {activeCatalogTab === 'roles' && (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <h4 style={{ fontWeight: 800, fontSize: 16 }}>Roles de Cancha (cancha.roles)</h4>
+                      <h4 style={{ fontWeight: 800, fontSize: 16 }}>Roles del Sistema (sistema.roles)</h4>
                       <button
                         onClick={() => setEditCatalogItem({ type: 'roles', isNew: true, nombre: '', descripcion: '' })}
                         style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}

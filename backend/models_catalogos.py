@@ -15,17 +15,6 @@ deporte_formato = Table(
     schema="cancha"
 )
 
-# ==============================================================================
-# CATÁLOGOS - DEPORTES
-# ==============================================================================
-class RolCancha(Base):
-    __tablename__ = "roles"
-    __table_args__ = {"schema": "cancha"}
-    
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(50), unique=True, nullable=False)
-    descripcion = Column(Text)
-    creado_en = Column(DateTime, default=func.now())
 
 class TipoDeporte(Base):
     __tablename__ = "tipos_deporte"

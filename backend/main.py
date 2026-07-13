@@ -182,8 +182,8 @@ app.include_router(catalogos_futbol_router)
 from routers.torneos_generales import router as torneos_generales_router
 app.include_router(torneos_generales_router)
 
-from routers.cancha_roles import router as cancha_roles_router
-app.include_router(cancha_roles_router)
+from routers.roles import router as roles_router
+app.include_router(roles_router)
 
 from routers.formatos_torneo import router as formatos_torneo_router
 app.include_router(formatos_torneo_router)

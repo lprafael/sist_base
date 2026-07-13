@@ -2,26 +2,6 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
-# ==============================================================================
-# ROLES DE CANCHA
-# ==============================================================================
-class RolCanchaBase(BaseModel):
-    nombre: str
-    descripcion: Optional[str] = None
-
-class RolCanchaCreate(RolCanchaBase):
-    pass
-
-class RolCanchaUpdate(BaseModel):
-    nombre: Optional[str] = None
-    descripcion: Optional[str] = None
-
-class RolCanchaResponse(RolCanchaBase):
-    id: int
-    creado_en: Optional[datetime] = None
-    
-    model_config = ConfigDict(from_attributes=True)
-
 
 # ==============================================================================
 # FORMATOS DE TORNEO
