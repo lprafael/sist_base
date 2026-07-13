@@ -95,8 +95,8 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
 
         {/* Hero Banner */}
         <div className="relative h-64 bg-slate-800 shrink-0 border-b border-slate-200">
-          {tournament?.imagen_portada ? (
-            <img src={tournament.imagen_portada} alt="Banner" className="w-full h-full object-cover opacity-50" />
+          {tournament?.imagen_banner ? (
+            <img src={tournament.imagen_banner} alt="Banner" className="w-full h-full object-cover opacity-50" />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-slate-900 to-indigo-900 opacity-90" />
           )}

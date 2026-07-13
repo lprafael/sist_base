@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import ImageCropperModal from '../ui/ImageCropperModal';
 
 const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> });
 
@@ -18,10 +19,12 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     estado: torneo.estado || 'preparacion',
     fecha_inicio: torneo.fecha_inicio ? torneo.fecha_inicio.split('T')[0] : '',
     fecha_fin: torneo.fecha_fin ? torneo.fecha_fin.split('T')[0] : '',
-    imagen_portada: torneo.imagen_portada || ''
+    imagen_portada: torneo.imagen_portada || '',
+    imagen_banner: torneo.imagen_banner || ''
   });
   
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<'portada'|'banner'|null>(null);
+  const [cropImageState, setCropImageState] = useState<{ src: string, type: 'portada'|'banner' } | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   // States for modals
@@ -66,11 +69,26 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     onUpdate({ [e.target.name]: e.target.value });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    
-    setUploadingImage(true);
+  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>, type: 'portada' | 'banner') => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCropImageState({
+          src: reader.result as string,
+          type,
+        });
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    }
+  };
+
+  const handleCroppedImageUpload = async (file: File) => {
+    if (!cropImageState) return;
+    const type = cropImageState.type;
+    setUploadingImage(type);
+    setCropImageState(null);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -80,25 +98,22 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       
       const res = await fetch(`${API_URL}/organizador/perfil/banner`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
       
       if (res.ok) {
         const data = await res.json();
-        setFormData(prev => ({ ...prev, imagen_portada: data.url }));
-        onUpdate({ imagen_portada: data.url });
+        const field = type === 'portada' ? 'imagen_portada' : 'imagen_banner';
+        setFormData(prev => ({ ...prev, [field]: data.url }));
+        onUpdate({ [field]: data.url });
       } else {
-        console.error('Error uploading image');
         alert('Error al subir la imagen.');
       }
     } catch (err) {
-      console.error(err);
       alert('Error de conexión al subir imagen.');
     } finally {
-      setUploadingImage(false);
+      setUploadingImage(null);
     }
   };
 
@@ -111,35 +126,67 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-bold text-blue-600">Datos básicos</h3>
         </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1 border-2 border-dashed border-slate-300 rounded-lg h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50 relative hover:bg-slate-100 transition overflow-hidden">
-            {uploadingImage ? (
-              <div className="flex flex-col items-center justify-center text-blue-500">
-                <Loader2 size={32} className="animate-spin mb-2" />
-                <span className="text-sm font-bold">Subiendo...</span>
-              </div>
-            ) : formData.imagen_portada ? (
-              <>
-                <img src={formData.imagen_portada} alt="Portada" className="w-full h-full object-cover absolute inset-0" />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                  <span className="text-white font-bold text-sm">Cambiar Imagen</span>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-2 grid grid-cols-2 gap-4">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg h-48 flex flex-col items-center justify-center text-slate-400 bg-slate-50 relative hover:bg-slate-100 transition overflow-hidden">
+              {uploadingImage === 'portada' ? (
+                <div className="flex flex-col items-center justify-center text-blue-500">
+                  <Loader2 size={32} className="animate-spin mb-2" />
+                  <span className="text-sm font-bold">Subiendo Logo...</span>
                 </div>
-              </>
-            ) : (
-              <>
-                <ImageIcon size={32} className="mb-2" />
-                <span className="text-sm font-bold">Imagen de portada</span>
-                <span className="text-xs mb-2">1600x533</span>
-                <span className="text-xs text-blue-500 hover:underline">Click para subir</span>
-              </>
-            )}
-            <input 
-              type="file" 
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-              accept="image/*"
-              onChange={handleImageUpload}
-              disabled={uploadingImage}
-            />
+              ) : formData.imagen_portada ? (
+                <>
+                  <img src={formData.imagen_portada} alt="Logo" className="w-full h-full object-cover absolute inset-0" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <span className="text-white font-bold text-sm">Cambiar Logo</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ImageIcon size={32} className="mb-2" />
+                  <span className="text-sm font-bold">Logo (Circular)</span>
+                  <span className="text-xs mb-2">Proporción 1:1</span>
+                  <span className="text-xs text-blue-500 hover:underline">Click para subir</span>
+                </>
+              )}
+              <input 
+                type="file" 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                accept="image/*"
+                onChange={(e) => onSelectFile(e, 'portada')}
+                disabled={!!uploadingImage}
+              />
+            </div>
+            
+            <div className="border-2 border-dashed border-slate-300 rounded-lg h-48 flex flex-col items-center justify-center text-slate-400 bg-slate-50 relative hover:bg-slate-100 transition overflow-hidden">
+              {uploadingImage === 'banner' ? (
+                <div className="flex flex-col items-center justify-center text-blue-500">
+                  <Loader2 size={32} className="animate-spin mb-2" />
+                  <span className="text-sm font-bold">Subiendo Banner...</span>
+                </div>
+              ) : formData.imagen_banner ? (
+                <>
+                  <img src={formData.imagen_banner} alt="Banner" className="w-full h-full object-cover absolute inset-0" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <span className="text-white font-bold text-sm">Cambiar Banner</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ImageIcon size={32} className="mb-2" />
+                  <span className="text-sm font-bold">Banner (Fondo)</span>
+                  <span className="text-xs mb-2">Proporción 16:9</span>
+                  <span className="text-xs text-blue-500 hover:underline">Click para subir</span>
+                </>
+              )}
+              <input 
+                type="file" 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                accept="image/*"
+                onChange={(e) => onSelectFile(e, 'banner')}
+                disabled={!!uploadingImage}
+              />
+            </div>
           </div>
           
           <div className="md:col-span-2 space-y-4">
@@ -458,7 +505,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       {activeModal === 'premios' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
-            <h3 className="font-bold text-lg mb-4">Premios</h3>
+            <h3 className="font-bold text-lg mb-4">Premios del Campeonato</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-slate-600 mb-1">1er Puesto</label>
@@ -491,6 +538,16 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
             </div>
           </div>
         </div>
+      )}
+
+      {cropImageState && (
+        <ImageCropperModal
+          imageSrc={cropImageState.src}
+          aspectRatio={cropImageState.type === 'portada' ? 1 : 16 / 9}
+          isCircular={cropImageState.type === 'portada'}
+          onCropComplete={(croppedFile) => handleCroppedImageUpload(croppedFile)}
+          onClose={() => setCropImageState(null)}
+        />
       )}
     </>
   );
