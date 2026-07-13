@@ -296,9 +296,29 @@ export default function TorneoResumenPage() {
                 </div>
               </div>
 
-              <button onClick={loadAll} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 18px", color: "#64748b", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>
-                <RefreshCw size={14} /> Actualizar
-              </button>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <Link
+                  href={`/torneos/${id}/tv-live`}
+                  target="_blank"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))",
+                    border: "1px solid rgba(239,68,68,0.4)",
+                    borderRadius: 12, padding: "10px 18px",
+                    color: "#ef4444", fontSize: 13, fontWeight: 800,
+                    textDecoration: "none", flexShrink: 0,
+                    letterSpacing: "0.05em",
+                    boxShadow: "0 0 20px rgba(239,68,68,0.15)",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "inline-block", animation: "spin 0s linear, fadeIn 0s" }} />
+                  📺 Ver EN VIVO
+                </Link>
+                <button onClick={loadAll} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 18px", color: "#64748b", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>
+                  <RefreshCw size={14} /> Actualizar
+                </button>
+              </div>
             </div>
 
             {/* stat cards */}
