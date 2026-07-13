@@ -241,7 +241,7 @@ export default function LoginPage() {
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
                   onError={handleGoogleError}
-                  useOneTap
+                  use_fedcm={false}
                   theme="filled_blue"
                   shape="rectangular"
                   size="large"
