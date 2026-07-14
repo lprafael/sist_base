@@ -6,8 +6,12 @@ from typing import Optional, List
 from database import get_session
 from security import get_current_user
 import uuid
-import face_recognition
-import numpy as np
+try:
+    import face_recognition
+    import numpy as np
+except ImportError:
+    face_recognition = None
+    np = None
 import base64
 import io
 import json
