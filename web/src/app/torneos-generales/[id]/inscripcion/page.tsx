@@ -397,14 +397,18 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
           {torneo.reglas.length > 0 && !result && (
             <div className="mt-6 bg-white rounded-2xl border border-slate-200 p-6">
               <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Trophy size={18} className="text-amber-500" /> Reglamento</h3>
-              <ul className="space-y-1">
-                {torneo.reglas.map((regla, i) => (
-                  <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                    <span className="text-slate-400 font-bold mt-0.5">{i + 1}.</span>
-                    {regla}
-                  </li>
-                ))}
-              </ul>
+              {torneo.reglas.length === 1 && torneo.reglas[0].includes('<') ? (
+                <div className="text-sm text-slate-600 prose max-w-none" dangerouslySetInnerHTML={{ __html: torneo.reglas[0] }} />
+              ) : (
+                <ul className="space-y-1">
+                  {torneo.reglas.map((regla, i) => (
+                    <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                      <span className="text-slate-400 font-bold mt-0.5">{i + 1}.</span>
+                      {regla}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>

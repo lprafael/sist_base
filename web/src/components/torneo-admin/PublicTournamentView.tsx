@@ -364,14 +364,18 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             </div>
             <div className="p-8 overflow-y-auto flex-1 bg-white">
               {reglas.length > 0 ? (
-                <ul className="space-y-6">
-                  {reglas.map((r: string, i: number) => (
-                    <li key={i} className="flex gap-4 text-slate-700 leading-relaxed items-start">
-                      <span className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex items-center justify-center shrink-0 border border-blue-100 shadow-sm">{i+1}</span>
-                      <span className="mt-1 text-[15px] font-medium">{r}</span>
-                    </li>
-                  ))}
-                </ul>
+                reglas.length === 1 && reglas[0].includes('<') ? (
+                  <div className="text-slate-700 prose max-w-none" dangerouslySetInnerHTML={{ __html: reglas[0] }} />
+                ) : (
+                  <ul className="space-y-6">
+                    {reglas.map((r: string, i: number) => (
+                      <li key={i} className="flex gap-4 text-slate-700 leading-relaxed items-start">
+                        <span className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex items-center justify-center shrink-0 border border-blue-100 shadow-sm">{i+1}</span>
+                        <span className="mt-1 text-[15px] font-medium">{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">

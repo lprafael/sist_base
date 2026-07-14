@@ -8,6 +8,47 @@ const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: f
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
+const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const exec = (command: string, val: string | null = null) => {
+    document.execCommand(command, false, val || undefined);
+    editorRef.current?.focus();
+    onChange(editorRef.current?.innerHTML || '');
+  };
+
+  return (
+    <div className="border border-slate-300 rounded overflow-hidden flex flex-col">
+       <div className="bg-slate-50 border-b border-slate-200 p-2 flex gap-1 items-center flex-wrap">
+         <button type="button" onClick={() => exec('bold')} className="p-1.5 hover:bg-slate-200 rounded font-bold w-8 h-8 flex justify-center items-center" title="Negrita">B</button>
+         <button type="button" onClick={() => exec('italic')} className="p-1.5 hover:bg-slate-200 rounded italic w-8 h-8 flex justify-center items-center" title="Cursiva">I</button>
+         <button type="button" onClick={() => exec('underline')} className="p-1.5 hover:bg-slate-200 rounded underline w-8 h-8 flex justify-center items-center" title="Subrayado">U</button>
+         <div className="w-px h-5 bg-slate-300 mx-1"></div>
+         <button type="button" onClick={() => exec('justifyLeft')} className="p-1.5 hover:bg-slate-200 rounded text-sm w-8 h-8 flex justify-center items-center" title="Alinear Izquierda">⇤</button>
+         <button type="button" onClick={() => exec('justifyCenter')} className="p-1.5 hover:bg-slate-200 rounded text-sm w-8 h-8 flex justify-center items-center" title="Centrar">↔</button>
+         <button type="button" onClick={() => exec('justifyRight')} className="p-1.5 hover:bg-slate-200 rounded text-sm w-8 h-8 flex justify-center items-center" title="Alinear Derecha">⇥</button>
+         <button type="button" onClick={() => exec('justifyFull')} className="p-1.5 hover:bg-slate-200 rounded text-sm w-8 h-8 flex justify-center items-center" title="Justificar">≡</button>
+         <div className="w-px h-5 bg-slate-300 mx-1"></div>
+         <select onChange={(e) => exec('fontSize', e.target.value)} className="text-sm bg-transparent border border-slate-300 rounded px-1 outline-none h-8">
+           <option value="">Tamaño</option>
+           <option value="1">Muy Pequeño</option>
+           <option value="3">Normal</option>
+           <option value="5">Grande</option>
+           <option value="7">Muy Grande</option>
+         </select>
+       </div>
+       <div 
+         ref={editorRef}
+         contentEditable 
+         onInput={(e) => onChange(e.currentTarget.innerHTML)}
+         className="p-3 min-h-[200px] outline-none max-h-[300px] overflow-y-auto"
+         style={{ whiteSpace: 'pre-wrap' }}
+         dangerouslySetInnerHTML={{ __html: value }}
+       />
+    </div>
+  );
+};
+
 export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect }: { torneo: any, onUpdate: (data: any) => void, onSubSectionSelect: (section: string) => void }) {
   // Local state for basic fields to allow typing before saving (or we can save on blur)
   const [formData, setFormData] = useState({
@@ -33,12 +74,16 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     telefono2: torneo.configuracion?.contacto?.telefono2 || '',
     email: torneo.configuracion?.contacto?.email || ''
   });
-  const [colorSidebar, setColorSidebar] = useState(torneo.configuracion?.color_sidebar || '#0c112b');
+  const [colorSidebar, setColorSidebar] = useState<string>(torneo.configuracion?.color_sidebar || '#1e293b');
   const [ubicacionTexto, setUbicacionTexto] = useState(torneo.configuracion?.ubicacion_texto || '');
   const [ubicacionCoords, setUbicacionCoords] = useState<{lat: number, lng: number} | null>(
     torneo.configuracion?.ubicacion_lat ? { lat: torneo.configuracion.ubicacion_lat, lng: torneo.configuracion.ubicacion_lng } : null
   );
-  const [reglasData, setReglasData] = useState<string>((torneo.reglas || []).join('\n'));
+  const [reglasData, setReglasData] = useState<string>(
+    (torneo.reglas && torneo.reglas.length > 0)
+      ? (torneo.reglas.length === 1 && torneo.reglas[0].includes('<') ? torneo.reglas[0] : torneo.reglas.join('<br>'))
+      : ''
+  );
   const [premiosData, setPremiosData] = useState({
     puesto1: torneo.premios?.find((p:any) => p.puesto === 1)?.desc || '',
     puesto2: torneo.premios?.find((p:any) => p.puesto === 2)?.desc || '',
@@ -521,16 +566,15 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
       {activeModal === 'reglas' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
+          <div className="bg-white rounded-xl p-6 w-[800px] max-w-full">
             <h3 className="font-bold text-lg mb-4">Reglas del Campeonato</h3>
             <div className="space-y-4">
-              <textarea rows={8} value={reglasData} onChange={e => setReglasData(e.target.value)} placeholder="Escribe las reglas aquí (una por línea)..." className="w-full border border-slate-300 rounded px-3 py-2 resize-none"></textarea>
+              <MiniEditor value={reglasData} onChange={setReglasData} />
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
               <button onClick={() => {
-                const reglasArr = reglasData.split('\n').filter(r => r.trim() !== '');
-                onUpdate({ reglas: reglasArr });
+                onUpdate({ reglas: [reglasData] });
                 setActiveModal(null);
               }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
             </div>
