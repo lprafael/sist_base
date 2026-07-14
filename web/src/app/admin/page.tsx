@@ -2281,9 +2281,38 @@ export default function AdminConsole() {
       {editOrganizador && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <form onSubmit={handleSaveOrganizador} style={{ background: '#fff', padding: 40, borderRadius: 24, width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
-              {editOrganizador.isNew ? '🏆 Habilitar Organizador Independiente' : '✏️ Editar Datos Organizador'}
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3 style={{ fontSize: 24, fontWeight: 900 }}>
+                {editOrganizador.isNew ? '🏆 Habilitar Organizador Independiente' : '✏️ Editar Datos Organizador'}
+              </h3>
+              {!editOrganizador.isNew && editOrganizador.usuario_email && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm(`¿Estás seguro de que deseas reenviar la contraseña a ${editOrganizador.usuario_email}?`)) return;
+                    try {
+                      const res = await fetch(`${API_URL}/api/usuarios/reset-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: editOrganizador.usuario_email })
+                      });
+                      if (res.ok) {
+                        alert('Correo de restablecimiento de contraseña enviado con éxito.');
+                      } else {
+                        alert('Error al intentar reenviar la contraseña.');
+                      }
+                    } catch (e) {
+                      alert('Error de conexión al intentar reenviar la contraseña.');
+                    }
+                  }}
+                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12 }}
+                  title="Reenviar Contraseña"
+                >
+                  <RefreshCw size={14} />
+                  Reenviar Contraseña
+                </button>
+              )}
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 700 }}>Nombre de Organización / Evento</label>
@@ -2321,7 +2350,7 @@ export default function AdminConsole() {
                   type="text"
                   value={editOrganizador.usuario_email || ''}
                   disabled
-                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#64748b' }}
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#64748b' }}
                 />
               </div>
             )}
