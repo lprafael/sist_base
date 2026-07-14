@@ -1088,7 +1088,50 @@ export default function AdminConsole() {
                           </tr>
                         ) : (
                           organizadores.map(o => (
-                            <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
+                            <tr 
+                              key={o.id} 
+                              style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14, cursor: 'pointer' }}
+                              title="Haz clic en la fila para ingresar como este organizador"
+                              onClick={async () => {
+                                const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+                                const currentToken = sessionData.access_token || sessionData.token || '';
+                                try {
+                                  const res = await fetch(`${API_URL}/auth/impersonate/${o.usuario_id}`, {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                                  });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    const backupSession = { ...sessionData };
+                                    localStorage.setItem('admin_session_backup', JSON.stringify(backupSession));
+                                    
+                                    const newSessionData = {
+                                      access_token: data.access_token,
+                                      token: data.access_token,
+                                      role: data.user.rol,
+                                      name: data.user.nombre_completo,
+                                      email: data.user.email,
+                                      usuario_id: data.user.id,
+                                      tipo_torneo: data.user.tipo_torneo || null,
+                                      authorized: true
+                                    };
+                                    localStorage.setItem('user_session', JSON.stringify(newSessionData));
+                                    
+                                    if (newSessionData.role === 'organizador' && newSessionData.tipo_torneo === 'futbol') {
+                                      window.location.href = '/admin-futbol/campeonatos';
+                                    } else {
+                                      window.location.href = '/admin-generales';
+                                    }
+                                  } else {
+                                    const err = await res.json();
+                                    alert(`Error: ${err.detail || 'No se pudo ingresar'}`);
+                                  }
+                                } catch (e) {
+                                  alert('Error de red al intentar ingresar como este usuario');
+                                }
+                              }}
+                              className="hover:bg-slate-50 transition-colors"
+                            >
                               <td style={{ padding: 16 }}>
                                 <div style={{ fontWeight: 800, color: '#0f172a' }}>{o.nombre}</div>
                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Creado el {o.creado_en ? new Date(o.creado_en).toLocaleDateString('es-PY') : 'Recientemente'}</div>
@@ -1120,13 +1163,17 @@ export default function AdminConsole() {
                               <td style={{ padding: 16, textAlign: 'right' }}>
                                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                                   <button
-                                    onClick={() => handleToggleOrganizador(o.usuario_id, o.habilitado, o.nombre)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleOrganizador(o.usuario_id, o.habilitado, o.nombre);
+                                    }}
                                     style={{ background: o.habilitado ? '#ea580c' : '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                                   >
                                     {o.habilitado ? 'Suspender' : 'Activar'}
                                   </button>
                                     <button
-                                      onClick={async () => {
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
                                         try {
                                           const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
                                           if (res.ok) {
@@ -1142,33 +1189,6 @@ export default function AdminConsole() {
                                       style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                                     >
                                       Editar
-                                    </button>
-                                    <button
-                                      onClick={async () => {
-                                        const currentToken = localStorage.getItem('token');
-                                        try {
-                                          const res = await fetch(`${API_URL}/auth/impersonate/${o.usuario_id}`, {
-                                            method: 'POST',
-                                            headers: { 'Authorization': `Bearer ${currentToken}` }
-                                          });
-                                          if (res.ok) {
-                                            const data = await res.json();
-                                            localStorage.setItem('admin_token_backup', currentToken || '');
-                                            localStorage.setItem('token', data.access_token);
-                                            localStorage.setItem('user', JSON.stringify(data.user));
-                                            window.location.href = '/organizador';
-                                          } else {
-                                            const err = await res.json();
-                                            alert(`Error: ${err.detail || 'No se pudo ingresar'}`);
-                                          }
-                                        } catch (e) {
-                                          alert('Error de red al intentar ingresar como este usuario');
-                                        }
-                                      }}
-                                      style={{ background: '#475569', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                                      title="Ingresar al sistema como este usuario"
-                                    >
-                                      Ingresar como
                                     </button>
                                   </div>
                               </td>
