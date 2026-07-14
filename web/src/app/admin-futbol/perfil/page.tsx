@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin } from 'lucide-react';
+import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin, Share2, Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PerfilOrganizadorPage() {
@@ -182,23 +182,37 @@ export default function PerfilOrganizadorPage() {
             <div className="flex gap-4">
                <button 
                  type="button" 
+                 title="Compartir página"
+                 onClick={async () => {
+                   if (!perfil.enlace_sitio) return;
+                   const url = `${window.location.origin}/organizador/${perfil.enlace_sitio}`;
+                   if (navigator.share) {
+                     try {
+                       await navigator.share({
+                         title: perfil.nombre_liga || 'Perfil del Organizador',
+                         url: url,
+                       });
+                     } catch (err) {
+                       console.log('Error al compartir', err);
+                     }
+                   } else {
+                     navigator.clipboard.writeText(url);
+                     alert("Enlace copiado al portapapeles");
+                   }
+                 }}
+                 className="text-gray-500 hover:text-blue-600 transition"
+               >
+                 <Share2 size={20}/>
+               </button>
+               <button 
+                 type="button" 
                  title="Ver perfil público"
                  onClick={() => {
                    if(perfil.enlace_sitio) window.open(`/organizador/${perfil.enlace_sitio}`, '_blank');
                  }}
                  className="text-gray-500 hover:text-blue-600 transition"
                >
-                 <LinkIcon size={20}/>
-               </button>
-               <button 
-                 type="button" 
-                 title="Ir a sección de imágenes"
-                 onClick={() => {
-                   document.getElementById('seccion-imagenes')?.scrollIntoView({ behavior: 'smooth' });
-                 }}
-                 className="text-gray-500 hover:text-blue-600 transition"
-               >
-                 <ImageIcon size={20}/>
+                 <Globe size={20}/>
                </button>
             </div>
             <button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
