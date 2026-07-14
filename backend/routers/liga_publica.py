@@ -26,12 +26,20 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
     
     # Obtener torneos publicos (estado = 'activo' o 'borrador' pero para MVP traemos todos)
     res_torneos = await session.execute(text("""
-        SELECT id, nombre, deporte, formato, tipo_campeonato
+        SELECT id, nombre, deporte, formato, tipo_campeonato, configuracion
         FROM torneos.torneos
         WHERE organizador_id = :oid
     """), {"oid": org_id})
     
-    torneos = [{"id": r[0], "nombre": r[1], "deporte": r[2], "formato": r[3], "tipo": r[4]} for r in res_torneos.fetchall()]
+    torneos = []
+    for r in res_torneos.fetchall():
+        config = r[5] or {}
+        logo_url = config.get("logo_url")
+        banner_url = config.get("banner_url")
+        torneos.append({
+            "id": r[0], "nombre": r[1], "deporte": r[2], "formato": r[3], "tipo": r[4],
+            "logo_url": logo_url, "banner_url": banner_url
+        })
     
     # Obtener patrocinadores si corresponde
     patrocinadores = []

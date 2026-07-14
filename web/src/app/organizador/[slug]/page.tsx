@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Phone, Mail, Link as LinkIcon, MessageSquare, X, Send } from 'lucide-react';
+import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Phone, Mail, Link as LinkIcon, MessageSquare, X, Send, Image as ImageIcon } from 'lucide-react';
 import PatrocinadoresCarousel from '@/components/PatrocinadoresCarousel';
 
 const API_URL = "https://api.micancha.com.py";
@@ -38,6 +38,8 @@ interface Torneo {
   deporte: string;
   formato: string;
   tipo: string;
+  logo_url?: string;
+  banner_url?: string;
 }
 
 export default function PublicOrganizerPage() {
@@ -172,6 +174,15 @@ export default function PublicOrganizerPage() {
 
   const primaryColor = perfil.color_primario || "#1e3a8a";
 
+  const galeriaImagenes = torneos
+    .flatMap(t => {
+      const arr = [];
+      if (t.banner_url) arr.push({ url: t.banner_url, alt: `Banner ${t.nombre}` });
+      if (t.logo_url) arr.push({ url: t.logo_url, alt: `Logo ${t.nombre}` });
+      return arr;
+    })
+    .filter(Boolean);
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans pb-20">
       {/* BANNER HEADER */}
@@ -295,8 +306,28 @@ export default function PublicOrganizerPage() {
             </div>
           </div>
           
-          {/* COLUMNA DERECHA: TORNEOS */}
+          {/* COLUMNA DERECHA: GALERIA Y TORNEOS */}
           <div className="col-span-1 lg:col-span-2">
+            
+            {/* GALERÍA */}
+            {galeriaImagenes.length > 0 && (
+              <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                    <ImageIcon size={16} />
+                  </span>
+                  Galería
+                </h3>
+                <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
+                  {galeriaImagenes.map((img, idx) => (
+                    <div key={idx} className="shrink-0 w-64 h-40 md:w-80 md:h-48 rounded-xl overflow-hidden snap-center relative shadow-sm border border-gray-100 bg-gray-50 flex items-center justify-center">
+                      <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
                 <Medal size={28} style={{ color: primaryColor }} />
