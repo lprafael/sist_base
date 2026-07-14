@@ -68,7 +68,7 @@ class EmailService:
     def send_password_reset_email(self, to_email: str, username: str, reset_token: str) -> bool:
         """Envía email para restablecer contraseña"""
         subject = "Restablecimiento de Contraseña - Sistema"
-        frontend_url = os.getenv("FRONTEND_URL", "https://admin.micancha.com.py")
+        frontend_url = os.getenv("FRONTEND_URL", "https://micancha.com.py")
         html_body = f"""
         <html>
         <body>
