@@ -4,13 +4,14 @@ import { X, Loader2 } from 'lucide-react';
 interface MatchAddModalProps {
   torneoId: string;
   deporte?: string;
+  fases?: string[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }: MatchAddModalProps) {
+export default function MatchAddModal({ torneoId, deporte, fases = ['Fase 1'], onClose, onSuccess }: MatchAddModalProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [equipos, setEquipos] = useState<any[]>([]);
@@ -20,7 +21,7 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
     equipo_visitante_id: '',
     jugador_local_id: '',
     jugador_visitante_id: '',
-    fase: '1º Fase',
+    fase: fases[0] || 'Fase 1',
     fecha_hora: ''
   });
 
@@ -111,10 +112,9 @@ export default function MatchAddModal({ torneoId, deporte, onClose, onSuccess }:
                 onChange={e => setFormData({...formData, fase: e.target.value})}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
               >
-                <option value="1º Fase">1º Fase</option>
-                <option value="4tos de Final">4tos de Final</option>
-                <option value="Semifinal">Semifinal</option>
-                <option value="Final">Final</option>
+                {fases.map(fase => (
+                  <option key={fase} value={fase}>{fase}</option>
+                ))}
               </select>
             </div>
 

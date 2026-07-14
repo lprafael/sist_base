@@ -6,10 +6,12 @@ import MatchAddModal from './MatchAddModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function PartidosView({ torneoId, deporte }: { torneoId: string, deporte?: string }) {
+export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: string, deporte?: string, torneo?: any }) {
+  const fasesOptions = torneo?.configuracion?.fases?.length ? torneo.configuracion.fases : ['Fase 1'];
+
   const [partidos, setPartidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [faseFilter, setFaseFilter] = useState('1º Fase');
+  const [faseFilter, setFaseFilter] = useState(fasesOptions[0]);
   
   // Dropdown context menu
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -85,10 +87,9 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
             onChange={e => setFaseFilter(e.target.value)}
             className="border border-slate-300 rounded px-2 py-1 text-sm bg-white"
           >
-            <option value="1º Fase">1º Fase</option>
-            <option value="4tos de Final">4tos de Final</option>
-            <option value="Semifinal">Semifinal</option>
-            <option value="Final">Final</option>
+            {fasesOptions.map((fase: string) => (
+              <option key={fase} value={fase}>{fase}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -179,6 +180,7 @@ export default function PartidosView({ torneoId, deporte }: { torneoId: string, 
         <MatchAddModal
           torneoId={torneoId}
           deporte={deporte}
+          fases={fasesOptions}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);

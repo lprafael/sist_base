@@ -90,6 +90,9 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     puesto3: torneo.premios?.find((p:any) => p.puesto === 3)?.desc || '',
     otros: torneo.premios?.find((p:any) => p.puesto === 'otros')?.desc || '',
   });
+  const [fasesData, setFasesData] = useState<string>(
+    torneo.configuracion?.fases ? torneo.configuracion.fases.join('\n') : ''
+  );
 
   // Keep local state in sync if parent updates it (e.g. after a save)
   React.useEffect(() => {
@@ -382,7 +385,12 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   <item.icon size={18} className="text-slate-400" />
                   <span>{item.label}</span>
                 </div>
-                <button onClick={() => onSubSectionSelect(item.id)} className="text-blue-500 hover:underline text-sm font-medium">Editar</button>
+                <button 
+                  onClick={() => item.id === 'agrupacion' ? setActiveModal('fases') : onSubSectionSelect(item.id)} 
+                  className="text-blue-500 hover:underline text-sm font-medium"
+                >
+                  Editar
+                </button>
               </li>
             ))}
           </ul>
@@ -613,6 +621,32 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 if (premiosData.puesto3) premiosArr.push({ puesto: 3, desc: premiosData.puesto3 });
                 if (premiosData.otros) premiosArr.push({ puesto: 'otros', desc: premiosData.otros });
                 onUpdate({ premios: premiosArr });
+                setActiveModal(null);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'fases' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
+            <h3 className="font-bold text-lg mb-2">Fases del Campeonato</h3>
+            <p className="text-xs text-slate-500 mb-4">Ingresa una fase por línea (ej: 1º Fase, Semifinal, Final).</p>
+            <div className="space-y-4">
+              <textarea 
+                value={fasesData} 
+                onChange={e => setFasesData(e.target.value)} 
+                className="w-full border border-slate-300 rounded px-3 py-2 min-h-[150px]"
+                placeholder="Fase 1: Clasificatoria&#10;Fase 2: Fase de Grupos&#10;Fase 3: Eliminatorias"
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+              <button onClick={() => {
+                const fasesArr = fasesData.split('\n').map(s => s.trim()).filter(Boolean);
+                const conf = { ...torneo.configuracion, fases: fasesArr.length ? fasesArr : ['Fase 1'] };
+                onUpdate({ configuracion: conf });
                 setActiveModal(null);
               }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
             </div>

@@ -140,7 +140,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
         </div>
 
         {/* Partidos */}
-        <PartidosView torneoId={torneoId} deporte={torneo?.deporte} />
+        <PartidosView torneoId={torneoId} deporte={torneo?.deporte} torneo={torneo} />
       </div>
     </div>
   );
