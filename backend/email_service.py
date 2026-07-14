@@ -74,8 +74,13 @@ class EmailService:
         <body>
             <h2>Restablecimiento de Contraseña</h2>
             <p>Hola <strong>{username}</strong>,</p>
-            <p>Has solicitado restablecer tu contraseña. Usa el siguiente token:</p>
-            <h3>{reset_token}</h3>
+            <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para crear una nueva:</p>
+            <p>
+                <a href="https://admin.micancha.com.py/reset-password?token={reset_token}" style="display:inline-block;padding:10px 20px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">
+                    Restablecer mi Contraseña
+                </a>
+            </p>
+            <p>O ingresa el siguiente token manualmente: <strong>{reset_token}</strong></p>
             <p>Este token expira en 1 hora.</p>
             <p>Si no solicitaste este cambio, ignora este email.</p>
             <p>Saludos,<br>Equipo de Desarrollo</p>
