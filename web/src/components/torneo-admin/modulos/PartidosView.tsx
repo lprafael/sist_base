@@ -7,7 +7,9 @@ import MatchAddModal from './MatchAddModal';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: string, deporte?: string, torneo?: any }) {
-  const fasesOptions = torneo?.configuracion?.fases?.length ? torneo.configuracion.fases : ['Fase 1'];
+  const fasesOptions = torneo?.configuracion?.fases?.length 
+    ? torneo.configuracion.fases.map((f: any) => typeof f === 'object' ? f.name : f) 
+    : ['Fase 1'];
 
   const [partidos, setPartidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

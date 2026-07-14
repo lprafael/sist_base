@@ -12,6 +12,9 @@ import ParticipantesView from '@/components/torneo-admin/modulos/ParticipantesVi
 import ArbitrajeView from '@/components/torneo-admin/modulos/ArbitrajeView';
 import ClasificacionView from '@/components/torneo-admin/modulos/ClasificacionView';
 import PublicTournamentView from '@/components/torneo-admin/PublicTournamentView';
+import FasesSettings from '@/components/torneo-admin/modulos/FasesSettings';
+import GruposSettings from '@/components/torneo-admin/modulos/GruposSettings';
+import CriteriosSettings from '@/components/torneo-admin/modulos/CriteriosSettings';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -97,16 +100,20 @@ export default function TorneoAdminPage() {
             <CategoriasView torneoId={id as string} />
           ) : activeSubSection === 'checkin' ? (
             <CheckinView torneoId={id as string} />
+          ) : activeSubSection === 'participantes' ? (
+            <ParticipantesView torneoId={id as string} />
           ) : activeSubSection === 'grupos' ? (
             <GruposView torneoId={id as string} />
           ) : activeSubSection === 'agrupacion' ? (
             <AgrupacionView torneoId={id as string} />
-          ) : activeSubSection === 'participantes' ? (
-            <ParticipantesView torneoId={id as string} />
           ) : activeSubSection === 'arbitraje' ? (
             <ArbitrajeView torneoId={id as string} />
-          ) : activeSubSection === 'clasificacion' ? (
-            <ClasificacionView torneoId={id as string} torneo={torneo} />
+          ) : activeSubSection === 'config_fases' ? (
+            <FasesSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
+          ) : activeSubSection === 'config_grupos' ? (
+            <GruposSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
+          ) : activeSubSection === 'config_clasificacion' ? (
+            <CriteriosSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
           ) : (
             <div className="p-8 border-2 border-dashed border-slate-300 rounded-xl text-center">
               <p className="text-slate-500 mb-2">Aquí se inyectará la lógica correspondiente a <strong>{activeSubSection}</strong></p>

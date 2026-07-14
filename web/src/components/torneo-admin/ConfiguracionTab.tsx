@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2 } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 
@@ -90,9 +90,6 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     puesto3: torneo.premios?.find((p:any) => p.puesto === 3)?.desc || '',
     otros: torneo.premios?.find((p:any) => p.puesto === 'otros')?.desc || '',
   });
-  const [fasesData, setFasesData] = useState<string>(
-    torneo.configuracion?.fases ? torneo.configuracion.fases.join('\n') : ''
-  );
 
   // Keep local state in sync if parent updates it (e.g. after a save)
   React.useEffect(() => {
@@ -374,11 +371,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
               { id: 'categorias', icon: Activity, label: 'Categorías y Divisiones' },
               { id: 'participantes', icon: Users, label: 'Participantes / Equipos' },
               { id: 'checkin', icon: Scale, label: 'Check-in (Pesaje)' },
-              { id: 'grupos', icon: Activity, label: 'Grupos' },
-              { id: 'agrupacion', icon: Trophy, label: 'Fases / Llaves' },
+              { id: 'config_grupos', icon: Activity, label: 'Grupos (Configuración)' },
+              { id: 'grupos', icon: Users, label: 'Grupos (Asignar Equipos/Atletas)' },
+              { id: 'config_fases', icon: Trophy, label: 'Fases (Configuración)' },
+              { id: 'agrupacion', icon: GitMerge, label: 'Llaves / Combates (Programación)' },
               { id: 'arbitraje', icon: Shield, label: 'Arbitraje (Mesa Veedores)' },
               { id: 'sitios', icon: MapPin, label: 'Sitios' },
-              { id: 'clasificacion', icon: BarChart2, label: 'Criterios de clasificación' },
+              { id: 'config_clasificacion', icon: BarChart2, label: 'Criterios de clasificación' },
             ].map(item => (
               <li key={item.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition">
                 <div className="flex items-center gap-3 text-slate-700">
@@ -386,7 +385,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   <span>{item.label}</span>
                 </div>
                 <button 
-                  onClick={() => item.id === 'agrupacion' ? setActiveModal('fases') : onSubSectionSelect(item.id)} 
+                  onClick={() => onSubSectionSelect(item.id)} 
                   className="text-blue-500 hover:underline text-sm font-medium"
                 >
                   Editar
@@ -621,32 +620,6 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 if (premiosData.puesto3) premiosArr.push({ puesto: 3, desc: premiosData.puesto3 });
                 if (premiosData.otros) premiosArr.push({ puesto: 'otros', desc: premiosData.otros });
                 onUpdate({ premios: premiosArr });
-                setActiveModal(null);
-              }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeModal === 'fases' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
-            <h3 className="font-bold text-lg mb-2">Fases del Campeonato</h3>
-            <p className="text-xs text-slate-500 mb-4">Ingresa una fase por línea (ej: 1º Fase, Semifinal, Final).</p>
-            <div className="space-y-4">
-              <textarea 
-                value={fasesData} 
-                onChange={e => setFasesData(e.target.value)} 
-                className="w-full border border-slate-300 rounded px-3 py-2 min-h-[150px]"
-                placeholder="Fase 1: Clasificatoria&#10;Fase 2: Fase de Grupos&#10;Fase 3: Eliminatorias"
-              />
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
-              <button onClick={() => {
-                const fasesArr = fasesData.split('\n').map(s => s.trim()).filter(Boolean);
-                const conf = { ...torneo.configuracion, fases: fasesArr.length ? fasesArr : ['Fase 1'] };
-                onUpdate({ configuracion: conf });
                 setActiveModal(null);
               }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
             </div>
