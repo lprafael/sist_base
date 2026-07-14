@@ -1125,25 +1125,52 @@ export default function AdminConsole() {
                                   >
                                     {o.habilitado ? 'Suspender' : 'Activar'}
                                   </button>
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
-                                        if (res.ok) {
-                                          const deps = await res.json();
-                                          setEditOrganizador({ ...o, deportesHabilitados: deps.map((d: any) => d.id) });
-                                        } else {
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
+                                          if (res.ok) {
+                                            const deps = await res.json();
+                                            setEditOrganizador({ ...o, deportesHabilitados: deps.map((d: any) => d.id) });
+                                          } else {
+                                            setEditOrganizador({ ...o, deportesHabilitados: [] });
+                                          }
+                                        } catch {
                                           setEditOrganizador({ ...o, deportesHabilitados: [] });
                                         }
-                                      } catch {
-                                        setEditOrganizador({ ...o, deportesHabilitados: [] });
-                                      }
-                                    }}
-                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                                  >
-                                    Editar
-                                  </button>
-                                </div>
+                                      }}
+                                      style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        const currentToken = localStorage.getItem('token');
+                                        try {
+                                          const res = await fetch(`${API_URL}/auth/impersonate/${o.usuario_id}`, {
+                                            method: 'POST',
+                                            headers: { 'Authorization': `Bearer ${currentToken}` }
+                                          });
+                                          if (res.ok) {
+                                            const data = await res.json();
+                                            localStorage.setItem('admin_token_backup', currentToken || '');
+                                            localStorage.setItem('token', data.access_token);
+                                            localStorage.setItem('user', JSON.stringify(data.user));
+                                            window.location.href = '/organizador';
+                                          } else {
+                                            const err = await res.json();
+                                            alert(`Error: ${err.detail || 'No se pudo ingresar'}`);
+                                          }
+                                        } catch (e) {
+                                          alert('Error de red al intentar ingresar como este usuario');
+                                        }
+                                      }}
+                                      style={{ background: '#475569', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                      title="Ingresar al sistema como este usuario"
+                                    >
+                                      Ingresar como
+                                    </button>
+                                  </div>
                               </td>
                             </tr>
                           ))

@@ -113,6 +113,73 @@ async def login(
         user=user_response
     )
 
+@router.post("/impersonate/{user_id}", response_model=Token)
+async def impersonate(
+    user_id: int, 
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Permite a un admin iniciar sesión como otro usuario"""
+    # Verify current user is admin
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta acción"
+        )
+        
+    # Get target user
+    result = await session.execute(select(Usuario).where(Usuario.id == user_id))
+    target_user = result.scalar_one_or_none()
+    
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    if not target_user.activo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario está inactivo"
+        )
+        
+    # Crear token para target user
+    access_token = create_access_token(
+        data={"sub": target_user.username, "role": target_user.rol, "user_id": target_user.id}
+    )
+    
+    # Registrar log (quien hizo impersonate de quien)
+    await log_access(session, LogAccesoCreate(
+        usuario_id=current_user.get("user_id", 0),
+        username=current_user.get("sub", "admin"),
+        accion=f"impersonate_user_{user_id}",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    ))
+    
+    # Obtener tipo_torneo si el usuario es organizador
+    tipo_torneo = None
+    if target_user.rol == "organizador":
+        from sqlalchemy import text as sql_text
+        org_result = await session.execute(
+            sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
+            {"uid": target_user.id}
+        )
+        org_row = org_result.fetchone()
+        if org_row:
+            tipo_torneo = org_row[0]
+
+    user_response = UserResponse.from_orm(target_user)
+    user_response.tipo_torneo = tipo_torneo
+
+    return Token(
+        access_token=access_token, 
+        token_type="bearer",
+        user=user_response
+    )
+
+
 @router.post("/google-login", response_model=Token)
 async def google_login(
     data: GoogleLogin,
