@@ -1,178 +1,154 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Play, Square, AlertTriangle, ShieldAlert, Goal } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Plus, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-export default function VeedorFutbolPage() {
-  const [matchState, setMatchState] = useState({
-    time: 0,
-    isRunning: false,
-    period: 1, // 1st half, 2nd half
-    scoreLocal: 0,
-    scoreVisitante: 0,
-    localId: '1',
-    visitanteId: '2',
-    partidoId: '100'
-  });
+export default function ArbitrajePage() {
+  const router = useRouter();
+  const [arbitros, setArbitros] = useState([
+    { id: '1', nombre: 'ArbitroXX', funcion: 'Arbitro' }
+  ]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [currentArbitro, setCurrentArbitro] = useState({ nombre: '', funcion: '' });
 
-  const [message, setMessage] = useState("");
-
-  // Timer logic
-  useEffect(() => {
-    let interval: any;
-    if (matchState.isRunning) {
-      interval = setInterval(() => {
-        setMatchState(prev => ({ ...prev, time: prev.time + 1 }));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [matchState.isRunning]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const handleOpenNew = () => {
+    setEditingId(null);
+    setCurrentArbitro({ nombre: '', funcion: '' });
+    setShowModal(true);
   };
 
-  const registrarEvento = async (tipo: string, equipoId: string) => {
-    const min = Math.floor(matchState.time / 60);
-    try {
-      const res = await fetch("http://localhost:8001/futbol/arbitraje/evento", {
-        method: "POST",
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          partido_id: matchState.partidoId,
-          player_id: "jugador-anonimo", // En una version completa esto abriría un modal para elegir jugador
-          equipo_id: equipoId,
-          minuto: min,
-          tipo: tipo
-        })
-      });
+  const handleOpenEdit = (arbitro: any) => {
+    setEditingId(arbitro.id);
+    setCurrentArbitro({ nombre: arbitro.nombre, funcion: arbitro.funcion || '' });
+    setShowModal(true);
+  };
 
-      if (res.ok) {
-        setMessage(`✅ ${tipo} registrado al minuto ${min}'`);
-        if (tipo === 'Gol') {
-          if (equipoId === matchState.localId) {
-            setMatchState(prev => ({ ...prev, scoreLocal: prev.scoreLocal + 1 }));
-          } else {
-            setMatchState(prev => ({ ...prev, scoreVisitante: prev.scoreVisitante + 1 }));
-          }
-        }
-        setTimeout(() => setMessage(""), 3000);
+  const handleGuardar = () => {
+    if (currentArbitro.nombre.trim()) {
+      if (editingId) {
+        setArbitros(arbitros.map(a => 
+          a.id === editingId ? { ...a, nombre: currentArbitro.nombre, funcion: currentArbitro.funcion } : a
+        ));
+      } else {
+        setArbitros([...arbitros, { 
+          id: Date.now().toString(), 
+          nombre: currentArbitro.nombre, 
+          funcion: currentArbitro.funcion 
+        }]);
       }
-    } catch(e) {
-      setMessage("❌ Error al registrar evento");
+      setShowModal(false);
+    }
+  };
+
+  const handleQuitar = () => {
+    if (editingId) {
+      setArbitros(arbitros.filter(a => a.id !== editingId));
+      setShowModal(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col p-4 md:p-8">
+    <div className="min-h-screen bg-[#f3f4f6] text-gray-900 flex flex-col relative">
       
-      {/* NOTIFICACION */}
-      {message && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold shadow-xl animate-bounce">
-          {message}
+      {/* HEADER */}
+      <div className="bg-[#1e293b] text-white p-4 flex items-center justify-between shadow-md z-10">
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.back()} className="hover:bg-white/10 p-2 rounded-full transition">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-xl font-medium tracking-wide">Arbitraje</h1>
+        </div>
+        <button 
+          onClick={handleOpenNew}
+          className="hover:bg-white/10 p-2 rounded-full transition"
+        >
+          <Plus size={24} />
+        </button>
+      </div>
+
+      {/* LISTA DE ARBITROS */}
+      <div className="flex-1">
+        {arbitros.map(arbitro => (
+          <div 
+            key={arbitro.id} 
+            onClick={() => handleOpenEdit(arbitro)}
+            className="py-4 px-4 border-b border-gray-300 text-lg hover:bg-gray-200 transition cursor-pointer flex items-center"
+          >
+            <span className="text-gray-700">{arbitro.nombre}</span>
+            {arbitro.funcion ? <span className="text-sm text-gray-500 ml-2">({arbitro.funcion})</span> : null}
+          </div>
+        ))}
+      </div>
+
+      {/* MODAL ARBITRO */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => {
+          if (e.target === e.currentTarget) setShowModal(false);
+        }}>
+          <div className="bg-[#f3f0f7] rounded-[1.5rem] w-full max-w-sm p-6 shadow-2xl relative">
+            <h2 className="text-2xl font-normal text-gray-800 mb-6">{editingId ? 'Editar árbitro' : 'Nuevo árbitro'}</h2>
+            
+            <div className="flex gap-4 mb-4">
+              {/* Avatar placeholder */}
+              <div className="w-20 h-24 bg-gray-300 flex items-center justify-center flex-shrink-0">
+                <User size={48} className="text-white" />
+              </div>
+              
+              {/* Inputs */}
+              <div className="flex-1 flex flex-col gap-4 justify-center">
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={currentArbitro.nombre}
+                    onChange={e => setCurrentArbitro({...currentArbitro, nombre: e.target.value})}
+                    className="w-full bg-transparent border border-gray-400 rounded-md px-3 py-2 pt-3 outline-none focus:border-blue-500 peer"
+                  />
+                  <label className="absolute -top-2.5 left-2 bg-[#f3f0f7] px-1 text-sm text-gray-600">
+                    Nombre
+                  </label>
+                </div>
+
+                <div className="relative mt-2">
+                  <input 
+                    type="text" 
+                    value={currentArbitro.funcion}
+                    onChange={e => setCurrentArbitro({...currentArbitro, funcion: e.target.value})}
+                    className="w-full bg-transparent border border-gray-400 rounded-md px-3 py-2 pt-3 outline-none focus:border-blue-500 peer"
+                  />
+                  <label className="absolute -top-2.5 left-2 bg-[#f3f0f7] px-1 text-sm text-gray-600">
+                    Función
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between mt-2 px-2">
+              {editingId ? (
+                <button 
+                  onClick={handleQuitar}
+                  className="text-red-500 font-bold px-4 py-2 hover:bg-red-100 rounded-lg transition text-lg"
+                >
+                  Quitar
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-500 font-medium px-4 py-2 hover:bg-gray-200 rounded-lg transition text-lg"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button 
+                onClick={handleGuardar}
+                className="text-blue-500 font-bold px-4 py-2 hover:bg-blue-100 rounded-lg transition text-lg"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* MARCADOR TOP */}
-      <div className="bg-gray-800 rounded-3xl p-6 shadow-2xl border border-gray-700 flex flex-col items-center justify-center mb-8 relative overflow-hidden">
-        
-        {/* TIEMPO */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-          <span className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-1">
-            {matchState.period === 1 ? '1ER TIEMPO' : '2DO TIEMPO'}
-          </span>
-          <div className={`text-5xl font-black font-mono ${matchState.isRunning ? 'text-green-400' : 'text-yellow-400'}`}>
-            {formatTime(matchState.time)}
-          </div>
-          <div className="flex gap-4 mt-4">
-            <button 
-              onClick={() => setMatchState(prev => ({ ...prev, isRunning: !prev.isRunning }))}
-              className={`p-3 rounded-full ${matchState.isRunning ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'} hover:bg-opacity-40 transition`}
-            >
-              {matchState.isRunning ? <Square size={24} /> : <Play size={24} />}
-            </button>
-          </div>
-        </div>
-
-        <div className="w-full flex justify-between items-center mt-24">
-          
-          {/* LOCAL */}
-          <div className="flex flex-col items-center flex-1">
-            <div className="w-24 h-24 bg-gray-700 rounded-full mb-4 flex items-center justify-center border-4 border-gray-600">
-              <span className="text-2xl">🛡️</span>
-            </div>
-            <h2 className="text-2xl font-black uppercase tracking-wider">LOCAL</h2>
-          </div>
-
-          {/* SCORES */}
-          <div className="flex items-center gap-6 px-12">
-            <span className="text-8xl font-black text-white">{matchState.scoreLocal}</span>
-            <span className="text-4xl font-black text-gray-500">-</span>
-            <span className="text-8xl font-black text-white">{matchState.scoreVisitante}</span>
-          </div>
-
-          {/* VISITANTE */}
-          <div className="flex flex-col items-center flex-1">
-            <div className="w-24 h-24 bg-gray-700 rounded-full mb-4 flex items-center justify-center border-4 border-gray-600">
-              <span className="text-2xl">🦅</span>
-            </div>
-            <h2 className="text-2xl font-black uppercase tracking-wider">VISITA</h2>
-          </div>
-
-        </div>
-        
-        {/* CHECK-IN BUTTON */}
-        <div className="w-full flex justify-center mt-8">
-          <button 
-            onClick={() => window.location.href = '/admin-futbol/checkin'}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center gap-2"
-          >
-            <ShieldAlert size={20} />
-            Realizar Check-in Biométrico
-          </button>
-        </div>
-      </div>
-
-      {/* CONTROLES DE EVENTOS */}
-      <div className="grid grid-cols-2 gap-8 flex-1">
-        
-        {/* LOCAL BOTONES */}
-        <div className="bg-gray-800 rounded-3xl p-6 border border-gray-700 flex flex-col gap-4">
-          <button onClick={() => registrarEvento('Gol', matchState.localId)} className="flex-1 bg-green-600 hover:bg-green-500 rounded-2xl flex flex-col items-center justify-center text-white font-black text-2xl transition">
-            <Goal size={48} className="mb-2" />
-            GOL
-          </button>
-          <div className="flex gap-4 h-32">
-            <button onClick={() => registrarEvento('Amarilla', matchState.localId)} className="flex-1 bg-yellow-500 hover:bg-yellow-400 rounded-2xl flex flex-col items-center justify-center text-black font-black text-xl transition">
-              <AlertTriangle size={32} className="mb-2" /> AMARILLA
-            </button>
-            <button onClick={() => registrarEvento('Roja', matchState.localId)} className="flex-1 bg-red-600 hover:bg-red-500 rounded-2xl flex flex-col items-center justify-center text-white font-black text-xl transition">
-              <ShieldAlert size={32} className="mb-2" /> ROJA
-            </button>
-          </div>
-        </div>
-
-        {/* VISITANTE BOTONES */}
-        <div className="bg-gray-800 rounded-3xl p-6 border border-gray-700 flex flex-col gap-4">
-          <button onClick={() => registrarEvento('Gol', matchState.visitanteId)} className="flex-1 bg-green-600 hover:bg-green-500 rounded-2xl flex flex-col items-center justify-center text-white font-black text-2xl transition">
-            <Goal size={48} className="mb-2" />
-            GOL
-          </button>
-          <div className="flex gap-4 h-32">
-            <button onClick={() => registrarEvento('Amarilla', matchState.visitanteId)} className="flex-1 bg-yellow-500 hover:bg-yellow-400 rounded-2xl flex flex-col items-center justify-center text-black font-black text-xl transition">
-              <AlertTriangle size={32} className="mb-2" /> AMARILLA
-            </button>
-            <button onClick={() => registrarEvento('Roja', matchState.visitanteId)} className="flex-1 bg-red-600 hover:bg-red-500 rounded-2xl flex flex-col items-center justify-center text-white font-black text-xl transition">
-              <ShieldAlert size={32} className="mb-2" /> ROJA
-            </button>
-          </div>
-        </div>
-
-      </div>
 
     </div>
   );
