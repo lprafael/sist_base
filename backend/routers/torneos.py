@@ -1248,7 +1248,7 @@ async def jugador_autoregistro(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post(\"/{torneo_id}/equipos\", summary=\"Inscribir equipo\")
+@router.post("/{torneo_id}/equipos", summary="Inscribir equipo")
 async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSession = Depends(get_session)):
     try:
         t_res = await session.execute(
