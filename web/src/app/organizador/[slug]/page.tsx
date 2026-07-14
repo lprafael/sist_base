@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Phone, Mail, Link as LinkIcon } from 'lucide-react';
+import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Phone, Mail, Link as LinkIcon, MessageSquare, X, Send } from 'lucide-react';
+import PatrocinadoresCarousel from '@/components/PatrocinadoresCarousel';
 
 const API_URL = "https://api.micancha.com.py";
 
@@ -26,6 +27,9 @@ interface PerfilLiga {
   email: string;
   telefono: string;
   opcion_chat: boolean;
+  usuario_id: number;
+  opcion_publicidad?: string;
+  posicion_banner?: 'inferior_flotante' | 'cabecera' | 'lateral';
 }
 
 interface Torneo {
@@ -42,8 +46,85 @@ export default function PublicOrganizerPage() {
   
   const [perfil, setPerfil] = useState<PerfilLiga | null>(null);
   const [torneos, setTorneos] = useState<Torneo[]>([]);
+  const [patrocinadores, setPatrocinadores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  const [session, setSession] = useState<any>(null);
+  const [activeChatTorneo, setActiveChatTorneo] = useState<Torneo | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatNewMessage, setChatNewMessage] = useState("");
+  const chatMessagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const s = localStorage.getItem('user_session');
+    if (s) {
+      setSession(JSON.parse(s));
+    }
+  }, []);
+
+  // Poll chat messages
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (activeChatTorneo && session) {
+      fetchChatMessages();
+      interval = setInterval(fetchChatMessages, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeChatTorneo, session]);
+
+  const fetchChatMessages = async () => {
+    if (!activeChatTorneo || !session || !perfil) return;
+    try {
+      const res = await fetch(`${API_URL}/api/chat/participante/${activeChatTorneo.id}/${session.usuario_id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages(data);
+        // Mark as read
+        if (data.some((m: any) => !m.leido && m.sender === 'organizador')) {
+          await fetch(`${API_URL}/api/chat/participante/${activeChatTorneo.id}/${session.usuario_id}/leer`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reader: 'participante' })
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatNewMessage.trim() || !activeChatTorneo || !session || !perfil) return;
+    try {
+      const res = await fetch(`${API_URL}/api/chat/participante`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          torneo_id: activeChatTorneo.id,
+          organizador_id: perfil.usuario_id,
+          participante_id: session.usuario_id,
+          sender: 'participante',
+          mensaje: chatNewMessage.trim()
+        })
+      });
+      if (res.ok) {
+        setChatNewMessage("");
+        fetchChatMessages();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     if (slug) {
@@ -58,6 +139,7 @@ export default function PublicOrganizerPage() {
         const data = await res.json();
         setPerfil(data.perfil);
         setTorneos(data.torneos);
+        if (data.patrocinadores) setPatrocinadores(data.patrocinadores);
       } else {
         const errData = await res.json();
         setError(errData.detail || "Liga no encontrada");
@@ -141,10 +223,20 @@ export default function PublicOrganizerPage() {
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 md:mt-12">
+        
+        {/* Banners en Cabecera */}
+        {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'cabecera' && (
+          <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="cabecera" />
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* COLUMNA IZQUIERDA: INFORMACION */}
           <div className="col-span-1 space-y-6">
+            {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'lateral' && (
+              <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="lateral" />
+            )}
+
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
                 <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
@@ -221,7 +313,11 @@ export default function PublicOrganizerPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {torneos.map(t => (
-                  <div key={t.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition cursor-pointer group">
+                  <div 
+                    key={t.id} 
+                    onClick={() => window.location.href = `/torneos/${t.id}`}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition cursor-pointer group"
+                  >
                     <div className="h-2" style={{ backgroundColor: primaryColor }}></div>
                     <div className="p-6">
                       <div className="flex justify-between items-start mb-4">
@@ -246,6 +342,20 @@ export default function PublicOrganizerPage() {
                       >
                         Ver Estadísticas
                       </button>
+                      
+                      {session && session.usuario_id !== perfil?.usuario_id && perfil?.opcion_chat && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveChatTorneo(t);
+                          }}
+                          className="w-full mt-3 py-2 rounded-lg font-bold transition flex items-center justify-center gap-2 border"
+                          style={{ borderColor: primaryColor, color: primaryColor }}
+                        >
+                          <MessageSquare size={16} />
+                          Consultar al Organizador
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -255,6 +365,87 @@ export default function PublicOrganizerPage() {
           
         </div>
       </div>
+
+      {/* Chat Modal for Participant */}
+      {activeChatTorneo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 24, width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', height: '80vh', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: primaryColor, color: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ background: 'rgba(255,255,255,0.2)', width: 40, height: 40, borderRadius: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageSquare size={20} color="#fff" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Consulta: {activeChatTorneo.nombre}</h3>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>Hablando con {perfil?.nombre_liga}</p>
+                </div>
+              </div>
+              <button onClick={() => setActiveChatTorneo(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: 4 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#f8fafc' }}>
+              {chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, marginTop: 40 }}>
+                  Escribe tu primer mensaje al organizador sobre este torneo.
+                </div>
+              ) : (
+                chatMessages.map(m => {
+                  const isMe = m.sender === 'participante';
+                  return (
+                    <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                      <div style={{
+                        maxWidth: '80%',
+                        background: isMe ? primaryColor : '#fff',
+                        color: isMe ? '#fff' : '#0f172a',
+                        padding: '12px 16px',
+                        borderRadius: 16,
+                        borderBottomRightRadius: isMe ? 4 : 16,
+                        borderBottomLeftRadius: !isMe ? 4 : 16,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                        border: isMe ? 'none' : '1px solid #e2e8f0',
+                        fontSize: 14,
+                        lineHeight: 1.5
+                      }}>
+                        {m.mensaje}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {new Date(m.fecha_envio || m.creado_en).toLocaleString('es-PY', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            <form onSubmit={handleSendChatMessage} style={{ padding: 20, background: '#fff', borderTop: '1px solid #f1f5f9', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, display: 'flex', gap: 12 }}>
+              <input 
+                type="text" 
+                value={chatNewMessage}
+                onChange={e => setChatNewMessage(e.target.value)}
+                placeholder="Escribe un mensaje..."
+                style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }}
+              />
+              <button 
+                type="submit" 
+                disabled={!chatNewMessage.trim()}
+                style={{ background: chatNewMessage.trim() ? primaryColor : '#cbd5e1', color: '#fff', border: 'none', padding: '0 20px', borderRadius: 12, fontWeight: 700, cursor: chatNewMessage.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
+              >
+                Enviar
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BANNER FLOTANTE INFERIOR */}
+      {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'inferior_flotante' && (
+        <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="inferior_flotante" />
+      )}
     </div>
   );
 }

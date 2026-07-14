@@ -11,7 +11,8 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
     res = await session.execute(text("""
         SELECT o.id as org_id, po.logo_url, po.banner_url, po.color_primario, po.texto_1, po.texto_2,
                po.acerca_de, po.idioma, po.pais, po.departamento, po.ciudad, po.ubicacion_exacta,
-               po.facebook, po.instagram, po.youtube, po.twitch, po.twitter, po.whatsapp, po.email, po.telefono, po.opcion_chat
+               po.facebook, po.instagram, po.youtube, po.twitch, po.twitter, po.whatsapp, po.email, po.telefono, po.opcion_chat, po.usuario_id,
+               po.opcion_publicidad, po.posicion_banner
         FROM sistema.perfil_organizador po
         JOIN cancha.organizadores o ON o.usuario_id = po.usuario_id
         WHERE po.enlace_sitio = :enlace AND po.visibilidad = 'publico'
@@ -31,6 +32,21 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
     """), {"oid": org_id})
     
     torneos = [{"id": r[0], "nombre": r[1], "deporte": r[2], "formato": r[3], "tipo": r[4]} for r in res_torneos.fetchall()]
+    
+    # Obtener patrocinadores si corresponde
+    patrocinadores = []
+    if perfil[22] in ['organizador', 'ambos']:
+        res_patrocinadores = await session.execute(text("""
+            SELECT titulo, logo_url, banner_app_url, banner_sitio_url, tiempo_banner, sitio_web, telefono 
+            FROM sistema.patrocinadores 
+            WHERE usuario_id = :uid
+        """), {"uid": perfil[21]})
+        patrocinadores = [
+            {
+                "titulo": p[0], "logo_url": p[1], "banner_app_url": p[2], 
+                "banner_sitio_url": p[3], "tiempo_banner": p[4], "sitio_web": p[5], "telefono": p[6]
+            } for p in res_patrocinadores.fetchall()
+        ]
     
     return {
         "perfil": {
@@ -53,9 +69,13 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
             "whatsapp": perfil[17],
             "email": perfil[18],
             "telefono": perfil[19],
-            "opcion_chat": perfil[20]
+            "opcion_chat": perfil[20],
+            "usuario_id": perfil[21],
+            "opcion_publicidad": perfil[22],
+            "posicion_banner": perfil[23]
         },
-        "torneos": torneos
+        "torneos": torneos,
+        "patrocinadores": patrocinadores
     }
 
 @router.get("/liga/torneo/{torneo_id}/estadisticas")

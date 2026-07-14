@@ -264,6 +264,48 @@ class ParametroSistemaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ===== CHAT DE SOPORTE ORGANIZADOR =====
+
+class OrganizadorConversacionCreate(BaseModel):
+    organizador_id: int
+    sender: str
+    mensaje: str
+
+class OrganizadorConversacionResponse(BaseModel):
+    id: int
+    organizador_id: int
+    sender: str
+    mensaje: str
+    leido: bool
+    entregado: bool
+    fecha_envio: datetime
+    
+    class Config:
+        from_attributes = True
+
+# ===== CHAT ENTRE PARTICIPANTE Y ORGANIZADOR =====
+
+class ParticipanteConversacionCreate(BaseModel):
+    torneo_id: str
+    organizador_id: int
+    participante_id: int
+    sender: str
+    mensaje: str
+
+class ParticipanteConversacionResponse(BaseModel):
+    id: int
+    torneo_id: str
+    organizador_id: int
+    participante_id: int
+    sender: str
+    mensaje: str
+    leido: bool
+    entregado: bool
+    fecha_envio: datetime
+    
+    class Config:
+        from_attributes = True
+
 # ===== SCHEMAS DE NOTIFICACIONES =====
 
 class NotificacionCreate(BaseModel):

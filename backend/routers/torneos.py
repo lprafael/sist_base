@@ -576,6 +576,38 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
     d["reglas"] = json.loads(d["reglas"]) if isinstance(d["reglas"], str) else (d["reglas"] or [])
     d["premios"] = json.loads(d["premios"]) if isinstance(d["premios"], str) else (d["premios"] or [])
     d["configuracion"] = json.loads(d["configuracion"]) if isinstance(d["configuracion"], str) else (d["configuracion"] or {})
+    
+    # Check for patrocinadores
+    patrocinadores = []
+    if d["organizador_id"]:
+        res_org = await session.execute(text("""
+            SELECT po.opcion_publicidad, po.posicion_banner, po.usuario_id 
+            FROM sistema.perfil_organizador po
+            JOIN cancha.organizadores org ON org.usuario_id = po.usuario_id
+            WHERE org.id = :oid
+        """), {"oid": d["organizador_id"]})
+        org_data = res_org.fetchone()
+        
+        if org_data:
+            opcion_publicidad, posicion_banner, uid = org_data
+            d["opcion_publicidad"] = opcion_publicidad
+            d["posicion_banner"] = posicion_banner
+            
+            if opcion_publicidad in ['torneo', 'ambos']:
+                res_patroc = await session.execute(text("""
+                    SELECT titulo, logo_url, banner_app_url, banner_sitio_url, tiempo_banner, sitio_web, telefono 
+                    FROM sistema.patrocinadores 
+                    WHERE usuario_id = :uid
+                """), {"uid": uid})
+                patrocinadores = [
+                    {
+                        "titulo": p[0], "logo_url": p[1], "banner_app_url": p[2], 
+                        "banner_sitio_url": p[3], "tiempo_banner": p[4], "sitio_web": p[5], "telefono": p[6]
+                    } for p in res_patroc.fetchall()
+                ]
+    
+    d["patrocinadores"] = patrocinadores
+
     return d
 
 

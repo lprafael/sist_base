@@ -247,3 +247,33 @@ class ModuloSistema(Base):
     icono = Column(String(50))
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=func.now())
+
+# ===== CHAT DE SOPORTE ORGANIZADOR =====
+
+class OrganizadorConversacion(Base):
+    __tablename__ = "organizador_conversacion"
+    __table_args__ = {"schema": "torneos"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    organizador_id = Column(Integer, nullable=False, index=True)
+    sender = Column(String(50), nullable=False) # 'admin' or 'organizador'
+    mensaje = Column(Text, nullable=False)
+    leido = Column(Boolean, default=False)
+    entregado = Column(Boolean, default=True)
+    fecha_envio = Column(DateTime, default=func.now())
+
+# ===== CHAT ENTRE PARTICIPANTE Y ORGANIZADOR =====
+
+class ParticipanteConversacion(Base):
+    __tablename__ = "participante_conversacion"
+    __table_args__ = {"schema": "torneos"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    torneo_id = Column(String(50), nullable=False, index=True)
+    organizador_id = Column(Integer, nullable=False, index=True)
+    participante_id = Column(Integer, nullable=False, index=True)
+    sender = Column(String(50), nullable=False) # 'participante' or 'organizador'
+    mensaje = Column(Text, nullable=False)
+    leido = Column(Boolean, default=False)
+    entregado = Column(Boolean, default=True)
+    fecha_envio = Column(DateTime, default=func.now())

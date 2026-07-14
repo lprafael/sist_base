@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   Shield, User, Lock, Settings, FileText, CheckCircle,
@@ -94,6 +94,83 @@ export default function AdminConsole() {
   const [deportes, setDeportes] = useState<string[]>(DEPORTES_CATALOGO);
   const [organizadores, setOrganizadores] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
+  
+  // Chat States
+  const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
+  const [activeChatOrg, setActiveChatOrg] = useState<any>(null); // { id, nombre }
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatNewMessage, setChatNewMessage] = useState("");
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeChatOrg) {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, activeChatOrg]);
+
+  useEffect(() => {
+    const fetchGlobalUnread = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/chat/admin/unread`);
+        if (res.ok) {
+          const data = await res.json();
+          setGlobalUnreadCount(data.unread_count);
+        }
+      } catch (e) {}
+    };
+    fetchGlobalUnread();
+    const interval = setInterval(fetchGlobalUnread, 10000); // Check every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch specific chat when activeChatOrg changes
+  useEffect(() => {
+    let interval: any;
+    if (activeChatOrg) {
+      const loadMessages = async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/chat/organizador/${activeChatOrg.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setChatMessages(data);
+            
+            // Si hay no leídos del organizador, marcarlos como leídos
+            const unread = data.filter((m: any) => m.sender === 'organizador' && !m.leido).length;
+            if (unread > 0) {
+              await fetch(`${API_URL}/api/chat/organizador/${activeChatOrg.id}/leer?reader=admin`, { method: 'PUT' });
+              setGlobalUnreadCount(prev => Math.max(0, prev - unread));
+            }
+          }
+        } catch (e) {}
+      };
+      loadMessages();
+      interval = setInterval(loadMessages, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    }
+  }, [activeChatOrg]);
+
+  const handleAdminSendChatMessage = async (e: any) => {
+    e.preventDefault();
+    if (!chatNewMessage.trim() || !activeChatOrg) return;
+    try {
+      const res = await fetch(`${API_URL}/api/chat/organizador`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizador_id: activeChatOrg.id,
+          sender: 'admin',
+          mensaje: chatNewMessage.trim()
+        })
+      });
+      if (res.ok) {
+        const newMsg = await res.json();
+        setChatMessages(prev => [...prev, newMsg]);
+        setChatNewMessage("");
+      }
+    } catch (e) {}
+  };
 
   // Catalog Data states
   const [dbDeportes, setDbDeportes] = useState<any[]>([]);
@@ -283,18 +360,106 @@ export default function AdminConsole() {
 
   // Pagination & Filter for Complejos
   const [complejosFilter, setComplejosFilter] = useState('');
+  const [colComplejo, setColComplejo] = useState('');
+  const [colUsuario, setColUsuario] = useState('');
+  const [colContacto, setColContacto] = useState('');
+  const [colEstado, setColEstado] = useState('');
+  
+  const [complejoSortField, setComplejoSortField] = useState<string>('');
+  const [complejoSortAsc, setComplejoSortAsc] = useState<boolean>(true);
+  
   const [complejosPage, setComplejosPage] = useState(1);
   const COMPLEJOS_PER_PAGE = 10;
 
+  // Pagination & Filter for Organizadores
+  const [colOrgOrganizacion, setColOrgOrganizacion] = useState('');
+  const [colOrgUsuario, setColOrgUsuario] = useState('');
+  const [colOrgPlan, setColOrgPlan] = useState('');
+  const [colOrgEstado, setColOrgEstado] = useState('');
+  
+  const [orgSortField, setOrgSortField] = useState<string>('');
+  const [orgSortAsc, setOrgSortAsc] = useState<boolean>(true);
+
+  const handleToggleOrgSort = (field: string) => {
+    if (orgSortField === field) {
+      setOrgSortAsc(!orgSortAsc);
+    } else {
+      setOrgSortField(field);
+      setOrgSortAsc(true);
+    }
+  };
+
+  const handleToggleComplejoSort = (field: string) => {
+    if (complejoSortField === field) {
+      setComplejoSortAsc(!complejoSortAsc);
+    } else {
+      setComplejoSortField(field);
+      setComplejoSortAsc(true);
+    }
+  };
+
   const filteredComplejos = useMemo(() => {
-    if (!complejosFilter) return complejos;
-    return complejos.filter(c => 
-      c.nombre.toLowerCase().includes(complejosFilter.toLowerCase()) ||
-      c.direccion?.toLowerCase().includes(complejosFilter.toLowerCase()) ||
-      c.ciudad?.toLowerCase().includes(complejosFilter.toLowerCase()) ||
-      c.usuario_asignado?.toLowerCase().includes(complejosFilter.toLowerCase())
-    );
-  }, [complejos, complejosFilter]);
+    let result = complejos;
+    
+    if (complejosFilter) {
+      result = result.filter(c => 
+        c.nombre.toLowerCase().includes(complejosFilter.toLowerCase()) ||
+        c.direccion?.toLowerCase().includes(complejosFilter.toLowerCase()) ||
+        c.ciudad?.toLowerCase().includes(complejosFilter.toLowerCase()) ||
+        c.usuario_asignado?.toLowerCase().includes(complejosFilter.toLowerCase())
+      );
+    }
+
+    if (colComplejo) {
+      result = result.filter(c => 
+        c.nombre.toLowerCase().includes(colComplejo.toLowerCase()) || 
+        (c.direccion || '').toLowerCase().includes(colComplejo.toLowerCase()) ||
+        (c.ciudad || '').toLowerCase().includes(colComplejo.toLowerCase())
+      );
+    }
+    
+    if (colUsuario) {
+      result = result.filter(c => 
+        (c.usuario_asignado || '').toLowerCase().includes(colUsuario.toLowerCase())
+      );
+    }
+    
+    if (colContacto) {
+      result = result.filter(c => 
+        (c.email || '').toLowerCase().includes(colContacto.toLowerCase()) ||
+        (c.telefono || '').toLowerCase().includes(colContacto.toLowerCase())
+      );
+    }
+    
+    if (colEstado) {
+      const isActivoSearch = colEstado.toLowerCase().includes('act');
+      const isSuspenSearch = colEstado.toLowerCase().includes('sus');
+      if (isActivoSearch || isSuspenSearch) {
+         result = result.filter(c => 
+           (isActivoSearch && c.activo) || (isSuspenSearch && !c.activo)
+         );
+      }
+    }
+    
+    if (complejoSortField) {
+       result = [...result].sort((a, b) => {
+         let valA = '';
+         let valB = '';
+         if (complejoSortField === 'complejo') {
+           valA = a.nombre; valB = b.nombre;
+         } else if (complejoSortField === 'usuario') {
+           valA = a.usuario_asignado || ''; valB = b.usuario_asignado || '';
+         } else if (complejoSortField === 'contacto') {
+           valA = a.email || ''; valB = b.email || '';
+         } else if (complejoSortField === 'estado') {
+           valA = a.activo ? '1' : '0'; valB = b.activo ? '1' : '0';
+         }
+         return complejoSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+       });
+    }
+
+    return result;
+  }, [complejos, complejosFilter, colComplejo, colUsuario, colContacto, colEstado, complejoSortField, complejoSortAsc]);
 
   const totalComplejosPages = Math.max(1, Math.ceil(filteredComplejos.length / COMPLEJOS_PER_PAGE));
   const currentComplejos = useMemo(() => {
@@ -304,7 +469,54 @@ export default function AdminConsole() {
 
   useEffect(() => {
     setComplejosPage(1);
-  }, [complejosFilter]);
+  }, [complejosFilter, colComplejo, colUsuario, colContacto, colEstado, complejoSortField, complejoSortAsc]);
+
+  const filteredOrganizadores = useMemo(() => {
+    let result = organizadores;
+    
+    if (colOrgOrganizacion) {
+      result = result.filter(o => o.nombre?.toLowerCase().includes(colOrgOrganizacion.toLowerCase()));
+    }
+    if (colOrgUsuario) {
+      result = result.filter(o => 
+        (o.usuario_nombre || '').toLowerCase().includes(colOrgUsuario.toLowerCase()) ||
+        (o.usuario_email || '').toLowerCase().includes(colOrgUsuario.toLowerCase())
+      );
+    }
+    if (colOrgPlan) {
+      result = result.filter(o => (o.plan || '').toLowerCase().includes(colOrgPlan.toLowerCase()));
+    }
+    if (colOrgEstado) {
+      const isHabilitadoSearch = colOrgEstado.toLowerCase().includes('hab') || colOrgEstado.toLowerCase().includes('act');
+      const isSuspenSearch = colOrgEstado.toLowerCase().includes('sus');
+      if (isHabilitadoSearch || isSuspenSearch) {
+         result = result.filter(o => 
+           (isHabilitadoSearch && o.habilitado) || (isSuspenSearch && !o.habilitado)
+         );
+      }
+    }
+    
+    if (orgSortField) {
+       result = [...result].sort((a, b) => {
+         let valA = '';
+         let valB = '';
+         if (orgSortField === 'organizacion') {
+           valA = a.nombre || ''; valB = b.nombre || '';
+         } else if (orgSortField === 'usuario') {
+           valA = a.usuario_nombre || ''; valB = b.usuario_nombre || '';
+         } else if (orgSortField === 'plan') {
+           valA = a.plan || ''; valB = b.plan || '';
+         } else if (orgSortField === 'torneos') {
+           return orgSortAsc ? (a.max_torneos || 0) - (b.max_torneos || 0) : (b.max_torneos || 0) - (a.max_torneos || 0);
+         } else if (orgSortField === 'estado') {
+           valA = a.habilitado ? '1' : '0'; valB = b.habilitado ? '1' : '0';
+         }
+         return orgSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+       });
+    }
+
+    return result;
+  }, [organizadores, colOrgOrganizacion, colOrgUsuario, colOrgPlan, colOrgEstado, orgSortField, orgSortAsc]);
 
   // Request approvals state
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -869,28 +1081,63 @@ export default function AdminConsole() {
             <p style={{ color: '#475569', fontSize: 14, marginTop: 4 }}>Sesión activa: {session.name} ({session.email})</p>
           </div>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              border: 'none',
-              background: '#fee2e2',
-              color: '#dc2626',
-              padding: '10px 20px',
-              borderRadius: 12,
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            onMouseOver={e => e.currentTarget.style.background = '#fecaca'}
-            onMouseOut={e => e.currentTarget.style.background = '#fee2e2'}
-          >
-            <LogOut size={16} />
-            Cerrar Sesión
-          </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {globalUnreadCount > 0 && (
+              <button
+                onClick={() => {
+                  const orgsTabBtn = document.getElementById('btn-organizadores-indep');
+                  if (orgsTabBtn) orgsTabBtn.scrollIntoView({ behavior: 'smooth' });
+                  else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  border: 'none',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  animation: 'pulse 2s infinite'
+                }}
+              >
+                <div style={{ position: 'relative' }}>
+                  <MessageSquare size={18} />
+                  <span style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', fontSize: 10, borderRadius: '100%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {globalUnreadCount}
+                  </span>
+                </div>
+                <span>Mensajes Nuevos</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                border: 'none',
+                background: '#fee2e2',
+                color: '#dc2626',
+                padding: '10px 20px',
+                borderRadius: 12,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={e => e.currentTarget.style.background = '#fecaca'}
+              onMouseOut={e => e.currentTarget.style.background = '#fee2e2'}
+            >
+              <LogOut size={16} />
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
 
         {/* -------------------- SUPER ADMIN CONSOLE FLOW -------------------- */}
@@ -966,11 +1213,69 @@ export default function AdminConsole() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: 12, textTransform: 'uppercase' }}>
-                        <th style={{ padding: 14 }}>Complejo / Ubicación</th>
-                        <th style={{ padding: 14 }}>Usuario Asignado (Email)</th>
-                        <th style={{ padding: 14 }}>Contacto</th>
-                        <th style={{ padding: 14 }}>Estado</th>
-                        <th style={{ padding: 14, textAlign: 'right' }}>Acciones Administrativas</th>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleComplejoSort('complejo')}>
+                              <span>Complejo / Ubicación</span>
+                              <span>{complejoSortField === 'complejo' ? (complejoSortAsc ? '▲' : '▼') : '↕'}</span>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Filtrar complejo..." 
+                              value={colComplejo} 
+                              onChange={e => setColComplejo(e.target.value)}
+                              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #cbd5e1', borderRadius: 4, textTransform: 'none', fontWeight: 'normal', color: '#0f172a' }}
+                            />
+                          </div>
+                        </th>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleComplejoSort('usuario')}>
+                              <span>Usuario Asignado (Email)</span>
+                              <span>{complejoSortField === 'usuario' ? (complejoSortAsc ? '▲' : '▼') : '↕'}</span>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Filtrar email..." 
+                              value={colUsuario} 
+                              onChange={e => setColUsuario(e.target.value)}
+                              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #cbd5e1', borderRadius: 4, textTransform: 'none', fontWeight: 'normal', color: '#0f172a' }}
+                            />
+                          </div>
+                        </th>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleComplejoSort('contacto')}>
+                              <span>Contacto</span>
+                              <span>{complejoSortField === 'contacto' ? (complejoSortAsc ? '▲' : '▼') : '↕'}</span>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Filtrar contacto..." 
+                              value={colContacto} 
+                              onChange={e => setColContacto(e.target.value)}
+                              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #cbd5e1', borderRadius: 4, textTransform: 'none', fontWeight: 'normal', color: '#0f172a' }}
+                            />
+                          </div>
+                        </th>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => handleToggleComplejoSort('estado')}>
+                              <span>Estado</span>
+                              <span>{complejoSortField === 'estado' ? (complejoSortAsc ? '▲' : '▼') : '↕'}</span>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Activo/Suspendido..." 
+                              value={colEstado} 
+                              onChange={e => setColEstado(e.target.value)}
+                              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #cbd5e1', borderRadius: 4, textTransform: 'none', fontWeight: 'normal', color: '#0f172a' }}
+                            />
+                          </div>
+                        </th>
+                        <th style={{ padding: 14, textAlign: 'right', verticalAlign: 'top' }}>
+                          <div style={{ marginTop: 2 }}>Acciones Administrativas</div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1064,7 +1369,7 @@ export default function AdminConsole() {
                 <div style={{ marginTop: 40, borderTop: '1px solid #f1f5f9', paddingTop: 32 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900 }}>Organizadores Independientes</h3>
+                      <h3 id="btn-organizadores-indep" style={{ fontSize: 20, fontWeight: 900 }}>Organizadores Independientes</h3>
                       <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Usuarios habilitados para crear torneos sin un complejo físico.</p>
                     </div>
                     <button
@@ -1080,23 +1385,86 @@ export default function AdminConsole() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: 12, textTransform: 'uppercase' }}>
-                          <th style={{ padding: 14 }}>Organización / Evento</th>
-                          <th style={{ padding: 14 }}>Usuario / Email</th>
-                          <th style={{ padding: 14 }}>Plan contratado</th>
-                          <th style={{ padding: 14 }}>Torneos permitidos</th>
-                          <th style={{ padding: 14 }}>Estado</th>
+                          <th style={{ padding: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Organización / Evento
+                              <button onClick={() => handleToggleOrgSort('organizacion')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                <RefreshCw size={12} style={{ transform: orgSortField === 'organizacion' && !orgSortAsc ? 'rotate(180deg)' : 'none', color: orgSortField === 'organizacion' ? '#0f172a' : '#cbd5e1' }} />
+                              </button>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Filtrar..." 
+                              value={colOrgOrganizacion}
+                              onChange={e => setColOrgOrganizacion(e.target.value)}
+                              style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                            />
+                          </th>
+                          <th style={{ padding: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Usuario / Email
+                              <button onClick={() => handleToggleOrgSort('usuario')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                <RefreshCw size={12} style={{ transform: orgSortField === 'usuario' && !orgSortAsc ? 'rotate(180deg)' : 'none', color: orgSortField === 'usuario' ? '#0f172a' : '#cbd5e1' }} />
+                              </button>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Filtrar..." 
+                              value={colOrgUsuario}
+                              onChange={e => setColOrgUsuario(e.target.value)}
+                              style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                            />
+                          </th>
+                          <th style={{ padding: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Plan
+                              <button onClick={() => handleToggleOrgSort('plan')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                <RefreshCw size={12} style={{ transform: orgSortField === 'plan' && !orgSortAsc ? 'rotate(180deg)' : 'none', color: orgSortField === 'plan' ? '#0f172a' : '#cbd5e1' }} />
+                              </button>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Filtrar..." 
+                              value={colOrgPlan}
+                              onChange={e => setColOrgPlan(e.target.value)}
+                              style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                            />
+                          </th>
+                          <th style={{ padding: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Torneos
+                              <button onClick={() => handleToggleOrgSort('torneos')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                <RefreshCw size={12} style={{ transform: orgSortField === 'torneos' && !orgSortAsc ? 'rotate(180deg)' : 'none', color: orgSortField === 'torneos' ? '#0f172a' : '#cbd5e1' }} />
+                              </button>
+                            </div>
+                          </th>
+                          <th style={{ padding: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Estado
+                              <button onClick={() => handleToggleOrgSort('estado')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                <RefreshCw size={12} style={{ transform: orgSortField === 'estado' && !orgSortAsc ? 'rotate(180deg)' : 'none', color: orgSortField === 'estado' ? '#0f172a' : '#cbd5e1' }} />
+                              </button>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Act/Sus..." 
+                              value={colOrgEstado}
+                              onChange={e => setColOrgEstado(e.target.value)}
+                              style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                            />
+                          </th>
                           <th style={{ padding: 14, textAlign: 'right' }}>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {organizadores.length === 0 ? (
+                        {filteredOrganizadores.length === 0 ? (
                           <tr>
                             <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>
-                              No hay organizadores independientes habilitados todavía.
+                              No hay organizadores que coincidan con los filtros.
                             </td>
                           </tr>
                         ) : (
-                          organizadores.map(o => (
+                          filteredOrganizadores.map(o => (
                             <tr 
                               key={o.id} 
                               style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14, cursor: 'pointer' }}
@@ -1177,6 +1545,16 @@ export default function AdminConsole() {
                               </td>
                               <td style={{ padding: 16, textAlign: 'right' }}>
                                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveChatOrg({ id: o.usuario_id, nombre: o.nombre });
+                                    }}
+                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                  >
+                                    <MessageSquare size={14} />
+                                    Chat
+                                  </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -2188,6 +2566,87 @@ export default function AdminConsole() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Chat Modal for Admin */}
+      {activeChatOrg && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 24, width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', height: '80vh', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', color: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ background: '#3b82f6', width: 40, height: 40, borderRadius: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MessageSquare size={20} color="#fff" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Soporte: {activeChatOrg.nombre}</h3>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Resolución de dudas y requerimientos</p>
+                </div>
+              </div>
+              <button onClick={() => setActiveChatOrg(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#f8fafc' }}>
+              {chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, marginTop: 40 }}>
+                  No hay mensajes con este organizador.
+                </div>
+              ) : (
+                chatMessages.map(m => {
+                  const isAdmin = m.sender === 'admin';
+                  return (
+                    <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isAdmin ? 'flex-end' : 'flex-start' }}>
+                      <div style={{
+                        maxWidth: '80%',
+                        background: isAdmin ? '#16a34a' : '#fff',
+                        color: isAdmin ? '#fff' : '#0f172a',
+                        padding: '12px 16px',
+                        borderRadius: 16,
+                        borderBottomRightRadius: isAdmin ? 4 : 16,
+                        borderBottomLeftRadius: !isAdmin ? 4 : 16,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                        border: isAdmin ? 'none' : '1px solid #e2e8f0',
+                        fontSize: 14,
+                        lineHeight: 1.5
+                      }}>
+                        {m.mensaje}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {new Date(m.creado_en).toLocaleString('es-PY', { hour: '2-digit', minute: '2-digit' })}
+                        {isAdmin && (
+                          <span style={{ color: m.leido ? '#3b82f6' : '#cbd5e1' }}>
+                            <CheckCircle size={10} />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            <form onSubmit={handleAdminSendChatMessage} style={{ padding: 20, background: '#fff', borderTop: '1px solid #f1f5f9', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, display: 'flex', gap: 12 }}>
+              <input 
+                type="text" 
+                value={chatNewMessage}
+                onChange={e => setChatNewMessage(e.target.value)}
+                placeholder="Escribe un mensaje al organizador..."
+                style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }}
+              />
+              <button 
+                type="submit" 
+                disabled={!chatNewMessage.trim()}
+                style={{ background: chatNewMessage.trim() ? '#16a34a' : '#cbd5e1', color: '#fff', border: 'none', padding: '0 20px', borderRadius: 12, fontWeight: 700, cursor: chatNewMessage.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
+              >
+                Enviar
+                <MessageSquare size={16} />
+              </button>
+            </form>
+          </div>
         </div>
       )}
 

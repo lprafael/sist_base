@@ -49,12 +49,14 @@ from dotenv import load_dotenv
 # ============================================
 # Modelos de base de datos
 from models import (
-    Base, Usuario, Rol, Permiso, LogAuditoria, LogAcceso, SesionUsuario
+    Base, Usuario, Rol, Permiso, LogAuditoria, LogAcceso, SesionUsuario, OrganizadorConversacion, ParticipanteConversacion
 )
 
 # Esquemas Pydantic
 from schemas import (
-    LogAuditoriaResponse, LogAccesoResponse, SesionUsuarioResponse
+    LogAuditoriaResponse, LogAccesoResponse, SesionUsuarioResponse,
+    OrganizadorConversacionCreate, OrganizadorConversacionResponse,
+    ParticipanteConversacionCreate, ParticipanteConversacionResponse
 )
 
 # Utilidades de seguridad
@@ -209,6 +211,9 @@ app.include_router(multas_router)
 
 from routers.perfil_organizador import router as perfil_organizador_router
 app.include_router(perfil_organizador_router)
+
+from routers.patrocinadores import router as patrocinadores_router
+app.include_router(patrocinadores_router)
 
 from routers.futbol_core import router as futbol_core_router
 app.include_router(futbol_core_router)
@@ -1493,4 +1498,133 @@ async def health_check():
         dict: Estado actual de la API
     """
     return {"status": "ok"}
+
+# ============================================
+# 14. ENDPOINTS DE CHAT ORGANIZADOR-ADMIN
+# ============================================
+
+@app.get("/api/chat/organizador/{organizador_id}", response_model=List[OrganizadorConversacionResponse])
+async def get_chat_messages(organizador_id: int, session: AsyncSession = Depends(get_session)):
+    query = select(OrganizadorConversacion).where(OrganizadorConversacion.organizador_id == organizador_id).order_by(OrganizadorConversacion.fecha_envio.asc())
+    result = await session.execute(query)
+    return result.scalars().all()
+
+@app.get("/api/chat/admin/unread", response_model=Dict[str, Any])
+async def get_unread_messages_admin(session: AsyncSession = Depends(get_session)):
+    query = select(func.count(OrganizadorConversacion.id)).where(
+        OrganizadorConversacion.leido == False,
+        OrganizadorConversacion.sender == 'organizador'
+    )
+    result = await session.execute(query)
+    count = result.scalar() or 0
+    return {"unread_count": count}
+
+@app.post("/api/chat/organizador", response_model=OrganizadorConversacionResponse)
+async def create_chat_message(payload: OrganizadorConversacionCreate, session: AsyncSession = Depends(get_session)):
+    new_msg = OrganizadorConversacion(
+        organizador_id=payload.organizador_id,
+        sender=payload.sender,
+        mensaje=payload.mensaje,
+        leido=False,
+        entregado=True
+    )
+    session.add(new_msg)
+    await session.commit()
+    await session.refresh(new_msg)
+    return new_msg
+
+@app.put("/api/chat/organizador/{organizador_id}/leer")
+async def mark_messages_as_read(organizador_id: int, reader: str, session: AsyncSession = Depends(get_session)):
+    target_sender = 'organizador' if reader == 'admin' else 'admin'
+    query = text("""
+        UPDATE torneos.organizador_conversacion
+        SET leido = true
+        WHERE organizador_id = :org_id AND sender = :sender AND leido = false
+    """)
+    await session.execute(query, {"org_id": organizador_id, "sender": target_sender})
+    await session.commit()
+    return {"status": "success"}
+
+# ============================================
+# CHAT ENTRE PARTICIPANTE Y ORGANIZADOR
+# ============================================
+
+@app.get("/api/chat/participante/{torneo_id}/{participante_id}", response_model=List[ParticipanteConversacionResponse])
+async def get_participante_chat_messages(torneo_id: str, participante_id: int, session: AsyncSession = Depends(get_session)):
+    query = select(ParticipanteConversacion).where(
+        ParticipanteConversacion.torneo_id == torneo_id,
+        ParticipanteConversacion.participante_id == participante_id
+    ).order_by(ParticipanteConversacion.fecha_envio.asc())
+    result = await session.execute(query)
+    return result.scalars().all()
+
+@app.get("/api/chat/organizador/bandeja/{organizador_id}")
+async def get_organizador_inbox(organizador_id: int, session: AsyncSession = Depends(get_session)):
+    # Group by torneo_id and participante_id, count unread messages from participante, get latest message
+    query = text("""
+        SELECT 
+            p.torneo_id, 
+            p.participante_id,
+            MAX(p.fecha_envio) as last_message_date,
+            SUM(CASE WHEN p.leido = false AND p.sender = 'participante' THEN 1 ELSE 0 END) as unread_count,
+            (SELECT mensaje FROM torneos.participante_conversacion pc 
+             WHERE pc.torneo_id = p.torneo_id AND pc.participante_id = p.participante_id 
+             ORDER BY fecha_envio DESC LIMIT 1) as last_message
+        FROM torneos.participante_conversacion p
+        WHERE p.organizador_id = :org_id
+        GROUP BY p.torneo_id, p.participante_id
+        ORDER BY last_message_date DESC
+    """)
+    result = await session.execute(query, {"org_id": organizador_id})
+    rows = result.fetchall()
+    
+    inbox = []
+    for row in rows:
+        inbox.append({
+            "torneo_id": row.torneo_id,
+            "participante_id": row.participante_id,
+            "last_message_date": row.last_message_date,
+            "unread_count": row.unread_count,
+            "last_message": row.last_message
+        })
+    return inbox
+
+@app.get("/api/chat/organizador/participantes/unread/{organizador_id}", response_model=Dict[str, Any])
+async def get_unread_participant_messages(organizador_id: int, session: AsyncSession = Depends(get_session)):
+    query = select(func.count(ParticipanteConversacion.id)).where(
+        ParticipanteConversacion.organizador_id == organizador_id,
+        ParticipanteConversacion.leido == False,
+        ParticipanteConversacion.sender == 'participante'
+    )
+    result = await session.execute(query)
+    count = result.scalar() or 0
+    return {"unread_count": count}
+
+@app.post("/api/chat/participante", response_model=ParticipanteConversacionResponse)
+async def create_participante_message(payload: ParticipanteConversacionCreate, session: AsyncSession = Depends(get_session)):
+    new_msg = ParticipanteConversacion(
+        torneo_id=payload.torneo_id,
+        organizador_id=payload.organizador_id,
+        participante_id=payload.participante_id,
+        sender=payload.sender,
+        mensaje=payload.mensaje,
+        leido=False,
+        entregado=True
+    )
+    session.add(new_msg)
+    await session.commit()
+    await session.refresh(new_msg)
+    return new_msg
+
+@app.put("/api/chat/participante/{torneo_id}/{participante_id}/leer")
+async def mark_participante_messages_as_read(torneo_id: str, participante_id: int, reader: str, session: AsyncSession = Depends(get_session)):
+    target_sender = 'participante' if reader == 'organizador' else 'organizador'
+    query = text("""
+        UPDATE torneos.participante_conversacion
+        SET leido = true
+        WHERE torneo_id = :torneo_id AND participante_id = :part_id AND sender = :sender AND leido = false
+    """)
+    await session.execute(query, {"torneo_id": torneo_id, "part_id": participante_id, "sender": target_sender})
+    await session.commit()
+    return {"status": "success"}
 

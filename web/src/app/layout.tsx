@@ -6,13 +6,14 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "MiCancha — Reserva canchas deportivas en Paraguay",
+  title: "MiCancha — Gestión de Canchas y Torneos en Paraguay",
   description: "Encuentra y reserva al instante las mejores canchas de fútbol, pádel, tenis y más en Paraguay. Gestiona tus torneos, organiza partidos y disfruta del deporte.",
   keywords: "canchas deportivas, alquiler de canchas, reserva de canchas, fútbol, pádel, tenis, torneos, campeonatos, Asunción, Paraguay, micancha, deportes, sintético",
   authors: [{ name: "MiCancha" }],
   openGraph: {
-    title: "MiCancha — Reserva de Canchas en Paraguay",
-    description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos.",
+    title: "MiCancha — Gestión de Canchas y Torneos en Paraguay",
+    // description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos.",
+    description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos. Gestión de turnos y torneos en un solo lugar.",
     url: "https://micancha.com.py",
     siteName: "MiCancha",
     locale: "es_PY",

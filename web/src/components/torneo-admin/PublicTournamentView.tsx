@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import dynamic from 'next/dynamic';
+import PatrocinadoresCarousel from '@/components/PatrocinadoresCarousel';
 
 const LocationPickerMap = dynamic(() => 
   import('@/components/LocationPickerMap'), 
@@ -101,6 +102,12 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
           </div>
         </header>
 
+        {tournament?.opcion_publicidad && tournament.opcion_publicidad !== 'ninguno' && tournament.posicion_banner === 'cabecera' && (
+           <div className="w-full bg-white border-b border-slate-200">
+             <PatrocinadoresCarousel patrocinadores={tournament.patrocinadores || []} posicion="cabecera" />
+           </div>
+        )}
+
         {/* Hero Banner */}
         <div className="relative h-64 bg-slate-800 shrink-0 border-b border-slate-200">
           {tournament?.imagen_banner ? (
@@ -135,6 +142,11 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
           
           {/* About Section */}
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 h-fit">
+            
+            {tournament?.opcion_publicidad && tournament.opcion_publicidad !== 'ninguno' && tournament.posicion_banner === 'lateral' && (
+              <PatrocinadoresCarousel patrocinadores={tournament.patrocinadores || []} posicion="lateral" />
+            )}
+
             <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3 border-b border-slate-100 pb-5">
               <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-serif italic text-xl">i</span>
               Acerca de
@@ -459,6 +471,10 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             </form>
           </div>
         </div>
+      )}
+
+      {tournament?.opcion_publicidad && tournament.opcion_publicidad !== 'ninguno' && tournament.posicion_banner === 'inferior_flotante' && (
+        <PatrocinadoresCarousel patrocinadores={tournament.patrocinadores || []} posicion="inferior_flotante" />
       )}
     </>
   );

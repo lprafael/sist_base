@@ -32,7 +32,9 @@ export default function PerfilOrganizadorPage() {
     whatsapp: "",
     email: "",
     telefono: "",
-    opcion_chat: false
+    opcion_chat: false,
+    opcion_publicidad: "ninguno",
+    posicion_banner: "inferior_flotante"
   });
 
   useEffect(() => {
@@ -456,6 +458,42 @@ export default function PerfilOrganizadorPage() {
                      Opción de chat de la aplicación
                    </label>
                  </div>
+
+                 <div className="mt-6 pt-4 border-t border-gray-100">
+                    <h3 className="font-bold text-blue-600 mb-4">Patrocinios y Apoyos</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Mostrar publicidad en:</label>
+                        <select 
+                          value={perfil.opcion_publicidad} 
+                          onChange={e => setPerfil({...perfil, opcion_publicidad: e.target.value})} 
+                          className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:border-blue-500 bg-white"
+                        >
+                          <option value="ninguno">Sin publicidad</option>
+                          <option value="organizador">Página del organizador</option>
+                          <option value="torneo">Página del torneo</option>
+                          <option value="ambos">En ambos</option>
+                        </select>
+                      </div>
+
+                      {perfil.opcion_publicidad !== 'ninguno' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Posición de los Banners:</label>
+                          <select 
+                            value={perfil.posicion_banner} 
+                            onChange={e => setPerfil({...perfil, posicion_banner: e.target.value})} 
+                            className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:border-blue-500 bg-white"
+                          >
+                            <option value="inferior_flotante">Carrusel Inferior Flotante</option>
+                            <option value="cabecera">Cabecera (Arriba)</option>
+                            <option value="lateral">Columna Lateral</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                 </div>
+
                </div>
             </div>
 

@@ -34,13 +34,15 @@ class PerfilOrganizadorRequest(BaseModel):
     email: Optional[str] = None
     telefono: Optional[str] = None
     opcion_chat: Optional[bool] = False
+    opcion_publicidad: Optional[str] = 'ninguno'
+    posicion_banner: Optional[str] = 'inferior_flotante'
 
 @router.get("/organizador/perfil")
 async def obtener_perfil_organizador(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     query = text("""
         SELECT enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede,
                acerca_de, idioma, pais, departamento, ciudad, ubicacion_exacta,
-               facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat
+               facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat, opcion_publicidad, posicion_banner
         FROM sistema.perfil_organizador 
         WHERE usuario_id = :uid
     """)
@@ -54,7 +56,7 @@ async def obtener_perfil_organizador(current_user: dict = Depends(get_current_us
             "visibilidad": "publico", "tipo_sede": "fisico",
             "acerca_de": "", "idioma": "Spanish", "pais": "", "departamento": "", "ciudad": "", "ubicacion_exacta": "",
             "facebook": "", "instagram": "", "youtube": "", "twitch": "", "twitter": "", "whatsapp": "",
-            "email": "", "telefono": "", "opcion_chat": False
+            "email": "", "telefono": "", "opcion_chat": False, "opcion_publicidad": "ninguno", "posicion_banner": "inferior_flotante"
         }
         
     return {
@@ -63,7 +65,8 @@ async def obtener_perfil_organizador(current_user: dict = Depends(get_current_us
         "visibilidad": row[6], "tipo_sede": row[7],
         "acerca_de": row[8], "idioma": row[9], "pais": row[10], "departamento": row[11], "ciudad": row[12], "ubicacion_exacta": row[13],
         "facebook": row[14], "instagram": row[15], "youtube": row[16], "twitch": row[17], "twitter": row[18], "whatsapp": row[19],
-        "email": row[20], "telefono": row[21], "opcion_chat": row[22]
+        "email": row[20], "telefono": row[21], "opcion_chat": row[22], "opcion_publicidad": row[23],
+        "posicion_banner": row[24]
     }
 
 @router.post("/organizador/perfil")
@@ -80,11 +83,11 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
         INSERT INTO sistema.perfil_organizador 
             (usuario_id, enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede,
              acerca_de, idioma, pais, departamento, ciudad, ubicacion_exacta,
-             facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat)
+             facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat, opcion_publicidad, posicion_banner)
         VALUES 
             (:uid, :enlace, :logo, :banner, :color, :t1, :t2, :vis, :sede,
              :acerca_de, :idioma, :pais, :departamento, :ciudad, :ubicacion_exacta,
-             :facebook, :instagram, :youtube, :twitch, :twitter, :whatsapp, :email, :telefono, :opcion_chat)
+             :facebook, :instagram, :youtube, :twitch, :twitter, :whatsapp, :email, :telefono, :opcion_chat, :opcion_publicidad, :posicion_banner)
         ON CONFLICT (usuario_id) DO UPDATE SET
             enlace_sitio = EXCLUDED.enlace_sitio,
             logo_url = EXCLUDED.logo_url,
@@ -109,6 +112,8 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
             email = EXCLUDED.email,
             telefono = EXCLUDED.telefono,
             opcion_chat = EXCLUDED.opcion_chat,
+            opcion_publicidad = EXCLUDED.opcion_publicidad,
+            posicion_banner = EXCLUDED.posicion_banner,
             actualizado_en = NOW()
     """)
     
@@ -136,7 +141,9 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
         "whatsapp": data.whatsapp,
         "email": data.email,
         "telefono": data.telefono,
-        "opcion_chat": data.opcion_chat
+        "opcion_chat": data.opcion_chat,
+        "opcion_publicidad": data.opcion_publicidad,
+        "posicion_banner": data.posicion_banner
     })
     
     await session.commit()
