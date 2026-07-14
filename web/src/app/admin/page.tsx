@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Shield, User, Lock, Settings, FileText, CheckCircle,
   Trash2, LogOut, RefreshCw, Layers, Plus, Power, MapPin,
-  Mail, Phone, Clock, AlertTriangle, Search
+  Mail, Phone, Clock, AlertTriangle, Search, MessageSquare, X, Send
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
