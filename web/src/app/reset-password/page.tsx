@@ -50,12 +50,17 @@ function ResetPasswordForm() {
       });
 
       if (res.ok) {
+        const data = await res.json();
         setSuccess('¡Contraseña restablecida exitosamente! Ya puedes iniciar sesión con tu nueva contraseña.');
         setToken('');
         setNewPassword('');
         setConfirmPassword('');
         setTimeout(() => {
-          router.push('/login');
+          if (data.username) {
+            router.push(`/login?user=${encodeURIComponent(data.username)}`);
+          } else {
+            router.push('/login');
+          }
         }, 3000);
       } else {
         const data = await res.json();

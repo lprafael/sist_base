@@ -609,7 +609,7 @@ async def confirm_password_reset(
     reset_record.usado = True
     await session.commit()
     
-    return {"message": "Contraseña restablecida exitosamente"}
+    return {"message": "Contraseña restablecida exitosamente", "username": user.username}
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(

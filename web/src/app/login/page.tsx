@@ -29,6 +29,17 @@ export default function LoginPage() {
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [adminError, setAdminError] = useState('');
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const userParam = params.get('user');
+      if (userParam) {
+        setAdminUser(userParam);
+        setAuthMode('admin');
+      }
+    }
+  }, []);
+
   // Audit logging utility helper
   const addAuditLog = (type: 'acceso' | 'auditoria', log: any) => {
     if (typeof window === 'undefined') return;
