@@ -809,7 +809,7 @@ async def inscripcion_publica_equipo(
     try:
         # Verificar que el torneo existe y esta abierto
         t_res = await session.execute(text("""
-            SELECT id, costo_inscripcion, estado, configuracion
+            SELECT id, nombre, costo_inscripcion, estado, configuracion
             FROM torneos.torneos
             WHERE id = CAST(:tid AS UUID)
         """), {"tid": torneo_id})
@@ -914,13 +914,31 @@ async def inscripcion_publica_equipo(
                     print("Error al enviar email a delegado:", str(mail_err))
 
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+        enlace_delegado = f"{frontend_url}/delegados/{token_delegado}"
+        enlace_jugadores = f"{frontend_url}/jugadores/registro/{token_jugadores}"
+
+        # Enviar email con los enlaces al delegado
+        if payload.capitan_email:
+            try:
+                email_service.send_delegado_link_email(
+                    to_email=payload.capitan_email.strip().lower(),
+                    equipo_nombre=payload.nombre_equipo,
+                    torneo_nombre=t_row.nombre if hasattr(t_row, 'nombre') else "Torneo",
+                    enlace_delegado=enlace_delegado,
+                    enlace_jugadores=enlace_jugadores,
+                    estado_inscripcion=estado_insc,
+                    costo_inscripcion=costo
+                )
+            except Exception as mail_err:
+                print("Error al enviar email de enlaces al delegado:", str(mail_err))
+
         return {
             "equipo_id": equipo_id,
             "token_delegado": token_delegado,
             "token_jugadores": token_jugadores,
             "estado_inscripcion": estado_insc,
-            "enlace_delegado": f"{frontend_url}/delegados/{token_delegado}",
-            "enlace_jugadores": f"{frontend_url}/jugadores/registro/{token_jugadores}",
+            "enlace_delegado": enlace_delegado,
+            "enlace_jugadores": enlace_jugadores,
             "mensaje": "Inscripcion realizada con exito. Guarda el enlace de delegado para gestionar tu equipo.",
         }
     except HTTPException:

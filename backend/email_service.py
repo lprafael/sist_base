@@ -199,5 +199,99 @@ class EmailService:
         """
         return self.send_email(to_email, subject, html_body, is_html=True)
 
+    def send_delegado_link_email(
+        self,
+        to_email: str,
+        equipo_nombre: str,
+        torneo_nombre: str,
+        enlace_delegado: str,
+        enlace_jugadores: str,
+        estado_inscripcion: str,
+        costo_inscripcion: float
+    ) -> bool:
+        """Envía email al delegado con los enlaces para gestionar el equipo e inscribir jugadores"""
+        subject = f"🔗 Enlaces de Gestión: {equipo_nombre} en {torneo_nombre}"
+        
+        mensaje_estado = ""
+        if estado_inscripcion == "pendiente" and costo_inscripcion > 0:
+            mensaje_estado = f"""
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:16px; margin-bottom:20px;">
+                <p style="margin:0; color:#b45309; font-size:14px; font-weight:700;">⚠️ Inscripción Pendiente de Pago</p>
+                <p style="margin:8px 0 0; color:#92400e; font-size:13px;">
+                    El torneo tiene un costo de inscripción de G. {costo_inscripcion:,.0f}. El organizador confirmará tu inscripción una vez verificado el pago.
+                </p>
+            </div>
+            """
+        elif estado_inscripcion == "confirmado":
+            mensaje_estado = """
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:16px; margin-bottom:20px;">
+                <p style="margin:0; color:#15803d; font-size:14px; font-weight:700;">✓ Inscripción Confirmada</p>
+            </div>
+            """
+
+        html_body = f"""
+        <html>
+        <body style="margin:0; padding:0; background:#f8fafc; font-family:Arial,sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                  
+                  <!-- Header -->
+                  <tr>
+                    <td style="background:linear-gradient(135deg,#1e40af,#3b82f6); padding:32px 30px; text-align:center;">
+                      <h1 style="margin:0; color:#ffffff; font-size:24px;">🔗 Enlaces de Inscripción</h1>
+                      <p style="margin:8px 0 0; color:#bfdbfe; font-size:15px;">{torneo_nombre}</p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Body -->
+                  <tr>
+                    <td style="padding:30px 30px 10px;">
+                      <p style="margin:0 0 16px; color:#1e293b; font-size:16px;">
+                        Has inscrito al equipo/academia <strong>{equipo_nombre}</strong> en <strong>{torneo_nombre}</strong>.
+                      </p>
+                      
+                      {mensaje_estado}
+
+                      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:20px; text-align:left; margin-bottom: 20px;">
+                        <p style="margin:0 0 8px; font-weight:700; color:#1e40af; font-size:15px;">1. Panel del Delegado</p>
+                        <p style="margin:0 0 16px; color:#475569; font-size:13px;">Guarda este enlace para gestionar tu equipo, agregar jugadores manualmente o asignar categorías (no lo compartas):</p>
+                        <a href="{enlace_delegado}" style="display:inline-block; background:#1d4ed8; color:white; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:700; font-size:14px; margin-bottom: 8px;">
+                          Ir al Panel de Delegado
+                        </a>
+                        <p style="margin:0; color:#64748b; font-size:11px; word-break: break-all;">{enlace_delegado}</p>
+                      </div>
+
+                      <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:10px; padding:20px; text-align:left;">
+                        <p style="margin:0 0 8px; font-weight:700; color:#6b21a8; font-size:15px;">2. Enlace para Jugadores</p>
+                        <p style="margin:0 0 16px; color:#475569; font-size:13px;">Comparte este enlace con tus atletas para que completen sus datos de inscripción:</p>
+                        <a href="{enlace_jugadores}" style="display:inline-block; background:#7e22ce; color:white; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:700; font-size:14px; margin-bottom: 8px;">
+                          Auto-Registro de Atletas
+                        </a>
+                        <p style="margin:0; color:#64748b; font-size:11px; word-break: break-all;">{enlace_jugadores}</p>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:20px 30px 30px; border-top:1px solid #f1f5f9; text-align:center;">
+                      <p style="margin:0; color:#94a3b8; font-size:12px;">
+                        Este email fue enviado automáticamente por el sistema de torneos de MiCancha.<br>
+                        © 2025 MiCancha. Todos los derechos reservados.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+        """
+        return self.send_email(to_email, subject, html_body, is_html=True)
+
 # Instancia global del servicio de email
 email_service = EmailService()

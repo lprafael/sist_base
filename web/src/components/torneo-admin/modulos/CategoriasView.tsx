@@ -11,7 +11,11 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
   
   // States for Category Form
   const [showCatForm, setShowCatForm] = useState(false);
-  const [formCat, setFormCat] = useState({ id: '', nombre: '', descripcion: '' });
+  const [formCat, setFormCat] = useState({ 
+    id: '', nombre: '', descripcion: '', 
+    genero: '', edad_min: '', edad_max: '', 
+    peso_min: '', peso_max: '', modalidad: '', cinturon: '' 
+  });
   const nombreInputRef = useRef<HTMLInputElement>(null);
 
   // States for Division Form
@@ -53,11 +57,18 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
       : `${API_URL}/futbol/torneos/${torneoId}/categorias`;
     const method = formCat.id ? 'PUT' : 'POST';
 
+    // Parse numeric fields properly
+    const payload: any = { ...formCat };
+    if (payload.edad_min) payload.edad_min = parseInt(payload.edad_min); else payload.edad_min = null;
+    if (payload.edad_max) payload.edad_max = parseInt(payload.edad_max); else payload.edad_max = null;
+    if (payload.peso_min) payload.peso_min = parseFloat(payload.peso_min); else payload.peso_min = null;
+    if (payload.peso_max) payload.peso_max = parseFloat(payload.peso_max); else payload.peso_max = null;
+
     try {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formCat)
+        body: JSON.stringify(payload)
       });
       if(res.ok) {
         if (formCat.id) {
@@ -69,7 +80,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
             }
           }, 100);
         }
-        setFormCat({ id: '', nombre: '', descripcion: '' });
+        setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '' });
         fetchData();
       }
     } catch(e) { console.error(e); }
@@ -134,7 +145,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
             Categorías
           </h3>
           <button 
-            onClick={() => { setFormCat({ id: '', nombre: '', descripcion: '' }); setShowCatForm(true); }}
+            onClick={() => { setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '' }); setShowCatForm(true); }}
             className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-1 transition"
           >
             <Plus size={16} /> Nueva Categoría
@@ -142,20 +153,58 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
         </div>
 
         {showCatForm && (
-          <form onSubmit={handleSaveCat} className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+          <form onSubmit={handleSaveCat} className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6 space-y-4 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
                 <label className="block text-xs font-bold text-slate-500 mb-1">Nombre de Categoría *</label>
                 <input ref={nombreInputRef} required type="text" value={formCat.nombre} onChange={e => setFormCat({...formCat, nombre: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: Masculino, Libre, Sub-18" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Género</label>
+                <select value={formCat.genero} onChange={e => setFormCat({...formCat, genero: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white">
+                  <option value="">Cualquiera</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Mixto">Mixto</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Edad Min y Max</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" placeholder="Min" value={formCat.edad_min} onChange={e => setFormCat({...formCat, edad_min: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" />
+                  <span className="text-slate-400">-</span>
+                  <input type="number" placeholder="Max" value={formCat.edad_max} onChange={e => setFormCat({...formCat, edad_max: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Peso Min y Max (kg)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" step="0.1" placeholder="Min" value={formCat.peso_min} onChange={e => setFormCat({...formCat, peso_min: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" />
+                  <span className="text-slate-400">-</span>
+                  <input type="number" step="0.1" placeholder="Max" value={formCat.peso_max} onChange={e => setFormCat({...formCat, peso_max: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Cinturón / Rango</label>
+                <input type="text" value={formCat.cinturon} onChange={e => setFormCat({...formCat, cinturon: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: Blanco a Azul" />
+              </div>
+              
+              <div className="lg:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 mb-1">Modalidad de Combate / Estilo</label>
+                <input type="text" value={formCat.modalidad} onChange={e => setFormCat({...formCat, modalidad: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: No-Gi, Kickboxing, Grappling" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Descripción extra</label>
                 <input type="text" value={formCat.descripcion} onChange={e => setFormCat({...formCat, descripcion: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Opcional" />
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button type="button" onClick={() => setShowCatForm(false)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
-              <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+              <button type="submit" className="px-5 py-2 text-sm bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">Guardar Categoría</button>
             </div>
           </form>
         )}
