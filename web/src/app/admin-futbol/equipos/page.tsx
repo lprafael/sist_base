@@ -379,7 +379,15 @@ export default function RegistroEquipoPage() {
 
             {/* FOOTER ACCIONES */}
             <div className="p-6 border-t border-gray-200 flex justify-between items-center bg-white">
-              <button className="text-red-500 font-bold text-lg hover:text-red-600 transition">
+              <button 
+                onClick={() => {
+                  if (selectedEquipoId && window.confirm("¿Estás seguro de eliminar este equipo?")) {
+                    handleDeleteEquipo(selectedEquipoId);
+                    setView("list");
+                  }
+                }}
+                className="text-red-500 font-bold text-lg hover:text-red-600 transition"
+              >
                 Quitar
               </button>
               <button 
