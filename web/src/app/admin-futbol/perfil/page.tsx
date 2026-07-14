@@ -180,8 +180,26 @@ export default function PerfilOrganizadorPage() {
           {/* HEADER: ENLACES Y VISIBILIDAD */}
           <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between">
             <div className="flex gap-4">
-               <button type="button" className="text-gray-500 hover:text-gray-800"><LinkIcon size={20}/></button>
-               <button type="button" className="text-gray-500 hover:text-gray-800"><ImageIcon size={20}/></button>
+               <button 
+                 type="button" 
+                 title="Ver perfil público"
+                 onClick={() => {
+                   if(perfil.enlace_sitio) window.open(`/organizador/${perfil.enlace_sitio}`, '_blank');
+                 }}
+                 className="text-gray-500 hover:text-blue-600 transition"
+               >
+                 <LinkIcon size={20}/>
+               </button>
+               <button 
+                 type="button" 
+                 title="Ir a sección de imágenes"
+                 onClick={() => {
+                   document.getElementById('seccion-imagenes')?.scrollIntoView({ behavior: 'smooth' });
+                 }}
+                 className="text-gray-500 hover:text-blue-600 transition"
+               >
+                 <ImageIcon size={20}/>
+               </button>
             </div>
             <button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
               {saving ? <Loader2 size={18} className="animate-spin"/> : <Save size={18}/>}
@@ -191,7 +209,7 @@ export default function PerfilOrganizadorPage() {
 
           <div className="p-6 space-y-8">
             {/* SECCION IMAGENES */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div id="seccion-imagenes" className="grid grid-cols-1 md:grid-cols-4 gap-6 scroll-mt-24">
               <div className="col-span-1">
                 <label className="block text-sm text-gray-500 mb-1">Organización del campeonato</label>
                 <div className="w-full aspect-[4/5] bg-gray-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-300 transition overflow-hidden relative group">
