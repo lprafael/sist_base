@@ -68,7 +68,7 @@ class EmailService:
     def send_password_reset_email(self, to_email: str, username: str, reset_token: str) -> bool:
         """Envía email para restablecer contraseña"""
         subject = "Restablecimiento de Contraseña - Sistema"
-        
+        frontend_url = os.getenv("FRONTEND_URL", "https://admin.micancha.com.py")
         html_body = f"""
         <html>
         <body>
@@ -76,7 +76,7 @@ class EmailService:
             <p>Hola <strong>{username}</strong>,</p>
             <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para crear una nueva:</p>
             <p>
-                <a href="https://admin.micancha.com.py/reset-password?token={reset_token}" style="display:inline-block;padding:10px 20px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">
+                <a href="{frontend_url}/reset-password?token={reset_token}" style="display:inline-block;padding:10px 20px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">
                     Restablecer mi Contraseña
                 </a>
             </p>
