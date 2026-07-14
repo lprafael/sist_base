@@ -810,6 +810,28 @@ export default function AdminConsole() {
     addToast(`${!currentHabilitado ? '🔓 Organizador Habilitado' : '🔒 Organizador Suspendido'} con éxito.`);
   };
 
+  const handleDeleteOrganizador = async (id: number, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente al organizador "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/organizadores/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setOrganizadores(prev => prev.filter(o => o.id !== id));
+        logEvent('auditoria', {
+          accion: 'Eliminar Organizador',
+          detalles: `Se eliminó permanentemente el organizador "${nombre}"`
+        });
+        addToast(`🗑️ Organizador eliminado con éxito.`);
+      } else {
+        const err = await res.json();
+        alert(`Error: ${err.detail || 'No se pudo eliminar el organizador'}`);
+      }
+    } catch (e: any) {
+      alert(`Error de red: ${e.message}`);
+    }
+  };
+
   const handleSaveComplejo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editComplejo.nombre || !editComplejo.direccion) return;
@@ -1582,6 +1604,15 @@ export default function AdminConsole() {
                                       style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                                     >
                                       Editar
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteOrganizador(o.id, o.nombre);
+                                      }}
+                                      style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                      Eliminar
                                     </button>
                                   </div>
                               </td>

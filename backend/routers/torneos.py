@@ -546,6 +546,24 @@ async def get_organizador_por_usuario(usuario_id: int, session: AsyncSession = D
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.delete("/organizadores/{organizador_id}", summary="Eliminar organizador independiente")
+async def delete_organizador(organizador_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        # Check if it has any associated tournaments
+        # Just try to delete, if foreign key constraints fail it will raise an error
+        await session.execute(
+            text("DELETE FROM cancha.organizador_deporte WHERE organizador_id = :id"),
+            {"id": organizador_id}
+        )
+        await session.execute(
+            text("DELETE FROM cancha.organizadores WHERE id = :id"),
+            {"id": organizador_id}
+        )
+        await session.commit()
+        return {"status": "ok", "message": "Organizador eliminado exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail="No se pudo eliminar el organizador. Asegúrate de que no tenga datos asociados (como torneos).")
 
 
 
