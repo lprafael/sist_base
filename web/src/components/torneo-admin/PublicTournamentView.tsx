@@ -290,46 +290,57 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
           </div>
         </div>
         
-        {/* Messages Input Box fixed at bottom right */}
-        <div className="fixed bottom-6 right-8 w-96 bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden flex flex-col z-40 transition-all duration-300">
-           <div 
-             className="bg-[#1e3a8a] p-4 text-white font-bold flex justify-between items-center cursor-pointer" 
-             style={{backgroundColor: colorSidebar}}
-             onClick={() => setIsChatOpen(!isChatOpen)}
-           >
-             <span className="flex items-center gap-2"><Mail size={16}/> Mensajes</span>
-             <button className="hover:bg-white/10 p-1 rounded transition">
-               <ChevronLeft size={20} className={`transition-transform duration-300 ${isChatOpen ? 'rotate-90' : 'rotate-[270deg]'}`} />
-             </button>
-           </div>
-           
-           {isChatOpen && (
-             <>
-               <div className="p-6 bg-slate-50 h-40 flex flex-col items-center justify-center text-center">
-                 <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
-                   <Mail className="text-slate-300" size={24} />
-                 </div>
-                 <p className="text-slate-400 text-sm font-medium">Envía un mensaje o consulta directamente a la organización del torneo.</p>
-               </div>
-               <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
-                 <input 
-                   type="text" 
-                   placeholder="Escribe aquí..." 
-                   className="flex-1 outline-none text-sm px-3 py-2 bg-slate-100 rounded-lg border border-transparent focus:border-slate-300 transition" 
-                   value={chatMessage}
-                   onChange={(e) => setChatMessage(e.target.value)}
-                   onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                 />
-                 <button 
-                   onClick={sendMessage}
-                   className="w-10 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shrink-0" 
-                   style={{backgroundColor: colorSidebar}}
-                 >
-                   <ArrowRight size={18} />
-                 </button>
-               </div>
-             </>
-           )}
+        {/* Floating Chat Button and Modal */}
+        <div className="fixed bottom-6 right-6 z-50">
+          {!isChatOpen ? (
+            <button 
+              onClick={() => setIsChatOpen(true)}
+              className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 transition-all"
+              style={{backgroundColor: colorSidebar}}
+            >
+              <Mail size={24} />
+            </button>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-2xl w-80 sm:w-96 flex flex-col overflow-hidden border border-gray-100 h-96">
+              <div 
+                className="p-4 text-white flex justify-between items-center"
+                style={{backgroundColor: colorSidebar}}
+              >
+                <div>
+                  <h3 className="font-bold">Consultas</h3>
+                  <p className="text-xs opacity-80">Mensaje a la organización</p>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="text-white hover:opacity-75">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="flex-1 p-6 bg-slate-50 flex flex-col items-center justify-center text-center overflow-y-auto">
+                <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
+                  <Mail className="text-slate-300" size={24} />
+                </div>
+                <p className="text-slate-400 text-sm font-medium">Envía un mensaje o consulta directamente a la organización del torneo.</p>
+              </div>
+              
+              <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Escribe aquí..." 
+                  className="flex-1 outline-none text-sm px-3 py-2 bg-slate-100 rounded-lg border border-transparent focus:border-slate-300 transition" 
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                />
+                <button 
+                  onClick={sendMessage}
+                  className="w-10 h-10 rounded-lg text-white flex items-center justify-center transition shrink-0" 
+                  style={{backgroundColor: colorSidebar}}
+                >
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
