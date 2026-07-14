@@ -217,11 +217,23 @@ export default function PublicOrganizerPage() {
             </div>
             
             {/* ACCIONES */}
-            <div className="md:mb-16 z-10 hidden md:block">
+            <div className="md:mb-16 z-10 flex gap-2">
                <button 
-                  onClick={() => {
-                      navigator.clipboard.writeText(window.location.href);
-                      alert("Enlace copiado");
+                  onClick={async () => {
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: perfil.nombre_liga || 'Organización Deportiva',
+                            text: perfil.descripcion || '¡Únete a nuestra liga!',
+                            url: window.location.href,
+                          });
+                        } catch (err) {
+                          console.log('Error al compartir', err);
+                        }
+                      } else {
+                        navigator.clipboard.writeText(window.location.href);
+                        alert("Enlace copiado al portapapeles");
+                      }
                   }}
                   className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full font-bold transition shadow-sm border border-white/30"
                >
