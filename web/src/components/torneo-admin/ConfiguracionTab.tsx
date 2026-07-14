@@ -280,6 +280,41 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         </div>
       </div>
 
+      {/* MODALIDAD DE INSCRIPCIÓN */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 className="font-bold text-slate-800 mb-4 text-lg">Modalidad de Inscripción</h3>
+        <div className="space-y-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input 
+              type="radio" name="competicion_por_atleta" value="false" 
+              checked={torneo.configuracion?.competicion_por_atleta !== true} 
+              onChange={() => {
+                onUpdate({ configuracion: { ...(torneo.configuracion || {}), competicion_por_atleta: false } });
+              }}
+              className="w-5 h-5 mt-0.5 text-blue-500 border-slate-300 focus:ring-blue-500" 
+            />
+            <div>
+               <span className="text-slate-700 font-medium block">Por equipo</span>
+               <span className="text-slate-500 text-sm">El equipo completo se inscribe a una sola categoría.</span>
+            </div>
+          </label>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input 
+              type="radio" name="competicion_por_atleta" value="true" 
+              checked={torneo.configuracion?.competicion_por_atleta === true} 
+              onChange={() => {
+                onUpdate({ configuracion: { ...(torneo.configuracion || {}), competicion_por_atleta: true } });
+              }}
+              className="w-5 h-5 mt-0.5 text-blue-500 border-slate-300 focus:ring-blue-500" 
+            />
+            <div>
+               <span className="text-slate-700 font-medium block">Por atleta</span>
+               <span className="text-slate-500 text-sm">Una academia o equipo puede inscribir a sus jugadores en categorías diferentes (Ej: Artes Marciales).</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* CAMPEONATO (LISTA) */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

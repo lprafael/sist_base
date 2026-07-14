@@ -700,7 +700,537 @@ async def get_posiciones(torneo_id: str, session: AsyncSession = Depends(get_ses
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{torneo_id}/equipos", summary="Inscribir equipo")
+# ============================================================
+# ENDPOINTS — FLUJO DE INSCRIPCIONES PUBLICO
+# ============================================================
+
+class InscripcionPublicaCreate(BaseModel):
+    """Payload para que un delegado inscriba su equipo."""
+    nombre_equipo: str
+    nombre_academia: Optional[str] = None
+    capitan_nombre: str
+    capitan_email: str
+    capitan_telefono: Optional[str] = None
+    color_principal: Optional[str] = "#1e3a8a"
+    color_secundario: Optional[str] = "#93c5fd"
+    categoria_id: Optional[str] = None  # solo cuando competicion_por_atleta=false
+
+class JugadorAutoRegistroUpdate(BaseModel):
+    """Payload para que un jugador complete sus propios datos."""
+    nombre: Optional[str] = None
+    dni: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+    numero_camiseta: Optional[int] = None
+    posicion: Optional[str] = None
+    peso_declarado: Optional[float] = None
+    estatura_declarada: Optional[float] = None
+    categoria_id: Optional[str] = None
+
+
+@router.get("/{torneo_id}/info-publica", summary="Info publica del torneo para pagina de inscripcion")
+async def get_torneo_info_publica(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    """Endpoint publico sin autenticacion para que los delegados vean el torneo."""
+    try:
+        t_res = await session.execute(text("""
+            SELECT t.id, t.nombre, t.descripcion, t.deporte, t.estado,
+                   t.fecha_inicio, t.fecha_fin, t.costo_inscripcion,
+                   t.max_equipos, t.imagen_portada, t.imagen_banner,
+                   t.configuracion, t.reglas,
+                   org.nombre AS organizador_nombre
+            FROM torneos.torneos t
+            LEFT JOIN cancha.organizadores org ON t.organizador_id = org.id
+            WHERE t.id = CAST(:tid AS UUID)
+        """), {"tid": torneo_id})
+        row = t_res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+
+        configuracion = row.configuracion or {}
+        if isinstance(configuracion, str):
+            try: configuracion = json.loads(configuracion)
+            except: configuracion = {}
+
+        por_atleta = configuracion.get("competicion_por_atleta", False)
+
+        # Traer categorias del torneo
+        cat_res = await session.execute(text("""
+            SELECT id, nombre, formato, descripcion, configuracion
+            FROM torneos.categorias
+            WHERE torneo_id = CAST(:tid AS UUID)
+            ORDER BY nombre ASC
+        """), {"tid": torneo_id})
+        categorias = [dict(r._mapping) for r in cat_res.fetchall()]
+
+        # Contar equipos ya inscritos
+        eq_res = await session.execute(text("""
+            SELECT COUNT(*) FROM torneos.equipos
+            WHERE torneo_id = CAST(:tid AS UUID) AND estado_inscripcion != 'eliminado'
+        """), {"tid": torneo_id})
+        equipos_count = eq_res.scalar() or 0
+
+        reglas = row.reglas
+        if isinstance(reglas, str):
+            try: reglas = json.loads(reglas)
+            except: reglas = []
+
+        return {
+            "id": str(row.id),
+            "nombre": row.nombre,
+            "descripcion": row.descripcion,
+            "deporte": row.deporte,
+            "estado": row.estado,
+            "fecha_inicio": str(row.fecha_inicio) if row.fecha_inicio else None,
+            "fecha_fin": str(row.fecha_fin) if row.fecha_fin else None,
+            "costo_inscripcion": float(row.costo_inscripcion or 0),
+            "max_equipos": row.max_equipos,
+            "imagen_portada": row.imagen_portada,
+            "imagen_banner": row.imagen_banner,
+            "organizador_nombre": row.organizador_nombre,
+            "competicion_por_atleta": por_atleta,
+            "categorias": categorias,
+            "equipos_inscritos": int(equipos_count),
+            "reglas": reglas or [],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{torneo_id}/inscripcion-publica", summary="Inscripcion publica de equipo (delegado)")
+async def inscripcion_publica_equipo(
+    torneo_id: str,
+    payload: InscripcionPublicaCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    """Delegado inscribe su equipo/academia al torneo. Devuelve token_delegado para gestionar."""
+    try:
+        # Verificar que el torneo existe y esta abierto
+        t_res = await session.execute(text("""
+            SELECT id, costo_inscripcion, estado, configuracion
+            FROM torneos.torneos
+            WHERE id = CAST(:tid AS UUID)
+        """), {"tid": torneo_id})
+        t_row = t_res.fetchone()
+        if not t_row:
+            raise HTTPException(status_code=404, detail="Torneo no encontrado")
+        if t_row.estado not in ("abierto", "en_curso", "preparacion"):
+            raise HTTPException(status_code=400, detail="El torneo no esta aceptando inscripciones en este momento")
+
+        configuracion = t_row.configuracion or {}
+        if isinstance(configuracion, str):
+            try: configuracion = json.loads(configuracion)
+            except: configuracion = {}
+        por_atleta = configuracion.get("competicion_por_atleta", False)
+
+        # Si no es por_atleta, categoria_id es requerida
+        if not por_atleta and not payload.categoria_id:
+            # Intentar tomar la primera categoria si hay una sola
+            cat_res = await session.execute(text("""
+                SELECT id FROM torneos.categorias WHERE torneo_id = CAST(:tid AS UUID) LIMIT 1
+            """), {"tid": torneo_id})
+            cat_row = cat_res.fetchone()
+            if cat_row:
+                payload.categoria_id = str(cat_row.id)
+
+        costo = float(t_row.costo_inscripcion or 0)
+        estado_insc = "confirmado" if costo <= 0 else "pendiente"
+
+        # Verificar que el email no ya esta registrado en este torneo
+        dup_res = await session.execute(text("""
+            SELECT id FROM torneos.equipos
+            WHERE torneo_id = CAST(:tid AS UUID) AND capitan_email = :email AND estado_inscripcion != 'eliminado'
+        """), {"tid": torneo_id, "email": payload.capitan_email.strip().lower()})
+        if dup_res.fetchone():
+            raise HTTPException(status_code=400, detail="Ya existe una inscripcion con este email en este torneo")
+
+        # Insertar el equipo
+        ins_res = await session.execute(text("""
+            INSERT INTO torneos.equipos (
+                id, torneo_id, nombre, nombre_academia, capitan_nombre, capitan_email,
+                capitan_telefono, color_principal, color_secundario,
+                estado_inscripcion, categoria_id
+            )
+            VALUES (
+                gen_random_uuid(), CAST(:tid AS UUID), :nombre, :academia, :cap_nombre, :cap_email,
+                :cap_tel, :color_p, :color_s, :estado, :cat_id
+            )
+            RETURNING id, token_delegado, token_jugadores
+        """), {
+            "tid": torneo_id,
+            "nombre": payload.nombre_equipo,
+            "academia": payload.nombre_academia or payload.nombre_equipo,
+            "cap_nombre": payload.capitan_nombre,
+            "cap_email": payload.capitan_email.strip().lower(),
+            "cap_tel": payload.capitan_telefono,
+            "color_p": payload.color_principal,
+            "color_s": payload.color_secundario,
+            "estado": estado_insc,
+            "cat_id": payload.categoria_id,
+        })
+        row = ins_res.fetchone()
+        await session.commit()
+
+        equipo_id = str(row.id)
+        token_delegado = str(row.token_delegado)
+        token_jugadores = str(row.token_jugadores)
+
+        # Crear usuario delegado si no existe
+        if payload.capitan_email:
+            email_del = payload.capitan_email.strip().lower()
+            u_res = await session.execute(
+                text("SELECT id FROM sistema.usuarios WHERE email = :email"),
+                {"email": email_del}
+            )
+            if not u_res.fetchone():
+                usr_base = email_del.split('@')[0]
+                usr_check = await session.execute(
+                    text("SELECT id FROM sistema.usuarios WHERE username = :username"),
+                    {"username": usr_base}
+                )
+                username_final = usr_base if not usr_check.fetchone() else f"{usr_base}_{secrets.token_hex(2)}"
+                pass_temp = generate_random_password(10)
+                pass_hash = get_password_hash(pass_temp)
+                await session.execute(text("""
+                    INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo, fecha_creacion)
+                    VALUES (:username, :email, :pass_hash, :nombre, 'delegado', true, NOW())
+                """), {
+                    "username": username_final,
+                    "email": email_del,
+                    "pass_hash": pass_hash,
+                    "nombre": payload.capitan_nombre
+                })
+                await session.commit()
+                try:
+                    email_service.send_welcome_email(
+                        to_email=email_del,
+                        username=username_final,
+                        password=pass_temp,
+                        role="Delegado de Equipo"
+                    )
+                except Exception as mail_err:
+                    print("Error al enviar email a delegado:", str(mail_err))
+
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+        return {
+            "equipo_id": equipo_id,
+            "token_delegado": token_delegado,
+            "token_jugadores": token_jugadores,
+            "estado_inscripcion": estado_insc,
+            "enlace_delegado": f"{frontend_url}/delegados/{token_delegado}",
+            "enlace_jugadores": f"{frontend_url}/jugadores/registro/{token_jugadores}",
+            "mensaje": "Inscripcion realizada con exito. Guarda el enlace de delegado para gestionar tu equipo.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/delegados/{token}", summary="Panel del delegado por token")
+async def get_panel_delegado(token: str, session: AsyncSession = Depends(get_session)):
+    """Devuelve toda la info del equipo, torneo, jugadores y categorias disponibles."""
+    try:
+        eq_res = await session.execute(text("""
+            SELECT te.id, te.nombre, te.nombre_academia, te.logo_url, te.foto_equipo_url,
+                   te.color_principal, te.color_secundario,
+                   te.capitan_nombre, te.capitan_telefono, te.capitan_email,
+                   te.estado_inscripcion, te.token_jugadores, te.categoria_id,
+                   t.id AS torneo_id, t.nombre AS torneo_nombre, t.deporte, t.formato,
+                   t.estado AS torneo_estado, t.configuracion AS torneo_config,
+                   t.imagen_portada, t.costo_inscripcion
+            FROM torneos.equipos te
+            JOIN torneos.torneos t ON te.torneo_id = t.id
+            WHERE te.token_delegado = CAST(:token AS UUID)
+        """), {"token": token})
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Enlace de delegado no valido o expirado")
+
+        torneo_config = eq_row.torneo_config or {}
+        if isinstance(torneo_config, str):
+            try: torneo_config = json.loads(torneo_config)
+            except: torneo_config = {}
+        por_atleta = torneo_config.get("competicion_por_atleta", False)
+
+        # Jugadores del equipo
+        pl_res = await session.execute(text("""
+            SELECT tp.id, tp.nombre, tp.dni, tp.fecha_nacimiento, tp.numero_camiseta,
+                   tp.posicion, tp.foto_url, tp.estado, tp.email,
+                   tp.token_jugador, tp.categoria_id,
+                   tp.peso_verificado, tp.estatura_verificada, tp.biometria_aprobada,
+                   c.nombre AS categoria_nombre
+            FROM torneos.tournament_players tp
+            LEFT JOIN torneos.categorias c ON tp.categoria_id = c.id
+            WHERE tp.torneo_equipo_id = :eid
+            ORDER BY tp.numero_camiseta ASC NULLS LAST, tp.nombre ASC
+        """), {"eid": str(eq_row.id)})
+        pl_rows = pl_res.fetchall()
+        jugadores = []
+        for r in pl_rows:
+            jugadores.append({
+                "id": str(r.id),
+                "nombre": r.nombre,
+                "dni": r.dni,
+                "fecha_nacimiento": str(r.fecha_nacimiento) if r.fecha_nacimiento else None,
+                "numero_camiseta": r.numero_camiseta,
+                "posicion": r.posicion,
+                "foto_url": r.foto_url,
+                "estado": r.estado,
+                "email": r.email,
+                "token_jugador": str(r.token_jugador) if r.token_jugador else None,
+                "categoria_id": str(r.categoria_id) if r.categoria_id else None,
+                "categoria_nombre": r.categoria_nombre,
+                "peso_verificado": float(r.peso_verificado) if r.peso_verificado else None,
+                "estatura_verificada": float(r.estatura_verificada) if r.estatura_verificada else None,
+                "biometria_aprobada": r.biometria_aprobada,
+            })
+
+        # Categorias disponibles en el torneo (para asignar por atleta)
+        cat_res = await session.execute(text("""
+            SELECT id, nombre, descripcion, configuracion
+            FROM torneos.categorias
+            WHERE torneo_id = :tid
+            ORDER BY nombre ASC
+        """), {"tid": str(eq_row.torneo_id)})
+        categorias = [dict(r._mapping) for r in cat_res.fetchall()]
+
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+        return {
+            "equipo": {
+                "id": str(eq_row.id),
+                "nombre": eq_row.nombre,
+                "nombre_academia": eq_row.nombre_academia,
+                "logo_url": eq_row.logo_url,
+                "foto_equipo_url": eq_row.foto_equipo_url,
+                "color_principal": eq_row.color_principal,
+                "color_secundario": eq_row.color_secundario,
+                "capitan_nombre": eq_row.capitan_nombre,
+                "capitan_telefono": eq_row.capitan_telefono,
+                "capitan_email": eq_row.capitan_email,
+                "estado_inscripcion": eq_row.estado_inscripcion,
+                "token_jugadores": str(eq_row.token_jugadores) if eq_row.token_jugadores else None,
+                "categoria_id": str(eq_row.categoria_id) if eq_row.categoria_id else None,
+            },
+            "torneo": {
+                "id": str(eq_row.torneo_id),
+                "nombre": eq_row.torneo_nombre,
+                "deporte": eq_row.deporte,
+                "formato": eq_row.formato,
+                "estado": eq_row.torneo_estado,
+                "imagen_portada": eq_row.imagen_portada,
+                "costo_inscripcion": float(eq_row.costo_inscripcion or 0),
+                "competicion_por_atleta": por_atleta,
+            },
+            "jugadores": jugadores,
+            "categorias": categorias,
+            "enlace_jugadores": f"{frontend_url}/jugadores/registro/{eq_row.token_jugadores}",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/delegados/{token}/jugadores", summary="Delegado agrega jugador al equipo")
+async def delegado_agregar_jugador(
+    token: str,
+    payload: JugadorCreate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        eq_res = await session.execute(text("""
+            SELECT id, torneo_id FROM torneos.equipos WHERE token_delegado = CAST(:token AS UUID)
+        """), {"token": token})
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Token de delegado no valido")
+
+        ins_res = await session.execute(text("""
+            INSERT INTO torneos.tournament_players (
+                id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta,
+                posicion, foto_url, estado, email
+            )
+            VALUES (
+                gen_random_uuid(), :eid, :nombre, :dni, :fnac, :num,
+                :pos, :foto, 'habilitado', :email
+            )
+            RETURNING id, token_jugador
+        """), {
+            "eid": str(eq_row.id),
+            "nombre": payload.nombre,
+            "dni": payload.dni,
+            "fnac": payload.fecha_nacimiento,
+            "num": payload.numero_camiseta,
+            "pos": payload.posicion,
+            "foto": payload.foto_url,
+            "email": payload.email,
+        })
+        row = ins_res.fetchone()
+        await session.commit()
+
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+        return {
+            "id": str(row.id),
+            "token_jugador": str(row.token_jugador) if row.token_jugador else None,
+            "enlace_autoregistro": f"{frontend_url}/jugadores/registro/{row.token_jugador}",
+            "mensaje": "Jugador agregado correctamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/delegados/{token}/jugadores/{jugador_id}/categoria", summary="Asignar categoria a un jugador (por atleta)")
+async def delegado_asignar_categoria_jugador(
+    token: str,
+    jugador_id: str,
+    categoria_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        eq_res = await session.execute(text("""
+            SELECT id FROM torneos.equipos WHERE token_delegado = CAST(:token AS UUID)
+        """), {"token": token})
+        eq_row = eq_res.fetchone()
+        if not eq_row:
+            raise HTTPException(status_code=404, detail="Token de delegado no valido")
+
+        upd = await session.execute(text("""
+            UPDATE torneos.tournament_players
+            SET categoria_id = CAST(:cat_id AS UUID)
+            WHERE id = CAST(:jid AS UUID) AND torneo_equipo_id = :eid
+        """), {"cat_id": categoria_id, "jid": jugador_id, "eid": str(eq_row.id)})
+        await session.commit()
+
+        if upd.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
+        return {"mensaje": "Categoria asignada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/jugadores/token/{token}", summary="Info del jugador por su token de auto-registro")
+async def get_jugador_por_token(token: str, session: AsyncSession = Depends(get_session)):
+    try:
+        res = await session.execute(text("""
+            SELECT tp.id, tp.nombre, tp.dni, tp.fecha_nacimiento, tp.numero_camiseta,
+                   tp.posicion, tp.foto_url, tp.estado, tp.email,
+                   tp.peso_verificado, tp.estatura_verificada, tp.categoria_id,
+                   te.nombre AS equipo_nombre, te.nombre_academia, te.color_principal,
+                   te.torneo_id, t.nombre AS torneo_nombre, t.deporte,
+                   t.imagen_portada, t.configuracion AS torneo_config
+            FROM torneos.tournament_players tp
+            JOIN torneos.equipos te ON tp.torneo_equipo_id = te.id
+            JOIN torneos.torneos t ON te.torneo_id = t.id
+            WHERE tp.token_jugador = CAST(:token AS UUID)
+        """), {"token": token})
+        row = res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Token de jugador no valido o expirado")
+
+        torneo_config = row.torneo_config or {}
+        if isinstance(torneo_config, str):
+            try: torneo_config = json.loads(torneo_config)
+            except: torneo_config = {}
+
+        # Categorias disponibles
+        cat_res = await session.execute(text("""
+            SELECT id, nombre, descripcion, configuracion
+            FROM torneos.categorias
+            WHERE torneo_id = :tid
+            ORDER BY nombre ASC
+        """), {"tid": str(row.torneo_id)})
+        categorias = [dict(r._mapping) for r in cat_res.fetchall()]
+
+        return {
+            "jugador": {
+                "id": str(row.id),
+                "nombre": row.nombre,
+                "dni": row.dni,
+                "fecha_nacimiento": str(row.fecha_nacimiento) if row.fecha_nacimiento else None,
+                "numero_camiseta": row.numero_camiseta,
+                "posicion": row.posicion,
+                "foto_url": row.foto_url,
+                "estado": row.estado,
+                "email": row.email,
+                "peso_verificado": float(row.peso_verificado) if row.peso_verificado else None,
+                "estatura_verificada": float(row.estatura_verificada) if row.estatura_verificada else None,
+                "categoria_id": str(row.categoria_id) if row.categoria_id else None,
+            },
+            "equipo": {
+                "nombre": row.equipo_nombre,
+                "nombre_academia": row.nombre_academia,
+                "color_principal": row.color_principal,
+            },
+            "torneo": {
+                "id": str(row.torneo_id),
+                "nombre": row.torneo_nombre,
+                "deporte": row.deporte,
+                "imagen_portada": row.imagen_portada,
+                "competicion_por_atleta": torneo_config.get("competicion_por_atleta", False),
+            },
+            "categorias": categorias,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/jugadores/token/{token}", summary="Jugador completa sus datos de auto-registro")
+async def jugador_autoregistro(
+    token: str,
+    payload: JugadorAutoRegistroUpdate,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Verificar que el token existe
+        check = await session.execute(text("""
+            SELECT tp.id FROM torneos.tournament_players tp
+            WHERE tp.token_jugador = CAST(:token AS UUID)
+        """), {"token": token})
+        if not check.fetchone():
+            raise HTTPException(status_code=404, detail="Token de jugador no valido")
+
+        updates = []
+        params = {"token": token}
+
+        if payload.nombre: updates.append("nombre = :nombre"); params["nombre"] = payload.nombre
+        if payload.dni: updates.append("dni = :dni"); params["dni"] = payload.dni
+        if payload.fecha_nacimiento: updates.append("fecha_nacimiento = :fnac"); params["fnac"] = payload.fecha_nacimiento
+        if payload.email: updates.append("email = :email"); params["email"] = payload.email
+        if payload.numero_camiseta is not None: updates.append("numero_camiseta = :num"); params["num"] = payload.numero_camiseta
+        if payload.posicion: updates.append("posicion = :pos"); params["pos"] = payload.posicion
+        if payload.peso_declarado is not None: updates.append("peso_verificado = :peso"); params["peso"] = payload.peso_declarado
+        if payload.estatura_declarada is not None: updates.append("estatura_verificada = :est"); params["est"] = payload.estatura_declarada
+        if payload.categoria_id: updates.append("categoria_id = CAST(:cat_id AS UUID)"); params["cat_id"] = payload.categoria_id
+
+        if updates:
+            await session.execute(text(f"""
+                UPDATE torneos.tournament_players
+                SET {', '.join(updates)}, actualizado_en = NOW()
+                WHERE token_jugador = CAST(:token AS UUID)
+            """), params)
+            await session.commit()
+
+        return {"mensaje": "Datos actualizados correctamente. Tu inscripcion esta confirmada."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(\"/{torneo_id}/equipos\", summary=\"Inscribir equipo\")
 async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSession = Depends(get_session)):
     try:
         t_res = await session.execute(

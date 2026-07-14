@@ -1,203 +1,296 @@
-"use client";
-import { useState, useRef, useEffect } from "react";
-import { Camera, Upload, User, CheckCircle, ChevronRight, Loader2, RefreshCw, Trophy } from "lucide-react";
-import { useParams } from "next/navigation";
+'use client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+import { useState, useEffect } from 'react';
+import {
+  CheckCircle, Loader2, AlertCircle, ShieldCheck, Tag,
+  User, Scale, Trophy
+} from 'lucide-react';
+import Nav from '@/components/Nav';
+import Footer from '@/components/Footer';
 
-export default function RegistroJugadorPage() {
-  const params = useParams();
-  const token = params.token as string;
-  const [step, setStep] = useState<1|2|3>(1);
-  const [equipo, setEquipo] = useState<any>(null);
-  const [formData, setFormData] = useState({ nombre: "", dni: "", fecha_nacimiento: "", numero_camiseta: "", posicion: "Defensor" });
-  const [cameraOn, setCameraOn] = useState(false);
-  const [fotoFile, setFotoFile] = useState<File | null>(null);
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle"|"loading"|"success"|"error">("idle");
-  const [message, setMessage] = useState("");
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
+type PageData = {
+  jugador: {
+    id: string;
+    nombre: string | null;
+    dni: string | null;
+    fecha_nacimiento: string | null;
+    numero_camiseta: number | null;
+    posicion: string | null;
+    foto_url: string | null;
+    estado: string;
+    email: string | null;
+    peso_verificado: number | null;
+    estatura_verificada: number | null;
+    categoria_id: string | null;
+  };
+  equipo: { nombre: string; nombre_academia: string; color_principal: string };
+  torneo: { id: string; nombre: string; deporte: string; imagen_portada: string | null; competicion_por_atleta: boolean };
+  categorias: { id: string; nombre: string; descripcion: string }[];
+};
+
+export default function JugadorRegistroPage({ params }: { params: { token: string } }) {
+  const { token } = params;
+  const [data, setData] = useState<PageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const [pageError, setPageError] = useState('');
+
+  const [form, setForm] = useState({
+    nombre: '', dni: '', fecha_nacimiento: '', email: '',
+    numero_camiseta: '', posicion: '', peso_declarado: '',
+    estatura_declarada: '', categoria_id: '',
+  });
 
   useEffect(() => {
-    fetch(API_URL + "/cancha/torneos/equipos/token-jugadores/" + token)
-      .then(r => r.ok ? r.json() : null).then(d => d && setEquipo(d)).catch(() => {});
+    fetch(`${API_URL}/cancha/torneos/jugadores/token/${token}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.detail) { setPageError(d.detail); setLoading(false); return; }
+        setData(d);
+        setForm({
+          nombre: d.jugador.nombre || '',
+          dni: (d.jugador.dni && d.jugador.dni !== 'PENDIENTE') ? d.jugador.dni : '',
+          fecha_nacimiento: d.jugador.fecha_nacimiento || '',
+          email: d.jugador.email || '',
+          numero_camiseta: d.jugador.numero_camiseta ? String(d.jugador.numero_camiseta) : '',
+          posicion: d.jugador.posicion || '',
+          peso_declarado: d.jugador.peso_verificado ? String(d.jugador.peso_verificado) : '',
+          estatura_declarada: d.jugador.estatura_verificada ? String(d.jugador.estatura_verificada) : '',
+          categoria_id: d.jugador.categoria_id || '',
+        });
+        setLoading(false);
+      })
+      .catch(() => { setPageError('Error de conexión'); setLoading(false); });
   }, [token]);
 
-  useEffect(() => {
-    if (cameraOn) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(s => { streamRef.current = s; if (videoRef.current) videoRef.current.srcObject = s; })
-        .catch(() => { alert("No se pudo acceder a la camara."); setCameraOn(false); });
-    } else {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    return () => { streamRef.current?.getTracks().forEach(t => t.stop()); };
-  }, [cameraOn]);
-
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const c = canvasRef.current;
-    c.width = videoRef.current.videoWidth; c.height = videoRef.current.videoHeight;
-    c.getContext("2d")?.drawImage(videoRef.current, 0, 0);
-    c.toBlob(blob => {
-      if (!blob) return;
-      setFotoFile(new File([blob], "foto.jpg", { type: "image/jpeg" }));
-      setFotoPreview(URL.createObjectURL(blob));
-      setCameraOn(false);
-    }, "image/jpeg", 0.9);
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.nombre || !formData.dni) { setMessage("Nombre y CI son obligatorios."); setStatus("error"); return; }
-    setStatus("loading");
-    const data = new FormData();
-    data.append("nombre", formData.nombre); data.append("dni", formData.dni);
-    if (formData.fecha_nacimiento) data.append("fecha_nacimiento", formData.fecha_nacimiento);
-    if (formData.numero_camiseta) data.append("numero_camiseta", formData.numero_camiseta);
-    if (formData.posicion) data.append("posicion", formData.posicion);
-    if (fotoFile) data.append("file", fotoFile);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
     try {
-      const res = await fetch(API_URL + "/cancha/torneos/jugadores/self-register/" + token, { method: "POST", body: data });
-      const rd = await res.json();
-      if (res.ok) { setStatus("success"); setMessage(rd.message || "Exito!"); }
-      else { setStatus("error"); setMessage(rd.detail || "Error en el registro."); }
-    } catch { setStatus("error"); setMessage("Sin conexion."); }
+      const payload: any = {
+        nombre: form.nombre || undefined,
+        dni: form.dni || undefined,
+        fecha_nacimiento: form.fecha_nacimiento || undefined,
+        email: form.email || undefined,
+        numero_camiseta: form.numero_camiseta ? parseInt(form.numero_camiseta) : undefined,
+        posicion: form.posicion || undefined,
+        peso_declarado: form.peso_declarado ? parseFloat(form.peso_declarado) : undefined,
+        estatura_declarada: form.estatura_declarada ? parseFloat(form.estatura_declarada) : undefined,
+        categoria_id: form.categoria_id || undefined,
+      };
+      const res = await fetch(`${API_URL}/cancha/torneos/jugadores/token/${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || 'Error al guardar');
+      setDone(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (status === "success") return (
-    <div className="min-h-screen bg-[#080b12] flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
-        <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-6" />
-        <h1 className="text-3xl font-black text-white mb-2">Registrado!</h1>
-        {equipo && <p className="text-green-400 font-bold mb-2">{equipo.nombre}</p>}
-        <p className="text-slate-400">{message}</p>
-        {!fotoFile && <p className="mt-4 text-yellow-400 text-sm bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-3">Sin foto: pedile a tu delegado que agregue tu foto para el check-in facial.</p>}
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <Loader2 size={40} className="animate-spin text-blue-500" />
+    </div>
+  );
+
+  if (pageError || !data) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="text-center max-w-md px-4">
+        <AlertCircle size={48} className="text-red-400 mx-auto mb-4" />
+        <h1 className="text-2xl font-bold text-slate-700 mb-2">Enlace no válido</h1>
+        <p className="text-slate-500">{pageError || 'Tu enlace de registro no es válido o ha expirado.'}</p>
       </div>
     </div>
   );
 
+  const { jugador, equipo, torneo, categorias } = data;
+  const porAtleta = torneo.competicion_por_atleta;
+  const color = equipo.color_principal || '#1e3a8a';
+
   return (
-    <div className="min-h-screen bg-[#080b12] text-white p-4 pb-16">
-      <div className="max-w-md mx-auto">
-        <div className="text-center pt-10 pb-8">
-          <div className="w-16 h-16 bg-green-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-500/30">
-            <Trophy className="w-8 h-8 text-green-400" />
-          </div>
-          {equipo && <p className="text-green-400 font-bold text-sm mb-1">{equipo.torneo_nombre}</p>}
-          <h1 className="text-2xl font-black">Registro de Jugador</h1>
-          {equipo && <p className="text-slate-400 text-sm mt-1">Equipo: <span className="text-white font-bold">{equipo.nombre}</span></p>}
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      <Nav scrolled={true} />
+
+      {/* BANNER */}
+      <div className="relative pt-20 pb-10 overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${color} 0%, #0f172a 100%)` }}>
+        <div className="max-w-2xl mx-auto px-4 text-center">
+          {torneo.imagen_portada && (
+            <img src={torneo.imagen_portada} alt="" className="w-14 h-14 rounded-full border-2 border-white/40 mx-auto mb-3 object-cover shadow-lg" />
+          )}
+          <p className="text-white/60 text-sm font-medium mb-1">{equipo.nombre_academia || equipo.nombre}</p>
+          <h1 className="text-2xl md:text-3xl font-black text-white">{torneo.nombre}</h1>
+          <p className="text-white/70 text-sm mt-2">{torneo.deporte} · Formulario de Inscripción del Atleta</p>
         </div>
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {([1,2,3] as const).map(s => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-black " + (step >= s ? "bg-green-500 text-black" : "bg-slate-800 text-slate-500")}>{s}</div>
-              {s < 3 && <div className={"w-12 h-0.5 " + (step > s ? "bg-green-500" : "bg-slate-800")} />}
-            </div>
-          ))}
-        </div>
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-black mb-4">Tus Datos</h2>
-            {([["Nombre Completo *", "nombre", "text", "Juan Perez"],["CI / DNI *", "dni", "text", "4567890"],["Fecha de Nacimiento", "fecha_nacimiento", "date", ""],["Numero de Camiseta", "numero_camiseta", "number", "10"]] as const).map(([label, key, type, ph]) => (
-              <div key={key}>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">{label}</label>
-                <input type={type} placeholder={ph} value={(formData as any)[key]}
-                  onChange={e => setFormData({ ...formData, [key]: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 text-sm" />
-              </div>
-            ))}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Posicion</label>
-              <select value={formData.posicion} onChange={e => setFormData({ ...formData, posicion: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 text-sm">
-                {["Arquero","Defensor","Mediocampista","Delantero"].map(p => <option key={p}>{p}</option>)}
-              </select>
-            </div>
-            <button onClick={() => setStep(2)} className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-2xl flex items-center justify-center gap-2 mt-4">
-              Continuar <ChevronRight size={20} />
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div>
-            <h2 className="text-xl font-black mb-2">Foto Biometrica</h2>
-            <p className="text-slate-400 text-sm mb-6">Opcional. Se usara para reconocerte el dia del torneo.</p>
-            {!cameraOn && !fotoPreview && (
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <button onClick={() => setCameraOn(true)} className="bg-slate-900 border-2 border-dashed border-green-500/40 hover:border-green-500 rounded-2xl p-6 flex flex-col items-center gap-3">
-                  <Camera className="w-10 h-10 text-green-400" /><span className="font-bold text-sm">Camara</span><span className="text-slate-500 text-xs">Recomendado</span>
-                </button>
-                <label className="bg-slate-900 border-2 border-dashed border-slate-700 hover:border-slate-500 rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer">
-                  <Upload className="w-10 h-10 text-slate-400" /><span className="font-bold text-sm">Subir foto</span><span className="text-slate-500 text-xs">Galeria</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if(f){setFotoFile(f);setFotoPreview(URL.createObjectURL(f));} }} />
-                </label>
-              </div>
-            )}
-            {cameraOn && (
-              <div className="mb-6">
-                <div className="relative rounded-2xl overflow-hidden aspect-video bg-slate-900 mb-4">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-40 border-2 border-green-400 rounded-full opacity-60" />
-                  <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-green-300 font-bold">Mira de frente con buena luz</p>
-                </div>
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="flex gap-3">
-                  <button onClick={capturePhoto} className="flex-1 bg-green-500 text-black font-black py-3 rounded-xl flex items-center justify-center gap-2"><Camera size={20}/>Capturar</button>
-                  <button onClick={() => setCameraOn(false)} className="px-4 py-3 bg-slate-800 rounded-xl"><RefreshCw size={18}/></button>
-                </div>
-              </div>
-            )}
-            {fotoPreview && (
-              <div className="mb-6">
-                <div className="relative rounded-2xl overflow-hidden aspect-video bg-slate-900">
-                  <img src={fotoPreview} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute top-2 right-2 bg-green-500 text-black text-xs font-black px-2 py-1 rounded-full">OK</div>
-                </div>
-                <button onClick={() => {setFotoFile(null);setFotoPreview(null);}} className="mt-3 text-slate-400 text-sm flex items-center gap-1 mx-auto"><RefreshCw size={14}/>Cambiar</button>
-              </div>
-            )}
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => setStep(1)} className="px-6 py-3 bg-slate-800 rounded-xl font-bold">Atras</button>
-              <button onClick={() => setStep(3)} className="flex-1 bg-green-500 text-black font-black py-3 rounded-xl flex items-center justify-center gap-2">
-                {fotoFile ? "Continuar" : "Omitir"} <ChevronRight size={20}/>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div>
-            <h2 className="text-xl font-black mb-6">Confirmar</h2>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3 mb-6">
-              <div className="flex justify-center mb-4">
-                {fotoPreview ? <img src={fotoPreview} alt="" className="w-20 h-20 rounded-full object-cover border-2 border-green-500/40"/>
-                  : <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center"><User className="w-10 h-10 text-slate-600"/></div>}
-              </div>
-              {([["Nombre", formData.nombre],["CI/DNI", formData.dni],["Posicion", formData.posicion]] as const).map(([k,v]) => (
-                <div key={k} className="flex justify-between text-sm border-b border-slate-800 pb-2">
-                  <span className="text-slate-400">{k}</span><span className="font-bold">{v}</span>
-                </div>
-              ))}
-              <div className="flex justify-between text-sm pt-1">
-                <span className="text-slate-400">Check-in facial</span>
-                <span className={fotoFile ? "text-green-400 font-bold" : "text-yellow-500"}>{fotoFile ? "Habilitado" : "Sin foto"}</span>
-              </div>
-            </div>
-            {status === "error" && <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4 text-red-400 text-sm">{message}</div>}
-            <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="px-6 py-3 bg-slate-800 rounded-xl font-bold">Atras</button>
-              <button onClick={handleSubmit} disabled={status === "loading"} className="flex-1 bg-green-500 disabled:opacity-50 text-black font-black py-3 rounded-xl flex items-center justify-center gap-2">
-                {status === "loading" ? (<span>Enviando...</span>) : "Confirmar Registro"}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      <div className="flex-1 pb-16">
+        <div className="max-w-2xl mx-auto px-4 -mt-5">
+
+          {done ? (
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-400" />
+              <div className="p-10 text-center">
+                <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ShieldCheck size={40} />
+                </div>
+                <h2 className="text-2xl font-black text-slate-900 mb-3">¡Registro Completado!</h2>
+                <p className="text-slate-500 text-sm leading-relaxed max-w-md mx-auto">
+                  Tus datos han sido registrados correctamente. El día del evento, preséntate con tu documento de identidad para el check-in.
+                </p>
+                <div className="mt-6 bg-slate-50 rounded-2xl p-5 inline-block text-left">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Atleta registrado:</p>
+                  <p className="text-xl font-black text-slate-900">{form.nombre || jugador.nombre}</p>
+                  <p className="text-sm text-slate-500 mt-1">{equipo.nombre_academia || equipo.nombre}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+              <div className="h-2" style={{ background: `linear-gradient(to right, ${color}, #6366f1)` }} />
+              <div className="p-6 md:p-10">
+                <h2 className="text-xl font-black text-slate-900 mb-1">Completa tus Datos</h2>
+                <p className="text-slate-500 text-sm mb-8">
+                  Estás registrándote como atleta de <strong>{equipo.nombre_academia || equipo.nombre}</strong>.
+                  Completa todos tus datos para confirmar tu participación.
+                </p>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 mb-6 text-sm font-medium">{error}</div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+
+                  {/* DATOS PERSONALES */}
+                  <div>
+                    <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-4 text-sm uppercase tracking-wide border-b border-slate-100 pb-2">
+                      <User size={15} className="text-blue-500" /> Datos Personales
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Nombre completo *</label>
+                        <input required type="text" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">CI / DNI *</label>
+                        <input required type="text" value={form.dni} onChange={e => setForm({ ...form, dni: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Fecha de Nacimiento *</label>
+                        <input required type="date" value={form.fecha_nacimiento} onChange={e => setForm({ ...form, fecha_nacimiento: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Email</label>
+                        <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DATOS FÍSICOS */}
+                  <div>
+                    <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-4 text-sm uppercase tracking-wide border-b border-slate-100 pb-2">
+                      <Scale size={15} className="text-blue-500" /> Datos Físicos
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Peso declarado (kg) *</label>
+                        <input required type="number" step="0.1" placeholder="Ej: 75.5" value={form.peso_declarado}
+                          onChange={e => setForm({ ...form, peso_declarado: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Estatura (m)</label>
+                        <input type="number" step="0.01" placeholder="Ej: 1.75" value={form.estatura_declarada}
+                          onChange={e => setForm({ ...form, estatura_declarada: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DATOS DEPORTIVOS */}
+                  <div>
+                    <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-4 text-sm uppercase tracking-wide border-b border-slate-100 pb-2">
+                      <Trophy size={15} className="text-blue-500" /> Datos Deportivos
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">N° / Dorsal</label>
+                        <input type="number" value={form.numero_camiseta} onChange={e => setForm({ ...form, numero_camiseta: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5">Posición / Disciplina</label>
+                        <input type="text" placeholder="Ej: Karate, BJJ..." value={form.posicion}
+                          onChange={e => setForm({ ...form, posicion: e.target.value })}
+                          className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CATEGORÍA */}
+                  {porAtleta && categorias.length > 0 && (
+                    <div>
+                      <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-4 text-sm uppercase tracking-wide border-b border-slate-100 pb-2">
+                        <Tag size={15} className="text-indigo-500" /> Tu Categoría *
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {categorias.map(cat => (
+                          <label key={cat.id}
+                            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.categoria_id === cat.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
+                            <input type="radio" name="categoria" value={cat.id}
+                              checked={form.categoria_id === cat.id}
+                              onChange={() => setForm({ ...form, categoria_id: cat.id })}
+                              className="hidden" />
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${form.categoria_id === cat.id ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300'}`}>
+                              {form.categoria_id === cat.id && <div className="w-2 h-2 bg-white rounded-full" />}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800 text-sm">{cat.nombre}</p>
+                              {cat.descripcion && <p className="text-xs text-slate-500">{cat.descripcion}</p>}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !form.nombre || !form.dni || !form.fecha_nacimiento || !form.peso_declarado || (porAtleta && categorias.length > 0 && !form.categoria_id)}
+                    className="w-full flex items-center justify-center gap-2 text-white font-black py-4 rounded-xl shadow-lg transition-all disabled:opacity-50 text-base"
+                    style={{ background: `linear-gradient(to right, ${color}, #4f46e5)` }}
+                  >
+                    {submitting
+                      ? <><Loader2 size={20} className="animate-spin" /> Guardando...</>
+                      : <><CheckCircle size={20} /> Confirmar mi Inscripción</>
+                    }
+                  </button>
+
+                  <p className="text-center text-xs text-slate-400">
+                    Al confirmar, aceptas el reglamento del torneo y te comprometes a presentar tu documento original en el check-in.
+                  </p>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <Footer />
     </div>
   );
 }
