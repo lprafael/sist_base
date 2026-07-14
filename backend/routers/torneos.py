@@ -581,7 +581,7 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
     patrocinadores = []
     if d["organizador_id"]:
         res_org = await session.execute(text("""
-            SELECT po.opcion_publicidad, po.posicion_banner, po.usuario_id 
+            SELECT po.opcion_publicidad, po.posicion_banner, po.usuario_id, po.opcion_chat
             FROM sistema.perfil_organizador po
             JOIN cancha.organizadores org ON org.usuario_id = po.usuario_id
             WHERE org.id = :oid
@@ -589,9 +589,10 @@ async def get_torneo(torneo_id: str, session: AsyncSession = Depends(get_session
         org_data = res_org.fetchone()
         
         if org_data:
-            opcion_publicidad, posicion_banner, uid = org_data
+            opcion_publicidad, posicion_banner, uid, opcion_chat = org_data
             d["opcion_publicidad"] = opcion_publicidad
             d["posicion_banner"] = posicion_banner
+            d["opcion_chat"] = opcion_chat
             
             if opcion_publicidad in ['torneo', 'ambos']:
                 res_patroc = await session.execute(text("""

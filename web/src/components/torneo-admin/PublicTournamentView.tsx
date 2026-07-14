@@ -291,7 +291,8 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
         </div>
         
         {/* Floating Chat Button and Modal */}
-        <div className="fixed bottom-6 right-6 z-50">
+        {tournament?.opcion_chat !== false && (
+          <div className="fixed bottom-6 right-6 z-50">
           {!isChatOpen ? (
             <button 
               onClick={() => setIsChatOpen(true)}
@@ -342,6 +343,7 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             </div>
           )}
         </div>
+        )}
       </main>
 
       {/* Share Modal */}
