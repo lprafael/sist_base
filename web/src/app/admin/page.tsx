@@ -358,7 +358,16 @@ export default function AdminConsole() {
     if (typeof window === 'undefined') return;
 
     // Session
-    const activeSession = localStorage.getItem('user_session');
+    const adminBackup = localStorage.getItem('admin_session_backup');
+    let activeSession = localStorage.getItem('user_session');
+    
+    // Si regresamos a /admin y teníamos una sesión de administrador respaldada, la restauramos
+    if (adminBackup) {
+      activeSession = adminBackup;
+      localStorage.setItem('user_session', adminBackup);
+      localStorage.removeItem('admin_session_backup');
+    }
+
     if (activeSession) {
       const parsed = JSON.parse(activeSession);
       setSession(parsed);
@@ -1093,7 +1102,13 @@ export default function AdminConsole() {
                               style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14, cursor: 'pointer' }}
                               title="Haz clic en la fila para ingresar como este organizador"
                               onClick={async () => {
-                                const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+                                let sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+                                const adminBackup = localStorage.getItem('admin_session_backup');
+                                if (adminBackup) {
+                                  sessionData = JSON.parse(adminBackup);
+                                  localStorage.setItem('user_session', adminBackup);
+                                  localStorage.removeItem('admin_session_backup');
+                                }
                                 const currentToken = sessionData.access_token || sessionData.token || '';
                                 try {
                                   const res = await fetch(`${API_URL}/auth/impersonate/${o.usuario_id}`, {
