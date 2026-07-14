@@ -307,7 +307,7 @@ async def get_equipos_torneo(torneo_id: str, session: AsyncSession = Depends(get
     for r in res.fetchall():
         eq = dict(r._mapping)
         # Fetch jugadores
-        q_j = text("SELECT nombre, nombre_abreviado, dni, fecha_nacimiento, numero_camiseta, posicion, telefono, foto_url FROM torneos.tournament_players WHERE torneo_equipo_id = :eid")
+        q_j = text("SELECT nombre, nombre_abreviado, dni, fecha_nacimiento, numero_camiseta, posicion, telefono, foto_url, estatura_verificada, peso_verificado FROM torneos.tournament_players WHERE torneo_equipo_id = :eid")
         res_j = await session.execute(q_j, {"eid": eq["id"]})
         eq["jugadores"] = []
         for j in res_j.fetchall():
@@ -386,10 +386,12 @@ async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession 
         await session.execute(text("""
             INSERT INTO torneos.tournament_players (
                 torneo_equipo_id, nombre, nombre_abreviado, dni, fecha_nacimiento, 
-                numero_camiseta, posicion, telefono, foto_url, estado
+                numero_camiseta, posicion, telefono, foto_url, estado,
+                estatura_verificada, peso_verificado
             )
             VALUES (
-                :eid, :n, :na, :dni, :fn, :nc, :pos, :tel, :foto, 'habilitado'
+                :eid, :n, :na, :dni, :fn, :nc, :pos, :tel, :foto, 'habilitado',
+                :est, :peso
             )
         """), {
             "eid": equipo_id, 
@@ -400,7 +402,9 @@ async def sync_plantel(equipo_id: str, data: PlantelSync, session: AsyncSession 
             "nc": int(j.get("numero_camiseta")) if j.get("numero_camiseta") else None,
             "pos": j.get("posicion") or None,
             "tel": j.get("telefono") or None,
-            "foto": j.get("foto_url") or None
+            "foto": j.get("foto_url") or None,
+            "est": float(j.get("estatura_verificada")) if j.get("estatura_verificada") else None,
+            "peso": float(j.get("peso_verificado")) if j.get("peso_verificado") else None
         })
         
     # Insert tecnicos + entrenador

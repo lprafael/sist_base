@@ -13,6 +13,8 @@ export interface Jugador {
   posicion?: string;
   telefono?: string;
   foto_url?: string;
+  estatura_verificada?: number;
+  peso_verificado?: number;
 }
 
 export default function RegistroEquipoPage() {
@@ -544,6 +546,16 @@ export default function RegistroEquipoPage() {
                   <div className="relative">
                     <input type="text" value={editingJugador.telefono || ''} onChange={e => setEditingJugador({...editingJugador, telefono: e.target.value})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
                     <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Teléfono</label>
+                  </div>
+                  
+                  <div className="relative">
+                    <input type="number" step="0.01" value={editingJugador.estatura_verificada || ''} onChange={e => setEditingJugador({...editingJugador, estatura_verificada: e.target.value ? parseFloat(e.target.value) : undefined})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                    <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Estatura (m)</label>
+                  </div>
+                  
+                  <div className="relative">
+                    <input type="number" step="0.1" value={editingJugador.peso_verificado || ''} onChange={e => setEditingJugador({...editingJugador, peso_verificado: e.target.value ? parseFloat(e.target.value) : undefined})} className="block px-3 py-3 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 focus:outline-none focus:border-blue-600 peer" placeholder=" " />
+                    <label className="absolute text-sm text-gray-500 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 left-1">Peso (kg)</label>
                   </div>
                 </div>
               </div>
