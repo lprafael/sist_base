@@ -59,7 +59,11 @@ function ResetPasswordForm() {
         }, 3000);
       } else {
         const data = await res.json();
-        setError(data.detail || 'Error al restablecer la contraseña. El token podría ser inválido o estar expirado.');
+        if (Array.isArray(data.detail)) {
+          setError(data.detail.map((err: any) => err.msg).join(' '));
+        } else {
+          setError(data.detail || 'Error al restablecer la contraseña. El token podría ser inválido o estar expirado.');
+        }
       }
     } catch (err) {
       setError('Error de conexión al intentar comunicarse con el servidor.');
