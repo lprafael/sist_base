@@ -2291,7 +2291,7 @@ export default function AdminConsole() {
                   onClick={async () => {
                     if (!confirm(`¿Estás seguro de que deseas reenviar la contraseña a ${editOrganizador.usuario_email}?`)) return;
                     try {
-                      const res = await fetch(`${API_URL}/api/usuarios/reset-password`, {
+                      const res = await fetch(`${API_URL}/auth/reset-password-request`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: editOrganizador.usuario_email })
