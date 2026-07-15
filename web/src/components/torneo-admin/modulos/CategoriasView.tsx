@@ -21,6 +21,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
   // States for Division Form
   const [showDivForm, setShowDivForm] = useState(false);
   const [formDiv, setFormDiv] = useState({ id: '', nombre: '', categoria_id: '' });
+  const divInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -113,8 +114,18 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
         body: JSON.stringify({ nombre: formDiv.nombre })
       });
       if(res.ok) {
-        setShowDivForm(false);
-        setFormDiv({ id: '', nombre: '', categoria_id: '' });
+        if (formDiv.id) {
+          setShowDivForm(false);
+          setFormDiv({ id: '', nombre: '', categoria_id: '' });
+        } else {
+          const currentCatId = formDiv.categoria_id;
+          setFormDiv({ id: '', nombre: '', categoria_id: currentCatId });
+          setTimeout(() => {
+            if (divInputRef.current) {
+              divInputRef.current.focus();
+            }
+          }, 100);
+        }
         fetchData();
       }
     } catch(e) { console.error(e); }
@@ -244,7 +255,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
 
                   {showDivForm && formDiv.categoria_id === cat.id && (
                     <form onSubmit={handleSaveDiv} className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 mb-3 flex gap-2">
-                      <input required type="text" value={formDiv.nombre} onChange={e => setFormDiv({...formDiv, nombre: e.target.value})} className="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="Nombre de la división" />
+                      <input ref={divInputRef} required type="text" value={formDiv.nombre} onChange={e => setFormDiv({...formDiv, nombre: e.target.value})} className="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="Nombre de la división" />
                       <button type="button" onClick={() => setShowDivForm(false)} className="px-3 py-1.5 text-sm text-slate-500">Cancelar</button>
                       <button type="submit" className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded">Guardar</button>
                     </form>

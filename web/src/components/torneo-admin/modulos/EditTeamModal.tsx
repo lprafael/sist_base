@@ -20,6 +20,8 @@ export default function EditTeamModal({
   const [saving, setSaving] = useState(false);
 
   const [nuevoJugadorRapido, setNuevoJugadorRapido] = useState('');
+  const [nuevoJugadorGenero, setNuevoJugadorGenero] = useState('');
+  const [nuevoJugadorFecha, setNuevoJugadorFecha] = useState('');
   const [savingJugador, setSavingJugador] = useState(false);
 
   const [tecnicos, setTecnicos] = useState<any[]>([]);
@@ -84,7 +86,9 @@ export default function EditTeamModal({
     try {
       const payload = {
         nombre: nuevoJugadorRapido,
-        dni: `SN-${Date.now()}` // Default DNI for fast loading
+        dni: `SN-${Date.now()}`, // Default DNI for fast loading
+        genero: nuevoJugadorGenero || null,
+        fecha_nacimiento: nuevoJugadorFecha || null
       };
 
       const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos/${equipo.id}/jugadores`, {
@@ -95,6 +99,8 @@ export default function EditTeamModal({
       
       if(res.ok) {
         setNuevoJugadorRapido('');
+        setNuevoJugadorGenero('');
+        setNuevoJugadorFecha('');
         fetchJugadores(equipo.id);
       } else {
         alert("Error al cargar jugador rápido");
@@ -230,7 +236,23 @@ export default function EditTeamModal({
                 placeholder="Nombre del Jugador [Enter]"
                 value={nuevoJugadorRapido}
                 onChange={e => setNuevoJugadorRapido(e.target.value)}
+                className="flex-[2] border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50"
+              />
+              <select 
+                value={nuevoJugadorGenero}
+                onChange={e => setNuevoJugadorGenero(e.target.value)}
                 className="flex-1 border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50"
+              >
+                <option value="">Género</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+              </select>
+              <input 
+                type="date"
+                title="Fecha de Nacimiento"
+                value={nuevoJugadorFecha}
+                onChange={e => setNuevoJugadorFecha(e.target.value)}
+                className="flex-1 border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50 text-slate-500"
               />
               <button type="submit" disabled={savingJugador} className="px-4 py-2 bg-blue-100 text-blue-700 font-bold rounded text-sm hover:bg-blue-200 disabled:opacity-50">
                 {savingJugador ? <Loader2 size={16} className="animate-spin" /> : 'Añadir'}

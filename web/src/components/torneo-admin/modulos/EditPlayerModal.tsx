@@ -19,6 +19,7 @@ export default function EditPlayerModal({
   const [fecha_nacimiento, setFechaNacimiento] = useState(jugador.fecha_nacimiento || '');
   const [estatura, setEstatura] = useState(jugador.estatura || '');
   const [peso, setPeso] = useState(jugador.peso || '');
+  const [genero, setGenero] = useState(jugador.genero || '');
   const [estado, setEstado] = useState(jugador.estado || 'en_revision');
   
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export default function EditPlayerModal({
         numero_camiseta: numero_camiseta ? parseInt(numero_camiseta) : null,
         posicion,
         fecha_nacimiento: fecha_nacimiento || null,
+        genero: genero || null,
         estado,
         // The backend might not have estatura and peso in JugadorUpdate schema currently,
         // but we'll send it if supported.
@@ -127,13 +129,23 @@ export default function EditPlayerModal({
               </div>
             </div>
 
-            <div className="relative">
-              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium text-slate-500">Estado de Inscripción</label>
-              <select value={estado} onChange={e => setEstado(e.target.value)} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 bg-white">
-                <option value="en_revision">En Revisión (Pendiente)</option>
-                <option value="habilitado">Habilitado</option>
-                <option value="rechazado">Rechazado</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium text-slate-500">Estado de Inscripción</label>
+                <select value={estado} onChange={e => setEstado(e.target.value)} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 bg-white">
+                  <option value="en_revision">En Revisión (Pendiente)</option>
+                  <option value="habilitado">Habilitado</option>
+                  <option value="rechazado">Rechazado</option>
+                </select>
+              </div>
+              <div className="relative">
+                <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium text-slate-500">Género</label>
+                <select value={genero} onChange={e => setGenero(e.target.value)} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 bg-white">
+                  <option value="">No especificado</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
+              </div>
             </div>
 
           </form>

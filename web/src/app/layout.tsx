@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
       </head>
-      <body className={inter.variable}>{children}</body>
+      <body className={`${inter.variable} select-none`}>{children}</body>
     </html>
   );
 }
