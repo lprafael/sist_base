@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, GripVertical } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 interface Player {
   id: string;
