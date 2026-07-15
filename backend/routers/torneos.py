@@ -2327,12 +2327,117 @@ async def create_partido(torneo_id: str, payload: PartidoManualCreate, session: 
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/{torneo_id}/asignaciones", summary="Obtener asignaciones de jugadores por fase")
+async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        # Obtener todos los jugadores
+        result = await session.execute(text("""
+            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento, tp.fase_asignada, e.logo_url
+            FROM torneos.tournament_players tp
+            JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
+            WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
+        """), {"tid": torneo_id})
+        players = result.fetchall()
+
+        # Si hay jugadores sin fase_asignada, calcular su fase sugerida
+        unassigned = [p for p in players if not p.fase_asignada]
+        if unassigned:
+            # Obtener categorías
+            import re
+            cat_res = await session.execute(
+                text("SELECT id, nombre FROM torneos.categorias WHERE torneo_id = :tid"),
+                {"tid": torneo_id}
+            )
+            categorias_db = cat_res.fetchall()
+            
+            parsed_cats = []
+            for c in categorias_db:
+                name_lower = c.nombre.lower()
+                years = re.findall(r'(\d{4})', name_lower)
+                min_y = min(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
+                max_y = max(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
+                gender = None
+                if any(x in name_lower for x in ["fem", "mujer", "niña"]): gender = "Femenino"
+                elif any(x in name_lower for x in ["masc", "hom", "niño", "varon"]): gender = "Masculino"
+                parsed_cats.append({"nombre": c.nombre, "min_y": min_y, "max_y": max_y, "gender": gender})
+
+            from datetime import date
+            for p in unassigned:
+                year = p.fecha_nacimiento.year if p.fecha_nacimiento else date.today().year
+                g_raw = p.genero or "Masculino"
+                genero = "Femenino" if g_raw.lower().startswith("f") else "Masculino"
+                
+                assigned_fase = "Sin Asignar"
+                for c in parsed_cats:
+                    if c["gender"] and c["gender"] != genero: continue
+                    if c["min_y"] and c["max_y"] and not (c["min_y"] <= year <= c["max_y"]): continue
+                    
+                    # Generar nombre de fase
+                    fase_name = f"{c['nombre']} - 1º Fase"
+                    name_lower = c['nombre'].lower()
+                    if genero == "Masculino" and not any(x in name_lower for x in ["masc", "hom", "niño", "varon"]):
+                        fase_name = f"Masculino {c['nombre']} - 1º Fase"
+                    elif genero == "Femenino" and not any(x in name_lower for x in ["fem", "mujer", "niña"]):
+                        fase_name = f"Femenino {c['nombre']} - 1º Fase"
+                        
+                    assigned_fase = fase_name
+                    break
+                
+                # Actualizar DB
+                await session.execute(text("""
+                    UPDATE torneos.tournament_players SET fase_asignada = :fase WHERE id = :pid
+                """), {"fase": assigned_fase, "pid": p.id})
+
+            await session.commit()
+            
+            # Recargar jugadores
+            result = await session.execute(text("""
+                SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento, tp.fase_asignada, e.logo_url
+                FROM torneos.tournament_players tp
+                JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
+                WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
+            """), {"tid": torneo_id})
+            players = result.fetchall()
+
+        # Agrupar por fase
+        grupos = {}
+        for p in players:
+            fase = p.fase_asignada or "Sin Asignar"
+            if fase not in grupos: grupos[fase] = []
+            grupos[fase].append({
+                "id": str(p.id), "nombre": p.nombre, "genero": p.genero, 
+                "fecha_nacimiento": str(p.fecha_nacimiento) if p.fecha_nacimiento else None,
+                "torneo_equipo_id": str(p.torneo_equipo_id),
+                "logo_url": p.logo_url
+            })
+
+        return {"status": "ok", "grupos": grupos}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/{torneo_id}/asignaciones/{jugador_id}")
+async def update_asignacion(torneo_id: str, jugador_id: str, payload: dict, session: AsyncSession = Depends(get_session)):
+    try:
+        nueva_fase = payload.get("fase_asignada")
+        if not nueva_fase:
+            raise HTTPException(status_code=400, detail="fase_asignada es requerida")
+            
+        await session.execute(text("""
+            UPDATE torneos.tournament_players SET fase_asignada = :fase WHERE id = :pid
+        """), {"fase": nueva_fase, "pid": jugador_id})
+        await session.commit()
+        return {"status": "ok", "message": "Asignación actualizada"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/{torneo_id}/autoalineacion", summary="Autoalineación de competencias (MMA)")
 async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = Depends(get_session)):
     try:
-        # 1. Obtener todos los jugadores del torneo
+        # 1. Obtener todos los jugadores con su fase asignada
         result = await session.execute(text("""
-            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento
+            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.fase_asignada
             FROM torneos.tournament_players tp
             JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
             WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
@@ -2342,108 +2447,46 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
         if not players:
             return {"status": "ok", "message": "No hay jugadores habilitados"}
 
-        # 2. Obtener categorías existentes y parsear sus rangos
-        import re
-        cat_res = await session.execute(
-            text("SELECT id, nombre FROM torneos.categorias WHERE torneo_id = :tid"),
-            {"tid": torneo_id}
-        )
-        categorias_db = cat_res.fetchall()
-
-        if not categorias_db:
-            return {"status": "error", "message": "No hay categorías creadas. Crea las categorías (ej: Masculino 2021-2023) antes de autoalinear."}
-
-        parsed_cats = []
-        for c in categorias_db:
-            name_lower = c.nombre.lower()
-            years = re.findall(r'(\d{4})', name_lower)
-            min_y = min(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
-            max_y = max(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
-            
-            gender = None
-            if "fem" in name_lower or "mujer" in name_lower or "niña" in name_lower:
-                gender = "Femenino"
-            elif "masc" in name_lower or "hom" in name_lower or "niño" in name_lower or "varon" in name_lower:
-                gender = "Masculino"
-
-            parsed_cats.append({
-                "id": str(c.id),
-                "nombre": c.nombre,
-                "min_y": min_y,
-                "max_y": max_y,
-                "gender": gender,
-                "players": []
-            })
-
-        # 3. Asignar jugadores a las categorías
-        from datetime import date
-        import random
-
+        # Agrupar por fase_asignada
+        from collections import defaultdict
+        by_fase = defaultdict(list)
         for p in players:
-            year = p.fecha_nacimiento.year if p.fecha_nacimiento else date.today().year
-            genero = p.genero or "Masculino"
-            
-            for c in parsed_cats:
-                if c["gender"] and c["gender"] != genero:
-                    continue
-                if c["min_y"] and c["max_y"] and not (c["min_y"] <= year <= c["max_y"]):
-                    continue
-                # Si pasa los filtros, entra en esta categoría
-                c["players"].append(p)
-                break
+            fase = p.fase_asignada
+            if fase and fase != "Sin Asignar":
+                by_fase[fase].append(p)
 
+        if not by_fase:
+            return {"status": "error", "message": "No hay jugadores asignados a ninguna fase. Primero asigna las categorías."}
+
+        import random
         matches_created = 0
-        for cat in parsed_cats:
-            group_players = cat["players"]
-            if len(group_players) < 2:
+
+        for fase_name, p_list in by_fase.items():
+            if len(p_list) < 2:
                 continue
                 
-            # Agrupar por género
-            from collections import defaultdict
-            by_gender = defaultdict(list)
-            for p in group_players:
-                g_raw = p.genero or "Masculino"
-                g = "Femenino" if g_raw.lower().startswith("f") else "Masculino"
-                by_gender[g].append(p)
-
-            for genero, p_list in by_gender.items():
-                if len(p_list) < 2:
-                    continue
-                
-                random.shuffle(p_list)
-                
-                # Determinar nombre de la fase
-                fase_name = f"{cat['nombre']} - 1º Fase"
-                name_lower = cat['nombre'].lower()
-                if genero == "Masculino" and not any(x in name_lower for x in ["masc", "hom", "niño", "varon"]):
-                    fase_name = f"Masculino {cat['nombre']} - 1º Fase"
-                elif genero == "Femenino" and not any(x in name_lower for x in ["fem", "mujer", "niña"]):
-                    fase_name = f"Femenino {cat['nombre']} - 1º Fase"
-
-                # Generar partidos 1v1
-                for i in range(0, len(p_list) - 1, 2):
-                    p1 = p_list[i]
-                    p2 = p_list[i+1]
-                    await session.execute(text("""
-                        INSERT INTO torneos.partidos 
-                        (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
-                        VALUES (:tid, :el, :ev, :jl, :jv, :fase)
-                    """), {
-                        "tid": torneo_id, 
-                        "el": p1.torneo_equipo_id, 
-                        "ev": p2.torneo_equipo_id,
-                        "jl": p1.id, 
-                        "jv": p2.id,
-                        "fase": fase_name
-                    })
-                    matches_created += 1
+            random.shuffle(p_list)
+            
+            # Generar partidos 1v1
+            for i in range(0, len(p_list) - 1, 2):
+                p1 = p_list[i]
+                p2 = p_list[i+1]
+                await session.execute(text("""
+                    INSERT INTO torneos.partidos 
+                    (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
+                    VALUES (:tid, :el, :ev, :jl, :jv, :fase)
+                """), {
+                    "tid": torneo_id, 
+                    "el": p1.torneo_equipo_id, 
+                    "ev": p2.torneo_equipo_id,
+                    "jl": p1.id, 
+                    "jv": p2.id,
+                    "fase": fase_name
+                })
+                matches_created += 1
 
         await session.commit()
-        return {"status": "ok", "message": f"Se generaron {matches_created} partidos. Selecciona las fases en el filtro para verlos por categoría."}
-
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        return {"status": "ok", "message": f"Se generaron {matches_created} partidos."}
 
 @router.delete("/{torneo_id}/autoalineacion/reset", summary="Eliminar todas las alineaciones y partidos de un torneo")
 async def reset_alineacion(torneo_id: str, session: AsyncSession = Depends(get_session)):

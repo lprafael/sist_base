@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart2, Save, Loader2, Info } from 'lucide-react';
 import PartidosView from './PartidosView';
+import AsignacionCategoriasModal from './AsignacionCategoriasModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -10,6 +11,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
   const [partidos, setPartidos] = useState<any[]>([]);
   const [fasesOptions, setFasesOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAsignacionModal, setShowAsignacionModal] = useState(false);
 
   // Configuracion de puntos
   const [showConfig, setShowConfig] = useState(false);
@@ -198,8 +200,14 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
               RESETEAR
             </button>
             <button 
+              onClick={() => setShowAsignacionModal(true)}
+              className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
+            >
+              1. ASIGNAR CATEGORÍAS
+            </button>
+            <button 
               onClick={async () => {
-                if(!confirm("¿Generar partidos automáticamente para los atletas inscritos (MMA)?")) return;
+                if(!confirm("¿Generar partidos automáticamente basándose en las asignaciones actuales?")) return;
                 try {
                   const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/autoalineacion`, {
                     method: 'POST',
@@ -215,13 +223,24 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                   }
                 } catch(e) { console.error(e); }
               }}
-              className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
+              className="flex items-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-emerald-200"
             >
-              AUTOALINEACIÓN
+              2. GENERAR COMBATES
             </button>
           </>
         )}
       </div>
+
+      {showAsignacionModal && (
+        <AsignacionCategoriasModal
+          torneoId={torneoId}
+          onClose={() => {
+            setShowAsignacionModal(false);
+            fetchData();
+          }}
+          getToken={getToken}
+        />
+      )}
 
       {/* Lista agrupada por Categorías y luego Divisiones */}
       <div className="flex flex-col gap-10 pb-10">
@@ -250,12 +269,13 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           });
 
           return Object.keys(grouped).map(categoria => (
-            <div key={categoria} className="border-[3px] border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-slate-100">
-              <div className="bg-slate-300 py-4 px-6 border-b-2 border-slate-400">
+            <details key={categoria} className="border-[3px] border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-slate-100 group" open>
+              <summary className="bg-slate-300 py-4 px-6 border-b-2 border-slate-400 cursor-pointer list-none flex justify-between items-center hover:bg-slate-400 transition">
                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                   CATEGORÍA: {categoria}
                 </h2>
-              </div>
+                <span className="text-slate-600 transition-transform group-open:rotate-180 text-xl font-bold">▼</span>
+              </summary>
               
               <div className="p-4 flex flex-col gap-6">
                 {grouped[categoria].map(({ original, division }) => {
@@ -263,13 +283,16 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                   const standings = computeStandings(partidosFase);
                   
                   return (
-                    <div key={original} className="bg-white border-2 border-slate-300 rounded-xl shadow-md overflow-hidden flex flex-col">
-                      <div className="bg-slate-800 text-white p-3">
-                        <h3 className="font-bold text-lg uppercase tracking-wider flex justify-between">
-                          <span>DIVISIÓN: {division}</span>
-                          <span className="text-sm font-medium text-slate-400">{original}</span>
+                    <details key={original} className="bg-white border-2 border-slate-300 rounded-xl shadow-md overflow-hidden flex flex-col group/div" open>
+                      <summary className="bg-slate-800 text-white p-3 cursor-pointer list-none flex justify-between items-center hover:bg-slate-700 transition">
+                        <h3 className="font-bold text-lg uppercase tracking-wider">
+                          DIVISIÓN: {division}
                         </h3>
-                      </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-medium text-slate-400">{original}</span>
+                          <span className="text-slate-400 transition-transform group-open/div:rotate-180 font-bold">▼</span>
+                        </div>
+                      </summary>
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 {/* Tabla de Posiciones */}
@@ -326,11 +349,11 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                   />
                 </div>
                       </div>
-                    </div>
+                    </details>
                   );
                 })}
               </div>
-            </div>
+            </details>
           ));
         })()}
       </div>
