@@ -175,28 +175,51 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
       {/* Acciones Globales */}
       <div className="flex justify-end gap-3 mb-6">
         {torneo?.deporte === 'Artes Marciales Mixtas' && (
-          <button 
-            onClick={async () => {
-              if(!confirm("¿Generar partidos automáticamente para los atletas inscritos (MMA)?")) return;
-              try {
-                const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/autoalineacion`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-                  body: JSON.stringify({})
-                });
-                const data = await res.json();
-                if(res.ok && data.status !== 'error') {
-                  alert(data.message || 'Partidos generados correctamente');
-                  fetchData();
-                } else {
-                  alert(data.message || 'Ocurrió un error al generar partidos');
-                }
-              } catch(e) { console.error(e); }
-            }}
-            className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
-          >
-            AUTOALINEACIÓN
-          </button>
+          <>
+            <button 
+              onClick={async () => {
+                if(!confirm("⚠️ ¿Estás seguro de que deseas ELIMINAR TODOS los partidos de este torneo? Esta acción no se puede deshacer.")) return;
+                try {
+                  const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/autoalineacion/reset`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                  });
+                  const data = await res.json();
+                  if(res.ok) {
+                    alert(data.message || 'Todos los partidos han sido eliminados');
+                    fetchData();
+                  } else {
+                    alert(data.message || 'Ocurrió un error al resetear');
+                  }
+                } catch(e) { console.error(e); }
+              }}
+              className="flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-red-200"
+            >
+              RESETEAR
+            </button>
+            <button 
+              onClick={async () => {
+                if(!confirm("¿Generar partidos automáticamente para los atletas inscritos (MMA)?")) return;
+                try {
+                  const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/autoalineacion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+                    body: JSON.stringify({})
+                  });
+                  const data = await res.json();
+                  if(res.ok && data.status !== 'error') {
+                    alert(data.message || 'Partidos generados correctamente');
+                    fetchData();
+                  } else {
+                    alert(data.message || 'Ocurrió un error al generar partidos');
+                  }
+                } catch(e) { console.error(e); }
+              }}
+              className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
+            >
+              AUTOALINEACIÓN
+            </button>
+          </>
         )}
       </div>
 

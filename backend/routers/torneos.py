@@ -2398,29 +2398,57 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
             if len(group_players) < 2:
                 continue
                 
-            random.shuffle(group_players)
+            # Agrupar por género
+            by_gender = {"Masculino": [], "Femenino": []}
+            for p in group_players:
+                g = p.genero or "Masculino"
+                by_gender[g].append(p)
 
-            # Generar partidos 1v1
-            for i in range(0, len(group_players) - 1, 2):
-                p1 = group_players[i]
-                p2 = group_players[i+1]
-                await session.execute(text("""
-                    INSERT INTO torneos.partidos 
-                    (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
-                    VALUES (:tid, :el, :ev, :jl, :jv, :fase)
-                """), {
-                    "tid": torneo_id, 
-                    "el": p1.torneo_equipo_id, 
-                    "ev": p2.torneo_equipo_id,
-                    "jl": p1.id, 
-                    "jv": p2.id,
-                    "fase": f"{cat['nombre']} - 1º Fase"
-                })
-                matches_created += 1
+            for genero, p_list in by_gender.items():
+                if len(p_list) < 2:
+                    continue
+                
+                random.shuffle(p_list)
+                
+                # Determinar nombre de la fase
+                fase_name = f"{cat['nombre']} - 1º Fase"
+                name_lower = cat['nombre'].lower()
+                if genero == "Masculino" and not any(x in name_lower for x in ["masc", "hom", "niño", "varon"]):
+                    fase_name = f"Masculino {cat['nombre']} - 1º Fase"
+                elif genero == "Femenino" and not any(x in name_lower for x in ["fem", "mujer", "niña"]):
+                    fase_name = f"Femenino {cat['nombre']} - 1º Fase"
+
+                # Generar partidos 1v1
+                for i in range(0, len(p_list) - 1, 2):
+                    p1 = p_list[i]
+                    p2 = p_list[i+1]
+                    await session.execute(text("""
+                        INSERT INTO torneos.partidos 
+                        (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
+                        VALUES (:tid, :el, :ev, :jl, :jv, :fase)
+                    """), {
+                        "tid": torneo_id, 
+                        "el": p1.torneo_equipo_id, 
+                        "ev": p2.torneo_equipo_id,
+                        "jl": p1.id, 
+                        "jv": p2.id,
+                        "fase": fase_name
+                    })
+                    matches_created += 1
 
         await session.commit()
         return {"status": "ok", "message": f"Se generaron {matches_created} partidos. Selecciona las fases en el filtro para verlos por categoría."}
 
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/{torneo_id}/autoalineacion/reset", summary="Eliminar todas las alineaciones y partidos de un torneo")
+async def reset_alineacion(torneo_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        await session.execute(text("DELETE FROM torneos.partidos WHERE torneo_id = :tid"), {"tid": torneo_id})
+        await session.commit()
+        return {"status": "ok", "message": "Todos los partidos han sido eliminados correctamente"}
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
