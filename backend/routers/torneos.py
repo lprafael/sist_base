@@ -2502,10 +2502,7 @@ async def reset_alineacion(torneo_id: str, session: AsyncSession = Depends(get_s
             WHERE partido_id IN (SELECT id FROM torneos.partidos WHERE torneo_id = :tid)
         """), {"tid": torneo_id})
         
-        await session.execute(text("""
-            DELETE FROM torneos.alineaciones 
-            WHERE partido_id IN (SELECT id FROM torneos.partidos WHERE torneo_id = :tid)
-        """), {"tid": torneo_id})
+        # Ya no intentamos borrar de alineaciones porque no existe en la base de datos
 
         await session.execute(text("DELETE FROM torneos.partidos WHERE torneo_id = :tid"), {"tid": torneo_id})
         await session.commit()
