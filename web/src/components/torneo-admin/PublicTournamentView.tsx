@@ -108,6 +108,13 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
            </div>
         )}
 
+        <div className="px-8 py-6 bg-slate-50/50">
+          <h1 className="text-4xl font-extrabold text-[#111827] mb-2 tracking-tight">{tournament?.nombre || 'Acá va el Título...'}</h1>
+          {(tournament?.subtitulo || !tournament?.nombre) && (
+            <p className="text-lg text-slate-700 font-medium">{tournament?.subtitulo || 'Acá va el subtítulo...'}</p>
+          )}
+        </div>
+
         {/* Hero Banner */}
         <div className="relative h-64 bg-slate-800 shrink-0 border-b border-slate-200">
           {tournament?.imagen_banner ? (
@@ -151,6 +158,12 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
               <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-serif italic text-xl">i</span>
               Acerca de
             </h3>
+
+            <div className="mb-8 p-6 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {tournament?.descripcion || 'Acá va la Descripción....'}
+              </p>
+            </div>
             
             <div className="space-y-6">
               <h4 className="font-bold text-slate-400 text-xs uppercase tracking-widest">Contactos</h4>

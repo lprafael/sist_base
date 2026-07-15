@@ -67,6 +67,17 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
   const [uploadingImage, setUploadingImage] = useState<'portada'|'banner'|null>(null);
   const [cropImageState, setCropImageState] = useState<{ src: string, type: 'portada'|'banner' } | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [targetImageType, setTargetImageType] = useState<'portada'|'banner'|null>(null);
+  const [activeDeporteTab, setActiveDeporteTab] = useState<string>('playa');
+
+  // Hardcoded predefined images for the demo
+  const PREDEFINED_IMAGES: Record<string, string[]> = {
+    playa: ['/images/deportes/playa/1.jpg', '/images/deportes/playa/2.jpg', '/images/deportes/playa/3.jpg'],
+    futbol: ['/images/deportes/futbol/1.jpg', '/images/deportes/futbol/2.jpg', '/images/deportes/futbol/3.jpg'],
+    futbol_sala: ['/images/deportes/futbol_sala/1.jpg', '/images/deportes/futbol_sala/2.jpg', '/images/deportes/futbol_sala/3.jpg'],
+    baloncesto: ['/images/deportes/baloncesto/1.jpg', '/images/deportes/baloncesto/2.jpg', '/images/deportes/baloncesto/3.jpg'],
+    voleibol: ['/images/deportes/voleibol/1.jpg', '/images/deportes/voleibol/2.jpg', '/images/deportes/voleibol/3.jpg'],
+  };
 
   // States for modals
   const [contactoData, setContactoData] = useState({
@@ -192,16 +203,28 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   <ImageIcon size={32} className="mb-2" />
                   <span className="text-sm font-bold">Logo (Circular)</span>
                   <span className="text-xs mb-2">Proporción 1:1</span>
-                  <span className="text-xs text-blue-500 hover:underline">Click para subir</span>
+                  <span className="text-xs text-blue-500 hover:underline cursor-pointer relative z-10">
+                    <input 
+                      type="file" 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                      accept="image/*"
+                      onChange={(e) => onSelectFile(e, 'portada')}
+                      disabled={!!uploadingImage}
+                    />
+                    Click para subir
+                  </span>
+                  <div className="flex items-center gap-2 mt-2 relative z-10">
+                    <span className="text-xs text-slate-400">o</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); setTargetImageType('portada'); setActiveModal('seleccionar_imagen'); }}
+                      className="text-xs flex items-center gap-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded transition"
+                    >
+                      <ImageIcon size={12} /> Galería
+                    </button>
+                  </div>
                 </>
               )}
-              <input 
-                type="file" 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                accept="image/*"
-                onChange={(e) => onSelectFile(e, 'portada')}
-                disabled={!!uploadingImage}
-              />
             </div>
             
             <div className="border-2 border-dashed border-slate-300 rounded-lg h-48 flex flex-col items-center justify-center text-slate-400 bg-slate-50 relative hover:bg-slate-100 transition overflow-hidden">
@@ -222,16 +245,28 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   <ImageIcon size={32} className="mb-2" />
                   <span className="text-sm font-bold">Banner (Fondo)</span>
                   <span className="text-xs mb-2">Proporción 16:9</span>
-                  <span className="text-xs text-blue-500 hover:underline">Click para subir</span>
+                  <span className="text-xs text-blue-500 hover:underline cursor-pointer relative z-10">
+                    <input 
+                      type="file" 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                      accept="image/*"
+                      onChange={(e) => onSelectFile(e, 'banner')}
+                      disabled={!!uploadingImage}
+                    />
+                    Click para subir
+                  </span>
+                  <div className="flex items-center gap-2 mt-2 relative z-10">
+                    <span className="text-xs text-slate-400">o</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); setTargetImageType('banner'); setActiveModal('seleccionar_imagen'); }}
+                      className="text-xs flex items-center gap-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded transition"
+                    >
+                      <ImageIcon size={12} /> Galería
+                    </button>
+                  </div>
                 </>
               )}
-              <input 
-                type="file" 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                accept="image/*"
-                onChange={(e) => onSelectFile(e, 'banner')}
-                disabled={!!uploadingImage}
-              />
             </div>
           </div>
           
@@ -622,6 +657,87 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 onUpdate({ premios: premiosArr });
                 setActiveModal(null);
               }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'seleccionar_imagen' && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-[900px] max-w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <ImageIcon size={20} className="text-slate-500" /> 
+                Seleccionar imagen
+              </h3>
+              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-700 transition">✕</button>
+            </div>
+            
+            <div className="p-4 border-b border-slate-200 flex gap-2 overflow-x-auto no-scrollbar bg-white">
+              {[
+                { id: 'playa', label: 'Playa' },
+                { id: 'futbol', label: 'Fútbol' },
+                { id: 'futbol_sala', label: 'Fútbol Sala' },
+                { id: 'baloncesto', label: 'Baloncesto' },
+                { id: 'voleibol', label: 'Voleibol' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveDeporteTab(tab.id)}
+                  className={`px-5 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap border ${
+                    activeDeporteTab === tab.id 
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(PREDEFINED_IMAGES[activeDeporteTab] || []).map((imgUrl, idx) => (
+                  <div 
+                    key={idx}
+                    onClick={() => {
+                      if (targetImageType) {
+                        const field = targetImageType === 'portada' ? 'imagen_portada' : 'imagen_banner';
+                        setFormData(prev => ({ ...prev, [field]: imgUrl }));
+                        onUpdate({ [field]: imgUrl });
+                        setActiveModal(null);
+                      }
+                    }}
+                    className={`relative rounded-xl overflow-hidden cursor-pointer group shadow-sm border-2 transition-all ${
+                      (targetImageType === 'portada' ? formData.imagen_portada : formData.imagen_banner) === imgUrl
+                        ? 'border-blue-500 shadow-md scale-[1.02]'
+                        : 'border-transparent hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="aspect-video bg-slate-200 flex items-center justify-center text-slate-400 relative">
+                       {/* In a real app the src would just be imgUrl, for demo we handle missing images gracefully */}
+                       <img 
+                         src={imgUrl} 
+                         alt="Predefinida" 
+                         className="w-full h-full object-cover" 
+                         onError={(e) => {
+                           // Fallback placeholder if image doesn't exist yet
+                           e.currentTarget.src = `https://placehold.co/600x400/e2e8f0/64748b?text=${tab.label || activeDeporteTab}+${idx+1}`;
+                         }}
+                       />
+                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-slate-800 text-sm font-bold px-4 py-2 rounded-lg shadow-sm backdrop-blur-sm transition-all transform scale-95 group-hover:scale-100">
+                            Usar esta imagen
+                          </span>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 bg-white border-t border-slate-100 flex justify-end">
+               <button onClick={() => setActiveModal(null)} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 transition">Cancelar</button>
             </div>
           </div>
         </div>
