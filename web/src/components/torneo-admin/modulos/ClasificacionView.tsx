@@ -270,7 +270,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                     deporte={torneo?.deporte} 
                     torneo={torneo} 
                     partidosProp={partidosFase}
-                    faseOculta={fase}
+                    faseOculta={original}
                     onRefresh={fetchData}
                   />
                 </div>
