@@ -402,18 +402,25 @@ export default function TVLivePage() {
             }}>
               ← Volver
             </Link>
-            <div>
-              <div style={{
-                fontFamily: "'Orbitron', monospace", fontWeight: 900, fontSize: 20,
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                background: 'linear-gradient(90deg, #00ff88, #10b981)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              }}>
-                Resultados en Vivo
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div>
+                <div style={{
+                  fontFamily: "'Orbitron', monospace", fontWeight: 900, fontSize: 20,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  background: 'linear-gradient(90deg, #00ff88, #10b981)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>
+                  Resultados en Vivo
+                </div>
+                <div style={{ fontSize: 12, color: '#475569', fontWeight: 600, marginTop: 2 }}>
+                  {tournament?.nombre || 'Cargando torneo...'}
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: '#475569', fontWeight: 600, marginTop: 2 }}>
-                {tournament?.nombre || 'Cargando torneo...'}
-              </div>
+              <img 
+                src="/images/banner_micancha.jpg" 
+                alt="Mi Cancha" 
+                style={{ height: '45px', objectFit: 'contain', borderRadius: '6px' }} 
+              />
             </div>
           </div>
 
