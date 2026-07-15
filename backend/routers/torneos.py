@@ -2487,6 +2487,10 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
 
         await session.commit()
         return {"status": "ok", "message": f"Se generaron {matches_created} partidos."}
+        
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/{torneo_id}/autoalineacion/reset", summary="Eliminar todas las alineaciones y partidos de un torneo")
 async def reset_alineacion(torneo_id: str, session: AsyncSession = Depends(get_session)):
