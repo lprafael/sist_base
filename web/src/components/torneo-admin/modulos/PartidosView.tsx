@@ -3,12 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy } from 'lucide-react';
 import MatchController from './MatchController';
 import MatchAddModal from './MatchAddModal';
+import MMAController from './MMAController';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: string, deporte?: string, torneo?: any }) {
-  const [partidos, setPartidos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function PartidosView({ 
+  torneoId, deporte, torneo, partidosProp, faseOculta, onRefresh
+}: { 
+  torneoId: string, deporte?: string, torneo?: any, partidosProp?: any[], faseOculta?: string, onRefresh?: () => void 
+}) {
+  const [partidosState, setPartidosState] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!partidosProp);
+  const partidos = partidosProp || partidosState;
   
   const fasesFromTorneo = torneo?.configuracion?.fases?.length 
     ? torneo.configuracion.fases.map((f: any) => typeof f === 'object' ? f.name : f) 
@@ -27,8 +33,12 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    fetchPartidos();
-  }, [torneoId]);
+    if (!partidosProp) {
+      fetchPartidos();
+    } else {
+      setLoading(false);
+    }
+  }, [torneoId, partidosProp]);
 
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem('user_session') || '{}');
@@ -43,7 +53,7 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
       });
       if(res.ok) {
         const data = await res.json();
-        setPartidos(data);
+        setPartidosState(data);
         // If the current filter isn't in the new options and we have data, reset it
         const downloadedFases = Array.from(new Set(data.map((p:any) => p.fase).filter(Boolean)));
         if (downloadedFases.length > 0 && !downloadedFases.includes(faseFilter)) {
@@ -65,7 +75,7 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
       const data = await res.json();
       if(res.ok && data.status !== 'error') {
         alert(data.message || 'Partidos generados correctamente');
-        fetchPartidos();
+        if(onRefresh) onRefresh(); else fetchPartidos();
       } else {
         alert(data.message || 'Ocurrió un error al generar partidos');
       }
@@ -88,45 +98,57 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
 
+  // Filtrar los partidos que se van a mostrar (ya sea por prop o por filtro local)
+  const partidosAMostrar = faseOculta ? partidos : partidos.filter(p => (p.fase || 'Fase 1') === faseFilter);
+
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col h-full">
-      <div className="flex justify-between items-center mb-4">
-        <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-          <Calendar className="text-blue-600" size={20} />
-          Juegos
-        </h4>
-        <div className="flex gap-2">
-          <select 
-            value={faseFilter} 
-            onChange={e => setFaseFilter(e.target.value)}
-            className="border border-slate-300 rounded px-2 py-1 text-sm bg-white"
-          >
-            {fasesOptions.map((fase: string) => (
-              <option key={fase} value={fase}>{fase}</option>
-            ))}
-          </select>
+    <div className={`bg-slate-50 border-slate-200 flex flex-col h-full ${faseOculta ? 'p-4' : 'border rounded-xl p-4'}`}>
+      {!faseOculta && (
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+            <Calendar className="text-blue-600" size={20} />
+            Juegos
+          </h4>
+          <div className="flex gap-2">
+            <select 
+              value={faseFilter} 
+              onChange={e => setFaseFilter(e.target.value)}
+              className="border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+            >
+              {fasesOptions.map((fase: string) => (
+                <option key={fase} value={fase}>{fase}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="flex justify-center mb-4 gap-2">
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1"
-        >
-          <Plus size={14} /> AGREGAR PARTIDO
-        </button>
-        {deporte === 'Artes Marciales Mixtas' && (
-          <button onClick={handleAutoalineacion} className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1">
-            AUTOALINEACIÓN
+      {!faseOculta && (
+        <div className="flex justify-center mb-4 gap-2">
+          <button 
+            onClick={() => { setActiveMatch(null); setShowAddModal(true); }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition"
+          >
+            <Plus size={16}/> AGREGAR PARTIDO
           </button>
-        )}
-      </div>
+          {deporte === 'Artes Marciales Mixtas' && (
+            <button 
+              onClick={handleAutoalineacion}
+              className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
+            >
+              AUTOALINEACIÓN
+            </button>
+          )}
+        </div>
+      )}
 
-      <div className="space-y-3 flex-1 overflow-y-auto">
-        {partidos.filter(p => p.fase === faseFilter || !p.fase).length === 0 ? (
-          <div className="text-center text-slate-400 text-sm mt-8">No hay juegos en esta fase.</div>
+      <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-2">
+        {partidosAMostrar.length === 0 ? (
+          <div className="text-center text-slate-400 mt-10">
+            No hay juegos en esta fase.
+          </div>
         ) : (
-          partidos.filter(p => p.fase === faseFilter || !p.fase).map(p => (
+          partidosAMostrar.map(p => (
             <div key={p.id} className="relative">
               <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition">
                 
@@ -182,14 +204,6 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
         )}
       </div>
 
-      {activeMatch && (
-        <MatchController 
-          match={activeMatch} 
-          deporte={deporte}
-          onClose={() => { setActiveMatch(null); fetchPartidos(); }} 
-        />
-      )}
-
       {showAddModal && (
         <MatchAddModal
           torneoId={torneoId}
@@ -198,9 +212,26 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);
-            fetchPartidos();
+            if(onRefresh) onRefresh(); else fetchPartidos();
           }}
         />
+      )}
+
+      {activeMatch && (
+        (deporte === 'Artes Marciales Mixtas' || torneo?.deporte === 'Artes Marciales Mixtas') ? (
+          <MMAController 
+            match={activeMatch} 
+            onClose={() => setActiveMatch(null)}
+            onSaved={() => { setActiveMatch(null); if(onRefresh) onRefresh(); else fetchPartidos(); }}
+          />
+        ) : (
+          <MatchController 
+            match={activeMatch} 
+            deporte={deporte}
+            onClose={() => setActiveMatch(null)}
+            onSaved={() => { setActiveMatch(null); if(onRefresh) onRefresh(); else fetchPartidos(); }}
+          />
+        )
       )}
     </div>
   );

@@ -172,3 +172,40 @@ En caso de coincidencia exacta en el total\_acumulado de dos o más atletas en l
 2\. \*\*Prioridad 2:\*\* Traducir las equivalencias descritas para la decisión arbitral (\*Hantei\*) en validaciones de software antes de permitir que el usuario cierre manualmente una planilla empatada.  
 3\. \*\*Prioridad 3:\*\* Replicar de manera exacta los 5 pasos del algoritmo de desempate para la modalidad de formas.
 
+Sistema de Puntuación ASAM (Motor de Combate y Formas)
+User Review Required
+IMPORTANT
+
+Aclaración sobre el Reglamento ASAM: Hay una pequeña confusión en tu solicitud. El documento del reglamento ASAM indica que hay DOS modalidades con reglas muy distintas:
+
+Modalidad de Combate (Pelea 1 vs 1): NO utiliza promedio de 3 árbitros. Se usan puntos directos, un contador de Faltas (0 a 2) y un contador de Salidas (0 a 5). Las Salidas y Faltas penalizan o suman puntos automáticamente al rival.
+Modalidad de Formas (Katas/Exhibición): SÍ utiliza de 3 a 5 árbitros que dan notas del 1 al 10. Luego se promedian o se eliminan la nota más alta y la más baja.
+¿En qué modalidad te quieres enfocar ahora mismo? Dado que estás hablando de "abrir un combate", asumo que te refieres a la Modalidad de Combate.
+
+Propuesta de Diseño: Modalidad de Combate (ASAM)
+Si lo que deseas implementar es el panel para arbitrar Combates (Peleas), el diseño de la pantalla del control del partido debe cambiar drásticamente respecto al que tenemos ahora.
+
+Elementos a incorporar en el panel por cada Peleador (Rojo vs Blanco):
+Puntaje Global: (Número grande)
+Botones de Puntos (+1, +2, etc.): Para sumar puntos manuales al competidor.
+Contador de Faltas (0 a 2): Botones para incrementar faltas. Si llega a 2, el sistema descalifica automáticamente.
+Contador de Salidas (0 a 5):
+Salidas 1 y 2: Solo se registran.
+Salida 3: Le suma +1 Punto automático al rival.
+Salida 4: Le suma +1 Punto adicional al rival.
+Salida 5: Descalificación automática del competidor.
+Proposed Changes
+Si apruebas que adaptemos la interfaz de Combates a este formato de Puntos, Faltas y Salidas:
+
+1. Modificar MMAController.tsx
+[MODIFY]: Cambiar la estructura de estado estadisticas para guardar de forma persistente: { puntos: 0, faltas: 0, salidas: 0 } por cada competidor.
+[MODIFY]: Rediseñar las tarjetas de cada peleador. Eliminar los botones fijos genéricos ("Golpe a la cabeza", "Derribo") e implementar:
+Botón grande de +1 PUNTO.
+Botón de + FALTA (Sanción Grave).
+Botón de + SALIDA (Sanción Leve).
+[MODIFY]: Incorporar el motor de lógica en React: Al presionar "+ SALIDA", si es la tercera, sumar automáticamente +1 al puntaje del rival. Si llega a la quinta, mostrar una gran alerta roja de Descalificación.
+[MODIFY]: Actualizar el backend / guardado para que reciba correctamente esta estructura anidada.
+Opcional: Modalidad de Formas
+Si también deseas que implementemos la interfaz de Formas (con 3 a 5 jueces), necesitaríamos crear una pantalla de Puntuación completamente distinta (que no sea un combate 1 vs 1, sino una presentación individual).
+
+Por favor confírmame si deseas proceder con el rediseño del Arbitraje de Combate ASAM (Faltas y Salidas) como detallé arriba.

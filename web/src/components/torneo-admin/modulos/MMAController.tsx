@@ -5,11 +5,25 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function MMAController({ match, onClose }: { match: any, onClose: () => void }) {
   const [estado, setEstado] = useState(match.estado || 'programado');
-  const [estadisticas, setEstadisticas] = useState(match.estadisticas || { local: 0, visitante: 0 });
+  const [estadisticas, setEstadisticas] = useState<any>(() => {
+    const raw = match.estadisticas || {};
+    return {
+      local: {
+        puntos: typeof raw.local === 'object' ? raw.local.puntos || 0 : (raw.local || 0),
+        faltas: typeof raw.local === 'object' ? raw.local.faltas || 0 : 0,
+        salidas: typeof raw.local === 'object' ? raw.local.salidas || 0 : 0,
+      },
+      visitante: {
+        puntos: typeof raw.visitante === 'object' ? raw.visitante.puntos || 0 : (raw.visitante || 0),
+        faltas: typeof raw.visitante === 'object' ? raw.visitante.faltas || 0 : 0,
+        salidas: typeof raw.visitante === 'object' ? raw.visitante.salidas || 0 : 0,
+      }
+    };
+  });
 
   // Puntos calculados a partir de las estadisticas
-  const ptLocal = estadisticas.local || 0;
-  const ptVisitante = estadisticas.visitante || 0;
+  const ptLocal = estadisticas.local.puntos;
+  const ptVisitante = estadisticas.visitante.puntos;
 
   // Chronometer
   const [timer, setTimer] = useState(0);
@@ -45,8 +59,8 @@ export default function MMAController({ match, onClose }: { match: any, onClose:
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({
-          goles_local: ptLocal, // En MMA, los goles son los puntos totales
-          goles_visitante: ptVisitante,
+          goles_local: estadisticas.local.puntos,
+          goles_visitante: estadisticas.visitante.puntos,
           estado: estadoFinal,
           estadisticas: estadisticas
         })
@@ -68,19 +82,47 @@ export default function MMAController({ match, onClose }: { match: any, onClose:
     handleSave(newSt);
   };
 
-  const updateStats = (lado: 'local' | 'visitante', pts: number) => {
-    const n = { ...estadisticas };
-    n[lado] = Math.max(0, (n[lado] || 0) + pts);
-    setEstadisticas(n);
+  const updateScore = (lado: 'local' | 'visitante', prop: 'puntos'|'faltas'|'salidas', value: number) => {
+    setEstadisticas((prev: any) => {
+      const n = JSON.parse(JSON.stringify(prev));
+      const rival = lado === 'local' ? 'visitante' : 'local';
+      
+      const nuevoValor = Math.max(0, n[lado][prop] + value);
+      n[lado][prop] = nuevoValor;
+
+      // Automatismos de ASAM
+      if (prop === 'salidas' && value > 0) {
+        if (nuevoValor === 3) {
+          n[rival].puntos += 1;
+        } else if (nuevoValor === 4) {
+          n[rival].puntos += 1;
+        } else if (nuevoValor >= 5) {
+          setTimeout(() => {
+            alert(`¡DESCALIFICACIÓN! El peleador ha llegado a las 5 salidas.`);
+            handleStateChange('FINALIZADO');
+          }, 100);
+        }
+      }
+
+      if (prop === 'faltas' && value > 0) {
+        if (nuevoValor >= 2) {
+          setTimeout(() => {
+            alert(`¡DESCALIFICACIÓN DIRECTA! El peleador ha acumulado 2 faltas.`);
+            handleStateChange('FINALIZADO');
+          }, 100);
+        }
+      }
+
+      return n;
+    });
   };
 
-  const scoreButtons = [
-    { label: "Golpe a la cabeza", pts: 2, color: "bg-red-100 hover:bg-red-200 text-red-700" },
-    { label: "Golpe al cuerpo", pts: 1, color: "bg-orange-100 hover:bg-orange-200 text-orange-700" },
-    { label: "Derribo", pts: 2, color: "bg-blue-100 hover:bg-blue-200 text-blue-700" },
-    { label: "Control de Suelo", pts: 1, color: "bg-indigo-100 hover:bg-indigo-200 text-indigo-700" },
-    { label: "Falta (Penalización)", pts: -1, color: "bg-slate-800 hover:bg-slate-900 text-white" }
-  ];
+  // Autoguardado al cambiar estadísticas
+  useEffect(() => {
+    if (estadisticas.local.puntos !== ptLocal || estadisticas.visitante.puntos !== ptVisitante) {
+        handleSave();
+    }
+  }, [estadisticas]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -121,17 +163,35 @@ export default function MMAController({ match, onClose }: { match: any, onClose:
                 {match.local_logo ? <img src={match.local_logo} className="w-full h-full object-cover"/> : <User size={48} className="text-slate-400"/>}
               </div>
               
-              <div className="w-full space-y-3 mt-4">
-                {scoreButtons.map(btn => (
-                  <button 
-                    key={btn.label}
-                    onClick={() => { updateStats('local', btn.pts); handleSave(); }}
-                    className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition shadow-sm border border-black/5 flex justify-between items-center ${btn.color}`}
-                  >
-                    <span>{btn.label}</span>
-                    <span className="bg-white/30 px-2 py-0.5 rounded text-xs">{btn.pts > 0 ? `+${btn.pts}` : btn.pts}</span>
+              <div className="w-full grid grid-cols-2 gap-3 mt-4">
+                <button 
+                  onClick={() => { updateScore('local', 'puntos', 1); setTimeout(handleSave, 200); }}
+                  className="col-span-2 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-bold text-lg shadow border border-red-200 transition"
+                >
+                  +1 PUNTO
+                </button>
+                <button 
+                  onClick={() => { updateScore('local', 'puntos', -1); setTimeout(handleSave, 200); }}
+                  className="col-span-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm shadow-sm transition"
+                >
+                  -1 Punto
+                </button>
+                
+                <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Faltas</div>
+                  <div className="text-2xl font-black text-red-600 my-1">{estadisticas.local.faltas}</div>
+                  <button onClick={() => { updateScore('local', 'faltas', 1); setTimeout(handleSave, 200); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
+                    + FALTA
                   </button>
-                ))}
+                </div>
+
+                <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Salidas</div>
+                  <div className="text-2xl font-black text-orange-500 my-1">{estadisticas.local.salidas}</div>
+                  <button onClick={() => { updateScore('local', 'salidas', 1); setTimeout(handleSave, 200); }} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
+                    + SALIDA
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -183,17 +243,35 @@ export default function MMAController({ match, onClose }: { match: any, onClose:
                 {match.visitante_logo ? <img src={match.visitante_logo} className="w-full h-full object-cover"/> : <User size={48} className="text-slate-400"/>}
               </div>
               
-              <div className="w-full space-y-3 mt-4">
-                {scoreButtons.map(btn => (
-                  <button 
-                    key={btn.label}
-                    onClick={() => { updateStats('visitante', btn.pts); handleSave(); }}
-                    className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition shadow-sm border border-black/5 flex justify-between items-center ${btn.color}`}
-                  >
-                    <span>{btn.label}</span>
-                    <span className="bg-white/30 px-2 py-0.5 rounded text-xs">{btn.pts > 0 ? `+${btn.pts}` : btn.pts}</span>
+              <div className="w-full grid grid-cols-2 gap-3 mt-4">
+                <button 
+                  onClick={() => { updateScore('visitante', 'puntos', 1); setTimeout(handleSave, 200); }}
+                  className="col-span-2 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-bold text-lg shadow border border-blue-200 transition"
+                >
+                  +1 PUNTO
+                </button>
+                <button 
+                  onClick={() => { updateScore('visitante', 'puntos', -1); setTimeout(handleSave, 200); }}
+                  className="col-span-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm shadow-sm transition"
+                >
+                  -1 Punto
+                </button>
+                
+                <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Faltas</div>
+                  <div className="text-2xl font-black text-red-600 my-1">{estadisticas.visitante.faltas}</div>
+                  <button onClick={() => { updateScore('visitante', 'faltas', 1); setTimeout(handleSave, 200); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
+                    + FALTA
                   </button>
-                ))}
+                </div>
+
+                <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Salidas</div>
+                  <div className="text-2xl font-black text-orange-500 my-1">{estadisticas.visitante.salidas}</div>
+                  <button onClick={() => { updateScore('visitante', 'salidas', 1); setTimeout(handleSave, 200); }} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
+                    + SALIDA
+                  </button>
+                </div>
               </div>
             </div>
           </div>

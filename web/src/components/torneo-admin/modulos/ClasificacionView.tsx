@@ -7,6 +7,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function ClasificacionView({ torneoId, torneo }: { torneoId: string, torneo?: any }) {
   const [categorias, setCategorias] = useState<any[]>([]);
+  const [partidos, setPartidos] = useState<any[]>([]);
+  const [fasesOptions, setFasesOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Configuracion de puntos
@@ -14,7 +16,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
   const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCategorias();
+    fetchData();
   }, [torneoId]);
 
   const getToken = () => {
@@ -22,15 +24,59 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     return session.access_token || session.token || '';
   };
 
-  const fetchCategorias = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/futbol/torneos/${torneoId}/categorias-puntos`, {
-        headers: { 'Authorization': `Bearer ${getToken()}` }
-      });
-      if(res.ok) setCategorias(await res.json());
+      const [resCat, resPart] = await Promise.all([
+        fetch(`${API_URL}/futbol/torneos/${torneoId}/categorias-puntos`, { headers: { 'Authorization': `Bearer ${getToken()}` } }),
+        fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos`, { headers: { 'Authorization': `Bearer ${getToken()}` } })
+      ]);
+      
+      if(resCat.ok) setCategorias(await resCat.json());
+      
+      if(resPart.ok) {
+        const parts = await resPart.json();
+        setPartidos(parts);
+        const fFromTorneo = torneo?.configuracion?.fases?.length 
+          ? torneo.configuracion.fases.map((f: any) => typeof f === 'object' ? f.name : f) 
+          : ['Fase 1'];
+        const fFromParts = Array.from(new Set(parts.map((p:any) => p.fase).filter(Boolean)));
+        const uniqueFases = Array.from(new Set([...fFromTorneo, ...fFromParts])) as string[];
+        setFasesOptions(uniqueFases.length > 0 ? uniqueFases : ['Fase 1']);
+      }
     } catch(e) { console.error(e); }
     setLoading(false);
+  };
+
+  const computeStandings = (matches: any[]) => {
+    const stats: Record<string, any> = {};
+    matches.filter(m => m.estado === 'finalizado').forEach(m => {
+      const pL = m.jugador_local_nombre || m.local_nombre || m.equipo_local;
+      const pV = m.jugador_visitante_nombre || m.visitante_nombre || m.equipo_visitante;
+      const gL = m.goles_local || 0;
+      const gV = m.goles_visitante || 0;
+      
+      if (pL) {
+        if (!stats[pL]) stats[pL] = { nombre: pL, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
+        stats[pL].pj += 1;
+        stats[pL].gf += gL;
+        stats[pL].gc += gV;
+        if (gL > gV) { stats[pL].pg += 1; stats[pL].pts += 3; }
+        else if (gL === gV) { stats[pL].pe += 1; stats[pL].pts += 1; }
+        else { stats[pL].pp += 1; }
+      }
+      
+      if (pV) {
+        if (!stats[pV]) stats[pV] = { nombre: pV, pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
+        stats[pV].pj += 1;
+        stats[pV].gf += gV;
+        stats[pV].gc += gL;
+        if (gV > gL) { stats[pV].pg += 1; stats[pV].pts += 3; }
+        else if (gV === gL) { stats[pV].pe += 1; stats[pV].pts += 1; }
+        else { stats[pV].pp += 1; }
+      }
+    });
+    return Object.values(stats).sort((a, b) => b.pts - a.pts || (b.gf - b.gc) - (a.gf - a.gc));
   };
 
   const handleChange = (id: string, field: string, value: any) => {
@@ -126,21 +172,81 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
         </div>
       )}
 
-      {/* Split View */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 h-[70vh]">
-        {/* Tabla de Posiciones */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-y-auto">
-          <h4 className="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2">
-            <BarChart2 className="text-blue-600" size={20} />
-            Tabla de Posiciones
-          </h4>
-          <div className="text-center text-slate-400 mt-12 text-sm">
-            La tabla se calculará automáticamente a medida que finalicen los juegos.
+      {/* Lista agrupada por Divisiones/Fases */}
+      <div className="flex flex-col gap-8 pb-10">
+        {fasesOptions.map(fase => {
+          const partidosFase = partidos.filter(p => (p.fase || 'Fase 1') === fase);
+          const standings = computeStandings(partidosFase);
+          
+          return (
+            <div key={fase} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+              <div className="bg-slate-800 text-white p-4">
+                <h3 className="font-black text-lg uppercase tracking-wider">{fase}</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                {/* Tabla de Posiciones */}
+                <div className="p-4 border-r border-slate-100 bg-slate-50">
+                  <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <BarChart2 className="text-blue-600" size={18} />
+                    Tabla de Posiciones
+                  </h4>
+                  {standings.length === 0 ? (
+                    <div className="text-center text-slate-400 mt-8 text-sm">
+                      Aún no hay resultados finalizados para calcular la tabla en esta división.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-200/50 text-slate-600 font-bold">
+                          <tr>
+                            <th className="py-2 px-3">#</th>
+                            <th className="py-2 px-3">Competidor</th>
+                            <th className="py-2 px-3 text-center">PJ</th>
+                            <th className="py-2 px-3 text-center">G</th>
+                            <th className="py-2 px-3 text-center">E</th>
+                            <th className="py-2 px-3 text-center">P</th>
+                            <th className="py-2 px-3 text-center text-blue-600">Pts</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {standings.map((s, idx) => (
+                            <tr key={s.nombre} className="hover:bg-slate-100/50">
+                              <td className="py-2 px-3 font-bold text-slate-400">{idx + 1}</td>
+                              <td className="py-2 px-3 font-semibold text-slate-700">{s.nombre}</td>
+                              <td className="py-2 px-3 text-center text-slate-500">{s.pj}</td>
+                              <td className="py-2 px-3 text-center text-green-600">{s.pg}</td>
+                              <td className="py-2 px-3 text-center text-slate-400">{s.pe}</td>
+                              <td className="py-2 px-3 text-center text-red-500">{s.pp}</td>
+                              <td className="py-2 px-3 text-center font-bold text-blue-600">{s.pts}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Partidos de esta Fase */}
+                <div className="p-0">
+                  <PartidosView 
+                    torneoId={torneoId} 
+                    deporte={torneo?.deporte} 
+                    torneo={torneo} 
+                    partidosProp={partidosFase}
+                    faseOculta={fase}
+                    onRefresh={fetchData}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {fasesOptions.length === 0 && (
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-12 text-center text-slate-500">
+            No hay categorías ni emparejamientos creados aún.
           </div>
-        </div>
-
-        {/* Partidos */}
-        <PartidosView torneoId={torneoId} deporte={torneo?.deporte} torneo={torneo} />
+        )}
       </div>
     </div>
   );

@@ -8,8 +8,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface Partido {
   id: string;
-  equipo_local: string;
-  equipo_visitante: string;
+  equipo_local?: string;
+  equipo_visitante?: string;
+  local_nombre?: string;
+  visitante_nombre?: string;
+  jugador_local_nombre?: string;
+  jugador_visitante_nombre?: string;
   goles_local?: number;
   goles_visitante?: number;
   estado: string;
@@ -185,7 +189,7 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
       {/* VS spacer */}
       <div style={{ position: 'relative' }}>
         <FighterRow
-          name={partido.equipo_local}
+          name={partido.jugador_local_nombre || partido.local_nombre || partido.equipo_local || '?'}
           score={partido.goles_local}
           isWinner={isFin && localWins}
           isLive={isLive}
@@ -197,7 +201,7 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
           letterSpacing: '0.2em', margin: '4px 0'
         }}>VS</div>
         <FighterRow
-          name={partido.equipo_visitante}
+          name={partido.jugador_visitante_nombre || partido.visitante_nombre || partido.equipo_visitante || '?'}
           score={partido.goles_visitante}
           isWinner={isFin && visitWins}
           isLive={isLive}
@@ -288,11 +292,13 @@ export default function TVLivePage() {
           .slice(0, 10)
           .map((p, i): ResultadoHistorico => {
             const lG = p.goles_local ?? 0, vG = p.goles_visitante ?? 0;
+            const lN = p.jugador_local_nombre || p.local_nombre || p.equipo_local || '?';
+            const vN = p.jugador_visitante_nombre || p.visitante_nombre || p.equipo_visitante || '?';
             const texto = lG === vG
-              ? `Empate: ${p.equipo_local} vs ${p.equipo_visitante} (${lG}-${vG})`
+              ? `Empate: ${lN} vs ${vN} (${lG}-${vN})`
               : lG > vG
-              ? `${p.equipo_local} vence a ${p.equipo_visitante} (${lG}-${vG})`
-              : `${p.equipo_visitante} vence a ${p.equipo_local} (${vG}-${lG})`;
+              ? `${lN} vence a ${vN} (${lG}-${vG})`
+              : `${vN} vence a ${lN} (${vG}-${lG})`;
             return {
               id: p.id, texto,
               tiempo: p.fecha_hora ? timeSince(p.fecha_hora) : 'Reciente',
