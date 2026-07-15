@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
@@ -194,8 +194,24 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
               ) : formData.imagen_portada ? (
                 <>
                   <img src={formData.imagen_portada} alt="Logo" className="w-full h-full object-cover absolute inset-0" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <span className="text-white font-bold text-sm">Cambiar Logo</span>
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10 gap-2">
+                    <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded cursor-pointer relative overflow-hidden">
+                      <input 
+                        type="file" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        accept="image/*"
+                        onChange={(e) => onSelectFile(e, 'portada')}
+                        disabled={!!uploadingImage}
+                      />
+                      Cambiar Logo
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); setTargetImageType('portada'); setActiveModal('seleccionar_imagen'); }}
+                      className="text-white font-bold text-sm flex items-center gap-1 bg-black/50 hover:bg-black/70 px-3 py-1 rounded transition"
+                    >
+                      <ImageIcon size={14} /> Galería
+                    </button>
                   </div>
                 </>
               ) : (
@@ -236,8 +252,24 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
               ) : formData.imagen_banner ? (
                 <>
                   <img src={formData.imagen_banner} alt="Banner" className="w-full h-full object-cover absolute inset-0" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <span className="text-white font-bold text-sm">Cambiar Banner</span>
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10 gap-2">
+                    <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded cursor-pointer relative overflow-hidden">
+                      <input 
+                        type="file" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        accept="image/*"
+                        onChange={(e) => onSelectFile(e, 'banner')}
+                        disabled={!!uploadingImage}
+                      />
+                      Cambiar Banner
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); setTargetImageType('banner'); setActiveModal('seleccionar_imagen'); }}
+                      className="text-white font-bold text-sm flex items-center gap-1 bg-black/50 hover:bg-black/70 px-3 py-1 rounded transition"
+                    >
+                      <ImageIcon size={14} /> Galería
+                    </button>
                   </div>
                 </>
               ) : (
