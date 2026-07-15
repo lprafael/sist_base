@@ -7,13 +7,17 @@ import MatchAddModal from './MatchAddModal';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: string, deporte?: string, torneo?: any }) {
-  const fasesOptions = torneo?.configuracion?.fases?.length 
-    ? torneo.configuracion.fases.map((f: any) => typeof f === 'object' ? f.name : f) 
-    : ['Fase 1'];
-
   const [partidos, setPartidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [faseFilter, setFaseFilter] = useState(fasesOptions[0]);
+  
+  const fasesFromTorneo = torneo?.configuracion?.fases?.length 
+    ? torneo.configuracion.fases.map((f: any) => typeof f === 'object' ? f.name : f) 
+    : ['Fase 1'];
+  const fasesFromPartidos = Array.from(new Set(partidos.map(p => p.fase).filter(Boolean)));
+  const fasesOptions = Array.from(new Set([...fasesFromTorneo, ...fasesFromPartidos]));
+
+  const [faseFilter, setFaseFilter] = useState(fasesFromTorneo[0]);
+
   
   // Dropdown context menu
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -37,7 +41,15 @@ export default function PartidosView({ torneoId, deporte, torneo }: { torneoId: 
       const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-      if(res.ok) setPartidos(await res.json());
+      if(res.ok) {
+        const data = await res.json();
+        setPartidos(data);
+        // If the current filter isn't in the new options and we have data, reset it
+        const downloadedFases = Array.from(new Set(data.map((p:any) => p.fase).filter(Boolean)));
+        if (downloadedFases.length > 0 && !downloadedFases.includes(faseFilter)) {
+            setFaseFilter(downloadedFases[0] as string);
+        }
+      }
     } catch(e) { console.error(e); }
     setLoading(false);
   };

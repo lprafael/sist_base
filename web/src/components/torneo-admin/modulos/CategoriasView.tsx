@@ -246,7 +246,11 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
                       <Tag size={14} className="text-slate-400"/> Divisiones (Ej: Peso Pluma, Peso Pesado)
                     </h5>
                     <button 
-                      onClick={() => { setFormDiv({ id: '', nombre: '', categoria_id: cat.id }); setShowDivForm(true); }}
+                      onClick={() => { 
+                        setFormDiv({ id: '', nombre: '', categoria_id: cat.id }); 
+                        setShowDivForm(true); 
+                        setTimeout(() => divInputRef.current?.focus(), 50);
+                      }}
                       className="text-xs text-blue-600 hover:underline font-medium"
                     >
                       + Añadir División

@@ -2414,12 +2414,12 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
                     "ev": p2.torneo_equipo_id,
                     "jl": p1.id, 
                     "jv": p2.id,
-                    "fase": "1º Fase"
+                    "fase": f"{cat['nombre']} - 1º Fase"
                 })
                 matches_created += 1
 
         await session.commit()
-        return {"status": "ok", "message": f"Se generaron {matches_created} partidos"}
+        return {"status": "ok", "message": f"Se generaron {matches_created} partidos. Selecciona las fases en el filtro para verlos por categoría."}
 
     except Exception as e:
         await session.rollback()
