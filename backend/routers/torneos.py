@@ -2399,9 +2399,11 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
                 continue
                 
             # Agrupar por género
-            by_gender = {"Masculino": [], "Femenino": []}
+            from collections import defaultdict
+            by_gender = defaultdict(list)
             for p in group_players:
-                g = p.genero or "Masculino"
+                g_raw = p.genero or "Masculino"
+                g = "Femenino" if g_raw.lower().startswith("f") else "Masculino"
                 by_gender[g].append(p)
 
             for genero, p_list in by_gender.items():
@@ -2446,6 +2448,18 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
 @router.delete("/{torneo_id}/autoalineacion/reset", summary="Eliminar todas las alineaciones y partidos de un torneo")
 async def reset_alineacion(torneo_id: str, session: AsyncSession = Depends(get_session)):
     try:
+        # Primero eliminar dependencias si existen (eventos, alineaciones, etc.)
+        # Hacemos cascada manual en caso de que falte ON DELETE CASCADE
+        await session.execute(text("""
+            DELETE FROM torneos.eventos_partido 
+            WHERE partido_id IN (SELECT id FROM torneos.partidos WHERE torneo_id = :tid)
+        """), {"tid": torneo_id})
+        
+        await session.execute(text("""
+            DELETE FROM torneos.alineaciones 
+            WHERE partido_id IN (SELECT id FROM torneos.partidos WHERE torneo_id = :tid)
+        """), {"tid": torneo_id})
+
         await session.execute(text("DELETE FROM torneos.partidos WHERE torneo_id = :tid"), {"tid": torneo_id})
         await session.commit()
         return {"status": "ok", "message": "Todos los partidos han sido eliminados correctamente"}
