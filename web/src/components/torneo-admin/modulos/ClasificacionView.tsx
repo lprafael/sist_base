@@ -172,12 +172,40 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
         </div>
       )}
 
+      {/* Acciones Globales */}
+      <div className="flex justify-end gap-3 mb-6">
+        {torneo?.deporte === 'Artes Marciales Mixtas' && (
+          <button 
+            onClick={async () => {
+              if(!confirm("¿Generar partidos automáticamente para los atletas inscritos (MMA)?")) return;
+              try {
+                const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/autoalineacion`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+                  body: JSON.stringify({})
+                });
+                const data = await res.json();
+                if(res.ok && data.status !== 'error') {
+                  alert(data.message || 'Partidos generados correctamente');
+                  fetchData();
+                } else {
+                  alert(data.message || 'Ocurrió un error al generar partidos');
+                }
+              } catch(e) { console.error(e); }
+            }}
+            className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
+          >
+            AUTOALINEACIÓN
+          </button>
+        )}
+      </div>
+
       {/* Lista agrupada por Categorías y luego Divisiones */}
       <div className="flex flex-col gap-10 pb-10">
         {(() => {
           if (fasesOptions.length === 0) return (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-12 text-center text-slate-500">
-              No hay categorías ni emparejamientos creados aún.
+              No hay categorías ni emparejamientos creados aún. Haz clic en "AUTOALINEACIÓN" si deseas generarlos.
             </div>
           );
 
