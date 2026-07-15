@@ -172,19 +172,55 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
         </div>
       )}
 
-      {/* Lista agrupada por Divisiones/Fases */}
-      <div className="flex flex-col gap-8 pb-10">
-        {fasesOptions.map(fase => {
-          const partidosFase = partidos.filter(p => (p.fase || 'Fase 1') === fase);
-          const standings = computeStandings(partidosFase);
-          
-          return (
-            <div key={fase} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-              <div className="bg-slate-800 text-white p-4">
-                <h3 className="font-black text-lg uppercase tracking-wider">{fase}</h3>
+      {/* Lista agrupada por Categorías y luego Divisiones */}
+      <div className="flex flex-col gap-10 pb-10">
+        {(() => {
+          if (fasesOptions.length === 0) return (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-12 text-center text-slate-500">
+              No hay categorías ni emparejamientos creados aún.
+            </div>
+          );
+
+          // Agrupar las fases parseándolas
+          const grouped: Record<string, { original: string, division: string }[]> = {};
+          fasesOptions.forEach(fase => {
+            let cat = 'Categoría Única';
+            let div = fase;
+            if (fase.includes(' - ')) {
+              const leftPart = fase.split(' - ')[0];
+              const words = leftPart.split(' ');
+              if (words.length > 1) {
+                div = words[0];
+                cat = words.slice(1).join(' ');
+              }
+            }
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push({ original: fase, division: div });
+          });
+
+          return Object.keys(grouped).map(categoria => (
+            <div key={categoria} className="border-[3px] border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-slate-100">
+              <div className="bg-slate-300 py-4 px-6 border-b-2 border-slate-400">
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  CATEGORÍA: {categoria}
+                </h2>
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+              <div className="p-4 flex flex-col gap-6">
+                {grouped[categoria].map(({ original, division }) => {
+                  const partidosFase = partidos.filter(p => (p.fase || 'Fase 1') === original);
+                  const standings = computeStandings(partidosFase);
+                  
+                  return (
+                    <div key={original} className="bg-white border-2 border-slate-300 rounded-xl shadow-md overflow-hidden flex flex-col">
+                      <div className="bg-slate-800 text-white p-3">
+                        <h3 className="font-bold text-lg uppercase tracking-wider flex justify-between">
+                          <span>DIVISIÓN: {division}</span>
+                          <span className="text-sm font-medium text-slate-400">{original}</span>
+                        </h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 {/* Tabla de Posiciones */}
                 <div className="p-4 border-r border-slate-100 bg-slate-50">
                   <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -238,15 +274,14 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                     onRefresh={fetchData}
                   />
                 </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
-        {fasesOptions.length === 0 && (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-12 text-center text-slate-500">
-            No hay categorías ni emparejamientos creados aún.
-          </div>
-        )}
+          ));
+        })()}
       </div>
     </div>
   );

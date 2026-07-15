@@ -209,3 +209,27 @@ Opcional: Modalidad de Formas
 Si también deseas que implementemos la interfaz de Formas (con 3 a 5 jueces), necesitaríamos crear una pantalla de Puntuación completamente distinta (que no sea un combate 1 vs 1, sino una presentación individual).
 
 Por favor confírmame si deseas proceder con el rediseño del Arbitraje de Combate ASAM (Faltas y Salidas) como detallé arriba.
+
+Nuevo Panel de Arbitraje de Combate (Reglamento ASAM)
+He reprogramado completamente la interfaz del Controlador de Combate (MMAController) para que siga estrictamente la modalidad de pelea 1 vs 1 del formato ASAM.
+
+Cambios Implementados
+Nuevo Panel por Competidor: Al hacer clic en el resultado de un partido (el botón central : o el marcador numérico) en la lista de Juegos, se abrirá el panel de arbitraje. Ahora, cada peleador (Rojo y Azul) tiene sus propios contadores para:
+
+Puntos
+Faltas
+Salidas
+Automatización de Penalizaciones (Salidas): He incorporado el flujo de control descrito en tu documento:
+
+Si un peleador comete 3 Salidas, el sistema detecta esto y le suma +1 punto automáticamente al rival.
+Si comete 4 Salidas, se suma otro punto al rival.
+Si llega a 5 Salidas, el sistema lanzará una alerta roja interrumpiendo el combate por Descalificación.
+Automatización de Sanciones (Faltas):
+
+Al registrar la 2da Falta, el software emitirá inmediatamente una alerta de Descalificación Directa y cambiará el estado del combate a Finalizado.
+Autoguardado Seguro: La estructura de la base de datos se adaptó para almacenar los 3 valores de cada peleador. Todo se guarda silenciosamente en tiempo real al presionar los botones, para que no pierdas ningún dato si se cierra la pantalla.
+
+Cómo probarlo
+Ve a "Partidos y Clasificación".
+Abre cualquier partido de Artes Marciales haciendo clic en los botones de "marcador" que están en el medio del bloque de los peleadores.
+Prueba sumar una "Salida" tres veces a un jugador, y verás cómo los puntos del rival suben automáticamente.

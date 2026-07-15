@@ -3,7 +3,7 @@ import { X, Play, Pause, RotateCcw, Check, Trophy, User } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function MMAController({ match, onClose }: { match: any, onClose: () => void }) {
+export default function MMAController({ match, onClose, onSaved }: { match: any, onClose: () => void, onSaved?: () => void }) {
   const [estado, setEstado] = useState(match.estado || 'programado');
   const [estadisticas, setEstadisticas] = useState<any>(() => {
     const raw = match.estadisticas || {};
@@ -66,6 +66,9 @@ export default function MMAController({ match, onClose }: { match: any, onClose:
         })
       });
       if(nuevoEstado) setEstado(nuevoEstado);
+      if(nuevoEstado === 'finalizado' && onSaved) {
+        onSaved();
+      }
     } catch(e) { console.error(e); }
   };
 
@@ -143,10 +146,6 @@ export default function MMAController({ match, onClose }: { match: any, onClose:
               <option value="FINALIZADO">FINALIZADO</option>
             </select>
           </div>
-
-          <button onClick={() => handleSave()} className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-2">
-            <Check size={16}/> Guardar
-          </button>
         </div>
 
         {/* Content */}
