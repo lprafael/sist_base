@@ -3,7 +3,7 @@ import { X, Play, Pause, RotateCcw, Check, Trophy, User } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function MMAController({ match, onClose, onSaved }: { match: any, onClose: () => void, onSaved?: () => void }) {
+export default function MMAController({ match, onClose, onSaved, onUpdate }: { match: any, onClose: () => void, onSaved?: () => void, onUpdate?: () => void }) {
   const [estado, setEstado] = useState(match.estado || 'programado');
   const [estadisticas, setEstadisticas] = useState<any>(() => {
     const raw = match.estadisticas || {};
@@ -65,7 +65,12 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
           estadisticas: estadisticas
         })
       });
-      if(nuevoEstado) setEstado(nuevoEstado);
+      
+      // Llamar onUpdate para refrescar datos por debajo, sin cerrar el modal
+      if (onUpdate) {
+         onUpdate();
+      }
+      
       if(nuevoEstado === 'finalizado' && onSaved) {
         onSaved();
       }
@@ -82,7 +87,7 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
     let newSt = 'programado';
     if (val === 'EN VIVO') newSt = 'en_curso';
     if (val === 'FINALIZADO') newSt = 'finalizado';
-    handleSave(newSt);
+    setEstado(newSt);
   };
 
   const updateScore = (lado: 'local' | 'visitante', prop: 'puntos'|'faltas'|'salidas', value: number) => {
@@ -120,12 +125,23 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
     });
   };
 
-  // Autoguardado al cambiar estadísticas
+  // Ref para controlar la carga inicial y el timer
+  const [isInitialMount, setIsInitialMount] = useState(true);
+
+  // Autoguardado real: cada vez que cambien las estadisticas o el estado, se dispara el guardado con los datos más recientes
   useEffect(() => {
-    if (estadisticas.local.puntos !== ptLocal || estadisticas.visitante.puntos !== ptVisitante) {
-        handleSave();
+    if (isInitialMount) {
+      setIsInitialMount(false);
+      return;
     }
-  }, [estadisticas]);
+    
+    // Usamos debounce para no saturar el servidor si hacen clics rápidos
+    const delayDebounceFn = setTimeout(() => {
+      handleSave(estado);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [estadisticas, estado]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -164,13 +180,13 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
               
               <div className="w-full grid grid-cols-2 gap-3 mt-4">
                 <button 
-                  onClick={() => { updateScore('local', 'puntos', 1); setTimeout(handleSave, 200); }}
+                  onClick={() => updateScore('local', 'puntos', 1)}
                   className="col-span-2 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-bold text-lg shadow border border-red-200 transition"
                 >
                   +1 PUNTO
                 </button>
                 <button 
-                  onClick={() => { updateScore('local', 'puntos', -1); setTimeout(handleSave, 200); }}
+                  onClick={() => updateScore('local', 'puntos', -1)}
                   className="col-span-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm shadow-sm transition"
                 >
                   -1 Punto
@@ -179,7 +195,7 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
                 <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
                   <div className="text-xs font-bold text-slate-500 uppercase">Faltas</div>
                   <div className="text-2xl font-black text-red-600 my-1">{estadisticas.local.faltas}</div>
-                  <button onClick={() => { updateScore('local', 'faltas', 1); setTimeout(handleSave, 200); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
+                  <button onClick={() => updateScore('local', 'faltas', 1)} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
                     + FALTA
                   </button>
                 </div>
@@ -187,7 +203,7 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
                 <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
                   <div className="text-xs font-bold text-slate-500 uppercase">Salidas</div>
                   <div className="text-2xl font-black text-orange-500 my-1">{estadisticas.local.salidas}</div>
-                  <button onClick={() => { updateScore('local', 'salidas', 1); setTimeout(handleSave, 200); }} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
+                  <button onClick={() => updateScore('local', 'salidas', 1)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
                     + SALIDA
                   </button>
                 </div>
@@ -241,16 +257,15 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
               <div className="w-32 h-32 bg-slate-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-blue-500 shadow-lg">
                 {match.visitante_logo ? <img src={match.visitante_logo} className="w-full h-full object-cover"/> : <User size={48} className="text-slate-400"/>}
               </div>
-              
               <div className="w-full grid grid-cols-2 gap-3 mt-4">
                 <button 
-                  onClick={() => { updateScore('visitante', 'puntos', 1); setTimeout(handleSave, 200); }}
+                  onClick={() => updateScore('visitante', 'puntos', 1)}
                   className="col-span-2 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-bold text-lg shadow border border-blue-200 transition"
                 >
                   +1 PUNTO
                 </button>
                 <button 
-                  onClick={() => { updateScore('visitante', 'puntos', -1); setTimeout(handleSave, 200); }}
+                  onClick={() => updateScore('visitante', 'puntos', -1)}
                   className="col-span-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm shadow-sm transition"
                 >
                   -1 Punto
@@ -258,8 +273,8 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
                 
                 <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
                   <div className="text-xs font-bold text-slate-500 uppercase">Faltas</div>
-                  <div className="text-2xl font-black text-red-600 my-1">{estadisticas.visitante.faltas}</div>
-                  <button onClick={() => { updateScore('visitante', 'faltas', 1); setTimeout(handleSave, 200); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
+                  <div className="text-2xl font-black text-blue-600 my-1">{estadisticas.visitante.faltas}</div>
+                  <button onClick={() => updateScore('visitante', 'faltas', 1)} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
                     + FALTA
                   </button>
                 </div>
@@ -267,11 +282,11 @@ export default function MMAController({ match, onClose, onSaved }: { match: any,
                 <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
                   <div className="text-xs font-bold text-slate-500 uppercase">Salidas</div>
                   <div className="text-2xl font-black text-orange-500 my-1">{estadisticas.visitante.salidas}</div>
-                  <button onClick={() => { updateScore('visitante', 'salidas', 1); setTimeout(handleSave, 200); }} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
+                  <button onClick={() => updateScore('visitante', 'salidas', 1)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
                     + SALIDA
                   </button>
                 </div>
-              </div>
+              </div>   
             </div>
           </div>
         </div>

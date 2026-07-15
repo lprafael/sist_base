@@ -223,6 +223,7 @@ export default function PartidosView({
             match={activeMatch} 
             onClose={() => setActiveMatch(null)}
             onSaved={() => { setActiveMatch(null); if(onRefresh) onRefresh(); else fetchPartidos(); }}
+            onUpdate={() => { if(onRefresh) onRefresh(); else fetchPartidos(); }}
           />
         ) : (
           <MatchController 
