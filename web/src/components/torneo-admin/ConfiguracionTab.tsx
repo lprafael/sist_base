@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 
@@ -69,6 +69,56 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [targetImageType, setTargetImageType] = useState<'portada' | 'banner' | null>(null);
   const [activeDeporteTab, setActiveDeporteTab] = useState<string>('playa');
+
+  // Patrocinios state (mocked for now)
+  const [sponsorsCampeonato, setSponsorsCampeonato] = useState([{ id: 1, nombre: 'Patrocinio 1' }]);
+  const [sponsorsCuenta, setSponsorsCuenta] = useState<any[]>([]);
+
+  // Exportar Equipos state
+  const [columnasEquipos, setColumnasEquipos] = useState({
+    nombre: true, escudo: true, entrenador: true, enlace: false, puntos: false,
+    juegos: false, ganados: false, empates: false, perdido: false, golesFavor: false,
+    golesContra: false, diferenciaGoles: false, promedioGoles: false, aprovechamiento: false,
+    puntosExtras: false, tarjetaRoja: false, tarjetaAmarilla: false, tarjetaAzul: false,
+    todasTarjetas: false, juegoLimpio: false, indexTechnique: false
+  });
+
+  const columnasEquiposLabels: Record<string, string> = {
+    nombre: 'Nombre', escudo: 'Escudo', entrenador: 'Entrenador', enlace: 'Enlace para editar el equipo',
+    puntos: 'Puntos', juegos: 'Juegos', ganados: 'Ganados', empates: 'Empates',
+    perdido: 'Perdido', golesFavor: 'Goles a Favor', golesContra: 'Goles Contra',
+    diferenciaGoles: 'Diferencia de Goles', promedioGoles: 'Promedio de goles',
+    aprovechamiento: 'Aprovechamiento', puntosExtras: 'Puntos Extras',
+    tarjetaRoja: 'Tarjeta roja', tarjetaAmarilla: 'Tarjeta amarilla', tarjetaAzul: 'Tarjeta azul',
+    todasTarjetas: 'Todas las tarjetas', juegoLimpio: 'Juego Limpio', indexTechnique: 'Index technique'
+  };
+
+  // Exportar Jugadores state
+  const [columnasJugadores, setColumnasJugadores] = useState({
+    equipo: true, nombre: true, dni: true, camiseta: true, posicion: true,
+    estado: true, partidosJugados: true, goles: true, amarillas: true, rojas: true, foto: true
+  });
+
+  const columnasJugadoresLabels: Record<string, string> = {
+    equipo: 'Equipo', nombre: 'Nombre', dni: 'DNI', camiseta: 'Camiseta',
+    posicion: 'Posición', estado: 'Estado', partidosJugados: 'Partidos Jugados',
+    goles: 'Goles', amarillas: 'Amarillas', rojas: 'Rojas', foto: 'Foto / Enlace'
+  };
+
+  // Carnet state
+  const [carnetConfig, setCarnetConfig] = useState({
+    titulo: torneo.nombre || '',
+    subtitulo: '',
+    color: '#0b5cd5',
+    incluirEscudo: true,
+    espacio1: 'numero_camiseta',
+    espacio2: 'nombre_abreviado',
+    espacio3: 'posicion',
+    tamano: '86x59',
+    modo: 'multiple' // multiple o ajuste_tamano
+  });
+  const [carnetEquiposSeleccionados, setCarnetEquiposSeleccionados] = useState<string[]>([]);
+  const [equiposDisponibles, setEquiposDisponibles] = useState<any[]>([]);
 
   // Hardcoded predefined images for the demo
   const PREDEFINED_IMAGES: Record<string, string[]> = {
@@ -171,6 +221,179 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       alert('Error de conexión al subir imagen.');
     } finally {
       setUploadingImage(null);
+    }
+  };
+
+  const handleExportarExcel = async () => {
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/reportes/equipos/excel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(columnasEquipos)
+      });
+
+      if (!res.ok) {
+        throw new Error('Error al generar el reporte');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Equipos_${torneo.nombre.replace(/ /g, '_')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setActiveModal(null);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al exportar el archivo excel.');
+    }
+  };
+
+  const handleImprimirPdfJugadores = async () => {
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/reportes/jugadores/pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(columnasJugadores)
+      });
+
+      if (!res.ok) throw new Error('Error al generar el PDF de jugadores');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Jugadores_${torneo.nombre.replace(/ /g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setActiveModal(null);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al generar el archivo PDF de jugadores.');
+    }
+  };
+
+  const handleExportarExcelJugadores = async () => {
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/reportes/jugadores/excel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(columnasJugadores)
+      });
+
+      if (!res.ok) throw new Error('Error al generar el Excel de jugadores');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Jugadores_${torneo.nombre.replace(/ /g, '_')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setActiveModal(null);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al exportar el archivo Excel de jugadores.');
+    }
+  };
+
+  const openCarnetModal = async () => {
+    setActiveModal('configurar_carnet');
+    if (equiposDisponibles.length === 0) {
+      try {
+        const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+        const token = sessionData.access_token || sessionData.token || '';
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
+        const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/equipos`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setEquiposDisponibles(data);
+          setCarnetEquiposSeleccionados(data.map((e: any) => e.id));
+        }
+      } catch (e) {
+        console.error("Error fetching teams for carnets", e);
+      }
+    }
+  };
+
+  const handleImprimirCarnets = async () => {
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      const payload = {
+        titulo: carnetConfig.titulo,
+        subtitulo: carnetConfig.subtitulo,
+        color: carnetConfig.color,
+        incluirEscudo: carnetConfig.incluirEscudo,
+        espacio1: carnetConfig.espacio1,
+        espacio2: carnetConfig.espacio2,
+        espacio3: carnetConfig.espacio3,
+        tamano: carnetConfig.tamano,
+        modo: carnetConfig.modo,
+        equipo_ids: carnetEquiposSeleccionados
+      };
+
+      const res = await fetch(`${API_URL}/cancha/torneos/${torneo.id}/reportes/carnets/pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Error al generar el PDF de carnets');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Carnets_${torneo.nombre.replace(/ /g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setActiveModal(null);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al generar los carnets.');
     }
   };
 
@@ -492,7 +715,11 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   <div className="text-slate-800 font-medium">Estado del campeonato</div>
                   <select
                     name="estado" value={formData.estado} onChange={(e) => { handleChange(e); onUpdate({ estado: e.target.value }); }}
-                    className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-3 py-1 text-sm font-bold outline-none"
+                    className={`rounded-full px-3 py-1 text-sm font-bold outline-none border ${formData.estado === 'en_curso' ? 'bg-green-50 text-green-600 border-green-200' :
+                      formData.estado === 'finalizado' ? 'bg-slate-100 text-slate-600 border-slate-300' :
+                        formData.estado === 'cancelado' ? 'bg-red-50 text-red-600 border-red-200' :
+                          'bg-blue-50 text-blue-600 border-blue-200'
+                      }`}
                   >
                     <option value="abierto">En preparación / Abierto</option>
                     <option value="en_curso">En curso / Iniciado</option>
@@ -503,7 +730,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
                 <div className="flex items-center justify-between text-slate-700">
                   <span>Patrocinios y Apoyos</span>
-                  <button className="text-blue-500 hover:underline text-sm font-medium">Editar</button>
+                  <button onClick={() => setActiveModal('patrocinios')} className="text-blue-500 hover:underline text-sm font-medium">Editar</button>
                 </div>
               </div>
             </div>
@@ -530,7 +757,11 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 {['Equipos', 'Jugadores', 'Carnet', 'Acta', 'Partidos', 'Clasificación'].map(rep => (
                   <li key={rep} className="flex justify-between items-center">
                     <div className="flex items-center gap-2"><Printer size={16} className="text-slate-400" /> {rep}</div>
-                    <button className="text-blue-500 hover:underline font-medium">Imprimir</button>
+                    <button onClick={() => { 
+                      if (rep === 'Equipos') setActiveModal('exportar_equipos'); 
+                      if (rep === 'Jugadores') setActiveModal('exportar_jugadores'); 
+                      if (rep === 'Carnet') openCarnetModal();
+                    }} className="text-blue-500 hover:underline font-medium">Imprimir</button>
                   </li>
                 ))}
               </ul>
@@ -541,6 +772,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       </div>
 
       {/* MODALS */}
+      {/* Ubicación */}
       {activeModal === 'ubicacion' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-[800px] max-w-full max-h-[90vh] flex flex-col">
@@ -587,7 +819,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           </div>
         </div>
       )}
-
+      {/* Contacto */}
       {activeModal === 'contacto' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-96 max-w-full">
@@ -617,7 +849,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           </div>
         </div>
       )}
-
+      {/* Color del Sidebar */}
       {activeModal === 'color' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-96 max-w-full">
@@ -637,7 +869,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           </div>
         </div>
       )}
-
+      {/* Reglas del Campeonato */}
       {activeModal === 'reglas' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-[800px] max-w-full">
@@ -655,7 +887,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           </div>
         </div>
       )}
-
+      {/* Premios del Campeonato */}
       {activeModal === 'premios' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-[500px] max-w-full">
@@ -694,6 +926,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         </div>
       )}
 
+      {/* Imprimir Reportes */}
       {activeModal === 'seleccionar_imagen' && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-[900px] max-w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
@@ -718,8 +951,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   key={tab.id}
                   onClick={() => setActiveDeporteTab(tab.id)}
                   className={`px-5 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap border ${activeDeporteTab === tab.id
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                     }`}
                 >
                   {tab.label}
@@ -741,8 +974,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                       }
                     }}
                     className={`relative rounded-xl overflow-hidden cursor-pointer group shadow-sm border-2 transition-all ${(targetImageType === 'portada' ? formData.imagen_portada : formData.imagen_banner) === imgUrl
-                        ? 'border-blue-500 shadow-md scale-[1.02]'
-                        : 'border-transparent hover:border-slate-300'
+                      ? 'border-blue-500 shadow-md scale-[1.02]'
+                      : 'border-transparent hover:border-slate-300'
                       }`}
                   >
                     <div className="aspect-video bg-slate-200 flex items-center justify-center text-slate-400 relative">
@@ -770,6 +1003,349 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
             <div className="px-6 py-4 bg-white border-t border-slate-100 flex justify-end">
               <button onClick={() => setActiveModal(null)} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 transition">Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Patrocinios y Apoyos */}
+      {activeModal === 'patrocinios' && (
+        <div className="fixed inset-0 bg-[#f0f0f0] flex flex-col z-[100]">
+          <div className="bg-[#0b5cd5] text-white p-4 flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setActiveModal(null)} className="text-white hover:bg-blue-700 p-1 rounded-full transition">
+                <ArrowLeft size={24} />
+              </button>
+              <h2 className="text-xl font-medium">Patrocinios y Apoyos</h2>
+            </div>
+            <button className="text-white hover:bg-blue-700 p-1 rounded-full transition">
+              <Plus size={24} />
+            </button>
+          </div>
+
+          <div className="flex-1 p-4 space-y-4 overflow-y-auto max-w-2xl mx-auto w-full mt-2">
+            <div className="bg-[#fcfafc] rounded-lg border border-slate-300 overflow-hidden shadow-sm">
+              <div className="bg-[#e4e9f7] p-3 flex items-center justify-between border-b border-slate-300">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-[#c4d0ee] rounded-md flex items-center justify-center text-[#0b5cd5]">
+                    <Trophy size={16} />
+                  </div>
+                  <span className="text-[#0b5cd5] font-bold text-sm">Registrados en el campeonato</span>
+                </div>
+                <div className="w-6 h-6 bg-[#0b5cd5] text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {sponsorsCampeonato.length}
+                </div>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {sponsorsCampeonato.length === 0 ? (
+                  <div className="p-4 text-center text-slate-800 text-sm bg-[#fcfafc]">vacío</div>
+                ) : (
+                  sponsorsCampeonato.map(sp => (
+                    <div key={sp.id} className="p-4 flex items-center justify-between bg-white">
+                      <span className="text-slate-800 text-[15px]">{sp.nombre}</span>
+                      <button
+                        onClick={() => {
+                          setSponsorsCampeonato(sponsorsCampeonato.filter(s => s.id !== sp.id));
+                          setSponsorsCuenta([...sponsorsCuenta, sp]);
+                        }}
+                        className="text-slate-700 hover:text-slate-900 transition"
+                      >
+                        <MinusCircle size={24} strokeWidth={1.5} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-[#fcfafc] rounded-lg border border-slate-300 overflow-hidden shadow-sm mt-4">
+              <div className="bg-[#e2e4e9] p-3 flex items-center justify-between border-b border-slate-300">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-[#ccced3] rounded-md flex items-center justify-center text-slate-600">
+                    <User size={16} />
+                  </div>
+                  <span className="text-[#3b4b5c] font-bold text-sm">Registrados en tu cuenta</span>
+                </div>
+                <div className="w-6 h-6 bg-[#475b6d] text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {sponsorsCuenta.length}
+                </div>
+              </div>
+              <div className="divide-y divide-slate-200">
+                {sponsorsCuenta.length === 0 ? (
+                  <div className="p-4 text-center text-slate-800 text-sm bg-[#fcfafc]">vacío</div>
+                ) : (
+                  sponsorsCuenta.map(sp => (
+                    <div key={sp.id} className="p-4 flex items-center justify-between bg-white">
+                      <span className="text-slate-800 text-[15px]">{sp.nombre}</span>
+                      <button
+                        onClick={() => {
+                          setSponsorsCuenta(sponsorsCuenta.filter(s => s.id !== sp.id));
+                          setSponsorsCampeonato([...sponsorsCampeonato, sp]);
+                        }}
+                        className="text-[#0b5cd5] hover:text-blue-800 font-medium text-2xl leading-none transition"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'exportar_equipos' && (
+        <div className="fixed inset-0 bg-black/30 flex flex-col items-center justify-center z-[100] p-4">
+          <div className="bg-[#f3f0f5] rounded-xl w-full max-w-xs overflow-hidden flex flex-col shadow-xl">
+            <div className="p-5 pb-2">
+              <h2 className="text-[22px] text-slate-800 font-normal">Exportar</h2>
+            </div>
+            <div className="flex-1 mt-4">
+              <div
+                onClick={() => setActiveModal('seleccionar_columnas_equipos')}
+                className="flex items-center gap-4 px-5 py-4 border-b border-t border-slate-200 cursor-pointer hover:bg-slate-200/50 transition"
+              >
+                <List size={22} className="text-slate-600" />
+                <span className="text-lg text-slate-800">Seleccionar columnas</span>
+              </div>
+              <div className="flex items-center gap-4 px-5 py-4 border-b border-slate-200 cursor-pointer hover:bg-slate-200/50 transition">
+                <Layers size={22} className="text-slate-600" />
+                <span className="text-lg text-slate-800">Seleccionar Fase</span>
+              </div>
+            </div>
+            <div className="p-5 pt-8 flex justify-end gap-6">
+              <button onClick={handleExportarExcel} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Excel</button>
+              <button onClick={() => setActiveModal(null)} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Imprimir</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* TODO: Implementar la lógica de impresión de equipos */}
+      {activeModal === 'seleccionar_columnas_equipos' && (
+        <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
+          <div className="p-4 bg-[#f3f0f5]">
+            <h2 className="text-[22px] text-slate-800 font-normal">Lista de equipos</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto pb-4">
+            {Object.entries(columnasEquiposLabels).map(([key, label]) => (
+              <label key={key} className={`flex items-center justify-between p-4 cursor-pointer hover:bg-slate-200/30 transition ${columnasEquipos[key as keyof typeof columnasEquipos] ? 'bg-[#e5e1e8]' : 'bg-[#f3f0f5]'}`}>
+                <span className="text-[17px] text-slate-800">{label}</span>
+                <input
+                  type="checkbox"
+                  checked={columnasEquipos[key as keyof typeof columnasEquipos]}
+                  onChange={(e) => setColumnasEquipos({ ...columnasEquipos, [key]: e.target.checked })}
+                  className="w-[22px] h-[22px] rounded border-gray-400 text-[#0ea5e9] focus:ring-[#0ea5e9] bg-transparent"
+                />
+              </label>
+            ))}
+          </div>
+          <div className="p-5 flex justify-end bg-[#f3f0f5]">
+            <button onClick={() => setActiveModal('exportar_equipos')} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600 mr-2">Guardar</button>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'exportar_jugadores' && (
+        <div className="fixed inset-0 bg-black/30 flex flex-col items-center justify-center z-[100] p-4">
+          <div className="bg-[#f3f0f5] rounded-xl w-full max-w-xs overflow-hidden flex flex-col shadow-xl">
+            <div className="p-5 pb-2">
+              <h2 className="text-[22px] text-slate-800 font-normal">Exportar Jugadores</h2>
+            </div>
+            <div className="flex-1 mt-4">
+              <div
+                onClick={() => setActiveModal('seleccionar_columnas_jugadores')}
+                className="flex items-center gap-4 px-5 py-4 border-b border-t border-slate-200 cursor-pointer hover:bg-slate-200/50 transition"
+              >
+                <List size={22} className="text-slate-600" />
+                <span className="text-lg text-slate-800">Seleccionar columnas</span>
+              </div>
+            </div>
+            <div className="p-5 pt-8 flex justify-end gap-6">
+              <button onClick={handleExportarExcelJugadores} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Excel</button>
+              <button onClick={handleImprimirPdfJugadores} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Imprimir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+        </div>
+      )}
+
+      {activeModal === 'configurar_carnet' && (
+        <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
+          <div className="p-5 pb-3">
+            <h2 className="text-[26px] text-slate-800 font-normal">Carnet</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 space-y-5">
+            <div>
+              <label className="text-sm text-slate-600 block mb-1">Nombre del campeonato</label>
+              <input 
+                type="text" 
+                value={carnetConfig.titulo} 
+                onChange={e => setCarnetConfig({ ...carnetConfig, titulo: e.target.value })} 
+                placeholder="Acá va el Título..." 
+                className="w-full border-b border-slate-400 bg-transparent py-1 text-lg text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-600 block mb-1">Subtítulo</label>
+              <input 
+                type="text" 
+                value={carnetConfig.subtitulo} 
+                onChange={e => setCarnetConfig({ ...carnetConfig, subtitulo: e.target.value })} 
+                placeholder="Acá va el subtítulo..." 
+                className="w-full border-b border-slate-400 bg-transparent py-1 text-lg text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Edit3 size={18} className="text-slate-600" />
+                <span className="text-lg text-slate-800">Color</span>
+                <div className="flex items-center ml-2 relative overflow-hidden rounded">
+                  <input 
+                    type="color" 
+                    value={carnetConfig.color}
+                    onChange={e => setCarnetConfig({ ...carnetConfig, color: e.target.value })}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  />
+                  <button className="text-blue-500 font-medium text-lg">Editar</button>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full border border-slate-300" style={{ backgroundColor: carnetConfig.color }}></div>
+            </div>
+
+            <label className="flex items-center justify-between py-2 cursor-pointer">
+              <span className="text-lg text-slate-800">Incluir escudo del equipo</span>
+              <input 
+                type="checkbox" 
+                checked={carnetConfig.incluirEscudo}
+                onChange={e => setCarnetConfig({ ...carnetConfig, incluirEscudo: e.target.checked })}
+                className="w-[22px] h-[22px] rounded border-gray-400 text-[#0ea5e9] focus:ring-[#0ea5e9] bg-transparent"
+              />
+            </label>
+
+            {[
+              { id: 'espacio1', label: 'Espacio 1' },
+              { id: 'espacio2', label: 'Espacio 2' },
+              { id: 'espacio3', label: 'Espacio 3' }
+            ].map((esp, i) => (
+              <div key={esp.id} className="flex justify-between items-center py-2">
+                <span className="text-lg text-slate-600">{esp.label}</span>
+                <select 
+                  className="bg-transparent text-slate-800 text-lg outline-none border-none cursor-pointer appearance-none text-right pr-6 relative"
+                  value={(carnetConfig as any)[esp.id]}
+                  onChange={e => setCarnetConfig({ ...carnetConfig, [esp.id]: e.target.value })}
+                  style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364748b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right center', backgroundSize: '12px' }}
+                >
+                  <option value="numero_camiseta">N° de camiseta/Registro</option>
+                  <option value="nombre_abreviado">Nombre abreviado</option>
+                  <option value="documento">Documento</option>
+                  <option value="posicion">Posición de jugador</option>
+                  <option value="telefono">Teléfono</option>
+                  <option value="vacio">vacío</option>
+                </select>
+              </div>
+            ))}
+          </div>
+          <div className="p-5 flex justify-end bg-[#f3f0f5]">
+            <button onClick={() => setActiveModal('seleccionar_equipos_carnet')} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Continuar</button>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'seleccionar_equipos_carnet' && (
+        <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
+          <div className="p-5 pb-3">
+            <h2 className="text-[26px] text-slate-800 font-normal">Seleccionar equipos</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto pb-4">
+            {equiposDisponibles.length === 0 ? (
+              <div className="p-5 text-slate-600">No hay equipos disponibles.</div>
+            ) : (
+              equiposDisponibles.map(equipo => (
+                <label key={equipo.id} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-200/30 transition">
+                  <span className="text-[17px] text-slate-800">{equipo.nombre}</span>
+                  <input
+                    type="checkbox"
+                    checked={carnetEquiposSeleccionados.includes(equipo.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setCarnetEquiposSeleccionados([...carnetEquiposSeleccionados, equipo.id]);
+                      } else {
+                        setCarnetEquiposSeleccionados(carnetEquiposSeleccionados.filter(id => id !== equipo.id));
+                      }
+                    }}
+                    className="w-[22px] h-[22px] rounded border-gray-400 text-[#0ea5e9] focus:ring-[#0ea5e9] bg-transparent"
+                  />
+                </label>
+              ))
+            )}
+          </div>
+          <div className="p-5 flex justify-end bg-[#f3f0f5]">
+            <button onClick={() => setActiveModal('seleccionar_tamano_carnet')} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Continuar</button>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'seleccionar_tamano_carnet' && (
+        <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
+          <div className="p-5 pb-3">
+            <h2 className="text-[26px] text-slate-800 font-normal">Tamaño y Formato</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto pb-4 divide-y divide-slate-200">
+            <div className="px-5 py-4 space-y-4">
+              <h3 className="text-lg font-medium text-slate-700">Modo de impresión</h3>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="modo_impresion" 
+                  value="multiple" 
+                  checked={carnetConfig.modo === 'multiple'}
+                  onChange={() => setCarnetConfig({ ...carnetConfig, modo: 'multiple' })}
+                  className="w-5 h-5 text-[#0ea5e9] border-gray-400 focus:ring-[#0ea5e9]"
+                />
+                <span className="text-slate-800 text-lg">Múltiples carnets por hoja (A4)</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="modo_impresion" 
+                  value="ajuste_tamano" 
+                  checked={carnetConfig.modo === 'ajuste_tamano'}
+                  onChange={() => setCarnetConfig({ ...carnetConfig, modo: 'ajuste_tamano' })}
+                  className="w-5 h-5 text-[#0ea5e9] border-gray-400 focus:ring-[#0ea5e9]"
+                />
+                <span className="text-slate-800 text-lg">Ajustar al tamaño (Impresora de PVC)</span>
+              </label>
+            </div>
+            
+            <div className="px-5 py-4">
+              <h3 className="text-lg font-medium text-slate-700 mb-4">Dimensiones</h3>
+              {[
+                { id: '86x59', label: 'Opción 1', desc: '86mmx59mm' },
+                { id: '85x54', label: 'Opción 2', desc: '(Tamaño Tarjeta de crédito)' },
+              ].map(opt => (
+                <label key={opt.id} className="block py-3 cursor-pointer hover:bg-slate-200/30 transition">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="tamano_carnet" 
+                      value={opt.id} 
+                      checked={carnetConfig.tamano === opt.id}
+                      onChange={() => setCarnetConfig({ ...carnetConfig, tamano: opt.id })}
+                      className="w-5 h-5 text-[#0ea5e9] border-gray-400 focus:ring-[#0ea5e9]"
+                    />
+                    <div>
+                      <div className="text-[17px] text-slate-800">{opt.label}</div>
+                      <div className="text-sm text-slate-500">{opt.desc}</div>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="p-5 flex justify-end bg-[#f3f0f5]">
+            <button onClick={handleImprimirCarnets} className="text-[#0ea5e9] font-bold text-lg hover:text-blue-600">Imprimir</button>
           </div>
         </div>
       )}

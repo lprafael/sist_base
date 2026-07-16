@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, LayoutGrid, ArrowRight, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Trophy, LayoutGrid, ArrowRight, Loader2, Plus, Trash2, Copy, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
@@ -13,6 +13,31 @@ export default function CampeonatosPage() {
   const [deportes, setDeportes] = useState<any[]>([]);
   const [torneos, setTorneos] = useState<any[]>([]);
   const [loadingTorneos, setLoadingTorneos] = useState(true);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyData, setCopyData] = useState({
+    id: "",
+    nombre: "",
+    subtitulo: "",
+    mantener_seguidores: true,
+    copiar_equipos: false,
+    copiar_jugadores: false,
+    copiar_partidos: false,
+    campeonato_con_categorias: false,
+  });
+
+  const handleOpenCopy = (t: any) => {
+    setCopyData({
+      id: t.id,
+      nombre: `${t.nombre} (2)`,
+      subtitulo: "",
+      mantener_seguidores: true,
+      copiar_equipos: false,
+      copiar_jugadores: false,
+      copiar_partidos: false,
+      campeonato_con_categorias: t.tipo_campeonato === 'categorias',
+    });
+    setCopyModalOpen(true);
+  };
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -188,9 +213,14 @@ export default function CampeonatosPage() {
                     <button onClick={() => router.push(`/admin-torneo/${t.id}`)} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
                       Gestionar <ArrowRight size={16} />
                     </button>
-                    <button onClick={() => handleDelete(t.id, t.nombre)} className="text-gray-400 hover:text-red-500 transition p-1.5 rounded-full hover:bg-red-50" title="Eliminar campeonato">
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleOpenCopy(t)} className="text-gray-400 hover:text-blue-500 transition p-1.5 rounded-full hover:bg-blue-50" title="Crear secuencia (Copiar)">
+                        <Copy size={18} />
+                      </button>
+                      <button onClick={() => handleDelete(t.id, t.nombre)} className="text-gray-400 hover:text-red-500 transition p-1.5 rounded-full hover:bg-red-50" title="Eliminar campeonato">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -359,6 +389,102 @@ export default function CampeonatosPage() {
               {loading ? <Loader2 size={24} className="animate-spin"/> : <Trophy size={24}/>}
               Crear Campeonato
             </button>
+          </div>
+        </div>
+      )}
+
+      {copyModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#edeaf2] rounded-2xl p-6 w-full max-w-md relative">
+            <button onClick={() => setCopyModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-normal text-gray-800 mb-6">Crear secuencia</h2>
+            
+            <div className="space-y-4">
+              <div className="relative">
+                <label className="absolute -top-2 left-2 bg-[#edeaf2] px-1 text-xs text-gray-600">Nombre del campeonato</label>
+                <input 
+                  type="text" 
+                  value={copyData.nombre}
+                  onChange={(e) => setCopyData({...copyData, nombre: e.target.value})}
+                  className="w-full bg-transparent border border-gray-400 rounded-md px-3 py-2 text-gray-800 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="relative">
+                <label className="absolute -top-2 left-2 bg-[#edeaf2] px-1 text-xs text-gray-600">Subtítulo</label>
+                <input 
+                  type="text" 
+                  value={copyData.subtitulo}
+                  onChange={(e) => setCopyData({...copyData, subtitulo: e.target.value})}
+                  className="w-full bg-transparent border border-gray-400 rounded-md px-3 py-2 text-gray-800 outline-none focus:border-blue-500"
+                  placeholder="Acá va el subtítulo..."
+                />
+              </div>
+
+              <div className="space-y-3 mt-6 text-gray-700">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span>Mantener seguidores</span>
+                  <input 
+                    type="checkbox" 
+                    checked={copyData.mantener_seguidores}
+                    onChange={(e) => setCopyData({...copyData, mantener_seguidores: e.target.checked})}
+                    className="w-5 h-5 rounded border-gray-400 text-[#0ea5e9] focus:ring-[#0ea5e9]"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span>Copiar equipos</span>
+                  <input 
+                    type="checkbox" 
+                    checked={copyData.copiar_equipos}
+                    onChange={(e) => setCopyData({...copyData, copiar_equipos: e.target.checked})}
+                    className="w-5 h-5 rounded border-gray-400 text-[#0ea5e9] focus:ring-[#0ea5e9]"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer text-gray-400">
+                  <span>Copiar jugadores</span>
+                  <input 
+                    type="checkbox" 
+                    checked={copyData.copiar_jugadores}
+                    onChange={(e) => setCopyData({...copyData, copiar_jugadores: e.target.checked})}
+                    disabled
+                    className="w-5 h-5 rounded border-gray-300 bg-gray-100"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer text-gray-400">
+                  <span>Copiar partidos</span>
+                  <input 
+                    type="checkbox" 
+                    checked={copyData.copiar_partidos}
+                    onChange={(e) => setCopyData({...copyData, copiar_partidos: e.target.checked})}
+                    disabled
+                    className="w-5 h-5 rounded border-gray-300 bg-gray-100"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span>Campeonato con categorías</span>
+                  <input 
+                    type="checkbox" 
+                    checked={copyData.campeonato_con_categorias}
+                    onChange={(e) => setCopyData({...copyData, campeonato_con_categorias: e.target.checked})}
+                    className="w-5 h-5 rounded border-gray-400 text-[#0ea5e9] focus:ring-[#0ea5e9]"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button 
+                  onClick={() => {
+                    setCopyModalOpen(false);
+                    setMessage("✅ Secuencia creada exitosamente.");
+                  }}
+                  className="text-[#0ea5e9] font-bold hover:text-blue-600 text-lg"
+                >
+                  Nuevo campeonato
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
