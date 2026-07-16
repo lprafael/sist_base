@@ -608,7 +608,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h3 className="font-bold text-slate-800 mb-4 text-lg">Ubicación</h3>
           <div className="space-y-3">
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer group relative w-max">
               <input
                 type="radio" name="tipo_ubicacion" value="internet"
                 checked={formData.tipo_ubicacion === 'internet'}
@@ -618,9 +618,15 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 }}
                 className="w-5 h-5 text-blue-500 border-slate-300 focus:ring-blue-500"
               />
-              <span className="text-slate-700">Campeonato jugado en internet</span>
+              <span className="text-slate-700 flex items-center gap-1">
+                Campeonato jugado en internet
+                <HelpCircle size={14} className="text-slate-400 cursor-help" />
+              </span>
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                Para torneos de eSports, ajedrez online, o modalidades virtuales.
+              </div>
             </label>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer group relative w-max">
               <input
                 type="radio" name="tipo_ubicacion" value="persona"
                 checked={formData.tipo_ubicacion === 'persona'}
@@ -630,7 +636,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 }}
                 className="w-5 h-5 text-blue-500 border-slate-300 focus:ring-blue-500"
               />
-              <span className="text-slate-700">Campeonato jugado en persona</span>
+              <span className="text-slate-700 flex items-center gap-1">
+                Campeonato jugado en persona
+                <HelpCircle size={14} className="text-slate-400 cursor-help" />
+              </span>
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                Eventos físicos. Podrás establecer la dirección exacta o punto en el mapa.
+              </div>
             </label>
             {formData.tipo_ubicacion === 'persona' && (
               <div className="ml-8 mt-2">
@@ -647,7 +659,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
         {/* MODALIDAD DE INSCRIPCIÓN */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="font-bold text-slate-800 mb-4 text-lg">Modalidad de Inscripción</h3>
+          <h3 className="font-bold text-slate-800 mb-4 text-lg flex items-center gap-2 group relative w-max">
+            Modalidad de Inscripción
+            <HelpCircle size={16} className="text-slate-400 cursor-help" />
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+              Define cómo los participantes se registran en el torneo.
+            </div>
+          </h3>
           <div className="space-y-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
@@ -683,8 +701,12 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* CAMPEONATO (LISTA) */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2 group relative w-max">
               <h3 className="font-bold text-blue-600">Campeonato</h3>
+              <HelpCircle size={14} className="text-slate-400 cursor-help" />
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                Configuraciones específicas de la competencia: llaves, grupos, árbitros y clasificaciones.
+              </div>
             </div>
             <ul className="divide-y divide-slate-100">
               {[
@@ -718,13 +740,23 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           <div className="space-y-6">
             {/* DIVULGACIÓN */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="font-bold text-blue-600 mb-4">Divulgación</h3>
+              <h3 className="font-bold text-blue-600 mb-4 flex items-center gap-2 group relative w-max">
+                Divulgación
+                <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                  Controla la visibilidad de tu torneo y quiénes pueden encontrarlo.
+                </div>
+              </h3>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-slate-800 font-medium flex items-center gap-2">
+                    <div className="text-slate-800 font-medium flex items-center gap-2 group relative w-max">
                       <Eye size={18} className="text-slate-400" />
                       Campeonato privado
+                      <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                      <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                        Si se activa, el torneo no aparecerá en búsquedas públicas y solo se podrá acceder con un enlace directo.
+                      </div>
                     </div>
                     <div className="text-xs text-slate-500">Accesible solo con el enlace</div>
                   </div>
@@ -742,7 +774,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="text-slate-800 font-medium">Estado del campeonato</div>
+                  <div className="text-slate-800 font-medium flex items-center gap-2 group relative w-max">
+                    Estado del campeonato
+                    <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                    <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                      Permite indicar en qué etapa se encuentra el evento.
+                    </div>
+                  </div>
                   <select
                     name="estado" value={formData.estado} onChange={(e) => { handleChange(e); onUpdate({ estado: e.target.value }); }}
                     className={`rounded-full px-3 py-1 text-sm font-bold outline-none border ${formData.estado === 'en_curso' ? 'bg-green-50 text-green-600 border-green-200' :
@@ -767,7 +805,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
             {/* CONTROL DE USUARIOS */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="font-bold text-blue-600 mb-4">Control de usuarios</h3>
+              <h3 className="font-bold text-blue-600 mb-4 flex items-center gap-2 group relative w-max">
+                Control de usuarios
+                <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                  Gestiona los organizadores, árbitros y mira las estadísticas de visitas.
+                </div>
+              </h3>
               <ul className="space-y-4 text-slate-700 text-sm">
                 <li className="flex justify-between items-center">
                   <div className="flex items-center gap-2"><Shield size={16} className="text-slate-400" /> Moderadores</div>
@@ -782,7 +826,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
             {/* IMPRIMIR REPORTES */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="font-bold text-blue-600 mb-4">Imprimir Reportes</h3>
+              <h3 className="font-bold text-blue-600 mb-4 flex items-center gap-2 group relative w-max">
+                Imprimir Reportes
+                <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                  Genera PDFs descargables para actas, carnets y reportes de clasificaciones.
+                </div>
+              </h3>
               <ul className="space-y-3 text-slate-700 text-sm">
                 {['Equipos', 'Jugadores', 'Carnet', 'Acta', 'Partidos', 'Clasificación'].map(rep => (
                   <li key={rep} className="flex justify-between items-center">
