@@ -176,171 +176,204 @@ export default function LoginPage() {
 
   return (
     <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', color: '#0f172a', fontFamily: "'Outfit', sans-serif" }}>
-      <Nav scrolled={true} />
-
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 20px 80px' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, #022c22 0%, #020617 100%)', color: '#ffffff', fontFamily: "'Outfit', sans-serif", position: 'relative', overflow: 'hidden' }}>
         
-        <div style={{ 
-          background: '#ffffff', 
-          borderRadius: 24, 
-          boxShadow: '0 10px 40px rgba(15,23,42,0.06)', 
-          border: '1px solid rgba(15,23,42,0.05)', 
-          width: '100%', 
-          maxWidth: '460px', 
-          padding: 40,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}>
-          
-          <div style={{ width: 60, height: 60, borderRadius: 100, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-            <Lock size={28} style={{ color: '#16a34a' }} />
-          </div>
+        {/* Dynamic Sporty Background Elements */}
+        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40%', height: '40%', background: 'radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(40px)', zIndex: 0 }} />
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-5%', width: '50%', height: '50%', background: 'radial-gradient(circle, rgba(22,163,74,0.1) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0 }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 12px)', zIndex: 0 }} />
 
-          <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.5px', marginBottom: 8, textAlign: 'center' }}>
-            Acceso Seguro
-          </h2>
-          <p style={{ color: '#64748b', fontSize: 14, textAlign: 'center', marginBottom: 30 }}>
-            Ingresá a tu cuenta de MiCancha Paraguay sin comisiones
-          </p>
-
-          {/* Custom Switch Tab */}
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 12, width: '100%', marginBottom: 30 }}>
-            <button
-              onClick={() => setAuthMode('google')}
-              style={{
-                flex: 1,
-                border: 'none',
-                padding: '10px 0',
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: 'pointer',
-                background: authMode === 'google' ? '#ffffff' : 'transparent',
-                color: authMode === 'google' ? '#16a34a' : '#64748b',
-                boxShadow: authMode === 'google' ? '0 4px 10px rgba(0,0,0,0.03)' : 'none',
-                transition: 'all 0.2s'
-              }}
-            >
-              🔵 Deportistas & Clubes (Google)
-            </button>
-            <button
-              onClick={() => setAuthMode('admin')}
-              style={{
-                flex: 1,
-                border: 'none',
-                padding: '10px 0',
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: 'pointer',
-                background: authMode === 'admin' ? '#ffffff' : 'transparent',
-                color: authMode === 'admin' ? '#16a34a' : '#64748b',
-                boxShadow: authMode === 'admin' ? '0 4px 10px rgba(0,0,0,0.03)' : 'none',
-                transition: 'all 0.2s'
-              }}
-            >
-              👑 Administrador
-            </button>
-          </div>
-
-          {/* -------------------- GOOGLE LOGIN FORM -------------------- */}
-          {authMode === 'google' && (
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  use_fedcm={false}
-                  theme="filled_blue"
-                  shape="rectangular"
-                  size="large"
-                />
-              </div>
-              <div style={{ textAlign: 'center', marginTop: 16 }}>
-                <p style={{ fontSize: 14, color: '#64748b' }}>
-                  Al continuar, aceptas nuestros{' '}
-                  <Link href="/terminos" style={{ color: '#16a34a', fontWeight: 700, textDecoration: 'none' }}>Términos de Servicio</Link> y{' '}
-                  <Link href="/privacidad" style={{ color: '#16a34a', fontWeight: 700, textDecoration: 'none' }}>Política de Privacidad</Link>.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* -------------------- ADMIN FORM -------------------- */}
-          {authMode === 'admin' && (
-            <form onSubmit={handleAdminLogin} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {adminError && (
-                <div style={{ background: '#fee2e2', color: '#dc2626', padding: 12, borderRadius: 10, fontSize: 12, fontWeight: 700 }}>
-                  {adminError}
-                </div>
-              )}
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Usuario</label>
-                <div style={{ position: 'relative' }}>
-                  <User size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-                  <input
-                    type="text"
-                    value={adminUser}
-                    onChange={e => setAdminUser(e.target.value)}
-                    placeholder="admin"
-                    style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 10, border: '1px solid #cbd5e1', outline: 'none' }}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Contraseña</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-                  <input
-                    type={showAdminPass ? "text" : "password"}
-                    value={adminPass}
-                    onChange={e => setAdminPass(e.target.value)}
-                    placeholder="••••••••"
-                    style={{ width: '100%', padding: '10px 40px 10px 36px', borderRadius: 10, border: '1px solid #cbd5e1', outline: 'none' }}
-                    required
-                  />
-                  <div 
-                    onClick={() => setShowAdminPass(!showAdminPass)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#64748b', display: 'flex' }}
-                  >
-                    {showAdminPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  background: '#16a34a',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: 14,
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: 'pointer',
-                  marginTop: 10,
-                  boxShadow: '0 4px 12px rgba(22,163,74,0.2)'
-                }}
-              >
-                Ingresar como Admin
-              </button>
-            </form>
-          )}
-
+        <div style={{ position: 'relative', zIndex: 10 }}>
+          <Nav scrolled={true} />
         </div>
 
-      </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 20px 80px', position: 'relative', zIndex: 1 }}>
+          
+          <div style={{ 
+            background: 'rgba(255, 255, 255, 0.98)', 
+            borderRadius: 32, 
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)', 
+            width: '100%', 
+            maxWidth: '460px', 
+            padding: '48px 40px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Top green accent line */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: 'linear-gradient(90deg, #16a34a, #4ade80)' }} />
+            
+            <div style={{ width: 72, height: 72, borderRadius: 24, background: 'linear-gradient(135deg, #16a34a, #15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, boxShadow: '0 10px 25px -5px rgba(22,163,74,0.4)', transform: 'rotate(-5deg)' }}>
+              <Lock size={32} style={{ color: '#ffffff', transform: 'rotate(5deg)' }} />
+            </div>
 
+            <h2 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8, textAlign: 'center', color: '#0f172a', textTransform: 'uppercase', fontStyle: 'italic' }}>
+              Entrá a la Cancha
+            </h2>
+            <p style={{ color: '#64748b', fontSize: 15, textAlign: 'center', marginBottom: 32, fontWeight: 500 }}>
+              Tu acceso a <span style={{ color: '#16a34a', fontWeight: 800 }}>MiCancha</span> Paraguay
+            </p>
 
+            {/* Custom Switch Tab */}
+            <div style={{ display: 'flex', background: '#f1f5f9', padding: 6, borderRadius: 16, width: '100%', marginBottom: 32 }}>
+              <button
+                onClick={() => setAuthMode('google')}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  background: authMode === 'google' ? '#ffffff' : 'transparent',
+                  color: authMode === 'google' ? '#16a34a' : '#64748b',
+                  boxShadow: authMode === 'google' ? '0 4px 15px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                ⚽ Jugadores
+              </button>
+              <button
+                onClick={() => setAuthMode('admin')}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  padding: '12px 0',
+                  borderRadius: 12,
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  background: authMode === 'admin' ? '#ffffff' : 'transparent',
+                  color: authMode === 'admin' ? '#0f172a' : '#64748b',
+                  boxShadow: authMode === 'admin' ? '0 4px 15px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                👑 Admin
+              </button>
+            </div>
 
-      <Footer />
+            {/* -------------------- GOOGLE LOGIN FORM -------------------- */}
+            {authMode === 'google' && (
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeIn 0.4s ease-out' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', transform: 'scale(1.05)' }}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    use_fedcm={false}
+                    theme="filled_black"
+                    shape="pill"
+                    size="large"
+                    text="continue_with"
+                  />
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                  <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>
+                    Al continuar, aceptas nuestros{' '}
+                    <Link href="/terminos" style={{ color: '#16a34a', fontWeight: 700, textDecoration: 'none' }}>Términos de Juego</Link> y{' '}
+                    <Link href="/privacidad" style={{ color: '#16a34a', fontWeight: 700, textDecoration: 'none' }}>Política de Privacidad</Link>.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* -------------------- ADMIN FORM -------------------- */}
+            {authMode === 'admin' && (
+              <form onSubmit={handleAdminLogin} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeIn 0.4s ease-out' }}>
+                {adminError && (
+                  <div style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #f87171', padding: 14, borderRadius: 12, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Shield size={18} />
+                    {adminError}
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ fontSize: 13, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Usuario</label>
+                  <div style={{ position: 'relative' }}>
+                    <User size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      value={adminUser}
+                      onChange={e => setAdminUser(e.target.value)}
+                      placeholder="admin"
+                      style={{ width: '100%', padding: '14px 14px 14px 42px', borderRadius: 14, border: '2px solid #e2e8f0', outline: 'none', fontSize: 15, fontWeight: 600, color: '#0f172a', transition: 'border-color 0.2s', background: '#f8fafc' }}
+                      onFocus={e => e.target.style.borderColor = '#16a34a'}
+                      onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ fontSize: 13, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contraseña</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type={showAdminPass ? "text" : "password"}
+                      value={adminPass}
+                      onChange={e => setAdminPass(e.target.value)}
+                      placeholder="••••••••"
+                      style={{ width: '100%', padding: '14px 44px 14px 42px', borderRadius: 14, border: '2px solid #e2e8f0', outline: 'none', fontSize: 15, fontWeight: 600, color: '#0f172a', transition: 'border-color 0.2s', background: '#f8fafc' }}
+                      onFocus={e => e.target.style.borderColor = '#16a34a'}
+                      onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      required
+                    />
+                    <div 
+                      onClick={() => setShowAdminPass(!showAdminPass)}
+                      style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 4 }}
+                    >
+                      {showAdminPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(90deg, #16a34a, #15803d)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 14,
+                    padding: '16px',
+                    fontWeight: 900,
+                    fontSize: 16,
+                    cursor: 'pointer',
+                    marginTop: 8,
+                    boxShadow: '0 8px 20px -6px rgba(22,163,74,0.6)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    transition: 'transform 0.1s, box-shadow 0.2s'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                  onMouseDown={e => e.currentTarget.style.transform = 'translateY(1px)'}
+                  onMouseUp={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                >
+                  Iniciar Sesión
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+        
+        <div style={{ position: 'relative', zIndex: 10 }}>
+          <Footer />
+        </div>
+        
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}} />
       </div>
     </GoogleOAuthProvider>
   );

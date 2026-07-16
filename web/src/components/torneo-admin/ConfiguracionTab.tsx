@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 
@@ -527,21 +527,39 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
             <div className="md:col-span-2 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Título</label>
+                <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1 group relative w-max">
+                  Título
+                  <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                    El nombre principal del torneo que verán todos los usuarios (ej. Copa Verano 2024).
+                  </div>
+                </label>
                 <input
                   type="text" name="nombre" value={formData.nombre} onChange={handleChange} onBlur={handleBlur}
                   className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Subtítulo</label>
+                <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1 group relative w-max">
+                  Subtítulo
+                  <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                    Una frase corta para darle más contexto o slogan (ej. "La revancha de los campeones").
+                  </div>
+                </label>
                 <input
                   type="text" name="subtitulo" value={formData.subtitulo} onChange={handleChange} onBlur={handleBlur}
                   className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
+                <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1 group relative w-max">
+                  Descripción
+                  <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                    Los detalles completos del torneo, quién lo organiza, costos y cualquier otra info relevante.
+                  </div>
+                </label>
                 <textarea
                   name="descripcion" value={formData.descripcion} onChange={handleChange} onBlur={handleBlur} rows={3}
                   className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500"
@@ -550,14 +568,26 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de inicio</label>
+                  <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1 group relative w-max">
+                    Fecha de inicio
+                    <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                    <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                      Cuándo empieza el primer partido del campeonato.
+                    </div>
+                  </label>
                   <div className="flex items-center gap-2 border border-slate-300 rounded px-3 py-2">
                     <Calendar size={16} className="text-slate-400" />
                     <input type="date" name="fecha_inicio" value={formData.fecha_inicio} onChange={handleChange} onBlur={handleBlur} className="w-full outline-none text-sm text-slate-700 bg-transparent" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Fecha de finalización</label>
+                  <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1 group relative w-max">
+                    Fecha de finalización
+                    <HelpCircle size={14} className="text-slate-400 cursor-help" />
+                    <div className="absolute bottom-full right-0 md:left-0 md:right-auto mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-xs font-normal rounded shadow-lg z-50 whitespace-normal">
+                      La fecha estimada del último partido o final.
+                    </div>
+                  </label>
                   <div className="flex items-center gap-2 border border-slate-300 rounded px-3 py-2">
                     <Calendar size={16} className="text-slate-400" />
                     <input type="date" name="fecha_fin" value={formData.fecha_fin} onChange={handleChange} onBlur={handleBlur} className="w-full outline-none text-sm text-slate-700 bg-transparent" />

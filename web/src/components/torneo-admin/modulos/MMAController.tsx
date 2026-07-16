@@ -65,15 +65,9 @@ export default function MMAController({ match, onClose, onSaved, onUpdate }: { m
           estadisticas: estadisticas
         })
       });
-      
-      // Llamar onUpdate para refrescar datos por debajo, sin cerrar el modal
-      if (onUpdate) {
-         onUpdate();
-      }
-      
-      if(nuevoEstado === 'finalizado' && onSaved) {
-        onSaved();
-      }
+      // Eliminamos el llamado a onUpdate y onSaved de aquí
+      // para evitar que el modal se cierre o se desmonte (por el spinner del padre)
+      // mientras el usuario sigue modificando datos.
     } catch(e) { console.error(e); }
   };
 
@@ -148,7 +142,7 @@ export default function MMAController({ match, onClose, onSaved, onUpdate }: { m
       <div className="bg-slate-100 w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-blue-900 text-white p-3 flex justify-between items-center relative border-b-4 border-amber-500">
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition"><X size={20} /></button>
+          <button onClick={() => { if(onUpdate) onUpdate(); onClose(); }} className="p-2 hover:bg-white/10 rounded-full transition"><X size={20} /></button>
           
           <div className="absolute left-1/2 -translate-x-1/2">
             <select 
