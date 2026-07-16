@@ -1167,8 +1167,6 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
         </div>
       )}
 
-        </div>
-      )}
 
       {activeModal === 'configurar_carnet' && (
         <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
