@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Image as ImageIcon, Link as LinkIcon, FileText, Youtube, Film, Download, Loader2 } from 'lucide-react';
+import { Plus, Image as ImageIcon, Link as LinkIcon, FileText, PlaySquare, Film, Download, Loader2 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002';
 
@@ -112,7 +112,7 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
                 <FileText size={18} /> Crear noticias
               </button>
               <button className="w-full text-left px-4 py-3 hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors font-medium">
-                <Youtube size={18} /> Youtube
+                <PlaySquare size={18} /> Youtube
               </button>
               <button className="w-full text-left px-4 py-3 hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors font-medium">
                 <Film size={18} /> Galería de videos
