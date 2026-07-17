@@ -212,6 +212,9 @@ app.include_router(multas_router)
 from routers.perfil_organizador import router as perfil_organizador_router
 app.include_router(perfil_organizador_router)
 
+from routers.academias import router as academias_router
+app.include_router(academias_router)
+
 from routers.patrocinadores import router as patrocinadores_router
 app.include_router(patrocinadores_router)
 

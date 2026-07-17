@@ -103,14 +103,43 @@ async def login(
         org_row = org_result.fetchone()
         if org_row:
             tipo_torneo = org_row[0]
-    
+
+    # Obtener academia_id y rol_academia (para dueños e integrantes invitados)
+    academia_id = None
+    rol_academia = None
+    if user.rol == "academia":
+        from sqlalchemy import text as sql_text
+        acad_result = await session.execute(
+            sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid"),
+            {"uid": user.id}
+        )
+        acad_row = acad_result.fetchone()
+        if acad_row:
+            academia_id = str(acad_row[0])
+            rol_academia = "dueño"
+    else:
+        from sqlalchemy import text as sql_text
+        mem_result = await session.execute(
+            sql_text("""
+                SELECT academia_id, rol FROM academias.miembros
+                WHERE usuario_id = :uid AND activo = TRUE LIMIT 1
+            """),
+            {"uid": user.id}
+        )
+        mem_row = mem_result.fetchone()
+        if mem_row:
+            academia_id = str(mem_row[0])
+            rol_academia = mem_row[1]
+
     user_response = UserResponse.from_orm(user)
     user_response.tipo_torneo = tipo_torneo
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",
-        user=user_response
+        user=user_response,
+        academia_id=academia_id,
+        rol_academia=rol_academia,
     )
 
 @router.post("/impersonate/{user_id}", response_model=Token)
@@ -360,6 +389,16 @@ async def create_user(
             VALUES (:uid, :nom, :tipo)
         """)
         await session.execute(stmt, {"uid": new_user.id, "nom": new_user.nombre_completo, "tipo": tipo})
+        await session.commit()
+
+    if new_user.rol == "academia":
+        from sqlalchemy import text
+        stmt = text("""
+            INSERT INTO academias.academias (usuario_id, nombre)
+            VALUES (:uid, :nom)
+            ON CONFLICT (usuario_id) DO NOTHING
+        """)
+        await session.execute(stmt, {"uid": new_user.id, "nom": new_user.nombre_completo or new_user.username})
         await session.commit()
     
     # Enviar email con credenciales

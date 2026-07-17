@@ -80,7 +80,9 @@ export default function LoginPage() {
         };
         const sessionData = {
           ...session,
-          tipo_torneo: data.user.tipo_torneo || null
+          tipo_torneo: data.user.tipo_torneo || null,
+          academia_id: data.academia_id || null,
+          rol_academia: data.rol_academia || null
         };
         localStorage.setItem('user_session', JSON.stringify(sessionData));
 
@@ -94,6 +96,8 @@ export default function LoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
+        } else if (session.role === 'academia' || sessionData.academia_id) {
+          window.location.href = '/academia-panel';
         } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
           window.location.href = '/admin-futbol/campeonatos';
         } else if (session.role === 'organizador') {
@@ -139,7 +143,9 @@ export default function LoginPage() {
         };
         const sessionData = {
           ...session,
-          tipo_torneo: data.user.tipo_torneo || null
+          tipo_torneo: data.user.tipo_torneo || null,
+          academia_id: data.academia_id || null,
+          rol_academia: data.rol_academia || null
         };
         localStorage.setItem('user_session', JSON.stringify(sessionData));
 
@@ -153,6 +159,8 @@ export default function LoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
+        } else if (session.role === 'academia' || sessionData.academia_id) {
+          window.location.href = '/academia-panel';
         } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
           window.location.href = '/admin-futbol/campeonatos';
         } else if (session.role === 'organizador') {

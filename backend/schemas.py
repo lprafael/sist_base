@@ -90,6 +90,9 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    # Contexto de academia (presente si el usuario es dueño o miembro de una academia)
+    academia_id: Optional[str] = None
+    rol_academia: Optional[str] = None  # 'dueño', 'administrador', 'tesorero', 'profesor'
 
 # ===== SCHEMAS DE CONTRASEÑAS =====
 

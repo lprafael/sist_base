@@ -1,8 +1,25 @@
 'use client';
+import { useEffect, useState } from 'react';
 
 interface NavProps { scrolled: boolean; }
 
 export default function Nav({ scrolled }: NavProps) {
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem('user_session');
+    if (raw) {
+      try {
+        setSession(JSON.parse(raw));
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user_session');
+    window.location.href = '/login';
+  };
+
   return (
     <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
       <a href="/" className="nav-logo" style={{ textDecoration: 'none', cursor: 'pointer' }}>
@@ -22,15 +39,39 @@ export default function Nav({ scrolled }: NavProps) {
         <a href="/MANUAL_USUARIO_TORNEOS.html" target="_blank" rel="noopener noreferrer" className="nav-link">Cómo funciona</a>
         <a href="/torneos" className="nav-link">Torneos (Fútbol)</a>
         <a href="/torneos-generales" className="nav-link">Torneos Generales</a>
+        <a href="/academias" className="nav-link">🎓 Academias</a>
       </div>
 
       <div className="nav-actions">
-        <a href="/admin" className="btn btn-outline btn-sm">
-          Consola Clubes
-        </a>
-        <a href="/login" className="btn btn-primary btn-sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          Ingresar
-        </a>
+        {session ? (
+          <>
+            {session.role === 'academia' || session.academia_id ? (
+              <a href="/academia-panel" className="btn btn-outline btn-sm">
+                Panel Academia
+              </a>
+            ) : session.role === 'organizador' ? (
+              <a href={session.tipo_torneo === 'futbol' ? "/admin-futbol/campeonatos" : "/admin-generales"} className="btn btn-outline btn-sm">
+                Panel Torneos
+              </a>
+            ) : (
+              <a href="/admin" className="btn btn-outline btn-sm">
+                Consola Clubes
+              </a>
+            )}
+            <button onClick={handleLogout} className="btn btn-primary btn-sm" style={{ border: 'none', cursor: 'pointer' }}>
+              Salir
+            </button>
+          </>
+        ) : (
+          <>
+            <a href="/admin" className="btn btn-outline btn-sm">
+              Consola Clubes
+            </a>
+            <a href="/login" className="btn btn-primary btn-sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              Ingresar
+            </a>
+          </>
+        )}
       </div>
     </nav>
   );
