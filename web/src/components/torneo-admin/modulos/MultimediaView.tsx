@@ -46,7 +46,9 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('torneo_id', torneoId);
+    if (torneoId && torneoId !== 'undefined') {
+      formData.append('torneo_id', torneoId);
+    }
     formData.append('tipo_medio', 'galeria');
 
     try {

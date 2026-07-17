@@ -39,9 +39,8 @@ async def upload_media(
             
         url = f"/static/uploads/{filename}"
         
-        # Guardar en BD
         # Validar torneo_id si se provee
-        t_id = f"'{torneo_id}'" if torneo_id else "NULL"
+        t_id = f"'{torneo_id}'" if torneo_id and torneo_id != 'undefined' and torneo_id.strip() != '' else "NULL"
         
         query = text(f"""
             INSERT INTO cancha.multimedia (organizador_id, torneo_id, tipo_medio, url)
