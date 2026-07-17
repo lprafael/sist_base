@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Image as ImageIcon, Link as LinkIcon, FileText, PlaySquare, Film, Download, Loader2 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function MultimediaView({ torneoId }: { torneoId: string }) {
   const [mediaList, setMediaList] = useState<any[]>([]);
