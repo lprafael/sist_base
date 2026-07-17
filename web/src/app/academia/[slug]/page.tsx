@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
-  GraduationCap, MapPin, Phone, Mail, Instagram, Youtube, 
-  Facebook, MessageCircle, Globe, Users, Building2, Star,
+  GraduationCap, MapPin, Phone, Mail, Camera, Video,
+  Share2, MessageCircle, Globe, Users, Building2, Star,
   ChevronRight, ExternalLink, Dumbbell
 } from 'lucide-react';
 
@@ -175,17 +175,17 @@ export default function AcademiaPublicaPage() {
           {academia.instagram && (
             <a href={`https://instagram.com/${academia.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer"
               style={socialBtn('#E1306C')}>
-              <Instagram size={16} /> Instagram
+              <Camera size={16} /> Instagram
             </a>
           )}
           {academia.facebook && (
             <a href={academia.facebook} target="_blank" rel="noopener noreferrer" style={socialBtn('#1877F2')}>
-              <Facebook size={16} /> Facebook
+              <Share2 size={16} /> Facebook
             </a>
           )}
           {academia.youtube && (
             <a href={academia.youtube} target="_blank" rel="noopener noreferrer" style={socialBtn('#FF0000')}>
-              <Youtube size={16} /> YouTube
+              <Video size={16} /> YouTube
             </a>
           )}
           {academia.whatsapp && (
