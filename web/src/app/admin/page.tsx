@@ -1454,7 +1454,7 @@ export default function AdminConsole() {
                           </th>
                           <th style={{ padding: 14 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              Torneos
+                              Límite Torneos
                               <button onClick={() => handleToggleOrgSort('torneos')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                                 <RefreshCw size={12} style={{ transform: orgSortField === 'torneos' && !orgSortAsc ? 'rotate(180deg)' : 'none', color: orgSortField === 'torneos' ? '#0f172a' : '#cbd5e1' }} />
                               </button>
@@ -1551,7 +1551,7 @@ export default function AdminConsole() {
                                 </span>
                               </td>
                               <td style={{ padding: 16, fontWeight: 700 }}>
-                                {o.max_torneos} torneos
+                                Máx. {o.max_torneos} torneos
                               </td>
                               <td style={{ padding: 16 }}>
                                 <span style={{

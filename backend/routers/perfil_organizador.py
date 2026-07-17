@@ -37,6 +37,30 @@ class PerfilOrganizadorRequest(BaseModel):
     opcion_publicidad: Optional[str] = 'ninguno'
     posicion_banner: Optional[str] = 'inferior_flotante'
 
+@router.get("/api/organizadores")
+async def obtener_lista_organizadores(session: AsyncSession = Depends(get_session)):
+    query = text("""
+        SELECT u.id, p.texto_1, p.logo_url, u.nombre_completo
+        FROM sistema.usuarios u
+        LEFT JOIN sistema.perfil_organizador p ON u.id = p.usuario_id
+        WHERE u.rol = 'organizador' AND u.activo = true
+    """)
+    res = await session.execute(query)
+    rows = res.fetchall()
+    
+    result = []
+    for row in rows:
+        name = row[1] or row[3] or "Organizador"
+        img = row[2]
+        if not img:
+            img = f"https://placehold.co/100x100/e2e8f0/1e3a8a?text={name[:2].upper()}"
+        result.append({
+            "id": row[0],
+            "name": name,
+            "img": img
+        })
+    return result
+
 @router.get("/organizador/perfil")
 async def obtener_perfil_organizador(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     query = text("""

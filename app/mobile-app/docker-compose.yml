@@ -1,0 +1,10 @@
+services:
+  mobile-app:
+    image: node:24-slim
+    container_name: micancha-mobile-app
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"

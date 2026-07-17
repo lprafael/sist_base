@@ -180,6 +180,16 @@ CREATE TABLE IF NOT EXISTS torneos.torneos (
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- TABLA: MULTIMEDIA (Archivos globales de organizadores y torneos)
+CREATE TABLE IF NOT EXISTS cancha.multimedia (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizador_id INTEGER REFERENCES sistema.usuarios(id) ON DELETE CASCADE,
+    torneo_id UUID REFERENCES torneos.torneos(id) ON DELETE SET NULL,
+    tipo_medio VARCHAR(50) DEFAULT 'galeria', -- 'galeria', 'enlace', 'noticia', 'youtube'
+    url VARCHAR(500) NOT NULL,
+    creado_en TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS torneos.equipos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     torneo_id UUID REFERENCES torneos.torneos(id) ON DELETE CASCADE,

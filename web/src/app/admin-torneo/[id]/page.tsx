@@ -15,6 +15,7 @@ import PublicTournamentView from '@/components/torneo-admin/PublicTournamentView
 import FasesSettings from '@/components/torneo-admin/modulos/FasesSettings';
 import GruposSettings from '@/components/torneo-admin/modulos/GruposSettings';
 import CriteriosSettings from '@/components/torneo-admin/modulos/CriteriosSettings';
+import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -143,6 +144,11 @@ export default function TorneoAdminPage() {
         );
       case 'rankings':
       case 'multimedia':
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
+            <MultimediaView torneoId={id as string} />
+          </div>
+        );
       default:
         return null;
     }

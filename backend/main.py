@@ -233,6 +233,8 @@ app.include_router(liga_publica_router)
 from routers.modulos_sistema import router as modulos_sistema_router
 app.include_router(modulos_sistema_router)
 
+from routers.multimedia import router as multimedia_router
+app.include_router(multimedia_router)
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================

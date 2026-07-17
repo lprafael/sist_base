@@ -1174,10 +1174,11 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       )}
 
       {activeModal === 'exportar_equipos' && (
-        <div className="fixed inset-0 bg-black/30 flex flex-col items-center justify-center z-[100] p-4">
-          <div className="bg-[#f3f0f5] rounded-xl w-full max-w-xs overflow-hidden flex flex-col shadow-xl">
-            <div className="p-5 pb-2">
+        <div className="fixed inset-0 bg-black/30 flex flex-col items-center justify-center z-[100] p-4" onClick={() => setActiveModal(null)}>
+          <div className="bg-[#f3f0f5] rounded-xl w-full max-w-xs overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 pb-2 flex justify-between items-center">
               <h2 className="text-[22px] text-slate-800 font-normal">Exportar</h2>
+              <button onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 transition text-xl">✕</button>
             </div>
             <div className="flex-1 mt-4">
               <div
@@ -1202,8 +1203,9 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       {/* TODO: Implementar la lógica de impresión de equipos */}
       {activeModal === 'seleccionar_columnas_equipos' && (
         <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
-          <div className="p-4 bg-[#f3f0f5]">
+          <div className="p-4 bg-[#f3f0f5] flex justify-between items-center">
             <h2 className="text-[22px] text-slate-800 font-normal">Lista de equipos</h2>
+            <button onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 transition text-xl">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto pb-4">
             {Object.entries(columnasEquiposLabels).map(([key, label]) => (
@@ -1225,10 +1227,11 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
       )}
 
       {activeModal === 'exportar_jugadores' && (
-        <div className="fixed inset-0 bg-black/30 flex flex-col items-center justify-center z-[100] p-4">
-          <div className="bg-[#f3f0f5] rounded-xl w-full max-w-xs overflow-hidden flex flex-col shadow-xl">
-            <div className="p-5 pb-2">
+        <div className="fixed inset-0 bg-black/30 flex flex-col items-center justify-center z-[100] p-4" onClick={() => setActiveModal(null)}>
+          <div className="bg-[#f3f0f5] rounded-xl w-full max-w-xs overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 pb-2 flex justify-between items-center">
               <h2 className="text-[22px] text-slate-800 font-normal">Exportar Jugadores</h2>
+              <button onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 transition text-xl">✕</button>
             </div>
             <div className="flex-1 mt-4">
               <div
@@ -1250,8 +1253,9 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
       {activeModal === 'configurar_carnet' && (
         <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
-          <div className="p-5 pb-3">
+          <div className="p-5 pb-3 flex justify-between items-center">
             <h2 className="text-[26px] text-slate-800 font-normal">Carnet</h2>
+            <button onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 transition text-xl">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto px-5 space-y-5">
             <div>
@@ -1333,8 +1337,9 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
       {activeModal === 'seleccionar_equipos_carnet' && (
         <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
-          <div className="p-5 pb-3">
+          <div className="p-5 pb-3 flex justify-between items-center">
             <h2 className="text-[26px] text-slate-800 font-normal">Seleccionar equipos</h2>
+            <button onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 transition text-xl">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto pb-4">
             {equiposDisponibles.length === 0 ? (
@@ -1367,8 +1372,9 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
 
       {activeModal === 'seleccionar_tamano_carnet' && (
         <div className="fixed inset-0 bg-[#f3f0f5] flex flex-col z-[100]">
-          <div className="p-5 pb-3">
+          <div className="p-5 pb-3 flex justify-between items-center">
             <h2 className="text-[26px] text-slate-800 font-normal">Tamaño y Formato</h2>
+            <button onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 transition text-xl">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto pb-4 divide-y divide-slate-200">
             <div className="px-5 py-4 space-y-4">
