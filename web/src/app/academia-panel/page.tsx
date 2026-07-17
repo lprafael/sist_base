@@ -100,7 +100,14 @@ export default function AcademiaPanel() {
   useEffect(() => {
     if (!token) return;
     fetchAll();
-    fetch(`${API_URL}/api/deportes`).then(r => r.json()).then(setDeportes).catch(() => {});
+    fetch(`${API_URL}/api/deportes`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDeportes(data.map((d: any) => d.nombre));
+        }
+      })
+      .catch(() => {});
   }, [token]);
 
   const headers = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
