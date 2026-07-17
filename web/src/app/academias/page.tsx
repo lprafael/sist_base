@@ -41,7 +41,9 @@ export default function AcademiasPage() {
     ]).then(([acads, deps]) => {
       setAcademias(acads);
       setFiltered(acads);
-      setDeportes(deps);
+      if (Array.isArray(deps)) {
+        setDeportes(deps.map((d: any) => d.nombre));
+      }
     }).finally(() => setLoading(false));
   }, []);
 
