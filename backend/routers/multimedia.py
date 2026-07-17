@@ -49,7 +49,7 @@ async def upload_media(
         """)
         
         res = await session.execute(query, {
-            "org_id": current_user["id"],
+            "org_id": current_user["user_id"],
             "tipo": tipo_medio,
             "url": url
         })
@@ -99,7 +99,7 @@ async def get_multimedia_organizador(
             WHERE organizador_id = :org_id
             ORDER BY creado_en DESC
         """)
-        res = await session.execute(query, {"org_id": current_user["id"]})
+        res = await session.execute(query, {"org_id": current_user["user_id"]})
         rows = res.fetchall()
         return [{"id": r[0], "tipo_medio": r[1], "url": r[2], "creado_en": r[3], "torneo_id": r[4]} for r in rows]
     except Exception as e:
