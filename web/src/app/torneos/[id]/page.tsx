@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import SidebarTorneo from '@/components/torneo-admin/SidebarTorneo';
 import PublicTournamentView from '@/components/torneo-admin/PublicTournamentView';
+import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -44,6 +45,8 @@ export default function TournamentDetailPage() {
     loadData();
   }, [id]);
 
+  const [activeTab, setActiveTab] = useState("inicio");
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -64,20 +67,56 @@ export default function TournamentDetailPage() {
     );
   }
 
-  const colorSidebar = tournament?.configuracion?.color_sidebar || '#0c112b';
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'inicio':
+        return <PublicTournamentView tournament={tournament} />;
+      case 'clasificacion':
+        return (
+          <main className="flex-1 overflow-y-auto p-8 relative">
+            <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase">Partidos y Clasificación</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
+               <p className="text-slate-500">Consulta los resultados y la tabla de posiciones.</p>
+               {/* Aquí puedes montar un componente de Clasificacion público */}
+            </div>
+          </main>
+        );
+      case 'rankings':
+        return (
+          <main className="flex-1 overflow-y-auto p-8 relative">
+            <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase">Rankings y Encuestas</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
+               <p className="text-slate-500">Vota por los mejores jugadores del campeonato.</p>
+            </div>
+          </main>
+        );
+      case 'multimedia':
+        // Require importing MultimediaView at the top
+        return (
+          <main className="flex-1 overflow-y-auto p-8 relative">
+            <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase">Galería Multimedia</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
+               <MultimediaView torneoId={id as string} isPublicView={true} />
+            </div>
+          </main>
+        );
+      default:
+        return <PublicTournamentView tournament={tournament} />;
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-slate-100 font-sans">
       {/* Left Sidebar via Unified Component */}
       <SidebarTorneo 
         torneo={tournament} 
-        activeTab="inicio" 
-        setActiveTab={() => {}} 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
         isOrganizer={false}
         isPublicView={true}
       />
 
-      <PublicTournamentView tournament={tournament} />
+      {renderContent()}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Plus, Image as ImageIcon, Link as LinkIcon, FileText, PlaySquare, Film,
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function MultimediaView({ torneoId }: { torneoId: string }) {
+export default function MultimediaView({ torneoId, isPublicView = false }: { torneoId: string, isPublicView?: boolean }) {
   const [mediaList, setMediaList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -14,14 +14,16 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
   const fetchMedia = async () => {
     try {
       const sessionStr = localStorage.getItem('user_session');
-      if (!sessionStr) return;
-      const { access_token } = JSON.parse(sessionStr);
+      let headers: any = {};
       
-      const res = await fetch(`${API_URL}/multimedia/torneo/${torneoId}`, {
-        headers: {
-          'Authorization': `Bearer ${access_token}`
+      if (sessionStr) {
+        const { access_token } = JSON.parse(sessionStr);
+        if (access_token) {
+          headers['Authorization'] = `Bearer ${access_token}`;
         }
-      });
+      }
+      
+      const res = await fetch(`${API_URL}/multimedia/torneo/${torneoId}`, { headers });
       if (res.ok) {
         const data = await res.json();
         setMediaList(data);
@@ -85,21 +87,22 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
   return (
     <div className="flex flex-col h-full bg-slate-50 min-h-[500px]">
       <div className="flex justify-end mb-6 relative">
-        <div className="flex flex-col items-center">
-          <button 
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="w-16 h-8 bg-[#1e40af] hover:bg-blue-900 text-white rounded-t-full flex items-center justify-center transition-colors shadow-sm"
-            title="Añadir medio"
-          >
-            <Plus size={20} />
-          </button>
-          
-          {mediaList.length === 0 && !isLoading && (
-             <div className="text-slate-500 text-sm mt-1 font-medium bg-white px-3 py-1 rounded shadow-sm border border-slate-100">Aún no hay medios</div>
-          )}
+        {!isPublicView && (
+          <div className="flex flex-col items-center">
+            <button 
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-16 h-8 bg-[#1e40af] hover:bg-blue-900 text-white rounded-t-full flex items-center justify-center transition-colors shadow-sm"
+              title="Añadir medio"
+            >
+              <Plus size={20} />
+            </button>
+            
+            {mediaList.length === 0 && !isLoading && (
+               <div className="text-slate-500 text-sm mt-1 font-medium bg-white px-3 py-1 rounded shadow-sm border border-slate-100">Aún no hay medios</div>
+            )}
 
-          {/* Dropdown Menu */}
-          {showDropdown && (
+            {/* Dropdown Menu */}
+            {showDropdown && (
             <div className="absolute top-10 right-0 bg-[#0f3b7b] text-white rounded-xl shadow-xl w-64 p-3 z-50 animate-in fade-in zoom-in-95 duration-200 border border-blue-800">
               <button 
                 onClick={() => fileInputRef.current?.click()}
@@ -125,15 +128,18 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
             </div>
           )}
         </div>
+        )}
         
         {/* Hidden File Input */}
-        <input 
-          type="file" 
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          className="hidden" 
-          accept="image/*" 
-        />
+        {!isPublicView && (
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden" 
+            accept="image/*" 
+          />
+        )}
       </div>
 
       {isLoading ? (
