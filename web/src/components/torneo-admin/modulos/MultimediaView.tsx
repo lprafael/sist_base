@@ -15,11 +15,11 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
     try {
       const sessionStr = localStorage.getItem('user_session');
       if (!sessionStr) return;
-      const { token } = JSON.parse(sessionStr);
+      const { access_token } = JSON.parse(sessionStr);
       
       const res = await fetch(`${API_URL}/multimedia/torneo/${torneoId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${access_token}`
         }
       });
       if (res.ok) {
@@ -54,12 +54,12 @@ export default function MultimediaView({ torneoId }: { torneoId: string }) {
     try {
       const sessionStr = localStorage.getItem('user_session');
       if (!sessionStr) return;
-      const { token } = JSON.parse(sessionStr);
+      const { access_token } = JSON.parse(sessionStr);
 
       const res = await fetch(`${API_URL}/multimedia/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${access_token}`
         },
         body: formData
       });
