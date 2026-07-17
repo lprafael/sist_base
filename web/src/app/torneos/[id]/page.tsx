@@ -96,7 +96,7 @@ export default function TournamentDetailPage() {
           <main className="flex-1 overflow-y-auto p-8 relative">
             <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase">Galería Multimedia</h2>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
-               <MultimediaView torneoId={id as string} isPublicView={true} />
+               <MultimediaView torneoId={id as string} isPublicView={true} torneo={tournament} />
             </div>
           </main>
         );

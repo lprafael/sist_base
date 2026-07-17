@@ -73,14 +73,14 @@ async def get_multimedia_torneo(
 ):
     try:
         query = text("""
-            SELECT id, tipo_medio, url, creado_en
+            SELECT id, tipo_medio, url, creado_en, etiquetas, comentarios
             FROM cancha.multimedia
             WHERE torneo_id = :torneo_id
             ORDER BY creado_en DESC
         """)
         res = await session.execute(query, {"torneo_id": torneo_id})
         rows = res.fetchall()
-        return [{"id": r[0], "tipo_medio": r[1], "url": r[2], "creado_en": r[3]} for r in rows]
+        return [{"id": r[0], "tipo_medio": r[1], "url": r[2], "creado_en": r[3], "etiquetas": r[4], "comentarios": r[5]} for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -94,13 +94,112 @@ async def get_multimedia_organizador(
         
     try:
         query = text("""
-            SELECT id, tipo_medio, url, creado_en, torneo_id
+            SELECT id, tipo_medio, url, creado_en, torneo_id, etiquetas, comentarios
             FROM cancha.multimedia
             WHERE organizador_id = :org_id
             ORDER BY creado_en DESC
         """)
         res = await session.execute(query, {"org_id": current_user["user_id"]})
         rows = res.fetchall()
-        return [{"id": r[0], "tipo_medio": r[1], "url": r[2], "creado_en": r[3], "torneo_id": r[4]} for r in rows]
+        return [{"id": r[0], "tipo_medio": r[1], "url": r[2], "creado_en": r[3], "torneo_id": r[4], "etiquetas": r[5], "comentarios": r[6]} for r in rows]
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+from pydantic import BaseModel
+class UpdateEtiquetaReq(BaseModel):
+    etiquetas: str
+
+@router.patch("/{id}")
+async def update_multimedia(
+    id: str,
+    req: UpdateEtiquetaReq,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="No autenticado")
+        
+    try:
+        query = text("""
+            UPDATE cancha.multimedia
+            SET etiquetas = :etiquetas
+            WHERE id = :id AND organizador_id = :org_id
+            RETURNING id
+        """)
+        res = await session.execute(query, {
+            "etiquetas": req.etiquetas,
+            "id": id,
+            "org_id": current_user["user_id"]
+        })
+        await session.commit()
+        if not res.fetchone():
+            raise HTTPException(status_code=404, detail="Medio no encontrado o sin permisos")
+        return {"message": "Actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{id}")
+async def delete_multimedia(
+    id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="No autenticado")
+        
+    try:
+        query = text("""
+            DELETE FROM cancha.multimedia
+            WHERE id = :id AND organizador_id = :org_id
+            RETURNING id
+        """)
+        res = await session.execute(query, {
+            "id": id,
+            "org_id": current_user["user_id"]
+        })
+        await session.commit()
+        if not res.fetchone():
+            raise HTTPException(status_code=404, detail="Medio no encontrado o sin permisos")
+        return {"message": "Eliminado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+class CommentReq(BaseModel):
+    texto: str
+
+@router.post("/{id}/comentarios")
+async def add_comment(
+    id: str,
+    req: CommentReq,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Añade un nuevo comentario al array de JSONB
+        query = text("""
+            UPDATE cancha.multimedia
+            SET comentarios = comentarios || jsonb_build_array(jsonb_build_object(
+                'texto', :texto,
+                'fecha', NOW()
+            ))
+            WHERE id = :id
+            RETURNING id
+        """)
+        res = await session.execute(query, {
+            "texto": req.texto,
+            "id": id
+        })
+        await session.commit()
+        if not res.fetchone():
+            raise HTTPException(status_code=404, detail="Medio no encontrado")
+        return {"message": "Comentario añadido"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
