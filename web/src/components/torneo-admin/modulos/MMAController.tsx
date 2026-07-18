@@ -192,6 +192,9 @@ export default function MMAController({ match, onClose, onSaved, onUpdate }: { m
                   <button onClick={() => updateScore('local', 'faltas', 1)} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
                     + FALTA
                   </button>
+                  <button onClick={() => updateScore('local', 'faltas', -1)} className="w-full mt-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold">
+                    -1 Falta
+                  </button>
                 </div>
 
                 <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
@@ -199,6 +202,9 @@ export default function MMAController({ match, onClose, onSaved, onUpdate }: { m
                   <div className="text-2xl font-black text-orange-500 my-1">{estadisticas.local.salidas}</div>
                   <button onClick={() => updateScore('local', 'salidas', 1)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
                     + SALIDA
+                  </button>
+                  <button onClick={() => updateScore('local', 'salidas', -1)} className="w-full mt-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold border border-slate-200">
+                    -1 Salida
                   </button>
                 </div>
               </div>
@@ -271,6 +277,9 @@ export default function MMAController({ match, onClose, onSaved, onUpdate }: { m
                   <button onClick={() => updateScore('visitante', 'faltas', 1)} className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-1.5 rounded font-bold">
                     + FALTA
                   </button>
+                  <button onClick={() => updateScore('visitante', 'faltas', -1)} className="w-full mt-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold">
+                    -1 Falta
+                  </button>
                 </div>
 
                 <div className="col-span-1 bg-white border-2 border-slate-200 rounded-lg p-2 text-center">
@@ -278,6 +287,9 @@ export default function MMAController({ match, onClose, onSaved, onUpdate }: { m
                   <div className="text-2xl font-black text-orange-500 my-1">{estadisticas.visitante.salidas}</div>
                   <button onClick={() => updateScore('visitante', 'salidas', 1)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs py-1.5 rounded font-bold border border-orange-200">
                     + SALIDA
+                  </button>
+                  <button onClick={() => updateScore('visitante', 'salidas', -1)} className="w-full mt-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold border border-slate-200">
+                    -1 Salida
                   </button>
                 </div>
               </div>   
