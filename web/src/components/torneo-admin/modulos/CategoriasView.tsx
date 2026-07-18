@@ -156,7 +156,11 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
             Categorías
           </h3>
           <button 
-            onClick={() => { setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '' }); setShowCatForm(true); }}
+            onClick={() => { 
+              setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '' }); 
+              setShowCatForm(true); 
+              setTimeout(() => { if (nombreInputRef.current) nombreInputRef.current.focus(); }, 100);
+            }}
             className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-1 transition"
           >
             <Plus size={16} /> Nueva Categoría

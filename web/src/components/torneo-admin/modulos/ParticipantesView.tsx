@@ -26,8 +26,10 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
     nombre: '', dni: '', fecha_nacimiento: '', email: '', telefono: ''
   });
 
+  const equipoInputRef = React.useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    fetchEquipos();
+    fetchEquipos(true);
   }, [torneoId]);
 
   const getToken = () => {
@@ -35,15 +37,15 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
     return session.access_token || session.token || '';
   };
 
-  const fetchEquipos = async () => {
-    setLoading(true);
+  const fetchEquipos = async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     try {
       const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       if(res.ok) setEquipos(await res.json());
     } catch(e) { console.error(e); }
-    setLoading(false);
+    if (showSpinner) setLoading(false);
   };
 
   const fetchJugadores = async (equipoId: string) => {
@@ -80,7 +82,8 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
       if(res.ok) {
         setIsCreatingEquipo(false);
         setNuevoEquipo('');
-        fetchEquipos();
+        fetchEquipos(false);
+        setTimeout(() => equipoInputRef.current?.focus(), 100);
       }
     } catch(e) { console.error(e); }
     setSaving(false);
@@ -132,6 +135,7 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
         {/* Carga rápida de equipos */}
         <form onSubmit={handleCreateEquipo} className="flex items-center gap-2">
           <input 
+            ref={equipoInputRef}
             type="text" 
             placeholder="Nombre del equipo" 
             className="flex-1 px-4 py-2 border-2 border-blue-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
