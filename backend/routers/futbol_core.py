@@ -656,6 +656,7 @@ class CategoriaCreate(BaseModel):
     peso_max: Optional[float] = None
     modalidad: Optional[str] = None
     cinturon: Optional[str] = None
+    tipo_categoria: Optional[str] = "combate"
 
 class CategoriaUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -667,11 +668,12 @@ class CategoriaUpdate(BaseModel):
     peso_max: Optional[float] = None
     modalidad: Optional[str] = None
     cinturon: Optional[str] = None
+    tipo_categoria: Optional[str] = None
 
 @router.get("/futbol/torneos/{torneo_id}/categorias")
 async def get_categorias_torneo(torneo_id: str, session: AsyncSession = Depends(get_session)):
     q = text("""
-        SELECT id, torneo_id, nombre, descripcion, genero, edad_min, edad_max, peso_min, peso_max, modalidad, cinturon, creado_en
+        SELECT id, torneo_id, nombre, descripcion, genero, edad_min, edad_max, peso_min, peso_max, modalidad, cinturon, tipo_categoria, creado_en
         FROM torneos.categorias
         WHERE torneo_id = CAST(:tid AS UUID)
         ORDER BY creado_en ASC
@@ -682,14 +684,14 @@ async def get_categorias_torneo(torneo_id: str, session: AsyncSession = Depends(
 @router.post("/futbol/torneos/{torneo_id}/categorias", status_code=201)
 async def create_categoria_torneo(torneo_id: str, data: CategoriaCreate, session: AsyncSession = Depends(get_session)):
     q = text("""
-        INSERT INTO torneos.categorias (torneo_id, nombre, descripcion, genero, edad_min, edad_max, peso_min, peso_max, modalidad, cinturon)
-        VALUES (CAST(:tid AS UUID), :nombre, :descripcion, :genero, :emin, :emax, :pmin, :pmax, :mod, :cint)
-        RETURNING id, torneo_id, nombre, descripcion, genero, edad_min, edad_max, peso_min, peso_max, modalidad, cinturon, creado_en
+        INSERT INTO torneos.categorias (torneo_id, nombre, descripcion, genero, edad_min, edad_max, peso_min, peso_max, modalidad, cinturon, tipo_categoria)
+        VALUES (CAST(:tid AS UUID), :nombre, :descripcion, :genero, :emin, :emax, :pmin, :pmax, :mod, :cint, :tipo_cat)
+        RETURNING id, torneo_id, nombre, descripcion, genero, edad_min, edad_max, peso_min, peso_max, modalidad, cinturon, tipo_categoria, creado_en
     """)
     res = await session.execute(q, {
         "tid": torneo_id, "nombre": data.nombre, "descripcion": data.descripcion,
         "genero": data.genero, "emin": data.edad_min, "emax": data.edad_max,
-        "pmin": data.peso_min, "pmax": data.peso_max, "mod": data.modalidad, "cint": data.cinturon
+        "pmin": data.peso_min, "pmax": data.peso_max, "mod": data.modalidad, "cint": data.cinturon, "tipo_cat": data.tipo_categoria
     })
     await session.commit()
     row = res.fetchone()
@@ -724,8 +726,11 @@ async def update_categoria(categoria_id: str, data: CategoriaUpdate, session: As
         updates.append("modalidad = :mod")
         params["mod"] = data.modalidad
     if data.cinturon is not None:
-        updates.append("cinturon = :cint")
-        params["cint"] = data.cinturon
+        updates.append("cinturon = :cinturon")
+        params["cinturon"] = data.cinturon
+    if data.tipo_categoria is not None:
+        updates.append("tipo_categoria = :tipo_categoria")
+        params["tipo_categoria"] = data.tipo_categoria
         
     if not updates:
         return {"message": "Sin cambios"}

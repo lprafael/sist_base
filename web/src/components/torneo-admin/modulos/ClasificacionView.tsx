@@ -160,10 +160,19 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 mb-1">Desempate</label>
-                      <select value={cat.criterio_desempate || 'Diferencia de puntos'} onChange={e => handleChange(cat.id, 'criterio_desempate', e.target.value)} className="w-full border p-2 rounded text-sm">
-                        <option value="Diferencia de puntos">Dif. puntos/goles</option>
-                        <option value="Enfrentamiento directo">Enfrentamiento directo</option>
-                        <option value="Sorteo">Sorteo</option>
+                      <select value={cat.criterio_desempate || (cat.tipo_categoria === 'formas' ? 'Automático' : 'Diferencia de puntos')} onChange={e => handleChange(cat.id, 'criterio_desempate', e.target.value)} className="w-full border p-2 rounded text-sm">
+                        {cat.tipo_categoria === 'formas' ? (
+                          <>
+                            <option value="Automático">Automático (Filtros ASAM)</option>
+                            <option value="Manual">Manual (Tatami)</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Diferencia de puntos">Dif. puntos/goles</option>
+                            <option value="Enfrentamiento directo">Enfrentamiento directo</option>
+                            <option value="Sorteo">Sorteo</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -346,6 +355,8 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                     partidosProp={partidosFase}
                     faseOculta={original}
                     onRefresh={fetchData}
+                    tipoCategoria={categorias.find(c => c.nombre === categoria)?.tipo_categoria || 'combate'}
+                    criterioDesempate={categorias.find(c => c.nombre === categoria)?.criterio_desempate || 'Automático'}
                   />
                 </div>
                       </div>

@@ -4,13 +4,14 @@ import { Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy } f
 import MatchController from './MatchController';
 import MatchAddModal from './MatchAddModal';
 import MMAController from './MMAController';
+import FormasController from './FormasController';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function PartidosView({ 
-  torneoId, deporte, torneo, partidosProp, faseOculta, onRefresh
+  torneoId, deporte, torneo, partidosProp, faseOculta, onRefresh, tipoCategoria, criterioDesempate
 }: { 
-  torneoId: string, deporte?: string, torneo?: any, partidosProp?: any[], faseOculta?: string, onRefresh?: () => void 
+  torneoId: string, deporte?: string, torneo?: any, partidosProp?: any[], faseOculta?: string, onRefresh?: () => void, tipoCategoria?: string, criterioDesempate?: string
 }) {
   const [partidosState, setPartidosState] = useState<any[]>([]);
   const [loading, setLoading] = useState(!partidosProp);
@@ -99,7 +100,46 @@ export default function PartidosView({
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
 
   // Filtrar los partidos que se van a mostrar (ya sea por prop o por filtro local)
-  const partidosAMostrar = faseOculta ? partidos : partidos.filter(p => (p.fase || 'Fase 1') === faseFilter);
+  let partidosAMostrar = faseOculta ? partidos : partidos.filter(p => (p.fase || 'Fase 1') === faseFilter);
+
+  if (tipoCategoria === 'formas') {
+    partidosAMostrar.sort((a, b) => {
+      const statsA = typeof a.estadisticas === 'string' ? JSON.parse(a.estadisticas || '{}') : (a.estadisticas || {});
+      const statsB = typeof b.estadisticas === 'string' ? JSON.parse(b.estadisticas || '{}') : (b.estadisticas || {});
+      
+      const scoreA = statsA.puntaje_final || 0;
+      const scoreB = statsB.puntaje_final || 0;
+
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      
+      // Si el desempate es manual, no usar los filtros, los dejamos empatados.
+      if (criterioDesempate === 'Manual') return 0;
+
+      // Tie breakers automáticos
+      const f1A = statsA.filtro1_min_valido || 0;
+      const f1B = statsB.filtro1_min_valido || 0;
+      if (f1A !== f1B) {
+         if (a.estado !== 'empatado_desempate' && b.estado !== 'empatado_desempate') {
+            // we could flag something, but let's just sort
+            return f1B - f1A;
+         }
+      }
+
+      const f2A = statsA.filtro2_max_valido || 0;
+      const f2B = statsB.filtro2_max_valido || 0;
+      if (f2A !== f2B) return f2B - f2A;
+
+      const f3A = statsA.filtro3_min_descartado || 0;
+      const f3B = statsB.filtro3_min_descartado || 0;
+      if (f3A !== f3B) return f3B - f3A;
+
+      const f4A = statsA.filtro4_max_descartado || 0;
+      const f4B = statsB.filtro4_max_descartado || 0;
+      if (f4A !== f4B) return f4B - f4A;
+
+      return 0;
+    });
+  }
 
   return (
     <div className={`bg-slate-50 border-slate-200 flex flex-col h-full ${faseOculta ? 'p-4' : 'border rounded-xl p-4'}`}>
@@ -145,7 +185,82 @@ export default function PartidosView({
       <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-2">
         {partidosAMostrar.length === 0 ? (
           <div className="text-center text-slate-400 mt-10">
-            No hay juegos en esta fase.
+            No hay participantes o juegos en esta fase.
+          </div>
+        ) : tipoCategoria === 'formas' ? (
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">#</th>
+                  <th className="py-3 px-4">Competidor</th>
+                  <th className="py-3 px-4 text-center">Puntaje Jueces</th>
+                  <th className="py-3 px-4 text-center">Puntaje Final</th>
+                  <th className="py-3 px-4 text-center">Estado</th>
+                  <th className="py-3 px-4 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {partidosAMostrar.map((p, idx) => {
+                   const stats = typeof p.estadisticas === 'string' ? JSON.parse(p.estadisticas || '{}') : (p.estadisticas || {});
+                   let desempateMsg = null;
+                   
+                   if (idx > 0) {
+                      const prevStats = typeof partidosAMostrar[idx-1].estadisticas === 'string' 
+                          ? JSON.parse(partidosAMostrar[idx-1].estadisticas || '{}') 
+                          : (partidosAMostrar[idx-1].estadisticas || {});
+                      
+                      const scoreA = prevStats.puntaje_final || 0;
+                      const scoreB = stats.puntaje_final || 0;
+                      if (scoreA === scoreB && scoreA > 0) {
+                          if (prevStats.filtro1_min_valido !== stats.filtro1_min_valido) desempateMsg = "Filtro 1";
+                          else if (prevStats.filtro2_max_valido !== stats.filtro2_max_valido) desempateMsg = "Filtro 2";
+                          else if (prevStats.filtro3_min_descartado !== stats.filtro3_min_descartado) desempateMsg = "Filtro 3";
+                          else if (prevStats.filtro4_max_descartado !== stats.filtro4_max_descartado) desempateMsg = "Filtro 4";
+                          else desempateMsg = "Manual (Tatami)";
+                      }
+                   }
+
+                   return (
+                     <tr key={p.id} className="hover:bg-slate-50 transition">
+                       <td className="py-3 px-4 font-bold text-slate-400">{idx + 1}</td>
+                       <td className="py-3 px-4 font-semibold text-slate-700 flex flex-col gap-1">
+                         <div className="flex items-center gap-2">
+                           <div className="w-8 h-8 bg-slate-100 rounded overflow-hidden">
+                             {p.local_logo ? <img src={p.local_logo} className="w-full h-full object-cover" /> : <Trophy size={14} className="m-2 text-slate-400" />}
+                           </div>
+                           {p.jugador_local_nombre || p.local_nombre}
+                         </div>
+                         {desempateMsg && (
+                           <span className="text-[10px] text-orange-500 font-bold bg-orange-50 w-fit px-2 py-0.5 rounded border border-orange-200">
+                             Desempate: {desempateMsg}
+                           </span>
+                         )}
+                       </td>
+                       <td className="py-3 px-4 text-center text-slate-500 font-mono">
+                         {stats.jueces ? stats.jueces.join(' - ') : '-'}
+                       </td>
+                       <td className="py-3 px-4 text-center font-bold text-blue-600 text-lg">
+                         {stats.puntaje_final ?? '-'}
+                       </td>
+                       <td className="py-3 px-4 text-center">
+                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getStatusColor(p.estado)}`}>
+                           {getStatusText(p.estado)}
+                         </span>
+                       </td>
+                       <td className="py-3 px-4 text-right">
+                         <button 
+                           onClick={() => { setActiveMatch(p); setShowAddModal(false); }}
+                           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition"
+                         >
+                           Puntuar
+                         </button>
+                       </td>
+                     </tr>
+                   );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           partidosAMostrar.map(p => (
@@ -218,7 +333,13 @@ export default function PartidosView({
       )}
 
       {activeMatch && (
-        (deporte === 'Artes Marciales Mixtas' || torneo?.deporte === 'Artes Marciales Mixtas') ? (
+        tipoCategoria === 'formas' ? (
+          <FormasController 
+            match={activeMatch} 
+            onClose={() => setActiveMatch(null)}
+            onSaved={() => { setActiveMatch(null); if(onRefresh) onRefresh(); else fetchPartidos(); }}
+          />
+        ) : (deporte === 'Artes Marciales Mixtas' || torneo?.deporte === 'Artes Marciales Mixtas') ? (
           <MMAController 
             match={activeMatch} 
             onClose={() => setActiveMatch(null)}

@@ -14,7 +14,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
   const [formCat, setFormCat] = useState({ 
     id: '', nombre: '', descripcion: '', 
     genero: '', edad_min: '', edad_max: '', 
-    peso_min: '', peso_max: '', modalidad: '', cinturon: '' 
+    peso_min: '', peso_max: '', modalidad: '', cinturon: '', tipo_categoria: 'combate' 
   });
   const nombreInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,7 +81,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
             }
           }, 100);
         }
-        setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '' });
+        setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '', tipo_categoria: 'combate' });
         fetchData();
       }
     } catch(e) { console.error(e); }
@@ -157,7 +157,7 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
           </h3>
           <button 
             onClick={() => { 
-              setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '' }); 
+              setFormCat({ id: '', nombre: '', descripcion: '', genero: '', edad_min: '', edad_max: '', peso_min: '', peso_max: '', modalidad: '', cinturon: '', tipo_categoria: 'combate' }); 
               setShowCatForm(true); 
               setTimeout(() => { if (nombreInputRef.current) nombreInputRef.current.focus(); }, 100);
             }}
@@ -207,9 +207,16 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
                 <input type="text" value={formCat.cinturon} onChange={e => setFormCat({...formCat, cinturon: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: Blanco a Azul" />
               </div>
               
-              <div className="lg:col-span-2">
-                <label className="block text-xs font-bold text-slate-500 mb-1">Modalidad de Combate / Estilo</label>
-                <input type="text" value={formCat.modalidad} onChange={e => setFormCat({...formCat, modalidad: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: No-Gi, Kickboxing, Grappling" />
+              <div className="lg:col-span-1">
+                <label className="block text-xs font-bold text-slate-500 mb-1">Tipo de Modalidad</label>
+                <select value={formCat.tipo_categoria || 'combate'} onChange={e => setFormCat({...formCat, tipo_categoria: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white">
+                  <option value="combate">Combate (1 vs 1)</option>
+                  <option value="formas">Formas (Puntuación)</option>
+                </select>
+              </div>
+              <div className="lg:col-span-1">
+                <label className="block text-xs font-bold text-slate-500 mb-1">Estilo Específico</label>
+                <input type="text" value={formCat.modalidad} onChange={e => setFormCat({...formCat, modalidad: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm" placeholder="Ej: No-Gi, Poomsae, Kumite" />
               </div>
 
               <div>
@@ -234,7 +241,12 @@ export default function CategoriasView({ torneoId }: { torneoId: string }) {
               <div key={cat.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
                   <div>
-                    <h4 className="font-bold text-slate-800">{cat.nombre}</h4>
+                    <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                      {cat.nombre}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase ${cat.tipo_categoria === 'formas' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                        {cat.tipo_categoria === 'formas' ? 'Formas' : 'Combate'}
+                      </span>
+                    </h4>
                     {cat.descripcion && <p className="text-xs text-slate-500">{cat.descripcion}</p>}
                   </div>
                   <div className="flex gap-2">

@@ -172,64 +172,81 @@ En caso de coincidencia exacta en el total\_acumulado de dos o más atletas en l
 2\. \*\*Prioridad 2:\*\* Traducir las equivalencias descritas para la decisión arbitral (\*Hantei\*) en validaciones de software antes de permitir que el usuario cierre manualmente una planilla empatada.  
 3\. \*\*Prioridad 3:\*\* Replicar de manera exacta los 5 pasos del algoritmo de desempate para la modalidad de formas.
 
-Sistema de Puntuación ASAM (Motor de Combate y Formas)
-User Review Required
-IMPORTANT
+A continuación, te presento el desglose milimétrico y detallado de ambos sistemas de puntuación según el reglamento oficial de la ASAM y la lógica exacta de sus planillas. He separado los dos métodos paso por paso para que sirva de guía definitiva.
 
-Aclaración sobre el Reglamento ASAM: Hay una pequeña confusión en tu solicitud. El documento del reglamento ASAM indica que hay DOS modalidades con reglas muy distintas:
+# **PARTE 1: REGLAMENTO DETALLADO DE COMBATE (KUMITE / SPARRING)**
 
-Modalidad de Combate (Pelea 1 vs 1): NO utiliza promedio de 3 árbitros. Se usan puntos directos, un contador de Faltas (0 a 2) y un contador de Salidas (0 a 5). Las Salidas y Faltas penalizan o suman puntos automáticamente al rival.
-Modalidad de Formas (Katas/Exhibición): SÍ utiliza de 3 a 5 árbitros que dan notas del 1 al 10. Luego se promedian o se eliminan la nota más alta y la más baja.
-¿En qué modalidad te quieres enfocar ahora mismo? Dado que estás hablando de "abrir un combate", asumo que te refieres a la Modalidad de Combate.
+El sistema de combate de la ASAM se basa en un marcado directo de puntos acumulados en tiempo real reflejado simétricamente para el competidor del lado **Blanco** y el del lado **Rojo**. El combate se rige por tres ejes: Puntos válidos, Penalizaciones por salidas y Sanciones por faltas.
 
-Propuesta de Diseño: Modalidad de Combate (ASAM)
-Si lo que deseas implementar es el panel para arbitrar Combates (Peleas), el diseño de la pantalla del control del partido debe cambiar drásticamente respecto al que tenemos ahora.
+### **1.1 Criterios para Otorgamiento de Puntos**
 
-Elementos a incorporar en el panel por cada Peleador (Rojo vs Blanco):
-Puntaje Global: (Número grande)
-Botones de Puntos (+1, +2, etc.): Para sumar puntos manuales al competidor.
-Contador de Faltas (0 a 2): Botones para incrementar faltas. Si llega a 2, el sistema descalifica automáticamente.
-Contador de Salidas (0 a 5):
-Salidas 1 y 2: Solo se registran.
-Salida 3: Le suma +1 Punto automático al rival.
-Salida 4: Le suma +1 Punto adicional al rival.
-Salida 5: Descalificación automática del competidor.
-Proposed Changes
-Si apruebas que adaptemos la interfaz de Combates a este formato de Puntos, Faltas y Salidas:
+Para que un competidor marque un punto legítimo (que se anota en el casillero "Punto" de la planilla), la técnica debe ser convalidada por la mayoría de los jueces presentes y cumplir obligatoriamente con el criterio **VISTO, CONTROLADO y OÍDO**:
 
-1. Modificar MMAController.tsx
-[MODIFY]: Cambiar la estructura de estado estadisticas para guardar de forma persistente: { puntos: 0, faltas: 0, salidas: 0 } por cada competidor.
-[MODIFY]: Rediseñar las tarjetas de cada peleador. Eliminar los botones fijos genéricos ("Golpe a la cabeza", "Derribo") e implementar:
-Botón grande de +1 PUNTO.
-Botón de + FALTA (Sanción Grave).
-Botón de + SALIDA (Sanción Leve).
-[MODIFY]: Incorporar el motor de lógica en React: Al presionar "+ SALIDA", si es la tercera, sumar automáticamente +1 al puntaje del rival. Si llega a la quinta, mostrar una gran alerta roja de Descalificación.
-[MODIFY]: Actualizar el backend / guardado para que reciba correctamente esta estructura anidada.
-Opcional: Modalidad de Formas
-Si también deseas que implementemos la interfaz de Formas (con 3 a 5 jueces), necesitaríamos crear una pantalla de Puntuación completamente distinta (que no sea un combate 1 vs 1, sino una presentación individual).
+* **Contacto Moderado:** No se permite contacto pleno (*Knockout*). La técnica debe tocar el cuerpo de manera evidente pero controlada.  
+* **El Retroceso (Hikite):** Toda técnica de puño o pierna debe retraerse inmediatamente después de impactar para demostrar control físico absoluto.  
+  * *Excepción:* La patada descendente (hacha) se considera punto válido si impacta limpiamente de arriba hacia abajo utilizando únicamente la planta del pie.  
+* **Zonas de Impacto Permitidas según la Categoría:**  
+  * *Infantiles, Juveniles y Kyu "A" (Cinturones de Color):* Técnicas de mano únicamente desde el cinturón hasta el inicio del cuello. Está prohibido tocar la cara. Técnicas de pierna se permiten desde el cinturón hasta la cabeza.  
+  * *Adultos Kyu "B" y Cinturones Negros:* Se permite el contacto moderado en la cara utilizando técnicas de mano (uso de guantines protectores obligatorio).
 
-Por favor confírmame si deseas proceder con el rediseño del Arbitraje de Combate ASAM (Faltas y Salidas) como detallé arriba.
+### **1.2 Sistema Cascada de Salidas (Sanciones Leves)**
 
-Nuevo Panel de Arbitraje de Combate (Reglamento ASAM)
-He reprogramado completamente la interfaz del Controlador de Combate (MMAController) para que siga estrictamente la modalidad de pelea 1 vs 1 del formato ASAM.
+Las salidas ocurren cuando un competidor pisa con ambos pies fuera del área delimitada (de hasta 10x10 metros para adultos). El sistema las procesa de manera estrictamente acumulativa:
 
-Cambios Implementados
-Nuevo Panel por Competidor: Al hacer clic en el resultado de un partido (el botón central : o el marcador numérico) en la lista de Juegos, se abrirá el panel de arbitraje. Ahora, cada peleador (Rojo y Azul) tiene sus propios contadores para:
+* **1ª Salida:** Se marca en la planilla como advertencia. No altera la puntuación.  
+* **2ª Salida:** Se marca en la planilla. Se mantiene como advertencia.  
+* **3ª Salida:** Se marca en la planilla y **automáticamente le otorga \+1 Punto al oponente**.  
+* **4ª Salida:** Se marca en la planilla y **automáticamente le otorga otro \+1 Punto al oponente**.  
+* **5ª Salida:** Se detiene la pelea de inmediato. El competidor queda **Descalificado por Salidas**; la victoria se le otorga automáticamente al rival (*Kachi*).
 
-Puntos
-Faltas
-Salidas
-Automatización de Penalizaciones (Salidas): He incorporado el flujo de control descrito en tu documento:
+### **1.3 Sistema de Faltas (Sanciones Graves)**
 
-Si un peleador comete 3 Salidas, el sistema detecta esto y le suma +1 punto automáticamente al rival.
-Si comete 4 Salidas, se suma otro punto al rival.
-Si llega a 5 Salidas, el sistema lanzará una alerta roja interrumpiendo el combate por Descalificación.
-Automatización de Sanciones (Faltas):
+Las faltas se aplican por uso de técnicas prohibidas (golpes de codo, rodilla, golpes bajos, agarres antirreglamentarios o exceso de fuerza).
 
-Al registrar la 2da Falta, el software emitirá inmediatamente una alerta de Descalificación Directa y cambiará el estado del combate a Finalizado.
-Autoguardado Seguro: La estructura de la base de datos se adaptó para almacenar los 3 valores de cada peleador. Todo se guarda silenciosamente en tiempo real al presionar los botones, para que no pierdas ningún dato si se cierra la pantalla.
+* **1ª Falta:** Se anota en el casillero "Falta" de la planilla. No da puntos al rival en el tiempo regular, pero actúa como un pesado lastre en caso de empate.  
+* **2ª Falta:** Significa la **Descalificación Inmediata de la lucha en curso**.  
+* **Descalificación Inmediata Directa (Producir Sangre):** Si un competidor propina un golpe que genere sangre en el rival, o incurra en una conducta antideportiva severa, se le aplica la descalificación directa del torneo completo, perdiendo todo derecho a continuar en otras llaves.
 
-Cómo probarlo
-Ve a "Partidos y Clasificación".
-Abre cualquier partido de Artes Marciales haciendo clic en los botones de "marcador" que están en el medio del bloque de los peleadores.
-Prueba sumar una "Salida" tres veces a un jugador, y verás cómo los puntos del rival suben automáticamente.
+### **1.4 Algoritmo de Desempate en Combates**
+
+Si al finalizar el tiempo oficial los competidores tienen la misma cantidad de puntos, se procede de la siguiente manera:
+
+1. **Minuto de Oro (Extensión):** Se lucha 1 minuto más. El primero en marcar un punto válido gana. Las salidas y faltas previas se arrastran al alargue.  
+2. **Decisión Arbitral (*Hantei*):** Si al acabar el minuto nadie marcó, los jueces evalúan la planilla usando una tabla estricta de jerarquías de penalizaciones:  
+   * *1 Falta* pierde contra *1 Salida* o *2 Salidas* (La falta es más grave).  
+   * *1 Falta* empata contra *3 Salidas* (Pesan igual; se decide por banderas/actividad).  
+   * *1 Falta* gana contra *4 Salidas* (4 salidas restaron demasiado rendimiento).  
+   * Un competidor con *1 Falta \+ Salidas* siempre perderá contra uno que *solo tiene Salidas*.
+
+# **PARTE 2: REGLAMENTO DETALLADO DE FIGURAS (FORMAS / KATAS / POOMSAE)**
+
+El sistema de Formas evalúa el desempeño técnico, la potencia, el equilibrio y la marcialidad de forma individual o por equipos (3 o 5 integrantes). No hay un oponente físico, sino un **Panel de Jueces** (usualmente 3 o 5 jueces: identificados en planilla como A1, A2, A3, etc.).
+
+### **2.1 El Proceso de Calificación Basal**
+
+* Cada juez evalúa de manera individual la ejecución del atleta basándose en una escala decimal (por ejemplo, de 0.0 a 10.0 puntos).  
+* En las competencias **por equipos**, los jueces basan la nota estrictamente en 4 aspectos regulados:  
+  1. La presentación general.  
+  2. La uniformidad (sincronización de movimientos).  
+  3. La cantidad de integrantes (fidelidad al equipo presentado).  
+  4. El mantenimiento de la distancia y el orden geométrico de la forma.
+
+### **2.2 El Cálculo del Puntaje Final (Sistema de Descarte)**
+
+Para garantizar la total transparencia del arbitraje y mitigar favoritismos o notas inusualmente bajas, el sistema procesa el array de calificaciones de la siguiente manera:
+
+1. Se recopilan las notas de todos los jueces (ej: si son 5 jueces: \[8.9, 9.1, 8.8, 9.2, 9.0\]).  
+2. El sistema detecta e intercepta de forma automática la **nota más alta** (en este ejemplo: 9.2) y la **nota más baja** (en este ejemplo: 8.8).  
+3. **Se eliminan ambos valores extremos** del cómputo.  
+4. Se suman las calificaciones restantes para obtener el **Total Acumulado Final** (ej: 8.9 \+ 9.1 \+ 9.0 \= 27.0). Este resultado es el que define la posición en la tabla clasificatoria.
+
+### **2.3 Algoritmo Cascada para Romper Empates en Formas**
+
+Si dos o más competidores obtienen exactamente el mismo "Total Acumulado Final", el sistema de cómputo o el planillero de mesa debe aplicar de manera obligatoria los siguientes filtros en orden sucesivo para determinar quién se lleva el puesto más alto:
+
+* **Filtro 1:** Se toma en cuenta el **puntaje menor no eliminado** (el valor más bajo de los que sí sumaron). El atleta con la nota más alta en este casillero gana el desempate.  
+* **Filtro 2:** Si siguen empatados, se toma en cuenta el **puntaje mayor no eliminado**.  
+* **Filtro 3:** Si persiste la igualdad, el sistema recurre a los descartes: se evalúa quién tiene el **puntaje menor que fue eliminado** (puntaje\_min), favoreciendo al que tenga la nota más alta.  
+* **Filtro 4:** Se evalúa el **puntaje mayor que fue eliminado** (puntaje\_max).  
+* **Filtro 5 (Desempate en Tatami):** Si tras aplicar los 4 filtros aritméticos el empate en la base de datos es absoluto, los atletas empatados deberán ingresar nuevamente al área y ejecutar una nueva forma completa desde cero para recibir una nueva ronda de calificaciones.
+

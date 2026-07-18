@@ -2458,32 +2458,53 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
         if not by_fase:
             return {"status": "error", "message": "No hay jugadores asignados a ninguna fase. Primero asigna las categorías."}
 
+        # Obtener los tipos de categoría
+        cat_res = await session.execute(text("SELECT nombre, tipo_categoria FROM torneos.categorias WHERE torneo_id = CAST(:tid AS UUID)"), {"tid": torneo_id})
+        cat_types = {row.nombre: row.tipo_categoria for row in cat_res.fetchall()}
+
         import random
         matches_created = 0
 
         for fase_name, p_list in by_fase.items():
-            if len(p_list) < 2:
-                continue
+            cat_name = fase_name.split(' - ')[0] if ' - ' in fase_name else fase_name
+            tipo = cat_types.get(cat_name, 'combate')
+
+            if tipo == 'formas':
+                for p1 in p_list:
+                    await session.execute(text("""
+                        INSERT INTO torneos.partidos 
+                        (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
+                        VALUES (CAST(:tid AS UUID), CAST(:el AS UUID), NULL, CAST(:jl AS UUID), NULL, :fase)
+                    """), {
+                        "tid": torneo_id, 
+                        "el": p1.torneo_equipo_id, 
+                        "jl": p1.id, 
+                        "fase": fase_name
+                    })
+                    matches_created += 1
+            else:
+                if len(p_list) < 2:
+                    continue
                 
-            random.shuffle(p_list)
-            
-            # Generar partidos 1v1
-            for i in range(0, len(p_list) - 1, 2):
-                p1 = p_list[i]
-                p2 = p_list[i+1]
-                await session.execute(text("""
-                    INSERT INTO torneos.partidos 
-                    (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
-                    VALUES (:tid, :el, :ev, :jl, :jv, :fase)
-                """), {
-                    "tid": torneo_id, 
-                    "el": p1.torneo_equipo_id, 
-                    "ev": p2.torneo_equipo_id,
-                    "jl": p1.id, 
-                    "jv": p2.id,
-                    "fase": fase_name
-                })
-                matches_created += 1
+                random.shuffle(p_list)
+                
+                # Generar partidos 1v1
+                for i in range(0, len(p_list) - 1, 2):
+                    p1 = p_list[i]
+                    p2 = p_list[i+1]
+                    await session.execute(text("""
+                        INSERT INTO torneos.partidos 
+                        (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
+                        VALUES (CAST(:tid AS UUID), CAST(:el AS UUID), CAST(:ev AS UUID), CAST(:jl AS UUID), CAST(:jv AS UUID), :fase)
+                    """), {
+                        "tid": torneo_id, 
+                        "el": p1.torneo_equipo_id, 
+                        "ev": p2.torneo_equipo_id,
+                        "jl": p1.id, 
+                        "jv": p2.id,
+                        "fase": fase_name
+                    })
+                    matches_created += 1
 
         await session.commit()
         return {"status": "ok", "message": f"Se generaron {matches_created} partidos."}
