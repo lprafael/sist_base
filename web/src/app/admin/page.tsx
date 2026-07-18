@@ -813,7 +813,7 @@ export default function AdminConsole() {
   const handleDeleteOrganizador = async (id: number, nombre: string) => {
     if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente al organizador "${nombre}"? Esta acción no se puede deshacer.`)) return;
     try {
-      const res = await fetch(`${API_URL}/api/organizadores/${id}`, {
+      const res = await fetch(`${API_URL}/cancha/torneos/organizadores/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
