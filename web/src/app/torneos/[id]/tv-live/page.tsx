@@ -21,6 +21,10 @@ interface Partido {
   fase?: string;
   fecha_hora?: string;
   area?: number;
+  estadisticas?: {
+    local?: { faltas?: number; salidas?: number; puntos?: number };
+    visitante?: { faltas?: number; salidas?: number; puntos?: number };
+  } | null;
 }
 interface ResultadoHistorico {
   id: string;
@@ -87,9 +91,9 @@ function FighterAvatar({ name, foto, size = 52, color }: { name: string; foto?: 
 
 /* ─── Fighter Row ─────────────────────────────────────────────────── */
 function FighterRow({
-  name, foto, score, isWinner, isLive, accentColor, side
+  name, foto, score, faltas, salidas, isWinner, isLive, accentColor, side
 }: {
-  name: string; foto?: string; score?: number; isWinner?: boolean;
+  name: string; foto?: string; score?: number; faltas?: number; salidas?: number; isWinner?: boolean;
   isLive?: boolean; accentColor: string; side: 'local' | 'visitante';
 }) {
   return (
@@ -123,6 +127,12 @@ function FighterRow({
           {isWinner && (
             <div style={{ fontSize: 10, color: accentColor, fontWeight: 700, marginTop: 2, letterSpacing: '0.08em' }}>
               ★ GANADOR
+            </div>
+          )}
+          {((faltas ?? 0) > 0 || (salidas ?? 0) > 0) && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              {(faltas ?? 0) > 0 && <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>Faltas: {faltas}</span>}
+              {(salidas ?? 0) > 0 && <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>Salidas: {salidas}</span>}
             </div>
           )}
         </div>
@@ -191,6 +201,8 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
         <FighterRow
           name={partido.jugador_local_nombre || partido.local_nombre || partido.equipo_local || '?'}
           score={partido.goles_local}
+          faltas={partido.estadisticas?.local?.faltas}
+          salidas={partido.estadisticas?.local?.salidas}
           isWinner={isFin && localWins}
           isLive={isLive}
           accentColor={palette.accent}
@@ -203,6 +215,8 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
         <FighterRow
           name={partido.jugador_visitante_nombre || partido.visitante_nombre || partido.equipo_visitante || '?'}
           score={partido.goles_visitante}
+          faltas={partido.estadisticas?.visitante?.faltas}
+          salidas={partido.estadisticas?.visitante?.salidas}
           isWinner={isFin && visitWins}
           isLive={isLive}
           accentColor='#ef4444'
