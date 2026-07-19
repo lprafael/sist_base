@@ -97,6 +97,9 @@ class JugadorCreate(BaseModel):
     cedula_anverso_url: Optional[str] = None
     cedula_reverso_url: Optional[str] = None
     modalidad: Optional[str] = None
+    genero: Optional[str] = None
+    peso: Optional[float] = None
+    estatura: Optional[float] = None
 
 class JugadorUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -111,6 +114,9 @@ class JugadorUpdate(BaseModel):
     egreso_ano: Optional[int] = None
     es_exalumno: Optional[bool] = None
     modalidad: Optional[str] = None
+    genero: Optional[str] = None
+    peso: Optional[float] = None
+    estatura: Optional[float] = None
     documento_firmado_url: Optional[str] = None
     cedula_anverso_url: Optional[str] = None
     cedula_reverso_url: Optional[str] = None
@@ -2044,16 +2050,19 @@ async def _add_jugador_logic(
     player_uuid = str(uuid.uuid4())
     result = await session.execute(text("""
         INSERT INTO torneos.tournament_players
-            (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, modalidad)
+            (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, modalidad, genero, peso_verificado, estatura_verificada)
         VALUES
-            (:id, CAST(:eid AS UUID), :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url, :modalidad)
+            (:id, CAST(:eid AS UUID), :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url, :modalidad, :genero, :peso, :estatura)
         RETURNING id, nombre, dni, numero_camiseta, posicion, estado
     """), {
         "id": player_uuid,
         "eid": equipo_id, "nombre": payload.nombre, "dni": payload.dni,
         "fnac": fnac, "camiseta": payload.numero_camiseta,
         "posicion": payload.posicion, "foto_url": payload.foto_url,
-        "modalidad": payload.modalidad
+        "modalidad": payload.modalidad,
+        "genero": payload.genero,
+        "peso": payload.peso,
+        "estatura": payload.estatura
     })
     await session.commit()
     row = result.fetchone()
@@ -2087,6 +2096,18 @@ async def update_jugador(
         params: dict = {"pid": jugador_id}
         if payload.nombre is not None:
             updates.append("nombre = :nombre"); params["nombre"] = payload.nombre
+        if payload.dni is not None:
+            updates.append("dni = :dni"); params["dni"] = payload.dni
+        if payload.email is not None:
+            updates.append("email = :email"); params["email"] = payload.email
+        if payload.telefono is not None:
+            updates.append("telefono = :telefono"); params["telefono"] = payload.telefono
+        if payload.fecha_nacimiento is not None:
+            fnac = None
+            if payload.fecha_nacimiento:
+                try: fnac = date.fromisoformat(payload.fecha_nacimiento)
+                except Exception: pass
+            updates.append("fecha_nacimiento = :fnac"); params["fnac"] = fnac
         if payload.numero_camiseta is not None:
             updates.append("numero_camiseta = :camiseta"); params["camiseta"] = payload.numero_camiseta
         if payload.posicion is not None:
@@ -2095,6 +2116,12 @@ async def update_jugador(
             updates.append("estado = :estado"); params["estado"] = payload.estado
         if payload.modalidad is not None:
             updates.append("modalidad = :modalidad"); params["modalidad"] = payload.modalidad
+        if payload.genero is not None:
+            updates.append("genero = :genero"); params["genero"] = payload.genero
+        if payload.peso is not None:
+            updates.append("peso_verificado = :peso"); params["peso"] = payload.peso
+        if payload.estatura is not None:
+            updates.append("estatura_verificada = :estatura"); params["estatura"] = payload.estatura
         if not updates:
             raise HTTPException(status_code=400, detail="Sin campos para actualizar")
 
