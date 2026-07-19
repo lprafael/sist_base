@@ -101,14 +101,14 @@ export default function AsignacionCategoriasModal({ torneoId, onClose, getToken 
         </div>
 
         {/* Board */}
-        <div className="flex-1 overflow-x-auto p-6 flex gap-6 items-start">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 pb-8 flex gap-6 items-start min-h-0 min-w-0">
           {loading ? (
             <div className="w-full text-center text-slate-500 py-10 font-bold">Cargando atletas...</div>
           ) : (
             Object.keys(grupos).map(grupo => (
               <div 
                 key={grupo}
-                className="bg-white border-2 border-slate-200 shadow-sm rounded-xl min-w-[300px] w-[300px] max-w-[300px] flex flex-col max-h-full"
+                className="bg-white border-2 border-slate-200 shadow-sm rounded-xl shrink-0 min-w-[300px] w-[300px] max-w-[300px] flex flex-col max-h-full"
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => handleDrop(e, grupo)}
               >
