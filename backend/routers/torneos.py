@@ -2390,7 +2390,7 @@ async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_s
     try:
         # Obtener todos los jugadores
         result = await session.execute(text("""
-            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento, tp.fase_asignada, e.logo_url
+            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento, tp.fase_asignada, tp.modalidad, e.logo_url
             FROM torneos.tournament_players tp
             JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
             WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
@@ -2431,14 +2431,18 @@ async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_s
                     if c["min_y"] and c["max_y"] and not (c["min_y"] <= year <= c["max_y"]): continue
                     
                     # Generar nombre de fase
-                    fase_name = f"{c['nombre']} - 1º Fase"
+                    fase_name_base = c['nombre']
                     name_lower = c['nombre'].lower()
                     if genero == "Masculino" and not any(x in name_lower for x in ["masc", "hom", "niño", "varon"]):
-                        fase_name = f"Masculino {c['nombre']} - 1º Fase"
+                        fase_name_base = f"Masculino {fase_name_base}"
                     elif genero == "Femenino" and not any(x in name_lower for x in ["fem", "mujer", "niña"]):
-                        fase_name = f"Femenino {c['nombre']} - 1º Fase"
+                        fase_name_base = f"Femenino {fase_name_base}"
                         
-                    assigned_fase = fase_name
+                    if p.modalidad:
+                        mod = p.modalidad.strip().capitalize()
+                        fase_name_base = f"{fase_name_base} {mod}"
+                        
+                    assigned_fase = f"{fase_name_base} - 1º Fase"
                     break
                 
                 # Actualizar DB
@@ -2450,7 +2454,7 @@ async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_s
             
             # Recargar jugadores
             result = await session.execute(text("""
-                SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento, tp.fase_asignada, e.logo_url
+                SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.genero, tp.fecha_nacimiento, tp.fase_asignada, tp.modalidad, e.logo_url
                 FROM torneos.tournament_players tp
                 JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
                 WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
@@ -2466,7 +2470,8 @@ async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_s
                 "id": str(p.id), "nombre": p.nombre, "genero": p.genero, 
                 "fecha_nacimiento": str(p.fecha_nacimiento) if p.fecha_nacimiento else None,
                 "torneo_equipo_id": str(p.torneo_equipo_id),
-                "logo_url": p.logo_url
+                "logo_url": p.logo_url,
+                "modalidad": p.modalidad
             })
 
         return {"status": "ok", "grupos": grupos}
