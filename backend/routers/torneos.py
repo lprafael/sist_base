@@ -2547,6 +2547,16 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
         cat_res = await session.execute(text("SELECT nombre, tipo_categoria FROM torneos.categorias WHERE torneo_id = CAST(:tid AS UUID)"), {"tid": torneo_id})
         cat_types = {row.nombre: row.tipo_categoria for row in cat_res.fetchall()}
 
+        # Obtener partidos existentes para no duplicar
+        existing_partidos_res = await session.execute(
+            text("SELECT id, fase, jugador_local_id FROM torneos.partidos WHERE torneo_id = CAST(:tid AS UUID)"), 
+            {"tid": torneo_id}
+        )
+        existing_partidos = existing_partidos_res.fetchall()
+        
+        fases_con_partidos = {r.fase for r in existing_partidos}
+        formas_jugadores_con_partido = {str(r.jugador_local_id) for r in existing_partidos if r.jugador_local_id}
+
         import random
         matches_created = 0
 
@@ -2556,6 +2566,8 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
 
             if tipo == 'formas':
                 for p1 in p_list:
+                    if str(p1.id) in formas_jugadores_con_partido:
+                        continue
                     await session.execute(text("""
                         INSERT INTO torneos.partidos 
                         (torneo_id, equipo_local_id, equipo_visitante_id, jugador_local_id, jugador_visitante_id, fase)
@@ -2568,6 +2580,8 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
                     })
                     matches_created += 1
             else:
+                if fase_name in fases_con_partidos:
+                    continue
                 if len(p_list) < 2:
                     continue
                 

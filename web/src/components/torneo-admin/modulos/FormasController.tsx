@@ -4,7 +4,7 @@ import { X, Save, Trophy, Users } from 'lucide-react';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function FormasController({ match, onClose, onSaved }: { match: any, onClose: () => void, onSaved: () => void }) {
-  const [jueces, setJueces] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [jueces, setJueces] = useState<number[]>([0, 0, 0]);
   const [saving, setSaving] = useState(false);
 
   // Load existing stats if available
@@ -12,7 +12,7 @@ export default function FormasController({ match, onClose, onSaved }: { match: a
     if (match.estadisticas) {
       try {
         const stats = typeof match.estadisticas === 'string' ? JSON.parse(match.estadisticas) : match.estadisticas;
-        if (stats.jueces && stats.jueces.length === 5) {
+        if (stats.jueces && stats.jueces.length === 3) {
           setJueces(stats.jueces);
         }
       } catch(e) {}
@@ -28,54 +28,19 @@ export default function FormasController({ match, onClose, onSaved }: { match: a
 
   const calcularPuntaje = () => {
     const validScores = jueces.filter(j => j > 0);
-    if (validScores.length < 3) return { total: 0, highIndex: -1, lowIndex: -1 };
-
-    let highIndex = 0;
-    let lowIndex = 0;
-
-    for (let i = 1; i < validScores.length; i++) {
-      if (validScores[i] > validScores[highIndex]) highIndex = i;
-      if (validScores[i] < validScores[lowIndex]) lowIndex = i;
-    }
-
+    if (validScores.length === 0) return { total: 0 };
+    
     let total = 0;
-    let minValid = 100;
-    let maxValid = -1;
+    for (let j of validScores) total += j;
 
-    for (let i = 0; i < validScores.length; i++) {
-      if (i !== highIndex && i !== lowIndex) {
-        total += validScores[i];
-        if (validScores[i] < minValid) minValid = validScores[i];
-        if (validScores[i] > maxValid) maxValid = validScores[i];
-      }
-    }
-
-    if (minValid === 100) minValid = 0;
-    if (maxValid === -1) maxValid = 0;
-
-    // Map back to original indices
-    const allHighIndex = jueces.indexOf(validScores[highIndex]);
-    let allLowIndex = -1;
-    // Handle case where low and high are the same value (find first instance not equal to high index)
-    for (let i = 0; i < jueces.length; i++) {
-        if (jueces[i] === validScores[lowIndex] && i !== allHighIndex) {
-            allLowIndex = i;
-            break;
-        }
-    }
-    // Fallback if somehow they are exactly the same elements (e.g. all 10s)
-    if (allLowIndex === -1 && validScores.length >= 3) {
-        allLowIndex = jueces.lastIndexOf(validScores[lowIndex]);
-    }
-
-    return { total, highIndex: allHighIndex, lowIndex: allLowIndex, minValid, maxValid, minExcluded: validScores[lowIndex], maxExcluded: validScores[highIndex] };
+    return { total, highIndex: -1, lowIndex: -1, minValid: 0, maxValid: 0, minExcluded: 0, maxExcluded: 0 };
   };
 
   const { total, highIndex, lowIndex, minValid, maxValid, minExcluded, maxExcluded } = calcularPuntaje();
 
   const handleSave = async () => {
     if (jueces.filter(j => j > 0).length < 3) {
-      alert("Se requieren al menos 3 puntajes válidos.");
+      alert("Se requieren los 3 puntajes válidos.");
       return;
     }
 
@@ -137,17 +102,14 @@ export default function FormasController({ match, onClose, onSaved }: { match: a
 
         <div className="p-6 flex-1 overflow-y-auto bg-slate-50">
           <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm font-medium">
-            Ingrese el puntaje de cada juez. El sistema descartará automáticamente la nota más alta y la más baja.
+            Ingrese el puntaje de los 3 jueces. El sistema sumará el total automáticamente.
           </div>
 
-          <div className="grid grid-cols-5 gap-4 mb-8">
-            {[0, 1, 2, 3, 4].map(idx => {
-              const isHigh = idx === highIndex && jueces[idx] > 0;
-              const isLow = idx === lowIndex && jueces[idx] > 0;
-              const isDiscarded = isHigh || isLow;
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[0, 1, 2].map(idx => {
 
               return (
-                <div key={idx} className={`flex flex-col items-center bg-white p-3 rounded-xl border-2 transition ${isDiscarded ? 'border-red-300 opacity-60' : 'border-slate-200 shadow-sm'}`}>
+                <div key={idx} className={`flex flex-col items-center bg-white p-3 rounded-xl border-2 transition border-slate-200 shadow-sm`}>
                   <label className="font-bold text-slate-500 mb-2">Juez {idx + 1}</label>
                   <input 
                     type="number" 
