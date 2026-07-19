@@ -22,6 +22,7 @@ export default function EditTeamModal({
   const [nuevoJugadorRapido, setNuevoJugadorRapido] = useState('');
   const [nuevoJugadorGenero, setNuevoJugadorGenero] = useState('');
   const [nuevoJugadorFecha, setNuevoJugadorFecha] = useState('');
+  const [nuevoJugadorModalidad, setNuevoJugadorModalidad] = useState('');
   const [savingJugador, setSavingJugador] = useState(false);
 
   const [tecnicos, setTecnicos] = useState<any[]>([]);
@@ -104,12 +105,13 @@ export default function EditTeamModal({
     
     setSavingJugador(true);
     try {
-      const payload = {
-        nombre: nuevoJugadorRapido,
-        dni: `SN-${Date.now()}`, // Default DNI for fast loading
-        genero: nuevoJugadorGenero || null,
-        fecha_nacimiento: nuevoJugadorFecha || null
+      const payload: any = {
+        nombre: nuevoJugadorRapido.trim(),
+        dni: 'P-' + Math.floor(Math.random() * 1000000), // DNI provisorio
       };
+      if (nuevoJugadorFecha) payload.fecha_nacimiento = nuevoJugadorFecha;
+      if (nuevoJugadorGenero) payload.genero = nuevoJugadorGenero;
+      if (nuevoJugadorModalidad) payload.modalidad = nuevoJugadorModalidad;
 
       const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos/${equipo.id}/jugadores`, {
         method: 'POST',
@@ -261,18 +263,27 @@ export default function EditTeamModal({
               <select 
                 value={nuevoJugadorGenero}
                 onChange={e => setNuevoJugadorGenero(e.target.value)}
-                className="flex-1 border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50"
+                className="flex-[0.8] border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50"
               >
                 <option value="">Género</option>
-                <option value="M">Masculino</option>
-                <option value="F">Femenino</option>
+                <option value="M">Masc</option>
+                <option value="F">Fem</option>
+              </select>
+              <select 
+                value={nuevoJugadorModalidad}
+                onChange={e => setNuevoJugadorModalidad(e.target.value)}
+                className="flex-[0.8] border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50"
+              >
+                <option value="">Formato</option>
+                <option value="combate">Combate</option>
+                <option value="formas">Formas</option>
               </select>
               <input 
                 type="date"
                 title="Fecha de Nacimiento"
                 value={nuevoJugadorFecha}
                 onChange={e => setNuevoJugadorFecha(e.target.value)}
-                className="flex-1 border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50 text-slate-500"
+                className="flex-[0.8] border-b-2 border-slate-200 p-2 focus:border-blue-500 outline-none text-sm bg-slate-50 text-slate-500"
               />
               <button type="submit" disabled={savingJugador} className="px-4 py-2 bg-blue-100 text-blue-700 font-bold rounded text-sm hover:bg-blue-200 disabled:opacity-50">
                 {savingJugador ? <Loader2 size={16} className="animate-spin" /> : 'Añadir'}

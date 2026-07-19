@@ -21,6 +21,7 @@ export default function EditPlayerModal({
   const [peso, setPeso] = useState(jugador.peso || '');
   const [genero, setGenero] = useState(jugador.genero || '');
   const [estado, setEstado] = useState(jugador.estado || 'en_revision');
+  const [modalidad, setModalidad] = useState(jugador.modalidad || '');
   
   const [saving, setSaving] = useState(false);
 
@@ -43,6 +44,7 @@ export default function EditPlayerModal({
         fecha_nacimiento: fecha_nacimiento || null,
         genero: genero || null,
         estado,
+        modalidad: modalidad || null,
         // The backend might not have estatura and peso in JugadorUpdate schema currently,
         // but we'll send it if supported.
       };
@@ -146,6 +148,15 @@ export default function EditPlayerModal({
                   <option value="F">Femenino</option>
                 </select>
               </div>
+            </div>
+
+            <div className="relative">
+              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium text-slate-500">Formato (Marciales)</label>
+              <select value={modalidad} onChange={e => setModalidad(e.target.value)} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 bg-white">
+                <option value="">No especificado</option>
+                <option value="combate">Combate</option>
+                <option value="formas">Formas</option>
+              </select>
             </div>
 
           </form>

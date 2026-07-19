@@ -96,6 +96,7 @@ class JugadorCreate(BaseModel):
     documento_firmado_url: Optional[str] = None
     cedula_anverso_url: Optional[str] = None
     cedula_reverso_url: Optional[str] = None
+    modalidad: Optional[str] = None
 
 class JugadorUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -109,6 +110,7 @@ class JugadorUpdate(BaseModel):
     estado: Optional[str] = None
     egreso_ano: Optional[int] = None
     es_exalumno: Optional[bool] = None
+    modalidad: Optional[str] = None
     documento_firmado_url: Optional[str] = None
     cedula_anverso_url: Optional[str] = None
     cedula_reverso_url: Optional[str] = None
@@ -2042,15 +2044,16 @@ async def _add_jugador_logic(
     player_uuid = str(uuid.uuid4())
     result = await session.execute(text("""
         INSERT INTO torneos.tournament_players
-            (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url)
+            (id, torneo_equipo_id, nombre, dni, fecha_nacimiento, numero_camiseta, posicion, foto_url, modalidad)
         VALUES
-            (:id, CAST(:eid AS UUID), :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url)
+            (:id, CAST(:eid AS UUID), :nombre, :dni, :fnac, :camiseta, :posicion, :foto_url, :modalidad)
         RETURNING id, nombre, dni, numero_camiseta, posicion, estado
     """), {
         "id": player_uuid,
         "eid": equipo_id, "nombre": payload.nombre, "dni": payload.dni,
         "fnac": fnac, "camiseta": payload.numero_camiseta,
-        "posicion": payload.posicion, "foto_url": payload.foto_url
+        "posicion": payload.posicion, "foto_url": payload.foto_url,
+        "modalidad": payload.modalidad
     })
     await session.commit()
     row = result.fetchone()
@@ -2090,6 +2093,8 @@ async def update_jugador(
             updates.append("posicion = :posicion"); params["posicion"] = payload.posicion
         if payload.estado is not None:
             updates.append("estado = :estado"); params["estado"] = payload.estado
+        if payload.modalidad is not None:
+            updates.append("modalidad = :modalidad"); params["modalidad"] = payload.modalidad
         if not updates:
             raise HTTPException(status_code=400, detail="Sin campos para actualizar")
 
