@@ -25,12 +25,12 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
     return () => clearInterval(interval);
   }, [corriendo, tiempo]);
 
-  const registrarEvento = async (competidor: 'blanco' | 'rojo', accion: 'punto' | 'salida' | 'falta') => {
+  const registrarEvento = async (competidor: 'blanco' | 'rojo', accion: 'punto' | 'salida' | 'falta', valor: number = 1) => {
     try {
       const res = await fetch(`http://localhost:8001/asam/combates/${combateId}/evento`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ competidor, accion, valor: 1 })
+        body: JSON.stringify({ competidor, accion, valor })
       });
       const data = await res.json();
       
@@ -45,8 +45,8 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
       }
     } catch (e) {
       // Mock update si no hay backend
-      if (competidor === 'blanco') setBlanco(p => ({...p, [accion + "s"]: p[accion + "s"] + 1}));
-      if (competidor === 'rojo') setRojo(p => ({...p, [accion + "s"]: p[accion + "s"] + 1}));
+      if (competidor === 'blanco') setBlanco(p => ({...p, [accion + "s"]: Math.max(0, p[accion + "s"] + valor)}));
+      if (competidor === 'rojo') setRojo(p => ({...p, [accion + "s"]: Math.max(0, p[accion + "s"] + valor)}));
     }
   };
 
@@ -109,18 +109,31 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
             {blanco.puntos}
           </div>
 
-          <div className="grid grid-cols-3 gap-4 w-full z-10">
-            <button onClick={() => registrarEvento('blanco', 'punto')} className="col-span-3 py-6 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold text-2xl flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition">
+          <div className="grid grid-cols-3 gap-2 w-full z-10">
+            <button onClick={() => registrarEvento('blanco', 'punto')} className="col-span-3 py-4 bg-blue-600 hover:bg-blue-500 rounded-t-2xl font-bold text-2xl flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition">
               <Trophy size={28} /> +1 Punto
             </button>
-            
-            <button onClick={() => registrarEvento('blanco', 'salida')} className="col-span-1 py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-bold text-lg flex flex-col items-center gap-1">
-              <Timer size={24} /> Salida ({blanco.salidas})
+            <button onClick={() => registrarEvento('blanco', 'punto', -1)} className="col-span-3 py-2 bg-blue-900 hover:bg-blue-800 text-blue-200 rounded-b-2xl font-bold text-sm flex items-center justify-center shadow-xl transition mb-2">
+              -1 Punto
             </button>
             
-            <button onClick={() => registrarEvento('blanco', 'falta')} className="col-span-2 py-4 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-lg flex flex-col items-center gap-1">
-              <AlertCircle size={24} /> Falta ({blanco.faltas})
-            </button>
+            <div className="col-span-1 flex flex-col gap-1">
+              <button onClick={() => registrarEvento('blanco', 'salida')} className="py-3 bg-orange-600 hover:bg-orange-500 rounded-t-xl font-bold text-lg flex flex-col items-center gap-1">
+                <Timer size={24} /> Salida ({blanco.salidas})
+              </button>
+              <button onClick={() => registrarEvento('blanco', 'salida', -1)} className="py-1.5 bg-orange-900 hover:bg-orange-800 text-orange-200 rounded-b-xl font-bold text-xs flex justify-center">
+                -1 Salida
+              </button>
+            </div>
+            
+            <div className="col-span-2 flex flex-col gap-1">
+              <button onClick={() => registrarEvento('blanco', 'falta')} className="py-3 bg-red-600 hover:bg-red-500 rounded-t-xl font-bold text-lg flex flex-col items-center gap-1">
+                <AlertCircle size={24} /> Falta ({blanco.faltas})
+              </button>
+              <button onClick={() => registrarEvento('blanco', 'falta', -1)} className="py-1.5 bg-red-900 hover:bg-red-800 text-red-200 rounded-b-xl font-bold text-xs flex justify-center">
+                -1 Falta
+              </button>
+            </div>
           </div>
         </div>
 
@@ -134,18 +147,31 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
             {rojo.puntos}
           </div>
 
-          <div className="grid grid-cols-3 gap-4 w-full z-10">
-            <button onClick={() => registrarEvento('rojo', 'punto')} className="col-span-3 py-6 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold text-2xl flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition">
+          <div className="grid grid-cols-3 gap-2 w-full z-10">
+            <button onClick={() => registrarEvento('rojo', 'punto')} className="col-span-3 py-4 bg-blue-600 hover:bg-blue-500 rounded-t-2xl font-bold text-2xl flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] transition">
               <Trophy size={28} /> +1 Punto
             </button>
-            
-            <button onClick={() => registrarEvento('rojo', 'salida')} className="col-span-1 py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-bold text-lg flex flex-col items-center gap-1">
-              <Timer size={24} /> Salida ({rojo.salidas})
+            <button onClick={() => registrarEvento('rojo', 'punto', -1)} className="col-span-3 py-2 bg-blue-900 hover:bg-blue-800 text-blue-200 rounded-b-2xl font-bold text-sm flex items-center justify-center shadow-xl transition mb-2">
+              -1 Punto
             </button>
             
-            <button onClick={() => registrarEvento('rojo', 'falta')} className="col-span-2 py-4 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-lg flex flex-col items-center gap-1">
-              <AlertCircle size={24} /> Falta ({rojo.faltas})
-            </button>
+            <div className="col-span-1 flex flex-col gap-1">
+              <button onClick={() => registrarEvento('rojo', 'salida')} className="py-3 bg-orange-600 hover:bg-orange-500 rounded-t-xl font-bold text-lg flex flex-col items-center gap-1">
+                <Timer size={24} /> Salida ({rojo.salidas})
+              </button>
+              <button onClick={() => registrarEvento('rojo', 'salida', -1)} className="py-1.5 bg-orange-900 hover:bg-orange-800 text-orange-200 rounded-b-xl font-bold text-xs flex justify-center">
+                -1 Salida
+              </button>
+            </div>
+            
+            <div className="col-span-2 flex flex-col gap-1">
+              <button onClick={() => registrarEvento('rojo', 'falta')} className="py-3 bg-red-600 hover:bg-red-500 rounded-t-xl font-bold text-lg flex flex-col items-center gap-1">
+                <AlertCircle size={24} /> Falta ({rojo.faltas})
+              </button>
+              <button onClick={() => registrarEvento('rojo', 'falta', -1)} className="py-1.5 bg-red-900 hover:bg-red-800 text-red-200 rounded-b-xl font-bold text-xs flex justify-center">
+                -1 Falta
+              </button>
+            </div>
           </div>
         </div>
 
