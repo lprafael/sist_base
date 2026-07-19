@@ -1938,14 +1938,16 @@ async def get_jugadores(torneo_id: str, equipo_id: str, session: AsyncSession = 
     result = await session.execute(text("""
         SELECT tp.id, tp.nombre, tp.dni, tp.fecha_nacimiento, tp.numero_camiseta,
                tp.posicion, tp.foto_url, tp.estado, tp.partidos_jugados,
-               tp.amarillas_acum, tp.rojas_acum
+               tp.amarillas_acum, tp.rojas_acum, tp.email, tp.telefono,
+               tp.genero, tp.modalidad, tp.peso_verificado as peso, tp.estatura_verificada as estatura
         FROM torneos.tournament_players tp
         WHERE tp.torneo_equipo_id = CAST(:eid AS UUID)
         ORDER BY tp.numero_camiseta ASC NULLS LAST, tp.nombre ASC
     """), {"eid": equipo_id})
     rows = result.fetchall()
     keys = ["id","nombre","dni","fecha_nacimiento","numero_camiseta",
-            "posicion","foto_url","estado","partidos_jugados","amarillas_acum","rojas_acum"]
+            "posicion","foto_url","estado","partidos_jugados","amarillas_acum","rojas_acum",
+            "email", "telefono", "genero", "modalidad", "peso", "estatura"]
     return [_row_to_dict(keys, r) for r in rows]
 
 
