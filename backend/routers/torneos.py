@@ -2340,7 +2340,7 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
                jl.nombre AS jugador_local_nombre, jv.nombre AS jugador_visitante_nombre
         FROM torneos.partidos p
         JOIN torneos.equipos el ON p.equipo_local_id = el.id
-        JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
+        LEFT JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
         LEFT JOIN torneos.tournament_players jl ON p.jugador_local_id = jl.id
         LEFT JOIN torneos.tournament_players jv ON p.jugador_visitante_id = jv.id
@@ -2397,27 +2397,50 @@ async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_s
         """), {"tid": torneo_id})
         players = result.fetchall()
 
+        # Obtener deporte y categorías para inicializar grupos y asignar
+        torneo_res = await session.execute(text("SELECT deporte FROM torneos.torneos WHERE id = CAST(:tid AS UUID)"), {"tid": torneo_id})
+        deporte = torneo_res.scalar()
+
+        import re
+        cat_res = await session.execute(
+            text("SELECT id, nombre FROM torneos.categorias WHERE torneo_id = CAST(:tid AS UUID)"),
+            {"tid": torneo_id}
+        )
+        categorias_db = cat_res.fetchall()
+        
+        parsed_cats = []
+        for c in categorias_db:
+            name_lower = c.nombre.lower()
+            years = re.findall(r'(\d{4})', name_lower)
+            min_y = min(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
+            max_y = max(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
+            gender = None
+            if any(x in name_lower for x in ["fem", "mujer", "niña"]): gender = "Femenino"
+            elif any(x in name_lower for x in ["masc", "hom", "niño", "varon"]): gender = "Masculino"
+            parsed_cats.append({"nombre": c.nombre, "min_y": min_y, "max_y": max_y, "gender": gender})
+
+        # Inicializar todos los grupos posibles en base a las categorías
+        grupos = {}
+        for c in parsed_cats:
+            for g in ["Masculino", "Femenino"]:
+                if c["gender"] and c["gender"] != g: continue
+                
+                fase_name_base = c['nombre']
+                name_lower = c['nombre'].lower()
+                if g == "Masculino" and not any(x in name_lower for x in ["masc", "hom", "niño", "varon"]):
+                    fase_name_base = f"Masculino {fase_name_base}"
+                elif g == "Femenino" and not any(x in name_lower for x in ["fem", "mujer", "niña"]):
+                    fase_name_base = f"Femenino {fase_name_base}"
+                    
+                if deporte == "Artes Marciales Mixtas":
+                    grupos[f"{fase_name_base} Combate - 1º Fase"] = []
+                    grupos[f"{fase_name_base} Formas - 1º Fase"] = []
+                else:
+                    grupos[f"{fase_name_base} - 1º Fase"] = []
+
         # Si hay jugadores sin fase_asignada, calcular su fase sugerida
         unassigned = [p for p in players if not p.fase_asignada]
         if unassigned:
-            # Obtener categorías
-            import re
-            cat_res = await session.execute(
-                text("SELECT id, nombre FROM torneos.categorias WHERE torneo_id = :tid"),
-                {"tid": torneo_id}
-            )
-            categorias_db = cat_res.fetchall()
-            
-            parsed_cats = []
-            for c in categorias_db:
-                name_lower = c.nombre.lower()
-                years = re.findall(r'(\d{4})', name_lower)
-                min_y = min(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
-                max_y = max(int(y) for y in years) if len(years) >= 2 else (int(years[0]) if len(years) == 1 else None)
-                gender = None
-                if any(x in name_lower for x in ["fem", "mujer", "niña"]): gender = "Femenino"
-                elif any(x in name_lower for x in ["masc", "hom", "niño", "varon"]): gender = "Masculino"
-                parsed_cats.append({"nombre": c.nombre, "min_y": min_y, "max_y": max_y, "gender": gender})
 
             from datetime import date
             for p in unassigned:
@@ -2462,7 +2485,6 @@ async def get_asignaciones(torneo_id: str, session: AsyncSession = Depends(get_s
             players = result.fetchall()
 
         # Agrupar por fase
-        grupos = {}
         for p in players:
             fase = p.fase_asignada or "Sin Asignar"
             if fase not in grupos: grupos[fase] = []
