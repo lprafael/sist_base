@@ -1386,6 +1386,30 @@ async def create_equipo(torneo_id: str, payload: EquipoCreate, session: AsyncSes
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.delete("/{torneo_id}/equipos/{equipo_id}", summary="Eliminar equipo")
+async def delete_equipo(
+    torneo_id: str,
+    equipo_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Check if the team exists
+        res = await session.execute(text("SELECT id FROM torneos.equipos WHERE id = CAST(:eid AS UUID) AND torneo_id = CAST(:tid AS UUID)"), {"eid": equipo_id, "tid": torneo_id})
+        if not res.scalar():
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+            
+        # Eliminar técnicos
+        await session.execute(text("DELETE FROM torneos.equipo_tecnico WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        # Eliminar jugadores
+        await session.execute(text("DELETE FROM torneos.tournament_players WHERE torneo_equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        # Eliminar el equipo
+        await session.execute(text("DELETE FROM torneos.equipos WHERE id = CAST(:eid AS UUID) AND torneo_id = CAST(:tid AS UUID)"), {"eid": equipo_id, "tid": torneo_id})
+        await session.commit()
+        return {"mensaje": "Equipo eliminado exitosamente"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.patch("/{torneo_id}/equipos/{equipo_id}", summary="Actualizar equipo (incluyendo delegado y confirmación)")
 async def update_equipo(
     torneo_id: str,
