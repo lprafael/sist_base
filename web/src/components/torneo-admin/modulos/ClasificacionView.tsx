@@ -355,7 +355,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                     partidosProp={partidosFase}
                     faseOculta={original}
                     onRefresh={fetchData}
-                    tipoCategoria={categorias.find(c => c.nombre === categoria)?.tipo_categoria || 'combate'}
+                    tipoCategoria={original.includes('Formas') ? 'formas' : (categorias.find(c => c.nombre === categoria)?.tipo_categoria || 'combate')}
                     criterioDesempate={categorias.find(c => c.nombre === categoria)?.criterio_desempate || 'Automático'}
                   />
                 </div>
