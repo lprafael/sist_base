@@ -1790,8 +1790,8 @@ export default function AdminConsole() {
                     onItemsPerPageChange={setOrgsPerPage}
                   />
                 </div>
-              </div>
             )}
+
 
             {/* TAB: ACADEMIAS */}
             {activeSuperTab === 'academias' && (
