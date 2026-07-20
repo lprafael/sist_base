@@ -13,6 +13,94 @@ import Footer from '@/components/Footer';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
+function PaginationControls({
+  currentPage,
+  totalPages,
+  itemsPerPage,
+  totalItems,
+  onPageChange,
+  onItemsPerPageChange
+}: {
+  currentPage: number;
+  totalPages: number;
+  itemsPerPage: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  onItemsPerPageChange: (num: number) => void;
+}) {
+  if (totalItems === 0) return null;
+  
+  const generatePages = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, flexWrap: 'wrap', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 13, color: '#64748b' }}>
+          Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} a {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} registros
+        </span>
+        <select 
+          value={itemsPerPage} 
+          onChange={(e) => {
+            onItemsPerPageChange(Number(e.target.value));
+            onPageChange(1);
+          }}
+          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, color: '#0f172a', background: '#fff', cursor: 'pointer' }}
+        >
+          <option value={10}>10 por página</option>
+          <option value={25}>25 por página</option>
+          <option value={50}>50 por página</option>
+        </select>
+      </div>
+      
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#94a3b8' : '#0f172a', fontWeight: 600, fontSize: 13 }}
+        >
+          Ant
+        </button>
+        
+        {generatePages().map((p, i) => (
+          p === '...' ? (
+            <span key={`dots-${i}`} style={{ padding: '6px 8px', color: '#64748b' }}>...</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p as number)}
+              style={{ padding: '6px 12px', borderRadius: 6, border: p === currentPage ? '1px solid #16a34a' : '1px solid #cbd5e1', background: p === currentPage ? '#16a34a' : '#fff', color: p === currentPage ? '#fff' : '#0f172a', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+            >
+              {p}
+            </button>
+          )
+        ))}
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: currentPage === totalPages ? '#94a3b8' : '#0f172a', fontWeight: 600, fontSize: 13 }}
+        >
+          Sig
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Robust UUID fallback generator for insecure context (HTTP / non-localhost)
 const generateUUID = () => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -93,6 +181,7 @@ export default function AdminConsole() {
   const [canchas, setCanchas] = useState<any[]>(MOCK_CANCHAS);
   const [deportes, setDeportes] = useState<string[]>(DEPORTES_CATALOGO);
   const [organizadores, setOrganizadores] = useState<any[]>([]);
+  const [academias, setAcademias] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   
   // Chat States
@@ -356,7 +445,7 @@ export default function AdminConsole() {
   }, [dbRoles, catalogFilters.roles_nombre, catalogFilters.roles_descripcion, catalogSortField, catalogSortAsc]);
 
   // Tabs states
-  const [activeSuperTab, setActiveSuperTab] = useState<'tenants' | 'sports' | 'requests' | 'audit'>('tenants');
+  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit'>('complejos');
 
   // Pagination & Filter for Complejos
   const [complejosFilter, setComplejosFilter] = useState('');
@@ -369,7 +458,7 @@ export default function AdminConsole() {
   const [complejoSortAsc, setComplejoSortAsc] = useState<boolean>(true);
   
   const [complejosPage, setComplejosPage] = useState(1);
-  const COMPLEJOS_PER_PAGE = 10;
+  const [complejosPerPage, setComplejosPerPage] = useState(10);
 
   // Pagination & Filter for Organizadores
   const [colOrgOrganizacion, setColOrgOrganizacion] = useState('');
@@ -461,15 +550,15 @@ export default function AdminConsole() {
     return result;
   }, [complejos, complejosFilter, colComplejo, colUsuario, colContacto, colEstado, complejoSortField, complejoSortAsc]);
 
-  const totalComplejosPages = Math.max(1, Math.ceil(filteredComplejos.length / COMPLEJOS_PER_PAGE));
+  const totalComplejosPages = Math.max(1, Math.ceil(filteredComplejos.length / complejosPerPage));
   const currentComplejos = useMemo(() => {
-    const start = (complejosPage - 1) * COMPLEJOS_PER_PAGE;
-    return filteredComplejos.slice(start, start + COMPLEJOS_PER_PAGE);
-  }, [filteredComplejos, complejosPage]);
+    const start = (complejosPage - 1) * complejosPerPage;
+    return filteredComplejos.slice(start, start + complejosPerPage);
+  }, [filteredComplejos, complejosPage, complejosPerPage]);
 
   useEffect(() => {
     setComplejosPage(1);
-  }, [complejosFilter, colComplejo, colUsuario, colContacto, colEstado, complejoSortField, complejoSortAsc]);
+  }, [complejosFilter, colComplejo, colUsuario, colContacto, colEstado, complejoSortField, complejoSortAsc, complejosPerPage]);
 
   const filteredOrganizadores = useMemo(() => {
     let result = organizadores;
@@ -517,6 +606,85 @@ export default function AdminConsole() {
 
     return result;
   }, [organizadores, colOrgOrganizacion, colOrgUsuario, colOrgPlan, colOrgEstado, orgSortField, orgSortAsc]);
+
+  const [orgsPage, setOrgsPage] = useState(1);
+  const [orgsPerPage, setOrgsPerPage] = useState(10);
+
+  const totalOrgsPages = Math.max(1, Math.ceil(filteredOrganizadores.length / orgsPerPage));
+  const currentOrganizadores = useMemo(() => {
+    const start = (orgsPage - 1) * orgsPerPage;
+    return filteredOrganizadores.slice(start, start + orgsPerPage);
+  }, [filteredOrganizadores, orgsPage, orgsPerPage]);
+
+  useEffect(() => {
+    setOrgsPage(1);
+  }, [colOrgOrganizacion, colOrgUsuario, colOrgPlan, colOrgEstado, orgSortField, orgSortAsc, orgsPerPage]);
+
+  // Pagination & Filter for Academias
+  const [colAcaNombre, setColAcaNombre] = useState('');
+  const [colAcaPlan, setColAcaPlan] = useState('');
+  const [colAcaEstado, setColAcaEstado] = useState('');
+  
+  const [acaSortField, setAcaSortField] = useState<string>('');
+  const [acaSortAsc, setAcaSortAsc] = useState<boolean>(true);
+  
+  const [acaPage, setAcaPage] = useState(1);
+  const [acaPerPage, setAcaPerPage] = useState(10);
+
+  const handleToggleAcaSort = (field: string) => {
+    if (acaSortField === field) {
+      setAcaSortAsc(!acaSortAsc);
+    } else {
+      setAcaSortField(field);
+      setAcaSortAsc(true);
+    }
+  };
+
+  const filteredAcademias = useMemo(() => {
+    let result = academias;
+    if (colAcaNombre) {
+      result = result.filter(a => a.nombre?.toLowerCase().includes(colAcaNombre.toLowerCase()));
+    }
+    if (colAcaPlan) {
+      result = result.filter(a => (a.plan || '').toLowerCase().includes(colAcaPlan.toLowerCase()));
+    }
+    if (colAcaEstado) {
+      const isActivoSearch = colAcaEstado.toLowerCase().includes('act') || colAcaEstado.toLowerCase().includes('hab');
+      const isSuspenSearch = colAcaEstado.toLowerCase().includes('sus');
+      if (isActivoSearch || isSuspenSearch) {
+         result = result.filter(a => 
+           (isActivoSearch && a.habilitado) || (isSuspenSearch && !a.habilitado)
+         );
+      }
+    }
+    
+    if (acaSortField) {
+       result = [...result].sort((a, b) => {
+         let valA = '';
+         let valB = '';
+         if (acaSortField === 'nombre') {
+           valA = a.nombre || ''; valB = b.nombre || '';
+         } else if (acaSortField === 'plan') {
+           valA = a.plan || ''; valB = b.plan || '';
+         } else if (acaSortField === 'estado') {
+           valA = a.habilitado ? '1' : '0'; valB = b.habilitado ? '1' : '0';
+         }
+         return acaSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+       });
+    }
+
+    return result;
+  }, [academias, colAcaNombre, colAcaPlan, colAcaEstado, acaSortField, acaSortAsc]);
+
+  const totalAcaPages = Math.max(1, Math.ceil(filteredAcademias.length / acaPerPage));
+  const currentAcademias = useMemo(() => {
+    const start = (acaPage - 1) * acaPerPage;
+    return filteredAcademias.slice(start, start + acaPerPage);
+  }, [filteredAcademias, acaPage, acaPerPage]);
+
+  useEffect(() => {
+    setAcaPage(1);
+  }, [colAcaNombre, colAcaPlan, colAcaEstado, acaSortField, acaSortAsc, acaPerPage]);
 
   // Request approvals state
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -1168,8 +1336,10 @@ export default function AdminConsole() {
             {/* Super Admin internal Sub-tabs */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 30, borderBottom: '1px solid #e2e8f0', paddingBottom: 16, flexWrap: 'wrap' }}>
               {[
-                { id: 'tenants', label: '🏟️ Complejos (Tenants)', count: complejos.length },
-                { id: 'requests', label: '📥 Solicitudes Registro', count: pendingRequests.filter(r => r.estado === 'pendiente').length },
+                { id: 'complejos', label: '🏟️ Complejos', count: complejos.length },
+                { id: 'organizadores', label: '🏆 Organizadores', count: organizadores.length },
+                { id: 'academias', label: '🎓 Academias', count: academias.length },
+                { id: 'requests', label: '📥 Solicitudes', count: pendingRequests.filter(r => r.estado === 'pendiente').length },
                 { id: 'sports', label: '🏆 Deportes y Catálogos', count: dbDeportes.length },
                 { id: 'audit', label: '📜 Auditoría y Logs', count: accessLogs.length + auditLogs.length }
               ].map(tab => (
@@ -1201,8 +1371,8 @@ export default function AdminConsole() {
               ))}
             </div>
 
-            {/* TAB: TENANTS */}
-            {activeSuperTab === 'tenants' && (
+            {/* TAB: COMPLEJOS */}
+            {activeSuperTab === 'complejos' && (
               <div style={{ background: '#fff', padding: 32, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
                   <h3 style={{ fontSize: 20, fontWeight: 900 }}>Lista de Complejos Habilitados</h3>
@@ -1363,32 +1533,20 @@ export default function AdminConsole() {
                 </div>
 
                 {/* Controles de Paginación */}
-                {totalComplejosPages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-                    <span style={{ fontSize: 13, color: '#64748b' }}>
-                      Mostrando {currentComplejos.length} de {filteredComplejos.length} complejos
-                    </span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => setComplejosPage(p => Math.max(1, p - 1))}
-                        disabled={complejosPage === 1}
-                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: complejosPage === 1 ? '#f1f5f9' : '#fff', cursor: complejosPage === 1 ? 'not-allowed' : 'pointer', color: complejosPage === 1 ? '#94a3b8' : '#0f172a' }}
-                      >
-                        Anterior
-                      </button>
-                      <span style={{ padding: '6px 12px', fontSize: 14, fontWeight: 600 }}>Página {complejosPage} de {totalComplejosPages}</span>
-                      <button
-                        onClick={() => setComplejosPage(p => Math.min(totalComplejosPages, p + 1))}
-                        disabled={complejosPage === totalComplejosPages}
-                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: complejosPage === totalComplejosPages ? '#f1f5f9' : '#fff', cursor: complejosPage === totalComplejosPages ? 'not-allowed' : 'pointer', color: complejosPage === totalComplejosPages ? '#94a3b8' : '#0f172a' }}
-                      >
-                        Siguiente
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <PaginationControls
+                  currentPage={complejosPage}
+                  totalPages={totalComplejosPages}
+                  itemsPerPage={complejosPerPage}
+                  totalItems={filteredComplejos.length}
+                  onPageChange={setComplejosPage}
+                  onItemsPerPageChange={setComplejosPerPage}
+                />
+              </div>
+            )}
 
-                <div style={{ marginTop: 40, borderTop: '1px solid #f1f5f9', paddingTop: 32 }}>
+            {/* TAB: ORGANIZADORES */}
+            {activeSuperTab === 'organizadores' && (
+              <div style={{ background: '#fff', padding: 32, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <div>
                       <h3 id="btn-organizadores-indep" style={{ fontSize: 20, fontWeight: 900 }}>Organizadores Independientes</h3>
@@ -1479,14 +1637,14 @@ export default function AdminConsole() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredOrganizadores.length === 0 ? (
+                        {currentOrganizadores.length === 0 ? (
                           <tr>
                             <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>
                               No hay organizadores que coincidan con los filtros.
                             </td>
                           </tr>
                         ) : (
-                          filteredOrganizadores.map(o => (
+                          currentOrganizadores.map(o => (
                             <tr 
                               key={o.id} 
                               style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14, cursor: 'pointer' }}
@@ -1622,7 +1780,121 @@ export default function AdminConsole() {
                       </tbody>
                     </table>
                   </div>
+
+                  <PaginationControls
+                    currentPage={orgsPage}
+                    totalPages={totalOrgsPages}
+                    itemsPerPage={orgsPerPage}
+                    totalItems={filteredOrganizadores.length}
+                    onPageChange={setOrgsPage}
+                    onItemsPerPageChange={setOrgsPerPage}
+                  />
                 </div>
+              </div>
+            )}
+
+            {/* TAB: ACADEMIAS */}
+            {activeSuperTab === 'academias' && (
+              <div style={{ background: '#fff', padding: 32, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <div>
+                    <h3 style={{ fontSize: 20, fontWeight: 900 }}>Academias y Escuelas Deportivas</h3>
+                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Gestión centralizada de academias que utilizan el módulo SAD-M.</p>
+                  </div>
+                  <button
+                    onClick={() => {}}
+                    style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Plus size={16} />
+                    Alta Academia
+                  </button>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: 12, textTransform: 'uppercase' }}>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            Nombre Academia
+                            <button onClick={() => handleToggleAcaSort('nombre')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                              <RefreshCw size={12} style={{ transform: acaSortField === 'nombre' && !acaSortAsc ? 'rotate(180deg)' : 'none', color: acaSortField === 'nombre' ? '#0f172a' : '#cbd5e1' }} />
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Filtrar..." 
+                            value={colAcaNombre}
+                            onChange={e => setColAcaNombre(e.target.value)}
+                            style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                          />
+                        </th>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            Plan
+                            <button onClick={() => handleToggleAcaSort('plan')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                              <RefreshCw size={12} style={{ transform: acaSortField === 'plan' && !acaSortAsc ? 'rotate(180deg)' : 'none', color: acaSortField === 'plan' ? '#0f172a' : '#cbd5e1' }} />
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Filtrar..." 
+                            value={colAcaPlan}
+                            onChange={e => setColAcaPlan(e.target.value)}
+                            style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                          />
+                        </th>
+                        <th style={{ padding: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            Estado
+                            <button onClick={() => handleToggleAcaSort('estado')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                              <RefreshCw size={12} style={{ transform: acaSortField === 'estado' && !acaSortAsc ? 'rotate(180deg)' : 'none', color: acaSortField === 'estado' ? '#0f172a' : '#cbd5e1' }} />
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Act/Sus..." 
+                            value={colAcaEstado}
+                            onChange={e => setColAcaEstado(e.target.value)}
+                            style={{ width: '100%', marginTop: 6, padding: '4px 8px', fontSize: 11, borderRadius: 4, border: '1px solid #e2e8f0' }}
+                          />
+                        </th>
+                        <th style={{ padding: 14, textAlign: 'right', verticalAlign: 'top' }}>
+                          <div style={{ marginTop: 2 }}>Acciones</div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentAcademias.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '30px 16px', textAlign: 'center', color: '#64748b' }}>
+                            No hay academias registradas o que coincidan con la búsqueda.
+                          </td>
+                        </tr>
+                      ) : (
+                        currentAcademias.map(a => (
+                          <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover:bg-slate-50">
+                            <td style={{ padding: 16, fontWeight: 800 }}>{a.nombre}</td>
+                            <td style={{ padding: 16 }}>{a.plan}</td>
+                            <td style={{ padding: 16 }}>{a.habilitado ? 'Activo' : 'Suspendido'}</td>
+                            <td style={{ padding: 16, textAlign: 'right' }}>
+                              <button style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Ver</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <PaginationControls
+                  currentPage={acaPage}
+                  totalPages={totalAcaPages}
+                  itemsPerPage={acaPerPage}
+                  totalItems={filteredAcademias.length}
+                  onPageChange={setAcaPage}
+                  onItemsPerPageChange={setAcaPerPage}
+                />
               </div>
             )}
 
