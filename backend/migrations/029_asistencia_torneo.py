@@ -1,10 +1,10 @@
-﻿"""Migration 029: Tablas asistencia_torneo y asistencia_partido"""
+"""Migration 029: Tablas asistencia_torneo y asistencia_partido"""
 import asyncio, os, sys
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
-SQL_UP = """
+migration_up = """
 CREATE TABLE IF NOT EXISTS cancha.asistencia_torneo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jugador_id UUID NOT NULL REFERENCES cancha.tournament_players(id) ON DELETE CASCADE,

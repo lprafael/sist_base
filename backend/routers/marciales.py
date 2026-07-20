@@ -12,6 +12,7 @@ from models_generales import (
     ParticipanteInscripcion, CheckInParticipante, ConfiguracionAgrupacion,
     PuntuacionJuez, MultaParticipante, PenalidadCreate
 )
+from services.pkf_validation import validar_participante_pkf
 
 router = APIRouter(prefix="/api/marciales", tags=["Torneos Marciales"])
 
@@ -164,20 +165,46 @@ async def buscar_participantes(torneo_id: str, q: str, session: AsyncSession = D
 
 @router.post("/participantes/{participante_id}/check-in")
 async def check_in_participante(participante_id: str, payload: CheckInParticipante, session: AsyncSession = Depends(get_session)):
-    query = text("""
+    # 1. Obtener datos del participante y del torneo
+    query_part = text("""
+        SELECT p.fecha_nacimiento, p.genero, p.estado, t.fecha_inicio, t.nombre as torneo_nombre
+        FROM torneos_generales.participantes p
+        JOIN torneos_generales.torneos t ON p.torneo_id = t.id
+        WHERE p.id = :id
+    """)
+    res_part = await session.execute(query_part, {"id": participante_id})
+    participante = res_part.fetchone()
+    
+    if not participante:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+    
+    if participante.estado != 'Confirmado':
+        raise HTTPException(status_code=400, detail="El participante no está en estado 'Confirmado'")
+
+    # 2. Validación PKF Dinámica (Si el torneo es de Karate PKF o aplica)
+    # Por simplicidad, si el torneo contiene 'PKF' en el nombre o modalidad, lo validamos
+    if 'pkf' in participante.torneo_nombre.lower():
+        validacion = validar_participante_pkf(
+            fecha_nacimiento=participante.fecha_nacimiento,
+            genero=participante.genero,
+            fecha_inicio_torneo=participante.fecha_inicio
+        )
+        if not validacion.is_valid:
+            raise HTTPException(status_code=400, detail=validacion.mensaje_error)
+
+    # 3. Proceder con el Check-In
+    query_update = text("""
         UPDATE torneos_generales.participantes 
         SET peso_verificado = :peso, estatura_verificada = :estatura, pago_confirmado = :pago, estado = 'Habilitado'
-        WHERE id = :id AND estado = 'Confirmado'
+        WHERE id = :id
         RETURNING id
     """)
-    res = await session.execute(query, {
+    res_update = await session.execute(query_update, {
         "id": participante_id,
         "peso": payload.peso_verificado,
         "estatura": payload.estatura_verificada,
         "pago": payload.pago_confirmado
     })
-    if not res.scalar():
-        raise HTTPException(status_code=400, detail="Participante no encontrado o no está en estado 'Confirmado'")
     
     await session.commit()
     return {"mensaje": "Check-in realizado con éxito. Participante Habilitado."}

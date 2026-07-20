@@ -203,6 +203,9 @@ app.include_router(organizador_deporte_router)
 from routers.asam_scoring import router as asam_scoring_router
 app.include_router(asam_scoring_router)
 
+from routers.pkf_scoring import router as pkf_scoring_router
+app.include_router(pkf_scoring_router)
+
 from routers.sorteos import router as sorteos_router
 app.include_router(sorteos_router)
 
