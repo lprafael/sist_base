@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Lock, User, Shield, Eye, EyeOff, GraduationCap, Users, Star } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 const generateUUID = () => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -84,7 +85,53 @@ export default function AcademiasLoginPage() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+      const res = await fetch(`${apiBase}/auth/google-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: credentialResponse.credential })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const session = {
+          access_token: data.access_token,
+          role: data.user.rol,
+          name: data.user.nombre_completo,
+          email: data.user.email,
+          usuario_id: data.user.id,
+          authorized: true,
+          academia_id: data.academia_id || null,
+          rol_academia: data.rol_academia || null,
+        };
+        localStorage.setItem('user_session', JSON.stringify(session));
+        addAuditLog({ usuario: session.email, rol: session.role, accion: 'Login Academia con Google Exitoso', ip: 'Web' });
+
+        if (session.academia_id || session.role === 'academia') {
+          window.location.href = '/academia-panel';
+        } else if (session.role === 'admin' || session.role === 'super') {
+          window.location.href = '/admin';
+        } else {
+          alert('Esta cuenta no tiene acceso al panel de academias.');
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error en Google Login: ${err.detail || 'Desconocido'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de red al conectar con el servidor.');
+    }
+  };
+
+  const handleGoogleError = () => {
+    alert('Autenticación con Google fallida.');
+  };
+
   return (
+    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
     <div style={{
       minHeight: '100vh',
       display: 'flex',
@@ -240,6 +287,24 @@ export default function AcademiasLoginPage() {
                 <><GraduationCap size={18} /> Ingresar al Portal</>
               )}
             </button>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 600 }}>o ingresar con</span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                use_fedcm={false}
+                theme="filled_black"
+                shape="pill"
+                size="large"
+                text="continue_with"
+              />
+            </div>
           </form>
 
           <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
@@ -261,5 +326,6 @@ export default function AcademiasLoginPage() {
         @media (min-width: 900px) { .left-panel { display: flex !important; } }
       `}} />
     </div>
+    </GoogleOAuthProvider>
   );
 }
