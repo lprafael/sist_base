@@ -79,14 +79,14 @@ export default function Nav({ scrolled }: NavProps) {
             </button>
 
             {showLoginMenu && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 16, padding: 8, minWidth: 230, zIndex: 1000,
-                boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                display: 'flex', flexDirection: 'column', gap: 3,
-                animation: 'navDropIn 0.15s ease-out'
-              }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, paddingTop: 8, zIndex: 1000 }}>
+                <div style={{
+                  background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 16, padding: 8, minWidth: 230,
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                  display: 'flex', flexDirection: 'column', gap: 3,
+                  animation: 'navDropIn 0.15s ease-out'
+                }}>
                 <p style={{ padding: '4px 12px 8px', fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: 2, margin: 0, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 8 }}>
                   Seleccioná tu portal
                 </p>
@@ -128,6 +128,7 @@ export default function Nav({ scrolled }: NavProps) {
                   </div>
                   <div><p style={{ margin: 0, color: 'rgba(255,255,255,0.45)', fontWeight: 600, fontSize: 13 }}>Jugadores / Acceso general</p><p style={{ margin: 0, color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>Con Google o usuario</p></div>
                 </a>
+                </div>
               </div>
             )}
           </div>
