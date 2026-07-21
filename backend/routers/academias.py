@@ -103,6 +103,7 @@ class PerfilAcademiaRequest(BaseModel):
     pais: Optional[str] = None
     departamento: Optional[str] = None
     ciudad: Optional[str] = None
+    canal_comunicacion_habilitado: Optional[bool] = False
 
 
 class SucursalRequest(BaseModel):
@@ -238,10 +239,9 @@ async def listar_academias_publicas(session: AsyncSession = Depends(get_session)
 @router.get("/api/academias/{enlace}")
 async def academia_publica(enlace: str, session: AsyncSession = Depends(get_session)):
     """Página pública de una academia por su enlace/slug."""
-    res = await session.execute(text("""
         SELECT a.id, a.nombre, a.descripcion, a.logo_url, a.banner_url, a.color_primario,
                a.acerca_de, a.facebook, a.instagram, a.youtube, a.whatsapp, a.email,
-               a.telefono, a.ciudad, a.departamento, a.pais
+               a.telefono, a.ciudad, a.departamento, a.pais, a.canal_comunicacion_habilitado
         FROM academias.academias a
         WHERE a.enlace_sitio = :enlace AND a.habilitada = TRUE
     """), {"enlace": enlace})
@@ -271,7 +271,8 @@ async def academia_publica(enlace: str, session: AsyncSession = Depends(get_sess
         "acerca_de": row[6], "facebook": row[7], "instagram": row[8],
         "youtube": row[9], "whatsapp": row[10], "email": row[11],
         "telefono": row[12], "ciudad": row[13], "departamento": row[14],
-        "pais": row[15], "sucursales": sucursales,
+        "pais": row[15], "canal_comunicacion_habilitado": row[16],
+        "sucursales": sucursales,
     }
 
 
@@ -304,10 +305,9 @@ async def obtener_perfil(
     if ctx["rol_interno"] not in ("dueño", "administrador"):
         raise HTTPException(status_code=403, detail="Acceso restringido.")
 
-    res = await session.execute(text("""
         SELECT nombre, descripcion, enlace_sitio, logo_url, banner_url, color_primario,
                acerca_de, facebook, instagram, youtube, whatsapp, email, telefono,
-               pais, departamento, ciudad, plan, habilitada
+               pais, departamento, ciudad, plan, habilitada, canal_comunicacion_habilitado
         FROM academias.academias
         WHERE id = :aid
     """), {"aid": ctx["academia_id"]})
@@ -323,6 +323,7 @@ async def obtener_perfil(
         "youtube": row[9], "whatsapp": row[10], "email": row[11],
         "telefono": row[12], "pais": row[13], "departamento": row[14],
         "ciudad": row[15], "plan": row[16], "habilitada": row[17],
+        "canal_comunicacion_habilitado": row[18],
     }
 
 
@@ -360,7 +361,8 @@ async def guardar_perfil(
             telefono       = :telefono,
             pais           = :pais,
             departamento   = :departamento,
-            ciudad         = :ciudad
+            ciudad         = :ciudad,
+            canal_comunicacion_habilitado = COALESCE(:canal, canal_comunicacion_habilitado)
         WHERE id = :aid
     """), {
         "aid": academia_id,
@@ -371,6 +373,7 @@ async def guardar_perfil(
         "youtube": data.youtube, "whatsapp": data.whatsapp,
         "email": data.email, "telefono": data.telefono,
         "pais": data.pais, "departamento": data.departamento, "ciudad": data.ciudad,
+        "canal": data.canal_comunicacion_habilitado,
     })
     await session.commit()
     return {"message": "Perfil actualizado exitosamente."}

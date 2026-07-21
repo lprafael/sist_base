@@ -6,7 +6,8 @@ import {
   GraduationCap, Building2, Users, CreditCard, ClipboardList,
   Settings, LogOut, Plus, Pencil, Trash2, Check, X, Upload,
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
-  Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon
+  Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
+  MessageSquare, FileText
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -54,7 +55,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'alumnos' | 'inscripciones' | 'cuotas' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'alumnos' | 'inscripciones' | 'cuotas' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -250,6 +251,28 @@ export default function AcademiaPanel() {
             />
           )}
 
+          {/* ──────────────── ASISTENCIAS ──────────────── */}
+          {activeTab === 'asistencias' && (
+            <AsistenciasTab
+              notify={notify} apiFetch={apiFetch} 
+              categorias={categorias} fetchAll={fetchAll}
+            />
+          )}
+
+          {/* ──────────────── NOTICIAS ──────────────── */}
+          {activeTab === 'noticias' && (
+            <NoticiasTab
+              notify={notify} apiFetch={apiFetch}
+            />
+          )}
+
+          {/* ──────────────── FEEDBACK ──────────────── */}
+          {activeTab === 'feedback' && (
+            <FeedbackTab
+              notify={notify} apiFetch={apiFetch}
+            />
+          )}
+
           {/* ──────────────── CONFIG ──────────────── */}
           {activeTab === 'config' && (
             <ConfigTab
@@ -274,6 +297,9 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
     { id: 'alumnos',       label: 'Alumnos',         icon: Users },
     { id: 'inscripciones', label: 'Inscripciones',   icon: BookOpen },
     { id: 'cuotas',        label: 'Cuotas / Pagos',  icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
+    { id: 'asistencias',   label: 'Asistencias',     icon: Calendar, roles: ['dueño','administrador','profesor'] },
+    { id: 'noticias',      label: 'Noticias CMS',    icon: FileText, roles: ['dueño','administrador'] },
+    { id: 'feedback',      label: 'Feedback Socios', icon: MessageSquare, roles: ['dueño','administrador'] },
     { id: 'staff',         label: 'Mi Equipo',       icon: UserPlus, roles: ['dueño'] },
     { id: 'config',        label: 'Configuración',   icon: Settings, roles: ['dueño','tesorero'] },
   ];
@@ -552,6 +578,21 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
                     style={{ ...input(), flex: 1 }} />
                 </div>
               </div>
+            </div>
+
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={!!form.canal_comunicacion_habilitado} 
+                  onChange={e => setForm((f: any) => ({ ...f, canal_comunicacion_habilitado: e.target.checked }))}
+                  style={{ width: 18, height: 18, cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>Habilitar canal de comunicación</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Muestra el buzón / chat público en tu portal de academia.</div>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -1345,6 +1386,177 @@ function NoAccess() {
         <h2 style={{ color: C.text }}>Acceso requerido</h2>
         <p>Necesitás iniciar sesión con una cuenta de academia.</p>
         <a href="/login" style={{ ...btn(), textDecoration: 'none', display: 'inline-flex', marginTop: 12 }}>Iniciar sesión</a>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABS ADICIONALES (ASISTENCIAS, NOTICIAS, FEEDBACK)
+// ═══════════════════════════════════════════════════════════
+
+function AsistenciasTab({ notify, apiFetch, categorias, fetchAll }: any) {
+  const [asistencias, setAsistencias] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch('/academia/asistencias');
+      setAsistencias(data);
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Historial de Asistencias</h2>
+      <div style={card()}>
+        {loading ? <p>Cargando...</p> : (
+          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
+                <th style={{ padding: 12 }}>Fecha</th>
+                <th style={{ padding: 12 }}>Alumno</th>
+                <th style={{ padding: 12 }}>Categoría</th>
+                <th style={{ padding: 12 }}>Estado</th>
+                <th style={{ padding: 12 }}>Obs.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {asistencias.map((a: any) => (
+                <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: 12 }}>{a.fecha?.split('T')[0] || a.fecha}</td>
+                  <td style={{ padding: 12 }}>{a.alumno}</td>
+                  <td style={{ padding: 12 }}>{a.categoria}</td>
+                  <td style={{ padding: 12 }}>
+                    <span style={badge(a.estado === 'presente' ? C.green : a.estado === 'tarde' ? C.yellow : C.red)}>
+                      {a.estado.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td style={{ padding: 12, color: C.muted }}>{a.observaciones || '-'}</td>
+                </tr>
+              ))}
+              {asistencias.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: C.muted }}>No hay registros</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NoticiasTab({ notify, apiFetch }: any) {
+  const [noticias, setNoticias] = useState<any[]>([]);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ titulo: '', contenido: '', imagen_url: '' });
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+  };
+
+  const save = async () => {
+    if(!form.titulo || !form.contenido) return notify('Faltan datos', 'err');
+    try {
+      await apiFetch('/academias/noticias', {
+        method: 'POST',
+        body: JSON.stringify({ ...form, activa: true })
+      });
+      notify('Noticia publicada');
+      setModal(false);
+      setForm({ titulo: '', contenido: '', imagen_url: '' });
+      load();
+    } catch(e:any){ notify(e.message, 'err'); }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>CMS de Noticias</h2>
+        <button style={btn()} onClick={() => setModal(true)}><Plus size={16}/> Nueva Noticia</button>
+      </div>
+
+      <div style={card()}>
+        <p style={{ color: C.muted }}>En construcción. Aquí verás la lista de noticias publicadas.</p>
+      </div>
+
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: C.surface, padding: 30, borderRadius: 12, width: 400 }}>
+            <h3 style={{marginTop:0}}>Nueva Noticia</h3>
+            <FormField label="Título" value={form.titulo} onChange={(v:any) => setForm({...form, titulo:v})} />
+            <FormField label="URL Imagen" value={form.imagen_url} onChange={(v:any) => setForm({...form, imagen_url:v})} />
+            
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Contenido</label>
+              <textarea value={form.contenido} onChange={e => setForm({...form, contenido:e.target.value})}
+                style={{...input(), minHeight: 100}} />
+            </div>
+
+            <ModalActions onCancel={() => setModal(false)} onSave={save} saveLabel="Publicar" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedbackTab({ notify, apiFetch }: any) {
+  const [feedback, setFeedback] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/academias/feedback/listar');
+      setFeedback(res);
+    } catch(e:any){ notify(e.message, 'err'); }
+    setLoading(false);
+  }
+
+  const marcarLeido = async (id: string) => {
+    try {
+      await apiFetch(`/academias/feedback/${id}/leer`, { method: 'PUT' });
+      load();
+    } catch(e:any){ notify(e.message, 'err'); }
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Buzón y Sugerencias</h2>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+        {loading ? <p>Cargando...</p> : feedback.map((f:any) => (
+          <div key={f.id} style={{ ...card(), borderLeft: f.leido ? `1px solid ${C.border}` : `4px solid ${C.primary}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div>
+                <span style={badge(C.purple)}>{f.tipo.toUpperCase()}</span>
+                <span style={{ marginLeft: 10, fontSize: 13, color: C.muted }}>{f.creado_en?.split('T')[0]}</span>
+              </div>
+              {!f.leido && <button onClick={() => marcarLeido(f.id)} style={btn(C.primary, true)}>Marcar leído</button>}
+            </div>
+            <h4 style={{ margin: '0 0 5px 0' }}>{f.asunto}</h4>
+            <p style={{ margin: '0 0 10px 0', fontSize: 14, color: '#ccc' }}>{f.mensaje}</p>
+            <div style={{ fontSize: 12, color: C.faint }}>
+              {f.tutor_nombre && <span>Tutor: {f.tutor_nombre} </span>}
+              {f.alumno_nombre && <span>| Alumno: {f.alumno_nombre}</span>}
+            </div>
+          </div>
+        ))}
+        {!loading && feedback.length === 0 && <p style={{ color: C.muted }}>No hay sugerencias por el momento.</p>}
       </div>
     </div>
   );
