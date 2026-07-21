@@ -156,11 +156,11 @@ async def run_migration(direction: str = "up"):
                 in_block = True
             buf.append(line)
             if in_block and stripped.endswith("$$;"):
-                statements.append("\\n".join(buf))
+                statements.append("\n".join(buf))
                 buf = []
                 in_block = False
             elif not in_block and stripped.endswith(";") and not stripped.startswith("--"):
-                stmt = "\\n".join(buf).strip()
+                stmt = "\n".join(buf).strip()
                 if stmt and stmt != ";":
                     statements.append(stmt)
                 buf = []
