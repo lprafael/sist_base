@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  MapPin, Phone, Mail, Globe, Facebook, Instagram, Youtube, MessageCircle, Send, X
+  MapPin, Phone, Mail, Globe, MessageCircle, Send, X
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -142,9 +142,9 @@ export default function AcademiaPublicPage() {
 
             {(academia.facebook || academia.instagram || academia.youtube) && (
               <div style={{ display: 'flex', gap: 15, marginTop: 24, paddingTop: 20, borderTop: '1px solid #334155' }}>
-                {academia.facebook && <a href={academia.facebook} target="_blank" rel="noreferrer"><Facebook size={24} color="#94a3b8" /></a>}
-                {academia.instagram && <a href={academia.instagram} target="_blank" rel="noreferrer"><Instagram size={24} color="#94a3b8" /></a>}
-                {academia.youtube && <a href={academia.youtube} target="_blank" rel="noreferrer"><Youtube size={24} color="#94a3b8" /></a>}
+                {academia.facebook && <a href={academia.facebook} target="_blank" rel="noreferrer" style={{color: '#94a3b8', textDecoration: 'none', fontWeight: 600}}>Facebook</a>}
+                {academia.instagram && <a href={academia.instagram} target="_blank" rel="noreferrer" style={{color: '#94a3b8', textDecoration: 'none', fontWeight: 600}}>Instagram</a>}
+                {academia.youtube && <a href={academia.youtube} target="_blank" rel="noreferrer" style={{color: '#94a3b8', textDecoration: 'none', fontWeight: 600}}>YouTube</a>}
               </div>
             )}
           </div>
