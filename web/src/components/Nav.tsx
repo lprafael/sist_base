@@ -50,6 +50,10 @@ export default function Nav({ scrolled }: NavProps) {
               <a href="/academia-panel" className="btn btn-outline btn-sm">
                 Panel Academia
               </a>
+            ) : session.role === 'complejo' || session.complejo_id ? (
+              <a href="/complejo-panel" className="btn btn-outline btn-sm">
+                Panel Complejo
+              </a>
             ) : session.role === 'organizador' ? (
               <a href={session.tipo_torneo === 'futbol' ? "/admin-futbol/campeonatos" : "/admin-generales"} className="btn btn-outline btn-sm">
                 Panel Torneos
@@ -59,6 +63,7 @@ export default function Nav({ scrolled }: NavProps) {
                 Consola Clubes
               </a>
             )}
+
             <button onClick={handleLogout} className="btn btn-primary btn-sm" style={{ border: 'none', cursor: 'pointer' }}>
               Salir
             </button>

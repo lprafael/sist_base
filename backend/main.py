@@ -218,6 +218,10 @@ app.include_router(perfil_organizador_router)
 from routers.academias import router as academias_router
 app.include_router(academias_router)
 
+from routers.complejo import router as complejo_router
+app.include_router(complejo_router)
+
+
 from routers.academias_mejoras import router as academias_mejoras_router
 app.include_router(academias_mejoras_router)
 
