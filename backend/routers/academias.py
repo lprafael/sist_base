@@ -239,6 +239,7 @@ async def listar_academias_publicas(session: AsyncSession = Depends(get_session)
 @router.get("/api/academias/{enlace}")
 async def academia_publica(enlace: str, session: AsyncSession = Depends(get_session)):
     """Página pública de una academia por su enlace/slug."""
+    res = await session.execute(text("""
         SELECT a.id, a.nombre, a.descripcion, a.logo_url, a.banner_url, a.color_primario,
                a.acerca_de, a.facebook, a.instagram, a.youtube, a.whatsapp, a.email,
                a.telefono, a.ciudad, a.departamento, a.pais, a.canal_comunicacion_habilitado
@@ -305,6 +306,7 @@ async def obtener_perfil(
     if ctx["rol_interno"] not in ("dueño", "administrador"):
         raise HTTPException(status_code=403, detail="Acceso restringido.")
 
+    res = await session.execute(text("""
         SELECT nombre, descripcion, enlace_sitio, logo_url, banner_url, color_primario,
                acerca_de, facebook, instagram, youtube, whatsapp, email, telefono,
                pais, departamento, ciudad, plan, habilitada, canal_comunicacion_habilitado
