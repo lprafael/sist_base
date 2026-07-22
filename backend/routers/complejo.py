@@ -180,6 +180,18 @@ async def get_perfil_complejo(
 
 
 
+def parse_time_helper(val, default_t: time) -> time:
+    if not val:
+        return default_t
+    if isinstance(val, time):
+        return val
+    try:
+        parts = str(val).split(":")
+        return time(int(parts[0]), int(parts[1]))
+    except Exception:
+        return default_t
+
+
 @router.put("/api/complejo/perfil")
 async def update_perfil_complejo(
     data: PerfilComplejoRequest,
@@ -198,6 +210,8 @@ async def update_perfil_complejo(
     cfg["color_primario"] = data.color_primario or "#10B981"
     cfg["anuncios_altavoz"] = data.anuncios_altavoz if data.anuncios_altavoz is not None else True
 
+    hap_t = parse_time_helper(data.horario_apertura, time(7, 0))
+    hcie_t = parse_time_helper(data.horario_cierre, time(23, 0))
 
     import json
     await session.execute(
@@ -211,19 +225,18 @@ async def update_perfil_complejo(
                 ciudad = :ciu,
                 departamento = :depa,
                 foto_portada = :foto,
-                horario_apertura = CAST(:hap AS time),
-                horario_cierre = CAST(:hcie AS time),
+                horario_apertura = :hap,
+                horario_cierre = :hcie,
                 es_publico = :pub,
                 configuracion = CAST(:cfg AS jsonb),
                 actualizado_en = NOW()
-
             WHERE id = :cid
         """),
         {
             "cid": cid, "nom": data.nombre, "desc": data.descripcion,
             "tel": data.telefono, "em": data.email, "dir": data.direccion,
             "ciu": data.ciudad, "depa": data.departamento, "foto": data.foto_portada,
-            "hap": data.horario_apertura, "hcie": data.horario_cierre,
+            "hap": hap_t, "hcie": hcie_t,
             "pub": data.es_publico, "cfg": json.dumps(cfg)
         }
     )
@@ -284,6 +297,7 @@ async def create_cancha(
     ctx = await get_complejo_context(current_user, session)
     cid = ctx["complejo_id"]
     new_id = str(uuid.uuid4())
+    hnoc_t = parse_time_helper(data.hora_inicio_nocturna, time(18, 0))
 
     await session.execute(
         text("""
@@ -293,8 +307,7 @@ async def create_cancha(
                 color, activo
             ) VALUES (
                 :id, :cid, :nom, :desc, :dep, :sup, :dim,
-                :cap, :pr, :pr_noc, CAST(:h_noc AS time), :col, :act
-
+                :cap, :pr, :pr_noc, :h_noc, :col, :act
             )
         """),
         {
@@ -302,7 +315,7 @@ async def create_cancha(
             "dep": data.deporte, "sup": data.superficie, "dim": data.dimensiones,
             "cap": data.capacidad_jugadores, "pr": data.precio_hora,
             "pr_noc": data.precio_hora_nocturna or data.precio_hora,
-            "h_noc": data.hora_inicio_nocturna or "18:00",
+            "h_noc": hnoc_t,
             "col": data.color or "#3B82F6", "act": data.activo if data.activo is not None else True
         }
     )
@@ -319,6 +332,7 @@ async def update_cancha(
 ):
     ctx = await get_complejo_context(current_user, session)
     cid = ctx["complejo_id"]
+    hnoc_t = parse_time_helper(data.hora_inicio_nocturna, time(18, 0))
 
     await session.execute(
         text("""
@@ -331,7 +345,7 @@ async def update_cancha(
                 capacidad_jugadores = :cap,
                 precio_hora = :pr,
                 precio_hora_nocturna = :pr_noc,
-                hora_inicio_nocturna = CAST(:h_noc AS time),
+                hora_inicio_nocturna = :h_noc,
                 color = :col,
                 activo = :act,
                 actualizado_en = NOW()
@@ -342,12 +356,13 @@ async def update_cancha(
             "dep": data.deporte, "sup": data.superficie, "dim": data.dimensiones,
             "cap": data.capacidad_jugadores, "pr": data.precio_hora,
             "pr_noc": data.precio_hora_nocturna or data.precio_hora,
-            "h_noc": data.hora_inicio_nocturna or "18:00",
+            "h_noc": hnoc_t,
             "col": data.color or "#3B82F6", "act": data.activo if data.activo is not None else True
         }
     )
     await session.commit()
     return {"status": "ok", "mensaje": "Cancha actualizada."}
+
 
 
 @router.delete("/api/complejo/canchas/{cancha_id}")
