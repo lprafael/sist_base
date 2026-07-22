@@ -292,8 +292,9 @@ export default function ComplejoPanel() {
   const turnosConfirmados = reservasHoy.filter(r => r.estado === 'confirmada').length;
 
   return (
-    <div style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', paddingTop: '74px' }}>
       <Nav />
+
 
       {/* Header Banner */}
       <div style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)', borderBottom: `1px solid ${C.border}`, padding: '32px 24px' }}>

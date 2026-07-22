@@ -120,8 +120,9 @@ export default function ComplejoPublicPage() {
   const deportesUnicos = Array.from(new Set(canchasList.map((c: any) => c.deporte)));
 
   return (
-    <div style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', paddingTop: '74px' }}>
       <Nav />
+
 
       {/* Hero Banner del Complejo */}
       <div style={{ position: 'relative', minHeight: 320, background: `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.95)), url(${complejo.foto_portada}) center/cover no-repeat`, display: 'flex', alignItems: 'flex-end', padding: '40px 24px' }}>

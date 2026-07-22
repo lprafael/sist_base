@@ -204,8 +204,9 @@ async def seed():
             
             # Redondear hora actual a minutos exactos
             now_base = datetime(now.year, now.month, now.day, now.hour, now.minute)
-            
             reservas_envivo = [
+
+                # --- TURNOS EN VIVO ALREDEDOR DE AHORA (ALTAVOZ) ---
                 {
                     "cancha_id": "c1111111-1111-1111-1111-111111111111", # Cancha 1 Fútbol 5
                     "cliente": "Juan Carlos Benítez",
@@ -262,12 +263,13 @@ async def seed():
                     "notif_fin": False,
                     "notas": "Turno recién finalizado (Disparará altavoz fin)"
                 },
+                # --- OTROS TURNOS DEL DÍA (HISTORIAL Y GRILLA) ---
                 {
-                    "cancha_id": "c1111111-1111-1111-1111-111111111111", # Turno más temprano
+                    "cancha_id": "c1111111-1111-1111-1111-111111111111",
                     "cliente": "Roberto Cardozo",
                     "tel": "0991 333 222",
-                    "inicio": now_base - timedelta(hours=3),
-                    "fin": now_base - timedelta(hours=2),
+                    "inicio": now_base - timedelta(hours=5),
+                    "fin": now_base - timedelta(hours=4),
                     "estado": "finalizada",
                     "pago": "pagado",
                     "sena": 120000,
@@ -277,23 +279,108 @@ async def seed():
                     "notas": "Turno jugado por la mañana"
                 },
                 {
-                    "cancha_id": "c3333333-3333-3333-3333-333333333333", # Turno nocturno
-                    "cliente": "Fernando Mendoza",
-                    "tel": "0992 555 111",
+                    "cancha_id": "c2222222-2222-2222-2222-222222222222",
+                    "cliente": "Deportivo Mariscal",
+                    "tel": "0984 112 334",
+                    "inicio": now_base - timedelta(hours=4),
+                    "fin": now_base - timedelta(hours=3),
+                    "estado": "finalizada",
+                    "pago": "pagado",
+                    "sena": 180000,
+                    "notif_inicio": True,
+                    "notif_5m": True,
+                    "notif_fin": True,
+                    "notas": "Turno corporativo amistoso"
+                },
+                {
+                    "cancha_id": "c3333333-3333-3333-3333-333333333333",
+                    "cliente": "Martín Silva",
+                    "tel": "0972 888 777",
+                    "inicio": now_base - timedelta(hours=3),
+                    "fin": now_base - timedelta(hours=2),
+                    "estado": "finalizada",
+                    "pago": "pagado",
+                    "sena": 100000,
+                    "notif_inicio": True,
+                    "notif_5m": True,
+                    "notif_fin": True,
+                    "notas": "Clase particular de Pádel"
+                },
+                {
+                    "cancha_id": "c1111111-1111-1111-1111-111111111111",
+                    "cliente": "Exalumnos San José",
+                    "tel": "0981 555 444",
+                    "inicio": now_base + timedelta(hours=2),
+                    "fin": now_base + timedelta(hours=3),
+                    "estado": "confirmada",
+                    "pago": "seña_pagada",
+                    "sena": 60000,
+                    "notif_inicio": False,
+                    "notif_5m": False,
+                    "notif_fin": False,
+                    "notas": "Reserva de tarde"
+                },
+                {
+                    "cancha_id": "c2222222-2222-2222-2222-222222222222",
+                    "cliente": "Club de Amigos F.C.",
+                    "tel": "0985 666 777",
                     "inicio": now_base + timedelta(hours=3),
                     "fin": now_base + timedelta(hours=4),
                     "estado": "confirmada",
-                    "pago": "pendiente",
+                    "pago": "pagado",
+                    "sena": 220000,
+                    "notif_inicio": False,
+                    "notif_5m": False,
+                    "notif_fin": False,
+                    "notas": "Desafío nocturno Fútbol 7"
+                },
+                {
+                    "cancha_id": "c3333333-3333-3333-3333-333333333333",
+                    "cliente": "Fernando Mendoza & Pareja",
+                    "tel": "0992 555 111",
+                    "inicio": now_base + timedelta(hours=2),
+                    "fin": now_base + timedelta(hours=3),
+                    "estado": "confirmada",
+                    "pago": "seña_pagada",
                     "sena": 50000,
                     "notif_inicio": False,
                     "notif_5m": False,
                     "notif_fin": False,
-                    "notas": "Reserva nocturna"
+                    "notas": "Torneo exprés de Pádel"
+                },
+                {
+                    "cancha_id": "c4444444-4444-4444-4444-444444444444",
+                    "cliente": "Camila Ovelar",
+                    "tel": "0981 777 888",
+                    "inicio": now_base + timedelta(hours=3),
+                    "fin": now_base + timedelta(hours=4),
+                    "estado": "confirmada",
+                    "pago": "pendiente",
+                    "sena": 0,
+                    "notif_inicio": False,
+                    "notif_5m": False,
+                    "notif_fin": False,
+                    "notas": "Reserva online pendiente de seña"
+                },
+                {
+                    "cancha_id": "c1111111-1111-1111-1111-111111111111",
+                    "cliente": "Los Implacables F.5",
+                    "tel": "0983 222 111",
+                    "inicio": now_base + timedelta(hours=4),
+                    "fin": now_base + timedelta(hours=5),
+                    "estado": "confirmada",
+                    "pago": "pagado",
+                    "sena": 150000,
+                    "notif_inicio": False,
+                    "notif_5m": False,
+                    "notif_fin": False,
+                    "notas": "Turno nocturno bajo reflectores"
                 }
-
             ]
 
+
             for r in reservas_envivo:
+
                 dur = int((r["fin"] - r["inicio"]).total_seconds() / 60)
                 await conn.execute(
                     text("""
