@@ -888,7 +888,29 @@ export default function AdminConsole() {
           body: JSON.stringify({ rol: 'organizador', activo: true })
         });
 
+        // Crear registro en la tabla de organizadores para que aparezca en la lista
+        await fetch(`${API_URL}/cancha/torneos/organizadores`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            usuario_id: Number(userId),
+            nombre: userName || 'Nuevo Organizador',
+            plan: 'basico',
+            max_torneos: 3
+          })
+        });
+
         setUsuarios(prev => prev.map(u => u.id === Number(userId) ? { ...u, activo: true, rol: 'organizador' } : u));
+        
+        // Refrescar la lista de organizadores
+        try {
+          const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
+          const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`, fetchOpts);
+          if (resOrg.ok) {
+            setOrganizadores(await resOrg.json());
+          }
+        } catch (e) {}
+
       } catch (err) {
         console.error('Error al activar usuario en backend:', err);
       }

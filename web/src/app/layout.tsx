@@ -5,6 +5,8 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+import SessionGuardian from "@/components/SessionGuardian";
+
 export const metadata: Metadata = {
   title: "MiCancha — Gestión de Canchas y Torneos en Paraguay",
   description: "Encuentra y reserva al instante las mejores canchas de fútbol, pádel, tenis y más en Paraguay. Gestiona tus torneos, organiza partidos y disfruta del deporte.",
@@ -47,7 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
       </head>
-      <body className={`${inter.variable} select-none`}>{children}</body>
+      <body className={`${inter.variable} select-none`}>
+        <SessionGuardian />
+        {children}
+      </body>
     </html>
   );
 }
