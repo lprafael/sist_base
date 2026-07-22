@@ -359,8 +359,31 @@ export default function TVLivePage() {
   const [rotationInterval, setRotationInterval] = useState<number>(8); // segundos, 0 = Pausa
   const [currentPage, setCurrentPage] = useState(0);
 
-  const enCurso = displayPartidos.filter(p => p.estado === 'en_curso');
-  const otros   = displayPartidos.filter(p => p.estado !== 'en_curso');
+  // Filtros Checkbox
+  const [filterEnVivo, setFilterEnVivo] = useState<boolean>(true);
+  const [filterProgramadosHoy, setFilterProgramadosHoy] = useState<boolean>(true);
+  const [filterFinalizadosHoy, setFilterFinalizadosHoy] = useState<boolean>(true);
+
+  const isToday = (dateStr?: string) => {
+    if (!dateStr) return true; // Si no tiene fecha, mostrar para demostración
+    const d = new Date(dateStr);
+    const today = new Date();
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate()
+    );
+  };
+
+  const filteredPartidos = displayPartidos.filter(p => {
+    if (p.estado === 'en_curso') return filterEnVivo;
+    if (p.estado === 'programado') return filterProgramadosHoy && isToday(p.fecha_hora);
+    if (p.estado === 'finalizado') return filterFinalizadosHoy && isToday(p.fecha_hora);
+    return true;
+  });
+
+  const enCurso = filteredPartidos.filter(p => p.estado === 'en_curso');
+  const otros   = filteredPartidos.filter(p => p.estado !== 'en_curso');
   const allAreas = [...enCurso, ...otros];
 
   const pageSizeMap: Record<GridMode, number> = {
@@ -380,10 +403,10 @@ export default function TVLivePage() {
   const PAGE_SIZE = pageSizeMap[gridMode];
   const totalPages = Math.max(1, Math.ceil(allAreas.length / PAGE_SIZE));
 
-  // Reset page if gridMode changes or out of bounds
+  // Reset page if gridMode or filters change
   useEffect(() => {
     setCurrentPage(0);
-  }, [gridMode]);
+  }, [gridMode, filterEnVivo, filterProgramadosHoy, filterFinalizadosHoy]);
 
   // Auto rotación según el intervalo configurado (si rotationInterval > 0 y totalPages > 1)
   useEffect(() => {
@@ -478,7 +501,7 @@ export default function TVLivePage() {
           </div>
 
           {/* Controls + Clock + Live badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {/* Controles de Configuración de Grilla y Tiempo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
               
@@ -581,24 +604,40 @@ export default function TVLivePage() {
           {/* ── LEFT: AREAS ── */}
           <div style={{ flex: 1, padding: '16px 12px 16px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-            {/* Stats bar + Carousel indicator */}
+            {/* Stats bar + Checkboxes Filter + Carousel indicator */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexShrink: 0 }}>
-              <div style={{ display: 'flex', gap: 12 }}>
-                {[
-                  { label: 'EN VIVO', val: displayPartidos.filter(p => p.estado === 'en_curso').length,   color: '#ef4444' },
-                  { label: 'FINALIZADOS', val: displayPartidos.filter(p => p.estado === 'finalizado').length, color: '#10b981' },
-                  { label: 'PENDIENTES', val: displayPartidos.filter(p => p.estado === 'programado').length, color: '#64748b' },
-                  { label: 'TOTAL ÁREAS', val: allAreas.length, color: '#00ff88' },
-                ].map(s => (
-                  <div key={s.label} style={{
-                    padding: '8px 16px', borderRadius: 10, fontSize: 11, fontWeight: 800,
-                    background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.color}33`,
-                    display: 'flex', gap: 8, alignItems: 'center',
-                  }}>
-                    <span style={{ color: s.color, fontSize: 16, fontWeight: 900 }}>{s.val}</span>
-                    <span style={{ color: '#475569', letterSpacing: '0.08em' }}>{s.label}</span>
-                  </div>
-                ))}
+              
+              {/* Checkboxes de Filtros */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterEnVivo ? '#ef4444' : '#64748b', userSelect: 'none' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={filterEnVivo} 
+                    onChange={e => setFilterEnVivo(e.target.checked)}
+                    style={{ accentColor: '#ef4444', width: 15, height: 15, cursor: 'pointer' }}
+                  />
+                  <span>En Vivo</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterProgramadosHoy ? '#38bdf8' : '#64748b', userSelect: 'none' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={filterProgramadosHoy} 
+                    onChange={e => setFilterProgramadosHoy(e.target.checked)}
+                    style={{ accentColor: '#38bdf8', width: 15, height: 15, cursor: 'pointer' }}
+                  />
+                  <span>Programados (hoy)</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterFinalizadosHoy ? '#10b981' : '#64748b', userSelect: 'none' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={filterFinalizadosHoy} 
+                    onChange={e => setFilterFinalizadosHoy(e.target.checked)}
+                    style={{ accentColor: '#10b981', width: 15, height: 15, cursor: 'pointer' }}
+                  />
+                  <span>Finalizados (hoy)</span>
+                </label>
               </div>
 
               {/* Indicador de Carrusel si hay múltiples páginas */}
