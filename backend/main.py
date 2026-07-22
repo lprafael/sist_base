@@ -128,12 +128,14 @@ app.add_middleware(
         "https://admin.micancha.com.py",
         "https://api.micancha.com.py"
     ],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
     max_age=600
 )
+
 
 # ============================================
 # 6. FUNCIONES AUXILIARES

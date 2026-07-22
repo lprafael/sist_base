@@ -40,7 +40,7 @@ async def get_complejo_context(current_user: dict, session: AsyncSession) -> dic
     # 2. Buscar por email/nombre en cancha.complejos
     email = current_user.get("email", "")
     res2 = await session.execute(
-        text("SELECT id FROM cancha.complejos WHERE email = :em OR id::text = :uid_str LIMIT 1"),
+        text("SELECT id FROM cancha.complejos WHERE email = :em OR CAST(id AS text) = :uid_str LIMIT 1"),
         {"em": email, "uid_str": str(uid)}
     )
     row2 = res2.fetchone()
@@ -66,12 +66,13 @@ async def get_complejo_context(current_user: dict, session: AsyncSession) -> dic
             ) VALUES (
                 :cid, :nom, 'Complejo deportivo con canchas equipadas para entrenamientos y partidos.',
                 '0981-100-200', :em, 'Av. Principal 123', 'Asunción', 'Central',
-                '07:00:00', '23:00:00', true,
-                jsonb_build_object('slug', :slug, 'color_primario', '#10B981', 'anuncios_altavoz', true), true
+                CAST('07:00:00' AS time), CAST('23:30:00' AS time), true,
+                CAST(jsonb_build_object('slug', :slug, 'color_primario', '#10B981', 'anuncios_altavoz', true) AS jsonb), true
             )
         """),
         {"cid": new_cid, "nom": nombre_def, "em": email or f"{username}@micancha.com.py", "slug": slug_def}
     )
+
     
     await session.execute(
         text("INSERT INTO cancha.admins_complejo (id, complejo_id, usuario_id, rol, activo) VALUES (:id, :cid, :uid, 'dueno', true)"),
