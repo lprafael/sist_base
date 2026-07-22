@@ -891,7 +891,7 @@ export default function AdminConsole() {
         });
 
         // Crear registro en la tabla de organizadores para que aparezca en la lista
-        await fetch(`${API_URL}/cancha/torneos/organizadores`, {
+        const orgRes = await fetch(`${API_URL}/cancha/torneos/organizadores`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -901,6 +901,12 @@ export default function AdminConsole() {
             max_torneos: 3
           })
         });
+        
+        if (!orgRes.ok) {
+           const errText = await orgRes.text();
+           console.error('Error al crear organizador:', errText);
+           alert(`El usuario fue activado, pero hubo un error al crear su perfil de organizador en la base de datos: ${errText}. Por favor, créalo manualmente usando el botón "+ Habilitar Organizador".`);
+        }
 
         setUsuarios(prev => prev.map(u => u.id === Number(userId) ? { ...u, activo: true, rol: 'organizador' } : u));
         
