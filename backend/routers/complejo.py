@@ -378,8 +378,17 @@ async def get_reservas_complejo(
     session: AsyncSession = Depends(get_session)
 ):
     ctx = await get_complejo_context(current_user, session)
+
     cid = ctx["complejo_id"]
-    target_date = fecha or date.today().isoformat()
+
+    if fecha:
+        try:
+            target_date = date.fromisoformat(fecha)
+        except Exception:
+            target_date = date.today()
+    else:
+        target_date = date.today()
+
 
     res = await session.execute(
         text("""
@@ -390,11 +399,12 @@ async def get_reservas_complejo(
             FROM cancha.reservas r
             JOIN cancha.canchas c ON c.id = r.cancha_id
             WHERE r.complejo_id = :cid
-            AND DATE(r.inicio) = CAST(:fec AS date)
+            AND DATE(r.inicio) = :fec
             ORDER BY r.inicio ASC
         """),
         {"cid": cid, "fec": target_date}
     )
+
 
     rows = res.fetchall()
 
@@ -733,16 +743,24 @@ async def get_complejo_public(
     ]
 
     # 3. Reservas del día solicitado
-    target_date = fecha or date.today().isoformat()
+    if fecha:
+        try:
+            target_date = date.fromisoformat(fecha)
+        except Exception:
+            target_date = date.today()
+    else:
+        target_date = date.today()
+
     res_r = await session.execute(
         text("""
             SELECT cancha_id, inicio, fin, estado
             FROM cancha.reservas
-            WHERE complejo_id = :cid AND DATE(inicio) = CAST(:fec AS date)
+            WHERE complejo_id = :cid AND DATE(inicio) = :fec
             AND estado NOT IN ('cancelada')
         """),
         {"cid": cid, "fec": target_date}
     )
+
     reservas = [
         {
             "cancha_id": str(r[0]),
