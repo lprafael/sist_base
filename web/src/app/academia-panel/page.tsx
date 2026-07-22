@@ -367,7 +367,7 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
             <Eye size={14} /> Ver página pública
           </a>
         )}
-        <button onClick={() => { localStorage.removeItem('user_session'); window.location.href = '/login'; }} style={{
+        <button onClick={() => { localStorage.removeItem('user_session'); window.location.href = 'https://micancha.com.py'; }} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 12px', borderRadius: 8, background: 'transparent',
           border: 'none', color: C.faint, fontSize: 12, cursor: 'pointer',

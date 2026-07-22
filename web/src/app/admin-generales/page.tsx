@@ -244,7 +244,7 @@ export default function AdminGeneralesPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('user_session');
-    window.location.href = '/login';
+    window.location.href = 'https://micancha.com.py';
   };
 
   const handleSubmitTorneo = async (e: React.FormEvent) => {

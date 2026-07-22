@@ -1270,7 +1270,7 @@ export default function AdminConsole() {
       });
     }
     localStorage.removeItem('user_session');
-    window.location.href = '/login';
+    window.location.href = 'https://micancha.com.py';
   };
 
   if (loadingSession) {

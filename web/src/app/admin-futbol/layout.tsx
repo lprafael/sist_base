@@ -277,7 +277,7 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
             <button 
               onClick={() => {
                 localStorage.removeItem('user_session');
-                window.location.href = '/login';
+                window.location.href = 'https://micancha.com.py';
               }}
               className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-2"
               title="Cerrar Sesión"
