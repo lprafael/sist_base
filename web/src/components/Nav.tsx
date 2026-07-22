@@ -55,7 +55,7 @@ export default function Nav({ scrolled }: NavProps) {
                 Panel Complejo
               </a>
             ) : session.role === 'organizador' ? (
-              <a href={session.tipo_torneo === 'futbol' ? "/admin-futbol/campeonatos" : "/admin-generales"} className="btn btn-outline btn-sm">
+              <a href="/admin-futbol/campeonatos" className="btn btn-outline btn-sm">
                 Panel Torneos
               </a>
             ) : (

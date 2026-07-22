@@ -66,11 +66,7 @@ export default function TorneosLoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
-        } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
-          window.location.href = '/admin-futbol/campeonatos';
-        } else if (session.role === 'organizador') {
-          window.location.href = '/admin-generales';
-        } else if (session.role === 'veedor' || session.role === 'delegado') {
+        } else if (session.role === 'organizador' || session.role === 'veedor' || session.role === 'delegado') {
           window.location.href = '/admin-futbol/campeonatos';
         } else {
           setError('Esta cuenta no tiene acceso a la administración de torneos.');
@@ -112,11 +108,7 @@ export default function TorneosLoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
-        } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
-          window.location.href = '/admin-futbol/campeonatos';
-        } else if (session.role === 'organizador') {
-          window.location.href = '/admin-generales';
-        } else if (session.role === 'veedor' || session.role === 'delegado') {
+        } else if (session.role === 'organizador' || session.role === 'veedor' || session.role === 'delegado') {
           window.location.href = '/admin-futbol/campeonatos';
         } else {
           alert('Esta cuenta no tiene acceso a la administración de torneos.');

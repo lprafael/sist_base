@@ -98,10 +98,8 @@ export default function LoginPage() {
           window.location.href = '/admin';
         } else if (session.role === 'academia' || sessionData.academia_id) {
           window.location.href = '/academia-panel';
-        } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
+        } else if (session.role === 'organizador' || session.role === 'veedor' || session.role === 'delegado') {
           window.location.href = '/admin-futbol/campeonatos';
-        } else if (session.role === 'organizador') {
-          window.location.href = '/admin-generales';
         } else {
           window.location.href = '/';
         }
@@ -161,10 +159,8 @@ export default function LoginPage() {
           window.location.href = '/admin';
         } else if (session.role === 'academia' || sessionData.academia_id) {
           window.location.href = '/academia-panel';
-        } else if (session.role === 'organizador' && data.user.tipo_torneo === 'futbol') {
+        } else if (session.role === 'organizador' || session.role === 'veedor' || session.role === 'delegado') {
           window.location.href = '/admin-futbol/campeonatos';
-        } else if (session.role === 'organizador') {
-          window.location.href = '/admin-generales';
         } else {
           window.location.href = '/';
         }

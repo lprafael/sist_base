@@ -1739,7 +1739,7 @@ export default function AdminConsole() {
                                     };
                                     localStorage.setItem('user_session', JSON.stringify(newSessionData));
                                     
-                                    if (newSessionData.role === 'organizador' && newSessionData.tipo_torneo === 'futbol') {
+                                    if (newSessionData.role === 'organizador') {
                                       window.location.href = '/admin-futbol/campeonatos';
                                     } else {
                                       window.location.href = '/admin-generales';
