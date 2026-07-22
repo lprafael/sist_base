@@ -138,6 +138,7 @@ class PartidoUpdate(BaseModel):
     goles_visitante: int = 0
     estado: str = "finalizado"
     estadisticas: Optional[dict] = None
+    observaciones: Optional[str] = None
 
 class GolCreate(BaseModel):
     player_id: Optional[str] = None
@@ -2679,18 +2680,21 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             "ganador_id": ganador_id
         }
         
-        # Guardar estadisticas si vienen en el payload (MMA)
-        update_stats = ""
+        # Guardar estadisticas u observaciones si vienen en el payload
+        update_extra = ""
         if payload.estadisticas is not None:
-            update_stats = ", estadisticas = :estadisticas"
+            update_extra += ", estadisticas = :estadisticas"
             params["estadisticas"] = json.dumps(payload.estadisticas)
+        if payload.observaciones is not None:
+            update_extra += ", observaciones = :observaciones"
+            params["observaciones"] = payload.observaciones
 
         await session.execute(text(f"""
             UPDATE torneos.partidos
             SET goles_local = :gl, goles_visitante = :gv,
                 estado = :estado, ganador_id = :ganador_id,
                 fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
-                {update_stats}
+                {update_extra}
             WHERE id = :pid
         """), params)
         
@@ -4154,6 +4158,26 @@ async def add_sustitucion(
         }
     except HTTPException:
         raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{torneo_id}/partidos/{partido_id}/eventos/{evento_id}", summary="Eliminar evento de partido")
+@router.delete("/partidos/{partido_id}/eventos/{evento_id}", summary="Eliminar evento de partido (alt)")
+async def delete_evento_partido(
+    partido_id: str,
+    evento_id: str,
+    torneo_id: Optional[str] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        await session.execute(
+            text("DELETE FROM torneos.eventos_partido WHERE id = :eid AND partido_id = :pid"),
+            {"eid": evento_id, "pid": partido_id}
+        )
+        await session.commit()
+        return {"status": "ok", "message": "Evento eliminado"}
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
