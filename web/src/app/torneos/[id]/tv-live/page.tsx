@@ -354,12 +354,30 @@ export default function TVLivePage() {
     { id: '5', texto: 'Área 4: Empate técnico — decisión de jueces',    tiempo: 'Hace 7 min',  tipo: 'empate'        },
   ];
 
+  const [currentPage, setCurrentPage] = useState(0);
+
   const enCurso = displayPartidos.filter(p => p.estado === 'en_curso');
   const otros   = displayPartidos.filter(p => p.estado !== 'en_curso');
-  // Mostrar primero en curso, luego otros, máximo 6 areas
-  const displayAreas = [...enCurso, ...otros].slice(0, 6);
+  const allAreas = [...enCurso, ...otros];
 
-  const gridCols = displayAreas.length <= 2 ? '1fr 1fr' : displayAreas.length <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
+  const PAGE_SIZE = 4;
+  const totalPages = Math.max(1, Math.ceil(allAreas.length / PAGE_SIZE));
+
+  // Auto rotación tipo carrusel cada 8 segundos si hay más de 4 cuadrantes
+  useEffect(() => {
+    if (totalPages <= 1) {
+      setCurrentPage(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setCurrentPage(prev => (prev + 1) % totalPages);
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [totalPages]);
+
+  const startIndex = currentPage * PAGE_SIZE;
+  const visiblePartidos = allAreas.slice(startIndex, startIndex + PAGE_SIZE);
+  const emptyCount = Math.max(0, PAGE_SIZE - visiblePartidos.length);
 
   return (
     <>
@@ -476,26 +494,55 @@ export default function TVLivePage() {
           {/* ── LEFT: AREAS ── */}
           <div style={{ flex: 1, padding: '16px 12px 16px 16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-            {/* Stats bar */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexShrink: 0 }}>
-              {[
-                { label: 'EN VIVO', val: displayPartidos.filter(p => p.estado === 'en_curso').length,   color: '#ef4444' },
-                { label: 'FINALIZADOS', val: displayPartidos.filter(p => p.estado === 'finalizado').length, color: '#10b981' },
-                { label: 'PENDIENTES', val: displayPartidos.filter(p => p.estado === 'programado').length, color: '#64748b' },
-                { label: 'TOTAL ÁREAS', val: displayAreas.length, color: '#00ff88' },
-              ].map(s => (
-                <div key={s.label} style={{
-                  padding: '8px 16px', borderRadius: 10, fontSize: 11, fontWeight: 800,
-                  background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.color}33`,
-                  display: 'flex', gap: 8, alignItems: 'center',
+            {/* Stats bar + Carousel indicator */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                {[
+                  { label: 'EN VIVO', val: displayPartidos.filter(p => p.estado === 'en_curso').length,   color: '#ef4444' },
+                  { label: 'FINALIZADOS', val: displayPartidos.filter(p => p.estado === 'finalizado').length, color: '#10b981' },
+                  { label: 'PENDIENTES', val: displayPartidos.filter(p => p.estado === 'programado').length, color: '#64748b' },
+                  { label: 'TOTAL ÁREAS', val: allAreas.length, color: '#00ff88' },
+                ].map(s => (
+                  <div key={s.label} style={{
+                    padding: '8px 16px', borderRadius: 10, fontSize: 11, fontWeight: 800,
+                    background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.color}33`,
+                    display: 'flex', gap: 8, alignItems: 'center',
+                  }}>
+                    <span style={{ color: s.color, fontSize: 16, fontWeight: 900 }}>{s.val}</span>
+                    <span style={{ color: '#475569', letterSpacing: '0.08em' }}>{s.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Indicador de Carrusel si hay múltiples páginas */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '6px 14px',
+                  borderRadius: 12, background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)',
+                  fontSize: 11, fontWeight: 800, color: '#00ff88', letterSpacing: '0.08em'
                 }}>
-                  <span style={{ color: s.color, fontSize: 16, fontWeight: 900 }}>{s.val}</span>
-                  <span style={{ color: '#475569', letterSpacing: '0.08em' }}>{s.label}</span>
+                  <span>PÁGINA {currentPage + 1} / {totalPages}</span>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                    {Array.from({ length: totalPages }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setCurrentPage(idx)}
+                        style={{
+                          width: idx === currentPage ? 14 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          background: idx === currentPage ? '#00ff88' : '#334155',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* Grid */}
+            {/* Grid 2x2 Fijo */}
             {loading ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ fontSize: 14, color: '#475569', fontWeight: 700, letterSpacing: '0.1em' }}>CARGANDO...</div>
@@ -503,13 +550,16 @@ export default function TVLivePage() {
             ) : (
               <div style={{
                 flex: 1, display: 'grid',
-                gridTemplateColumns: gridCols,
+                gridTemplateColumns: '1fr 1fr',
+                gridTemplateRows: '1fr 1fr',
                 gap: 12, overflow: 'hidden',
               }}>
-                {displayAreas.map((p, i) => (
-                  <MatchCard key={p.id} partido={p} areaIndex={i} />
+                {visiblePartidos.map((p, i) => (
+                  <MatchCard key={p.id} partido={p} areaIndex={startIndex + i} />
                 ))}
-                {displayAreas.length === 0 && [0,1,2,3].map(i => <EmptyAreaCard key={i} areaIndex={i} />)}
+                {Array.from({ length: emptyCount }).map((_, i) => (
+                  <EmptyAreaCard key={`empty-${i}`} areaIndex={startIndex + visiblePartidos.length + i} />
+                ))}
               </div>
             )}
           </div>
