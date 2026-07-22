@@ -813,6 +813,27 @@ export default function AdminConsole() {
           if (resUsr.ok) {
             const dataUsr = await resUsr.json();
             setUsuarios(dataUsr);
+
+            // Cargar usuarios inactivos del backend en solicitudes pendientes
+            const backendPending = dataUsr
+              .filter((u: any) => !u.activo)
+              .map((u: any) => ({
+                id: `backend-${u.id}`,
+                userId: u.id,
+                nombre: u.nombre_completo || u.username,
+                email: u.email,
+                fecha: u.creado_en ? new Date(u.creado_en).toLocaleDateString('es-PY') : 'Google Login',
+                estado: 'pendiente',
+                rol: u.rol || 'user',
+                isBackend: true
+              }));
+
+            setPendingRequests(prev => {
+              const localList = JSON.parse(localStorage.getItem('pending_tenants') || '[]');
+              const existingEmails = new Set(localList.map((r: any) => r.email));
+              const newBackendItems = backendPending.filter((b: any) => !existingEmails.has(b.email));
+              return [...localList, ...newBackendItems];
+            });
           }
         }
       } catch (_e) { }
@@ -838,7 +859,41 @@ export default function AdminConsole() {
   };
 
   // Google Tenant Registration Request Approval
-  const handleApproveTenantRequest = (requestId: string, userEmail: string, userName: string) => {
+  const handleApproveTenantRequest = async (requestId: string, userEmail: string, userName: string, reqItem?: any) => {
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const isBackend = reqItem?.isBackend || String(requestId).startsWith('backend-');
+    const userId = reqItem?.userId || (isBackend ? String(requestId).replace('backend-', '') : null);
+
+    if (isBackend && userId) {
+      try {
+        await fetch(`${API_URL}/auth/users/${userId}/reactivate`, {
+          method: 'POST',
+          headers
+        });
+
+        await fetch(`${API_URL}/auth/users/${userId}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ rol: 'organizador', activo: true })
+        });
+
+        setUsuarios(prev => prev.map(u => u.id === Number(userId) ? { ...u, activo: true, rol: 'organizador' } : u));
+      } catch (err) {
+        console.error('Error al activar usuario en backend:', err);
+      }
+    }
+
     // 1. Mark request as approved
     const list = JSON.parse(localStorage.getItem('pending_tenants') || '[]');
     const updatedList = list.map((req: any) => {
@@ -846,7 +901,11 @@ export default function AdminConsole() {
       return req;
     });
     localStorage.setItem('pending_tenants', JSON.stringify(updatedList));
-    setPendingRequests(updatedList);
+
+    setPendingRequests(prev => prev.map((req: any) => {
+      if (req.id === requestId) return { ...req, estado: 'aprobada' };
+      return req;
+    }));
 
     // 2. Select complex to assign
     const targetComplejo = complejos[0]; // Auto-assign to primary for demo or let it match
@@ -861,11 +920,11 @@ export default function AdminConsole() {
 
     // 3. Log Audit
     logEvent('auditoria', {
-      accion: 'Aprobar Tenant',
-      detalles: `Se aprobó el acceso del propietario "${userName}" (${userEmail}) asignándole el complejo "${targetComplejo.nombre}"`
+      accion: 'Aprobar Tenant / Usuario',
+      detalles: `Se aprobó el acceso del usuario "${userName}" (${userEmail}) y se le activó la cuenta en la base de datos.`
     });
 
-    addToast(`✅ Propietario "${userName}" aprobado y asignado a "${targetComplejo.nombre}".`);
+    addToast(`✅ Usuario "${userName}" aprobado y activado exitosamente.`);
   };
 
   // Super Admin Actions
@@ -1921,7 +1980,7 @@ export default function AdminConsole() {
 
                       {req.estado === 'pendiente' && (
                         <button
-                          onClick={() => handleApproveTenantRequest(req.id, req.email, req.nombre)}
+                          onClick={() => handleApproveTenantRequest(req.id, req.email, req.nombre, req)}
                           style={{
                             background: '#16a34a',
                             color: 'white',
@@ -1937,7 +1996,7 @@ export default function AdminConsole() {
                           }}
                         >
                           <CheckCircle size={16} />
-                          Aprobar y Asignar Club Demo
+                          Aprobar y Activar Cuenta
                         </button>
                       )}
                     </div>
