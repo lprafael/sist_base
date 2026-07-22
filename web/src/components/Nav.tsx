@@ -38,8 +38,7 @@ export default function Nav({ scrolled }: NavProps) {
         </a>
         <a href="#canchas" className="nav-link">Lista Canchas</a>
         <a href="/MANUAL_USUARIO_TORNEOS.html" target="_blank" rel="noopener noreferrer" className="nav-link">Cómo funciona</a>
-        <a href="/torneos" className="nav-link">Torneos (Fútbol)</a>
-        <a href="/torneos-generales" className="nav-link">Torneos Generales</a>
+        <a href="/torneos" className="nav-link">Torneos</a>
         <a href="/academias" className="nav-link">🎓 Academias</a>
       </div>
 
