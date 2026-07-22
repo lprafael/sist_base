@@ -354,26 +354,47 @@ export default function TVLivePage() {
     { id: '5', texto: 'Área 4: Empate técnico — decisión de jueces',    tiempo: 'Hace 7 min',  tipo: 'empate'        },
   ];
 
+  type GridMode = '1x1' | '1x2' | '2x2' | '3x3';
+  const [gridMode, setGridMode] = useState<GridMode>('2x2');
+  const [rotationInterval, setRotationInterval] = useState<number>(8); // segundos, 0 = Pausa
   const [currentPage, setCurrentPage] = useState(0);
 
   const enCurso = displayPartidos.filter(p => p.estado === 'en_curso');
   const otros   = displayPartidos.filter(p => p.estado !== 'en_curso');
   const allAreas = [...enCurso, ...otros];
 
-  const PAGE_SIZE = 4;
+  const pageSizeMap: Record<GridMode, number> = {
+    '1x1': 1,
+    '1x2': 2,
+    '2x2': 4,
+    '3x3': 9,
+  };
+
+  const gridStyleMap: Record<GridMode, { cols: string; rows: string }> = {
+    '1x1': { cols: '1fr', rows: '1fr' },
+    '1x2': { cols: '1fr 1fr', rows: '1fr' },
+    '2x2': { cols: '1fr 1fr', rows: '1fr 1fr' },
+    '3x3': { cols: '1fr 1fr 1fr', rows: '1fr 1fr 1fr' },
+  };
+
+  const PAGE_SIZE = pageSizeMap[gridMode];
   const totalPages = Math.max(1, Math.ceil(allAreas.length / PAGE_SIZE));
 
-  // Auto rotación tipo carrusel cada 8 segundos si hay más de 4 cuadrantes
+  // Reset page if gridMode changes or out of bounds
   useEffect(() => {
-    if (totalPages <= 1) {
-      setCurrentPage(0);
+    setCurrentPage(0);
+  }, [gridMode]);
+
+  // Auto rotación según el intervalo configurado (si rotationInterval > 0 y totalPages > 1)
+  useEffect(() => {
+    if (rotationInterval === 0 || totalPages <= 1) {
       return;
     }
     const timer = setInterval(() => {
       setCurrentPage(prev => (prev + 1) % totalPages);
-    }, 8000);
+    }, rotationInterval * 1000);
     return () => clearInterval(timer);
-  }, [totalPages]);
+  }, [totalPages, rotationInterval]);
 
   const startIndex = currentPage * PAGE_SIZE;
   const visiblePartidos = allAreas.slice(startIndex, startIndex + PAGE_SIZE);
@@ -456,8 +477,74 @@ export default function TVLivePage() {
             </div>
           </div>
 
-          {/* Clock + Live badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Controls + Clock + Live badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            {/* Controles de Configuración de Grilla y Tiempo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
+              
+              {/* Selector de Grilla */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>GRILLA:</span>
+                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', padding: 3, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  {(['1x1', '1x2', '2x2', '3x3'] as GridMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setGridMode(mode)}
+                      style={{
+                        background: gridMode === mode ? 'linear-gradient(135deg, #00ff88, #10b981)' : 'transparent',
+                        color: gridMode === mode ? '#060610' : '#94a3b8',
+                        border: 'none',
+                        padding: '4px 8px',
+                        borderRadius: 7,
+                        fontWeight: 900,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Separador */}
+              <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+
+              {/* Selector de Segundos de Rotación */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ROTACIÓN:</span>
+                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', padding: 3, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  {[
+                    { label: '5s', val: 5 },
+                    { label: '8s', val: 8 },
+                    { label: '10s', val: 10 },
+                    { label: '15s', val: 15 },
+                    { label: '⏸️', val: 0 }
+                  ].map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={() => setRotationInterval(opt.val)}
+                      style={{
+                        background: rotationInterval === opt.val ? '#3b82f6' : 'transparent',
+                        color: rotationInterval === opt.val ? '#ffffff' : '#94a3b8',
+                        border: 'none',
+                        padding: '4px 8px',
+                        borderRadius: 7,
+                        fontWeight: 900,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      title={opt.val === 0 ? 'Pausar rotación' : `Rotar cada ${opt.val} segundos`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div style={{
               fontFamily: "'Orbitron', monospace", fontSize: 22, fontWeight: 900,
               color: '#e2e8f0', letterSpacing: '0.08em',
@@ -542,7 +629,7 @@ export default function TVLivePage() {
               )}
             </div>
 
-            {/* Grid 2x2 Fijo */}
+            {/* Grid Configurable Dinámico */}
             {loading ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ fontSize: 14, color: '#475569', fontWeight: 700, letterSpacing: '0.1em' }}>CARGANDO...</div>
@@ -550,8 +637,8 @@ export default function TVLivePage() {
             ) : (
               <div style={{
                 flex: 1, display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gridTemplateRows: '1fr 1fr',
+                gridTemplateColumns: gridStyleMap[gridMode].cols,
+                gridTemplateRows: gridStyleMap[gridMode].rows,
                 gap: 12, overflow: 'hidden',
               }}>
                 {visiblePartidos.map((p, i) => (
