@@ -771,109 +771,251 @@ export default function ComplejoPanel() {
           </div>
         )}
 
-        {/* ── TAB 5: CONFIGURACIÓN DE PÁGINA PÚBLICA ── */}
+        {/* ── TAB 5: CONFIGURACIÓN DE PÁGINA PÚBLICA & PERFIL ── */}
         {activeTab === 'config' && editPerfil && (
-          <form onSubmit={handleSavePerfil} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 32, maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, borderBottom: `1px solid ${C.border}`, paddingBottom: 16 }}>
-              Configuración de Página Pública del Complejo
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <form onSubmit={handleSavePerfil} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 36, maxWidth: 850, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ borderBottom: `1px solid ${C.border}`, paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Nombre del Complejo</label>
-                <input
-                  type="text"
-                  required
-                  value={editPerfil.nombre}
-                  onChange={(e) => setEditPerfil({ ...editPerfil, nombre: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-                />
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text }}>
+                  Configuración de Página Pública del Complejo
+                </h3>
+                <p style={{ margin: '4px 0 0 0', color: C.muted, fontSize: 14 }}>
+                  Personaliza la URL pública, el logo de perfil y el banner de tu complejo.
+                </p>
               </div>
+              <button
+                type="submit"
+                style={{ padding: '10px 24px', borderRadius: 8, background: C.emerald, color: '#fff', border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}
+              >
+                Guardar Cambios
+              </button>
+            </div>
 
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Enlace Web / Slug Público</label>
-                <input
-                  type="text"
-                  required
-                  value={editPerfil.slug}
-                  onChange={(e) => setEditPerfil({ ...editPerfil, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                  style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-                />
+            {/* URL Personalizada del Complejo */}
+            <div style={{ background: C.bg, border: `1px solid ${C.emerald}60`, borderRadius: 12, padding: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 800, color: C.emerald, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                🌐 Tu Enlace Web Público Configurable
+              </label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, fontWeight: 600 }}>
+                  <span style={{ color: C.muted, marginRight: 2 }}>https://micancha.com.py/complejo/</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="nombre-de-tu-complejo"
+                    value={editPerfil.slug || ''}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                    style={{ flex: 1, background: 'none', border: 'none', color: C.emerald, fontWeight: 800, fontSize: 14, outline: 'none' }}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fullUrl = `https://micancha.com.py/complejo/${editPerfil.slug}`;
+                    navigator.clipboard.writeText(fullUrl);
+                    notify('Enlace copiado al portapapeles');
+                  }}
+                  style={{ padding: '10px 16px', background: C.cardHover, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Copiar Enlace
+                </button>
+
+                {editPerfil.slug && (
+                  <a
+                    href={`/complejo/${editPerfil.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ padding: '10px 16px', background: `${C.blue}20`, border: `1px solid ${C.blue}`, borderRadius: 8, color: C.blue, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+                  >
+                    Ver Página Pública
+                  </a>
+                )}
               </div>
             </div>
 
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Descripción del Complejo</label>
-              <textarea
-                rows={3}
-                value={editPerfil.descripcion}
-                onChange={(e) => setEditPerfil({ ...editPerfil, descripcion: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-              />
+            {/* SECCIÓN DE FOTOS: FOTO DE PERFIL / LOGO Y FOTO DE PORTADA / BANNER */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24, borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+              
+              {/* Imagen de Perfil / Logo */}
+              <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <label style={{ fontSize: 14, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>📷 Foto de Perfil / Logo</span>
+                </label>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 999, border: `2px solid ${C.emerald}`, overflow: 'hidden', background: C.card, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {editPerfil.foto_perfil ? (
+                      <img src={editPerfil.foto_perfil} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <Building2 style={{ width: 32, height: 32, color: C.muted }} />
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label style={{ padding: '8px 14px', background: C.cardHover, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>
+                      Seleccionar de la PC
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => setEditPerfil({ ...editPerfil, foto_perfil: evt.target?.result as string });
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    <input
+                      type="text"
+                      placeholder="O pega una URL de imagen..."
+                      value={editPerfil.foto_perfil || ''}
+                      onChange={(e) => setEditPerfil({ ...editPerfil, foto_perfil: e.target.value })}
+                      style={{ width: '100%', padding: '6px 10px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, color: C.muted, fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Imagen de Portada / Banner */}
+              <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <label style={{ fontSize: 14, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>🖼️ Foto de Portada / Banner</span>
+                </label>
+                
+                <div style={{ width: '100%', height: 100, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', background: C.card, position: 'relative' }}>
+                  {editPerfil.foto_portada ? (
+                    <img src={editPerfil.foto_portada} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontSize: 13 }}>
+                      Sin foto de portada
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <label style={{ flex: 1, padding: '8px 14px', background: C.cardHover, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>
+                    Seleccionar de la PC
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (evt) => setEditPerfil({ ...editPerfil, foto_portada: evt.target?.result as string });
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="O URL de portada..."
+                    value={editPerfil.foto_portada || ''}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, foto_portada: e.target.value })}
+                    style={{ flex: 1, padding: '6px 10px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, color: C.muted, fontSize: 12 }}
+                  />
+                </div>
+              </div>
+
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* DATOS GENERALES DEL COMPLEJO */}
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Nombre del Complejo</label>
+                  <input
+                    type="text"
+                    required
+                    value={editPerfil.nombre}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, nombre: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Ciudad</label>
+                  <input
+                    type="text"
+                    value={editPerfil.ciudad || 'Asunción'}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, ciudad: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
+                  />
+                </div>
+              </div>
+
               <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Teléfono WhatsApp</label>
-                <input
-                  type="text"
-                  value={editPerfil.telefono}
-                  onChange={(e) => setEditPerfil({ ...editPerfil, telefono: e.target.value })}
+                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Descripción del Complejo</label>
+                <textarea
+                  rows={3}
+                  value={editPerfil.descripcion || ''}
+                  onChange={(e) => setEditPerfil({ ...editPerfil, descripcion: e.target.value })}
                   style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Email de Contacto</label>
-                <input
-                  type="email"
-                  value={editPerfil.email}
-                  onChange={(e) => setEditPerfil({ ...editPerfil, email: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-                />
-              </div>
-            </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Teléfono WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editPerfil.telefono || ''}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, telefono: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
+                  />
+                </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Horario Apertura</label>
-                <input
-                  type="time"
-                  value={editPerfil.horario_apertura}
-                  onChange={(e) => setEditPerfil({ ...editPerfil, horario_apertura: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-                />
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Email de Contacto</label>
+                  <input
+                    type="email"
+                    value={editPerfil.email || ''}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, email: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Horario Cierre</label>
-                <input
-                  type="time"
-                  value={editPerfil.horario_cierre}
-                  onChange={(e) => setEditPerfil({ ...editPerfil, horario_cierre: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-                />
-              </div>
-            </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Horario Apertura</label>
+                  <input
+                    type="time"
+                    value={editPerfil.horario_apertura}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, horario_apertura: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
+                  />
+                </div>
 
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>URL Foto de Portada / Banner</label>
-              <input
-                type="text"
-                value={editPerfil.foto_portada}
-                onChange={(e) => setEditPerfil({ ...editPerfil, foto_portada: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
-              />
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: C.muted, display: 'block', marginBottom: 6 }}>Horario Cierre</label>
+                  <input
+                    type="time"
+                    value={editPerfil.horario_cierre}
+                    onChange={(e) => setEditPerfil({ ...editPerfil, horario_cierre: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 14 }}
+                  />
+                </div>
+              </div>
             </div>
 
             <button
               type="submit"
-              style={{ marginTop: 16, padding: '12px 24px', borderRadius: 8, background: C.emerald, color: '#fff', border: 'none', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}
+              style={{ marginTop: 12, padding: '14px 24px', borderRadius: 8, background: C.emerald, color: '#fff', border: 'none', fontWeight: 800, fontSize: 15, cursor: 'pointer', textAlign: 'center' }}
             >
               Guardar Cambios del Complejo
             </button>
           </form>
         )}
+
       </main>
 
       {/* ── MODAL NUEVA/EDITAR CANCHA ── */}

@@ -75,9 +75,11 @@ async def seed():
             complejo_id = "11111111-1111-1111-1111-111111111111"
             cfg = {
                 "slug": "mburicao-sports",
+                "foto_perfil": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=400&q=80",
                 "color_primario": "#10B981",
                 "anuncios_altavoz": True
             }
+
             
             await conn.execute(
                 text("""

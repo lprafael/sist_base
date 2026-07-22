@@ -124,25 +124,35 @@ export default function ComplejoPublicPage() {
       <Nav />
 
 
-      {/* Hero Banner del Complejo */}
-      <div style={{ position: 'relative', minHeight: 320, background: `linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.95)), url(${complejo.foto_portada}) center/cover no-repeat`, display: 'flex', alignItems: 'flex-end', padding: '40px 24px' }}>
+      {/* Hero Banner del Complejo con Portada y Logo de Perfil */}
+      <div style={{ position: 'relative', minHeight: 320, background: `linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.95)), url(${complejo.foto_portada}) center/cover no-repeat`, display: 'flex', alignItems: 'flex-end', padding: '40px 24px' }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 24 }}>
-          <div>
-            <span style={{ background: C.emerald, color: '#fff', padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Complejo Deportivo Oficial
-            </span>
-            <h1 style={{ fontSize: 36, fontWeight: 900, margin: '10px 0 8px 0', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-              {complejo.nombre}
-            </h1>
-            <p style={{ color: C.muted, fontSize: 15, maxWidth: 650, margin: '0 0 12px 0' }}>
-              {complejo.descripcion}
-            </p>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: '#CBD5E1' }}>
-              <span><MapPin style={{ width: 14, height: 14, display: 'inline', color: C.emerald, marginRight: 4 }} />{complejo.direccion}, {complejo.ciudad}</span>
-              <span><Clock style={{ width: 14, height: 14, display: 'inline', color: C.emerald, marginRight: 4 }} />Horario: {complejo.horario_apertura} a {complejo.horario_cierre} hs</span>
-              <span><Phone style={{ width: 14, height: 14, display: 'inline', color: C.emerald, marginRight: 4 }} />{complejo.telefono}</span>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+            {/* Foto de Perfil / Logo */}
+            {complejo.foto_perfil && (
+              <div style={{ width: 90, height: 90, borderRadius: 999, border: `3px solid ${C.emerald}`, overflow: 'hidden', background: C.card, flexShrink: 0, boxShadow: '0 8px 25px rgba(0,0,0,0.5)' }}>
+                <img src={complejo.foto_perfil} alt={complejo.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+
+            <div>
+              <span style={{ background: C.emerald, color: '#fff', padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Complejo Deportivo Oficial
+              </span>
+              <h1 style={{ fontSize: 36, fontWeight: 900, margin: '8px 0 6px 0', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+                {complejo.nombre}
+              </h1>
+              <p style={{ color: C.muted, fontSize: 15, maxWidth: 650, margin: '0 0 12px 0' }}>
+                {complejo.descripcion}
+              </p>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: '#CBD5E1' }}>
+                <span><MapPin style={{ width: 14, height: 14, display: 'inline', color: C.emerald, marginRight: 4 }} />{complejo.direccion}, {complejo.ciudad}</span>
+                <span><Clock style={{ width: 14, height: 14, display: 'inline', color: C.emerald, marginRight: 4 }} />Horario: {complejo.horario_apertura} a {complejo.horario_cierre} hs</span>
+                <span><Phone style={{ width: 14, height: 14, display: 'inline', color: C.emerald, marginRight: 4 }} />{complejo.telefono}</span>
+              </div>
             </div>
           </div>
+
 
           <div style={{ display: 'flex', gap: 12 }}>
             <a

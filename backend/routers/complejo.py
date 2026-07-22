@@ -94,6 +94,7 @@ class PerfilComplejoRequest(BaseModel):
     direccion: Optional[str] = None
     ciudad: Optional[str] = None
     departamento: Optional[str] = None
+    foto_perfil: Optional[str] = None
     foto_portada: Optional[str] = None
     horario_apertura: Optional[str] = '07:00'
     horario_cierre: Optional[str] = '23:00'
@@ -165,6 +166,7 @@ async def get_perfil_complejo(
         "direccion": row[5] or "",
         "ciudad": row[6] or "",
         "departamento": row[7] or "",
+        "foto_perfil": cfg.get("foto_perfil", ""),
         "foto_portada": row[8] or "",
         "horario_apertura": str(row[9])[:5] if row[9] else "07:00",
         "horario_cierre": str(row[10])[:5] if row[10] else "23:00",
@@ -174,6 +176,7 @@ async def get_perfil_complejo(
         "anuncios_altavoz": cfg.get("anuncios_altavoz", True),
         "activo": row[13]
     }
+
 
 
 @router.put("/api/complejo/perfil")
@@ -190,8 +193,10 @@ async def update_perfil_complejo(
     cfg = row[0] if row and isinstance(row[0], dict) else {}
 
     cfg["slug"] = data.slug or cfg.get("slug", f"complejo-{cid[:8]}")
+    cfg["foto_perfil"] = data.foto_perfil or cfg.get("foto_perfil", "")
     cfg["color_primario"] = data.color_primario or "#10B981"
     cfg["anuncios_altavoz"] = data.anuncios_altavoz if data.anuncios_altavoz is not None else True
+
 
     import json
     await session.execute(
@@ -693,7 +698,7 @@ async def get_complejo_public(
             SELECT id, nombre, descripcion, telefono, email, direccion, ciudad, departamento,
                    foto_portada, horario_apertura, horario_cierre, configuracion
             FROM cancha.complejos
-            WHERE id::text = :sid OR configuracion->>'slug' = :sid
+            WHERE CAST(id AS text) = :sid OR configuracion->>'slug' = :sid
             LIMIT 1
         """),
         {"sid": slug_or_id}
@@ -732,7 +737,7 @@ async def get_complejo_public(
         text("""
             SELECT cancha_id, inicio, fin, estado
             FROM cancha.reservas
-            WHERE complejo_id = :cid AND DATE(inicio) = :fec::date
+            WHERE complejo_id = :cid AND DATE(inicio) = CAST(:fec AS date)
             AND estado NOT IN ('cancelada')
         """),
         {"cid": cid, "fec": target_date}
@@ -757,6 +762,7 @@ async def get_complejo_public(
             "direccion": row[5] or "",
             "ciudad": row[6] or "",
             "departamento": row[7] or "",
+            "foto_perfil": cfg.get("foto_perfil", "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=400&q=80"),
             "foto_portada": row[8] or "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1200&q=80",
             "horario_apertura": str(row[9])[:5] if row[9] else "07:00",
             "horario_cierre": str(row[10])[:5] if row[10] else "23:00",
