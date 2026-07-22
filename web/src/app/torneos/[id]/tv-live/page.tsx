@@ -277,12 +277,17 @@ export default function TVLivePage() {
   const params = useParams();
   const id = params?.id as string;
 
+  const [mounted, setMounted] = useState(false);
   const [tournament, setTournament] = useState<TournamentData | null>(null);
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [historico, setHistorico] = useState<ResultadoHistorico[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
   const tickRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /* Cargar datos reales */
   const loadData = useCallback(async () => {
@@ -354,7 +359,7 @@ export default function TVLivePage() {
     { id: '5', texto: 'Área 4: Empate técnico — decisión de jueces',    tiempo: 'Hace 7 min',  tipo: 'empate'        },
   ];
 
-  type GridMode = '1x1' | '1x2' | '2x2' | '3x3';
+  type GridMode = '1x1' | '1x2' | '2x2' | '2x3';
   const [gridMode, setGridMode] = useState<GridMode>('2x2');
   const [rotationInterval, setRotationInterval] = useState<number>(8); // segundos, 0 = Pausa
   const [currentPage, setCurrentPage] = useState(0);
@@ -390,14 +395,14 @@ export default function TVLivePage() {
     '1x1': 1,
     '1x2': 2,
     '2x2': 4,
-    '3x3': 9,
+    '2x3': 6,
   };
 
   const gridStyleMap: Record<GridMode, { cols: string; rows: string }> = {
     '1x1': { cols: '1fr', rows: '1fr' },
     '1x2': { cols: '1fr 1fr', rows: '1fr' },
     '2x2': { cols: '1fr 1fr', rows: '1fr 1fr' },
-    '3x3': { cols: '1fr 1fr 1fr', rows: '1fr 1fr 1fr' },
+    '2x3': { cols: '1fr 1fr 1fr', rows: '1fr 1fr' },
   };
 
   const PAGE_SIZE = pageSizeMap[gridMode];
@@ -509,7 +514,7 @@ export default function TVLivePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>GRILLA:</span>
                 <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', padding: 3, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-                  {(['1x1', '1x2', '2x2', '3x3'] as GridMode[]).map((mode) => (
+                  {(['1x1', '1x2', '2x2', '2x3'] as GridMode[]).map((mode) => (
                     <button
                       key={mode}
                       onClick={() => setGridMode(mode)}
@@ -573,7 +578,7 @@ export default function TVLivePage() {
               color: '#e2e8f0', letterSpacing: '0.08em',
               textShadow: '0 0 20px rgba(0,255,136,0.3)',
             }}>
-              {now.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              {mounted ? now.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
             </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <div style={{
