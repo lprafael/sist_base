@@ -89,51 +89,60 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     payload = verify_token(token)
     return payload
 
-# Roles y permisos (Hardcoded para validación rápida, idealmente usar base de datos)
+# Roles y permisos
+ADMIN_PERMISSIONS = [
+    "read", "write", "delete", "manage_users", "manage_roles",
+    "usuarios_read", "usuarios_write", "usuarios_delete", "usuarios_manage",
+    "roles_read", "roles_write", "roles_delete", "roles_manage",
+    "auditoria_read", "auditoria_export",
+    "sistema_config", "sistema_backup", "sistema_reportes",
+    "manage_canchas", "manage_reservas", "manage_torneos", "manage_academia"
+]
+
 ROLES = {
     "admin": {
         "description": "Administrador del sistema",
-        "permissions": [
-            "read", "write", "delete", "manage_users", "manage_roles",
-            "usuarios_read", "usuarios_write", "usuarios_delete", "usuarios_manage",
-            "roles_read", "roles_write", "roles_delete", "roles_manage",
-            "auditoria_read", "auditoria_export",
-            "sistema_config", "sistema_backup", "sistema_reportes"
-        ]
+        "permissions": ADMIN_PERMISSIONS
     },
     "administrador": {
-        "description": "dueño del sistema",
-        "permissions": [
-            "read", "write", "delete", "manage_users", "manage_roles",
-            "usuarios_read", "usuarios_write", "usuarios_delete", "usuarios_manage",
-            "roles_read", "roles_write", "roles_delete", "roles_manage",
-            "auditoria_read", "auditoria_export",
-            "sistema_config", "sistema_backup", "sistema_reportes"
-        ]
+        "description": "Dueño del sistema",
+        "permissions": ADMIN_PERMISSIONS
+    },
+    "superadmin": {
+        "description": "Super Administrador",
+        "permissions": ADMIN_PERMISSIONS
+    },
+    "dueno": {
+        "description": "Dueño de entidad",
+        "permissions": ADMIN_PERMISSIONS
+    },
+    "dueño": {
+        "description": "Dueño de entidad",
+        "permissions": ADMIN_PERMISSIONS
     },
     "complejo": {
-        "description": "dueño de los locales deportivos",
-        "permissions": ["read", "write", "manage_canchas", "manage_reservas"]
+        "description": "Dueño de los locales deportivos",
+        "permissions": ["read", "write", "manage_canchas", "manage_reservas", "manage_users", "usuarios_read"]
     },
     "organizador": {
-        "description": "el que puede organizar torneos y campeonatos",
-        "permissions": ["read", "write", "manage_torneos"]
+        "description": "Organizador de torneos y campeonatos",
+        "permissions": ["read", "write", "manage_torneos", "manage_users", "usuarios_read"]
     },
     "veedor": {
-        "description": "el que puede cargar resultados de partidos en los torneos",
+        "description": "Carga de resultados de partidos",
         "permissions": ["read", "update_resultados"]
     },
     "delegado": {
-        "description": "el que crea un equipo y le pasa a los jugadores el enlace para que se anoten",
+        "description": "Delegado de equipo",
         "permissions": ["read", "write_equipo"]
     },
     "jugadores": {
-        "description": "miembros de los equipos",
+        "description": "Miembros de los equipos",
         "permissions": ["read"]
     },
     "academia": {
-        "description": "para los que tienen academias deportivas",
-        "permissions": ["read", "write", "manage_academia"]
+        "description": "Academia deportiva",
+        "permissions": ["read", "write", "manage_academia", "manage_users", "usuarios_read"]
     }
 }
 
@@ -142,16 +151,18 @@ def check_permission(required_permission: str):
     def permission_checker(current_user: dict = Depends(get_current_user)):
         role = current_user.get("role", "viewer")
         user_permissions = ROLES.get(role, {}).get("permissions", [])
-        print(f"DEBUG: Checking permission '{required_permission}' for role '{role}'")
-        print(f"DEBUG: User permissions: {user_permissions}")
-        if required_permission not in user_permissions:
-            print(f"DEBUG: Permission denied!")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permisos para realizar esta acción"
-            )
-        return current_user
+        
+        # Permitir acceso si tiene el permiso explícito o es rol administrativo principal
+        if required_permission in user_permissions or role in ["admin", "administrador", "superadmin", "dueno", "dueño"]:
+            return current_user
+
+        print(f"DEBUG: Permission denied for '{required_permission}' and role '{role}'")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para realizar esta acción"
+        )
     return permission_checker
+
 
 def check_database_permission(required_permission: str):
     """Verifica permisos desde la base de datos"""
