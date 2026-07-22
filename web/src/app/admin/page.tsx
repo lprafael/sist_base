@@ -602,6 +602,8 @@ export default function AdminConsole() {
          }
          return orgSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
        });
+    } else {
+       result = [...result].sort((a, b) => (b.id || 0) - (a.id || 0));
     }
 
     return result;
