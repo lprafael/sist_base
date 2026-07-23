@@ -37,16 +37,22 @@ async def seed_delio_toledo():
         print("=== SEEDING DELIO TOLEDO 2011 ===")
 
         # 1. Buscar o crear usuario delio_toledo
+        pwd_hash = '$2b$12$kRONdmzp4JTHIutTgCEMHO4kysnf6kvN.jGCC/8sU/Ua0xjs6lrW.'
         res_usr = await conn.execute(text("SELECT id FROM sistema.usuarios WHERE username = 'delio_toledo'"))
         row_usr = res_usr.fetchone()
         if row_usr:
             user_id = row_usr[0]
+            await conn.execute(text("""
+                UPDATE sistema.usuarios
+                SET hashed_password = :h, activo = true
+                WHERE id = :uid
+            """), {"h": pwd_hash, "uid": user_id})
         else:
             res_ins_usr = await conn.execute(text("""
                 INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo)
-                VALUES ('delio_toledo', 'delio_toledo@micancha.com.py', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Escuela de Fútbol Delio Toledo', 'academia', true)
+                VALUES ('delio_toledo', 'delio_toledo@micancha.com.py', :h, 'Escuela de Fútbol Delio Toledo', 'academia', true)
                 RETURNING id
-            """))
+            """), {"h": pwd_hash})
             user_id = res_ins_usr.fetchone()[0]
 
         # 2. Horarios de oficina JSON
