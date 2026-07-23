@@ -56,7 +56,7 @@ interface HorarioPractica {
 
 interface TarifaCosto {
   id: string;
-  concepto: str;
+  concepto: string;
   tipo_costo: string; // 'matricula', 'cuota_mensual', 'indumentaria', 'otro'
   categoria_id?: string;
   categoria_nombre?: string;
@@ -98,34 +98,34 @@ interface Academia {
 const deporteColors: Record<string, string> = {
   'Fútbol': '#10B981', 'Fútbol 5': '#10B981', 'Fútbol 7': '#10B981',
   'Básquet': '#F59E0B', 'Basketball': '#F59E0B',
-  'Tenis': '#EF4444', 'Pádel': '#8B5CF6',
-  'Natación': '#06B6D4', 'Natacion': '#06B6D4',
-  'Vóley': '#F97316', 'Voley': '#F97316',
-  'Atletismo': '#EC4899', 'Artes Marciales': '#6366F1',
+  'Tenis': '#3B82F6', 'Pádel': '#8B5CF6',
+  'Vóley': '#EC4899', 'Taekwondo': '#EF4444',
 };
 
-const deporteIcon = (deporte: string) => {
-  const icons: Record<string, string> = {
-    'Fútbol': '⚽', 'Fútbol 5': '⚽', 'Fútbol 7': '⚽',
-    'Básquet': '🏀', 'Basketball': '🏀',
-    'Tenis': '🎾', 'Pádel': '🏓',
-    'Natación': '🏊', 'Natacion': '🏊',
-    'Vóley': '🏐', 'Voley': '🏐',
-    'Atletismo': '🏃', 'Artes Marciales': '🥋',
-  };
-  return icons[deporte] || '🏅';
+const deporteIcon = (dep: string) => {
+  if (dep.includes('Fútbol')) return '⚽';
+  if (dep.includes('Básquet') || dep.includes('Basketball')) return '🏀';
+  if (dep.includes('Tenis')) return '🎾';
+  if (dep.includes('Pádel')) return '🎾';
+  if (dep.includes('Vóley')) return '🏐';
+  return '🏆';
 };
-
-const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 export default function AcademiaPublicaPage() {
   const params = useParams();
-  const slug = params.slug as string;
+  const slug = params?.slug as string;
 
   const [academia, setAcademia] = useState<Academia | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [periodoSeleccionado, setPeriodoSeleccionado] = useState('2026');
+  const [error, setError] = useState<string | null>(null);
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState<string>('2026');
+
+  // Modal Compartir States
+  const [modalCompartir, setModalCompartir] = useState(false);
+  const [shareOficina, setShareOficina] = useState(true);
+  const [sharePractica, setSharePractica] = useState(true);
+  const [shareCostos, setShareCostos] = useState(true);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -174,8 +174,61 @@ export default function AcademiaPublicaPage() {
   // Filtrar costos por periodo seleccionado
   const costosFiltrados = academia.tarifas_costos.filter(c => c.periodo_vigencia === periodoSeleccionado);
 
-  const formatMonto = (monto: number) => {
-    return new Intl.NumberFormat('es-PY').format(monto) + ' GS';
+  const buildShareText = () => {
+    if (!academia) return '';
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://micancha.com.py/academia/${slug}`;
+    
+    let text = `🎓 *${academia.nombre}*\n`;
+    if (academia.ciudad || academia.departamento) {
+      text += `📍 ${[academia.ciudad, academia.departamento].filter(Boolean).join(', ')}\n`;
+    }
+    text += `\n`;
+
+    if (shareOficina && academia.horarios_oficina && academia.horarios_oficina.length > 0) {
+      text += `⏰ *HORARIOS DE OFICINA*\n`;
+      academia.horarios_oficina.forEach(h => {
+        text += `• ${h.dia}: ${h.hora_inicio} a ${h.hora_fin}\n`;
+      });
+      text += `\n`;
+    }
+
+    if (sharePractica && horariosFiltrados.length > 0) {
+      text += `⚽ *HORARIOS DE PRÁCTICA (${periodoSeleccionado})*\n`;
+      horariosFiltrados.forEach(h => {
+        text += `• ${h.dia_semana} | ${h.categoria_nombre || 'Categoría'}${h.sub_categoria ? ' (' + h.sub_categoria + ')' : ''}: ${h.hora_inicio} - ${h.hora_fin}${h.cancha_nombre ? ' [' + h.cancha_nombre + ']' : ''}\n`;
+      });
+      text += `\n`;
+    }
+
+    if (shareCostos && costosFiltrados.length > 0) {
+      text += `💵 *COSTOS Y TARIFARIO (${periodoSeleccionado})*\n`;
+      costosFiltrados.forEach(c => {
+        text += `• ${c.concepto}${c.categoria_nombre ? ' (' + c.categoria_nombre + ')' : ''}: ${formatMonto(c.monto)}\n`;
+      });
+      text += `\n`;
+    }
+
+    text += `🔗 *Ver página oficial:* ${shareUrl}`;
+    return text;
+  };
+
+  const copiarTexto = () => {
+    navigator.clipboard.writeText(buildShareText());
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 3000);
+  };
+
+  const compartirNativo = () => {
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://micancha.com.py/academia/${slug}`;
+    if (navigator.share) {
+      navigator.share({
+        title: academia?.nombre || 'Academia',
+        text: buildShareText(),
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      copiarTexto();
+    }
   };
 
   return (
@@ -245,8 +298,19 @@ export default function AcademiaPublicaPage() {
           </div>
         </div>
 
-        {/* ── BOTONES REDES / CONTACTO ── */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 22, flexWrap: 'wrap' }}>
+        {/* ── BOTONES REDES / CONTACTO Y BOTÓN COMPARTIR ── */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 22, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button onClick={() => setModalCompartir(true)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '10px 20px', borderRadius: 9999,
+            background: `linear-gradient(135deg, ${primary} 0%, #3b82f6 100%)`,
+            border: 'none', color: '#fff', fontSize: 14, fontWeight: 800,
+            cursor: 'pointer', boxShadow: `0 6px 20px ${primary}66`,
+            transition: 'transform .15s, boxShadow .15s',
+          }}>
+            <Share2 size={18} /> Compartir Información
+          </button>
+
           {academia.whatsapp && (
             <a href={`https://wa.me/${academia.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
               style={socialBtn('#25D366')}>
@@ -605,6 +669,153 @@ export default function AcademiaPublicaPage() {
         </div>
 
       </div>
+
+      {/* ── MODAL COMPARTIR INFORMACIÓN ── */}
+      {modalCompartir && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 99999,
+          background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div style={{
+            background: '#131d31', borderRadius: 24, border: `1px solid ${primary}66`,
+            width: '100%', maxWidth: 560, padding: 28, boxShadow: `0 20px 50px rgba(0,0,0,0.6)`,
+            color: '#f8fafc', position: 'relative',
+          }}>
+            {/* Header Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Share2 size={22} color={primary} /> Compartir Información
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#94a3b8' }}>
+                  Selecciona el contenido que deseas incluir en la ficha a compartir.
+                </p>
+              </div>
+              <button onClick={() => setModalCompartir(false)} style={{
+                background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 22, cursor: 'pointer', fontWeight: 700,
+              }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Checkboxes de Selección */}
+            <div style={{ background: '#0b1324', borderRadius: 16, padding: 16, border: '1px solid #1e293b', marginBottom: 20 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: primary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Contenido a incluir:
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={shareOficina}
+                    onChange={e => setShareOficina(e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: primary, cursor: 'pointer' }}
+                  />
+                  <span>⏰ Horarios de Oficina</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={sharePractica}
+                    onChange={e => setSharePractica(e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: primary, cursor: 'pointer' }}
+                  />
+                  <span>⚽ Horarios de Práctica ({periodoSeleccionado})</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={shareCostos}
+                    onChange={e => setShareCostos(e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: primary, cursor: 'pointer' }}
+                  />
+                  <span>💵 Tarifario y Costos ({periodoSeleccionado})</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Previsualización del Texto */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>Vista previa del mensaje:</div>
+              <textarea
+                readOnly
+                value={buildShareText()}
+                style={{
+                  width: '100%', height: 130, background: '#090d16', border: '1px solid #1e293b',
+                  borderRadius: 12, padding: 12, color: '#cbd5e1', fontSize: 12, fontFamily: 'monospace',
+                  resize: 'none', outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Opciones de Compartir */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText())}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{
+                  ...socialBtn('#25D366'), padding: '10px 18px', fontSize: 14, fontWeight: 800,
+                  background: '#25D366', color: '#fff', border: 'none',
+                }}
+              >
+                <MessageCircle size={18} /> WhatsApp
+              </a>
+
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{
+                  ...socialBtn('#1877F2'), padding: '10px 18px', fontSize: 14, fontWeight: 800,
+                  background: '#1877F2', color: '#fff', border: 'none',
+                }}
+              >
+                <Share2 size={18} /> Facebook
+              </a>
+
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(buildShareText())}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{
+                  ...socialBtn('#1DA1F2'), padding: '10px 18px', fontSize: 14, fontWeight: 800,
+                  background: '#1DA1F2', color: '#fff', border: 'none',
+                }}
+              >
+                <Globe size={18} /> Twitter / X
+              </a>
+
+              <button
+                onClick={copiarTexto}
+                style={{
+                  ...socialBtn(primary), padding: '10px 18px', fontSize: 14, fontWeight: 800,
+                  background: copiado ? '#10b981' : `${primary}33`,
+                  color: copiado ? '#fff' : primary,
+                  border: `1px solid ${copiado ? '#10b981' : primary}`,
+                  cursor: 'pointer',
+                }}
+              >
+                {copiado ? '✓ ¡Copiado!' : '📋 Copiar Texto'}
+              </button>
+
+              {typeof navigator !== 'undefined' && 'share' in navigator && (
+                <button
+                  onClick={compartirNativo}
+                  style={{
+                    ...socialBtn('#a855f7'), padding: '10px 18px', fontSize: 14, fontWeight: 800,
+                    background: '#a855f7', color: '#fff', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  📱 Menú Nativo
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
