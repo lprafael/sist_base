@@ -1561,30 +1561,34 @@ async def listar_horarios_practica(
 ):
     """Obtiene todos los horarios de práctica de la academia."""
     aid = current_user["academia_id"]
-    res = await session.execute(text("""
-        SELECT hp.id, hp.categoria_id, c.nombre AS categoria_nombre, c.color AS categoria_color,
-               hp.sub_categoria, hp.sucursal_id, COALESCE(hp.cancha_nombre, s.nombre) AS cancha_nombre,
-               hp.dia_semana, hp.hora_inicio, hp.hora_fin,
-               hp.mes_inicio_vigencia, hp.anio_inicio_vigencia, hp.mes_fin_vigencia, hp.anio_fin_vigencia,
-               hp.periodo_vigencia, hp.activo
-        FROM academias.horarios_practica hp
-        LEFT JOIN academias.categorias c ON c.id = hp.categoria_id
-        LEFT JOIN academias.sucursales s ON s.id = hp.sucursal_id
-        WHERE hp.academia_id = :aid
-        ORDER BY hp.periodo_vigencia DESC, hp.dia_semana, hp.hora_inicio
-    """), {"aid": aid})
-    return [
-        {
-            "id": str(r[0]), "categoria_id": str(r[1]) if r[1] else None,
-            "categoria_nombre": r[2], "categoria_color": r[3] or "#3b82f6",
-            "sub_categoria": r[4], "sucursal_id": str(r[5]) if r[5] else None,
-            "cancha_nombre": r[6], "dia_semana": r[7], "hora_inicio": r[8], "hora_fin": r[9],
-            "mes_inicio_vigencia": r[10], "anio_inicio_vigencia": r[11],
-            "mes_fin_vigencia": r[12], "anio_fin_vigencia": r[13],
-            "periodo_vigencia": r[14], "activo": r[15],
-        }
-        for r in res.fetchall()
-    ]
+    try:
+        res = await session.execute(text("""
+            SELECT hp.id, hp.categoria_id, c.nombre AS categoria_nombre, c.color AS categoria_color,
+                   hp.sub_categoria, hp.sucursal_id, COALESCE(hp.cancha_nombre, s.nombre) AS cancha_nombre,
+                   hp.dia_semana, hp.hora_inicio, hp.hora_fin,
+                   hp.mes_inicio_vigencia, hp.anio_inicio_vigencia, hp.mes_fin_vigencia, hp.anio_fin_vigencia,
+                   hp.periodo_vigencia, hp.activo
+            FROM academias.horarios_practica hp
+            LEFT JOIN academias.categorias c ON c.id = hp.categoria_id
+            LEFT JOIN academias.sucursales s ON s.id = hp.sucursal_id
+            WHERE hp.academia_id = :aid
+            ORDER BY hp.periodo_vigencia DESC, hp.dia_semana, hp.hora_inicio
+        """), {"aid": aid})
+        return [
+            {
+                "id": str(r[0]), "categoria_id": str(r[1]) if r[1] else None,
+                "categoria_nombre": r[2], "categoria_color": r[3] or "#3b82f6",
+                "sub_categoria": r[4], "sucursal_id": str(r[5]) if r[5] else None,
+                "cancha_nombre": r[6], "dia_semana": r[7], "hora_inicio": r[8], "hora_fin": r[9],
+                "mes_inicio_vigencia": r[10], "anio_inicio_vigencia": r[11],
+                "mes_fin_vigencia": r[12], "anio_fin_vigencia": r[13],
+                "periodo_vigencia": r[14], "activo": r[15],
+            }
+            for r in res.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error cargando horarios_practica: {e}")
+        return []
 
 
 @router.post("/academia/horarios-practica")
@@ -1595,6 +1599,9 @@ async def crear_horario_practica(
 ):
     """Crea una entrada de horario de práctica."""
     aid = current_user["academia_id"]
+    cat_id = data.categoria_id if data.categoria_id and data.categoria_id.strip() else None
+    suc_id = data.sucursal_id if data.sucursal_id and data.sucursal_id.strip() else None
+
     await session.execute(text("""
         INSERT INTO academias.horarios_practica (
             academia_id, categoria_id, sub_categoria, sucursal_id, cancha_nombre,
@@ -1608,8 +1615,8 @@ async def crear_horario_practica(
             :periodo, :activo
         )
     """), {
-        "aid": aid, "cat_id": data.categoria_id, "sub_cat": data.sub_categoria,
-        "suc_id": data.sucursal_id, "cancha": data.cancha_nombre,
+        "aid": aid, "cat_id": cat_id, "sub_cat": data.sub_categoria,
+        "suc_id": suc_id, "cancha": data.cancha_nombre,
         "dia": data.dia_semana, "inicio": data.hora_inicio, "fin": data.hora_fin,
         "mes_ini": data.mes_inicio_vigencia, "anio_ini": data.anio_inicio_vigencia,
         "mes_fin": data.mes_fin_vigencia, "anio_fin": data.anio_fin_vigencia,
@@ -1641,27 +1648,31 @@ async def listar_tarifas_costos(
 ):
     """Obtiene las tarifas y costos de la academia."""
     aid = current_user["academia_id"]
-    res = await session.execute(text("""
-        SELECT tc.id, tc.concepto, tc.tipo_costo, tc.categoria_id, c.nombre AS categoria_nombre,
-               tc.monto, tc.moneda, tc.descripcion,
-               tc.mes_inicio_vigencia, tc.anio_inicio_vigencia, tc.mes_fin_vigencia, tc.anio_fin_vigencia,
-               tc.periodo_vigencia, tc.activo
-        FROM academias.tarifas_costos tc
-        LEFT JOIN academias.categorias c ON c.id = tc.categoria_id
-        WHERE tc.academia_id = :aid
-        ORDER BY tc.periodo_vigencia DESC, tc.monto ASC
-    """), {"aid": aid})
-    return [
-        {
-            "id": str(r[0]), "concepto": r[1], "tipo_costo": r[2],
-            "categoria_id": str(r[3]) if r[3] else None, "categoria_nombre": r[4],
-            "monto": float(r[5]), "moneda": r[6] or "GS", "descripcion": r[7],
-            "mes_inicio_vigencia": r[8], "anio_inicio_vigencia": r[9],
-            "mes_fin_vigencia": r[10], "anio_fin_vigencia": r[11],
-            "periodo_vigencia": r[12], "activo": r[13],
-        }
-        for r in res.fetchall()
-    ]
+    try:
+        res = await session.execute(text("""
+            SELECT tc.id, tc.concepto, tc.tipo_costo, tc.categoria_id, c.nombre AS categoria_nombre,
+                   tc.monto, tc.moneda, tc.descripcion,
+                   tc.mes_inicio_vigencia, tc.anio_inicio_vigencia, tc.mes_fin_vigencia, tc.anio_fin_vigencia,
+                   tc.periodo_vigencia, tc.activo
+            FROM academias.tarifas_costos tc
+            LEFT JOIN academias.categorias c ON c.id = tc.categoria_id
+            WHERE tc.academia_id = :aid
+            ORDER BY tc.periodo_vigencia DESC, tc.monto ASC
+        """), {"aid": aid})
+        return [
+            {
+                "id": str(r[0]), "concepto": r[1], "tipo_costo": r[2],
+                "categoria_id": str(r[3]) if r[3] else None, "categoria_nombre": r[4],
+                "monto": float(r[5]), "moneda": r[6] or "GS", "descripcion": r[7],
+                "mes_inicio_vigencia": r[8], "anio_inicio_vigencia": r[9],
+                "mes_fin_vigencia": r[10], "anio_fin_vigencia": r[11],
+                "periodo_vigencia": r[12], "activo": r[13],
+            }
+            for r in res.fetchall()
+        ]
+    except Exception as e:
+        print(f"Error cargando tarifas_costos: {e}")
+        return []
 
 
 @router.post("/academia/tarifas-costos")
@@ -1672,6 +1683,8 @@ async def crear_tarifa_costo(
 ):
     """Crea un concepto de costo/tarifa (matrícula, cuota, indumentaria, etc.)."""
     aid = current_user["academia_id"]
+    cat_id = data.categoria_id if data.categoria_id and data.categoria_id.strip() else None
+
     await session.execute(text("""
         INSERT INTO academias.tarifas_costos (
             academia_id, concepto, tipo_costo, categoria_id, monto, moneda, descripcion,
@@ -1684,7 +1697,7 @@ async def crear_tarifa_costo(
         )
     """), {
         "aid": aid, "concepto": data.concepto, "tipo": data.tipo_costo,
-        "cat_id": data.categoria_id, "monto": data.monto, "moneda": data.moneda or "GS",
+        "cat_id": cat_id, "monto": data.monto, "moneda": data.moneda or "GS",
         "desc": data.descripcion, "mes_ini": data.mes_inicio_vigencia,
         "anio_ini": data.anio_inicio_vigencia, "mes_fin": data.mes_fin_vigencia,
         "anio_fin": data.anio_fin_vigencia, "periodo": data.periodo_vigencia or "2026",
