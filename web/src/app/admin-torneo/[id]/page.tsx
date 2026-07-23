@@ -16,7 +16,6 @@ import FasesSettings from '@/components/torneo-admin/modulos/FasesSettings';
 import GruposSettings from '@/components/torneo-admin/modulos/GruposSettings';
 import CriteriosSettings from '@/components/torneo-admin/modulos/CriteriosSettings';
 import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
-import SitiosView from '@/components/torneo-admin/modulos/SitiosView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -116,8 +115,6 @@ export default function TorneoAdminPage() {
             <GruposSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
           ) : activeSubSection === 'config_clasificacion' ? (
             <CriteriosSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
-          ) : activeSubSection === 'sitios' ? (
-            <SitiosView torneoId={id as string} torneo={torneo} onUpdate={updateTorneo} />
           ) : (
             <div className="p-8 border-2 border-dashed border-slate-300 rounded-xl text-center">
               <p className="text-slate-500 mb-2">Sección <strong>{activeSubSection}</strong> no configurada.</p>

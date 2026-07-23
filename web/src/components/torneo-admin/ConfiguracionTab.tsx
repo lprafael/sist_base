@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
+import SitiosView from './modulos/SitiosView';
 
 const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> });
 
@@ -50,6 +51,7 @@ const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) 
 };
 
 export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect }: { torneo: any, onUpdate: (data: any) => void, onSubSectionSelect: (section: string) => void }) {
+  const [showSitiosModal, setShowSitiosModal] = useState(false);
   // Local state for basic fields to allow typing before saving (or we can save on blur)
   const [formData, setFormData] = useState({
     nombre: torneo.nombre || '',
@@ -727,7 +729,13 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                     <span>{item.label}</span>
                   </div>
                   <button
-                    onClick={() => onSubSectionSelect(item.id)}
+                    onClick={() => {
+                      if (item.id === 'sitios') {
+                        setShowSitiosModal(true);
+                      } else {
+                        onSubSectionSelect(item.id);
+                      }
+                    }}
                     className="text-blue-500 hover:underline text-sm font-medium"
                   >
                     Editar
@@ -1441,6 +1449,15 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           isCircular={cropImageState.type === 'portada'}
           onCropComplete={(croppedFile) => handleCroppedImageUpload(croppedFile)}
           onClose={() => setCropImageState(null)}
+        />
+      )}
+
+      {showSitiosModal && (
+        <SitiosView
+          torneoId={torneo.id}
+          torneo={torneo}
+          onUpdate={onUpdate}
+          onClose={() => setShowSitiosModal(false)}
         />
       )}
     </>
