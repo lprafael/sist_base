@@ -270,23 +270,23 @@ export default function ArtDuJeuModal({ match, onClose }: { match: any, onClose:
     const t2Lines = wrapText(ctx, equipo2, 260);
     t2Lines.forEach((line, i) => ctx.fillText(line, S - 190, 590 + i * 32));
 
-    // Score center column
+    // Score center — HORIZONTAL: goles1 [VS] goles2
     ctx.shadowColor = 'rgba(52,211,153,0.5)';
     ctx.shadowBlur = 40;
     ctx.fillStyle = 'white';
     ctx.font = 'bold 180px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(`${goles1}`, S / 2 - 10, 400);
-    ctx.fillText(`${goles2}`, S / 2 - 10, 590);
+    ctx.fillText(`${goles1}`, S / 2 - 130, 510);
+    ctx.fillText(`${goles2}`, S / 2 + 130, 510);
     ctx.shadowBlur = 0;
 
-    // divider lines + VS
+    // VS separator
     ctx.fillStyle = '#34d399';
-    ctx.fillRect(S / 2 - 40, 420, 80, 4);
-    ctx.fillRect(S / 2 - 40, 510, 80, 4);
+    ctx.fillRect(S / 2 - 40, 430, 80, 4);
+    ctx.fillRect(S / 2 - 40, 530, 80, 4);
     ctx.fillStyle = '#6ee7b7';
-    ctx.font = 'bold 30px system-ui';
-    ctx.fillText('VS', S / 2, 480);
+    ctx.font = 'bold 32px system-ui';
+    ctx.fillText('VS', S / 2, 490);
 
     // Footer
     ctx.strokeStyle = 'rgba(52,211,153,0.3)';
@@ -533,12 +533,16 @@ export default function ArtDuJeuModal({ match, onClose }: { match: any, onClose:
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-700 to-green-900 border-4 border-emerald-400 flex items-center justify-center text-3xl shadow-lg">⚽</div>
           <span className="text-[9px] font-extrabold text-green-100 text-center">{equipo1}</span>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-5xl font-black text-white drop-shadow-[0_0_20px_rgba(52,211,153,0.5)]">{goles1}</span>
-          <div className="w-8 h-0.5 bg-emerald-400 rounded" />
-          <span className="text-xs font-black text-emerald-400">VS</span>
-          <div className="w-8 h-0.5 bg-emerald-400 rounded" />
-          <span className="text-5xl font-black text-white">{goles2}</span>
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-5xl font-black text-white drop-shadow-[0_0_20px_rgba(52,211,153,0.5)]">{goles1}</span>
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="w-5 h-0.5 bg-emerald-400 rounded" />
+              <span className="text-[10px] font-black text-emerald-400">VS</span>
+              <div className="w-5 h-0.5 bg-emerald-400 rounded" />
+            </div>
+            <span className="text-5xl font-black text-white drop-shadow-[0_0_20px_rgba(52,211,153,0.5)]">{goles2}</span>
+          </div>
         </div>
         <div className="flex flex-col items-center gap-2 w-24">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-700 to-green-900 border-4 border-emerald-400 flex items-center justify-center text-3xl shadow-lg">⚽</div>
