@@ -28,7 +28,7 @@ interface Evento {
   registrado_en?: string;
 }
 
-export default function FootballController({ match, onClose }: { match: any, onClose: () => void }) {
+export default function FootballController({ match, onClose, onSaved }: { match: any, onClose: () => void, onSaved?: () => void }) {
   const [estado, setEstado] = useState(match.estado || 'programado');
   const [golesLocal, setGolesLocal] = useState(match.goles_local || 0);
   const [golesVisitante, setGolesVisitante] = useState(match.goles_visitante || 0);
@@ -114,6 +114,7 @@ export default function FootballController({ match, onClose }: { match: any, onC
 
       if (res.ok) {
         setAutoSaveStatus('Guardado ✓');
+        if (onSaved) onSaved();
       } else {
         setAutoSaveStatus('Error al guardar');
       }
@@ -330,7 +331,10 @@ export default function FootballController({ match, onClose }: { match: any, onC
         {/* TOP NAVBAR (Dark Professional Header) */}
         <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex justify-between items-center relative flex-shrink-0">
           <button 
-            onClick={onClose} 
+            onClick={() => {
+              if (onSaved) onSaved();
+              onClose();
+            }} 
             className="flex items-center gap-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl font-bold text-xs transition"
           >
             ← Atrás

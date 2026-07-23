@@ -379,22 +379,22 @@ export default function PartidosView({
         tipoCategoria === 'formas' ? (
           <FormasController
             match={activeMatch}
-            onClose={() => setActiveMatch(null)}
-            onSaved={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(); }}
+            onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(); }}
+            onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(); }}
           />
         ) : (deporte === 'Artes Marciales Mixtas' || torneo?.deporte === 'Artes Marciales Mixtas') ? (
           <MMAController
             match={activeMatch}
-            onClose={() => setActiveMatch(null)}
-            onSaved={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(); }}
+            onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(); }}
+            onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(); }}
             onUpdate={() => { if (onRefresh) onRefresh(); else fetchPartidos(); }}
           />
         ) : (
           <MatchController
             match={activeMatch}
             deporte={deporte}
-            onClose={() => setActiveMatch(null)}
-            onSaved={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(); }}
+            onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(); }}
+            onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(); }}
           />
         )
       )}
