@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Save, Loader2, Check, X, ArrowLeft, Plus, Minus, Trophy, User, PlusCircle, MinusCircle } from 'lucide-react';
+import { MapPin, Save, Loader2, Check, X, ArrowLeft, Plus, Minus, Trophy, User, PlusCircle, MinusCircle, Trash2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const LocationPickerMap = dynamic(() => import('../../LocationPickerMap'), { ssr: false, loading: () => <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center text-slate-400"><Loader2 className="animate-spin mb-2" /><p className="text-sm">Cargando mapa interactivo...</p></div> });
@@ -15,7 +15,17 @@ export interface Sitio {
   longitud?: number;
 }
 
-export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { torneoId: string, torneo: any, onUpdate: (data: any) => void, onClose: () => void }) {
+export default function SitiosView({ 
+  torneoId, 
+  torneo, 
+  onUpdate, 
+  onClose 
+}: { 
+  torneoId?: string, 
+  torneo?: any, 
+  onUpdate?: (data: any) => void, 
+  onClose: () => void 
+}) {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   
@@ -29,6 +39,8 @@ export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { to
   // New site form state
   const [nuevoSitio, setNuevoSitio] = useState<Partial<Sitio>>({ nombre: '', ciudad: '', ubicacionGmaps: '' });
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
+
+  const isTournamentMode = Boolean(torneo && onUpdate);
 
   useEffect(() => {
     // Fetch account sites from API
@@ -52,23 +64,25 @@ export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { to
     
     fetchAccountSites();
 
-    // Load championship sites from tournament config
-    const conf = torneo?.configuracion || {};
-    let campParsed: Sitio[] = conf.sitios || [];
-    
-    // Migration for legacy single site
-    if (campParsed.length === 0 && (conf.direccion || conf.latitud)) {
-      campParsed = [{
-        id: 'legacy-1',
-        nombre: conf.direccion || torneo?.direccion || 'Sede Principal',
-        ciudad: conf.ciudad || torneo?.ciudad || '',
-        ubicacionGmaps: conf.ubicacion_gmaps || torneo?.ubicacion_gmaps || '',
-        latitud: conf.latitud ? parseFloat(conf.latitud) : undefined,
-        longitud: conf.longitud ? parseFloat(conf.longitud) : undefined,
-      }];
+    if (isTournamentMode) {
+      // Load championship sites from tournament config
+      const conf = torneo?.configuracion || {};
+      let campParsed: Sitio[] = conf.sitios || [];
+      
+      // Migration for legacy single site
+      if (campParsed.length === 0 && (conf.direccion || conf.latitud)) {
+        campParsed = [{
+          id: 'legacy-1',
+          nombre: conf.direccion || torneo?.direccion || 'Sede Principal',
+          ciudad: conf.ciudad || torneo?.ciudad || '',
+          ubicacionGmaps: conf.ubicacion_gmaps || torneo?.ubicacion_gmaps || '',
+          latitud: conf.latitud ? parseFloat(conf.latitud) : undefined,
+          longitud: conf.longitud ? parseFloat(conf.longitud) : undefined,
+        }];
+      }
+      setSitiosCampeonato(campParsed);
     }
-    setSitiosCampeonato(campParsed);
-  }, [torneo]);
+  }, [torneo, isTournamentMode]);
 
   const saveToAccount = async (newSite: Sitio) => {
     // Optimistic update
@@ -95,6 +109,26 @@ export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { to
       // Revert if error
       setSitiosCuenta(prev => prev.filter(s => s.id !== newSite.id));
       alert("No se pudo guardar el sitio en la base de datos.");
+    }
+  };
+
+  const deleteSiteFromAccount = async (siteId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este complejo/sitio de tu cuenta?')) return;
+    
+    setSitiosCuenta(prev => prev.filter(s => s.id !== siteId));
+    if (isTournamentMode) {
+      removeSiteFromTournament(siteId);
+    }
+
+    try {
+      const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+      const token = sessionData.access_token || sessionData.token || '';
+      await fetch(`${API_URL}/organizador/sitios/${siteId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (err) {
+      console.error("Error deleting site from account", err);
     }
   };
 
@@ -130,13 +164,13 @@ export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { to
   };
 
   const handleSave = async () => {
+    if (!onUpdate || !torneo) return;
     setSaving(true);
     setSuccess(false);
     
     const updatedConfiguracion = {
       ...(torneo.configuracion || {}),
       sitios: sitiosCampeonato,
-      // Clear legacy fields if we are migrating them to `sitios` array
       direccion: sitiosCampeonato.length > 0 ? sitiosCampeonato[0].nombre : '',
       ciudad: sitiosCampeonato.length > 0 ? sitiosCampeonato[0].ciudad : '',
       ubicacion_gmaps: sitiosCampeonato.length > 0 ? sitiosCampeonato[0].ubicacionGmaps : '',
@@ -151,73 +185,84 @@ export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { to
     setSaving(false);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 3000);
-    // Don't auto close here unless they want to, the UI implies a back button navigation usually
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-[#f3f4f6] flex flex-col font-sans">
       
-      {/* Header matching screenshot */}
+      {/* Header */}
       <div className="bg-[#0b1035] text-white flex items-center justify-between px-4 py-3 shadow-md">
         <div className="flex items-center gap-4">
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-xl font-medium">Sitios</h1>
+          <h1 className="text-xl font-medium">
+            {isTournamentMode ? 'Sitios del Campeonato' : 'Mis Sitios y Complejos'}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
-          {sitiosCampeonato.length > 0 && (
+          {isTournamentMode && sitiosCampeonato.length > 0 && (
             <button
               onClick={handleSave}
               disabled={saving}
-              className="mr-2 text-sm font-semibold hover:text-blue-300 transition flex items-center gap-1"
+              className="mr-2 text-sm font-semibold hover:text-blue-300 transition flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : success ? <Check size={16} /> : <Save size={16} />}
-              {saving ? 'Guardando...' : success ? 'Guardado' : 'Guardar'}
+              {saving ? 'Guardando...' : success ? '¡Guardado!' : 'Guardar en Torneo'}
             </button>
           )}
-          <button onClick={() => setShowCreateModal(true)} className="p-2 hover:bg-white/10 rounded-full transition">
+          <button 
+            onClick={() => setShowCreateModal(true)} 
+            className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition flex items-center justify-center"
+            title="Registrar nuevo sitio"
+          >
             <Plus size={24} />
           </button>
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-w-5xl mx-auto w-full">
         
-        {/* Registrados en el campeonato */}
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-          <div className="bg-[#edeef4] px-4 py-3 flex items-center justify-between border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#cfd1df] rounded-lg flex items-center justify-center text-[#0b1035]">
-                <Trophy size={20} />
-              </div>
-              <h2 className="font-semibold text-[#0b1035]">Registrados en el campeonato</h2>
-            </div>
-            <div className="bg-[#0b1035] text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center">
-              {sitiosCampeonato.length}
-            </div>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {sitiosCampeonato.length === 0 ? (
-              <div className="px-4 py-4 text-center text-slate-600 text-sm">
-                Aún no hay datos
-              </div>
-            ) : (
-              sitiosCampeonato.map((sitio) => (
-                <div key={sitio.id} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition">
-                  <span className="text-slate-800 font-medium">{sitio.nombre}</span>
-                  <button 
-                    onClick={() => removeSiteFromTournament(sitio.id)}
-                    className="p-1 text-slate-500 hover:text-red-500 transition"
-                  >
-                    <MinusCircle size={22} strokeWidth={1.5} />
-                  </button>
+        {/* Registrados en el campeonato (only in tournament mode) */}
+        {isTournamentMode && (
+          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+            <div className="bg-[#edeef4] px-4 py-3 flex items-center justify-between border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#cfd1df] rounded-lg flex items-center justify-center text-[#0b1035]">
+                  <Trophy size={20} />
                 </div>
-              ))
-            )}
+                <h2 className="font-semibold text-[#0b1035]">Registrados en el campeonato</h2>
+              </div>
+              <div className="bg-[#0b1035] text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center">
+                {sitiosCampeonato.length}
+              </div>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {sitiosCampeonato.length === 0 ? (
+                <div className="px-4 py-4 text-center text-slate-600 text-sm">
+                  Aún no hay datos
+                </div>
+              ) : (
+                sitiosCampeonato.map((sitio) => (
+                  <div key={sitio.id} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition">
+                    <div>
+                      <span className="text-slate-800 font-medium block">{sitio.nombre}</span>
+                      {sitio.ciudad && <span className="text-xs text-slate-500">{sitio.ciudad}</span>}
+                    </div>
+                    <button 
+                      onClick={() => removeSiteFromTournament(sitio.id)}
+                      className="p-1 text-slate-500 hover:text-red-500 transition"
+                      title="Quitar del campeonato"
+                    >
+                      <MinusCircle size={22} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Registrados en tu cuenta */}
         <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
@@ -234,25 +279,40 @@ export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { to
           </div>
           <div className="divide-y divide-slate-100">
             {sitiosCuenta.length === 0 ? (
-              <div className="px-4 py-4 text-center text-slate-600 text-sm">
-                vacío
+              <div className="px-4 py-8 text-center text-slate-500 text-sm">
+                No tienes sitios guardados en tu cuenta. Usa el botón "+" para registrar uno.
               </div>
             ) : (
               sitiosCuenta.map((sitio) => {
-                const isAdded = sitiosCampeonato.some(s => s.id === sitio.id);
+                const isAdded = isTournamentMode && sitiosCampeonato.some(s => s.id === sitio.id);
                 return (
                   <div key={sitio.id} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition">
-                    <span className="text-slate-800 font-medium">{sitio.nombre}</span>
-                    {!isAdded ? (
+                    <div>
+                      <span className="text-slate-800 font-medium block">{sitio.nombre}</span>
+                      {sitio.ciudad && <span className="text-xs text-slate-500">{sitio.ciudad}</span>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isTournamentMode ? (
+                        !isAdded ? (
+                          <button 
+                            onClick={() => addSiteToTournament(sitio)}
+                            className="p-1 text-slate-500 hover:text-blue-600 transition"
+                            title="Añadir al campeonato"
+                          >
+                            <PlusCircle size={22} strokeWidth={1.5} />
+                          </button>
+                        ) : (
+                          <span className="text-xs font-semibold text-green-600 uppercase tracking-wider px-2 py-1 bg-green-50 rounded-full">Añadido</span>
+                        )
+                      ) : null}
                       <button 
-                        onClick={() => addSiteToTournament(sitio)}
-                        className="p-1 text-slate-500 hover:text-blue-600 transition"
+                        onClick={() => deleteSiteFromAccount(sitio.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 transition"
+                        title="Eliminar de la cuenta"
                       >
-                        <PlusCircle size={22} strokeWidth={1.5} />
+                        <Trash2 size={20} strokeWidth={1.5} />
                       </button>
-                    ) : (
-                      <span className="text-xs font-semibold text-green-600 uppercase tracking-wider px-2 py-1 bg-green-50 rounded-full">Añadido</span>
-                    )}
+                    </div>
                   </div>
                 )
               })

@@ -2,12 +2,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, LogOut, MessageSquare, Send, Check, CheckCheck, Bell, Star } from 'lucide-react';
+import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, LogOut, MessageSquare, Send, Check, CheckCheck, Bell, Star, MapPin } from 'lucide-react';
+import SitiosView from '../../components/torneo-admin/modulos/SitiosView';
 
 export default function AdminFutbolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("Cargando...");
+  const [showSitiosModal, setShowSitiosModal] = useState(false);
 
   React.useEffect(() => {
     const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
@@ -22,6 +24,7 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
     { name: "Mis campeonatos", href: "/admin-futbol/campeonatos", icon: <Trophy size={22} /> },
     { name: "Registro de equipos", href: "/admin-futbol/equipos", icon: <ListTodo size={22} /> },
     { name: "Registro de jugadores", href: "/admin-futbol/jugadores", icon: <Users size={22} /> },
+    { name: "Mis Sitios y Complejos", isModal: true, onClick: () => setShowSitiosModal(true), icon: <MapPin size={22} /> },
     { name: "Página del organizador", href: "/admin-futbol/perfil", icon: <LayoutTemplate size={22} /> },
     { name: "Patrocinios y Apoyos", href: "/admin-futbol/patrocinios", icon: <Star size={22} /> },
     { name: "Planes de suscripción", href: "/admin-futbol/suscripciones", icon: <BookOpen size={22} /> },
@@ -227,11 +230,27 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
         
         <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)] custom-scrollbar">
           {navItems.map(item => {
-            const isActive = pathname.startsWith(item.href);
+            if (item.isModal && item.onClick) {
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    item.onClick();
+                  }}
+                  className="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition hover:bg-[#2a3a72]/50 text-gray-300 hover:text-white text-left"
+                >
+                  {item.icon}
+                  <span className="text-lg">{item.name}</span>
+                </button>
+              );
+            }
+            const isActive = item.href ? pathname.startsWith(item.href) : false;
             return (
               <Link 
                 key={item.name} 
-                href={item.href}
+                href={item.href || '#'}
+                onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-4 px-4 py-4 rounded-xl transition ${isActive ? 'bg-[#2a3a72] font-bold shadow-inner' : 'hover:bg-[#2a3a72]/50 text-gray-300 hover:text-white'}`}
               >
                 {item.icon}
@@ -486,6 +505,10 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
           </div>
         )}
       </div>
+
+      {showSitiosModal && (
+        <SitiosView onClose={() => setShowSitiosModal(false)} />
+      )}
     </div>
   );
 }
