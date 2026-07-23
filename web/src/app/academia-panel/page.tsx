@@ -1679,10 +1679,12 @@ function FeedbackTab({ notify, apiFetch }: any) {
 // ═══════════════════════════════════════════════════════════
 // HORARIOS DE PRÁCTICA TAB
 // ═══════════════════════════════════════════════════════════
-function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno }: any) {
+function HorariosPracticaTab({ categorias = [], sucursales = [], notify, apiFetch, isDueno }: any) {
   const [horarios, setHorarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const listCategorias = Array.isArray(categorias) ? categorias : [];
+  const listSucursales = Array.isArray(sucursales) ? sucursales : [];
   const [form, setForm] = useState({
     categoria_id: '',
     sub_categoria: '',
@@ -1704,7 +1706,7 @@ function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno
     setLoading(true);
     try {
       const res = await apiFetch('/academia/horarios-practica');
-      setHorarios(res);
+      setHorarios(Array.isArray(res) ? res : []);
     } catch (e: any) { notify(e.message, 'err'); }
     setLoading(false);
   };
@@ -1760,7 +1762,7 @@ function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno
               </tr>
             </thead>
             <tbody>
-              {horarios.map(h => (
+              {(Array.isArray(horarios) ? horarios : []).map(h => (
                 <tr key={h.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
                   <td style={{ padding: '12px', fontWeight: 700, color: C.text }}>{h.dia_semana}</td>
                   <td style={{ padding: '12px' }}>
@@ -1783,7 +1785,7 @@ function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno
                   </td>
                 </tr>
               ))}
-              {horarios.length === 0 && (
+              {(!Array.isArray(horarios) || horarios.length === 0) && (
                 <tr>
                   <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: C.muted }}>
                     No hay horarios registrados. Haz clic en "Agregar Horario" para crear uno.
@@ -1805,7 +1807,7 @@ function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno
                 <label style={label()}>Categoría</label>
                 <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} style={input()}>
                   <option value="">Seleccionar Categoría</option>
-                  {categorias.map((c: any) => (
+                  {listCategorias.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
                 </select>
@@ -1867,10 +1869,11 @@ function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno
 // ═══════════════════════════════════════════════════════════
 // TARIFAS Y COSTOS TAB
 // ═══════════════════════════════════════════════════════════
-function TarifasCostosTab({ categorias, notify, apiFetch, isDueno, isTesorero }: any) {
+function TarifasCostosTab({ categorias = [], notify, apiFetch, isDueno, isTesorero }: any) {
   const [tarifas, setTarifas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const listCategorias = Array.isArray(categorias) ? categorias : [];
   const [form, setForm] = useState({
     concepto: '',
     tipo_costo: 'cuota_mensual',
@@ -1891,7 +1894,7 @@ function TarifasCostosTab({ categorias, notify, apiFetch, isDueno, isTesorero }:
     setLoading(true);
     try {
       const res = await apiFetch('/academia/tarifas-costos');
-      setTarifas(res);
+      setTarifas(Array.isArray(res) ? res : []);
     } catch (e: any) { notify(e.message, 'err'); }
     setLoading(false);
   };
@@ -1948,7 +1951,7 @@ function TarifasCostosTab({ categorias, notify, apiFetch, isDueno, isTesorero }:
               </tr>
             </thead>
             <tbody>
-              {tarifas.map(t => (
+              {(Array.isArray(tarifas) ? tarifas : []).map(t => (
                 <tr key={t.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
                   <td style={{ padding: '12px', fontWeight: 800, color: C.text }}>
                     {t.concepto}
@@ -1973,7 +1976,7 @@ function TarifasCostosTab({ categorias, notify, apiFetch, isDueno, isTesorero }:
                   </td>
                 </tr>
               ))}
-              {tarifas.length === 0 && (
+              {(!Array.isArray(tarifas) || tarifas.length === 0) && (
                 <tr>
                   <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: C.muted }}>
                     No hay tarifas registradas. Haz clic en "Agregar Costo / Tarifa" para crear una.
@@ -2009,7 +2012,7 @@ function TarifasCostosTab({ categorias, notify, apiFetch, isDueno, isTesorero }:
                 <label style={label()}>Categoría Asociada (opcional)</label>
                 <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} style={input()}>
                   <option value="">Ninguna / General</option>
-                  {categorias.map((c: any) => (
+                  {listCategorias.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
                 </select>
