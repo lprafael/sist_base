@@ -2670,7 +2670,8 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             raise HTTPException(status_code=404, detail="Partido no encontrado")
 
         torneo_id = str(p_row[0])
-        el_id, ev_id = str(p_row[1] or ''), str(p_row[2] or '')
+        el_id = str(p_row[1]) if p_row[1] else None
+        ev_id = str(p_row[2]) if p_row[2] else None
 
         import json
         updates = []
@@ -2694,12 +2695,25 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
         if payload.fecha_hora is not None:
             updates.append("fecha_hora = :fecha_hora")
             params["fecha_hora"] = payload.fecha_hora
+
         if payload.equipo_local_id is not None:
-            updates.append("equipo_local_id = :equipo_local_id")
-            params["equipo_local_id"] = payload.equipo_local_id
+            if payload.equipo_local_id and payload.equipo_local_id != 'None':
+                updates.append("equipo_local_id = CAST(:equipo_local_id AS UUID)")
+                params["equipo_local_id"] = payload.equipo_local_id
+                el_id = payload.equipo_local_id
+            else:
+                updates.append("equipo_local_id = NULL")
+                el_id = None
+
         if payload.equipo_visitante_id is not None:
-            updates.append("equipo_visitante_id = :equipo_visitante_id")
-            params["equipo_visitante_id"] = payload.equipo_visitante_id
+            if payload.equipo_visitante_id and payload.equipo_visitante_id != 'None':
+                updates.append("equipo_visitante_id = CAST(:equipo_visitante_id AS UUID)")
+                params["equipo_visitante_id"] = payload.equipo_visitante_id
+                ev_id = payload.equipo_visitante_id
+            else:
+                updates.append("equipo_visitante_id = NULL")
+                ev_id = None
+
         if payload.estadisticas is not None:
             updates.append("estadisticas = :estadisticas")
             params["estadisticas"] = json.dumps(payload.estadisticas)
@@ -2707,11 +2721,19 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
         # Ganador
         if payload.goles_local is not None and payload.goles_visitante is not None:
             if payload.goles_local > payload.goles_visitante:
-                updates.append("ganador_id = :ganador_id")
-                params["ganador_id"] = el_id
+                if el_id and el_id != 'None':
+                    updates.append("ganador_id = CAST(:ganador_id AS UUID)")
+                    params["ganador_id"] = el_id
+                else:
+                    updates.append("ganador_id = NULL")
             elif payload.goles_visitante > payload.goles_local:
-                updates.append("ganador_id = :ganador_id")
-                params["ganador_id"] = ev_id
+                if ev_id and ev_id != 'None':
+                    updates.append("ganador_id = CAST(:ganador_id AS UUID)")
+                    params["ganador_id"] = ev_id
+                else:
+                    updates.append("ganador_id = NULL")
+            elif payload.goles_local == payload.goles_visitante:
+                updates.append("ganador_id = NULL")
 
         if updates:
             sql_set = ", ".join(updates)
@@ -2737,30 +2759,26 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             for ws in list(active_connections):
                 asyncio.create_task(ws.send_text(msg))
         except Exception as e:
-            print("Error broadcasting WebSocket:", e)        # Sincronizar goles con la tabla de goles si el acta fue cargada
-        # (solo si no hay goles registrados individualmente)
-        goles_registrados = await session.execute(
-            text("SELECT COUNT(*) FROM torneos.goles WHERE partido_id = :pid AND NOT anulado"),
-            {"pid": partido_id}
-        )
-        total_goles = goles_registrados.scalar() or 0
-
-        await session.commit()
+            print("Error broadcasting WebSocket:", e)
 
         # Recalcular posiciones si el partido quedó finalizado
         if payload.estado in ("finalizado", "wo"):
-            await _recalcular_posiciones(torneo_id, session)
-            await session.commit()
-            
-            await _avanzar_ronda_eliminatoria(torneo_id, session)
-            await _verificar_fin_fase_grupos(torneo_id, session)
-            await session.commit()
+            try:
+                await _recalcular_posiciones(torneo_id, session)
+                await session.commit()
+                
+                await _avanzar_ronda_eliminatoria(torneo_id, session)
+                await _verificar_fin_fase_grupos(torneo_id, session)
+                await session.commit()
+            except Exception as e_pos:
+                print("Error recalculando posiciones o avanzando ronda:", e_pos)
 
         return {"id": partido_id, "goles_local": payload.goles_local,
                 "goles_visitante": payload.goles_visitante, "estado": payload.estado}
     except HTTPException:
         raise
     except Exception as e:
+        print("Error en update_partido:", e)
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
