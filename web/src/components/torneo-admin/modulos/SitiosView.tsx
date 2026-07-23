@@ -67,19 +67,24 @@ export default function SitiosView({
     if (isTournamentMode) {
       // Load championship sites from tournament config
       const conf = torneo?.configuracion || {};
-      let campParsed: Sitio[] = conf.sitios || [];
-      
-      // Migration for legacy single site
-      if (campParsed.length === 0 && (conf.direccion || conf.latitud)) {
-        campParsed = [{
-          id: 'legacy-1',
-          nombre: conf.direccion || torneo?.direccion || 'Sede Principal',
-          ciudad: conf.ciudad || torneo?.ciudad || '',
-          ubicacionGmaps: conf.ubicacion_gmaps || torneo?.ubicacion_gmaps || '',
-          latitud: conf.latitud ? parseFloat(conf.latitud) : undefined,
-          longitud: conf.longitud ? parseFloat(conf.longitud) : undefined,
-        }];
+      let campParsed: Sitio[] = [];
+
+      if (conf.sitios === undefined) {
+        // Legacy fallback only if `sitios` was never set
+        if (conf.direccion || conf.latitud || torneo?.direccion) {
+          campParsed = [{
+            id: 'legacy-1',
+            nombre: conf.direccion || torneo?.direccion || 'Sede Principal',
+            ciudad: conf.ciudad || torneo?.ciudad || '',
+            ubicacionGmaps: conf.ubicacion_gmaps || torneo?.ubicacion_gmaps || '',
+            latitud: conf.latitud ? parseFloat(conf.latitud) : undefined,
+            longitud: conf.longitud ? parseFloat(conf.longitud) : undefined,
+          }];
+        }
+      } else {
+        campParsed = Array.isArray(conf.sitios) ? conf.sitios : [];
       }
+
       setSitiosCampeonato(campParsed);
     }
   }, [torneo, isTournamentMode]);
@@ -179,6 +184,8 @@ export default function SitiosView({
     };
 
     await onUpdate({
+      direccion: sitiosCampeonato.length > 0 ? sitiosCampeonato[0].nombre : '',
+      ciudad: sitiosCampeonato.length > 0 ? sitiosCampeonato[0].ciudad : '',
       configuracion: updatedConfiguracion
     });
     
@@ -200,7 +207,7 @@ export default function SitiosView({
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {isTournamentMode && sitiosCampeonato.length > 0 && (
+            {isTournamentMode && (
               <button
                 onClick={handleSave}
                 disabled={saving}
