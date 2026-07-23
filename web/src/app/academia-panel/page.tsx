@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Plus, Pencil, Trash2, Check, X, Upload,
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
-  MessageSquare, FileText, Tag
+  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -55,7 +55,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'inscripciones' | 'cuotas' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'reportes' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -71,6 +71,7 @@ export default function AcademiaPanel() {
   const [perfil, setPerfil] = useState<any>(null);
   const [sucursales, setSucursales] = useState<any[]>([]);
   const [alumnos, setAlumnos] = useState<any[]>([]);
+  const [tutores, setTutores] = useState<any[]>([]);
   const [inscripciones, setInscripciones] = useState<any[]>([]);
   const [cuotas, setCuotas] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
@@ -141,6 +142,7 @@ export default function AcademiaPanel() {
 
       // Cargas opcionales según tab
       apiFetch('/academia/alumnos').then(setAlumnos).catch(() => {});
+      apiFetch('/academia/tutores').then(setTutores).catch(() => {});
       apiFetch('/academia/inscripciones').then(setInscripciones).catch(() => {});
       apiFetch('/academia/cuotas').then(setCuotas).catch(() => {});
       apiFetch('/academia/miembros').then(setStaff).catch(() => {});
@@ -270,6 +272,15 @@ export default function AcademiaPanel() {
             />
           )}
 
+          {/* ──────────────── TUTORES / PADRES ──────────────── */}
+          {activeTab === 'tutores' && (
+            <TutoresTab
+              tutores={tutores} alumnos={alumnos}
+              notify={notify} apiFetch={apiFetch} isAdmin={isAdmin}
+              fetchAll={fetchAll}
+            />
+          )}
+
           {/* ──────────────── INSCRIPCIONES ──────────────── */}
           {activeTab === 'inscripciones' && (
             <InscripcionesTab
@@ -285,6 +296,14 @@ export default function AcademiaPanel() {
             <CuotasTab
               cuotas={cuotas} notify={notify} apiFetch={apiFetch}
               isTesorero={isTesorero} isDueno={isDueno} fetchAll={fetchAll}
+            />
+          )}
+
+          {/* ──────────────── REPORTES Y CARNETS ──────────────── */}
+          {activeTab === 'reportes' && (
+            <ReportesTab
+              perfil={perfil} sucursales={sucursales} categorias={categorias}
+              notify={notify} apiFetch={apiFetch}
             />
           )}
 
@@ -344,8 +363,10 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
     { id: 'horarios_practica', label: 'Horarios de Práctica',    icon: Calendar, roles: ['dueño','administrador'] },
     { id: 'tarifas_costos',    label: 'Costos e Indumentaria',  icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
     { id: 'alumnos',           label: 'Alumnos',                icon: Users },
+    { id: 'tutores',           label: 'Tutores / Padres',       icon: Users, roles: ['dueño','administrador','tesorero'] },
     { id: 'inscripciones',     label: 'Inscripciones',          icon: BookOpen },
     { id: 'cuotas',            label: 'Cuotas / Pagos',         icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
+    { id: 'reportes',          label: 'Reportes y Carnets',     icon: ClipboardList, roles: ['dueño','administrador','tesorero','profesor'] },
     { id: 'asistencias',       label: 'Asistencias',            icon: Calendar, roles: ['dueño','administrador','profesor'] },
     { id: 'noticias',          label: 'Noticias CMS',           icon: FileText, roles: ['dueño','administrador'] },
     { id: 'feedback',          label: 'Feedback Socios',        icon: MessageSquare, roles: ['dueño','administrador'] },
@@ -2251,6 +2272,426 @@ function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isA
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setModal(null)} style={btn(C.faint, true)}>Cancelar</button>
               <button onClick={guardar} style={btn(C.primary)}>Guardar Categoría</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TUTORES / PADRES TAB
+// ═══════════════════════════════════════════════════════════
+function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fetchAll }: any) {
+  const listTutores = Array.isArray(tutores) ? tutores : [];
+  const listAlumnos = Array.isArray(alumnos) ? alumnos : [];
+  const [modal, setModal] = useState<any>(null);
+
+  const abrirNuevo = () => {
+    setModal({
+      nombre: '',
+      apellido: '',
+      telefono: '',
+      email: '',
+      vinculo: 'Padre',
+      es_pagador: true,
+      alumno_id: listAlumnos[0]?.id || '',
+    });
+  };
+
+  const guardar = async () => {
+    if (!modal.nombre || !modal.nombre.trim()) {
+      return notify('Ingresá el nombre del tutor', 'err');
+    }
+    try {
+      await apiFetch('/academia/tutores', {
+        method: 'POST',
+        body: JSON.stringify(modal),
+      });
+      notify('Tutor registrado exitosamente.');
+      setModal(null);
+      fetchAll();
+    } catch (e: any) { notify(e.message, 'err'); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Tutores y Padres de Familia</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
+            Registro de padres o responsables de los alumnos para contacto y facturación de cuotas.
+          </p>
+        </div>
+        {isAdmin && (
+          <button onClick={abrirNuevo} style={btn(C.primary)}>
+            <Plus size={16} /> Registrar Tutor
+          </button>
+        )}
+      </div>
+
+      <div style={card()}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, textAlign: 'left', fontSize: 12 }}>
+              <th style={{ padding: '10px 12px' }}>NOMBRE COMPLETO</th>
+              <th style={{ padding: '10px 12px' }}>VÍNCULO</th>
+              <th style={{ padding: '10px 12px' }}>TELÉFONO</th>
+              <th style={{ padding: '10px 12px' }}>EMAIL</th>
+              <th style={{ padding: '10px 12px' }}>ALUMNOS A CARGO</th>
+              <th style={{ padding: '10px 12px', textAlign: 'right' }}>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {listTutores.map(t => (
+              <tr key={t.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
+                <td style={{ padding: '12px', fontWeight: 700, color: C.text }}>
+                  {t.nombre} {t.apellido}
+                  {t.es_pagador && <span style={{ marginLeft: 6, ...badge(C.green) }}>Pagador Principal</span>}
+                </td>
+                <td style={{ padding: '12px' }}><span style={badge(C.primary)}>{t.vinculo || 'Tutor'}</span></td>
+                <td style={{ padding: '12px', fontWeight: 600, color: C.text }}>
+                  {t.telefono ? (
+                    <a href={`https://wa.me/${t.telefono.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{ color: C.green, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <PhoneCall size={14} /> {t.telefono}
+                    </a>
+                  ) : '—'}
+                </td>
+                <td style={{ padding: '12px', color: C.muted }}>{t.email || '—'}</td>
+                <td style={{ padding: '12px', fontWeight: 600, color: C.text }}>{t.alumnos_vinculados || 'Sin alumnos'}</td>
+                <td style={{ padding: '12px', textAlign: 'right' }}>
+                  {t.telefono && (
+                    <a href={`https://wa.me/${t.telefono.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={btn(C.green, true)}>
+                      WhatsApp
+                    </a>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {listTutores.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: C.muted }}>
+                  No hay tutores registrados. Hacé clic en "Registrar Tutor" para agregar uno.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 460, padding: 26 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>Registrar Tutor / Padre</h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Nombre *</label>
+                <input value={modal.nombre} onChange={e => setModal({ ...modal, nombre: e.target.value })} placeholder="Ej: Juan" style={input()} />
+              </div>
+              <div>
+                <label style={label()}>Apellido</label>
+                <input value={modal.apellido} onChange={e => setModal({ ...modal, apellido: e.target.value })} placeholder="Ej: Pérez" style={input()} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Teléfono / WhatsApp *</label>
+                <input value={modal.telefono} onChange={e => setModal({ ...modal, telefono: e.target.value })} placeholder="0981 123456" style={input()} />
+              </div>
+              <div>
+                <label style={label()}>Vínculo</label>
+                <select value={modal.vinculo} onChange={e => setModal({ ...modal, vinculo: e.target.value })} style={input()}>
+                  <option value="Padre">Padre</option>
+                  <option value="Madre">Madre</option>
+                  <option value="Tutor Legal">Tutor Legal</option>
+                  <option value="Abuelo/a">Abuelo/a</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={label()}>Email (opcional)</label>
+              <input value={modal.email} onChange={e => setModal({ ...modal, email: e.target.value })} placeholder="tutor@ejemplo.com" style={input()} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={label()}>Asignar Alumno Inicial (opcional)</label>
+              <select value={modal.alumno_id} onChange={e => setModal({ ...modal, alumno_id: e.target.value })} style={input()}>
+                <option value="">Ninguno por ahora</option>
+                {listAlumnos.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.nombre} {a.apellido}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setModal(null)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={guardar} style={btn(C.primary)}>Guardar Tutor</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// REPORTES Y CARNETS TAB
+// ═══════════════════════════════════════════════════════════
+function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetch }: any) {
+  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets'>('alumnos');
+  const [reporteAlumnos, setReporteAlumnos] = useState<any[]>([]);
+  const [deudores, setDeudores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroSucursal, setFiltroSucursal] = useState('');
+  const [modalCarnet, setModalCarnet] = useState<any>(null);
+
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [al, de] = await Promise.all([
+        apiFetch('/academia/reportes/alumnos').catch(() => []),
+        apiFetch('/academia/reportes/deudores').catch(() => []),
+      ]);
+      setReporteAlumnos(Array.isArray(al) ? al : []);
+      setDeudores(Array.isArray(de) ? de : []);
+    } catch (e: any) { notify(e.message, 'err'); }
+    setLoading(false);
+  };
+
+  const imprimir = () => {
+    window.print();
+  };
+
+  const reclamarWhatsApp = (d: any) => {
+    if (!d.tutor_telefono) {
+      return notify('El alumno/tutor no tiene número de teléfono registrado.', 'err');
+    }
+    const tel = d.tutor_telefono.replace(/\D/g, '');
+    const msg = `Estimado/a ${d.tutor_nombre || 'Tutor'},\nLe saludamos de la academia *${perfil?.nombre || 'Academia'}*.\nLe recordamos que cuenta con un saldo pendiente de *${new Intl.NumberFormat('es-PY').format(d.monto)} GS* correspondiente al concepto de *${d.concepto}* para el alumno *${d.alumno_nombre}*.\n\nQuedamos a su disposición para coordinar el pago.\nMuchas gracias!`;
+    window.open(`https://api.whatsapp.com/send?phone=${tel}&text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const totalMorosoGs = deudores.reduce((acc, d) => acc + (d.monto || 0), 0);
+  const alumnosFiltrados = reporteAlumnos.filter(a => !filtroSucursal || a.sucursal_nombre === filtroSucursal);
+
+  return (
+    <div>
+      {/* ── SECTOR CABECERA / SUBTABS ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Centro de Reportes y Credenciales</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
+            Reporte de alumnos, control de cartera morosa y emisión de carnets impresos.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={imprimir} style={btn(C.surface, true)}>
+            <Printer size={16} /> Imprimir / PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Subtabs Selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
+        <button
+          onClick={() => setSubTab('alumnos')}
+          style={{ ...btn(subTab === 'alumnos' ? C.primary : 'transparent', subTab !== 'alumnos'), borderRadius: 20 }}
+        >
+          📋 Listado de Alumnos ({alumnosFiltrados.length})
+        </button>
+
+        <button
+          onClick={() => setSubTab('deudores')}
+          style={{ ...btn(subTab === 'deudores' ? C.red : 'transparent', subTab !== 'deudores'), borderRadius: 20 }}
+        >
+          ⚠️ Reporte de Deudores ({deudores.length})
+        </button>
+
+        <button
+          onClick={() => setSubTab('carnets')}
+          style={{ ...btn(subTab === 'carnets' ? C.purple : 'transparent', subTab !== 'carnets'), borderRadius: 20 }}
+        >
+          🪪 Emisión de Carnets ({reporteAlumnos.length})
+        </button>
+      </div>
+
+      {/* ── SECCIÓN 1: LISTADO DE ALUMNOS ── */}
+      {subTab === 'alumnos' && (
+        <div style={card()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text }}>Planilla Consolidada de Alumnos</h3>
+            <select value={filtroSucursal} onChange={e => setFiltroSucursal(e.target.value)} style={{ ...input(), width: 220 }}>
+              <option value="">Todas las Sedes</option>
+              {sucursales.map((s: any) => (
+                <option key={s.id} value={s.nombre}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, textAlign: 'left', fontSize: 12 }}>
+                <th style={{ padding: '10px' }}>ALUMNO</th>
+                <th style={{ padding: '10px' }}>SEDE</th>
+                <th style={{ padding: '10px' }}>CATEGORÍA</th>
+                <th style={{ padding: '10px' }}>TUTOR RESPONSABLE</th>
+                <th style={{ padding: '10px' }}>TELÉFONO CONTACTO</th>
+                <th style={{ padding: '10px' }}>ESTADO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alumnosFiltrados.map(a => (
+                <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
+                  <td style={{ padding: '10px', fontWeight: 700, color: C.text }}>{a.nombre_completo}</td>
+                  <td style={{ padding: '10px', color: C.muted }}>{a.sucursal_nombre}</td>
+                  <td style={{ padding: '10px' }}><span style={badge(a.categoria_color)}>{a.categoria_nombre}</span></td>
+                  <td style={{ padding: '10px', color: C.text }}>{a.tutor_nombre}</td>
+                  <td style={{ padding: '10px', color: C.green, fontWeight: 600 }}>{a.tutor_telefono || a.contacto_emergencia}</td>
+                  <td style={{ padding: '10px' }}><span style={badge(a.estado === 'activo' ? C.green : C.red)}>{a.estado.toUpperCase()}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── SECCIÓN 2: LISTADO DE DEUDORES / MOROSOS ── */}
+      {subTab === 'deudores' && (
+        <div>
+          <div style={{ ...card(), marginBottom: 16, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 13, color: C.muted }}>Total Cartera Pendiente / Morosa:</div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: C.red }}>{new Intl.NumberFormat('es-PY').format(totalMorosoGs)} GS</div>
+            </div>
+            <div style={{ fontSize: 13, color: C.muted }}>{deudores.length} concepto(s) por cobrar</div>
+          </div>
+
+          <div style={card()}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, textAlign: 'left', fontSize: 12 }}>
+                  <th style={{ padding: '10px' }}>ALUMNO</th>
+                  <th style={{ padding: '10px' }}>CATEGORÍA</th>
+                  <th style={{ padding: '10px' }}>CONCEPTO PENDIENTE</th>
+                  <th style={{ padding: '10px' }}>MONTO</th>
+                  <th style={{ padding: '10px' }}>TUTOR RESPONSABLE</th>
+                  <th style={{ padding: '10px', textAlign: 'right' }}>ACCIÓN RECLAMO</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deudores.map(d => (
+                  <tr key={d.cuota_id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
+                    <td style={{ padding: '10px', fontWeight: 800, color: C.text }}>{d.alumno_nombre}</td>
+                    <td style={{ padding: '10px' }}><span style={badge(C.primary)}>{d.categoria_nombre}</span></td>
+                    <td style={{ padding: '10px', color: C.yellow, fontWeight: 700 }}>{d.concepto}</td>
+                    <td style={{ padding: '10px', fontWeight: 900, color: C.red, fontSize: 15 }}>{new Intl.NumberFormat('es-PY').format(d.monto)} GS</td>
+                    <td style={{ padding: '10px', color: C.text }}>{d.tutor_nombre}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}>
+                      <button onClick={() => reclamarWhatsApp(d)} style={btn(C.green)}>
+                        📲 Reclamar Pago
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {deudores.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 30, textAlign: 'center', color: C.muted }}>
+                      🎉 ¡Excelente! No hay cuotas ni saldos pendientes de cobro.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── SECCIÓN 3: EMISIÓN DE CARNETS DEPORTIVOS ── */}
+      {subTab === 'carnets' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          {reporteAlumnos.map(a => (
+            <div key={a.id} style={card({ textAlign: 'center', position: 'relative' })}>
+              <div style={{
+                width: 72, height: 72, borderRadius: '50%', background: C.border, margin: '0 auto 10px',
+                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: `3px solid ${perfil?.color_primario || C.primary}`,
+              }}>
+                {a.foto_perfil ? <img src={a.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={32} color={C.muted} />}
+              </div>
+
+              <h4 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800, color: C.text }}>{a.nombre_completo}</h4>
+              <span style={badge(a.categoria_color)}>{a.categoria_nombre}</span>
+
+              <div style={{ margin: '14px 0 0' }}>
+                <button onClick={() => setModalCarnet(a)} style={{ ...btn(C.purple), width: '100%', justifyContent: 'center' }}>
+                  <QrCode size={15} /> Ver & Imprimir Carnet
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── MODAL VER E IMPRIMIR CARNET ── */}
+      {modalCarnet && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20 }}>
+          <div style={{ background: '#090d16', borderRadius: 24, border: `2px solid ${perfil?.color_primario || C.primary}`, width: 420, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.8)', color: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Carnet Oficial de Alumno</h3>
+              <button onClick={() => setModalCarnet(null)} style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 20, cursor: 'pointer' }}>✕</button>
+            </div>
+
+            {/* Credencial Impresa Design */}
+            <div style={{
+              background: `linear-gradient(135deg, ${perfil?.color_primario || C.primary} 0%, #090d16 100%)`,
+              borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden',
+            }}>
+              {/* Header Carnet */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: 10, marginBottom: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: '#fff', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {perfil?.logo_url ? <img src={perfil.logo_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={24} color="#000" />}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>{perfil?.nombre || 'Academia'}</h4>
+                  <div style={{ fontSize: 11, color: '#cbd5e1' }}>CREDENCIAL DEPORTIVA OFICIAL</div>
+                </div>
+              </div>
+
+              {/* Body Carnet */}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <div style={{ width: 90, height: 90, borderRadius: 14, background: '#000', overflow: 'hidden', border: '2px solid #fff', flexShrink: 0 }}>
+                  {modalCarnet.foto_perfil ? <img src={modalCarnet.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={44} color="#fff" />}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', lineHeight: 1.1 }}>{modalCarnet.nombre_completo}</div>
+                  <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 800, marginTop: 4 }}>Categoría: {modalCarnet.categoria_nombre}</div>
+                  <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 4 }}>Sede: {modalCarnet.sucursal_nombre}</div>
+                  <div style={{ fontSize: 11, color: '#cbd5e1' }}>Grupo Sanguíneo: <strong>{modalCarnet.tipo_sangre || 'O+'}</strong></div>
+                </div>
+              </div>
+
+              {/* Footer Carnet QR */}
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: '#94a3b8' }}>
+                <div>ID: {modalCarnet.id.substring(0,8).toUpperCase()}</div>
+                <div>Emergencias: {modalCarnet.tutor_telefono || modalCarnet.contacto_emergencia}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setModalCarnet(null)} style={btn(C.faint, true)}>Cerrar</button>
+              <button onClick={imprimir} style={btn(C.green)}>
+                <Printer size={16} /> Imprimir Credencial (PDF)
+              </button>
             </div>
           </div>
         </div>
