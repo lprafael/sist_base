@@ -37,7 +37,7 @@ export default function Footer() {
           <h4 className="footer-title">Contacto & Redes</h4>
           <div className="footer-links">
             <span className="footer-link" style={{ cursor: 'default' }}>📍 Asunción, Paraguay</span>
-            <span className="footer-link" style={{ cursor: 'default' }}>✉️ contacto@micancha.com.py</span>
+            <span className="footer-link" style={{ cursor: 'default' }}>✉️ micancha.com.py@gmail.com</span>
             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
               <a href="#" className="footer-link" style={{ fontSize: '18px' }}>📸</a>
               <a href="#" className="footer-link" style={{ fontSize: '18px' }}>👥</a>

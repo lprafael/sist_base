@@ -37,6 +37,14 @@ class PerfilOrganizadorRequest(BaseModel):
     opcion_publicidad: Optional[str] = 'ninguno'
     posicion_banner: Optional[str] = 'inferior_flotante'
 
+class SitioOrganizadorRequest(BaseModel):
+    id: str
+    nombre: str
+    ciudad: Optional[str] = None
+    ubicacionGmaps: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+
 @router.get("/api/organizadores")
 async def obtener_lista_organizadores(session: AsyncSession = Depends(get_session)):
     query = text("""
@@ -220,3 +228,83 @@ async def upload_organizador_banner(
         return {"url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/organizador/sitios", summary="Obtener sitios del organizador")
+async def obtener_sitios_organizador(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = text("""
+        SELECT id, nombre, ciudad, ubicacion_gmaps, latitud, longitud
+        FROM sistema.sitios_organizador
+        WHERE usuario_id = :uid
+        ORDER BY fecha_creacion DESC
+    """)
+    res = await session.execute(query, {"uid": current_user["user_id"]})
+    rows = res.fetchall()
+    
+    result = []
+    for row in rows:
+        result.append({
+            "id": row[0],
+            "nombre": row[1],
+            "ciudad": row[2],
+            "ubicacionGmaps": row[3],
+            "latitud": row[4],
+            "longitud": row[5]
+        })
+    return result
+
+@router.post("/organizador/sitios", summary="Crear o actualizar sitio del organizador")
+async def guardar_sitio_organizador(
+    data: SitioOrganizadorRequest,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = text("""
+        INSERT INTO sistema.sitios_organizador 
+            (id, usuario_id, nombre, ciudad, ubicacion_gmaps, latitud, longitud)
+        VALUES 
+            (:id, :uid, :nombre, :ciudad, :ubicacion_gmaps, :latitud, :longitud)
+        ON CONFLICT (id) DO UPDATE SET
+            nombre = EXCLUDED.nombre,
+            ciudad = EXCLUDED.ciudad,
+            ubicacion_gmaps = EXCLUDED.ubicacion_gmaps,
+            latitud = EXCLUDED.latitud,
+            longitud = EXCLUDED.longitud
+    """)
+    
+    await session.execute(query, {
+        "id": data.id,
+        "uid": current_user["user_id"],
+        "nombre": data.nombre,
+        "ciudad": data.ciudad,
+        "ubicacion_gmaps": data.ubicacionGmaps,
+        "latitud": data.latitud,
+        "longitud": data.longitud
+    })
+    
+    await session.commit()
+    return {"message": "Sitio guardado exitosamente"}
+
+@router.delete("/organizador/sitios/{sitio_id}", summary="Eliminar sitio del organizador")
+async def eliminar_sitio_organizador(
+    sitio_id: str,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    query = text("""
+        DELETE FROM sistema.sitios_organizador
+        WHERE id = :id AND usuario_id = :uid
+    """)
+    
+    res = await session.execute(query, {
+        "id": sitio_id,
+        "uid": current_user["user_id"]
+    })
+    
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Sitio no encontrado o no autorizado")
+        
+    await session.commit()
+    return {"message": "Sitio eliminado exitosamente"}
