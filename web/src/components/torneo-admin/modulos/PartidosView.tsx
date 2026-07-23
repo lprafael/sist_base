@@ -1,10 +1,17 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy } from 'lucide-react';
+import { 
+  Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy, 
+  List, Check, Share2, RotateCcw, Image as ImageIcon, FileText, ChevronRight 
+} from 'lucide-react';
 import MatchController from './MatchController';
 import MatchAddModal from './MatchAddModal';
 import MMAController from './MMAController';
 import FormasController from './FormasController';
+import EditMatchInfoModal from './EditMatchInfoModal';
+import SelectTeamsModal from './SelectTeamsModal';
+import ArtDuJeuModal from './ArtDuJeuModal';
+import ActaModal from './ActaModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -25,13 +32,19 @@ export default function PartidosView({
 
   const [faseFilter, setFaseFilter] = useState(fasesFromTorneo[0]);
 
-  
   // Dropdown context menu
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [shareSubmenuId, setShareSubmenuId] = useState<string | null>(null);
 
-  // Match controller & modals
+  // Active Modals & Match Controls
   const [activeMatch, setActiveMatch] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Custom Modals
+  const [editInfoMatch, setEditInfoMatch] = useState<any>(null);
+  const [selectTeamsMatch, setSelectTeamsMatch] = useState<any>(null);
+  const [artDuJeuMatch, setArtDuJeuMatch] = useState<any>(null);
+  const [actaMatch, setActaMatch] = useState<any>(null);
 
   useEffect(() => {
     if (!partidosProp) {
@@ -42,8 +55,12 @@ export default function PartidosView({
   }, [torneoId, partidosProp]);
 
   const getToken = () => {
-    const session = JSON.parse(localStorage.getItem('user_session') || '{}');
-    return session.access_token || session.token || '';
+    try {
+      const session = JSON.parse(localStorage.getItem('user_session') || '{}');
+      return session.access_token || session.token || '';
+    } catch {
+      return '';
+    }
   };
 
   const fetchPartidos = async () => {
@@ -55,7 +72,6 @@ export default function PartidosView({
       if(res.ok) {
         const data = await res.json();
         setPartidosState(data);
-        // If the current filter isn't in the new options and we have data, reset it
         const downloadedFases = Array.from(new Set(data.map((p:any) => p.fase).filter(Boolean)));
         if (downloadedFases.length > 0 && !downloadedFases.includes(faseFilter)) {
             setFaseFilter(downloadedFases[0] as string);
@@ -85,6 +101,34 @@ export default function PartidosView({
     }
   };
 
+  const handleRestaurarPartido = async (matchId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/partidos/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify({ estado: 'programado', goles_local: 0, goles_visitante: 0 })
+      });
+      if(res.ok) {
+        setMenuOpenId(null);
+        if(onRefresh) onRefresh(); else fetchPartidos();
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  const handleQuitarPartido = async (matchId: string) => {
+    if(!confirm("¿Estás seguro de eliminar este encuentro?")) return;
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/partidos/${matchId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if(res.ok) {
+        setMenuOpenId(null);
+        if(onRefresh) onRefresh(); else fetchPartidos();
+      }
+    } catch(e) { console.error(e); }
+  };
+
   const getStatusColor = (status: string) => {
     if(status === 'finalizado') return 'text-green-600 bg-green-50 border-green-200';
     if(status === 'en_curso') return 'text-red-600 bg-red-50 border-red-200';
@@ -99,47 +143,7 @@ export default function PartidosView({
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
 
-  // Filtrar los partidos que se van a mostrar (ya sea por prop o por filtro local)
   let partidosAMostrar = faseOculta ? partidos : partidos.filter(p => (p.fase || 'Fase 1') === faseFilter);
-
-  if (tipoCategoria === 'formas') {
-    partidosAMostrar.sort((a, b) => {
-      const statsA = typeof a.estadisticas === 'string' ? JSON.parse(a.estadisticas || '{}') : (a.estadisticas || {});
-      const statsB = typeof b.estadisticas === 'string' ? JSON.parse(b.estadisticas || '{}') : (b.estadisticas || {});
-      
-      const scoreA = statsA.puntaje_final || 0;
-      const scoreB = statsB.puntaje_final || 0;
-
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      
-      // Si el desempate es manual, no usar los filtros, los dejamos empatados.
-      if (criterioDesempate === 'Manual') return 0;
-
-      // Tie breakers automáticos
-      const f1A = statsA.filtro1_min_valido || 0;
-      const f1B = statsB.filtro1_min_valido || 0;
-      if (f1A !== f1B) {
-         if (a.estado !== 'empatado_desempate' && b.estado !== 'empatado_desempate') {
-            // we could flag something, but let's just sort
-            return f1B - f1A;
-         }
-      }
-
-      const f2A = statsA.filtro2_max_valido || 0;
-      const f2B = statsB.filtro2_max_valido || 0;
-      if (f2A !== f2B) return f2B - f2A;
-
-      const f3A = statsA.filtro3_min_descartado || 0;
-      const f3B = statsB.filtro3_min_descartado || 0;
-      if (f3A !== f3B) return f3B - f3A;
-
-      const f4A = statsA.filtro4_max_descartado || 0;
-      const f4B = statsB.filtro4_max_descartado || 0;
-      if (f4A !== f4B) return f4B - f4A;
-
-      return 0;
-    });
-  }
 
   return (
     <div className={`bg-slate-50 border-slate-200 flex flex-col h-full ${faseOculta ? 'p-4' : 'border rounded-xl p-4'}`}>
@@ -187,81 +191,6 @@ export default function PartidosView({
           <div className="text-center text-slate-400 mt-10">
             No hay participantes o juegos en esta fase.
           </div>
-        ) : tipoCategoria === 'formas' ? (
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">Competidor</th>
-                  <th className="py-3 px-4 text-center">Puntaje Jueces</th>
-                  <th className="py-3 px-4 text-center">Puntaje Final</th>
-                  <th className="py-3 px-4 text-center">Estado</th>
-                  <th className="py-3 px-4 text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {partidosAMostrar.map((p, idx) => {
-                   const stats = typeof p.estadisticas === 'string' ? JSON.parse(p.estadisticas || '{}') : (p.estadisticas || {});
-                   let desempateMsg = null;
-                   
-                   if (idx > 0) {
-                      const prevStats = typeof partidosAMostrar[idx-1].estadisticas === 'string' 
-                          ? JSON.parse(partidosAMostrar[idx-1].estadisticas || '{}') 
-                          : (partidosAMostrar[idx-1].estadisticas || {});
-                      
-                      const scoreA = prevStats.puntaje_final || 0;
-                      const scoreB = stats.puntaje_final || 0;
-                      if (scoreA === scoreB && scoreA > 0) {
-                          if (prevStats.filtro1_min_valido !== stats.filtro1_min_valido) desempateMsg = "Filtro 1";
-                          else if (prevStats.filtro2_max_valido !== stats.filtro2_max_valido) desempateMsg = "Filtro 2";
-                          else if (prevStats.filtro3_min_descartado !== stats.filtro3_min_descartado) desempateMsg = "Filtro 3";
-                          else if (prevStats.filtro4_max_descartado !== stats.filtro4_max_descartado) desempateMsg = "Filtro 4";
-                          else desempateMsg = "Manual (Tatami)";
-                      }
-                   }
-
-                   return (
-                     <tr key={p.id} className="hover:bg-slate-50 transition">
-                       <td className="py-3 px-4 font-bold text-slate-400">{idx + 1}</td>
-                       <td className="py-3 px-4 font-semibold text-slate-700 flex flex-col gap-1">
-                         <div className="flex items-center gap-2">
-                           <div className="w-8 h-8 bg-slate-100 rounded overflow-hidden">
-                             {p.local_logo ? <img src={p.local_logo} className="w-full h-full object-cover" /> : <Trophy size={14} className="m-2 text-slate-400" />}
-                           </div>
-                           {p.jugador_local_nombre || p.local_nombre}
-                         </div>
-                         {desempateMsg && (
-                           <span className="text-[10px] text-orange-500 font-bold bg-orange-50 w-fit px-2 py-0.5 rounded border border-orange-200">
-                             Desempate: {desempateMsg}
-                           </span>
-                         )}
-                       </td>
-                       <td className="py-3 px-4 text-center text-slate-500 font-mono">
-                         {stats.jueces ? stats.jueces.join(' - ') : '-'}
-                       </td>
-                       <td className="py-3 px-4 text-center font-bold text-blue-600 text-lg">
-                         {stats.puntaje_final ?? '-'}
-                       </td>
-                       <td className="py-3 px-4 text-center">
-                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getStatusColor(p.estado)}`}>
-                           {getStatusText(p.estado)}
-                         </span>
-                       </td>
-                       <td className="py-3 px-4 text-right">
-                         <button 
-                           onClick={() => { setActiveMatch(p); setShowAddModal(false); }}
-                           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition"
-                         >
-                           Puntuar
-                         </button>
-                       </td>
-                     </tr>
-                   );
-                })}
-              </tbody>
-            </table>
-          </div>
         ) : (
           partidosAMostrar.map(p => (
             <div key={p.id} className="relative">
@@ -281,7 +210,10 @@ export default function PartidosView({
                     {getStatusText(p.estado)}
                   </div>
                   <button 
-                    onClick={() => setMenuOpenId(menuOpenId === p.id ? null : p.id)}
+                    onClick={() => {
+                      setMenuOpenId(menuOpenId === p.id ? null : p.id);
+                      setShareSubmenuId(null);
+                    }}
                     className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-md transition border border-slate-200 font-bold text-lg w-16"
                   >
                     {p.estado === 'programado' ? ':' : `${p.goles_local} - ${p.goles_visitante}`}
@@ -297,21 +229,89 @@ export default function PartidosView({
                 </div>
               </div>
 
-              {/* Context Menu Dropdown */}
+              {/* CONTEXT MENU DROPDOWN (Matching Image 1 & User Request) */}
               {menuOpenId === p.id && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-blue-700 rounded-xl shadow-xl z-20 overflow-hidden text-white font-medium text-sm animate-in fade-in zoom-in-95">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-[#0c0c28] rounded-xl shadow-2xl z-30 overflow-hidden text-white font-medium text-xs animate-in fade-in zoom-in-95 border border-indigo-900">
+                  
+                  {/* Ver partido */}
                   <button 
                     onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
-                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-blue-600 transition"
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
                   >
-                    <Edit3 size={16} /> Editar resultado
+                    <PlayCircle size={16} className="text-indigo-400" /> Ver partido
                   </button>
-                  <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-blue-600 transition border-b border-blue-600/50">
-                    <PlayCircle size={16} /> Ver partido
+
+                  {/* Seleccionar equipos */}
+                  <button 
+                    onClick={() => { setSelectTeamsMatch(p); setMenuOpenId(null); }}
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                  >
+                    <List size={16} className="text-indigo-400" /> Seleccionar equipos
                   </button>
-                  <button className="w-full text-left px-4 py-3 flex items-center gap-3 bg-white text-red-500 hover:bg-red-50 transition">
-                    <X size={16} /> Quitar
+
+                  {/* Editar resultado */}
+                  <button 
+                    onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                  >
+                    <Check size={16} className="text-indigo-400" /> Editar resultado
                   </button>
+
+                  {/* Editar informacion */}
+                  <button 
+                    onClick={() => { setEditInfoMatch(p); setMenuOpenId(null); }}
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                  >
+                    <Edit3 size={16} className="text-indigo-400" /> Editar informacion
+                  </button>
+
+                  {/* Compartir Submenu Toggle (Matching Image 1 & 3) */}
+                  <div className="relative border-b border-indigo-900/40">
+                    <button 
+                      onClick={() => setShareSubmenuId(shareSubmenuId === p.id ? null : p.id)}
+                      className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-indigo-900/80 transition"
+                    >
+                      <span className="flex items-center gap-3">
+                        <Share2 size={16} className="text-indigo-400" /> Compartir
+                      </span>
+                      <ChevronRight size={14} className="text-slate-400" />
+                    </button>
+
+                    {/* Compartir Submenu Options: Art du jeu / Acta */}
+                    {shareSubmenuId === p.id && (
+                      <div className="bg-[#14143a] border-t border-indigo-900/60 divide-y divide-indigo-900/40 pl-4">
+                        <button 
+                          onClick={() => { setArtDuJeuMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                          className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                        >
+                          <ImageIcon size={14} className="text-indigo-400" /> Art du jeu
+                        </button>
+                        <button 
+                          onClick={() => { setActaMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                          className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                        >
+                          <FileText size={14} className="text-indigo-400" /> Acta
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Red Options: Restaurar / Quitar */}
+                  <div className="bg-white divide-y divide-slate-100">
+                    <button 
+                      onClick={() => handleRestaurarPartido(p.id)}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
+                    >
+                      <RotateCcw size={16} /> Restaurar
+                    </button>
+                    <button 
+                      onClick={() => handleQuitarPartido(p.id)}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
+                    >
+                      <X size={16} /> Quitar
+                    </button>
+                  </div>
+
                 </div>
               )}
             </div>
@@ -332,6 +332,49 @@ export default function PartidosView({
         />
       )}
 
+      {/* Editar informacion Modal */}
+      {editInfoMatch && (
+        <EditMatchInfoModal 
+          match={editInfoMatch}
+          onClose={() => setEditInfoMatch(null)}
+          onSuccess={() => {
+            setEditInfoMatch(null);
+            if(onRefresh) onRefresh(); else fetchPartidos();
+          }}
+        />
+      )}
+
+      {/* Seleccionar equipos Modal */}
+      {selectTeamsMatch && (
+        <SelectTeamsModal 
+          torneoId={torneoId}
+          match={selectTeamsMatch}
+          onClose={() => setSelectTeamsMatch(null)}
+          onSuccess={() => {
+            setSelectTeamsMatch(null);
+            if(onRefresh) onRefresh(); else fetchPartidos();
+          }}
+        />
+      )}
+
+      {/* Art du jeu Modal */}
+      {artDuJeuMatch && (
+        <ArtDuJeuModal 
+          match={artDuJeuMatch}
+          onClose={() => setArtDuJeuMatch(null)}
+        />
+      )}
+
+      {/* Acta Modal */}
+      {actaMatch && (
+        <ActaModal 
+          match={actaMatch}
+          torneo={torneo}
+          onClose={() => setActaMatch(null)}
+        />
+      )}
+
+      {/* Match Controllers */}
       {activeMatch && (
         tipoCategoria === 'formas' ? (
           <FormasController 

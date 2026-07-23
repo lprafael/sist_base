@@ -134,11 +134,15 @@ class EquipoTecnicoUpdate(BaseModel):
     foto_url: Optional[str] = None
 
 class PartidoUpdate(BaseModel):
-    goles_local: int = 0
-    goles_visitante: int = 0
-    estado: str = "finalizado"
+    goles_local: Optional[int] = None
+    goles_visitante: Optional[int] = None
+    estado: Optional[str] = None
     estadisticas: Optional[dict] = None
     observaciones: Optional[str] = None
+    fecha_hora: Optional[str] = None
+    cancha: Optional[str] = None
+    equipo_local_id: Optional[str] = None
+    equipo_visitante_id: Optional[str] = None
 
 class GolCreate(BaseModel):
     player_id: Optional[str] = None
@@ -2674,29 +2678,54 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             ganador_id = ev_id
 
         import json
-        params = {
-            "pid": partido_id, "gl": payload.goles_local,
-            "gv": payload.goles_visitante, "estado": payload.estado,
-            "ganador_id": ganador_id
-        }
-        
-        # Guardar estadisticas u observaciones si vienen en el payload
-        update_extra = ""
-        if payload.estadisticas is not None:
-            update_extra += ", estadisticas = :estadisticas"
-            params["estadisticas"] = json.dumps(payload.estadisticas)
-        if payload.observaciones is not None:
-            update_extra += ", observaciones = :observaciones"
-            params["observaciones"] = payload.observaciones
+        updates = []
+        params = {"pid": partido_id}
 
-        await session.execute(text(f"""
-            UPDATE torneos.partidos
-            SET goles_local = :gl, goles_visitante = :gv,
-                estado = :estado, ganador_id = :ganador_id,
-                fecha_hora_fin_real = CURRENT_TIMESTAMP, acta_cerrada_en = CURRENT_TIMESTAMP
-                {update_extra}
-            WHERE id = :pid
-        """), params)
+        if payload.goles_local is not None:
+            updates.append("goles_local = :goles_local")
+            params["goles_local"] = payload.goles_local
+        if payload.goles_visitante is not None:
+            updates.append("goles_visitante = :goles_visitante")
+            params["goles_visitante"] = payload.goles_visitante
+        if payload.estado is not None:
+            updates.append("estado = :estado")
+            params["estado"] = payload.estado
+        if payload.observaciones is not None:
+            updates.append("observaciones = :observaciones")
+            params["observaciones"] = payload.observaciones
+        if payload.cancha is not None:
+            updates.append("cancha = :cancha")
+            params["cancha"] = payload.cancha
+        if payload.fecha_hora is not None:
+            updates.append("fecha_hora = :fecha_hora")
+            params["fecha_hora"] = payload.fecha_hora
+        if payload.equipo_local_id is not None:
+            updates.append("equipo_local_id = :equipo_local_id")
+            params["equipo_local_id"] = payload.equipo_local_id
+        if payload.equipo_visitante_id is not None:
+            updates.append("equipo_visitante_id = :equipo_visitante_id")
+            params["equipo_visitante_id"] = payload.equipo_visitante_id
+        if payload.estadisticas is not None:
+            updates.append("estadisticas = :estadisticas")
+            params["estadisticas"] = json.dumps(payload.estadisticas)
+
+        # Ganador
+        if payload.goles_local is not None and payload.goles_visitante is not None:
+            if payload.goles_local > payload.goles_visitante:
+                updates.append("ganador_id = :ganador_id")
+                params["ganador_id"] = el_id
+            elif payload.goles_visitante > payload.goles_local:
+                updates.append("ganador_id = :ganador_id")
+                params["ganador_id"] = ev_id
+
+        if updates:
+            sql_set = ", ".join(updates)
+            await session.execute(text(f"""
+                UPDATE torneos.partidos
+                SET {sql_set}
+                WHERE id = :pid
+            """), params)
+            await session.commit()
         
         # Broadcast via WebSockets si se requiere
         try:
