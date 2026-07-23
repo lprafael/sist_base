@@ -2670,12 +2670,7 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
             raise HTTPException(status_code=404, detail="Partido no encontrado")
 
         torneo_id = str(p_row[0])
-        el_id, ev_id = str(p_row[1]), str(p_row[2])
-        ganador_id = None
-        if payload.goles_local > payload.goles_visitante:
-            ganador_id = el_id
-        elif payload.goles_visitante > payload.goles_local:
-            ganador_id = ev_id
+        el_id, ev_id = str(p_row[1] or ''), str(p_row[2] or '')
 
         import json
         updates = []
