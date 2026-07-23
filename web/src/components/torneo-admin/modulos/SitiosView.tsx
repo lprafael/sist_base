@@ -327,6 +327,7 @@ export default function SitiosView({
         </div>
 
       </div>
+    </div>
 
       {/* Sub-modal Create Site */}
       {showCreateModal && (
