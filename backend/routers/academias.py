@@ -118,6 +118,15 @@ class SucursalRequest(BaseModel):
     lon: Optional[float] = None
 
 
+class CategoriaRequest(BaseModel):
+    sucursal_id: Optional[str] = None
+    nombre: str
+    edad_min: Optional[int] = 0
+    edad_max: Optional[int] = 99
+    descripcion: Optional[str] = None
+    color: Optional[str] = '#3b82f6'
+
+
 class MiembroRequest(BaseModel):
     usuario_id: int
     rol: str  # 'administrador', 'tesorero', 'profesor'
@@ -774,6 +783,118 @@ async def desactivar_sucursal(
     """), {"sid": sucursal_id, "aid": current_user["academia_id"]})
     await session.commit()
     return {"message": "Sucursal desactivada."}
+
+
+# ================================================================
+# ENDPOINTS — CATEGORÍAS DE LA ACADEMIA
+# ================================================================
+
+@router.get("/academia/categorias")
+async def listar_categorias(
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero", "profesor")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Lista todas las categorías de la academia."""
+    res = await session.execute(text("""
+        SELECT c.id, c.nombre, c.edad_min, c.edad_max, c.descripcion, c.color,
+               c.sucursal_id, s.nombre AS sucursal_nombre, c.activa
+        FROM academias.categorias c
+        LEFT JOIN academias.sucursales s ON s.id = c.sucursal_id
+        WHERE (s.academia_id = :aid OR c.sucursal_id IS NULL) AND c.activa = TRUE
+        ORDER BY c.edad_min ASC, c.nombre ASC
+    """), {"aid": current_user["academia_id"]})
+    return [
+        {
+            "id": str(r[0]), "nombre": r[1], "edad_min": r[2], "edad_max": r[3],
+            "descripcion": r[4], "color": r[5] or "#3b82f6",
+            "sucursal_id": str(r[6]) if r[6] else None,
+            "sucursal_nombre": r[7] or "General",
+            "activa": r[8],
+        }
+        for r in res.fetchall()
+    ]
+
+
+@router.post("/academia/categorias")
+async def crear_categoria(
+    data: CategoriaRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Crea una nueva categoría para la academia."""
+    suc_id = data.sucursal_id if data.sucursal_id and data.sucursal_id.strip() else None
+
+    if not suc_id:
+        res_suc = await session.execute(text("""
+            SELECT id FROM academias.sucursales WHERE academia_id = :aid AND activa = TRUE LIMIT 1
+        """), {"aid": current_user["academia_id"]})
+        row_suc = res_suc.fetchone()
+        if row_suc:
+            suc_id = str(row_suc[0])
+
+    res = await session.execute(text("""
+        INSERT INTO academias.categorias
+            (sucursal_id, nombre, edad_min, edad_max, descripcion, color, activa)
+        VALUES
+            (:sucursal_id, :nombre, :edad_min, :edad_max, :descripcion, :color, TRUE)
+        RETURNING id
+    """), {
+        "sucursal_id": suc_id,
+        "nombre": data.nombre,
+        "edad_min": data.edad_min or 0,
+        "edad_max": data.edad_max or 99,
+        "descripcion": data.descripcion,
+        "color": data.color or "#3b82f6",
+    })
+    new_id = res.fetchone()[0]
+    await session.commit()
+    return {"message": "Categoría creada exitosamente.", "id": str(new_id)}
+
+
+@router.put("/academia/categorias/{categoria_id}")
+async def actualizar_categoria(
+    categoria_id: str,
+    data: CategoriaRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Actualiza una categoría."""
+    suc_id = data.sucursal_id if data.sucursal_id and data.sucursal_id.strip() else None
+
+    await session.execute(text("""
+        UPDATE academias.categorias SET
+            nombre      = :nombre,
+            edad_min    = :edad_min,
+            edad_max    = :edad_max,
+            descripcion = :descripcion,
+            color       = :color,
+            sucursal_id = COALESCE(:sucursal_id, sucursal_id)
+        WHERE id = :cid
+    """), {
+        "cid": categoria_id,
+        "nombre": data.nombre,
+        "edad_min": data.edad_min or 0,
+        "edad_max": data.edad_max or 99,
+        "descripcion": data.descripcion,
+        "color": data.color or "#3b82f6",
+        "sucursal_id": suc_id,
+    })
+    await session.commit()
+    return {"message": "Categoría actualizada exitosamente."}
+
+
+@router.delete("/academia/categorias/{categoria_id}")
+async def desactivar_categoria(
+    categoria_id: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Desactiva una categoría."""
+    await session.execute(text("""
+        UPDATE academias.categorias SET activa = FALSE WHERE id = :cid
+    """), {"cid": categoria_id})
+    await session.commit()
+    return {"message": "Categoría desactivada."}
 
 
 # ================================================================

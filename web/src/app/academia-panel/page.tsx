@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Plus, Pencil, Trash2, Check, X, Upload,
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
-  MessageSquare, FileText
+  MessageSquare, FileText, Tag
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -55,7 +55,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'inscripciones' | 'cuotas' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'inscripciones' | 'cuotas' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -235,6 +235,15 @@ export default function AcademiaPanel() {
             />
           )}
 
+          {/* ──────────────── CATEGORÍAS ──────────────── */}
+          {activeTab === 'categorias' && (
+            <CategoriasTab
+              categorias={categorias} sucursales={sucursales}
+              notify={notify} apiFetch={apiFetch} isDueno={isDueno} isAdmin={isAdmin}
+              fetchAll={fetchAll}
+            />
+          )}
+
           {/* ──────────────── HORARIOS DE PRÁCTICA ──────────────── */}
           {activeTab === 'horarios_practica' && (
             <HorariosPracticaTab
@@ -331,6 +340,7 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
     { id: 'dashboard',         label: 'Dashboard',             icon: BarChart3 },
     { id: 'perfil',            label: 'Mi Academia',            icon: GraduationCap, roles: ['dueño','administrador'] },
     { id: 'sucursales',        label: 'Sedes y Canchas',        icon: Building2 },
+    { id: 'categorias',        label: 'Categorías',            icon: Tag, roles: ['dueño','administrador'] },
     { id: 'horarios_practica', label: 'Horarios de Práctica',    icon: Calendar, roles: ['dueño','administrador'] },
     { id: 'tarifas_costos',    label: 'Costos e Indumentaria',  icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
     { id: 'alumnos',           label: 'Alumnos',                icon: Users },
@@ -2038,6 +2048,209 @@ function TarifasCostosTab({ categorias = [], notify, apiFetch, isDueno, isTesore
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
               <button onClick={() => setModal(false)} style={btn(C.faint, true)}>Cancelar</button>
               <button onClick={guardar} style={btn(C.primary)}>Guardar Concepto</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CATEGORÍAS TAB
+// ═══════════════════════════════════════════════════════════
+function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isAdmin, fetchAll }: any) {
+  const listCategorias = Array.isArray(categorias) ? categorias : [];
+  const listSucursales = Array.isArray(sucursales) ? sucursales : [];
+  const [modal, setModal] = useState<any>(null);
+
+  const abrirNuevo = () => {
+    setModal({
+      nombre: '',
+      edad_min: 5,
+      edad_max: 17,
+      descripcion: '',
+      color: '#3b82f6',
+      sucursal_id: listSucursales[0]?.id || '',
+    });
+  };
+
+  const guardar = async () => {
+    if (!modal.nombre || !modal.nombre.trim()) {
+      return notify('Ingresá el nombre de la categoría', 'err');
+    }
+    try {
+      if (modal.id) {
+        await apiFetch(`/academia/categorias/${modal.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(modal),
+        });
+        notify('Categoría actualizada exitosamente.');
+      } else {
+        await apiFetch('/academia/categorias', {
+          method: 'POST',
+          body: JSON.stringify(modal),
+        });
+        notify('Categoría creada exitosamente.');
+      }
+      setModal(null);
+      fetchAll();
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+  };
+
+  const eliminar = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta categoría?')) return;
+    try {
+      await apiFetch(`/academia/categorias/${id}`, { method: 'DELETE' });
+      notify('Categoría desactivada.');
+      fetchAll();
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Categorías de la Academia</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
+            Gestioná los grupos, edades y categorías deportivas (ej: Cat. 2018, Sub-15, Femenino) de tu academia.
+          </p>
+        </div>
+        {isAdmin && (
+          <button onClick={abrirNuevo} style={btn(C.primary)}>
+            <Plus size={16} /> Crear Categoría
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        {listCategorias.map((cat: any) => (
+          <div key={cat.id} style={card({ borderLeft: `6px solid ${cat.color || C.primary}` })}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={badge(cat.color || C.primary)}>
+                  {cat.sucursal_nombre || 'General'}
+                </span>
+                <h3 style={{ margin: '8px 0 4px', fontSize: 18, fontWeight: 800, color: C.text }}>
+                  {cat.nombre}
+                </h3>
+              </div>
+              {isAdmin && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setModal({ ...cat })} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer' }}>
+                    <Pencil size={15} />
+                  </button>
+                  <button onClick={() => eliminar(cat.id)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer' }}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 10 }}>
+              <div>👥 <strong>Rango de edad:</strong> {cat.edad_min || 0} a {cat.edad_max || 99} años</div>
+              {cat.descripcion && <div style={{ marginTop: 6, fontStyle: 'italic', color: C.faint }}>{cat.descripcion}</div>}
+            </div>
+          </div>
+        ))}
+
+        {listCategorias.length === 0 && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, color: C.muted }}>
+            <Tag size={40} color={C.faint} style={{ marginBottom: 12 }} />
+            <p style={{ margin: 0, fontWeight: 600 }}>No tenés categorías creadas en tu academia.</p>
+            <p style={{ margin: '6px 0 16px', fontSize: 13, color: C.faint }}>
+              Creá tus categorías (ej: Cat. 2020/2021, Sub-15, Principiantes) para organizar los horarios de práctica y cobros.
+            </p>
+            {isAdmin && (
+              <button onClick={abrirNuevo} style={btn(C.primary)}>
+                <Plus size={16} /> Crear primera categoría
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* MODAL CREAR / EDITAR CATEGORIA */}
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 440, padding: 26 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>
+              {modal.id ? 'Editar Categoría' : 'Nueva Categoría'}
+            </h3>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Nombre de la Categoría *</label>
+              <input
+                value={modal.nombre}
+                onChange={e => setModal({ ...modal, nombre: e.target.value })}
+                placeholder="Ej: Categoría 2020 / 2021, Sub-15, Formativa"
+                style={input()}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={label()}>Edad Mínima</label>
+                <input
+                  type="number"
+                  value={modal.edad_min}
+                  onChange={e => setModal({ ...modal, edad_min: parseInt(e.target.value) || 0 })}
+                  style={input()}
+                />
+              </div>
+              <div>
+                <label style={label()}>Edad Máxima</label>
+                <input
+                  type="number"
+                  value={modal.edad_max}
+                  onChange={e => setModal({ ...modal, edad_max: parseInt(e.target.value) || 99 })}
+                  style={input()}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={label()}>Sede / Sucursal Asociada</label>
+                <select
+                  value={modal.sucursal_id || ''}
+                  onChange={e => setModal({ ...modal, sucursal_id: e.target.value })}
+                  style={input()}
+                >
+                  <option value="">Todas / General</option>
+                  {listSucursales.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={label()}>Color</label>
+                <input
+                  type="color"
+                  value={modal.color || '#3b82f6'}
+                  onChange={e => setModal({ ...modal, color: e.target.value })}
+                  style={{ width: '100%', height: 42, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'transparent' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={label()}>Descripción (opcional)</label>
+              <input
+                value={modal.descripcion || ''}
+                onChange={e => setModal({ ...modal, descripcion: e.target.value })}
+                placeholder="Ej: Niños de 4 a 6 años - Iniciación deportiva"
+                style={input()}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setModal(null)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={guardar} style={btn(C.primary)}>Guardar Categoría</button>
             </div>
           </div>
         </div>
