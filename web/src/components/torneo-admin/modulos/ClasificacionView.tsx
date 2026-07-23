@@ -26,8 +26,8 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     return session.access_token || session.token || '';
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const [resCat, resPart] = await Promise.all([
         fetch(`${API_URL}/futbol/torneos/${torneoId}/categorias-puntos`, { headers: { 'Authorization': `Bearer ${getToken()}` } }),
@@ -354,7 +354,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                     torneo={torneo} 
                     partidosProp={partidosFase}
                     faseOculta={original}
-                    onRefresh={fetchData}
+                    onRefresh={() => fetchData(true)}
                     tipoCategoria={original.includes('Formas') ? 'formas' : (categorias.find(c => c.nombre === categoria)?.tipo_categoria || 'combate')}
                     criterioDesempate={categorias.find(c => c.nombre === categoria)?.criterio_desempate || 'Automático'}
                   />
