@@ -838,6 +838,8 @@ export default function AdminConsole() {
             });
           }
         }
+      } catch (_e) { }
+
       try {
         const resAca = await fetch(`${API_URL}/api/academias`, fetchOpts);
         if (resAca.ok) {
