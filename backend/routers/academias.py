@@ -199,6 +199,47 @@ class ConfigCuotasRequest(BaseModel):
     matricula_anual: Optional[float] = 0
 
 
+class HorarioOficinaItem(BaseModel):
+    dia: str
+    hora_inicio: str
+    hora_fin: str
+
+
+class HorariosOficinaRequest(BaseModel):
+    horarios: List[HorarioOficinaItem]
+
+
+class HorarioPracticaRequest(BaseModel):
+    categoria_id: Optional[str] = None
+    sub_categoria: Optional[str] = None
+    sucursal_id: Optional[str] = None
+    cancha_nombre: Optional[str] = None
+    dia_semana: str
+    hora_inicio: str
+    hora_fin: str
+    mes_inicio_vigencia: Optional[int] = 1
+    anio_inicio_vigencia: Optional[int] = 2026
+    mes_fin_vigencia: Optional[int] = 12
+    anio_fin_vigencia: Optional[int] = 2026
+    periodo_vigencia: Optional[str] = '2026'
+    activo: Optional[bool] = True
+
+
+class TarifaCostoRequest(BaseModel):
+    concepto: str
+    tipo_costo: str  # 'matricula', 'cuota_mensual', 'indumentaria', 'otro'
+    categoria_id: Optional[str] = None
+    monto: float
+    moneda: Optional[str] = 'GS'
+    descripcion: Optional[str] = None
+    mes_inicio_vigencia: Optional[int] = 1
+    anio_inicio_vigencia: Optional[int] = 2026
+    mes_fin_vigencia: Optional[int] = 12
+    anio_fin_vigencia: Optional[int] = 2026
+    periodo_vigencia: Optional[str] = '2026'
+    activo: Optional[bool] = True
+
+
 # ================================================================
 # ENDPOINTS PÚBLICOS
 # ================================================================
@@ -242,7 +283,8 @@ async def academia_publica(enlace: str, session: AsyncSession = Depends(get_sess
     res = await session.execute(text("""
         SELECT a.id, a.nombre, a.descripcion, a.logo_url, a.banner_url, a.color_primario,
                a.acerca_de, a.facebook, a.instagram, a.youtube, a.whatsapp, a.email,
-               a.telefono, a.ciudad, a.departamento, a.pais, a.canal_comunicacion_habilitado
+               a.telefono, a.ciudad, a.departamento, a.pais, a.canal_comunicacion_habilitado,
+               a.horarios_oficina
         FROM academias.academias a
         WHERE a.enlace_sitio = :enlace AND a.habilitada = TRUE
     """), {"enlace": enlace})
@@ -251,6 +293,9 @@ async def academia_publica(enlace: str, session: AsyncSession = Depends(get_sess
         raise HTTPException(status_code=404, detail="Academia no encontrada.")
 
     academia_id = str(row[0])
+    horarios_oficina = row[17] or []
+
+    # 1. Sucursales / Sedes
     res_suc = await session.execute(text("""
         SELECT id, nombre, deporte, ciudad, departamento, direccion, telefono, email
         FROM academias.sucursales
@@ -266,6 +311,86 @@ async def academia_publica(enlace: str, session: AsyncSession = Depends(get_sess
         for s in res_suc.fetchall()
     ]
 
+    # 2. Categorías
+    res_cat = await session.execute(text("""
+        SELECT c.id, c.nombre, c.edad_min, c.edad_max, c.descripcion, c.color, s.nombre as sucursal_nombre
+        FROM academias.categorias c
+        JOIN academias.sucursales s ON s.id = c.sucursal_id
+        WHERE s.academia_id = :aid AND c.activa = TRUE
+        ORDER BY c.edad_min ASC, c.nombre ASC
+    """), {"aid": academia_id})
+    categorias = [
+        {
+            "id": str(c[0]), "nombre": c[1], "edad_min": c[2], "edad_max": c[3],
+            "descripcion": c[4], "color": c[5], "sucursal_nombre": c[6],
+        }
+        for c in res_cat.fetchall()
+    ]
+
+    # 3. Horarios de práctica
+    res_hp = await session.execute(text("""
+        SELECT hp.id, hp.categoria_id, c.nombre AS categoria_nombre, c.color AS categoria_color,
+               hp.sub_categoria, hp.sucursal_id, COALESCE(hp.cancha_nombre, s.nombre) AS cancha_nombre,
+               hp.dia_semana, hp.hora_inicio, hp.hora_fin,
+               hp.mes_inicio_vigencia, hp.anio_inicio_vigencia, hp.mes_fin_vigencia, hp.anio_fin_vigencia,
+               hp.periodo_vigencia
+        FROM academias.horarios_practica hp
+        LEFT JOIN academias.categorias c ON c.id = hp.categoria_id
+        LEFT JOIN academias.sucursales s ON s.id = hp.sucursal_id
+        WHERE hp.academia_id = :aid AND hp.activo = TRUE
+        ORDER BY 
+          CASE hp.dia_semana 
+            WHEN 'Lunes' THEN 1 WHEN 'Martes' THEN 2 WHEN 'Miércoles' THEN 3 
+            WHEN 'Jueves' THEN 4 WHEN 'Viernes' THEN 5 WHEN 'Sábado' THEN 6 WHEN 'Domingo' THEN 7 
+            ELSE 8 END,
+          hp.hora_inicio ASC
+    """), {"aid": academia_id})
+    horarios_practica = [
+        {
+            "id": str(h[0]), "categoria_id": str(h[1]) if h[1] else None,
+            "categoria_nombre": h[2], "categoria_color": h[3] or "#3b82f6",
+            "sub_categoria": h[4], "sucursal_id": str(h[5]) if h[5] else None,
+            "cancha_nombre": h[6], "dia_semana": h[7], "hora_inicio": h[8], "hora_fin": h[9],
+            "mes_inicio_vigencia": h[10], "anio_inicio_vigencia": h[11],
+            "mes_fin_vigencia": h[12], "anio_fin_vigencia": h[13],
+            "periodo_vigencia": h[14] or "2026",
+        }
+        for h in res_hp.fetchall()
+    ]
+
+    # 4. Tarifas y Costos (Matrícula, Cuotas, Indumentaria, etc.)
+    res_tc = await session.execute(text("""
+        SELECT tc.id, tc.concepto, tc.tipo_costo, tc.categoria_id, c.nombre AS categoria_nombre,
+               tc.monto, tc.moneda, tc.descripcion,
+               tc.mes_inicio_vigencia, tc.anio_inicio_vigencia, tc.mes_fin_vigencia, tc.anio_fin_vigencia,
+               tc.periodo_vigencia
+        FROM academias.tarifas_costos tc
+        LEFT JOIN academias.categorias c ON c.id = tc.categoria_id
+        WHERE tc.academia_id = :aid AND tc.activo = TRUE
+        ORDER BY 
+          CASE tc.tipo_costo 
+            WHEN 'matricula' THEN 1 WHEN 'cuota_mensual' THEN 2 WHEN 'indumentaria' THEN 3 ELSE 4 
+          END, tc.monto ASC
+    """), {"aid": academia_id})
+    tarifas_costos = [
+        {
+            "id": str(t[0]), "concepto": t[1], "tipo_costo": t[2],
+            "categoria_id": str(t[3]) if t[3] else None, "categoria_nombre": t[4],
+            "monto": float(t[5]), "moneda": t[6] or "GS", "descripcion": t[7],
+            "mes_inicio_vigencia": t[8], "anio_inicio_vigencia": t[9],
+            "mes_fin_vigencia": t[10], "anio_fin_vigencia": t[11],
+            "periodo_vigencia": t[12] or "2026",
+        }
+        for t in res_tc.fetchall()
+    ]
+
+    # Coleccionar periodos de vigencia únicos
+    periodos_practica = set(h["periodo_vigencia"] for h in horarios_practica if h["periodo_vigencia"])
+    periodos_costos = set(t["periodo_vigencia"] for t in tarifas_costos if t["periodo_vigencia"])
+    periodos_vigencia = sorted(list(periodos_practica | periodos_costos))
+    if not periodos_vigencia:
+        periodos_vigencia = ["2026"]
+
     return {
         "id": academia_id, "nombre": row[1], "descripcion": row[2],
         "logo_url": row[3], "banner_url": row[4], "color_primario": row[5],
@@ -273,7 +398,12 @@ async def academia_publica(enlace: str, session: AsyncSession = Depends(get_sess
         "youtube": row[9], "whatsapp": row[10], "email": row[11],
         "telefono": row[12], "ciudad": row[13], "departamento": row[14],
         "pais": row[15], "canal_comunicacion_habilitado": row[16],
+        "horarios_oficina": horarios_oficina,
         "sucursales": sucursales,
+        "categorias": categorias,
+        "horarios_practica": horarios_practica,
+        "tarifas_costos": tarifas_costos,
+        "periodos_vigencia": periodos_vigencia,
     }
 
 
@@ -1398,3 +1528,183 @@ async def ver_asistencias(
         }
         for r in res.fetchall()
     ]
+
+
+# ================================================================
+# ENDPOINTS — HORARIOS DE OFICINA, PRÁCTICA Y TARIFAS/COSTOS
+# ================================================================
+
+@router.put("/academia/horarios-oficina")
+async def guardar_horarios_oficina(
+    data: HorariosOficinaRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Guarda la lista de horarios de oficina de la academia."""
+    import json
+    aid = current_user["academia_id"]
+    horarios_json = json.dumps([h.dict() for h in data.horarios])
+
+    await session.execute(text("""
+        UPDATE academias.academias
+        SET horarios_oficina = CAST(:hjson AS JSONB)
+        WHERE id = :aid
+    """), {"aid": aid, "hjson": horarios_json})
+    await session.commit()
+    return {"message": "Horarios de oficina guardados exitosamente."}
+
+
+@router.get("/academia/horarios-practica")
+async def listar_horarios_practica(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtiene todos los horarios de práctica de la academia."""
+    aid = current_user["academia_id"]
+    res = await session.execute(text("""
+        SELECT hp.id, hp.categoria_id, c.nombre AS categoria_nombre, c.color AS categoria_color,
+               hp.sub_categoria, hp.sucursal_id, COALESCE(hp.cancha_nombre, s.nombre) AS cancha_nombre,
+               hp.dia_semana, hp.hora_inicio, hp.hora_fin,
+               hp.mes_inicio_vigencia, hp.anio_inicio_vigencia, hp.mes_fin_vigencia, hp.anio_fin_vigencia,
+               hp.periodo_vigencia, hp.activo
+        FROM academias.horarios_practica hp
+        LEFT JOIN academias.categorias c ON c.id = hp.categoria_id
+        LEFT JOIN academias.sucursales s ON s.id = hp.sucursal_id
+        WHERE hp.academia_id = :aid
+        ORDER BY hp.periodo_vigencia DESC, hp.dia_semana, hp.hora_inicio
+    """), {"aid": aid})
+    return [
+        {
+            "id": str(r[0]), "categoria_id": str(r[1]) if r[1] else None,
+            "categoria_nombre": r[2], "categoria_color": r[3] or "#3b82f6",
+            "sub_categoria": r[4], "sucursal_id": str(r[5]) if r[5] else None,
+            "cancha_nombre": r[6], "dia_semana": r[7], "hora_inicio": r[8], "hora_fin": r[9],
+            "mes_inicio_vigencia": r[10], "anio_inicio_vigencia": r[11],
+            "mes_fin_vigencia": r[12], "anio_fin_vigencia": r[13],
+            "periodo_vigencia": r[14], "activo": r[15],
+        }
+        for r in res.fetchall()
+    ]
+
+
+@router.post("/academia/horarios-practica")
+async def crear_horario_practica(
+    data: HorarioPracticaRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Crea una entrada de horario de práctica."""
+    aid = current_user["academia_id"]
+    await session.execute(text("""
+        INSERT INTO academias.horarios_practica (
+            academia_id, categoria_id, sub_categoria, sucursal_id, cancha_nombre,
+            dia_semana, hora_inicio, hora_fin,
+            mes_inicio_vigencia, anio_inicio_vigencia, mes_fin_vigencia, anio_fin_vigencia,
+            periodo_vigencia, activo
+        ) VALUES (
+            :aid, :cat_id, :sub_cat, :suc_id, :cancha,
+            :dia, :inicio, :fin,
+            :mes_ini, :anio_ini, :mes_fin, :anio_fin,
+            :periodo, :activo
+        )
+    """), {
+        "aid": aid, "cat_id": data.categoria_id, "sub_cat": data.sub_categoria,
+        "suc_id": data.sucursal_id, "cancha": data.cancha_nombre,
+        "dia": data.dia_semana, "inicio": data.hora_inicio, "fin": data.hora_fin,
+        "mes_ini": data.mes_inicio_vigencia, "anio_ini": data.anio_inicio_vigencia,
+        "mes_fin": data.mes_fin_vigencia, "anio_fin": data.anio_fin_vigencia,
+        "periodo": data.periodo_vigencia or "2026", "activo": data.activo if data.activo is not None else True,
+    })
+    await session.commit()
+    return {"message": "Horario de práctica registrado exitosamente."}
+
+
+@router.delete("/academia/horarios-practica/{hid}")
+async def eliminar_horario_practica(
+    hid: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Elimina un horario de práctica."""
+    aid = current_user["academia_id"]
+    await session.execute(text("""
+        DELETE FROM academias.horarios_practica WHERE id = :hid AND academia_id = :aid
+    """), {"hid": hid, "aid": aid})
+    await session.commit()
+    return {"message": "Horario de práctica eliminado."}
+
+
+@router.get("/academia/tarifas-costos")
+async def listar_tarifas_costos(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtiene las tarifas y costos de la academia."""
+    aid = current_user["academia_id"]
+    res = await session.execute(text("""
+        SELECT tc.id, tc.concepto, tc.tipo_costo, tc.categoria_id, c.nombre AS categoria_nombre,
+               tc.monto, tc.moneda, tc.descripcion,
+               tc.mes_inicio_vigencia, tc.anio_inicio_vigencia, tc.mes_fin_vigencia, tc.anio_fin_vigencia,
+               tc.periodo_vigencia, tc.activo
+        FROM academias.tarifas_costos tc
+        LEFT JOIN academias.categorias c ON c.id = tc.categoria_id
+        WHERE tc.academia_id = :aid
+        ORDER BY tc.periodo_vigencia DESC, tc.monto ASC
+    """), {"aid": aid})
+    return [
+        {
+            "id": str(r[0]), "concepto": r[1], "tipo_costo": r[2],
+            "categoria_id": str(r[3]) if r[3] else None, "categoria_nombre": r[4],
+            "monto": float(r[5]), "moneda": r[6] or "GS", "descripcion": r[7],
+            "mes_inicio_vigencia": r[8], "anio_inicio_vigencia": r[9],
+            "mes_fin_vigencia": r[10], "anio_fin_vigencia": r[11],
+            "periodo_vigencia": r[12], "activo": r[13],
+        }
+        for r in res.fetchall()
+    ]
+
+
+@router.post("/academia/tarifas-costos")
+async def crear_tarifa_costo(
+    data: TarifaCostoRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Crea un concepto de costo/tarifa (matrícula, cuota, indumentaria, etc.)."""
+    aid = current_user["academia_id"]
+    await session.execute(text("""
+        INSERT INTO academias.tarifas_costos (
+            academia_id, concepto, tipo_costo, categoria_id, monto, moneda, descripcion,
+            mes_inicio_vigencia, anio_inicio_vigencia, mes_fin_vigencia, anio_fin_vigencia,
+            periodo_vigencia, activo
+        ) VALUES (
+            :aid, :concepto, :tipo, :cat_id, :monto, :moneda, :desc,
+            :mes_ini, :anio_ini, :mes_fin, :anio_fin,
+            :periodo, :activo
+        )
+    """), {
+        "aid": aid, "concepto": data.concepto, "tipo": data.tipo_costo,
+        "cat_id": data.categoria_id, "monto": data.monto, "moneda": data.moneda or "GS",
+        "desc": data.descripcion, "mes_ini": data.mes_inicio_vigencia,
+        "anio_ini": data.anio_inicio_vigencia, "mes_fin": data.mes_fin_vigencia,
+        "anio_fin": data.anio_fin_vigencia, "periodo": data.periodo_vigencia or "2026",
+        "activo": data.activo if data.activo is not None else True,
+    })
+    await session.commit()
+    return {"message": "Tarifa o costo registrado exitosamente."}
+
+
+@router.delete("/academia/tarifas-costos/{tid}")
+async def eliminar_tarifa_costo(
+    tid: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Elimina una tarifa o costo."""
+    aid = current_user["academia_id"]
+    await session.execute(text("""
+        DELETE FROM academias.tarifas_costos WHERE id = :tid AND academia_id = :aid
+    """), {"tid": tid, "aid": aid})
+    await session.commit()
+    return {"message": "Tarifa eliminada."}
+

@@ -55,7 +55,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'alumnos' | 'inscripciones' | 'cuotas' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'inscripciones' | 'cuotas' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -99,73 +99,79 @@ export default function AcademiaPanel() {
   }, []);
 
   useEffect(() => {
-    if (!token) return;
-    fetchAll();
-    fetch(`${API_URL}/api/deportes`)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setDeportes(data.map((d: any) => d.nombre));
-        }
-      })
-      .catch(() => {});
+    if (token) fetchAll();
   }, [token]);
 
-  const headers = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
+  const apiFetch = async (endpoint: string, opts: any = {}) => {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...opts.headers,
+      },
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('user_session');
+      window.location.href = '/login';
+      throw new Error('Sesión expirada.');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Error en la petición.');
+    return data;
+  };
 
   const notify = (msg: string, type: 'ok' | 'err' = 'ok') => {
     setNotif({ msg, type });
-    setTimeout(() => setNotif(null), 3500);
-  };
-
-  const apiFetch = async (url: string, opts: RequestInit = {}) => {
-    const res = await fetch(`${API_URL}${url}`, { headers: headers(), ...opts });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || 'Error en la operación');
-    return data;
+    setTimeout(() => setNotif(null), 4000);
   };
 
   const fetchAll = async () => {
     try {
-      const [p, s, a, i, q, st, c, cfg] = await Promise.allSettled([
-        apiFetch('/academia/perfil'),
-        apiFetch('/academia/sucursales'),
-        apiFetch('/academia/alumnos'),
-        apiFetch('/academia/inscripciones'),
-        apiFetch('/academia/cuotas'),
-        apiFetch('/academia/miembros'),
-        apiFetch('/academia/categorias'),
-        apiFetch('/academia/config-cuotas'),
+      const [p, s, cat, d] = await Promise.all([
+        apiFetch('/academia/perfil').catch(() => null),
+        apiFetch('/academia/sucursales').catch(() => []),
+        apiFetch('/academia/categorias').catch(() => []),
+        apiFetch('/api/deportes').catch(() => []),
       ]);
-      if (p.status === 'fulfilled') setPerfil(p.value);
-      if (s.status === 'fulfilled') setSucursales(s.value);
-      if (a.status === 'fulfilled') setAlumnos(a.value);
-      if (i.status === 'fulfilled') setInscripciones(i.value);
-      if (q.status === 'fulfilled') setCuotas(q.value);
-      if (st.status === 'fulfilled') setStaff(st.value);
-      if (c.status === 'fulfilled') setCategorias(c.value);
-      if (cfg.status === 'fulfilled') setConfigCuotas(cfg.value);
-    } catch (e) {}
+      setPerfil(p);
+      setSucursales(s || []);
+      setCategorias(cat || []);
+      setDeportes(d || []);
+
+      // Cargas opcionales según tab
+      apiFetch('/academia/alumnos').then(setAlumnos).catch(() => {});
+      apiFetch('/academia/inscripciones').then(setInscripciones).catch(() => {});
+      apiFetch('/academia/cuotas').then(setCuotas).catch(() => {});
+      apiFetch('/academia/miembros').then(setStaff).catch(() => {});
+      apiFetch('/academia/config-cuotas').then(setConfigCuotas).catch(() => {});
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
   };
 
   // ─── Guard ──────────────────────────────────────────────────
-  if (loading) return <LoadingScreen />;
-  if (!session) return <NoAccess />;
-  const rolInterno = session.rol_academia || 'dueño';
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg }}>
+      <div style={{ textAlign: 'center', color: C.muted }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🎓</div>
+        <p>Cargando panel de academia...</p>
+      </div>
+    </div>
+  );
+
+  if (!session) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg }}>
+      <div style={{ textAlign: 'center', color: C.muted }}>
+        <p style={{ fontSize: 18, marginBottom: 16 }}>Tenés que iniciar sesión como Academia.</p>
+        <a href="/login" style={btn()}>Ir al login</a>
+      </div>
+    </div>
+  );
+  const rolInterno = session.rol_academia || (session.role === 'academia' ? 'dueño' : 'invitado');
   const isDueno = rolInterno === 'dueño';
   const isAdmin = isDueno || rolInterno === 'administrador';
-  const isTesorero = isDueno || rolInterno === 'tesorero';
-  const isProfesor = rolInterno === 'profesor';
-
-  // ─── Stats para dashboard ────────────────────────────────────
-  const stats: Stat[] = [
-    { label: 'Alumnos activos', value: alumnos.filter(a => a.estado === 'activo').length, icon: Users, color: C.green },
-    { label: 'Sucursales', value: sucursales.filter(s => s.activa).length, icon: Building2, color: C.primary },
-    { label: 'Inscripciones activas', value: inscripciones.filter(i => i.estado === 'activa').length, icon: BookOpen, color: C.purple },
-    { label: 'Cuotas pendientes', value: cuotas.filter(q => q.estado === 'pendiente').length, icon: CreditCard, color: C.yellow },
-  ];
-
-  const cuotasPendientesGs = cuotas.filter(q => q.estado === 'pendiente').reduce((s, q) => s + q.monto_final, 0);
+  const isTesorero = isDueno || rolInterno === 'administrador' || rolInterno === 'tesorero';
 
   // ─── Render principal ────────────────────────────────────────
   return (
@@ -178,29 +184,32 @@ export default function AcademiaPanel() {
         {/* Notificación flotante */}
         {notif && (
           <div style={{
-            position: 'fixed', top: 20, right: 20, zIndex: 9999,
+            position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
             padding: '12px 20px', borderRadius: 10,
-            background: notif.type === 'ok' ? '#064e3b' : '#450a0a',
-            border: `1px solid ${notif.type === 'ok' ? C.green : C.red}`,
-            color: notif.type === 'ok' ? C.green : C.red,
+            background: notif.type === 'ok' ? C.green : C.red,
+            color: '#fff',
             fontWeight: 600, fontSize: 14, boxShadow: '0 8px 32px rgba(0,0,0,.4)',
+            display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            {notif.type === 'ok' ? '✓' : '✗'} {notif.msg}
+            {notif.type === 'ok' ? <Check size={18} /> : <AlertCircle size={18} />} {notif.msg}
           </div>
         )}
 
         <div style={{ padding: '32px 28px', maxWidth: 1100 }}>
           {/* ──────────────── DASHBOARD ──────────────── */}
           {activeTab === 'dashboard' && (
-            <Dashboard stats={stats} cuotasPendientesGs={cuotasPendientesGs} cuotas={cuotas} alumnos={alumnos} sucursales={sucursales} perfil={perfil} />
+            <DashboardTab 
+              perfil={perfil} sucursales={sucursales} alumnos={alumnos}
+              inscripciones={inscripciones} cuotas={cuotas} setTab={setActiveTab}
+            />
           )}
 
           {/* ──────────────── PERFIL ──────────────── */}
           {activeTab === 'perfil' && (
             <PerfilTab
-              perfil={perfil} setPerfil={setPerfil} token={token}
+              perfil={perfil} setPerfil={setPerfil}
               fileLogoRef={fileLogoRef} fileBannerRef={fileBannerRef}
-              notify={notify} apiFetch={apiFetch} isDueno={isDueno}
+              notify={notify} apiFetch={apiFetch} isDueno={isDueno} fetchAll={fetchAll}
             />
           )}
 
@@ -208,9 +217,26 @@ export default function AcademiaPanel() {
           {activeTab === 'sucursales' && (
             <SucursalesTab
               sucursales={sucursales} setSucursales={setSucursales}
-              deportes={deportes} modal={modalSucursal} setModal={setModalSucursal}
+              deportes={deportes} modalSucursal={modalSucursal} setModalSucursal={setModalSucursal}
+              modalCategoria={modalCategoria} setModalCategoria={setModalCategoria}
               notify={notify} apiFetch={apiFetch} isAdmin={isAdmin} isDueno={isDueno}
               categorias={categorias} fetchAll={fetchAll}
+            />
+          )}
+
+          {/* ──────────────── HORARIOS DE PRÁCTICA ──────────────── */}
+          {activeTab === 'horarios_practica' && (
+            <HorariosPracticaTab
+              categorias={categorias} sucursales={sucursales}
+              notify={notify} apiFetch={apiFetch} isDueno={isDueno}
+            />
+          )}
+
+          {/* ──────────────── TARIFAS Y COSTOS ──────────────── */}
+          {activeTab === 'tarifas_costos' && (
+            <TarifasCostosTab
+              categorias={categorias}
+              notify={notify} apiFetch={apiFetch} isDueno={isDueno} isTesorero={isTesorero}
             />
           )}
 
@@ -291,11 +317,6 @@ export default function AcademiaPanel() {
 // ═══════════════════════════════════════════════════════════
 function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
   const navItems: { id: Tab; label: string; icon: any; roles?: string[] }[] = [
-    { id: 'dashboard',     label: 'Dashboard',      icon: BarChart3 },
-    { id: 'perfil',        label: 'Mi Academia',     icon: GraduationCap, roles: ['dueño','administrador'] },
-    { id: 'sucursales',    label: 'Sucursales',      icon: Building2 },
-    { id: 'alumnos',       label: 'Alumnos',         icon: Users },
-    { id: 'inscripciones', label: 'Inscripciones',   icon: BookOpen },
     { id: 'cuotas',        label: 'Cuotas / Pagos',  icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
     { id: 'asistencias',   label: 'Asistencias',     icon: Calendar, roles: ['dueño','administrador','profesor'] },
     { id: 'noticias',      label: 'Noticias CMS',    icon: FileText, roles: ['dueño','administrador'] },
@@ -481,6 +502,68 @@ function Dashboard({ stats, cuotasPendientesGs, cuotas, alumnos, sucursales, per
   );
 }
 
+function HorariosOficinaEditor({ perfil, notify, apiFetch }: any) {
+  const [items, setItems] = useState<any[]>(perfil?.horarios_oficina || []);
+  const [dia, setDia] = useState('Lunes');
+  const [inicio, setInicio] = useState('17:00');
+  const [fin, setFin] = useState('20:00');
+
+  useEffect(() => {
+    if (perfil?.horarios_oficina) {
+      setItems(perfil.horarios_oficina);
+    }
+  }, [perfil]);
+
+  const agregar = () => {
+    const nuevo = { dia, hora_inicio: inicio, hora_fin: fin };
+    const filtrados = items.filter(i => i.dia !== dia);
+    const updated = [...filtrados, nuevo];
+    setItems(updated);
+    guardar(updated);
+  };
+
+  const quitar = (diaQuitar: string) => {
+    const updated = items.filter(i => i.dia !== diaQuitar);
+    setItems(updated);
+    guardar(updated);
+  };
+
+  const guardar = async (lista: any[]) => {
+    try {
+      await apiFetch('/academia/horarios-oficina', {
+        method: 'PUT',
+        body: JSON.stringify({ horarios: lista }),
+      });
+      notify('Horarios de oficina guardados');
+    } catch (e: any) { notify(e.message, 'err'); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, marginBottom: 12 }}>
+        <select value={dia} onChange={e => setDia(e.target.value)} style={input()}>
+          {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(d => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+        <input value={inicio} onChange={e => setInicio(e.target.value)} placeholder="17:00" style={input()} />
+        <input value={fin} onChange={e => setFin(e.target.value)} placeholder="20:00" style={input()} />
+        <button onClick={agregar} style={btn(C.primary)}><Plus size={14} /> Agregar</button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map(h => (
+          <div key={h.dia} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.border}` }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>{h.dia}</span>
+            <span style={{ color: C.primary, fontWeight: 700, fontSize: 13 }}>{h.hora_inicio} a {h.hora_fin}</span>
+            <button onClick={() => quitar(h.dia)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer' }}><Trash2 size={14} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // PERFIL (Mi Academia)
 // ═══════════════════════════════════════════════════════════
@@ -596,11 +679,16 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
             </div>
           </div>
 
-          <div style={card()}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.primary }}>Ubicación</h3>
-            {field('pais', 'País', 'Paraguay')}
-            {field('departamento', 'Departamento', 'Central')}
-            {field('ciudad', 'Ciudad', 'Asunción')}
+          <div style={card({ marginTop: 16 })}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.primary }}>Horarios de Oficina</h3>
+            </div>
+            <p style={{ fontSize: 12, color: C.muted, marginTop: 0, marginBottom: 12 }}>
+              Días y horarios de atención al cliente / oficina que aparecerán en tu página pública.
+            </p>
+            {isDueno && (
+              <HorariosOficinaEditor perfil={perfil} notify={notify} apiFetch={apiFetch} />
+            )}
           </div>
         </div>
 
@@ -1558,6 +1646,373 @@ function FeedbackTab({ notify, apiFetch }: any) {
         ))}
         {!loading && feedback.length === 0 && <p style={{ color: C.muted }}>No hay sugerencias por el momento.</p>}
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// HORARIOS DE PRÁCTICA TAB
+// ═══════════════════════════════════════════════════════════
+function HorariosPracticaTab({ categorias, sucursales, notify, apiFetch, isDueno }: any) {
+  const [horarios, setHorarios] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({
+    categoria_id: '',
+    sub_categoria: '',
+    sucursal_id: '',
+    cancha_nombre: '',
+    dia_semana: 'Lunes',
+    hora_inicio: '17:00',
+    hora_fin: '18:15',
+    mes_inicio_vigencia: 1,
+    anio_inicio_vigencia: 2026,
+    mes_fin_vigencia: 12,
+    anio_fin_vigencia: 2026,
+    periodo_vigencia: '2026',
+  });
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/academia/horarios-practica');
+      setHorarios(res);
+    } catch (e: any) { notify(e.message, 'err'); }
+    setLoading(false);
+  };
+
+  const guardar = async () => {
+    if (!form.dia_semana || !form.hora_inicio || !form.hora_fin) {
+      return notify('Completa el día y los horarios de inicio y fin.', 'err');
+    }
+    try {
+      await apiFetch('/academia/horarios-practica', {
+        method: 'POST',
+        body: JSON.stringify(form),
+      });
+      notify('Horario de práctica registrado exitosamente.');
+      setModal(false);
+      load();
+    } catch (e: any) { notify(e.message, 'err'); }
+  };
+
+  const eliminar = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este horario?')) return;
+    try {
+      await apiFetch(`/academia/horarios-practica/${id}`, { method: 'DELETE' });
+      notify('Horario eliminado.');
+      load();
+    } catch (e: any) { notify(e.message, 'err'); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Horarios de Práctica por Categoría</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>Configura las clases, días, sedes y rangos de vigencia.</p>
+        </div>
+        <button onClick={() => setModal(true)} style={btn(C.primary)}>
+          <Plus size={16} /> Agregar Horario
+        </button>
+      </div>
+
+      <div style={card()}>
+        {loading ? <p style={{ color: C.muted }}>Cargando horarios...</p> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, textAlign: 'left', fontSize: 12 }}>
+                <th style={{ padding: '10px 12px' }}>DÍA</th>
+                <th style={{ padding: '10px 12px' }}>CATEGORÍA</th>
+                <th style={{ padding: '10px 12px' }}>SUB-CATEGORÍA</th>
+                <th style={{ padding: '10px 12px' }}>CANCHA / LOCAL</th>
+                <th style={{ padding: '10px 12px' }}>HORARIO</th>
+                <th style={{ padding: '10px 12px' }}>PERIODO VIGENCIA</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right' }}>ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {horarios.map(h => (
+                <tr key={h.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
+                  <td style={{ padding: '12px', fontWeight: 700, color: C.text }}>{h.dia_semana}</td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={badge(h.categoria_color || C.primary)}>
+                      {h.categoria_nombre || 'Todas'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px', color: C.muted }}>{h.sub_categoria || '—'}</td>
+                  <td style={{ padding: '12px', fontWeight: 600, color: C.primary }}>{h.cancha_nombre || 'Sede principal'}</td>
+                  <td style={{ padding: '12px', fontWeight: 700, color: C.text }}>{h.hora_inicio} - {h.hora_fin}</td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, background: '#0f172a', border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 700 }}>
+                      Vigencia {h.periodo_vigencia || '2026'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px', textAlign: 'right' }}>
+                    <button onClick={() => eliminar(h.id)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer', padding: 6 }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {horarios.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: C.muted }}>
+                    No hay horarios registrados. Haz clic en "Agregar Horario" para crear uno.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 500, padding: 26 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>Nuevo Horario de Práctica</h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Categoría</label>
+                <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} style={input()}>
+                  <option value="">Seleccionar Categoría</option>
+                  {categorias.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={label()}>Sub-Categoría (opcional)</label>
+                <input value={form.sub_categoria} onChange={e => setForm({ ...form, sub_categoria: e.target.value })} placeholder="Ej: 2017" style={input()} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Local / Cancha (opcional)</label>
+                <input value={form.cancha_nombre} onChange={e => setForm({ ...form, cancha_nombre: e.target.value })} placeholder="Ej: Cancha María Auxiliadora" style={input()} />
+              </div>
+              <div>
+                <label style={label()}>Día de la Semana</label>
+                <select value={form.dia_semana} onChange={e => setForm({ ...form, dia_semana: e.target.value })} style={input()}>
+                  {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Hora Inicio</label>
+                <input value={form.hora_inicio} onChange={e => setForm({ ...form, hora_inicio: e.target.value })} placeholder="17:00" style={input()} />
+              </div>
+              <div>
+                <label style={label()}>Hora Fin</label>
+                <input value={form.hora_fin} onChange={e => setForm({ ...form, hora_fin: e.target.value })} placeholder="18:15" style={input()} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={label()}>Año Vigencia</label>
+                <input type="number" value={form.anio_inicio_vigencia} onChange={e => setForm({ ...form, anio_inicio_vigencia: parseInt(e.target.value), anio_fin_vigencia: parseInt(e.target.value), periodo_vigencia: e.target.value })} style={input()} />
+              </div>
+              <div>
+                <label style={label()}>Etiqueta Vigencia</label>
+                <input value={form.periodo_vigencia} onChange={e => setForm({ ...form, periodo_vigencia: e.target.value })} placeholder="2026" style={input()} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setModal(false)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={guardar} style={btn(C.primary)}>Guardar Horario</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TARIFAS Y COSTOS TAB
+// ═══════════════════════════════════════════════════════════
+function TarifasCostosTab({ categorias, notify, apiFetch, isDueno, isTesorero }: any) {
+  const [tarifas, setTarifas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({
+    concepto: '',
+    tipo_costo: 'cuota_mensual',
+    categoria_id: '',
+    monto: 180000,
+    moneda: 'GS',
+    descripcion: '',
+    mes_inicio_vigencia: 1,
+    anio_inicio_vigencia: 2026,
+    mes_fin_vigencia: 12,
+    anio_fin_vigencia: 2026,
+    periodo_vigencia: '2026',
+  });
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/academia/tarifas-costos');
+      setTarifas(res);
+    } catch (e: any) { notify(e.message, 'err'); }
+    setLoading(false);
+  };
+
+  const guardar = async () => {
+    if (!form.concepto || !form.monto) {
+      return notify('Ingresa el concepto y el monto.', 'err');
+    }
+    try {
+      await apiFetch('/academia/tarifas-costos', {
+        method: 'POST',
+        body: JSON.stringify(form),
+      });
+      notify('Tarifa / costo guardado exitosamente.');
+      setModal(false);
+      load();
+    } catch (e: any) { notify(e.message, 'err'); }
+  };
+
+  const eliminar = async (id: string) => {
+    if (!confirm('¿Estás seguro de eliminar este concepto de costo?')) return;
+    try {
+      await apiFetch(`/academia/tarifas-costos/${id}`, { method: 'DELETE' });
+      notify('Tarifa eliminada.');
+      load();
+    } catch (e: any) { notify(e.message, 'err'); }
+  };
+
+  const formatMonto = (val: number) => new Intl.NumberFormat('es-PY').format(val) + ' GS';
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Tarifario de Costos e Indumentaria</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>Matrículas, cuotas por categoría e indumentarias publicadas.</p>
+        </div>
+        <button onClick={() => setModal(true)} style={btn(C.primary)}>
+          <Plus size={16} /> Agregar Costo / Tarifa
+        </button>
+      </div>
+
+      <div style={card()}>
+        {loading ? <p style={{ color: C.muted }}>Cargando tarifario...</p> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, textAlign: 'left', fontSize: 12 }}>
+                <th style={{ padding: '10px 12px' }}>CONCEPTO</th>
+                <th style={{ padding: '10px 12px' }}>TIPO</th>
+                <th style={{ padding: '10px 12px' }}>CATEGORÍA</th>
+                <th style={{ padding: '10px 12px' }}>MONTO</th>
+                <th style={{ padding: '10px 12px' }}>PERIODO VIGENCIA</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right' }}>ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tarifas.map(t => (
+                <tr key={t.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
+                  <td style={{ padding: '12px', fontWeight: 800, color: C.text }}>
+                    {t.concepto}
+                    {t.descripcion && <div style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>{t.descripcion}</div>}
+                  </td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={badge(t.tipo_costo === 'matricula' ? C.yellow : t.tipo_costo === 'cuota_mensual' ? C.primary : C.purple)}>
+                      {t.tipo_costo.toUpperCase().replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px', color: C.muted }}>{t.categoria_nombre || '—'}</td>
+                  <td style={{ padding: '12px', fontWeight: 800, color: C.green, fontSize: 16 }}>{formatMonto(t.monto)}</td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, background: '#0f172a', border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 700 }}>
+                      Vigencia {t.periodo_vigencia || '2026'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px', textAlign: 'right' }}>
+                    <button onClick={() => eliminar(t.id)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer', padding: 6 }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {tarifas.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: C.muted }}>
+                    No hay tarifas registradas. Haz clic en "Agregar Costo / Tarifa" para crear una.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 480, padding: 26 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>Nuevo Concepto de Costo</h3>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={label()}>Concepto (Ej: Matrícula Inicial, Indumentaria)</label>
+              <input value={form.concepto} onChange={e => setForm({ ...form, concepto: e.target.value })} placeholder="Ej: Indumentaria Oficial 2026" style={input()} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Tipo de Costo</label>
+                <select value={form.tipo_costo} onChange={e => setForm({ ...form, tipo_costo: e.target.value })} style={input()}>
+                  <option value="matricula">Matrícula</option>
+                  <option value="cuota_mensual">Cuota Mensual</option>
+                  <option value="indumentaria">Indumentaria</option>
+                  <option value="otro">Otro Gasto</option>
+                </select>
+              </div>
+              <div>
+                <label style={label()}>Categoría Asociada (opcional)</label>
+                <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} style={input()}>
+                  <option value="">Ninguna / General</option>
+                  {categorias.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={label()}>Monto en Guaraníes (GS)</label>
+                <input type="number" value={form.monto} onChange={e => setForm({ ...form, monto: parseFloat(e.target.value) || 0 })} style={input()} />
+              </div>
+              <div>
+                <label style={label()}>Año Vigencia</label>
+                <input type="number" value={form.anio_inicio_vigencia} onChange={e => setForm({ ...form, anio_inicio_vigencia: parseInt(e.target.value), anio_fin_vigencia: parseInt(e.target.value), periodo_vigencia: e.target.value })} style={input()} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={label()}>Descripción breve (opcional)</label>
+              <input value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} placeholder="Ej: Kit completo con remera y short" style={input()} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setModal(false)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={guardar} style={btn(C.primary)}>Guardar Concepto</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
