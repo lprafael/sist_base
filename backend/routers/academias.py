@@ -1556,7 +1556,7 @@ async def guardar_horarios_oficina(
 
 @router.get("/academia/horarios-practica")
 async def listar_horarios_practica(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero", "profesor")),
     session: AsyncSession = Depends(get_session)
 ):
     """Obtiene todos los horarios de práctica de la academia."""
@@ -1643,7 +1643,7 @@ async def eliminar_horario_practica(
 
 @router.get("/academia/tarifas-costos")
 async def listar_tarifas_costos(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero", "profesor")),
     session: AsyncSession = Depends(get_session)
 ):
     """Obtiene las tarifas y costos de la academia."""
