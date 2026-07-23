@@ -168,6 +168,17 @@ export default function AcademiaPanel() {
       </div>
     </div>
   );
+
+  // ─── Stats para dashboard ────────────────────────────────────
+  const stats: Stat[] = [
+    { label: 'Alumnos activos', value: alumnos.filter(a => a.estado === 'activo').length, icon: Users, color: C.green },
+    { label: 'Sucursales', value: sucursales.filter(s => s.activa).length, icon: Building2, color: C.primary },
+    { label: 'Inscripciones activas', value: inscripciones.filter(i => i.estado === 'activa').length, icon: BookOpen, color: C.purple },
+    { label: 'Cuotas pendientes', value: cuotas.filter(q => q.estado === 'pendiente').length, icon: CreditCard, color: C.yellow },
+  ];
+
+  const cuotasPendientesGs = cuotas.filter(q => q.estado === 'pendiente').reduce((s, q) => s + (q.monto_final || 0), 0);
+
   const rolInterno = session.rol_academia || (session.role === 'academia' ? 'dueño' : 'invitado');
   const isDueno = rolInterno === 'dueño';
   const isAdmin = isDueno || rolInterno === 'administrador';
