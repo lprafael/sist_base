@@ -2329,6 +2329,197 @@ async def test_face(
 
 
 # ============================================================
+# ENDPOINTS — GENERACIÓN AUTOMÁTICA DE FIXTURES
+# ============================================================
+
+class GenerarPartidosPayload(BaseModel):
+    fase: str                             # Name of the fase to generate matches for
+    tipo: str = "todos_contra_todos"      # todos_contra_todos | eliminatoria_simple | eliminatoria_doble
+    ida_vuelta: bool = False              # Only for round-robin: generate home and away legs
+    clasificados_por_grupo: int = 2       # For knockout: how many advance from each group
+    num_grupos: int = 1                   # How many groups in the group stage
+    seed_from_fase: Optional[str] = None  # Knockout: auto-seed winners from a group fase
+    limpiar_fase: bool = False            # Delete existing matches in this fase first
+
+
+@router.post("/{torneo_id}/generar-partidos", summary="Generar partidos automáticamente para una fase")
+async def generar_partidos(torneo_id: str, payload: GenerarPartidosPayload, session: AsyncSession = Depends(get_session)):
+    """
+    Genera fixtures automáticamente para una fase determinada.
+    - tipo=todos_contra_todos: cada equipo juega contra cada otro (ida, o ida+vuelta)
+    - tipo=eliminatoria_simple: llaves de eliminación directa de los equipos del torneo o ganadores de fase anterior
+    - tipo=eliminatoria_doble: igual pero con partidos de vuelta
+    """
+    import random
+    import math
+
+    try:
+        # Limpiar partidos de la fase si se solicita
+        if payload.limpiar_fase:
+            await session.execute(text("""
+                DELETE FROM torneos.eventos_partido
+                WHERE partido_id IN (SELECT id FROM torneos.partidos WHERE torneo_id = :tid AND fase = :fase)
+            """), {"tid": torneo_id, "fase": payload.fase})
+            await session.execute(text("""
+                DELETE FROM torneos.partidos WHERE torneo_id = :tid AND fase = :fase
+            """), {"tid": torneo_id, "fase": payload.fase})
+            await session.commit()
+
+        # Obtener equipos del torneo
+        equipos_res = await session.execute(text("""
+            SELECT DISTINCT ON (nombre) id, nombre, logo_url
+            FROM torneos.equipos
+            WHERE torneo_id = :tid AND estado_inscripcion NOT IN ('eliminado', 'retirado')
+            ORDER BY nombre ASC, creado_en ASC
+        """), {"tid": torneo_id})
+        equipos = equipos_res.fetchall()
+
+        # Si es eliminatoria con seed_from_fase, obtener los clasificados de esa fase
+        if payload.seed_from_fase and payload.tipo in ("eliminatoria_simple", "eliminatoria_doble"):
+            # Obtener equipos que ganaron o clasificaron de la fase anterior (por posicion en tabla)
+            pos_res = await session.execute(text("""
+                WITH resultados AS (
+                    SELECT
+                        CASE WHEN goles_local > goles_visitante THEN equipo_local_id
+                             WHEN goles_visitante > goles_local THEN equipo_visitante_id
+                             ELSE NULL END AS ganador_id,
+                        equipo_local_id,
+                        equipo_visitante_id,
+                        goles_local,
+                        goles_visitante
+                    FROM torneos.partidos
+                    WHERE torneo_id = :tid AND fase = :fase AND estado = 'finalizado'
+                ),
+                stats AS (
+                    SELECT e.id, e.nombre,
+                        SUM(CASE WHEN r.ganador_id = e.id THEN 3
+                                 WHEN (r.equipo_local_id = e.id OR r.equipo_visitante_id = e.id) AND r.ganador_id IS NULL THEN 1
+                                 ELSE 0 END) AS pts
+                    FROM torneos.equipos e
+                    JOIN resultados r ON (r.equipo_local_id = e.id OR r.equipo_visitante_id = e.id)
+                    WHERE e.torneo_id = :tid
+                    GROUP BY e.id, e.nombre
+                )
+                SELECT id, nombre FROM stats
+                ORDER BY pts DESC
+                LIMIT :n
+            """), {"tid": torneo_id, "fase": payload.seed_from_fase, "n": payload.clasificados_por_grupo * payload.num_grupos})
+            clasificados = pos_res.fetchall()
+            if clasificados:
+                equipos = clasificados
+
+        if not equipos:
+            raise HTTPException(status_code=400, detail="No hay equipos inscriptos en el torneo para generar partidos.")
+
+        equipos_list = list(equipos)
+        matches_created = 0
+
+        if payload.tipo == "todos_contra_todos":
+            # Round-Robin: each team plays every other team
+            n = len(equipos_list)
+            # Add bye if odd
+            if n % 2 == 1:
+                equipos_list.append(None)  # bye
+                n += 1
+
+            # Shuffle for randomness
+            random.shuffle(equipos_list)
+            jornada = 1
+            rounds = n - 1
+            half = n // 2
+
+            for rnd in range(rounds):
+                pairs_this_round = []
+                for i in range(half):
+                    home = equipos_list[i]
+                    away = equipos_list[n - 1 - i]
+                    if home is not None and away is not None:
+                        pairs_this_round.append((home, away))
+                        if payload.ida_vuelta:
+                            pairs_this_round.append((away, home))
+
+                for (home, away) in pairs_this_round:
+                    await session.execute(text("""
+                        INSERT INTO torneos.partidos
+                        (torneo_id, equipo_local_id, equipo_visitante_id, fase, jornada, estado)
+                        VALUES (CAST(:tid AS UUID), CAST(:el AS UUID), CAST(:ev AS UUID), :fase, :jornada, 'programado')
+                    """), {
+                        "tid": torneo_id,
+                        "el": str(home[0]),
+                        "ev": str(away[0]),
+                        "fase": payload.fase,
+                        "jornada": jornada
+                    })
+                    matches_created += 1
+                jornada += 1
+
+                # Rotate: keep index 0 fixed, rotate the rest
+                equipos_list = [equipos_list[0]] + [equipos_list[-1]] + equipos_list[1:-1]
+
+        elif payload.tipo in ("eliminatoria_simple", "eliminatoria_doble"):
+            # Knockout bracket: pair teams 1v2N, 2v(2N-1), etc.
+            random.shuffle(equipos_list)
+            n = len(equipos_list)
+            # Pad to next power of 2 (byes)
+            next_pow2 = 1
+            while next_pow2 < n:
+                next_pow2 *= 2
+            while len(equipos_list) < next_pow2:
+                equipos_list.append(None)  # bye
+
+            jornada = 1
+            for i in range(0, next_pow2, 2):
+                home = equipos_list[i]
+                away = equipos_list[i + 1]
+                if home is None and away is None:
+                    continue
+                if home is None:
+                    home = away
+                    away = None
+                await session.execute(text("""
+                    INSERT INTO torneos.partidos
+                    (torneo_id, equipo_local_id, equipo_visitante_id, fase, jornada, estado)
+                    VALUES (
+                        CAST(:tid AS UUID),
+                        CAST(:el AS UUID),
+                        CASE WHEN :ev IS NOT NULL THEN CAST(:ev AS UUID) ELSE NULL END,
+                        :fase, :jornada, 'programado'
+                    )
+                """), {
+                    "tid": torneo_id,
+                    "el": str(home[0]),
+                    "ev": str(away[0]) if away else None,
+                    "fase": payload.fase,
+                    "jornada": jornada
+                })
+                matches_created += 1
+
+                if payload.tipo == "eliminatoria_doble" and away:
+                    # Generate return leg
+                    await session.execute(text("""
+                        INSERT INTO torneos.partidos
+                        (torneo_id, equipo_local_id, equipo_visitante_id, fase, jornada, estado)
+                        VALUES (CAST(:tid AS UUID), CAST(:el AS UUID), CAST(:ev AS UUID), :fase, :jornada, 'programado')
+                    """), {
+                        "tid": torneo_id,
+                        "el": str(away[0]),
+                        "ev": str(home[0]),
+                        "fase": f"{payload.fase} (Vuelta)",
+                        "jornada": jornada + 1
+                    })
+                    matches_created += 1
+
+        await session.commit()
+        return {"status": "ok", "message": f"Se generaron {matches_created} partidos para la fase '{payload.fase}'.", "partidos_creados": matches_created}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================
 # ENDPOINTS — PARTIDOS
 # ============================================================
 

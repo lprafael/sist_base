@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy,
-  List, Check, Share2, RotateCcw, Image as ImageIcon, FileText, ChevronRight
+  List, Check, Share2, RotateCcw, Image as ImageIcon, FileText, ChevronRight, Zap
 } from 'lucide-react';
 import MatchController from './MatchController';
 import MatchAddModal from './MatchAddModal';
@@ -12,6 +12,7 @@ import EditMatchInfoModal from './EditMatchInfoModal';
 import SelectTeamsModal from './SelectTeamsModal';
 import ArtDuJeuModal from './ArtDuJeuModal';
 import ActaModal from './ActaModal';
+import GenerarPartidosModal from './GenerarPartidosModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -45,6 +46,7 @@ export default function PartidosView({
   const [selectTeamsMatch, setSelectTeamsMatch] = useState<any>(null);
   const [artDuJeuMatch, setArtDuJeuMatch] = useState<any>(null);
   const [actaMatch, setActaMatch] = useState<any>(null);
+  const [showGenerarModal, setShowGenerarModal] = useState(false);
 
   useEffect(() => {
     if (!partidosProp) {
@@ -168,17 +170,24 @@ export default function PartidosView({
       )}
 
       {!faseOculta && (
-        <div className="flex justify-center mb-4 gap-2">
+        <div className="flex flex-col items-center mb-4 gap-2">
+          <button
+            onClick={() => setShowGenerarModal(true)}
+            className="w-full flex items-center justify-center gap-2 bg-[#191942] hover:bg-indigo-900 text-white px-4 py-2.5 rounded-xl text-sm font-extrabold shadow-sm transition uppercase tracking-wider"
+          >
+            <Zap size={16} className="text-yellow-400" /> GENERAR PARTIDOS
+          </button>
+          <span className="text-slate-400 text-xs font-medium">o</span>
           <button
             onClick={() => { setActiveMatch(null); setShowAddModal(true); }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition"
+            className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-extrabold shadow-sm transition uppercase tracking-wider border border-slate-300"
           >
-            <Plus size={16} /> AGREGAR PARTIDO
+            <Plus size={16} /> AGREGAR FECHA
           </button>
           {deporte === 'Artes Marciales Mixtas' && (
             <button
               onClick={handleAutoalineacion}
-              className="flex items-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition border border-indigo-200"
+              className="w-full flex items-center justify-center gap-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-extrabold shadow-sm transition border border-indigo-200"
             >
               AUTOALINEACIÓN
             </button>
@@ -362,6 +371,20 @@ export default function PartidosView({
         <ArtDuJeuModal
           match={artDuJeuMatch}
           onClose={() => setArtDuJeuMatch(null)}
+        />
+      )}
+
+      {/* Generar Partidos Modal */}
+      {showGenerarModal && (
+        <GenerarPartidosModal
+          torneoId={torneoId}
+          torneo={torneo}
+          faseActual={faseFilter}
+          onClose={() => setShowGenerarModal(false)}
+          onSuccess={() => {
+            setShowGenerarModal(false);
+            if (onRefresh) onRefresh(); else fetchPartidos(true);
+          }}
         />
       )}
 
