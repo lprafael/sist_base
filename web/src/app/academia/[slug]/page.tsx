@@ -111,6 +111,8 @@ const deporteIcon = (dep: string) => {
   return '🏆';
 };
 
+const DIAS_ORDEN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
 export default function AcademiaPublicaPage() {
   const params = useParams();
   const slug = params?.slug as string;
