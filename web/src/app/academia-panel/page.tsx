@@ -414,7 +414,15 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════
-function Dashboard({ stats, cuotasPendientesGs, cuotas, alumnos, sucursales, perfil }: any) {
+function DashboardTab({ stats: propStats, cuotasPendientesGs: propCuotasPendientes, cuotas = [], alumnos = [], sucursales = [], perfil, inscripciones = [] }: any) {
+  const stats: Stat[] = propStats || [
+    { label: 'Alumnos activos', value: alumnos.filter((a: any) => a.estado === 'activo').length, icon: Users, color: C.green },
+    { label: 'Sucursales', value: sucursales.filter((s: any) => s.activa).length, icon: Building2, color: C.primary },
+    { label: 'Inscripciones activas', value: inscripciones.filter((i: any) => i.estado === 'activa').length, icon: BookOpen, color: C.purple },
+    { label: 'Cuotas pendientes', value: cuotas.filter((q: any) => q.estado === 'pendiente').length, icon: CreditCard, color: C.yellow },
+  ];
+
+  const cuotasPendientesGs = propCuotasPendientes ?? cuotas.filter((q: any) => q.estado === 'pendiente').reduce((s: number, q: any) => s + (q.monto_final || 0), 0);
   const cuotasMes = cuotas.slice(0, 8);
   return (
     <div>
