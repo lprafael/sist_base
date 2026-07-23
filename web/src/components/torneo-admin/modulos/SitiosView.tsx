@@ -188,41 +188,47 @@ export default function SitiosView({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#f3f4f6] flex flex-col font-sans">
-      
-      {/* Header */}
-      <div className="bg-[#0b1035] text-white flex items-center justify-between px-4 py-3 shadow-md">
-        <div className="flex items-center gap-4">
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl font-medium">
-            {isTournamentMode ? 'Sitios del Campeonato' : 'Mis Sitios y Complejos'}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {isTournamentMode && sitiosCampeonato.length > 0 && (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="mr-2 text-sm font-semibold hover:text-blue-300 transition flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg"
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+      <div className="bg-[#f3f4f6] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-300">
+        
+        {/* Header */}
+        <div className="bg-[#0b1035] text-white flex items-center justify-between px-5 py-4 shadow-md flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <MapPin size={22} className="text-blue-400" />
+            <h1 className="text-lg font-bold">
+              {isTournamentMode ? 'Sitios del Campeonato' : 'Mis Sitios y Complejos'}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {isTournamentMode && sitiosCampeonato.length > 0 && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="mr-2 text-sm font-semibold hover:text-blue-300 transition flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg"
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : success ? <Check size={16} /> : <Save size={16} />}
+                {saving ? 'Guardando...' : success ? '¡Guardado!' : 'Guardar en Torneo'}
+              </button>
+            )}
+            <button 
+              onClick={() => setShowCreateModal(true)} 
+              className="p-1.5 bg-blue-600 hover:bg-blue-700 rounded-full transition flex items-center justify-center text-white"
+              title="Registrar nuevo sitio"
             >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : success ? <Check size={16} /> : <Save size={16} />}
-              {saving ? 'Guardando...' : success ? '¡Guardado!' : 'Guardar en Torneo'}
+              <Plus size={20} />
             </button>
-          )}
-          <button 
-            onClick={() => setShowCreateModal(true)} 
-            className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition flex items-center justify-center"
-            title="Registrar nuevo sitio"
-          >
-            <Plus size={24} />
-          </button>
+            <button 
+              onClick={onClose}
+              className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-full transition ml-1"
+              title="Cerrar modal"
+            >
+              <X size={22} />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-w-5xl mx-auto w-full">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
         
         {/* Registrados en el campeonato (only in tournament mode) */}
         {isTournamentMode && (
