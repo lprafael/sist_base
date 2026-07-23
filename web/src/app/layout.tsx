@@ -32,6 +32,13 @@ export const metadata: Metadata = {
   }
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
@@ -52,6 +59,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} select-none`}>
         <SessionGuardian />
         {children}
+        <Script id="disable-zoom" strategy="beforeInteractive">
+          {`
+            // Disable Ctrl+scroll zoom
+            window.addEventListener('wheel', function(e) {
+              if (e.ctrlKey) {
+                e.preventDefault();
+              }
+            }, { passive: false });
+            // Disable Ctrl++ / Ctrl+- / Ctrl+0 keyboard zoom
+            window.addEventListener('keydown', function(e) {
+              if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+                e.preventDefault();
+              }
+            });
+          `}
+        </Script>
       </body>
     </html>
   );
