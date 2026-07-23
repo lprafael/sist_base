@@ -218,7 +218,7 @@ export default function AcademiaPanel() {
           {/* ──────────────── PERFIL ──────────────── */}
           {activeTab === 'perfil' && (
             <PerfilTab
-              perfil={perfil} setPerfil={setPerfil}
+              perfil={perfil} setPerfil={setPerfil} token={token}
               fileLogoRef={fileLogoRef} fileBannerRef={fileBannerRef}
               notify={notify} apiFetch={apiFetch} isDueno={isDueno} fetchAll={fetchAll}
             />
