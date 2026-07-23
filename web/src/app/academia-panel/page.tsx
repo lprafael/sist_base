@@ -328,12 +328,19 @@ export default function AcademiaPanel() {
 // ═══════════════════════════════════════════════════════════
 function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
   const navItems: { id: Tab; label: string; icon: any; roles?: string[] }[] = [
-    { id: 'cuotas',        label: 'Cuotas / Pagos',  icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
-    { id: 'asistencias',   label: 'Asistencias',     icon: Calendar, roles: ['dueño','administrador','profesor'] },
-    { id: 'noticias',      label: 'Noticias CMS',    icon: FileText, roles: ['dueño','administrador'] },
-    { id: 'feedback',      label: 'Feedback Socios', icon: MessageSquare, roles: ['dueño','administrador'] },
-    { id: 'staff',         label: 'Mi Equipo',       icon: UserPlus, roles: ['dueño'] },
-    { id: 'config',        label: 'Configuración',   icon: Settings, roles: ['dueño','tesorero'] },
+    { id: 'dashboard',         label: 'Dashboard',             icon: BarChart3 },
+    { id: 'perfil',            label: 'Mi Academia',            icon: GraduationCap, roles: ['dueño','administrador'] },
+    { id: 'sucursales',        label: 'Sedes y Canchas',        icon: Building2 },
+    { id: 'horarios_practica', label: 'Horarios de Práctica',    icon: Calendar, roles: ['dueño','administrador'] },
+    { id: 'tarifas_costos',    label: 'Costos e Indumentaria',  icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
+    { id: 'alumnos',           label: 'Alumnos',                icon: Users },
+    { id: 'inscripciones',     label: 'Inscripciones',          icon: BookOpen },
+    { id: 'cuotas',            label: 'Cuotas / Pagos',         icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
+    { id: 'asistencias',       label: 'Asistencias',            icon: Calendar, roles: ['dueño','administrador','profesor'] },
+    { id: 'noticias',          label: 'Noticias CMS',           icon: FileText, roles: ['dueño','administrador'] },
+    { id: 'feedback',          label: 'Feedback Socios',        icon: MessageSquare, roles: ['dueño','administrador'] },
+    { id: 'staff',             label: 'Mi Equipo',              icon: UserPlus, roles: ['dueño'] },
+    { id: 'config',            label: 'Configuración',          icon: Settings, roles: ['dueño','tesorero'] },
   ];
 
   const visible = navItems.filter(n => !n.roles || n.roles.includes(rolInterno));
