@@ -126,6 +126,11 @@ export default function LocationPickerMap({ defaultLocation, onLocationSelect, r
               ))}
             </div>
           )}
+          {searchResults.length === 0 && searchQuery && !isSearching && (
+            <div style={{ marginTop: 8, background: 'white', borderRadius: 12, padding: '10px 12px', fontSize: 13, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', color: '#64748b', textAlign: 'center' }}>
+              No se encontró. Intenta buscar la ciudad y luego haz clic en el mapa para ubicar el marcador manualmente.
+            </div>
+          )}
         </div>
       )}
 
