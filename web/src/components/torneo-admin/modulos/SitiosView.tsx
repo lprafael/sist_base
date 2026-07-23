@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MapPin, Save, Loader2, Check, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center text-slate-400"><Loader2 className="animate-spin mb-2" /><p className="text-sm">Cargando mapa interactivo...</p></div> });
+const LocationPickerMap = dynamic(() => import('../../LocationPickerMap'), { ssr: false, loading: () => <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center text-slate-400"><Loader2 className="animate-spin mb-2" /><p className="text-sm">Cargando mapa interactivo...</p></div> });
 
 export default function SitiosView({ torneoId, torneo, onUpdate, onClose }: { torneoId: string, torneo: any, onUpdate: (data: any) => void, onClose: () => void }) {
   const [saving, setSaving] = useState(false);
