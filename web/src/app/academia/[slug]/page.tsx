@@ -176,6 +176,10 @@ export default function AcademiaPublicaPage() {
   // Filtrar costos por periodo seleccionado
   const costosFiltrados = academia.tarifas_costos.filter(c => c.periodo_vigencia === periodoSeleccionado);
 
+  const formatMonto = (monto: number) => {
+    return new Intl.NumberFormat('es-PY').format(monto) + ' GS';
+  };
+
   const buildShareText = () => {
     if (!academia) return '';
     const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://micancha.com.py/academia/${slug}`;
