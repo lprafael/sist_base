@@ -1870,40 +1870,44 @@ async def reporte_alumnos(
 ):
     """Genera el reporte consolidado de todos los alumnos registrados."""
     aid = current_user["academia_id"]
-    res = await session.execute(text("""
-        SELECT a.id, a.nombre, a.apellido, a.fecha_nacimiento, a.foto_perfil,
-               a.tipo_sangre, a.alergias, a.contacto_emergencia, a.estado,
-               s.nombre AS sucursal_nombre,
-               cat.nombre AS categoria_nombre, cat.color AS categoria_color,
-               t.nombre AS tutor_nombre, t.apellido AS tutor_apellido, t.telefono AS tutor_telefono, t.email AS tutor_email
-        FROM academias.alumnos a
-        LEFT JOIN academias.sucursales s ON s.id = a.sucursal_id
-        LEFT JOIN academias.inscripciones i ON i.alumno_id = a.id AND i.estado = 'activa'
-        LEFT JOIN academias.categorias cat ON cat.id = i.categoria_id
-        LEFT JOIN academias.alumno_tutores at2 ON at2.alumno_id = a.id AND at2.es_tutor_principal = TRUE
-        LEFT JOIN academias.tutores t ON t.id = at2.tutor_id
-        WHERE a.academia_id = :aid
-        ORDER BY a.apellido, a.nombre
-    """), {"aid": aid})
-    return [
-        {
-            "id": str(r[0]),
-            "nombre_completo": f"{r[1]} {r[2] or ''}".strip(),
-            "fecha_nacimiento": r[3].isoformat() if r[3] else None,
-            "foto_perfil": r[4],
-            "tipo_sangre": r[5] or "O+",
-            "alergias": r[6] or "Ninguna",
-            "contacto_emergencia": r[7] or "No registrado",
-            "estado": r[8],
-            "sucursal_nombre": r[9] or "Sede principal",
-            "categoria_nombre": r[10] or "Sin categoría",
-            "categoria_color": r[11] or "#3b82f6",
-            "tutor_nombre": f"{r[12]} {r[13] or ''}".strip() if r[12] else "Sin tutor",
-            "tutor_telefono": r[14] or "",
-            "tutor_email": r[15] or "",
-        }
-        for r in res.fetchall()
-    ]
+    try:
+        res = await session.execute(text("""
+            SELECT a.id, a.nombre, a.apellido, a.fecha_nacimiento, a.foto_perfil,
+                   a.tipo_sangre, a.alergias, a.contacto_emergencia, a.estado,
+                   s.nombre AS sucursal_nombre,
+                   cat.nombre AS categoria_nombre, cat.color AS categoria_color,
+                   t.nombre AS tutor_nombre, t.apellido AS tutor_apellido, t.telefono AS tutor_telefono, t.email AS tutor_email
+            FROM academias.alumnos a
+            LEFT JOIN academias.sucursales s ON s.id = a.sucursal_id
+            LEFT JOIN academias.inscripciones i ON i.alumno_id = a.id AND i.estado = 'activa'
+            LEFT JOIN academias.categorias cat ON cat.id = i.categoria_id
+            LEFT JOIN academias.alumno_tutores at2 ON at2.alumno_id = a.id AND at2.es_tutor_principal = TRUE
+            LEFT JOIN academias.tutores t ON t.id = at2.tutor_id
+            WHERE a.academia_id = :aid
+            ORDER BY a.apellido, a.nombre
+        """), {"aid": aid})
+        return [
+            {
+                "id": str(r[0]),
+                "nombre_completo": f"{r[1]} {r[2] or ''}".strip(),
+                "fecha_nacimiento": r[3].isoformat() if r[3] else None,
+                "foto_perfil": r[4],
+                "tipo_sangre": r[5] or "O+",
+                "alergias": r[6] or "Ninguna",
+                "contacto_emergencia": r[7] or "No registrado",
+                "estado": r[8],
+                "sucursal_nombre": r[9] or "Sede principal",
+                "categoria_nombre": r[10] or "Sin categoría",
+                "categoria_color": r[11] or "#3b82f6",
+                "tutor_nombre": f"{r[12]} {r[13] or ''}".strip() if r[12] else "Sin tutor",
+                "tutor_telefono": r[14] or "",
+                "tutor_email": r[15] or "",
+            }
+            for r in res.fetchall()
+        ]
+    except Exception as err:
+        print(f"Error en reporte_alumnos: {err}")
+        return []
 
 
 @router.get("/academia/reportes/deudores")
@@ -1913,36 +1917,41 @@ async def reporte_deudores(
 ):
     """Genera el reporte consolidado de deudores / morosos con saldos pendientes."""
     aid = current_user["academia_id"]
-    res = await session.execute(text("""
-        SELECT c.id, c.alumno_id, a.nombre AS alumno_nombre, a.apellido AS alumno_apellido,
-               s.nombre AS sucursal_nombre, cat.nombre AS categoria_nombre,
-               c.concepto, c.monto_final, c.fecha_vencimiento, c.estado,
-               t.nombre AS tutor_nombre, t.apellido AS tutor_apellido, t.telefono AS tutor_telefono, t.email AS tutor_email
-        FROM academias.cuotas c
-        JOIN academias.alumnos a ON a.id = c.alumno_id
-        LEFT JOIN academias.sucursales s ON s.id = a.sucursal_id
-        LEFT JOIN academias.inscripciones i ON i.alumno_id = a.id AND i.estado = 'activa'
-        LEFT JOIN academias.categorias cat ON cat.id = i.categoria_id
-        LEFT JOIN academias.alumno_tutores at2 ON at2.alumno_id = a.id AND at2.es_tutor_principal = TRUE
-        LEFT JOIN academias.tutores t ON t.id = at2.tutor_id
-        WHERE c.academia_id = :aid AND c.estado IN ('pendiente', 'vencida')
-        ORDER BY c.fecha_vencimiento ASC, a.apellido, a.nombre
-    """), {"aid": aid})
-    return [
-        {
-            "cuota_id": str(r[0]),
-            "alumno_id": str(r[1]),
-            "alumno_nombre": f"{r[2]} {r[3] or ''}".strip(),
-            "sucursal_nombre": r[4] or "Sede principal",
-            "categoria_nombre": r[5] or "General",
-            "concepto": r[6],
-            "monto": float(r[7]),
-            "fecha_vencimiento": r[8].isoformat() if r[8] else None,
-            "estado": r[9],
-            "tutor_nombre": f"{r[10]} {r[11] or ''}".strip() if r[10] else "No asignado",
-            "tutor_telefono": r[12] or "",
-            "tutor_email": r[13] or "",
-        }
-        for r in res.fetchall()
-    ]
+    try:
+        res = await session.execute(text("""
+            SELECT c.id, c.alumno_id, a.nombre AS alumno_nombre, a.apellido AS alumno_apellido,
+                   s.nombre AS sucursal_nombre, cat.nombre AS categoria_nombre,
+                   ('Cuota ' || COALESCE(c.periodo, '')) AS concepto,
+                   c.monto_final, c.fecha_vencimiento, c.estado,
+                   t.nombre AS tutor_nombre, t.apellido AS tutor_apellido, t.telefono AS tutor_telefono, t.email AS tutor_email
+            FROM academias.cuotas c
+            JOIN academias.alumnos a ON a.id = c.alumno_id
+            LEFT JOIN academias.sucursales s ON s.id = a.sucursal_id
+            LEFT JOIN academias.inscripciones i ON i.id = c.inscripcion_id
+            LEFT JOIN academias.categorias cat ON cat.id = i.categoria_id
+            LEFT JOIN academias.alumno_tutores at2 ON at2.alumno_id = a.id AND at2.es_tutor_principal = TRUE
+            LEFT JOIN academias.tutores t ON t.id = at2.tutor_id
+            WHERE c.academia_id = :aid AND c.estado IN ('pendiente', 'vencida')
+            ORDER BY c.fecha_vencimiento ASC, a.apellido, a.nombre
+        """), {"aid": aid})
+        return [
+            {
+                "cuota_id": str(r[0]),
+                "alumno_id": str(r[1]),
+                "alumno_nombre": f"{r[2]} {r[3] or ''}".strip(),
+                "sucursal_nombre": r[4] or "Sede principal",
+                "categoria_nombre": r[5] or "General",
+                "concepto": r[6] or "Cuota Mensual",
+                "monto": float(r[7] or 0),
+                "fecha_vencimiento": r[8].isoformat() if r[8] else None,
+                "estado": r[9],
+                "tutor_nombre": f"{r[10]} {r[11] or ''}".strip() if r[10] else "No asignado",
+                "tutor_telefono": r[12] or "",
+                "tutor_email": r[13] or "",
+            }
+            for r in res.fetchall()
+        ]
+    except Exception as err:
+        print(f"Error en reporte_deudores: {err}")
+        return []
 
