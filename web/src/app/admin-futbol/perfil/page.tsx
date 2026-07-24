@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin, Share2, Globe } from 'lucide-react';
+import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin, Share2, Globe, Layout, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PerfilOrganizadorPage() {
@@ -34,7 +34,8 @@ export default function PerfilOrganizadorPage() {
     telefono: "",
     opcion_chat: false,
     opcion_publicidad: "ninguno",
-    posicion_banner: "inferior_flotante"
+    posicion_banner: "inferior_flotante",
+    plantilla: "clasica"
   });
 
   useEffect(() => {
@@ -189,7 +190,7 @@ export default function PerfilOrganizadorPage() {
                    if (navigator.share) {
                      try {
                        await navigator.share({
-                         title: perfil.nombre_liga || 'Perfil del Organizador',
+                         title: (perfil as any).nombre_liga || perfil.texto_1 || 'Perfil del Organizador',
                          url: url,
                        });
                      } catch (err) {
@@ -286,6 +287,136 @@ export default function PerfilOrganizadorPage() {
                 </div>
               </div>
             </div>
+
+            {/* SECCION PLANTILLAS */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Layout size={22} className="text-blue-600"/>
+                <h3 className="text-lg font-bold text-gray-800">Elige la Plantilla de tu Página</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">Selecciona el diseño y estilo visual de tu sitio público. Todas tus características y contenidos se adaptan automáticamente a la plantilla seleccionada.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                {/* PLANTILLA 1: CLASICA */}
+                <div 
+                  onClick={() => setPerfil({...perfil, plantilla: 'clasica'})}
+                  className={`cursor-pointer rounded-xl border-2 p-4 transition relative bg-white flex flex-col justify-between hover:shadow-md ${
+                    (perfil.plantilla || 'clasica') === 'clasica' ? 'border-blue-600 ring-2 ring-blue-100 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {(perfil.plantilla || 'clasica') === 'clasica' && (
+                    <div className="absolute top-2 right-2 text-blue-600 bg-blue-50 rounded-full p-1 shadow-sm">
+                      <CheckCircle2 size={20}/>
+                    </div>
+                  )}
+                  <div>
+                    <div className="w-full h-24 bg-gray-100 rounded-lg overflow-hidden relative mb-3 border border-gray-200 shadow-inner">
+                      <div className="w-full h-10 bg-blue-800"></div>
+                      <div className="absolute top-6 left-3 w-8 h-8 rounded-full bg-white border-2 border-white shadow flex items-center justify-center text-[7px] font-bold text-blue-900">LOGO</div>
+                      <div className="p-2 pt-5 flex gap-1.5">
+                        <div className="w-1/3 h-5 bg-white rounded border border-gray-200"></div>
+                        <div className="w-2/3 h-5 bg-blue-50 rounded border border-blue-100"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">Opción 1</span>
+                      <h4 className="font-bold text-sm text-gray-800">Clásica</h4>
+                    </div>
+                    <p className="text-xs text-gray-500">Diseño equilibrado con banner superior completo, logo superpuesto y barra lateral.</p>
+                  </div>
+                  <button 
+                    type="button"
+                    className={`mt-4 w-full py-1.5 rounded-lg text-xs font-bold transition ${
+                      (perfil.plantilla || 'clasica') === 'clasica' ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {(perfil.plantilla || 'clasica') === 'clasica' ? '✓ Plantilla Activa' : 'Seleccionar Clásica'}
+                  </button>
+                </div>
+
+                {/* PLANTILLA 2: DEPORTIVA / ARENA PRO */}
+                <div 
+                  onClick={() => setPerfil({...perfil, plantilla: 'deportiva'})}
+                  className={`cursor-pointer rounded-xl border-2 p-4 transition relative bg-white flex flex-col justify-between hover:shadow-md ${
+                    perfil.plantilla === 'deportiva' ? 'border-blue-600 ring-2 ring-blue-100 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {perfil.plantilla === 'deportiva' && (
+                    <div className="absolute top-2 right-2 text-blue-600 bg-blue-50 rounded-full p-1 shadow-sm">
+                      <CheckCircle2 size={20}/>
+                    </div>
+                  )}
+                  <div>
+                    <div className="w-full h-24 bg-slate-900 rounded-lg overflow-hidden relative mb-3 border border-slate-800 p-2 flex flex-col justify-between">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 border border-white/50 flex items-center justify-center text-[7px] text-white font-black shadow">FC</div>
+                        <div className="h-1.5 w-16 bg-white/30 rounded"></div>
+                      </div>
+                      <div className="w-full h-5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded flex items-center justify-around px-1 text-[6px] text-white font-bold tracking-wider">
+                        <span>TORNEOS</span>
+                        <span>MÉTRICAS</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded">Opción 2</span>
+                      <h4 className="font-bold text-sm text-gray-800">Deportiva Arena</h4>
+                    </div>
+                    <p className="text-xs text-gray-500">Header estilo hero con temática stadium dark, insignias glowing y resumen de estadísticas.</p>
+                  </div>
+                  <button 
+                    type="button"
+                    className={`mt-4 w-full py-1.5 rounded-lg text-xs font-bold transition ${
+                      perfil.plantilla === 'deportiva' ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {perfil.plantilla === 'deportiva' ? '✓ Plantilla Activa' : 'Seleccionar Deportiva'}
+                  </button>
+                </div>
+
+                {/* PLANTILLA 3: MINIMALISTA / EDITORIAL */}
+                <div 
+                  onClick={() => setPerfil({...perfil, plantilla: 'minimalista'})}
+                  className={`cursor-pointer rounded-xl border-2 p-4 transition relative bg-white flex flex-col justify-between hover:shadow-md ${
+                    perfil.plantilla === 'minimalista' ? 'border-blue-600 ring-2 ring-blue-100 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {perfil.plantilla === 'minimalista' && (
+                    <div className="absolute top-2 right-2 text-blue-600 bg-blue-50 rounded-full p-1 shadow-sm">
+                      <CheckCircle2 size={20}/>
+                    </div>
+                  )}
+                  <div>
+                    <div className="w-full h-24 bg-stone-50 rounded-lg overflow-hidden relative mb-3 border border-stone-200 p-2 flex gap-2">
+                      <div className="w-1/3 bg-white border border-stone-200 rounded p-1 flex flex-col items-center justify-center">
+                        <div className="w-6 h-6 rounded border border-stone-300 bg-stone-100 mb-1 flex items-center justify-center text-[6px] font-serif">M</div>
+                        <div className="w-full h-1 bg-stone-400 rounded"></div>
+                      </div>
+                      <div className="w-2/3 space-y-1.5 flex flex-col justify-center">
+                        <div className="w-full h-3 bg-white border border-stone-200 rounded"></div>
+                        <div className="w-full h-3 bg-white border border-stone-200 rounded"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold px-2 py-0.5 bg-purple-100 text-purple-800 rounded">Opción 3</span>
+                      <h4 className="font-bold text-sm text-gray-800">Minimalista Editorial</h4>
+                    </div>
+                    <p className="text-xs text-gray-500">Estilo sobrio y limpio, encabezado tipográfico, tarjetas horizontales estilizadas y máxima claridad.</p>
+                  </div>
+                  <button 
+                    type="button"
+                    className={`mt-4 w-full py-1.5 rounded-lg text-xs font-bold transition ${
+                      perfil.plantilla === 'minimalista' ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {perfil.plantilla === 'minimalista' ? '✓ Plantilla Activa' : 'Seleccionar Minimalista'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            <hr />
 
             {/* COLOR Y TEXTOS */}
             <div>

@@ -30,6 +30,7 @@ interface PerfilLiga {
   usuario_id: number;
   opcion_publicidad?: string;
   posicion_banner?: 'inferior_flotante' | 'cabecera' | 'lateral';
+  plantilla?: string;
 }
 
 interface Torneo {
@@ -183,231 +184,486 @@ export default function PublicOrganizerPage() {
     })
     .filter(Boolean);
 
-  return (
-    <div className="min-h-screen bg-gray-100 font-sans pb-20">
-      {/* BANNER HEADER */}
-      <div 
-        className="w-full h-64 md:h-80 bg-gray-800 relative shadow-md"
-        style={{ 
-          backgroundImage: perfil.banner_url ? `url(${perfil.banner_url})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundColor: perfil.banner_url ? 'transparent' : primaryColor
-        }}
-      >
-        <div className="absolute inset-0 bg-black/40"></div>
-        
-        {/* ENCABEZADO Y LOGO */}
-        <div className="absolute -bottom-16 left-0 right-0">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center md:items-end gap-6">
+  const plantilla = perfil.plantilla || "clasica";
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: perfil.nombre_liga || 'Organización Deportiva',
+          text: perfil.descripcion || '¡Únete a nuestra liga!',
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log('Error al compartir', err);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      alert("Enlace copiado al portapapeles");
+    }
+  };
+
+  const renderTorneosGrid = (isDark = false, isMinimal = false) => {
+    if (torneos.length === 0) {
+      return (
+        <div className={`${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-gray-200 text-gray-700'} rounded-2xl border p-12 text-center shadow-sm`}>
+          <Trophy size={48} className="mx-auto text-gray-400 mb-4" />
+          <h3 className="text-xl font-bold">No hay torneos activos</h3>
+          <p className="text-gray-500 mt-2">El organizador aún no ha publicado ningún torneo.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={isMinimal ? "space-y-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+        {torneos.map(t => (
+          <div 
+            key={t.id} 
+            onClick={() => window.location.href = `/torneos/${t.id}`}
+            className={`${
+              isDark 
+                ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700 text-slate-100' 
+                : isMinimal
+                ? 'bg-white border-stone-200 hover:border-stone-400 text-stone-900'
+                : 'bg-white border-gray-200 text-gray-800'
+            } rounded-2xl shadow-sm border overflow-hidden hover:shadow-md transition cursor-pointer group p-6 relative`}
+          >
+            {!isMinimal && <div className="h-2 -mx-6 -mt-6 mb-6" style={{ backgroundColor: primaryColor }}></div>}
             
-            {/* LOGO */}
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white bg-white shadow-xl overflow-hidden shrink-0 z-10 flex items-center justify-center">
-              {perfil.logo_url ? (
-                <img src={perfil.logo_url} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <Trophy size={64} className="text-gray-300" />
-              )}
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="font-bold text-lg group-hover:opacity-80 transition line-clamp-2">{t.nombre}</h3>
+              <span className={`text-xs font-bold px-2 py-1 rounded ${isDark ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' : 'bg-blue-50 text-blue-700'}`}>
+                Activo
+              </span>
             </div>
             
-            {/* TITULOS (Se ubican encima del banner en desktop, debajo en mobile) */}
-            <div className="flex-1 text-center md:text-left md:mb-16 z-10">
-              <h1 className="text-3xl md:text-4xl font-black text-white drop-shadow-lg">{perfil.nombre_liga || "Organización Deportiva"}</h1>
-              <p className="text-gray-100 font-medium mt-1 drop-shadow-md text-lg">{perfil.descripcion || "¡Bienvenidos a nuestra liga!"}</p>
+            <div className="space-y-2 mt-4">
+              <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
+                <Users size={16} />
+                <span>{t.deporte}</span>
+              </div>
+              <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
+                <Trophy size={16} />
+                <span>{t.formato}</span>
+              </div>
             </div>
             
-            {/* ACCIONES */}
-            <div className="md:mb-16 z-10 flex gap-2">
-               <button 
-                  onClick={async () => {
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: perfil.nombre_liga || 'Organización Deportiva',
-                            text: perfil.descripcion || '¡Únete a nuestra liga!',
-                            url: window.location.href,
-                          });
-                        } catch (err) {
-                          console.log('Error al compartir', err);
-                        }
-                      } else {
-                        navigator.clipboard.writeText(window.location.href);
-                        alert("Enlace copiado al portapapeles");
-                      }
-                  }}
-                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full font-bold transition shadow-sm border border-white/30"
-               >
-                 <Share2 size={18} /> Compartir
-               </button>
-            </div>
+            <button 
+              className="w-full mt-6 py-2.5 rounded-lg font-bold text-white transition opacity-90 hover:opacity-100 shadow-sm flex items-center justify-center gap-2"
+              style={{ backgroundColor: primaryColor }}
+            >
+              Ver Estadísticas
+            </button>
+            
+            {session && session.usuario_id !== perfil?.usuario_id && perfil?.opcion_chat && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveChatTorneo(t);
+                }}
+                className={`w-full mt-3 py-2 rounded-lg font-bold transition flex items-center justify-center gap-2 border ${
+                  isDark ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : ''
+                }`}
+                style={!isDark ? { borderColor: primaryColor, color: primaryColor } : {}}
+              >
+                <MessageSquare size={16} />
+                Consultar al Organizador
+              </button>
+            )}
           </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderGaleria = (isDark = false) => {
+    if (galeriaImagenes.length === 0) return null;
+    return (
+      <div className={`mb-8 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-200'} rounded-2xl shadow-sm border p-6`}>
+        <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-gray-800'}`}>
+          <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+            <ImageIcon size={16} />
+          </span>
+          Galería de Imágenes
+        </h3>
+        <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
+          {galeriaImagenes.map((img, idx) => (
+            <div key={idx} className={`shrink-0 w-64 h-40 md:w-80 md:h-48 rounded-xl overflow-hidden snap-center relative shadow-sm border ${isDark ? 'border-slate-800 bg-slate-950' : 'border-gray-100 bg-gray-50'} flex items-center justify-center`}>
+              <img src={img.url} alt={img.alt} className="w-full h-full object-cover hover:scale-105 transition duration-300" />
+            </div>
+          ))}
         </div>
       </div>
+    );
+  };
 
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 md:mt-12">
-        
-        {/* Banners en Cabecera */}
-        {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'cabecera' && (
-          <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="cabecera" />
-        )}
+  return (
+    <div className={`min-h-screen font-sans pb-20 ${plantilla === 'deportiva' ? 'bg-slate-950 text-slate-100' : 'bg-gray-100 text-gray-900'}`}>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* COLUMNA IZQUIERDA: INFORMACION */}
-          <div className="col-span-1 space-y-6">
-            {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'lateral' && (
-              <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="lateral" />
-            )}
-
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
-                  <MapPin size={16} />
-                </span>
-                Acerca de
-              </h3>
-              
-              {/* UBICACION */}
-              {(perfil.pais || perfil.departamento || perfil.ubicacion_exacta) && (
-                <p className="text-gray-500 text-sm mb-4 font-medium flex items-center gap-2">
-                  <MapPin size={14} />
-                  {[perfil.ubicacion_exacta, perfil.departamento, perfil.pais].filter(Boolean).join(', ')}
-                </p>
-              )}
-
-              <p className="text-gray-600 leading-relaxed text-sm whitespace-pre-line">
-                {perfil.acerca_de || `Esta es la página pública oficial de ${perfil.nombre_liga || "esta liga"}. Aquí podrás encontrar todos los torneos activos, estadísticas y resultados de nuestros eventos deportivos.`}
-              </p>
-              
-              {/* CONTACTOS */}
-              {(perfil.email || perfil.telefono) && (
-                 <div className="mt-6 space-y-3">
-                   {perfil.email && (
-                     <a href={`mailto:${perfil.email}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-blue-600 transition">
-                       <Mail size={16} /> {perfil.email}
-                     </a>
-                   )}
-                   {perfil.telefono && (
-                     <a href={`tel:${perfil.telefono}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-blue-600 transition">
-                       <Phone size={16} /> {perfil.telefono}
-                     </a>
-                   )}
-                 </div>
-              )}
-
-              {/* REDES SOCIALES */}
-              <div className="mt-6 flex flex-wrap gap-3">
-                {perfil.facebook && <a href={perfil.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition" title="Facebook"><LinkIcon size={20}/></a>}
-                {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center hover:bg-pink-100 transition" title="Instagram"><LinkIcon size={20}/></a>}
-                {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition" title="YouTube"><LinkIcon size={20}/></a>}
-                {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 transition" title="Twitter"><LinkIcon size={20}/></a>}
-                {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition" title="Twitch"><LinkIcon size={20}/></a>}
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-gray-100 flex justify-between text-center">
-                 <div>
-                   <p className="text-2xl font-black text-gray-800">{torneos.length}</p>
-                   <p className="text-xs text-gray-500 font-bold uppercase">Torneos</p>
-                 </div>
-                 <div>
-                   <p className="text-2xl font-black text-gray-800">100%</p>
-                   <p className="text-xs text-gray-500 font-bold uppercase">Pasión</p>
-                 </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* COLUMNA DERECHA: GALERIA Y TORNEOS */}
-          <div className="col-span-1 lg:col-span-2">
+      {/* ========================================================================= */}
+      {/* PLANTILLA 1: CLÁSICA (DEFAULT) */}
+      {/* ========================================================================= */}
+      {plantilla === 'clasica' && (
+        <>
+          {/* BANNER HEADER */}
+          <div 
+            className="w-full h-64 md:h-80 bg-gray-800 relative shadow-md"
+            style={{ 
+              backgroundImage: perfil.banner_url ? `url(${perfil.banner_url})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundColor: perfil.banner_url ? 'transparent' : primaryColor
+            }}
+          >
+            <div className="absolute inset-0 bg-black/40"></div>
             
-            {/* GALERÍA */}
-            {galeriaImagenes.length > 0 && (
-              <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
-                    <ImageIcon size={16} />
-                  </span>
-                  Galería
-                </h3>
-                <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
-                  {galeriaImagenes.map((img, idx) => (
-                    <div key={idx} className="shrink-0 w-64 h-40 md:w-80 md:h-48 rounded-xl overflow-hidden snap-center relative shadow-sm border border-gray-100 bg-gray-50 flex items-center justify-center">
-                      <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
+            <div className="absolute -bottom-16 left-0 right-0">
+              <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center md:items-end gap-6">
+                
+                {/* LOGO */}
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white bg-white shadow-xl overflow-hidden shrink-0 z-10 flex items-center justify-center">
+                  {perfil.logo_url ? (
+                    <img src={perfil.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Trophy size={64} className="text-gray-300" />
+                  )}
+                </div>
+                
+                {/* TITULOS */}
+                <div className="flex-1 text-center md:text-left md:mb-16 z-10">
+                  <h1 className="text-3xl md:text-4xl font-black text-white drop-shadow-lg">{perfil.nombre_liga || "Organización Deportiva"}</h1>
+                  <p className="text-gray-100 font-medium mt-1 drop-shadow-md text-lg">{perfil.descripcion || "¡Bienvenidos a nuestra liga!"}</p>
+                </div>
+                
+                {/* ACCIONES */}
+                <div className="md:mb-16 z-10 flex gap-2">
+                  <button 
+                    onClick={handleShare}
+                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full font-bold transition shadow-sm border border-white/30"
+                  >
+                    <Share2 size={18} /> Compartir
+                  </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 md:mt-12">
+            {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'cabecera' && (
+              <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="cabecera" />
             )}
 
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
-                <Medal size={28} style={{ color: primaryColor }} />
-                Nuestros Torneos
-              </h2>
-            </div>
-            
-            {torneos.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-                <Trophy size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-xl font-bold text-gray-700">No hay torneos activos</h3>
-                <p className="text-gray-500 mt-2">El organizador aún no ha publicado ningún torneo.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {torneos.map(t => (
-                  <div 
-                    key={t.id} 
-                    onClick={() => window.location.href = `/torneos/${t.id}`}
-                    className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition cursor-pointer group"
-                  >
-                    <div className="h-2" style={{ backgroundColor: primaryColor }}></div>
-                    <div className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition line-clamp-2">{t.nombre}</h3>
-                        <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded">Activo</span>
-                      </div>
-                      
-                      <div className="space-y-2 mt-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Users size={16} />
-                          <span>{t.deporte}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Trophy size={16} />
-                          <span>{t.formato}</span>
-                        </div>
-                      </div>
-                      
-                      <button 
-                        className="w-full mt-6 py-2 rounded-lg font-bold text-white transition opacity-90 hover:opacity-100"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        Ver Estadísticas
-                      </button>
-                      
-                      {session && session.usuario_id !== perfil?.usuario_id && perfil?.opcion_chat && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveChatTorneo(t);
-                          }}
-                          className="w-full mt-3 py-2 rounded-lg font-bold transition flex items-center justify-center gap-2 border"
-                          style={{ borderColor: primaryColor, color: primaryColor }}
-                        >
-                          <MessageSquare size={16} />
-                          Consultar al Organizador
-                        </button>
-                      )}
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="col-span-1 space-y-6">
+                {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'lateral' && (
+                  <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="lateral" />
+                )}
+
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                      <MapPin size={16} />
+                    </span>
+                    Acerca de
+                  </h3>
+                  
+                  {(perfil.pais || perfil.departamento || perfil.ubicacion_exacta) && (
+                    <p className="text-gray-500 text-sm mb-4 font-medium flex items-center gap-2">
+                      <MapPin size={14} />
+                      {[perfil.ubicacion_exacta, perfil.departamento, perfil.pais].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+
+                  <p className="text-gray-600 leading-relaxed text-sm whitespace-pre-line">
+                    {perfil.acerca_de || `Esta es la página pública oficial de ${perfil.nombre_liga || "esta liga"}. Aquí podrás encontrar todos los torneos activos, estadísticas y resultados de nuestros eventos deportivos.`}
+                  </p>
+                  
+                  {(perfil.email || perfil.telefono) && (
+                     <div className="mt-6 space-y-3">
+                       {perfil.email && (
+                         <a href={`mailto:${perfil.email}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-blue-600 transition">
+                           <Mail size={16} /> {perfil.email}
+                         </a>
+                       )}
+                       {perfil.telefono && (
+                         <a href={`tel:${perfil.telefono}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-blue-600 transition">
+                           <Phone size={16} /> {perfil.telefono}
+                         </a>
+                       )}
+                     </div>
+                  )}
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {perfil.facebook && <a href={perfil.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition"><LinkIcon size={20}/></a>}
+                    {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center hover:bg-pink-100 transition"><LinkIcon size={20}/></a>}
+                    {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition"><LinkIcon size={20}/></a>}
+                    {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 transition"><LinkIcon size={20}/></a>}
+                    {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition"><LinkIcon size={20}/></a>}
                   </div>
-                ))}
+
+                  <div className="mt-6 pt-6 border-t border-gray-100 flex justify-between text-center">
+                     <div>
+                       <p className="text-2xl font-black text-gray-800">{torneos.length}</p>
+                       <p className="text-xs text-gray-500 font-bold uppercase">Torneos</p>
+                     </div>
+                     <div>
+                       <p className="text-2xl font-black text-gray-800">100%</p>
+                       <p className="text-xs text-gray-500 font-bold uppercase">Pasión</p>
+                     </div>
+                  </div>
+                </div>
               </div>
-            )}
+              
+              <div className="col-span-1 lg:col-span-2">
+                {renderGaleria(false)}
+
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
+                    <Medal size={28} style={{ color: primaryColor }} />
+                    Nuestros Torneos
+                  </h2>
+                </div>
+                
+                {renderTorneosGrid(false, false)}
+              </div>
+            </div>
           </div>
-          
-        </div>
-      </div>
+        </>
+      )}
+
+      {/* ========================================================================= */}
+      {/* PLANTILLA 2: DEPORTIVA / ARENA PRO (DARK STADIUM THEME) */}
+      {/* ========================================================================= */}
+      {plantilla === 'deportiva' && (
+        <>
+          {/* HERO BANNER DEPORTIVO */}
+          <div 
+            className="w-full relative py-16 px-4 border-b border-slate-800 overflow-hidden"
+            style={{ 
+              backgroundImage: perfil.banner_url ? `linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.95)), url(${perfil.banner_url})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundColor: '#0f172a'
+            }}
+          >
+            <div className="max-w-5xl mx-auto flex flex-col items-center text-center relative z-10">
+              {/* LOGO ESCUDO */}
+              <div 
+                className="w-36 h-36 rounded-full border-4 border-white/20 p-1 shadow-2xl mb-6 flex items-center justify-center bg-slate-900 overflow-hidden group hover:scale-105 transition"
+                style={{ boxShadow: `0 0 30px ${primaryColor}66` }}
+              >
+                {perfil.logo_url ? (
+                  <img src={perfil.logo_url} alt="Logo" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <Trophy size={60} style={{ color: primaryColor }} />
+                )}
+              </div>
+
+              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider text-cyan-400 bg-cyan-950/80 border border-cyan-800 mb-2">
+                Organización Deportiva
+              </span>
+
+              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
+                {perfil.nombre_liga || "Organización Deportiva"}
+              </h1>
+              
+              <p className="text-slate-300 max-w-2xl text-base md:text-lg mt-2 font-medium">
+                {perfil.descripcion || "¡Bienvenidos a la plataforma de torneos oficiales!"}
+              </p>
+
+              {/* BARRA DE METRICAS Y ACCION */}
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <div className="bg-slate-900/80 border border-slate-800 backdrop-blur px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold text-slate-200">
+                  <Medal size={18} style={{ color: primaryColor }} />
+                  <span>{torneos.length} Torneos Activos</span>
+                </div>
+                {(perfil.pais || perfil.departamento || perfil.ubicacion_exacta) && (
+                  <div className="bg-slate-900/80 border border-slate-800 backdrop-blur px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold text-slate-200">
+                    <MapPin size={18} className="text-cyan-400" />
+                    <span>{[perfil.ubicacion_exacta, perfil.departamento, perfil.pais].filter(Boolean).join(', ')}</span>
+                  </div>
+                )}
+                <button 
+                  onClick={handleShare}
+                  className="px-5 py-2 rounded-xl font-bold text-sm text-white flex items-center gap-2 transition hover:opacity-90 shadow-lg"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Share2 size={16} /> Compartir Liga
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+            {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'cabecera' && (
+              <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="cabecera" />
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="col-span-1 space-y-6">
+                {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'lateral' && (
+                  <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="lateral" />
+                )}
+
+                <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 shadow-xl backdrop-blur">
+                  <h3 className="font-bold text-slate-100 text-lg mb-4 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                      <MapPin size={16} />
+                    </span>
+                    Sobre Nosotros
+                  </h3>
+
+                  <p className="text-slate-300 leading-relaxed text-sm whitespace-pre-line">
+                    {perfil.acerca_de || `Bienvenidos a la central de competencias de ${perfil.nombre_liga || "nuestra organización"}. Consulta torneos, calendarios y estadísticas.`}
+                  </p>
+                  
+                  {(perfil.email || perfil.telefono) && (
+                     <div className="mt-6 space-y-3 pt-4 border-t border-slate-800">
+                       {perfil.email && (
+                         <a href={`mailto:${perfil.email}`} className="flex items-center gap-3 text-sm text-slate-300 hover:text-cyan-400 transition">
+                           <Mail size={16} /> {perfil.email}
+                         </a>
+                       )}
+                       {perfil.telefono && (
+                         <a href={`tel:${perfil.telefono}`} className="flex items-center gap-3 text-sm text-slate-300 hover:text-cyan-400 transition">
+                           <Phone size={16} /> {perfil.telefono}
+                         </a>
+                       )}
+                     </div>
+                  )}
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {perfil.facebook && <a href={perfil.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 text-blue-400 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition"><LinkIcon size={20}/></a>}
+                    {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 text-pink-400 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition"><LinkIcon size={20}/></a>}
+                    {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 text-red-400 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition"><LinkIcon size={20}/></a>}
+                    {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 text-sky-400 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition"><LinkIcon size={20}/></a>}
+                    {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-800 text-purple-400 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition"><LinkIcon size={20}/></a>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-1 lg:col-span-2">
+                {renderGaleria(true)}
+
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-black text-slate-100 flex items-center gap-3">
+                    <Trophy size={28} style={{ color: primaryColor }} />
+                    Campeonatos y Torneos
+                  </h2>
+                </div>
+
+                {renderTorneosGrid(true, false)}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ========================================================================= */}
+      {/* PLANTILLA 3: MINIMALISTA / EDITORIAL PRO */}
+      {/* ========================================================================= */}
+      {plantilla === 'minimalista' && (
+        <>
+          {/* HEADER MINIMALISTA */}
+          <div className="bg-stone-50 border-b border-stone-200 py-12">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border-2 border-stone-300 bg-white p-1 overflow-hidden shrink-0 shadow-sm flex items-center justify-center">
+                    {perfil.logo_url ? (
+                      <img src={perfil.logo_url} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+                    ) : (
+                      <Trophy size={36} className="text-stone-400" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-xs uppercase font-bold tracking-widest text-stone-500">Organización</span>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-stone-900 tracking-tight">{perfil.nombre_liga || "Organización Deportiva"}</h1>
+                    <p className="text-stone-600 font-medium mt-1 text-base">{perfil.descripcion || "Plataforma oficial de campeonatos."}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleShare}
+                    className="px-5 py-2.5 rounded-xl border-2 border-stone-800 text-stone-900 font-bold text-sm hover:bg-stone-900 hover:text-white transition flex items-center gap-2"
+                  >
+                    <Share2 size={16} /> Compartir
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+            {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'cabecera' && (
+              <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="cabecera" />
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="col-span-1 space-y-6">
+                {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'lateral' && (
+                  <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="lateral" />
+                )}
+
+                <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+                  <h3 className="font-bold text-stone-900 text-lg mb-3 pb-2 border-b border-stone-100 flex items-center gap-2">
+                    <MapPin size={18} style={{ color: primaryColor }} />
+                    Información
+                  </h3>
+
+                  {(perfil.pais || perfil.departamento || perfil.ubicacion_exacta) && (
+                    <p className="text-stone-500 text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                      <MapPin size={12} />
+                      {[perfil.ubicacion_exacta, perfil.departamento, perfil.pais].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+
+                  <p className="text-stone-700 leading-relaxed text-sm whitespace-pre-line">
+                    {perfil.acerca_de || `Página oficial de ${perfil.nombre_liga || "la liga"}. Información sobre torneos, clasificaciones y fechas.`}
+                  </p>
+
+                  {(perfil.email || perfil.telefono) && (
+                     <div className="mt-6 space-y-2 pt-4 border-t border-stone-100">
+                       {perfil.email && (
+                         <a href={`mailto:${perfil.email}`} className="flex items-center gap-3 text-xs font-bold text-stone-700 hover:text-stone-900 transition">
+                           <Mail size={14} /> {perfil.email}
+                         </a>
+                       )}
+                       {perfil.telefono && (
+                         <a href={`tel:${perfil.telefono}`} className="flex items-center gap-3 text-xs font-bold text-stone-700 hover:text-stone-900 transition">
+                           <Phone size={14} /> {perfil.telefono}
+                         </a>
+                       )}
+                     </div>
+                  )}
+
+                  <div className="mt-6 pt-4 border-t border-stone-100 flex flex-wrap gap-2">
+                    {perfil.facebook && <a href={perfil.facebook} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 transition"><LinkIcon size={16}/></a>}
+                    {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 transition"><LinkIcon size={16}/></a>}
+                    {perfil.youtube && <a href={perfil.youtube} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 transition"><LinkIcon size={16}/></a>}
+                    {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 transition"><LinkIcon size={16}/></a>}
+                    {perfil.twitch && <a href={perfil.twitch} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 transition"><LinkIcon size={16}/></a>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-1 lg:col-span-2">
+                {renderGaleria(false)}
+
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+                    <Medal size={24} style={{ color: primaryColor }} />
+                    Lista de Torneos
+                  </h2>
+                </div>
+
+                {renderTorneosGrid(false, true)}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Chat Modal for Participant */}
       {activeChatTorneo && (

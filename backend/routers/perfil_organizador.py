@@ -36,6 +36,7 @@ class PerfilOrganizadorRequest(BaseModel):
     opcion_chat: Optional[bool] = False
     opcion_publicidad: Optional[str] = 'ninguno'
     posicion_banner: Optional[str] = 'inferior_flotante'
+    plantilla: Optional[str] = 'clasica'
 
 class SitioOrganizadorRequest(BaseModel):
     id: str
@@ -71,10 +72,18 @@ async def obtener_lista_organizadores(session: AsyncSession = Depends(get_sessio
 
 @router.get("/organizador/perfil")
 async def obtener_perfil_organizador(current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    # Asegurar que la columna exista
+    try:
+        await session.execute(text("ALTER TABLE sistema.perfil_organizador ADD COLUMN IF NOT EXISTS plantilla VARCHAR(50) DEFAULT 'clasica'"))
+        await session.commit()
+    except Exception:
+        pass
+
     query = text("""
         SELECT enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede,
                acerca_de, idioma, pais, departamento, ciudad, ubicacion_exacta,
-               facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat, opcion_publicidad, posicion_banner
+               facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat, opcion_publicidad, posicion_banner,
+               plantilla
         FROM sistema.perfil_organizador 
         WHERE usuario_id = :uid
     """)
@@ -88,7 +97,8 @@ async def obtener_perfil_organizador(current_user: dict = Depends(get_current_us
             "visibilidad": "publico", "tipo_sede": "fisico",
             "acerca_de": "", "idioma": "Spanish", "pais": "", "departamento": "", "ciudad": "", "ubicacion_exacta": "",
             "facebook": "", "instagram": "", "youtube": "", "twitch": "", "twitter": "", "whatsapp": "",
-            "email": "", "telefono": "", "opcion_chat": False, "opcion_publicidad": "ninguno", "posicion_banner": "inferior_flotante"
+            "email": "", "telefono": "", "opcion_chat": False, "opcion_publicidad": "ninguno", "posicion_banner": "inferior_flotante",
+            "plantilla": "clasica"
         }
         
     return {
@@ -98,12 +108,18 @@ async def obtener_perfil_organizador(current_user: dict = Depends(get_current_us
         "acerca_de": row[8], "idioma": row[9], "pais": row[10], "departamento": row[11], "ciudad": row[12], "ubicacion_exacta": row[13],
         "facebook": row[14], "instagram": row[15], "youtube": row[16], "twitch": row[17], "twitter": row[18], "whatsapp": row[19],
         "email": row[20], "telefono": row[21], "opcion_chat": row[22], "opcion_publicidad": row[23],
-        "posicion_banner": row[24]
+        "posicion_banner": row[24], "plantilla": row[25] or "clasica"
     }
 
 @router.post("/organizador/perfil")
 async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
-    
+    # Asegurar columna
+    try:
+        await session.execute(text("ALTER TABLE sistema.perfil_organizador ADD COLUMN IF NOT EXISTS plantilla VARCHAR(50) DEFAULT 'clasica'"))
+        await session.commit()
+    except Exception:
+        pass
+
     # 1. Verificar si el enlace está tomado por otro usuario
     if data.enlace_sitio:
         check = await session.execute(text("SELECT usuario_id FROM sistema.perfil_organizador WHERE enlace_sitio = :enlace AND usuario_id != :uid"), {"enlace": data.enlace_sitio, "uid": current_user["user_id"]})
@@ -115,11 +131,11 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
         INSERT INTO sistema.perfil_organizador 
             (usuario_id, enlace_sitio, logo_url, banner_url, color_primario, texto_1, texto_2, visibilidad, tipo_sede,
              acerca_de, idioma, pais, departamento, ciudad, ubicacion_exacta,
-             facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat, opcion_publicidad, posicion_banner)
+             facebook, instagram, youtube, twitch, twitter, whatsapp, email, telefono, opcion_chat, opcion_publicidad, posicion_banner, plantilla)
         VALUES 
             (:uid, :enlace, :logo, :banner, :color, :t1, :t2, :vis, :sede,
              :acerca_de, :idioma, :pais, :departamento, :ciudad, :ubicacion_exacta,
-             :facebook, :instagram, :youtube, :twitch, :twitter, :whatsapp, :email, :telefono, :opcion_chat, :opcion_publicidad, :posicion_banner)
+             :facebook, :instagram, :youtube, :twitch, :twitter, :whatsapp, :email, :telefono, :opcion_chat, :opcion_publicidad, :posicion_banner, :plantilla)
         ON CONFLICT (usuario_id) DO UPDATE SET
             enlace_sitio = EXCLUDED.enlace_sitio,
             logo_url = EXCLUDED.logo_url,
@@ -146,6 +162,7 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
             opcion_chat = EXCLUDED.opcion_chat,
             opcion_publicidad = EXCLUDED.opcion_publicidad,
             posicion_banner = EXCLUDED.posicion_banner,
+            plantilla = EXCLUDED.plantilla,
             actualizado_en = NOW()
     """)
     
@@ -175,7 +192,8 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
         "telefono": data.telefono,
         "opcion_chat": data.opcion_chat,
         "opcion_publicidad": data.opcion_publicidad,
-        "posicion_banner": data.posicion_banner
+        "posicion_banner": data.posicion_banner,
+        "plantilla": data.plantilla or "clasica"
     })
     
     await session.commit()

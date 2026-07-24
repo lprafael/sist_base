@@ -12,7 +12,7 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
         SELECT o.id as org_id, po.logo_url, po.banner_url, po.color_primario, po.texto_1, po.texto_2,
                po.acerca_de, po.idioma, po.pais, po.departamento, po.ciudad, po.ubicacion_exacta,
                po.facebook, po.instagram, po.youtube, po.twitch, po.twitter, po.whatsapp, po.email, po.telefono, po.opcion_chat, po.usuario_id,
-               po.opcion_publicidad, po.posicion_banner
+               po.opcion_publicidad, po.posicion_banner, po.plantilla
         FROM sistema.perfil_organizador po
         JOIN cancha.organizadores o ON o.usuario_id = po.usuario_id
         WHERE po.enlace_sitio = :enlace AND po.visibilidad = 'publico'
@@ -80,7 +80,8 @@ async def obtener_liga_publica(enlace_sitio: str, session: AsyncSession = Depend
             "opcion_chat": perfil[20],
             "usuario_id": perfil[21],
             "opcion_publicidad": perfil[22],
-            "posicion_banner": perfil[23]
+            "posicion_banner": perfil[23],
+            "plantilla": perfil[24] if len(perfil) > 24 and perfil[24] else "clasica"
         },
         "torneos": torneos,
         "patrocinadores": patrocinadores
