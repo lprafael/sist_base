@@ -67,6 +67,7 @@ class UserResponse(BaseModel):
     fecha_creacion: Optional[datetime] = None
     ultimo_acceso: Optional[datetime] = None
     tipo_torneo: Optional[str] = None
+    is_organizador: Optional[bool] = False
     
     class Config:
         from_attributes = True
@@ -90,6 +91,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    is_organizador: Optional[bool] = False
     # Contexto de academia (presente si el usuario es dueño o miembro de una academia)
     academia_id: Optional[str] = None
     rol_academia: Optional[str] = None  # 'dueño', 'administrador', 'tesorero', 'profesor'

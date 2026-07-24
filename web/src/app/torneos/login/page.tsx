@@ -52,6 +52,7 @@ export default function TorneosLoginPage() {
 
       if (res.ok) {
         const data = await res.json();
+        const isOrganizador = data.is_organizador || data.user?.is_organizador || ['organizador', 'veedor', 'delegado'].includes(data.user?.rol);
         const session = {
           access_token: data.access_token,
           role: data.user.rol,
@@ -59,6 +60,7 @@ export default function TorneosLoginPage() {
           email: data.user.email,
           usuario_id: data.user.id,
           authorized: true,
+          is_organizador: isOrganizador,
           tipo_torneo: data.user.tipo_torneo || null,
         };
         localStorage.setItem('user_session', JSON.stringify(session));
@@ -66,7 +68,7 @@ export default function TorneosLoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
-        } else if (session.role === 'organizador' || session.role === 'veedor' || session.role === 'delegado') {
+        } else if (isOrganizador) {
           window.location.href = '/admin-futbol/campeonatos';
         } else {
           setError('Esta cuenta no tiene acceso a la administración de torneos.');
@@ -94,6 +96,7 @@ export default function TorneosLoginPage() {
 
       if (res.ok) {
         const data = await res.json();
+        const isOrganizador = data.is_organizador || data.user?.is_organizador || ['organizador', 'veedor', 'delegado'].includes(data.user?.rol);
         const session = {
           access_token: data.access_token,
           role: data.user.rol,
@@ -101,6 +104,7 @@ export default function TorneosLoginPage() {
           email: data.user.email,
           usuario_id: data.user.id,
           authorized: true,
+          is_organizador: isOrganizador,
           tipo_torneo: data.user.tipo_torneo || null,
         };
         localStorage.setItem('user_session', JSON.stringify(session));
@@ -108,7 +112,7 @@ export default function TorneosLoginPage() {
 
         if (session.role === 'admin' || session.role === 'super') {
           window.location.href = '/admin';
-        } else if (session.role === 'organizador' || session.role === 'veedor' || session.role === 'delegado') {
+        } else if (isOrganizador) {
           window.location.href = '/admin-futbol/campeonatos';
         } else {
           alert('Esta cuenta no tiene acceso a la administración de torneos.');

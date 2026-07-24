@@ -63,7 +63,7 @@ export default function SidebarTorneo({ torneo, activeTab, setActiveTab, isOrgan
 
       {isPublicView && (
         <div className="p-6 mt-auto border-t border-white/10">
-          <button onClick={() => router.push('/login')} className="flex items-center justify-center gap-3 text-white/70 hover:text-white transition font-bold text-sm w-full py-2">
+          <button onClick={() => router.push('/torneos/login')} className="flex items-center justify-center gap-3 text-white/70 hover:text-white transition font-bold text-sm w-full py-2">
             <LogOut size={18} className="rotate-180" /> Iniciar sesión
           </button>
         </div>
@@ -81,7 +81,7 @@ export default function SidebarTorneo({ torneo, activeTab, setActiveTab, isOrgan
           </div>
           <button onClick={() => {
             localStorage.removeItem('user_session');
-            window.location.href = '/login';
+            window.location.href = '/torneos/login';
           }} className="text-white/70 hover:text-red-400 transition" title="Cerrar sesión">
             <LogOut size={18} />
           </button>

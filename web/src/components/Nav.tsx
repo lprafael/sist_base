@@ -18,7 +18,7 @@ export default function Nav({ scrolled }: NavProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('user_session');
-    window.location.href = '/login';
+    window.location.href = '/torneos/login';
   };
 
   return (
@@ -124,7 +124,7 @@ export default function Nav({ scrolled }: NavProps) {
 
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 10px' }} />
 
-                <a href="/login" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, textDecoration: 'none', transition: 'background 0.15s' }}
+                <a href="/torneos/login" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, textDecoration: 'none', transition: 'background 0.15s' }}
                   onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
                   onMouseOut={e => (e.currentTarget.style.background = 'transparent')}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

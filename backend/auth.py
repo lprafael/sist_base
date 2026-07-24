@@ -92,17 +92,20 @@ async def login(
         user_agent=request.headers.get("user-agent")
     ))
     
-    # Obtener tipo_torneo si el usuario es organizador
+    # Obtener información de organizador si existe registro en cancha.organizadores o rol
     tipo_torneo = None
-    if user.rol == "organizador":
-        from sqlalchemy import text as sql_text
-        org_result = await session.execute(
-            sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
-            {"uid": user.id}
-        )
-        org_row = org_result.fetchone()
-        if org_row:
-            tipo_torneo = org_row[0]
+    is_organizador = False
+    from sqlalchemy import text as sql_text
+    org_result = await session.execute(
+        sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
+        {"uid": user.id}
+    )
+    org_row = org_result.fetchone()
+    if org_row:
+        tipo_torneo = org_row[0]
+        is_organizador = True
+    elif user.rol in ["organizador", "veedor", "delegado", "admin", "super"]:
+        is_organizador = True
 
     # Obtener academia_id y rol_academia (para dueños e integrantes invitados)
     academia_id = None
@@ -133,11 +136,13 @@ async def login(
 
     user_response = UserResponse.from_orm(user)
     user_response.tipo_torneo = tipo_torneo
+    user_response.is_organizador = is_organizador
 
     return Token(
         access_token=access_token,
         token_type="bearer",
         user=user_response,
+        is_organizador=is_organizador,
         academia_id=academia_id,
         rol_academia=rol_academia,
     )

@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  async redirects() {
+    return [
+      {
+        source: '/login',
+        destination: '/torneos/login',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

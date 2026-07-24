@@ -25,9 +25,9 @@ export default function SessionGuardian() {
               // Redirigir dependiendo del rol
               const rol = sessionData.role;
               if (rol === 'admin' || rol === 'super') {
-                window.location.href = '/login';
+                window.location.href = '/torneos/login';
               } else if (rol === 'academia') {
-                window.location.href = '/academia/login';
+                window.location.href = '/academias/login';
               } else {
                 window.location.href = '/torneos/login';
               }
