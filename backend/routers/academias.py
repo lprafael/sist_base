@@ -11,7 +11,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union
 from database import get_session
 from security import get_current_user
 
@@ -22,9 +22,9 @@ router = APIRouter(tags=["Academias"])
 # ================================================================
 
 async def get_academia_context(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    request: Union[Request, dict, None] = None,
+    current_user: Optional[dict] = None,
+    session: Optional[AsyncSession] = None
 ) -> dict:
     """
     Para un usuario autenticado, resuelve:
@@ -33,10 +33,25 @@ async def get_academia_context(
       - sucursal_id: UUID de sucursal asignada (solo para profesores; None = acceso total)
     Lanza 403 si el usuario no tiene acceso a ninguna academia.
     """
+    if isinstance(request, dict):
+        session = current_user
+        current_user = request
+        request = None
+
+    if not current_user or not isinstance(current_user, dict):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario no autenticado."
+        )
+
     uid = current_user["user_id"]
     role = current_user.get("role", "")
 
-    header_acad_id = request.headers.get("X-Academia-Id") or request.headers.get("x-academia-id") or request.query_params.get("academia_id")
+    header_acad_id = None
+    if request and hasattr(request, "headers"):
+        header_acad_id = request.headers.get("X-Academia-Id") or request.headers.get("x-academia-id")
+        if not header_acad_id and hasattr(request, "query_params"):
+            header_acad_id = request.query_params.get("academia_id")
 
     # Caso 0: Super Admin / Admin global -> acceso total a cualquier academia
     if role in ["super", "admin", "superadmin"]:
@@ -638,10 +653,10 @@ async def obtener_perfil(
 @router.post("/academia/perfil")
 async def guardar_perfil(
     data: PerfilAcademiaRequest,
-    current_user: dict = Depends(require_roles("dueño")),
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Actualiza el perfil de la academia. Solo el dueño."""
+    """Actualiza el perfil de la academia. Accesible por dueño y administrador."""
     academia_id = current_user["academia_id"]
 
     if data.enlace_sitio:
@@ -695,8 +710,8 @@ async def subir_logo(
 ):
     """Sube el logo de la academia."""
     ctx = await get_academia_context(current_user, session)
-    if ctx["rol_interno"] != "dueño":
-        raise HTTPException(status_code=403, detail="Solo el dueño puede cambiar el logo.")
+    if ctx["rol_interno"] not in ("dueño", "administrador"):
+        raise HTTPException(status_code=403, detail="Acceso restringido. Se requiere rol de dueño o administrador.")
 
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
@@ -720,8 +735,8 @@ async def subir_banner(
 ):
     """Sube el banner de la academia."""
     ctx = await get_academia_context(current_user, session)
-    if ctx["rol_interno"] != "dueño":
-        raise HTTPException(status_code=403, detail="Solo el dueño puede cambiar el banner.")
+    if ctx["rol_interno"] not in ("dueño", "administrador"):
+        raise HTTPException(status_code=403, detail="Acceso restringido. Se requiere rol de dueño o administrador.")
 
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
@@ -1687,7 +1702,7 @@ async def obtener_config_cuotas(
 @router.put("/academia/config-cuotas")
 async def actualizar_config_cuotas(
     data: ConfigCuotasRequest,
-    current_user: dict = Depends(require_roles("dueño")),
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
     session: AsyncSession = Depends(get_session)
 ):
     """Actualiza la configuración del motor de descuentos."""
