@@ -265,23 +265,31 @@ class TarifaCostoRequest(BaseModel):
     activo: Optional[bool] = True
 
 
+class AcademiaAdminCreateRequest(BaseModel):
+    nombre: str
+    plan: Optional[str] = 'basico'
+    usuario_email: Optional[str] = None
+    habilitado: Optional[bool] = True
+
+
 # ================================================================
-# ENDPOINTS PÚBLICOS
+# ENDPOINTS PÚBLICOS Y ADMINISTRACIÓN
 # ================================================================
 
 @router.get("/api/academias")
 async def listar_academias_publicas(session: AsyncSession = Depends(get_session)):
-    """Lista pública de academias habilitadas."""
+    """Lista de academias (públicas y para administración)."""
     res = await session.execute(text("""
         SELECT a.id, a.nombre, a.enlace_sitio, a.logo_url, a.ciudad, a.departamento,
                a.color_primario, a.acerca_de,
                COUNT(DISTINCT s.id) AS total_sucursales,
-               ARRAY_AGG(DISTINCT s.deporte) FILTER (WHERE s.deporte IS NOT NULL) AS deportes
+               ARRAY_AGG(DISTINCT s.deporte) FILTER (WHERE s.deporte IS NOT NULL) AS deportes,
+               a.plan, a.habilitada, COALESCE(a.email, u.email) as usuario_email
         FROM academias.academias a
+        LEFT JOIN sistema.usuarios u ON u.id = a.usuario_id
         LEFT JOIN academias.sucursales s ON s.academia_id = a.id AND s.activa = TRUE
-        WHERE a.habilitada = TRUE
         GROUP BY a.id, a.nombre, a.enlace_sitio, a.logo_url, a.ciudad, a.departamento,
-                 a.color_primario, a.acerca_de
+                 a.color_primario, a.acerca_de, a.plan, a.habilitada, a.email, u.email
         ORDER BY a.nombre
     """))
     rows = res.fetchall()
@@ -297,9 +305,111 @@ async def listar_academias_publicas(session: AsyncSession = Depends(get_session)
             "acerca_de": r[7],
             "total_sucursales": r[8],
             "deportes": r[9] or [],
+            "plan": r[10] or 'basico',
+            "habilitado": r[11] if r[11] is not None else True,
+            "usuario_email": r[12] or ''
         }
         for r in rows
     ]
+
+
+@router.post("/api/academias")
+async def crear_academia(req: AcademiaAdminCreateRequest, session: AsyncSession = Depends(get_session)):
+    import re
+    import random
+    import string
+
+    usuario_id = None
+    if req.usuario_email:
+        res_usr = await session.execute(
+            text("SELECT id FROM sistema.usuarios WHERE email = :email"),
+            {"email": req.usuario_email}
+        )
+        row_usr = res_usr.fetchone()
+        if row_usr:
+            usuario_id = row_usr[0]
+        else:
+            from security import get_password_hash
+            temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+            pass_hash = get_password_hash(temp_pass)
+            username = req.usuario_email.split('@')[0]
+            res_exist = await session.execute(text("SELECT id FROM sistema.usuarios WHERE username = :u"), {"u": username})
+            if res_exist.fetchone():
+                username = f"{username}_{random.randint(100, 999)}"
+            
+            res_new = await session.execute(text("""
+                INSERT INTO sistema.usuarios (username, email, password_hash, rol, activo, nombre_completo)
+                VALUES (:u, :e, :p, 'academia', TRUE, :nom)
+                RETURNING id
+            """), {"u": username, "e": req.usuario_email, "p": pass_hash, "nom": req.nombre})
+            usuario_id = res_new.fetchone()[0]
+
+    if not usuario_id:
+        from security import get_password_hash
+        username = f"acad_{uuid.uuid4().hex[:8]}"
+        email = f"{username}@micancha.com.py"
+        pass_hash = get_password_hash("Academia123!")
+        res_new = await session.execute(text("""
+            INSERT INTO sistema.usuarios (username, email, password_hash, rol, activo, nombre_completo)
+            VALUES (:u, :e, :p, 'academia', TRUE, :nom)
+            RETURNING id
+        """), {"u": username, "e": email, "p": pass_hash, "nom": req.nombre})
+        usuario_id = res_new.fetchone()[0]
+
+    clean_name = re.sub(r'[^a-z0-9]+', '-', req.nombre.lower()).strip('-')
+    slug = f"{clean_name}-{uuid.uuid4().hex[:4]}" if clean_name else f"academia-{uuid.uuid4().hex[:6]}"
+
+    res_acad = await session.execute(text("""
+        INSERT INTO academias.academias (usuario_id, nombre, plan, habilitada, email, enlace_sitio)
+        VALUES (:uid, :nom, :plan, :hab, :email, :slug)
+        ON CONFLICT (usuario_id) DO UPDATE 
+        SET nombre = EXCLUDED.nombre, plan = EXCLUDED.plan, habilitada = EXCLUDED.habilitada, email = EXCLUDED.email
+        RETURNING id, nombre, plan, habilitada
+    """), {
+        "uid": usuario_id,
+        "nom": req.nombre,
+        "plan": req.plan or 'basico',
+        "hab": req.habilitado if req.habilitado is not None else True,
+        "email": req.usuario_email or f"{slug}@micancha.com.py",
+        "slug": slug
+    })
+    await session.commit()
+    row = res_acad.fetchone()
+    return {"id": str(row[0]), "nombre": row[1], "plan": row[2], "habilitado": row[3], "usuario_email": req.usuario_email}
+
+
+@router.put("/api/academias/{academia_id}")
+async def actualizar_academia(academia_id: str, req: AcademiaAdminCreateRequest, session: AsyncSession = Depends(get_session)):
+    await session.execute(text("""
+        UPDATE academias.academias
+        SET nombre = COALESCE(:nom, nombre),
+            plan = COALESCE(:plan, plan),
+            habilitada = COALESCE(:hab, habilitada),
+            email = COALESCE(:email, email),
+            actualizado_en = NOW()
+        WHERE id = :aid
+    """), {
+        "aid": academia_id,
+        "nom": req.nombre,
+        "plan": req.plan,
+        "hab": req.habilitado,
+        "email": req.usuario_email
+    })
+
+    if req.usuario_email:
+        res_usr = await session.execute(
+            text("SELECT usuario_id FROM academias.academias WHERE id = :aid"),
+            {"aid": academia_id}
+        )
+        row_usr = res_usr.fetchone()
+        if row_usr and row_usr[0]:
+            await session.execute(
+                text("UPDATE sistema.usuarios SET email = :e WHERE id = :uid"),
+                {"e": req.usuario_email, "uid": row_usr[0]}
+            )
+            
+    await session.commit()
+    return {"status": "ok", "message": "Academia actualizada correctamente"}
 
 
 @router.get("/api/academias/{enlace}")
