@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   Shield, User, Lock, Settings, FileText, CheckCircle,
   Trash2, LogOut, RefreshCw, Layers, Plus, Power, MapPin,
-  Mail, Phone, Clock, AlertTriangle, Search, MessageSquare, X, Send
+  Mail, Phone, Clock, AlertTriangle, Search, MessageSquare, X, Send,
+  GraduationCap, ExternalLink, Eye
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -1129,6 +1130,27 @@ export default function AdminConsole() {
     }
   };
 
+  const handleAccessAcademiaPanel = (a: any) => {
+    if (typeof window === 'undefined') return;
+    const currentSession = localStorage.getItem('user_session');
+    if (currentSession) {
+      localStorage.setItem('admin_session_backup', currentSession);
+    }
+    const academiaSession = {
+      role: 'academia',
+      academia_id: a.id,
+      nombre: a.nombre,
+      email: a.usuario_email || a.email || '',
+      token: session?.access_token || session?.token || ''
+    };
+    localStorage.setItem('user_session', JSON.stringify(academiaSession));
+    logEvent('auditoria', {
+      accion: 'Acceso a Panel Academia',
+      detalles: `El administrador ingresó al panel de configuración de la academia "${a.nombre}"`
+    });
+    window.location.href = '/academia-panel';
+  };
+
   const handleToggleOrganizador = async (usuario_id: number, currentHabilitado: boolean, nombre: string) => {
     setOrganizadores(prev => prev.map(o => {
       if (o.usuario_id === usuario_id) {
@@ -2039,16 +2061,64 @@ export default function AdminConsole() {
                       ) : (
                         currentAcademias.map(a => (
                           <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover:bg-slate-50">
-                            <td style={{ padding: 16, fontWeight: 800 }}>{a.nombre}</td>
-                            <td style={{ padding: 16 }}>{a.plan}</td>
-                            <td style={{ padding: 16 }}>{a.habilitado ? 'Activo' : 'Suspendido'}</td>
+                            <td style={{ padding: 16 }}>
+                              <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a' }}>{a.nombre}</div>
+                              {a.usuario_email && (
+                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{a.usuario_email}</div>
+                              )}
+                            </td>
+                            <td style={{ padding: 16 }}>
+                              <span style={{ 
+                                padding: '4px 10px', 
+                                borderRadius: 8, 
+                                fontSize: 12, 
+                                fontWeight: 700, 
+                                background: a.plan === 'premium' ? '#fef3c7' : a.plan === 'pro' ? '#f3e8ff' : '#e0f2fe',
+                                color: a.plan === 'premium' ? '#d97706' : a.plan === 'pro' ? '#7e22ce' : '#0369a1',
+                                textTransform: 'capitalize'
+                              }}>
+                                {a.plan || 'Básico'}
+                              </span>
+                            </td>
+                            <td style={{ padding: 16 }}>
+                              <span style={{ 
+                                padding: '4px 10px', 
+                                borderRadius: 8, 
+                                fontSize: 12, 
+                                fontWeight: 700, 
+                                background: a.habilitado ? '#dcfce7' : '#fee2e2',
+                                color: a.habilitado ? '#15803d' : '#b91c1c'
+                              }}>
+                                {a.habilitado ? 'Activo' : 'Suspendido'}
+                              </span>
+                            </td>
                             <td style={{ padding: 16, textAlign: 'right' }}>
-                              <button 
-                                onClick={() => setEditAcademia(a)}
-                                style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                              >
-                                Editar
-                              </button>
+                              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <button
+                                  onClick={() => handleAccessAcademiaPanel(a)}
+                                  style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                                  title="Ingresar a la configuración y panel completo SAD-M de esta academia"
+                                >
+                                  <GraduationCap size={14} />
+                                  Configuración SAD-M
+                                </button>
+                                <a
+                                  href={`/academias/${a.enlace_sitio || a.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}
+                                  title="Ver landing / sitio público de la academia"
+                                >
+                                  <ExternalLink size={14} />
+                                  Ver Sitio
+                                </a>
+                                <button 
+                                  onClick={() => setEditAcademia(a)}
+                                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                  Editar
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
