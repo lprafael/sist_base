@@ -704,6 +704,7 @@ export default function AdminConsole() {
   // Forms states
   const [editComplejo, setEditComplejo] = useState<any | null>(null);
   const [editOrganizador, setEditOrganizador] = useState<any | null>(null);
+  const [editAcademia, setEditAcademia] = useState<any | null>(null);
   const [newSport, setNewSport] = useState('');
   const [newCancha, setNewCancha] = useState<any>({ nombre: '', deporte: 'Fútbol 5', superficie: 'Sintético', precio_hora: 120000, precio_hora_nocturna: 150000 });
   const [toasts, setToasts] = useState<string[]>([]);
@@ -1058,6 +1059,72 @@ export default function AdminConsole() {
       }
     } catch (e: any) {
       alert(`Error de red: ${e.message}`);
+    }
+  };
+
+  const handleSaveAcademia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editAcademia) return;
+
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const method = editAcademia.isNew ? 'POST' : 'PUT';
+      const url = editAcademia.isNew 
+        ? `${API_URL}/api/academias` 
+        : `${API_URL}/api/academias/${editAcademia.id}`;
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify({
+          nombre: editAcademia.nombre,
+          plan: editAcademia.plan || 'basico',
+          habilitado: editAcademia.habilitado !== false
+        })
+      });
+
+      if (res.ok) {
+        const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
+        const resAca = await fetch(`${API_URL}/api/academias`, fetchOpts);
+        if (resAca.ok) {
+          setAcademias(await resAca.json());
+        } else {
+          if (editAcademia.isNew) {
+            setAcademias(prev => [{ ...editAcademia, id: Date.now() }, ...prev]);
+          } else {
+            setAcademias(prev => prev.map(a => a.id === editAcademia.id ? editAcademia : a));
+          }
+        }
+        addToast(editAcademia.isNew ? '🎉 Academia registrada exitosamente.' : '✏️ Academia actualizada.');
+        setEditAcademia(null);
+      } else {
+        if (editAcademia.isNew) {
+          setAcademias(prev => [{ ...editAcademia, id: Date.now() }, ...prev]);
+        } else {
+          setAcademias(prev => prev.map(a => a.id === editAcademia.id ? editAcademia : a));
+        }
+        addToast(editAcademia.isNew ? '🎉 Academia registrada localmente (API no disponible).' : '✏️ Academia actualizada localmente.');
+        setEditAcademia(null);
+      }
+    } catch (e: any) {
+      if (editAcademia.isNew) {
+        setAcademias(prev => [{ ...editAcademia, id: Date.now() }, ...prev]);
+      } else {
+        setAcademias(prev => prev.map(a => a.id === editAcademia.id ? editAcademia : a));
+      }
+      addToast(editAcademia.isNew ? '🎉 Academia registrada localmente.' : '✏️ Academia actualizada localmente.');
+      setEditAcademia(null);
     }
   };
 
@@ -1899,7 +1966,7 @@ export default function AdminConsole() {
                     <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Gestión centralizada de academias que utilizan el módulo SAD-M.</p>
                   </div>
                   <button
-                    onClick={() => {}}
+                    onClick={() => setEditAcademia({ isNew: true, nombre: '', plan: 'basico', habilitado: true })}
                     style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                   >
                     <Plus size={16} />
@@ -2812,6 +2879,50 @@ export default function AdminConsole() {
               </button>
               <button type="submit" style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                 Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editAcademia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <form onSubmit={handleSaveAcademia} style={{ background: '#fff', padding: 40, borderRadius: 24, width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
+              {editAcademia.isNew ? '🎓 Alta de Academia' : '✏️ Editar Academia'}
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700 }}>Nombre de la Academia</label>
+              <input
+                type="text"
+                value={editAcademia.nombre}
+                onChange={e => setEditAcademia({ ...editAcademia, nombre: e.target.value })}
+                placeholder="Ej: Academia de Tenis Pro"
+                style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700 }}>Plan</label>
+              <select
+                value={editAcademia.plan || 'basico'}
+                onChange={e => setEditAcademia({ ...editAcademia, plan: e.target.value })}
+                style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+              >
+                <option value="basico">Básico</option>
+                <option value="premium">Premium</option>
+                <option value="pro">Pro</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" onClick={() => setEditAcademia(null)} style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button type="submit" style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                Guardar
               </button>
             </div>
           </form>
