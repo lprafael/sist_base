@@ -104,11 +104,13 @@ export default function AcademiaPanel() {
   }, [token]);
 
   const apiFetch = async (endpoint: string, opts: any = {}) => {
+    const acadId = session?.academia_id || session?.id || '';
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...opts,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
+        ...(acadId ? { 'X-Academia-Id': acadId } : {}),
         ...opts.headers,
       },
     });

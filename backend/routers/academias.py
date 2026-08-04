@@ -5,7 +5,7 @@
 #   dueño        → usuario con rol='academia' en sistema.usuarios
 #   administrador, tesorero, profesor → miembros en academias.miembros
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
 import os
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,11 @@ router = APIRouter(tags=["Academias"])
 # HELPER: Resolver academia_id y rol_interno del usuario actual
 # ================================================================
 
-async def get_academia_context(current_user: dict, session: AsyncSession) -> dict:
+async def get_academia_context(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> dict:
     """
     Para un usuario autenticado, resuelve:
       - academia_id: UUID de la academia que gestiona
@@ -32,8 +36,43 @@ async def get_academia_context(current_user: dict, session: AsyncSession) -> dic
     uid = current_user["user_id"]
     role = current_user.get("role", "")
 
+    header_acad_id = request.headers.get("X-Academia-Id") or request.headers.get("x-academia-id") or request.query_params.get("academia_id")
+
+    # Caso 0: Super Admin / Admin global -> acceso total a cualquier academia
+    if role in ["super", "admin", "superadmin"]:
+        if header_acad_id:
+            try:
+                target_uuid = uuid.UUID(header_acad_id)
+                res = await session.execute(
+                    text("SELECT id FROM academias.academias WHERE id = :aid"),
+                    {"aid": str(target_uuid)}
+                )
+                row = res.fetchone()
+                if row:
+                    return {"academia_id": row[0], "rol_interno": "dueño", "sucursal_id": None}
+            except Exception:
+                pass
+        
+        res = await session.execute(text("SELECT id FROM academias.academias ORDER BY creado_en ASC LIMIT 1"))
+        row = res.fetchone()
+        if row:
+            return {"academia_id": row[0], "rol_interno": "dueño", "sucursal_id": None}
+
     # Caso 1: dueño directo (rol='academia' en sistema.usuarios)
     if role == "academia":
+        if header_acad_id:
+            try:
+                target_uuid = uuid.UUID(header_acad_id)
+                res = await session.execute(
+                    text("SELECT id FROM academias.academias WHERE id = :aid"),
+                    {"aid": str(target_uuid)}
+                )
+                row = res.fetchone()
+                if row:
+                    return {"academia_id": row[0], "rol_interno": "dueño", "sucursal_id": None}
+            except Exception:
+                pass
+
         res = await session.execute(
             text("SELECT id FROM academias.academias WHERE usuario_id = :uid"),
             {"uid": uid}
@@ -69,16 +108,18 @@ async def get_academia_context(current_user: dict, session: AsyncSession) -> dic
 def require_roles(*allowed_roles: str):
     """Decorador de dependencia que verifica el rol interno dentro de la academia."""
     async def checker(
+        request: Request,
         current_user: dict = Depends(get_current_user),
         session: AsyncSession = Depends(get_session)
     ):
-        ctx = await get_academia_context(current_user, session)
-        if ctx["rol_interno"] not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Se requiere uno de estos roles: {', '.join(allowed_roles)}"
-            )
-        return {**current_user, **ctx}
+        ctx = await get_academia_context(request, current_user, session)
+        if current_user.get("role") in ["super", "admin", "superadmin"] or ctx["rol_interno"] in allowed_roles:
+            return {**current_user, **ctx}
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Se requiere uno de estos roles: {', '.join(allowed_roles)}"
+        )
     return checker
 
 
