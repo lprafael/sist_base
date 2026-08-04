@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional, List
@@ -61,11 +61,12 @@ async def enviar_feedback(
 
 @router.get("/feedback/listar")
 async def listar_feedback(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """El administrador lee el feedback recibido."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     res = await session.execute(text("""
         SELECT f.id, f.tipo, f.asunto, f.mensaje, f.leido, f.creado_en,
                t.nombre || ' ' || COALESCE(t.apellido, '') AS tutor_nombre,
@@ -81,10 +82,11 @@ async def listar_feedback(
 @router.put("/feedback/{feedback_id}/leer")
 async def marcar_feedback_leido(
     feedback_id: str,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     await session.execute(text("""
         UPDATE academias.feedback_socios 
         SET leido = TRUE 
@@ -100,10 +102,11 @@ async def marcar_feedback_leido(
 @router.post("/noticias")
 async def crear_noticia(
     data: NoticiaRequest,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     await session.execute(text("""
         INSERT INTO academias.noticias_publicas
             (academia_id, titulo, contenido, imagen_url, activa)
@@ -136,10 +139,11 @@ async def listar_noticias_publicas(
 @router.put("/config/moras")
 async def configurar_moras(
     data: ConfigMorasRequest,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     if ctx["rol_interno"] != "dueño" and ctx["rol_interno"] != "administrador":
         raise HTTPException(status_code=403, detail="Sin permisos para configurar finanzas.")
         
@@ -165,10 +169,11 @@ async def configurar_moras(
 @router.post("/asistencia/tutores")
 async def registrar_asistencia_tutor(
     data: AsistenciaTutorRequest,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     await session.execute(text("""
         INSERT INTO academias.asistencia_tutor
             (tutor_id, academia_id, fecha, descripcion_reunion, presente)

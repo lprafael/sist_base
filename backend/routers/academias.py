@@ -52,12 +52,14 @@ async def get_academia_context(
         header_acad_id = request.headers.get("X-Academia-Id") or request.headers.get("x-academia-id")
         if not header_acad_id and hasattr(request, "query_params"):
             header_acad_id = request.query_params.get("academia_id")
+    if not header_acad_id and isinstance(current_user, dict):
+        header_acad_id = current_user.get("academia_id")
 
     # Caso 0: Super Admin / Admin global -> acceso total a cualquier academia
     if role in ["super", "admin", "superadmin"]:
         if header_acad_id:
             try:
-                target_uuid = uuid.UUID(header_acad_id)
+                target_uuid = uuid.UUID(str(header_acad_id))
                 res = await session.execute(
                     text("SELECT id FROM academias.academias WHERE id = :aid"),
                     {"aid": str(target_uuid)}
@@ -77,7 +79,7 @@ async def get_academia_context(
     if role == "academia":
         if header_acad_id:
             try:
-                target_uuid = uuid.UUID(header_acad_id)
+                target_uuid = uuid.UUID(str(header_acad_id))
                 res = await session.execute(
                     text("SELECT id FROM academias.academias WHERE id = :aid"),
                     {"aid": str(target_uuid)}
@@ -101,6 +103,24 @@ async def get_academia_context(
         return {"academia_id": row[0], "rol_interno": "dueño", "sucursal_id": None}
 
     # Caso 2: miembro invitado (administrador, tesorero, profesor)
+    if header_acad_id:
+        try:
+            target_uuid = uuid.UUID(str(header_acad_id))
+            res = await session.execute(
+                text("""
+                    SELECT m.academia_id, m.rol, m.sucursal_id
+                    FROM academias.miembros m
+                    WHERE m.usuario_id = :uid AND m.academia_id = :aid AND m.activo = TRUE
+                    LIMIT 1
+                """),
+                {"uid": uid, "aid": str(target_uuid)}
+            )
+            row = res.fetchone()
+            if row:
+                return {"academia_id": row[0], "rol_interno": row[1], "sucursal_id": row[2]}
+        except Exception:
+            pass
+
     res = await session.execute(
         text("""
             SELECT m.academia_id, m.rol, m.sucursal_id
@@ -619,11 +639,12 @@ async def listar_deportes(session: AsyncSession = Depends(get_session)):
 
 @router.get("/academia/perfil")
 async def obtener_perfil(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Obtiene el perfil de la academia. Accesible por dueño y administrador."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     if ctx["rol_interno"] not in ("dueño", "administrador"):
         raise HTTPException(status_code=403, detail="Acceso restringido.")
 
@@ -704,12 +725,13 @@ async def guardar_perfil(
 
 @router.post("/academia/perfil/logo")
 async def subir_logo(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Sube el logo de la academia."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     if ctx["rol_interno"] not in ("dueño", "administrador"):
         raise HTTPException(status_code=403, detail="Acceso restringido. Se requiere rol de dueño o administrador.")
 
@@ -729,12 +751,13 @@ async def subir_logo(
 
 @router.post("/academia/perfil/banner")
 async def subir_banner(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Sube el banner de la academia."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     if ctx["rol_interno"] not in ("dueño", "administrador"):
         raise HTTPException(status_code=403, detail="Acceso restringido. Se requiere rol de dueño o administrador.")
 
@@ -848,11 +871,12 @@ async def revocar_miembro(
 
 @router.get("/academia/sucursales")
 async def listar_sucursales(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Lista las sucursales de la academia."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     aid = ctx["academia_id"]
 
     # Los profesores solo ven su sucursal asignada
@@ -1085,13 +1109,14 @@ async def desactivar_categoria(
 
 @router.get("/academia/alumnos")
 async def listar_alumnos(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     sucursal_id: Optional[str] = None,
     estado: Optional[str] = None,
 ):
     """Lista alumnos. Profesores ven solo su sucursal."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
 
     # Restricción de sucursal para profesores
     effective_sucursal = ctx["sucursal_id"] if ctx["rol_interno"] == "profesor" else sucursal_id
@@ -1163,11 +1188,12 @@ async def registrar_alumno(
 @router.get("/academia/alumnos/{alumno_id}")
 async def detalle_alumno(
     alumno_id: str,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """Detalle completo de un alumno, incluyendo tutores e inscripciones."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     res = await session.execute(text("""
         SELECT a.id, a.nombre, a.apellido, a.fecha_nacimiento, a.foto_perfil,
                a.tipo_sangre, a.alergias, a.condiciones_medicas, a.seguro_medico,
@@ -1344,12 +1370,13 @@ async def vincular_tutor(
 
 @router.get("/academia/categorias")
 async def listar_categorias(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     sucursal_id: Optional[str] = None
 ):
     """Lista categorías. Los profesores ven solo su sucursal."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
     effective_sucursal = ctx["sucursal_id"] if ctx["rol_interno"] == "profesor" else sucursal_id
 
     conditions = ["c.sucursal_id IN (SELECT id FROM academias.sucursales WHERE academia_id = :aid)"]
@@ -1419,13 +1446,14 @@ async def crear_categoria(
 
 @router.get("/academia/inscripciones")
 async def listar_inscripciones(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     categoria_id: Optional[str] = None,
     estado: Optional[str] = "activa"
 ):
     """Lista inscripciones activas."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
 
     conditions = ["s.academia_id = :aid"]
     params = {"aid": ctx["academia_id"]}
@@ -1737,6 +1765,7 @@ async def actualizar_config_cuotas(
 @router.post("/academia/asistencias")
 async def registrar_asistencia(
     data: AsistenciaMasivaRequest,
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
@@ -1744,7 +1773,7 @@ async def registrar_asistencia(
     Registra asistencia masiva para una fecha y categoría.
     Los profesores solo pueden registrar en su sucursal asignada.
     """
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
 
     # Verificar que la categoría pertenece a la academia (y a la sucursal del profesor)
     cat_res = await session.execute(text("""
@@ -1784,6 +1813,7 @@ async def registrar_asistencia(
 
 @router.get("/academia/asistencias")
 async def ver_asistencias(
+    request: Request,
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     categoria_id: Optional[str] = None,
@@ -1791,7 +1821,7 @@ async def ver_asistencias(
     fecha_hasta: Optional[str] = None,
 ):
     """Consulta el historial de asistencias."""
-    ctx = await get_academia_context(current_user, session)
+    ctx = await get_academia_context(request, current_user, session)
 
     conditions = ["s.academia_id = :aid"]
     params = {"aid": ctx["academia_id"]}
