@@ -830,7 +830,11 @@ function SucursalesTab({ sucursales, setSucursales, deportes, modal, setModal, n
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
 
-  const openNew = () => { setForm({ nombre: '', deporte: deportes[0] || '', ciudad: '', departamento: '', direccion: '', telefono: '', email: '' }); setModal('new'); };
+  const openNew = () => {
+    const firstSport = deportes[0] ? (typeof deportes[0] === 'object' ? deportes[0].nombre : deportes[0]) : '';
+    setForm({ nombre: '', deporte: firstSport, ciudad: '', departamento: '', direccion: '', telefono: '', email: '' });
+    setModal('new');
+  };
   const openEdit = (s: any) => { setForm({ ...s }); setModal(s.id); };
 
   const save = async () => {
@@ -882,12 +886,13 @@ function SucursalesTab({ sucursales, setSucursales, deportes, modal, setModal, n
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
         {sucursales.map((s: any) => {
-          const dcolor = sportColors[s.deporte] || C.primary;
+          const deporteNombre = typeof s.deporte === 'object' ? (s.deporte?.nombre || '') : (s.deporte || '');
+          const dcolor = sportColors[deporteNombre] || C.primary;
           const cats = categorias.filter((c: any) => c.sucursal_id === s.id);
           return (
             <div key={s.id} style={{ ...card(), border: `1px solid ${dcolor}33`, position: 'relative' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <span style={badge(dcolor)}>{s.deporte}</span>
+                <span style={badge(dcolor)}>{deporteNombre}</span>
                 {!s.activa && <span style={badge(C.faint)}>Inactiva</span>}
               </div>
               <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700 }}>{s.nombre}</h3>
@@ -922,9 +927,13 @@ function SucursalesTab({ sucursales, setSucursales, deportes, modal, setModal, n
           <FormField label="Nombre *" value={form.nombre} onChange={v => setForm((f: any) => ({ ...f, nombre: v }))} placeholder="Sede Central" />
           <div style={{ marginBottom: 14 }}>
             <label style={label()}>Deporte *</label>
-            <select value={form.deporte || ''} onChange={e => setForm((f: any) => ({ ...f, deporte: e.target.value }))}
+            <select value={typeof form.deporte === 'object' ? form.deporte?.nombre || '' : form.deporte || ''} onChange={e => setForm((f: any) => ({ ...f, deporte: e.target.value }))}
               style={{ ...input() }}>
-              {deportes.map((d: string) => <option key={d} value={d}>{d}</option>)}
+              {deportes.map((d: any) => {
+                const name = typeof d === 'object' ? d.nombre : d;
+                const key = typeof d === 'object' ? d.id || name : d;
+                return <option key={key} value={name}>{name}</option>;
+              })}
             </select>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
