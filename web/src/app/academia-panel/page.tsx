@@ -232,7 +232,7 @@ export default function AcademiaPanel() {
           {activeTab === 'sucursales' && (
             <SucursalesTab
               sucursales={sucursales} setSucursales={setSucursales}
-              deportes={deportes} modalSucursal={modalSucursal} setModalSucursal={setModalSucursal}
+              deportes={deportes} modal={modalSucursal} setModal={setModalSucursal}
               modalCategoria={modalCategoria} setModalCategoria={setModalCategoria}
               notify={notify} apiFetch={apiFetch} isAdmin={isAdmin} isDueno={isDueno}
               categorias={categorias} fetchAll={fetchAll}
