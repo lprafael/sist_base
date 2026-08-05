@@ -923,20 +923,40 @@ async def crear_sucursal(
     if data.lat is not None and data.lon is not None:
         ubicacion = f"POINT({data.lon} {data.lat})"
 
-    res = await session.execute(text("""
-        INSERT INTO academias.sucursales
-            (academia_id, nombre, deporte, direccion, ciudad, departamento, telefono, email, ubicacion)
-        VALUES
-            (:aid, :nombre, :deporte, :direccion, :ciudad, :departamento, :telefono, :email,
-             CASE WHEN :ubicacion IS NOT NULL THEN ST_GeogFromText(:ubicacion) ELSE NULL END)
-        RETURNING id
-    """), {
-        "aid": current_user["academia_id"],
-        "nombre": data.nombre, "deporte": data.deporte,
-        "direccion": data.direccion, "ciudad": data.ciudad,
-        "departamento": data.departamento, "telefono": data.telefono,
-        "email": data.email, "ubicacion": ubicacion,
-    })
+    aid = str(current_user["academia_id"])
+
+    if ubicacion:
+        sql = text("""
+            INSERT INTO academias.sucursales
+                (academia_id, nombre, deporte, direccion, ciudad, departamento, telefono, email, ubicacion)
+            VALUES
+                (:aid, :nombre, :deporte, :direccion, :ciudad, :departamento, :telefono, :email, ST_GeogFromText(:ubicacion))
+            RETURNING id
+        """)
+        params = {
+            "aid": aid,
+            "nombre": data.nombre, "deporte": data.deporte,
+            "direccion": data.direccion, "ciudad": data.ciudad,
+            "departamento": data.departamento, "telefono": data.telefono,
+            "email": data.email, "ubicacion": ubicacion,
+        }
+    else:
+        sql = text("""
+            INSERT INTO academias.sucursales
+                (academia_id, nombre, deporte, direccion, ciudad, departamento, telefono, email)
+            VALUES
+                (:aid, :nombre, :deporte, :direccion, :ciudad, :departamento, :telefono, :email)
+            RETURNING id
+        """)
+        params = {
+            "aid": aid,
+            "nombre": data.nombre, "deporte": data.deporte,
+            "direccion": data.direccion, "ciudad": data.ciudad,
+            "departamento": data.departamento, "telefono": data.telefono,
+            "email": data.email,
+        }
+
+    res = await session.execute(sql, params)
     new_id = res.fetchone()[0]
     await session.commit()
     return {"message": "Sucursal creada.", "id": str(new_id)}
@@ -954,24 +974,49 @@ async def actualizar_sucursal(
     if data.lat is not None and data.lon is not None:
         ubicacion = f"POINT({data.lon} {data.lat})"
 
-    await session.execute(text("""
-        UPDATE academias.sucursales SET
-            nombre       = :nombre,
-            deporte      = :deporte,
-            direccion    = :direccion,
-            ciudad       = :ciudad,
-            departamento = :departamento,
-            telefono     = :telefono,
-            email        = :email,
-            ubicacion    = CASE WHEN :ubicacion IS NOT NULL THEN ST_GeogFromText(:ubicacion) ELSE ubicacion END
-        WHERE id = :sid AND academia_id = :aid
-    """), {
-        "sid": sucursal_id, "aid": current_user["academia_id"],
-        "nombre": data.nombre, "deporte": data.deporte,
-        "direccion": data.direccion, "ciudad": data.ciudad,
-        "departamento": data.departamento, "telefono": data.telefono,
-        "email": data.email, "ubicacion": ubicacion,
-    })
+    aid = str(current_user["academia_id"])
+
+    if ubicacion:
+        sql = text("""
+            UPDATE academias.sucursales SET
+                nombre       = :nombre,
+                deporte      = :deporte,
+                direccion    = :direccion,
+                ciudad       = :ciudad,
+                departamento = :departamento,
+                telefono     = :telefono,
+                email        = :email,
+                ubicacion    = ST_GeogFromText(:ubicacion)
+            WHERE id = :sid AND academia_id = :aid
+        """)
+        params = {
+            "sid": str(sucursal_id), "aid": aid,
+            "nombre": data.nombre, "deporte": data.deporte,
+            "direccion": data.direccion, "ciudad": data.ciudad,
+            "departamento": data.departamento, "telefono": data.telefono,
+            "email": data.email, "ubicacion": ubicacion,
+        }
+    else:
+        sql = text("""
+            UPDATE academias.sucursales SET
+                nombre       = :nombre,
+                deporte      = :deporte,
+                direccion    = :direccion,
+                ciudad       = :ciudad,
+                departamento = :departamento,
+                telefono     = :telefono,
+                email        = :email
+            WHERE id = :sid AND academia_id = :aid
+        """)
+        params = {
+            "sid": str(sucursal_id), "aid": aid,
+            "nombre": data.nombre, "deporte": data.deporte,
+            "direccion": data.direccion, "ciudad": data.ciudad,
+            "departamento": data.departamento, "telefono": data.telefono,
+            "email": data.email,
+        }
+
+    await session.execute(sql, params)
     await session.commit()
     return {"message": "Sucursal actualizada."}
 
