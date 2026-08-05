@@ -1073,15 +1073,23 @@ async def crear_categoria(
     session: AsyncSession = Depends(get_session)
 ):
     """Crea una nueva categoría para la academia."""
+    aid_str = str(current_user["academia_id"])
     suc_id = data.sucursal_id if data.sucursal_id and data.sucursal_id.strip() else None
 
     if not suc_id:
         res_suc = await session.execute(text("""
-            SELECT id FROM academias.sucursales WHERE academia_id = :aid AND activa = TRUE LIMIT 1
-        """), {"aid": current_user["academia_id"]})
+            SELECT id FROM academias.sucursales WHERE academia_id = :aid AND activa = TRUE ORDER BY creado_en ASC LIMIT 1
+        """), {"aid": aid_str})
         row_suc = res_suc.fetchone()
         if row_suc:
             suc_id = str(row_suc[0])
+        else:
+            res_new_suc = await session.execute(text("""
+                INSERT INTO academias.sucursales (academia_id, nombre, deporte, activa)
+                VALUES (:aid, 'Sede Principal', 'General', TRUE)
+                RETURNING id
+            """), {"aid": aid_str})
+            suc_id = str(res_new_suc.fetchone()[0])
 
     res = await session.execute(text("""
         INSERT INTO academias.categorias
@@ -1122,7 +1130,7 @@ async def actualizar_categoria(
             sucursal_id = COALESCE(:sucursal_id, sucursal_id)
         WHERE id = :cid
     """), {
-        "cid": categoria_id,
+        "cid": str(categoria_id),
         "nombre": data.nombre,
         "edad_min": data.edad_min or 0,
         "edad_max": data.edad_max or 99,
