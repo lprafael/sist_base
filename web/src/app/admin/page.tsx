@@ -2060,7 +2060,13 @@ export default function AdminConsole() {
                         </tr>
                       ) : (
                         currentAcademias.map(a => (
-                          <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover:bg-slate-50">
+                          <tr 
+                            key={a.id} 
+                            style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} 
+                            title="Haz clic en la fila para ingresar al panel de esta academia"
+                            onClick={() => handleAccessAcademiaPanel(a)}
+                            className="hover:bg-slate-50 transition-colors"
+                          >
                             <td style={{ padding: 16 }}>
                               <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a' }}>{a.nombre}</div>
                               {a.usuario_email && (
@@ -2095,7 +2101,10 @@ export default function AdminConsole() {
                             <td style={{ padding: 16, textAlign: 'right' }}>
                               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
                                 <button
-                                  onClick={() => handleAccessAcademiaPanel(a)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAccessAcademiaPanel(a);
+                                  }}
                                   style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
                                   title="Ingresar a la configuración y panel completo SAD-M de esta academia"
                                 >
@@ -2106,6 +2115,7 @@ export default function AdminConsole() {
                                   href={`/academias/${a.enlace_sitio || a.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}
                                   title="Ver landing / sitio público de la academia"
                                 >
@@ -2113,7 +2123,10 @@ export default function AdminConsole() {
                                   Ver Sitio
                                 </a>
                                 <button 
-                                  onClick={() => setEditAcademia(a)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditAcademia(a);
+                                  }}
                                   style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                                 >
                                   Editar
