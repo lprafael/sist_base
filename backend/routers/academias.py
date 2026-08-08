@@ -1205,6 +1205,7 @@ async def listar_alumnos(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     sucursal_id: Optional[str] = None,
+    categoria_id: Optional[str] = None,
     estado: Optional[str] = None,
 ):
     """Lista alumnos. Profesores ven solo su sucursal."""
@@ -1222,6 +1223,9 @@ async def listar_alumnos(
     if estado:
         conditions.append("a.estado = :estado")
         params["estado"] = estado
+    if categoria_id:
+        conditions.append("EXISTS (SELECT 1 FROM academias.inscripciones i WHERE i.alumno_id = a.id AND i.categoria_id = CAST(:cid AS UUID) AND i.estado = 'activa')")
+        params["cid"] = categoria_id
 
     where = " AND ".join(conditions)
     res = await session.execute(text(f"""
@@ -2100,42 +2104,58 @@ async def registrar_asistencia(
     Registra asistencia masiva para una fecha y categoría.
     Los profesores solo pueden registrar en su sucursal asignada.
     """
-    ctx = await get_academia_context(request, current_user, session)
+    try:
+        ctx = await get_academia_context(request, current_user, session)
+        cat_id = str(data.categoria_id).strip()
+        fecha_obj = _clean_date(data.fecha) or date.today()
 
-    # Verificar que la categoría pertenece a la academia (y a la sucursal del profesor)
-    cat_res = await session.execute(text("""
-        SELECT c.id, c.sucursal_id FROM academias.categorias c
-        JOIN academias.sucursales s ON s.id = c.sucursal_id
-        WHERE c.id = :cid AND s.academia_id = :aid
-    """), {"cid": data.categoria_id, "aid": ctx["academia_id"]})
-    cat = cat_res.fetchone()
-    if not cat:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+        # Verificar que la categoría pertenece a la academia (y a la sucursal del profesor)
+        cat_res = await session.execute(text("""
+            SELECT c.id, c.sucursal_id FROM academias.categorias c
+            JOIN academias.sucursales s ON s.id = c.sucursal_id
+            WHERE c.id = CAST(:cid AS UUID) AND s.academia_id = CAST(:aid AS UUID)
+        """), {"cid": cat_id, "aid": str(ctx["academia_id"])})
+        cat = cat_res.fetchone()
+        if not cat:
+            raise HTTPException(status_code=404, detail="Categoría no encontrada.")
 
-    if ctx["rol_interno"] == "profesor" and ctx["sucursal_id"]:
-        if str(cat[1]) != str(ctx["sucursal_id"]):
-            raise HTTPException(status_code=403, detail="Solo podés registrar asistencia en tu sucursal asignada.")
+        if ctx["rol_interno"] == "profesor" and ctx["sucursal_id"]:
+            if str(cat[1]) != str(ctx["sucursal_id"]):
+                raise HTTPException(status_code=403, detail="Solo podés registrar asistencia en tu sucursal asignada.")
 
-    registradas = 0
-    for item in data.asistencias:
-        await session.execute(text("""
-            INSERT INTO academias.asistencias
-                (alumno_id, categoria_id, fecha, estado, observaciones, registrado_por_id)
-            VALUES (:alumno_id, :cat_id, :fecha, :estado, :obs, :reg_por)
-            ON CONFLICT (alumno_id, categoria_id, fecha) DO UPDATE SET
-                estado = EXCLUDED.estado,
-                observaciones = EXCLUDED.observaciones,
-                registrado_por_id = EXCLUDED.registrado_por_id,
-                registrado_en = NOW()
-        """), {
-            "alumno_id": item.alumno_id, "cat_id": data.categoria_id,
-            "fecha": data.fecha, "estado": item.estado,
-            "obs": item.observaciones, "reg_por": current_user["user_id"],
-        })
-        registradas += 1
+        registradas = 0
+        for item in data.asistencias:
+            await session.execute(text("""
+                INSERT INTO academias.asistencias
+                    (alumno_id, categoria_id, fecha, estado, observaciones, registrado_por_id)
+                VALUES (CAST(:alumno_id AS UUID), CAST(:cat_id AS UUID), CAST(:fecha AS DATE), :estado, :obs, :reg_por)
+                ON CONFLICT (alumno_id, categoria_id, fecha) DO UPDATE SET
+                    estado = EXCLUDED.estado,
+                    observaciones = EXCLUDED.observaciones,
+                    registrado_por_id = EXCLUDED.registrado_por_id,
+                    registrado_en = NOW()
+            """), {
+                "alumno_id": str(item.alumno_id).strip(),
+                "cat_id": cat_id,
+                "fecha": fecha_obj,
+                "estado": item.estado or "presente",
+                "obs": _clean_str(item.observaciones),
+                "reg_por": current_user["user_id"],
+            })
+            registradas += 1
 
-    await session.commit()
-    return {"message": f"Asistencia registrada para {registradas} alumnos.", "fecha": data.fecha}
+        await session.commit()
+        return {"message": f"Asistencia registrada para {registradas} alumnos.", "fecha": fecha_obj.isoformat()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR registrar_asistencia]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al registrar asistencia: {str(e)}"
+        )
 
 
 @router.get("/academia/asistencias")

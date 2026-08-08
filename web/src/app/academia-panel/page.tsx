@@ -1553,18 +1553,37 @@ function NoAccess() {
 // TABS ADICIONALES (ASISTENCIAS, NOTICIAS, FEEDBACK)
 // ═══════════════════════════════════════════════════════════
 
-function AsistenciasTab({ notify, apiFetch, categorias, fetchAll }: any) {
+function AsistenciasTab({ notify, apiFetch, categorias = [], fetchAll }: any) {
   const [asistencias, setAsistencias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterCat, setFilterCat] = useState('');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+
+  // Modal Tomar Asistencia
+  const [showModal, setShowModal] = useState(false);
+  const [tCatId, setTCatId] = useState('');
+  const [tFecha, setTFecha] = useState(() => new Date().toISOString().split('T')[0]);
+  const [alumnosCat, setAlumnosCat] = useState<any[]>([]);
+  const [loadingAlumnos, setLoadingAlumnos] = useState(false);
+  const [estadosMap, setEstadosMap] = useState<Record<string, { estado: string; obs: string }>>({});
+  const [saving, setSaving] = useState(false);
+
+  const listCategorias = Array.isArray(categorias) ? categorias : [];
 
   useEffect(() => {
-    load();
+    loadHistory();
   }, []);
 
-  const load = async () => {
+  const loadHistory = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/academia/asistencias');
+      const q = new URLSearchParams();
+      if (filterCat) q.append('categoria_id', filterCat);
+      if (fechaDesde) q.append('fecha_desde', fechaDesde);
+      if (fechaHasta) q.append('fecha_hasta', fechaHasta);
+
+      const data = await apiFetch(`/academia/asistencias?${q.toString()}`);
       setAsistencias(data);
     } catch (e: any) {
       notify(e.message, 'err');
@@ -1572,42 +1591,303 @@ function AsistenciasTab({ notify, apiFetch, categorias, fetchAll }: any) {
     setLoading(false);
   };
 
+  const abrirTomarAsistencia = () => {
+    const initialCat = listCategorias[0]?.id || '';
+    setTCatId(initialCat);
+    setTFecha(new Date().toISOString().split('T')[0]);
+    setShowModal(true);
+    if (initialCat) {
+      cargarAlumnosCat(initialCat);
+    }
+  };
+
+  const cargarAlumnosCat = async (catId: str) => {
+    if (!catId) return;
+    setLoadingAlumnos(true);
+    try {
+      const data = await apiFetch(`/academia/alumnos?categoria_id=${catId}&estado=activo`);
+      const list = Array.isArray(data) ? data : [];
+      setAlumnosCat(list);
+      
+      const initialMap: Record<string, { estado: string; obs: string }> = {};
+      list.forEach((a: any) => {
+        initialMap[a.id] = { estado: 'presente', obs: '' };
+      });
+      setEstadosMap(initialMap);
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+    setLoadingAlumnos(false);
+  };
+
+  const setEstadoAlumno = (alumnoId: string, estado: string) => {
+    setEstadosMap(prev => ({
+      ...prev,
+      [alumnoId]: { ...prev[alumnoId], estado }
+    }));
+  };
+
+  const setObsAlumno = (alumnoId: string, obs: string) => {
+    setEstadosMap(prev => ({
+      ...prev,
+      [alumnoId]: { ...prev[alumnoId], obs }
+    }));
+  };
+
+  const marcarTodos = (estado: string) => {
+    setEstadosMap(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(id => {
+        updated[id] = { ...updated[id], estado };
+      });
+      return updated;
+    });
+  };
+
+  const guardarAsistencia = async () => {
+    if (!tCatId) return notify('Seleccioná una categoría', 'err');
+    if (!tFecha) return notify('Seleccioná la fecha', 'err');
+    if (alumnosCat.length === 0) return notify('No hay alumnos inscritos en esta categoría', 'err');
+
+    setSaving(true);
+    try {
+      const listAsistencias = alumnosCat.map((a: any) => ({
+        alumno_id: a.id,
+        estado: estadosMap[a.id]?.estado || 'presente',
+        observaciones: estadosMap[a.id]?.obs || '',
+      }));
+
+      await apiFetch('/academia/asistencias', {
+        method: 'POST',
+        body: JSON.stringify({
+          categoria_id: tCatId,
+          fecha: tFecha,
+          asistencias: listAsistencias,
+        }),
+      });
+
+      notify(`Asistencia guardada para ${listAsistencias.length} alumnos.`);
+      setShowModal(false);
+      loadHistory();
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+    setSaving(false);
+  };
+
+  const getBadgeStyle = (est: string) => {
+    switch (est) {
+      case 'presente': return badge(C.green);
+      case 'tarde': return badge(C.yellow);
+      case 'justificado': return badge(C.purple);
+      default: return badge(C.red);
+    }
+  };
+
   return (
     <div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>Historial de Asistencias</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Control y Historial de Asistencias</h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
+            Tomá la asistencia diaria de tus alumnos por categoría y consultá el historial.
+          </p>
+        </div>
+        <button onClick={abrirTomarAsistencia} style={btn(C.primary)}>
+          <Calendar size={16} /> Tomar Asistencia
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ ...card(), marginBottom: 20, padding: 16 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={label()}>Categoría</label>
+            <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={input()}>
+              <option value="">Todas las categorías</option>
+              {listCategorias.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.nombre} ({c.sucursal_nombre})</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ width: 150 }}>
+            <label style={label()}>Fecha Desde</label>
+            <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} style={input()} />
+          </div>
+          <div style={{ width: 150 }}>
+            <label style={label()}>Fecha Hasta</label>
+            <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} style={input()} />
+          </div>
+          <button onClick={loadHistory} style={btn(C.primary, true)}>
+            <Search size={15} /> Filtrar
+          </button>
+          {(filterCat || fechaDesde || fechaHasta) && (
+            <button onClick={() => { setFilterCat(''); setFechaDesde(''); setFechaHasta(''); setTimeout(loadHistory, 0); }} style={btn(C.faint, true)}>
+              Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabla de Historial */}
       <div style={card()}>
-        {loading ? <p>Cargando...</p> : (
+        {loading ? <p style={{ padding: 20, textAlign: 'center', color: C.muted }}>Cargando asistencias...</p> : (
           <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
-                <th style={{ padding: 12 }}>Fecha</th>
-                <th style={{ padding: 12 }}>Alumno</th>
-                <th style={{ padding: 12 }}>Categoría</th>
-                <th style={{ padding: 12 }}>Estado</th>
-                <th style={{ padding: 12 }}>Obs.</th>
+                <th style={{ padding: 12 }}>FECHA</th>
+                <th style={{ padding: 12 }}>ALUMNO</th>
+                <th style={{ padding: 12 }}>CATEGORÍA</th>
+                <th style={{ padding: 12 }}>ESTADO</th>
+                <th style={{ padding: 12 }}>OBSERVACIONES</th>
               </tr>
             </thead>
             <tbody>
               {asistencias.map((a: any) => (
-                <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: 12 }}>{a.fecha?.split('T')[0] || a.fecha}</td>
-                  <td style={{ padding: 12 }}>{a.alumno}</td>
-                  <td style={{ padding: 12 }}>{a.categoria}</td>
+                <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 14 }}>
+                  <td style={{ padding: 12, fontWeight: 600 }}>{a.fecha?.split('T')[0] || a.fecha}</td>
+                  <td style={{ padding: 12, fontWeight: 700, color: C.text }}>{a.alumno}</td>
+                  <td style={{ padding: 12, color: C.muted }}>{a.categoria}</td>
                   <td style={{ padding: 12 }}>
-                    <span style={badge(a.estado === 'presente' ? C.green : a.estado === 'tarde' ? C.yellow : C.red)}>
-                      {a.estado.replace('_', ' ')}
+                    <span style={getBadgeStyle(a.estado)}>
+                      {a.estado ? a.estado.replace('_', ' ').toUpperCase() : 'PRESENTE'}
                     </span>
                   </td>
-                  <td style={{ padding: 12, color: C.muted }}>{a.observaciones || '-'}</td>
+                  <td style={{ padding: 12, color: C.muted }}>{a.observaciones || '—'}</td>
                 </tr>
               ))}
               {asistencias.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: C.muted }}>No hay registros</td></tr>
+                <tr>
+                  <td colSpan={5} style={{ padding: 30, textAlign: 'center', color: C.muted }}>
+                    No hay registros de asistencia que coincidan con los filtros.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Modal Tomar Asistencia */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, width: 620, maxWidth: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Tomar Asistencia</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: C.muted }}>Seleccioná la categoría, fecha y marcá el estado de los alumnos.</p>
+              </div>
+              <button onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
+                <div>
+                  <label style={label()}>Categoría *</label>
+                  <select value={tCatId} onChange={e => { setTCatId(e.target.value); cargarAlumnosCat(e.target.value); }} style={input()}>
+                    {listCategorias.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.nombre} ({c.sucursal_nombre})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={label()}>Fecha *</label>
+                  <input type="date" value={tFecha} onChange={e => setTFecha(e.target.value)} style={input()} />
+                </div>
+              </div>
+
+              {loadingAlumnos ? (
+                <p style={{ textAlign: 'center', color: C.muted, padding: 30 }}>Cargando alumnos de la categoría...</p>
+              ) : alumnosCat.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 30, color: C.muted, background: C.bg, borderRadius: 10 }}>
+                  <AlertCircle size={32} color={C.yellow} style={{ marginBottom: 8 }} />
+                  <p style={{ margin: 0, fontWeight: 600 }}>No hay alumnos inscritos en esta categoría.</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 12 }}>Inscribí alumnos desde el módulo de Alumnos para tomarles asistencia.</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                      Alumnos ({alumnosCat.length})
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => marcarTodos('presente')} style={{ ...btn(C.green, true), padding: '4px 8px', fontSize: 11 }}>
+                        Todos Presentes
+                      </button>
+                      <button onClick={() => marcarTodos('ausente')} style={{ ...btn(C.red, true), padding: '4px 8px', fontSize: 11 }}>
+                        Todos Ausentes
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {alumnosCat.map((a: any) => {
+                      const cur = estadosMap[a.id] || { estado: 'presente', obs: '' };
+                      return (
+                        <div key={a.id} style={{ background: C.bg, borderRadius: 10, padding: 12, border: `1px solid ${C.border}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                            <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>
+                              {a.nombre} {a.apellido}
+                            </span>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              {[
+                                { id: 'presente', label: 'Presente', color: C.green },
+                                { id: 'tarde', label: 'Tarde', color: C.yellow },
+                                { id: 'ausente', label: 'Ausente', color: C.red },
+                                { id: 'justificado', label: 'Justificado', color: C.purple },
+                              ].map(st => {
+                                const active = cur.estado === st.id;
+                                return (
+                                  <button
+                                    key={st.id}
+                                    type="button"
+                                    onClick={() => setEstadoAlumno(a.id, st.id)}
+                                    style={{
+                                      padding: '4px 10px',
+                                      borderRadius: 6,
+                                      fontSize: 12,
+                                      fontWeight: active ? 700 : 500,
+                                      border: `1px solid ${active ? st.color : C.border}`,
+                                      background: active ? st.color : 'transparent',
+                                      color: active ? '#fff' : C.muted,
+                                      cursor: 'pointer',
+                                      transition: 'all .15s',
+                                    }}
+                                  >
+                                    {st.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Observación (opcional)..."
+                            value={cur.obs}
+                            onChange={e => setObsAlumno(a.id, e.target.value)}
+                            style={{ ...input(), padding: '6px 10px', fontSize: 12, background: C.surface }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end', gap: 10, background: C.surface }}>
+              <button onClick={() => setShowModal(false)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={guardarAsistencia} disabled={saving || alumnosCat.length === 0} style={btn(C.primary)}>
+                {saving ? 'Guardando...' : `Guardar Asistencia (${alumnosCat.length})`}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
