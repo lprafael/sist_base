@@ -631,8 +631,23 @@ function HorariosOficinaEditor({ perfil, notify, apiFetch }: any) {
 function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notify, apiFetch, isDueno }: any) {
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const [waTestPhone, setWaTestPhone] = useState('');
+  const [waTestSending, setWaTestSending] = useState(false);
 
   useEffect(() => { if (perfil) setForm({ ...perfil }); }, [perfil]);
+
+  const enviarWaTest = async () => {
+    if (!waTestPhone.trim()) { notify('Ingresá un número de teléfono', 'err'); return; }
+    setWaTestSending(true);
+    try {
+      await apiFetch('/academia/whatsapp/send-test', {
+        method: 'POST',
+        body: JSON.stringify({ phone: waTestPhone.trim(), message: `✅ *Prueba de WhatsApp Bot — ${perfil?.nombre || 'Tu Academia'}*\n\n¡El bot de recordatorios está funcionando correctamente! 🎉\n\nEste mensaje fue enviado desde el panel de administración de micancha.com.py` })
+      });
+      notify('✅ Mensaje de prueba enviado por WhatsApp');
+    } catch (e: any) { notify(e.message || 'Error al enviar mensaje de prueba', 'err'); }
+    setWaTestSending(false);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -819,6 +834,48 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
             {field('facebook', 'Facebook', 'https://facebook.com/...')}
             {field('youtube', 'YouTube', 'https://youtube.com/@...')}
           </div>
+
+          {/* ── Panel Prueba WhatsApp Bot ── */}
+          {isDueno && (
+            <div style={{ ...card({ marginTop: 16 }), border: `1px solid ${C.purple}55`, background: `linear-gradient(135deg, ${C.surface} 0%, #1a0f2e 100%)` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: `${C.purple}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <PhoneCall size={18} color={C.purple} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.purple }}>Probar Bot de WhatsApp</h3>
+                  <p style={{ margin: 0, fontSize: 11, color: C.muted }}>Enviá un mensaje de prueba a tu propio número</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={label()}>Número de WhatsApp (con código de país)</label>
+                  <input
+                    type="tel"
+                    placeholder="595981123456  (sin +, sin espacios)"
+                    value={waTestPhone}
+                    onChange={e => setWaTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                    style={input()}
+                  />
+                  <p style={{ fontSize: 11, color: C.muted, margin: '6px 0 0' }}>
+                    Paraguay: 595 + número. Ej: <strong>595981123456</strong>
+                  </p>
+                </div>
+                <button
+                  onClick={enviarWaTest}
+                  disabled={waTestSending}
+                  style={{ ...btn(C.purple), padding: '10px 18px', flexShrink: 0, marginBottom: 20 }}
+                >
+                  <PhoneCall size={15} />
+                  {waTestSending ? 'Enviando...' : 'Enviar prueba'}
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: C.faint, padding: '8px 12px', background: `${C.bg}88`, borderRadius: 8, marginTop: 4 }}>
+                ⚠️ Asegurá que el bot esté conectado (QR escaneado) antes de enviar.
+                Si no está conectado, andá a <strong>Cuotas / Pagos → Conectar WhatsApp QR</strong>.
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -2404,6 +2461,12 @@ function NoticiasTab({ notify, apiFetch }: any) {
     setLoadingIA(false);
   };
 
+  const compartirNoticiaWa = (n: any) => {
+    const texto = `📢 *${n.titulo}*\n\n${n.contenido}\n\nEnviado desde el Portal de la Academia`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
   const filtered = noticias.filter((n: any) => {
     const matchSearch =
       (n.titulo || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -2536,6 +2599,13 @@ function NoticiasTab({ notify, apiFetch }: any) {
                     </button>
                     <button onClick={() => toggleActiva(n)} title={n.activa ? 'Ocultar Noticia' : 'Mostrar Noticia'} style={{ ...btn(n.activa ? C.yellow : C.green, true), padding: '6px 10px', fontSize: 12 }}>
                       {n.activa ? <X size={13} /> : <Check size={13} />}
+                    </button>
+                    <button
+                      title="Compartir por WhatsApp"
+                      onClick={() => compartirNoticiaWa(n)}
+                      style={{ ...btn(C.purple, true), padding: '6px 10px', fontSize: 12 }}
+                    >
+                      <PhoneCall size={13} />
                     </button>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
