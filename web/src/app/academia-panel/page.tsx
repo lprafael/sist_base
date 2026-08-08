@@ -578,12 +578,14 @@ function HorariosOficinaEditor({ perfil, notify, apiFetch }: any) {
     const filtrados = items.filter(i => i.dia !== dia);
     const updated = [...filtrados, nuevo];
     setItems(updated);
+    if (perfil) perfil.horarios_oficina = updated;
     guardar(updated);
   };
 
   const quitar = (diaQuitar: string) => {
     const updated = items.filter(i => i.dia !== diaQuitar);
     setItems(updated);
+    if (perfil) perfil.horarios_oficina = updated;
     guardar(updated);
   };
 

@@ -651,7 +651,8 @@ async def obtener_perfil(
     res = await session.execute(text("""
         SELECT nombre, descripcion, enlace_sitio, logo_url, banner_url, color_primario,
                acerca_de, facebook, instagram, youtube, whatsapp, email, telefono,
-               pais, departamento, ciudad, plan, habilitada, canal_comunicacion_habilitado
+               pais, departamento, ciudad, plan, habilitada, canal_comunicacion_habilitado,
+               horarios_oficina
         FROM academias.academias
         WHERE id = :aid
     """), {"aid": ctx["academia_id"]})
@@ -668,6 +669,7 @@ async def obtener_perfil(
         "telefono": row[12], "pais": row[13], "departamento": row[14],
         "ciudad": row[15], "plan": row[16], "habilitada": row[17],
         "canal_comunicacion_habilitado": row[18],
+        "horarios_oficina": row[19] or [],
     }
 
 
