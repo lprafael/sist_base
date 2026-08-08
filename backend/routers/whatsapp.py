@@ -12,7 +12,8 @@ import traceback
 from datetime import date
 
 from database import get_session
-from security import require_roles, get_current_user
+from security import get_current_user
+from routers.academias import require_roles
 from services.whatsapp_service import (
     get_instance_status, get_qr_code, send_whatsapp_text, format_paraguay_phone
 )
