@@ -219,6 +219,13 @@ class VinculoTutorRequest(BaseModel):
     es_tutor_principal: Optional[bool] = False
 
 
+def _clean_str(val: Optional[str]) -> Optional[str]:
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s if s else None
+
+
 class MiembroRequest(BaseModel):
     usuario_id: int
     rol: str  # 'administrador', 'tesorero', 'profesor'
@@ -1228,12 +1235,18 @@ async def registrar_alumno(
         RETURNING id
     """), {
         "aid": current_user["academia_id"],
-        "sucursal_id": data.sucursal_id, "nombre": data.nombre,
-        "apellido": data.apellido, "fecha_nacimiento": data.fecha_nacimiento,
-        "foto_perfil": data.foto_perfil, "tipo_sangre": data.tipo_sangre,
-        "alergias": data.alergias, "condiciones_medicas": data.condiciones_medicas,
-        "seguro_medico": data.seguro_medico, "contacto_emergencia": data.contacto_emergencia,
-        "estado": data.estado or "activo", "notas": data.notas,
+        "sucursal_id": _clean_str(data.sucursal_id),
+        "nombre": data.nombre.strip() if data.nombre else "",
+        "apellido": _clean_str(data.apellido),
+        "fecha_nacimiento": _clean_str(data.fecha_nacimiento),
+        "foto_perfil": _clean_str(data.foto_perfil),
+        "tipo_sangre": _clean_str(data.tipo_sangre),
+        "alergias": _clean_str(data.alergias),
+        "condiciones_medicas": _clean_str(data.condiciones_medicas),
+        "seguro_medico": _clean_str(data.seguro_medico),
+        "contacto_emergencia": _clean_str(data.contacto_emergencia),
+        "estado": _clean_str(data.estado) or "activo",
+        "notas": _clean_str(data.notas),
     })
     new_id = res.fetchone()[0]
     await session.commit()
@@ -1338,12 +1351,18 @@ async def actualizar_alumno(
         WHERE id = :alumno_id AND academia_id = :academia_id
     """), {
         "alumno_id": alumno_id, "academia_id": current_user["academia_id"],
-        "nombre": data.nombre, "apellido": data.apellido,
-        "fecha_nacimiento": data.fecha_nacimiento, "foto_perfil": data.foto_perfil,
-        "tipo_sangre": data.tipo_sangre, "alergias": data.alergias,
-        "condiciones_medicas": data.condiciones_medicas, "seguro_medico": data.seguro_medico,
-        "contacto_emergencia": data.contacto_emergencia, "estado": data.estado,
-        "notas": data.notas, "sucursal_id": data.sucursal_id,
+        "nombre": data.nombre.strip() if data.nombre else "",
+        "apellido": _clean_str(data.apellido),
+        "fecha_nacimiento": _clean_str(data.fecha_nacimiento),
+        "foto_perfil": _clean_str(data.foto_perfil),
+        "tipo_sangre": _clean_str(data.tipo_sangre),
+        "alergias": _clean_str(data.alergias),
+        "condiciones_medicas": _clean_str(data.condiciones_medicas),
+        "seguro_medico": _clean_str(data.seguro_medico),
+        "contacto_emergencia": _clean_str(data.contacto_emergencia),
+        "estado": _clean_str(data.estado),
+        "notas": _clean_str(data.notas),
+        "sucursal_id": _clean_str(data.sucursal_id),
     })
     await session.commit()
     return {"message": "Alumno actualizado."}
