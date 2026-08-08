@@ -1235,115 +1235,68 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
   const generarMatriculas = async () => {
     setGenerandoMat(true);
     try {
-      const data = await apiFetch(`/academia/matriculas/generar?anio=${hoy.getFullYear()}`, { method: 'POST' });
-      notify(`${data.generadas} matrículas generadas — Gs. ${(data.monto_por_alumno || 0).toLocaleString('es-PY')} c/u`);
-      cargarMatriculas();
-    } catch (e: any) { notify(e.message, 'err'); }
-    setGenerandoMat(false);
+      const data = await apiFetch(`/academia/matriculas/generar?anio=${hoy.getFullYe  // WhatsApp Gateway States
+  const [waConnected, setWaConnected] = useState<boolean | null>(null);
+  const [modalWaQr, setModalWaQr] = useState(false);
+  const [waQrCode, setWaQrCode] = useState<string | null>(null);
+  const [waLoading, setWaLoading] = useState(false);
+  const [waSendingId, setWaSendingId] = useState<string | null>(null);
+  const [waSendingMasivo, setWaSendingMasivo] = useState(false);
+
+  useEffect(() => {
+    verificarEstadoWa();
+  }, []);
+
+  const verificarEstadoWa = async () => {
+    try {
+      const res = await apiFetch('/academia/whatsapp/status');
+      setWaConnected(res.connected === true);
+    } catch {
+      setWaConnected(false);
+    }
   };
 
-  const cargarMatriculas = async () => {
+  const abrirModalQrWa = async () => {
+    setWaLoading(true);
+    setModalWaQr(true);
     try {
-      const data = await apiFetch('/academia/matriculas');
-      setMatriculas(data);
-    } catch { setMatriculas([]); }
-  };
-
-  const cargarHistorial = async (cuotaId: string) => {
-    try {
-      const data = await apiFetch(`/academia/cuotas/${cuotaId}/pagos`);
-      setHistorialPagos(data);
-    } catch { setHistorialPagos([]); }
-  };
-
-  const registrarPago = async () => {
-    if (!modalPago) return;
-    setSaving(true);
-    try {
-      const body: any = { metodo_pago: pagoForm.metodo_pago };
-      if (pagoForm.monto) body.monto = parseFloat(pagoForm.monto);
-      if (pagoForm.fecha_pago) body.fecha_pago = pagoForm.fecha_pago;
-      if (pagoForm.notas) body.notas = pagoForm.notas;
-      const res = await apiFetch(`/academia/cuotas/${modalPago.id}/pagar`, {
-        method: 'PUT', body: JSON.stringify(body),
-      });
-      notify(res.message || 'Pago registrado');
-      setModalPago(null);
-      await fetchAll();
-    } catch (e: any) { notify(e.message, 'err'); }
-    setSaving(false);
-  };
-
-  const anularPago = async (pagoId: string) => {
-    setSaving(true);
-    try {
-      await apiFetch(`/academia/pagos/${pagoId}/anular`, {
-        method: 'PUT', body: JSON.stringify({ motivo_anulacion: anularMotivo }),
-      });
-      notify('Pago anulado y monto revertido');
-      setModalAnular(null);
-      setAnularMotivo('');
-      if (modalHistorial) {
-        await cargarHistorial(modalHistorial.id);
+      const res = await apiFetch('/academia/whatsapp/qr');
+      if (res.qr) {
+        setWaQrCode(res.qr);
+      } else {
+        notify('El bot ya está conectado o generando código...', 'ok');
       }
-      await fetchAll();
-    } catch (e: any) { notify(e.message, 'err'); }
-    setSaving(false);
+    } catch (e: any) {
+      notify(e.message || 'Error al obtener código QR de WhatsApp', 'err');
+    }
+    setWaLoading(false);
   };
 
-  const anularCuota = async (cuotaId: string) => {
-    setSaving(true);
+  const enviarRecordatorioWa = async (cuotaId: string) => {
+    setWaSendingId(cuotaId);
     try {
-      await apiFetch(`/academia/cuotas/${cuotaId}/anular`, {
-        method: 'PUT', body: JSON.stringify({ motivo_anulacion: anularMotivo }),
+      const res = await apiFetch(`/academia/whatsapp/recordatorio-cuota/${cuotaId}`, { method: 'POST' });
+      notify(res.message || 'Recordatorio enviado por WhatsApp');
+    } catch (e: any) {
+      notify(e.message || 'Error al enviar por WhatsApp', 'err');
+    }
+    setWaSendingId(null);
+  };
+
+  const enviarMasivoWa = async () => {
+    if (!confirm('¿Deseas enviar recordatorios por WhatsApp a todos los tutores con cuotas pendientes/vencidas?')) return;
+    setWaSendingMasivo(true);
+    try {
+      const res = await apiFetch('/academia/whatsapp/recordatorio-masivo', {
+        method: 'POST',
+        body: JSON.stringify({ periodo: filtroPeriodo || undefined, estado_filtro: filtroEstado || 'pendiente' })
       });
-      notify('Cuota anulada');
-      setModalAnular(null);
-      setAnularMotivo('');
-      await fetchAll();
-    } catch (e: any) { notify(e.message, 'err'); }
-    setSaving(false);
+      notify(res.message || 'Proceso de envío masivo finalizado');
+    } catch (e: any) {
+      notify(e.message || 'Error en envío masivo WhatsApp', 'err');
+    }
+    setWaSendingMasivo(false);
   };
-
-  const editarCuota = async () => {
-    if (!modalEditar) return;
-    setSaving(true);
-    try {
-      await apiFetch(
-        `/academia/cuotas/${modalEditar.id}/editar?monto_final=${editarForm.monto_final}&descuento=${editarForm.descuento || 0}&notas=${encodeURIComponent(editarForm.notas || '')}`,
-        { method: 'PUT' }
-      );
-      notify('Cuota actualizada');
-      setModalEditar(null);
-      await fetchAll();
-    } catch (e: any) { notify(e.message, 'err'); }
-    setSaving(false);
-  };
-
-  const pagarMatricula = async (matId: string) => {
-    try {
-      await apiFetch(`/academia/matriculas/${matId}/pagar`, {
-        method: 'PUT', body: JSON.stringify({ metodo_pago: 'Efectivo' }),
-      });
-      notify('Matrícula pagada');
-      cargarMatriculas();
-    } catch (e: any) { notify(e.message, 'err'); }
-  };
-
-  const anularMatricula = async (matId: string) => {
-    if (!confirm('¿Anular esta matrícula?')) return;
-    try {
-      await apiFetch(`/academia/matriculas/${matId}/anular`, {
-        method: 'PUT', body: JSON.stringify({ motivo_anulacion: '' }),
-      });
-      notify('Matrícula anulada');
-      cargarMatriculas();
-    } catch (e: any) { notify(e.message, 'err'); }
-  };
-
-  const filtMatriculas = matriculas.filter((m: any) =>
-    !filtroMatEstado || m.estado === filtroMatEstado
-  );
 
   return (
     <div>
@@ -1354,7 +1307,15 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
           <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Gestión financiera integral de la academia</p>
         </div>
         {(isDueno || isTesorero) && (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={abrirModalQrWa} style={btn(waConnected ? C.green : C.yellow, true)}>
+              <MessageSquare size={14} />
+              {waConnected === true ? '🟢 WA Bot Conectado' : '📲 Conectar WhatsApp QR'}
+            </button>
+            <button onClick={enviarMasivoWa} disabled={waSendingMasivo} style={btn(C.purple, true)}>
+              <PhoneCall size={14} />
+              {waSendingMasivo ? 'Enviando...' : '📲 Recordatorio Masivo WA'}
+            </button>
             <button onClick={generar} disabled={generando} style={btn(C.green)}>
               <RefreshCw size={14} /> {generando ? 'Generando...' : `Generar cuotas ${periodoActual}`}
             </button>
@@ -1429,6 +1390,96 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
                   const canCancel = isDueno && q.estado !== 'anulada';
                   return (
                     <tr key={q.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{q.alumno}</td>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontFamily: 'monospace' }}>{q.periodo}</td>
+                      <td style={{ padding: '9px 14px', color: C.faint }}>Gs. {(q.monto_original || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '9px 14px', color: q.descuento > 0 ? C.green : C.faint }}>
+                        {q.descuento > 0 ? `- Gs. ${(q.descuento || 0).toLocaleString('es-PY')}` : '—'}
+                      </td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>Gs. {(q.monto_final || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '9px 14px', color: q.monto_pagado > 0 ? C.green : C.faint, fontSize: 12 }}>
+                        {q.monto_pagado > 0 ? `Gs. ${(q.monto_pagado || 0).toLocaleString('es-PY')}` : '—'}
+                        {saldo > 0 && q.estado === 'parcial' && (
+                          <div style={{ color: C.yellow, fontSize: 10 }}>Saldo: Gs. {saldo.toLocaleString('es-PY')}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '9px 14px' }}><span style={badge(estadoColor[q.estado] || C.faint)}>{q.estado}</span></td>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontSize: 11 }}>{q.fecha_vencimiento}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {canPay && (
+                            <button onClick={() => {
+                              setModalPago(q);
+                              setPagoForm({ metodo_pago: 'Efectivo', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', notas: '' });
+                            }} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
+                              <DollarSign size={11} /> Pagar
+                            </button>
+                          )}
+                          {['pendiente', 'vencida', 'parcial'].includes(q.estado) && (
+                            <button onClick={() => enviarRecordatorioWa(q.id)} disabled={waSendingId === q.id}
+                              style={{ ...btn(C.purple, true), fontSize: 11, padding: '4px 9px' }} title="Enviar recordatorio por WhatsApp">
+                              <PhoneCall size={11} /> {waSendingId === q.id ? '...' : 'WA'}
+                            </button>
+                          )}
+                          <button onClick={async () => {
+                            setModalHistorial(q);
+                            await cargarHistorial(q.id);
+                          }} style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 9px' }} title="Ver historial de pagos">
+                            <Eye size={11} />
+                          </button>
+                          {canEdit && (
+                            <button onClick={() => {
+                              setModalEditar(q);
+                              setEditarForm({ monto_final: q.monto_final, descuento: q.descuento || 0, notas: q.notas || '' });
+                            }} style={{ ...btn(C.yellow, true), fontSize: 11, padding: '4px 9px' }} title="Editar cuota">
+                              <Pencil size={11} />
+                            </button>
+                          )}
+                          {canCancel && (
+                            <button onClick={() => { setModalAnular({ type: 'cuota', id: q.id }); setAnularMotivo(''); }}
+                              style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 9px' }} title="Anular cuota">
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ════ MODAL: QR WhatsApp Gateway ════ */}
+      {modalWaQr && (
+        <Modal title="Vinculación de Bot WhatsApp (Evolution API)" onClose={() => setModalWaQr(null)}>
+          <div style={{ textAlign: 'center', padding: 10 }}>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+              Escaneá este código QR desde tu teléfono WhatsApp (**Dispositivos vinculados → Vincular un dispositivo**) para que tu academia pueda enviar mensajes automáticos.
+            </p>
+            {waLoading ? (
+              <div style={{ padding: 40, color: C.primary }}>Cargando código QR...</div>
+            ) : waQrCode ? (
+              <div style={{ background: '#fff', padding: 16, borderRadius: 12, display: 'inline-block', marginBottom: 16 }}>
+                <img src={waQrCode.startsWith('data:') ? waQrCode : `data:image/png;base64,${waQrCode}`}
+                  alt="WhatsApp QR" style={{ width: 240, height: 240 }} />
+              </div>
+            ) : (
+              <div style={{ padding: 20, background: `${C.green}18`, color: C.green, borderRadius: 10, marginBottom: 16 }}>
+                ✅ El bot ya se encuentra enlazado y listo para enviar mensajes.
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 10 }}>
+              <button onClick={verificarEstadoWa} style={btn(C.primary, true)}>
+                <RefreshCw size={14} /> Verificar Estado
+              </button>
+              <button onClick={() => setModalWaQr(false)} style={btn(C.muted)}>Cerrar</button>
+            </div>
+          </div>
+        </Modal>
+      )}le={{ borderBottom: `1px solid ${C.border}33` }}>
                       <td style={{ padding: '9px 14px', fontWeight: 600 }}>{q.alumno}</td>
                       <td style={{ padding: '9px 14px', color: C.muted, fontFamily: 'monospace' }}>{q.periodo}</td>
                       <td style={{ padding: '9px 14px', color: C.faint }}>Gs. {(q.monto_original || 0).toLocaleString('es-PY')}</td>
