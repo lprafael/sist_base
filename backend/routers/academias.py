@@ -226,6 +226,26 @@ def _clean_str(val: Optional[str]) -> Optional[str]:
     return s if s else None
 
 
+def _clean_date(val: Optional[str]) -> Optional[str]:
+    s = _clean_str(val)
+    if not s:
+        return None
+    if "T" in s:
+        s = s.split("T")[0]
+    return s
+
+
+def _clean_estado(val: Optional[str]) -> str:
+    s = _clean_str(val)
+    if not s:
+        return "activo"
+    s_lower = s.lower()
+    if s_lower in ["activo", "inactivo", "prueba"]:
+        return s_lower
+    return "activo"
+
+
+
 class MiembroRequest(BaseModel):
     usuario_id: int
     rol: str  # 'administrador', 'tesorero', 'profesor'
@@ -1223,34 +1243,39 @@ async def registrar_alumno(
     session: AsyncSession = Depends(get_session)
 ):
     """Registra un nuevo alumno."""
-    res = await session.execute(text("""
+    new_id = str(uuid.uuid4())
+    aid = str(current_user["academia_id"])
+    sucursal_id = _clean_str(data.sucursal_id)
+    fecha_nac = _clean_date(data.fecha_nacimiento)
+    estado = _clean_estado(data.estado)
+
+    await session.execute(text("""
         INSERT INTO academias.alumnos
-            (academia_id, sucursal_id, nombre, apellido, fecha_nacimiento, foto_perfil,
+            (id, academia_id, sucursal_id, nombre, apellido, fecha_nacimiento, foto_perfil,
              tipo_sangre, alergias, condiciones_medicas, seguro_medico,
              contacto_emergencia, estado, notas)
         VALUES
-            (:aid, :sucursal_id, :nombre, :apellido, :fecha_nacimiento, :foto_perfil,
+            (CAST(:id AS UUID), CAST(:aid AS UUID), CAST(:sucursal_id AS UUID), :nombre, :apellido, CAST(:fecha_nacimiento AS DATE), :foto_perfil,
              :tipo_sangre, :alergias, :condiciones_medicas, :seguro_medico,
              :contacto_emergencia, :estado, :notas)
-        RETURNING id
     """), {
-        "aid": current_user["academia_id"],
-        "sucursal_id": _clean_str(data.sucursal_id),
+        "id": new_id,
+        "aid": aid,
+        "sucursal_id": sucursal_id,
         "nombre": data.nombre.strip() if data.nombre else "",
         "apellido": _clean_str(data.apellido),
-        "fecha_nacimiento": _clean_str(data.fecha_nacimiento),
+        "fecha_nacimiento": fecha_nac,
         "foto_perfil": _clean_str(data.foto_perfil),
         "tipo_sangre": _clean_str(data.tipo_sangre),
         "alergias": _clean_str(data.alergias),
         "condiciones_medicas": _clean_str(data.condiciones_medicas),
         "seguro_medico": _clean_str(data.seguro_medico),
         "contacto_emergencia": _clean_str(data.contacto_emergencia),
-        "estado": _clean_str(data.estado) or "activo",
+        "estado": estado,
         "notas": _clean_str(data.notas),
     })
-    new_id = res.fetchone()[0]
     await session.commit()
-    return {"message": "Alumno registrado.", "id": str(new_id)}
+    return {"message": "Alumno registrado.", "id": new_id}
 
 
 @router.get("/academia/alumnos/{alumno_id}")
@@ -1334,11 +1359,12 @@ async def actualizar_alumno(
     session: AsyncSession = Depends(get_session)
 ):
     """Actualiza los datos de un alumno."""
+    aid = str(current_user["academia_id"])
     await session.execute(text("""
         UPDATE academias.alumnos SET
             nombre               = COALESCE(:nombre, nombre),
             apellido             = :apellido,
-            fecha_nacimiento     = :fecha_nacimiento,
+            fecha_nacimiento     = CAST(:fecha_nacimiento AS DATE),
             foto_perfil          = :foto_perfil,
             tipo_sangre          = :tipo_sangre,
             alergias             = :alergias,
@@ -1347,20 +1373,20 @@ async def actualizar_alumno(
             contacto_emergencia  = :contacto_emergencia,
             estado               = COALESCE(:estado, estado),
             notas                = :notas,
-            sucursal_id          = :sucursal_id
-        WHERE id = :alumno_id AND academia_id = :academia_id
+            sucursal_id          = CAST(:sucursal_id AS UUID)
+        WHERE id = CAST(:alumno_id AS UUID) AND academia_id = CAST(:academia_id AS UUID)
     """), {
-        "alumno_id": alumno_id, "academia_id": current_user["academia_id"],
-        "nombre": data.nombre.strip() if data.nombre else "",
+        "alumno_id": alumno_id, "academia_id": aid,
+        "nombre": data.nombre.strip() if data.nombre else None,
         "apellido": _clean_str(data.apellido),
-        "fecha_nacimiento": _clean_str(data.fecha_nacimiento),
+        "fecha_nacimiento": _clean_date(data.fecha_nacimiento),
         "foto_perfil": _clean_str(data.foto_perfil),
         "tipo_sangre": _clean_str(data.tipo_sangre),
         "alergias": _clean_str(data.alergias),
         "condiciones_medicas": _clean_str(data.condiciones_medicas),
         "seguro_medico": _clean_str(data.seguro_medico),
         "contacto_emergencia": _clean_str(data.contacto_emergencia),
-        "estado": _clean_str(data.estado),
+        "estado": _clean_estado(data.estado),
         "notas": _clean_str(data.notas),
         "sucursal_id": _clean_str(data.sucursal_id),
     })
