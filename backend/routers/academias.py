@@ -8,6 +8,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Request
 import os
 import uuid
+import traceback
+from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -226,13 +228,20 @@ def _clean_str(val: Optional[str]) -> Optional[str]:
     return s if s else None
 
 
-def _clean_date(val: Optional[str]) -> Optional[str]:
-    s = _clean_str(val)
+def _clean_date(val: Optional[Union[str, date]]) -> Optional[date]:
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    s = _clean_str(str(val))
     if not s:
         return None
     if "T" in s:
         s = s.split("T")[0]
-    return s
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except Exception:
+        return None
 
 
 def _clean_estado(val: Optional[str]) -> str:
@@ -1243,39 +1252,57 @@ async def registrar_alumno(
     session: AsyncSession = Depends(get_session)
 ):
     """Registra un nuevo alumno."""
-    new_id = str(uuid.uuid4())
-    aid = str(current_user["academia_id"])
-    sucursal_id = _clean_str(data.sucursal_id)
-    fecha_nac = _clean_date(data.fecha_nacimiento)
-    estado = _clean_estado(data.estado)
+    try:
+        raw_aid = current_user.get("academia_id")
+        if not raw_aid or str(raw_aid).strip() == "" or str(raw_aid).lower() == "none":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se encontró una academia válida vinculada a tu usuario."
+            )
 
-    await session.execute(text("""
-        INSERT INTO academias.alumnos
-            (id, academia_id, sucursal_id, nombre, apellido, fecha_nacimiento, foto_perfil,
-             tipo_sangre, alergias, condiciones_medicas, seguro_medico,
-             contacto_emergencia, estado, notas)
-        VALUES
-            (CAST(:id AS UUID), CAST(:aid AS UUID), CAST(:sucursal_id AS UUID), :nombre, :apellido, CAST(:fecha_nacimiento AS DATE), :foto_perfil,
-             :tipo_sangre, :alergias, :condiciones_medicas, :seguro_medico,
-             :contacto_emergencia, :estado, :notas)
-    """), {
-        "id": new_id,
-        "aid": aid,
-        "sucursal_id": sucursal_id,
-        "nombre": data.nombre.strip() if data.nombre else "",
-        "apellido": _clean_str(data.apellido),
-        "fecha_nacimiento": fecha_nac,
-        "foto_perfil": _clean_str(data.foto_perfil),
-        "tipo_sangre": _clean_str(data.tipo_sangre),
-        "alergias": _clean_str(data.alergias),
-        "condiciones_medicas": _clean_str(data.condiciones_medicas),
-        "seguro_medico": _clean_str(data.seguro_medico),
-        "contacto_emergencia": _clean_str(data.contacto_emergencia),
-        "estado": estado,
-        "notas": _clean_str(data.notas),
-    })
-    await session.commit()
-    return {"message": "Alumno registrado.", "id": new_id}
+        new_id = str(uuid.uuid4())
+        aid = str(raw_aid).strip()
+        sucursal_id = _clean_str(data.sucursal_id)
+        fecha_nac = _clean_date(data.fecha_nacimiento)
+        estado = _clean_estado(data.estado)
+
+        await session.execute(text("""
+            INSERT INTO academias.alumnos
+                (id, academia_id, sucursal_id, nombre, apellido, fecha_nacimiento, foto_perfil,
+                 tipo_sangre, alergias, condiciones_medicas, seguro_medico,
+                 contacto_emergencia, estado, notas)
+            VALUES
+                (CAST(:id AS UUID), CAST(:aid AS UUID), CAST(:sucursal_id AS UUID), :nombre, :apellido, CAST(:fecha_nacimiento AS DATE), :foto_perfil,
+                 :tipo_sangre, :alergias, :condiciones_medicas, :seguro_medico,
+                 :contacto_emergencia, :estado, :notas)
+        """), {
+            "id": new_id,
+            "aid": aid,
+            "sucursal_id": sucursal_id,
+            "nombre": data.nombre.strip() if data.nombre else "",
+            "apellido": _clean_str(data.apellido),
+            "fecha_nacimiento": fecha_nac,
+            "foto_perfil": _clean_str(data.foto_perfil),
+            "tipo_sangre": _clean_str(data.tipo_sangre),
+            "alergias": _clean_str(data.alergias),
+            "condiciones_medicas": _clean_str(data.condiciones_medicas),
+            "seguro_medico": _clean_str(data.seguro_medico),
+            "contacto_emergencia": _clean_str(data.contacto_emergencia),
+            "estado": estado,
+            "notas": _clean_str(data.notas),
+        })
+        await session.commit()
+        return {"message": "Alumno registrado.", "id": new_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR registrar_alumno]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al registrar alumno: {str(e)}"
+        )
 
 
 @router.get("/academia/alumnos/{alumno_id}")
@@ -1359,39 +1386,57 @@ async def actualizar_alumno(
     session: AsyncSession = Depends(get_session)
 ):
     """Actualiza los datos de un alumno."""
-    aid = str(current_user["academia_id"])
-    await session.execute(text("""
-        UPDATE academias.alumnos SET
-            nombre               = COALESCE(:nombre, nombre),
-            apellido             = :apellido,
-            fecha_nacimiento     = CAST(:fecha_nacimiento AS DATE),
-            foto_perfil          = :foto_perfil,
-            tipo_sangre          = :tipo_sangre,
-            alergias             = :alergias,
-            condiciones_medicas  = :condiciones_medicas,
-            seguro_medico        = :seguro_medico,
-            contacto_emergencia  = :contacto_emergencia,
-            estado               = COALESCE(:estado, estado),
-            notas                = :notas,
-            sucursal_id          = CAST(:sucursal_id AS UUID)
-        WHERE id = CAST(:alumno_id AS UUID) AND academia_id = CAST(:academia_id AS UUID)
-    """), {
-        "alumno_id": alumno_id, "academia_id": aid,
-        "nombre": data.nombre.strip() if data.nombre else None,
-        "apellido": _clean_str(data.apellido),
-        "fecha_nacimiento": _clean_date(data.fecha_nacimiento),
-        "foto_perfil": _clean_str(data.foto_perfil),
-        "tipo_sangre": _clean_str(data.tipo_sangre),
-        "alergias": _clean_str(data.alergias),
-        "condiciones_medicas": _clean_str(data.condiciones_medicas),
-        "seguro_medico": _clean_str(data.seguro_medico),
-        "contacto_emergencia": _clean_str(data.contacto_emergencia),
-        "estado": _clean_estado(data.estado),
-        "notas": _clean_str(data.notas),
-        "sucursal_id": _clean_str(data.sucursal_id),
-    })
-    await session.commit()
-    return {"message": "Alumno actualizado."}
+    try:
+        raw_aid = current_user.get("academia_id")
+        if not raw_aid or str(raw_aid).strip() == "" or str(raw_aid).lower() == "none":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se encontró una academia válida vinculada a tu usuario."
+            )
+
+        aid = str(raw_aid).strip()
+        await session.execute(text("""
+            UPDATE academias.alumnos SET
+                nombre               = COALESCE(:nombre, nombre),
+                apellido             = :apellido,
+                fecha_nacimiento     = CAST(:fecha_nacimiento AS DATE),
+                foto_perfil          = :foto_perfil,
+                tipo_sangre          = :tipo_sangre,
+                alergias             = :alergias,
+                condiciones_medicas  = :condiciones_medicas,
+                seguro_medico        = :seguro_medico,
+                contacto_emergencia  = :contacto_emergencia,
+                estado               = COALESCE(:estado, estado),
+                notas                = :notas,
+                sucursal_id          = CAST(:sucursal_id AS UUID)
+            WHERE id = CAST(:alumno_id AS UUID) AND academia_id = CAST(:academia_id AS UUID)
+        """), {
+            "alumno_id": alumno_id, "academia_id": aid,
+            "nombre": data.nombre.strip() if data.nombre else None,
+            "apellido": _clean_str(data.apellido),
+            "fecha_nacimiento": _clean_date(data.fecha_nacimiento),
+            "foto_perfil": _clean_str(data.foto_perfil),
+            "tipo_sangre": _clean_str(data.tipo_sangre),
+            "alergias": _clean_str(data.alergias),
+            "condiciones_medicas": _clean_str(data.condiciones_medicas),
+            "seguro_medico": _clean_str(data.seguro_medico),
+            "contacto_emergencia": _clean_str(data.contacto_emergencia),
+            "estado": _clean_estado(data.estado),
+            "notas": _clean_str(data.notas),
+            "sucursal_id": _clean_str(data.sucursal_id),
+        })
+        await session.commit()
+        return {"message": "Alumno actualizado."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR actualizar_alumno]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al actualizar alumno: {str(e)}"
+        )
 
 
 # ================================================================
