@@ -122,7 +122,15 @@ async def send_whatsapp_text(phone: str, text_message: str) -> Dict[str, Any]:
     """
     formatted_phone = format_paraguay_phone(phone)
     if not formatted_phone:
-        return {"success": False, "error": f"Número de teléfono inválido: {phone}"}
+        return {"success": False, "error": f"Número de teléfono inválido: '{phone}'. Ejemplo válido: 595981123456"}
+
+    # Pre-verificar conexión del bot
+    status_info = await get_instance_status()
+    if not status_info.get("connected"):
+        return {
+            "success": False,
+            "error": "El bot de WhatsApp no está vinculado. Por favor andá a 'Cuotas / Pagos' ➔ 'Conectar WhatsApp QR' y escaneá el código QR con tu celular."
+        }
 
     url = f"{EVOLUTION_API_URL}/message/sendText/{INSTANCE_NAME}"
     body = {
@@ -140,8 +148,19 @@ async def send_whatsapp_text(phone: str, text_message: str) -> Dict[str, Any]:
                 return {"success": True, "data": resp.json()}
             else:
                 print(f"[ERROR send_whatsapp_text {resp.status_code}]: {resp.text}")
-                return {"success": False, "error": resp.text}
+                err_msg = resp.text
+                try:
+                    err_json = resp.json()
+                    if isinstance(err_json, dict):
+                        raw_err = err_json.get("response", {}).get("message") or err_json.get("message")
+                        if isinstance(raw_err, list):
+                            err_msg = ", ".join(raw_err)
+                        elif isinstance(raw_err, str):
+                            err_msg = raw_err
+                except Exception:
+                    pass
+                return {"success": False, "error": f"Error WhatsApp Gateway: {err_msg}"}
     except Exception as e:
         print(f"[EXCEPT send_whatsapp_text]: {e}")
         traceback.print_exc()
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": f"Error de comunicación con WhatsApp Gateway: {str(e)}"}
