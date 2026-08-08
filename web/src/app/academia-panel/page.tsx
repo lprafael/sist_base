@@ -631,21 +631,85 @@ function HorariosOficinaEditor({ perfil, notify, apiFetch }: any) {
 function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notify, apiFetch, isDueno }: any) {
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
+
+  // WhatsApp Gateway states
+  const [waConnected, setWaConnected] = useState<boolean | null>(null);
+  const [modalWaQr, setModalWaQr] = useState(false);
+  const [waQrCode, setWaQrCode] = useState<string | null>(null);
+  const [waLoading, setWaLoading] = useState(false);
+  const [forzandoQr, setForzandoQr] = useState(false);
   const [waTestPhone, setWaTestPhone] = useState('');
   const [waTestSending, setWaTestSending] = useState(false);
 
   useEffect(() => { if (perfil) setForm({ ...perfil }); }, [perfil]);
+  useEffect(() => { verificarEstadoWa(); }, []);
+
+  const verificarEstadoWa = async () => {
+    try {
+      const res = await apiFetch('/academia/whatsapp/status');
+      setWaConnected(res.connected === true);
+    } catch {
+      setWaConnected(false);
+    }
+  };
+
+  const abrirModalQrWa = async () => {
+    setWaLoading(true);
+    setModalWaQr(true);
+    try {
+      const res = await apiFetch('/academia/whatsapp/qr');
+      if (res.qr) {
+        setWaQrCode(res.qr);
+      } else {
+        setWaQrCode(null);
+        verificarEstadoWa();
+      }
+    } catch (e: any) {
+      notify(e.message || 'Error al obtener código QR de WhatsApp', 'err');
+    }
+    setWaLoading(false);
+  };
+
+  const forzarNuevoQrWa = async () => {
+    if (!confirm('¿Deseas desvincular la sesión actual de WhatsApp para generar un nuevo código QR?')) return;
+    setForzandoQr(true);
+    setWaLoading(true);
+    setModalWaQr(true);
+    try {
+      await apiFetch('/academia/whatsapp/disconnect', { method: 'POST' });
+      notify('Sesión anterior cerrada. Generando nuevo código QR...', 'ok');
+      setWaConnected(false);
+      // Esperar 1.5s a que la instancia se reinicie
+      setTimeout(async () => {
+        try {
+          const res = await apiFetch('/academia/whatsapp/qr');
+          if (res.qr) setWaQrCode(res.qr);
+        } catch {}
+        setWaLoading(false);
+        setForzandoQr(false);
+      }, 1500);
+    } catch (e: any) {
+      notify(e.message || 'Error al reiniciar sesión de WhatsApp', 'err');
+      setWaLoading(false);
+      setForzandoQr(false);
+    }
+  };
 
   const enviarWaTest = async () => {
     if (!waTestPhone.trim()) { notify('Ingresá un número de teléfono', 'err'); return; }
     setWaTestSending(true);
     try {
-      await apiFetch('/academia/whatsapp/send-test', {
+      const res = await apiFetch('/academia/whatsapp/send-test', {
         method: 'POST',
-        body: JSON.stringify({ phone: waTestPhone.trim(), message: `✅ *Prueba de WhatsApp Bot — ${perfil?.nombre || 'Tu Academia'}*\n\n¡El bot de recordatorios está funcionando correctamente! 🎉\n\nEste mensaje fue enviado desde el panel de administración de micancha.com.py` })
+        body: JSON.stringify({
+          phone: waTestPhone.trim(),
+          message: `✅ *Prueba de WhatsApp Bot — ${perfil?.nombre || 'Tu Academia'}*\n\n¡El bot de recordatorios está funcionando correctamente! 🎉\n\nEste mensaje fue enviado desde el panel de administración de micancha.com.py`
+        })
       });
       notify('✅ Mensaje de prueba enviado por WhatsApp');
-    } catch (e: any) { notify(e.message || 'Error al enviar mensaje de prueba', 'err'); }
+    } catch (e: any) {
+      notify(e.message || 'Error al enviar mensaje de prueba', 'err');
+    }
     setWaTestSending(false);
   };
 
@@ -835,49 +899,113 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
             {field('youtube', 'YouTube', 'https://youtube.com/@...')}
           </div>
 
-          {/* ── Panel Prueba WhatsApp Bot ── */}
+          {/* ── Panel de Integración y Vinculación WhatsApp ── */}
           {isDueno && (
             <div style={{ ...card({ marginTop: 16 }), border: `1px solid ${C.purple}55`, background: `linear-gradient(135deg, ${C.surface} 0%, #1a0f2e 100%)` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: `${C.purple}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <PhoneCall size={18} color={C.purple} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.purple}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MessageSquare size={20} color={C.purple} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>WhatsApp Bot</h3>
+                    <p style={{ margin: 0, fontSize: 11, color: C.muted }}>Gateway automatizado para envío de recordatorios y avisos</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.purple }}>Probar Bot de WhatsApp</h3>
-                  <p style={{ margin: 0, fontSize: 11, color: C.muted }}>Enviá un mensaje de prueba a tu propio número</p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={badge(waConnected === true ? C.green : C.yellow)}>
+                    {waConnected === true ? '🟢 Conectado' : waConnected === false ? '🔴 Desconectado' : '🟡 Verificando...'}
+                  </span>
+                  <button onClick={verificarEstadoWa} title="Refrescar estado" style={{ ...btn(C.faint, true), padding: '6px 8px' }}>
+                    <RefreshCw size={12} />
+                  </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={label()}>Número de WhatsApp (con código de país)</label>
-                  <input
-                    type="tel"
-                    placeholder="595981123456  (sin +, sin espacios)"
-                    value={waTestPhone}
-                    onChange={e => setWaTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                    style={input()}
-                  />
-                  <p style={{ fontSize: 11, color: C.muted, margin: '6px 0 0' }}>
-                    Paraguay: 595 + número. Ej: <strong>595981123456</strong>
-                  </p>
-                </div>
-                <button
-                  onClick={enviarWaTest}
-                  disabled={waTestSending}
-                  style={{ ...btn(C.purple), padding: '10px 18px', flexShrink: 0, marginBottom: 20 }}
-                >
-                  <PhoneCall size={15} />
-                  {waTestSending ? 'Enviando...' : 'Enviar prueba'}
+
+              {/* Botones de acción del bot */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18, background: `${C.bg}bb`, padding: 12, borderRadius: 10, border: `1px solid ${C.border}` }}>
+                <button onClick={abrirModalQrWa} style={btn(C.green, true)}>
+                  <PhoneCall size={14} /> Vincular / Ver QR
+                </button>
+                <button onClick={forzarNuevoQrWa} disabled={forzandoQr} style={btn(C.yellow, true)}>
+                  <RefreshCw size={14} /> Forzar Nuevo QR (Re-vincular)
                 </button>
               </div>
-              <div style={{ fontSize: 11, color: C.faint, padding: '8px 12px', background: `${C.bg}88`, borderRadius: 8, marginTop: 4 }}>
-                ⚠️ Asegurá que el bot esté conectado (QR escaneado) antes de enviar.
-                Si no está conectado, andá a <strong>Cuotas / Pagos → Conectar WhatsApp QR</strong>.
+
+              {/* Formulario de Mensaje de Prueba */}
+              <div style={{ borderTop: `1px solid ${C.border}66`, paddingTop: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>Enviar mensaje de prueba</div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={label()}>Número de WhatsApp (con 595)</label>
+                    <input
+                      type="tel"
+                      placeholder="Ej: 595981123456"
+                      value={waTestPhone}
+                      onChange={e => setWaTestPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                      style={input()}
+                    />
+                  </div>
+                  <button
+                    onClick={enviarWaTest}
+                    disabled={waTestSending}
+                    style={{ ...btn(C.purple), padding: '10px 16px', flexShrink: 0 }}
+                  >
+                    <PhoneCall size={14} />
+                    {waTestSending ? 'Enviando...' : 'Enviar prueba'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── MODAL: QR WhatsApp Gateway ── */}
+      {modalWaQr && (
+        <Modal title="Vinculación de Bot WhatsApp (Evolution API)" onClose={() => setModalWaQr(null)}>
+          <div style={{ textAlign: 'center', padding: 10 }}>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+              Escaneá este código QR desde tu teléfono WhatsApp (<strong>Dispositivos vinculados ➔ Vincular un dispositivo</strong>) para autorizar los envíos automáticos.
+            </p>
+            {waLoading ? (
+              <div style={{ padding: 40, color: C.primary, fontSize: 14 }}>
+                <RefreshCw size={24} style={{ margin: '0 auto 10px', display: 'block', animation: 'spin 1s linear infinite' }} />
+                Cargando o generando código QR...
+              </div>
+            ) : waQrCode ? (
+              <div style={{ background: '#fff', padding: 16, borderRadius: 12, display: 'inline-block', marginBottom: 16 }}>
+                <img
+                  src={waQrCode.startsWith('data:') ? waQrCode : `data:image/png;base64,${waQrCode}`}
+                  alt="Código QR WhatsApp"
+                  style={{ width: 240, height: 240, display: 'block' }}
+                />
+              </div>
+            ) : (
+              <div style={{ padding: 20, background: `${C.green}15`, border: `1px solid ${C.green}44`, borderRadius: 12, marginBottom: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.green, marginBottom: 6 }}>
+                  ✓ WhatsApp ya se encuentra vinculado y listo
+                </div>
+                <div style={{ fontSize: 12, color: C.muted }}>
+                  Tu número ya está conectado a la plataforma. Si necesitás vincular una cuenta distinta, usá el botón "Forzar Nuevo QR".
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+              <button onClick={forzarNuevoQrWa} disabled={forzandoQr} style={btn(C.yellow, true)}>
+                <RefreshCw size={13} /> Forzar Nuevo QR (Re-vincular)
+              </button>
+              <button onClick={verificarEstadoWa} style={btn(C.primary, true)}>
+                Verificar Estado
+              </button>
+              <button onClick={() => setModalWaQr(null)} style={btn(C.faint, true)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

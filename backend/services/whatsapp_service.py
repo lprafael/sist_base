@@ -115,6 +115,18 @@ async def get_qr_code() -> Dict[str, Any]:
         return {"status": "error", "detail": str(e)}
 
 
+async def logout_instance() -> Dict[str, Any]:
+    """Cierra la sesión y borra la instancia para permitir escanear un nuevo QR."""
+    url = f"{EVOLUTION_API_URL}/instance/logout/{INSTANCE_NAME}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.delete(url, headers=_headers())
+            return {"status": "ok", "data": resp.text}
+    except Exception as e:
+        print(f"[ERROR logout_instance]: {e}")
+        return {"status": "error", "detail": str(e)}
+
+
 async def send_whatsapp_text(phone: str, text_message: str) -> Dict[str, Any]:
     """
     Envía un mensaje de texto a un número por WhatsApp.
@@ -124,21 +136,9 @@ async def send_whatsapp_text(phone: str, text_message: str) -> Dict[str, Any]:
     if not formatted_phone:
         return {"success": False, "error": f"Número de teléfono inválido: '{phone}'. Ejemplo válido: 595981123456"}
 
-    # Pre-verificar conexión del bot
-    status_info = await get_instance_status()
-    if not status_info.get("connected"):
-        return {
-            "success": False,
-            "error": "El bot de WhatsApp no está vinculado. Por favor andá a 'Cuotas / Pagos' ➔ 'Conectar WhatsApp QR' y escaneá el código QR con tu celular."
-        }
-
     url = f"{EVOLUTION_API_URL}/message/sendText/{INSTANCE_NAME}"
     body = {
         "number": formatted_phone,
-        "options": {
-            "delay": 1200,
-            "presence": "composing"
-        },
         "text": text_message
     }
     try:
@@ -159,8 +159,9 @@ async def send_whatsapp_text(phone: str, text_message: str) -> Dict[str, Any]:
                             err_msg = raw_err
                 except Exception:
                     pass
-                return {"success": False, "error": f"Error WhatsApp Gateway: {err_msg}"}
+                return {"success": False, "error": f"Error WhatsApp Gateway ({resp.status_code}): {err_msg}"}
     except Exception as e:
         print(f"[EXCEPT send_whatsapp_text]: {e}")
         traceback.print_exc()
         return {"success": False, "error": f"Error de comunicación con WhatsApp Gateway: {str(e)}"}
+

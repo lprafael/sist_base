@@ -15,7 +15,7 @@ from database import get_session
 from security import get_current_user
 from routers.academias import require_roles
 from services.whatsapp_service import (
-    get_instance_status, get_qr_code, send_whatsapp_text, format_paraguay_phone
+    get_instance_status, get_qr_code, send_whatsapp_text, format_paraguay_phone, logout_instance
 )
 
 router = APIRouter(prefix="/academia/whatsapp", tags=["WhatsApp"])
@@ -45,6 +45,14 @@ async def whatsapp_qr(
 ):
     """Devuelve el código QR en base64 para vincular WhatsApp escaneando desde el teléfono."""
     return await get_qr_code()
+
+
+@router.post("/disconnect")
+async def whatsapp_disconnect(
+    current_user: dict = Depends(require_roles("dueño", "administrador"))
+):
+    """Cierra la sesión del bot y reinicia la instancia para poder escanear un nuevo QR."""
+    return await logout_instance()
 
 
 @router.post("/send-test")
