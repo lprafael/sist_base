@@ -105,6 +105,7 @@ services:
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=micancha_whatsapp_secret_2026
       - DATABASE_ENABLED=false
+      - DATABASE_PROVIDER=local
       - DEL_INSTANCE=false
     volumes:
       - evolution_instances:/evolution/instances
