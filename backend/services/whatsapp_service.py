@@ -71,6 +71,32 @@ async def get_instance_status() -> Dict[str, Any]:
         return {"status": "offline", "state": "disconnected", "connected": False, "detail": str(e)}
 
 
+def extract_qr(data: Any) -> Optional[str]:
+    """Extrae el código QR (base64 o cadena raw) de cualquier variante de JSON devuelta por Evolution API v2."""
+    if not isinstance(data, dict):
+        return None
+    if data.get("base64"):
+        return data["base64"]
+    if data.get("code"):
+        return data["code"]
+    
+    qr_val = data.get("qrcode")
+    if isinstance(qr_val, str):
+        return qr_val
+    if isinstance(qr_val, dict):
+        return qr_val.get("base64") or qr_val.get("code")
+    
+    inst = data.get("instance")
+    if isinstance(inst, dict):
+        qr_sub = inst.get("qrcode")
+        if isinstance(qr_sub, str):
+            return qr_sub
+        if isinstance(qr_sub, dict):
+            return qr_sub.get("base64") or qr_sub.get("code")
+
+    return None
+
+
 async def create_instance() -> Dict[str, Any]:
     """Crea la instancia de WhatsApp en Evolution API si no existe."""
     url = f"{EVOLUTION_API_URL}/instance/create"
@@ -97,47 +123,24 @@ async def get_qr_code() -> Dict[str, Any]:
     url = f"{EVOLUTION_API_URL}/instance/connect/{INSTANCE_NAME}"
     try:
         async with httpx.AsyncClient(timeout=12.0) as client:
-            # 1. Intentar conectarse a la instancia existente
+            # 1. Recrear la instancia siempre que se pida un QR para asegurar sesion fresca
+            await logout_instance()
+            create_res = await create_instance()
+            qr = extract_qr(create_res)
+            if qr:
+                return {"status": "ok", "qr": qr, "raw": create_res}
+
+            # 2. Consultar endpoint de connect
             resp = await client.get(url, headers=_headers())
             print(f"[get_qr_code connect {resp.status_code}]: {resp.text}")
             if resp.status_code == 200:
                 data = resp.json()
-                base64_qr = (
-                    data.get("base64")
-                    or data.get("code")
-                    or data.get("qrcode", {}).get("base64")
-                    or data.get("qrcode", {}).get("code")
-                )
-                if base64_qr:
-                    return {"status": "ok", "qr": base64_qr, "raw": data}
+                qr = extract_qr(data)
+                if qr:
+                    return {"status": "ok", "qr": qr, "raw": data}
+                return {"status": "ok", "qr": None, "raw": data, "message": "Instancia conectada o sin QR"}
 
-            # 2. Si no devolvió QR, recrear la instancia limpia
-            print("[get_qr_code]: Recreando instancia para forzar QR fresco...")
-            await logout_instance()
-            create_res = await create_instance()
-            if isinstance(create_res, dict):
-                base64_qr = (
-                    create_res.get("qrcode", {}).get("base64")
-                    or create_res.get("qrcode", {}).get("code")
-                    or create_res.get("base64")
-                )
-                if base64_qr:
-                    return {"status": "ok", "qr": base64_qr, "raw": create_res}
-
-            # 3. Intentar connect una vez más
-            resp2 = await client.get(url, headers=_headers())
-            print(f"[get_qr_code retry connect {resp2.status_code}]: {resp2.text}")
-            if resp2.status_code == 200:
-                data2 = resp2.json()
-                base64_qr = (
-                    data2.get("base64")
-                    or data2.get("code")
-                    or data2.get("qrcode", {}).get("base64")
-                    or data2.get("qrcode", {}).get("code")
-                )
-                return {"status": "ok", "qr": base64_qr, "raw": data2}
-
-            return {"status": "error", "detail": resp2.text}
+            return {"status": "error", "detail": resp.text}
     except Exception as e:
         print(f"[ERROR WhatsApp get_qr_code]: {e}")
         traceback.print_exc()
