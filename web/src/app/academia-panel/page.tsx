@@ -1235,7 +1235,14 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
   const generarMatriculas = async () => {
     setGenerandoMat(true);
     try {
-      const data = await apiFetch(`/academia/matriculas/generar?anio=${hoy.getFullYe  // WhatsApp Gateway States
+      const data = await apiFetch(`/academia/matriculas/generar?anio=${hoy.getFullYear()}`, { method: 'POST' });
+      notify(`${data.generadas} matrículas generadas — Gs. ${(data.monto_por_alumno || 0).toLocaleString('es-PY')} c/u`);
+      cargarMatriculas();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setGenerandoMat(false);
+  };
+
+  // WhatsApp Gateway States
   const [waConnected, setWaConnected] = useState<boolean | null>(null);
   const [modalWaQr, setModalWaQr] = useState(false);
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
