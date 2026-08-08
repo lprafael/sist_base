@@ -675,24 +675,22 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
     setForzandoQr(true);
     setWaLoading(true);
     setModalWaQr(true);
+    setWaQrCode(null);
     try {
       await apiFetch('/academia/whatsapp/disconnect', { method: 'POST' });
-      notify('Sesión anterior cerrada. Generando nuevo código QR...', 'ok');
       setWaConnected(false);
-      // Esperar 1.5s a que la instancia se reinicie
-      setTimeout(async () => {
-        try {
-          const res = await apiFetch('/academia/whatsapp/qr');
-          if (res.qr) setWaQrCode(res.qr);
-        } catch {}
-        setWaLoading(false);
-        setForzandoQr(false);
-      }, 1500);
+      const res = await apiFetch('/academia/whatsapp/qr');
+      if (res.qr) {
+        setWaQrCode(res.qr);
+        notify('✅ Nuevo código QR generado. Escanealo con tu teléfono.', 'ok');
+      } else {
+        notify('Respuesta del servidor sin QR. Revisa la conexión.', 'err');
+      }
     } catch (e: any) {
       notify(e.message || 'Error al reiniciar sesión de WhatsApp', 'err');
-      setWaLoading(false);
-      setForzandoQr(false);
     }
+    setWaLoading(false);
+    setForzandoQr(false);
   };
 
   const enviarWaTest = async () => {

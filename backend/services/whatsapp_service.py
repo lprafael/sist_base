@@ -83,6 +83,7 @@ async def create_instance() -> Dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(url, json=body, headers=_headers())
+            print(f"[create_instance {resp.status_code}]: {resp.text}")
             if resp.status_code in (200, 201):
                 return resp.json()
             return {"error": resp.text}
@@ -96,31 +97,63 @@ async def get_qr_code() -> Dict[str, Any]:
     url = f"{EVOLUTION_API_URL}/instance/connect/{INSTANCE_NAME}"
     try:
         async with httpx.AsyncClient(timeout=12.0) as client:
+            # 1. Intentar conectarse a la instancia existente
             resp = await client.get(url, headers=_headers())
+            print(f"[get_qr_code connect {resp.status_code}]: {resp.text}")
             if resp.status_code == 200:
                 data = resp.json()
-                base64_qr = data.get("base64") or data.get("code") or data.get("qrcode", {}).get("base64")
-                return {"status": "ok", "qr": base64_qr, "raw": data}
-            else:
-                # Intentar crearla por si acaso
-                await create_instance()
-                resp2 = await client.get(url, headers=_headers())
-                if resp2.status_code == 200:
-                    data2 = resp2.json()
-                    base64_qr = data2.get("base64") or data2.get("code") or data2.get("qrcode", {}).get("base64")
-                    return {"status": "ok", "qr": base64_qr, "raw": data2}
-                return {"status": "error", "detail": resp2.text}
+                base64_qr = (
+                    data.get("base64")
+                    or data.get("code")
+                    or data.get("qrcode", {}).get("base64")
+                    or data.get("qrcode", {}).get("code")
+                )
+                if base64_qr:
+                    return {"status": "ok", "qr": base64_qr, "raw": data}
+
+            # 2. Si no devolvió QR, recrear la instancia limpia
+            print("[get_qr_code]: Recreando instancia para forzar QR fresco...")
+            await logout_instance()
+            create_res = await create_instance()
+            if isinstance(create_res, dict):
+                base64_qr = (
+                    create_res.get("qrcode", {}).get("base64")
+                    or create_res.get("qrcode", {}).get("code")
+                    or create_res.get("base64")
+                )
+                if base64_qr:
+                    return {"status": "ok", "qr": base64_qr, "raw": create_res}
+
+            # 3. Intentar connect una vez más
+            resp2 = await client.get(url, headers=_headers())
+            print(f"[get_qr_code retry connect {resp2.status_code}]: {resp2.text}")
+            if resp2.status_code == 200:
+                data2 = resp2.json()
+                base64_qr = (
+                    data2.get("base64")
+                    or data2.get("code")
+                    or data2.get("qrcode", {}).get("base64")
+                    or data2.get("qrcode", {}).get("code")
+                )
+                return {"status": "ok", "qr": base64_qr, "raw": data2}
+
+            return {"status": "error", "detail": resp2.text}
     except Exception as e:
         print(f"[ERROR WhatsApp get_qr_code]: {e}")
+        traceback.print_exc()
         return {"status": "error", "detail": str(e)}
 
 
 async def logout_instance() -> Dict[str, Any]:
-    """Cierra la sesión y borra la instancia para permitir escanear un nuevo QR."""
-    url = f"{EVOLUTION_API_URL}/instance/logout/{INSTANCE_NAME}"
+    """Cierra la sesión y elimina la instancia para permitir escanear un nuevo QR."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.delete(url, headers=_headers())
+            try:
+                await client.delete(f"{EVOLUTION_API_URL}/instance/logout/{INSTANCE_NAME}", headers=_headers())
+            except Exception:
+                pass
+            resp = await client.delete(f"{EVOLUTION_API_URL}/instance/delete/{INSTANCE_NAME}", headers=_headers())
+            print(f"[logout_instance delete {resp.status_code}]: {resp.text}")
             return {"status": "ok", "data": resp.text}
     except Exception as e:
         print(f"[ERROR logout_instance]: {e}")
