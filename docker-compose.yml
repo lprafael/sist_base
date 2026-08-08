@@ -108,6 +108,9 @@ services:
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://postgres:admin@db:5432/BBDD_micancha?schema=evolution
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_v2
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_REDIS_CACHE_STORE=false
+      - CACHE_REDIS_SAVE_INSTANCES=false
       - DEL_INSTANCE=false
     volumes:
       - evolution_instances:/evolution/instances
