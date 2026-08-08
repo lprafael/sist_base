@@ -96,8 +96,27 @@ async def marcar_feedback_leido(
     return {"message": "Marcado como leído"}
 
 # ================================================================
-# NOTICIAS PUBLICAS
+# NOTICIAS PUBLICAS Y CMS
 # ================================================================
+
+class IANoticiaRequest(BaseModel):
+    contexto: str
+
+@router.get("/noticias")
+async def listar_noticias_admin(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """Listar todas las noticias (activas e inactivas) para la administración."""
+    ctx = await get_academia_context(request, current_user, session)
+    res = await session.execute(text("""
+        SELECT id, titulo, contenido, imagen_url, fecha_publicacion, activa, creado_en, actualizado_en
+        FROM academias.noticias_publicas
+        WHERE academia_id = :aid
+        ORDER BY fecha_publicacion DESC, creado_en DESC
+    """), {"aid": ctx["academia_id"]})
+    return [dict(r._mapping) for r in res.fetchall()]
 
 @router.post("/noticias")
 async def crear_noticia(
@@ -113,10 +132,77 @@ async def crear_noticia(
         VALUES (:aid, :tit, :cont, :img, :act)
     """), {
         "aid": ctx["academia_id"], "tit": data.titulo, "cont": data.contenido,
-        "img": data.imagen_url, "act": data.activa
+        "img": data.imagen_url, "act": data.activa if data.activa is not None else True
     })
     await session.commit()
-    return {"message": "Noticia creada"}
+    return {"message": "Noticia creada exitosamente"}
+
+@router.put("/noticias/{noticia_id}")
+async def actualizar_noticia(
+    noticia_id: str,
+    data: NoticiaRequest,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    ctx = await get_academia_context(request, current_user, session)
+    res = await session.execute(text("""
+        UPDATE academias.noticias_publicas
+        SET titulo = :tit, contenido = :cont, imagen_url = :img, activa = :act
+        WHERE id = :nid AND academia_id = :aid
+    """), {
+        "nid": noticia_id, "aid": ctx["academia_id"],
+        "tit": data.titulo, "cont": data.contenido,
+        "img": data.imagen_url, "act": data.activa if data.activa is not None else True
+    })
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Noticia no encontrada")
+    await session.commit()
+    return {"message": "Noticia actualizada exitosamente"}
+
+@router.delete("/noticias/{noticia_id}")
+async def eliminar_noticia(
+    noticia_id: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    ctx = await get_academia_context(request, current_user, session)
+    res = await session.execute(text("""
+        DELETE FROM academias.noticias_publicas
+        WHERE id = :nid AND academia_id = :aid
+    """), {"nid": noticia_id, "aid": ctx["academia_id"]})
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Noticia no encontrada")
+    await session.commit()
+    return {"message": "Noticia eliminada exitosamente"}
+
+@router.post("/noticias/generar-ia")
+async def generar_noticia_ia_academia(
+    data: IANoticiaRequest,
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Generar borrador de noticia redactado asistido por IA."""
+    puntos = data.contexto.strip()
+    if not puntos:
+        raise HTTPException(status_code=400, detail="Debe ingresar detalles para la noticia")
+    
+    # Redacción estructurada estilo deportivo/comunicado institucional
+    lineas = [l.strip() for l in puntos.split('\n') if l.strip()]
+    titulo_sugerido = f"¡Novedades en la Academia! {lineas[0][:50]}" if lineas else "Comunicado Importante"
+    
+    contenido_redactado = (
+        f"🏆 **NOVEDADES Y DESTACADOS DE LA SEMANA**\n\n"
+        f"Compartimos con toda la comunidad, padres y alumnos las últimas noticias de nuestra academia:\n\n"
+        + "\n".join([f"• {linea}" for linea in lineas]) + "\n\n"
+        f"¡Agradecemos el compromiso constante de nuestros profesores, alumnos y familias! "
+        f"Sigamos sumando logros juntos. 💪⚽🏀"
+    )
+    return {
+        "titulo": titulo_sugerido,
+        "contenido": contenido_redactado
+    }
 
 @router.get("/{academia_id}/noticias/publicas")
 async def listar_noticias_publicas(

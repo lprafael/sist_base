@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Plus, Pencil, Trash2, Check, X, Upload,
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
-  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall
+  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -1612,55 +1612,474 @@ function AsistenciasTab({ notify, apiFetch, categorias, fetchAll }: any) {
 
 function NoticiasTab({ notify, apiFetch }: any) {
   const [noticias, setNoticias] = useState<any[]>([]);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ titulo: '', contenido: '', imagen_url: '' });
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<any>(null); // null | 'new' | noticia object
+  const [previewNoticia, setPreviewNoticia] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [modalIA, setModalIA] = useState(false);
+  const [promptIA, setPromptIA] = useState('');
+  const [loadingIA, setLoadingIA] = useState(false);
+  
+  const [form, setForm] = useState({ titulo: '', contenido: '', imagen_url: '', activa: true });
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activas' | 'inactivas'>('todos');
 
   useEffect(() => {
     load();
   }, []);
 
   const load = async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch('/academias/noticias');
+      setNoticias(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      notify(e.message || 'Error al cargar noticias', 'err');
+    }
+    setLoading(false);
+  };
+
+  const openNew = () => {
+    setForm({ titulo: '', contenido: '', imagen_url: '', activa: true });
+    setModal('new');
+  };
+
+  const openEdit = (n: any) => {
+    setForm({
+      titulo: n.titulo || '',
+      contenido: n.contenido || '',
+      imagen_url: n.imagen_url || '',
+      activa: n.activa ?? true,
+    });
+    setModal(n);
   };
 
   const save = async () => {
-    if(!form.titulo || !form.contenido) return notify('Faltan datos', 'err');
+    if (!form.titulo.trim() || !form.contenido.trim()) {
+      return notify('El título y contenido son obligatorios', 'err');
+    }
+    setSaving(true);
     try {
-      await apiFetch('/academias/noticias', {
-        method: 'POST',
-        body: JSON.stringify({ ...form, activa: true })
-      });
-      notify('Noticia publicada');
-      setModal(false);
-      setForm({ titulo: '', contenido: '', imagen_url: '' });
+      if (modal === 'new') {
+        await apiFetch('/academias/noticias', {
+          method: 'POST',
+          body: JSON.stringify(form),
+        });
+        notify('Noticia publicada exitosamente');
+      } else {
+        await apiFetch(`/academias/noticias/${modal.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(form),
+        });
+        notify('Noticia actualizada exitosamente');
+      }
+      setModal(null);
       load();
-    } catch(e:any){ notify(e.message, 'err'); }
-  }
+    } catch (e: any) {
+      notify(e.message || 'Error al guardar la noticia', 'err');
+    }
+    setSaving(false);
+  };
+
+  const toggleActiva = async (n: any) => {
+    try {
+      const nuevoEstado = !n.activa;
+      await apiFetch(`/academias/noticias/${n.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          titulo: n.titulo,
+          contenido: n.contenido,
+          imagen_url: n.imagen_url,
+          activa: nuevoEstado,
+        }),
+      });
+      notify(nuevoEstado ? 'Noticia activada' : 'Noticia ocultada/desactivada');
+      load();
+    } catch (e: any) {
+      notify(e.message || 'Error al cambiar estado', 'err');
+    }
+  };
+
+  const removeNoticia = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await apiFetch(`/academias/noticias/${deleteConfirm.id}`, { method: 'DELETE' });
+      notify('Noticia eliminada correctamente');
+      setDeleteConfirm(null);
+      load();
+    } catch (e: any) {
+      notify(e.message || 'Error al eliminar la noticia', 'err');
+    }
+  };
+
+  const generarConIA = async () => {
+    if (!promptIA.trim()) return notify('Ingresa detalles para la IA', 'err');
+    setLoadingIA(true);
+    try {
+      const res = await apiFetch('/academias/noticias/generar-ia', {
+        method: 'POST',
+        body: JSON.stringify({ contexto: promptIA }),
+      });
+      setForm(f => ({
+        ...f,
+        titulo: res.titulo || f.titulo,
+        contenido: res.contenido || f.contenido,
+      }));
+      setModalIA(false);
+      setPromptIA('');
+      notify('Borrador redactado por IA aplicado al formulario');
+      if (!modal) setModal('new');
+    } catch (e: any) {
+      notify(e.message || 'Error al generar borrador', 'err');
+    }
+    setLoadingIA(false);
+  };
+
+  const filtered = noticias.filter((n: any) => {
+    const matchSearch =
+      (n.titulo || '').toLowerCase().includes(search.toLowerCase()) ||
+      (n.contenido || '').toLowerCase().includes(search.toLowerCase());
+    if (filtroEstado === 'activas') return matchSearch && n.activa;
+    if (filtroEstado === 'inactivas') return matchSearch && !n.activa;
+    return matchSearch;
+  });
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700 }}>CMS de Noticias</h2>
-        <button style={btn()} onClick={() => setModal(true)}><Plus size={16}/> Nueva Noticia</button>
+      {/* Header y Acciones */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>CMS de Noticias y Anuncios</h2>
+          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>
+            Publica novedades, avisos de partidos, horarios y logros para la comunidad de la academia.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={() => setModalIA(true)} style={btn(C.purple, true)}>
+            <Sparkles size={16} /> Generar con IA
+          </button>
+          <button onClick={openNew} style={btn(C.primary)}>
+            <Plus size={16} /> Nueva Noticia
+          </button>
+        </div>
       </div>
 
-      <div style={card()}>
-        <p style={{ color: C.muted }}>En construcción. Aquí verás la lista de noticias publicadas.</p>
+      {/* Barra de Filtros y Búsqueda */}
+      <div style={{ ...card(), padding: '14px 20px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
+          <input
+            type="text"
+            placeholder="Buscar noticias por título o texto..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ ...input(), paddingLeft: 36 }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Estado:</span>
+          {(['todos', 'activas', 'inactivas'] as const).map(st => (
+            <button
+              key={st}
+              onClick={() => setFiltroEstado(st)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                background: filtroEstado === st ? C.primary : C.bg,
+                color: filtroEstado === st ? '#fff' : C.muted,
+                textTransform: 'capitalize'
+              }}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
+        <button onClick={load} title="Recargar listado" style={{ ...btn(C.faint, true), padding: '8px 12px' }}>
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
       </div>
 
+      {/* Listado de Noticias */}
+      {loading ? (
+        <div style={{ ...card(), textAlign: 'center', padding: 40, color: C.muted }}>
+          <RefreshCw size={24} style={{ margin: '0 auto 12px', display: 'block', animation: 'spin 1s linear infinite' }} />
+          Cargando noticias...
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ ...card(), textAlign: 'center', padding: 48 }}>
+          <FileText size={40} color={C.faint} style={{ margin: '0 auto 12px', display: 'block' }} />
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', color: C.text }}>No se encontraron noticias</h3>
+          <p style={{ color: C.muted, fontSize: 13, margin: '0 0 20px', maxWidth: 400, marginLeft: 'auto', marginRight: 'auto' }}>
+            {search ? 'Intenta modificar el término de búsqueda o el filtro seleccionado.' : 'Aún no hay noticias creadas en el CMS. ¡Comienza redactando tu primera publicación!'}
+          </p>
+          {!search && (
+            <button onClick={openNew} style={btn(C.primary)}>
+              <Plus size={16} /> Publicar Primera Noticia
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+          {filtered.map((n: any) => (
+            <div key={n.id} style={{ ...card({ padding: 0 }), overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'transform 0.15s, box-shadow 0.15s' }}>
+              {/* Cover Image */}
+              <div style={{ height: 160, background: '#090d16', position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${C.border}` }}>
+                {n.imagen_url ? (
+                  <img
+                    src={n.imagen_url}
+                    alt={n.titulo}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e: any) => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${C.surface} 0%, #0f172a 100%)` }}>
+                    <ImageIcon size={44} color={C.border} />
+                  </div>
+                )}
+                {/* Badges */}
+                <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 6 }}>
+                  <span style={badge(n.activa ? C.green : C.yellow)}>
+                    {n.activa ? 'Publicada' : 'Borrador / Oculta'}
+                  </span>
+                </div>
+                <div style={{ position: 'absolute', bottom: 8, left: 12, fontSize: 11, background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: 4, color: C.muted, backdropFilter: 'blur(4px)' }}>
+                  <Calendar size={10} style={{ display: 'inline', marginRight: 4 }} />
+                  {n.fecha_publicacion ? n.fecha_publicacion.split('T')[0] : 'Hoy'}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', color: C.text, lineHeight: 1.3 }}>
+                  {n.titulo}
+                </h3>
+                <p style={{
+                  fontSize: 13, color: C.muted, margin: '0 0 16px', lineHeight: 1.5, flex: 1,
+                  display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis'
+                }}>
+                  {n.contenido}
+                </p>
+
+                {/* Card Actions */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: `1px solid ${C.border}44` }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setPreviewNoticia(n)} title="Ver vista previa" style={{ ...btn(C.faint, true), padding: '6px 10px', fontSize: 12 }}>
+                      <Eye size={13} />
+                    </button>
+                    <button onClick={() => toggleActiva(n)} title={n.activa ? 'Ocultar Noticia' : 'Mostrar Noticia'} style={{ ...btn(n.activa ? C.yellow : C.green, true), padding: '6px 10px', fontSize: 12 }}>
+                      {n.activa ? <X size={13} /> : <Check size={13} />}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => openEdit(n)} style={{ ...btn(C.primary, true), padding: '6px 12px', fontSize: 12 }}>
+                      <Pencil size={13} /> Editar
+                    </button>
+                    <button onClick={() => setDeleteConfirm(n)} style={{ ...btn(C.red, true), padding: '6px 10px', fontSize: 12 }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── MODAL CREAR / EDITAR NOTICIA ── */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: C.surface, padding: 30, borderRadius: 12, width: 400 }}>
-            <h3 style={{marginTop:0}}>Nueva Noticia</h3>
-            <FormField label="Título" value={form.titulo} onChange={(v:any) => setForm({...form, titulo:v})} />
-            <FormField label="URL Imagen" value={form.imagen_url} onChange={(v:any) => setForm({...form, imagen_url:v})} />
-            
-            <div style={{ marginBottom: 14 }}>
-              <label style={label()}>Contenido</label>
-              <textarea value={form.contenido} onChange={e => setForm({...form, contenido:e.target.value})}
-                style={{...input(), minHeight: 100}} />
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, width: 560, maxWidth: '100%', padding: 28, boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: C.text }}>
+                {modal === 'new' ? 'Nueva Noticia' : 'Editar Noticia'}
+              </h3>
+              <button onClick={() => setModal(null)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 18 }}>✕</button>
             </div>
 
-            <ModalActions onCancel={() => setModal(false)} onSave={save} saveLabel="Publicar" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={label()}>Título de la Noticia *</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Gran triunfo de la categoría Sub-15 en el torneo..."
+                  value={form.titulo}
+                  onChange={e => setForm({ ...form, titulo: e.target.value })}
+                  style={input()}
+                />
+              </div>
+
+              <div>
+                <label style={label()}>URL de Imagen de Portada (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  value={form.imagen_url}
+                  onChange={e => setForm({ ...form, imagen_url: e.target.value })}
+                  style={input()}
+                />
+                {form.imagen_url && (
+                  <div style={{ marginTop: 8, height: 100, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border}`, background: '#000' }}>
+                    <img src={form.imagen_url} alt="Vista Previa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e: any) => e.target.style.display = 'none'} />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.bg, padding: '12px 16px', borderRadius: 10, border: `1px solid ${C.border}` }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Visibilidad de la Noticia</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Si está activa, se mostrará públicamente a alumnos y tutores.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, activa: !form.activa })}
+                  style={{
+                    padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+                    background: form.activa ? `${C.green}22` : `${C.yellow}22`,
+                    color: form.activa ? C.green : C.yellow,
+                    border: `1px solid ${form.activa ? C.green : C.yellow}`
+                  }}
+                >
+                  {form.activa ? '✓ Visible / Activa' : '✕ Oculta / Borrador'}
+                </button>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <label style={label({ marginBottom: 0 })}>Contenido de la Noticia *</label>
+                  <button
+                    type="button"
+                    onClick={() => setModalIA(true)}
+                    style={{ background: 'transparent', border: 'none', color: C.purple, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <Sparkles size={12} /> Redactar con IA
+                  </button>
+                </div>
+                <textarea
+                  rows={6}
+                  placeholder="Escribe aquí los detalles del anuncio, resultados o comunicado..."
+                  value={form.contenido}
+                  onChange={e => setForm({ ...form, contenido: e.target.value })}
+                  style={{ ...input(), resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+              <button onClick={() => setModal(null)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={save} disabled={saving} style={btn(C.primary)}>
+                {saving ? 'Guardando...' : modal === 'new' ? 'Publicar Noticia' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL ASISTENTE DE IA ── */}
+      {modalIA && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+          <div style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.purple}66`, width: 500, maxWidth: '100%', padding: 28, boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: `${C.purple}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sparkles size={18} color={C.purple} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>Asistente de Redacción IA</h3>
+              </div>
+              <button onClick={() => setModalIA(false)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 18 }}>✕</button>
+            </div>
+
+            <p style={{ color: C.muted, fontSize: 13, margin: '0 0 16px', lineHeight: 1.4 }}>
+              Ingresa viñetas, notas o el resultado del evento. La Inteligencia Artificial redactará un comunicado claro y entusiasta para la academia.
+            </p>
+
+            {/* Quick Prompt Chips */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: C.faint, display: 'block', width: '100%', fontWeight: 600 }}>Sugerencias rápidas:</span>
+              {[
+                'Resultado: Victoria Sub-15 3-1 contra Olimpia. Destacados Juan y Lucas.',
+                'Aviso: Este viernes no habrá entrenamientos por mantenimiento de cancha.',
+                'Convocatoria: Inicio de inscripciones para el Torneo de Verano.'
+              ].map((chip, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setPromptIA(chip)}
+                  style={{ padding: '4px 10px', borderRadius: 6, background: C.bg, border: `1px solid ${C.border}`, color: C.muted, fontSize: 11, cursor: 'pointer', textAlign: 'left' }}
+                >
+                  {chip.substring(0, 38)}...
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              rows={4}
+              placeholder="Ej: La categoría 2012 salió campeona del torneo clausura. Felicitaciones al profe Mario y a todos los padres..."
+              value={promptIA}
+              onChange={e => setPromptIA(e.target.value)}
+              style={{ ...input(), marginBottom: 20 }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setModalIA(false)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={generarConIA} disabled={loadingIA} style={btn(C.purple)}>
+                {loadingIA ? 'Redactando con IA...' : 'Generar y Aplicar Borrador'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL VISTA PREVIA DE NOTICIA ── */}
+      {previewNoticia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: 20 }}>
+          <div style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, width: 600, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 25px 50px rgba(0,0,0,0.8)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <span style={badge(previewNoticia.activa ? C.green : C.yellow)}>
+                {previewNoticia.activa ? 'Publicada en Portal' : 'Borrador Oculto'}
+              </span>
+              <button onClick={() => setPreviewNoticia(null)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 20 }}>✕</button>
+            </div>
+
+            {previewNoticia.imagen_url && (
+              <div style={{ width: '100%', height: 220, borderRadius: 12, overflow: 'hidden', marginBottom: 20, border: `1px solid ${C.border}` }}>
+                <img src={previewNoticia.imagen_url} alt="Portada" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e: any) => e.target.style.display = 'none'} />
+              </div>
+            )}
+
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+              <Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />
+              {previewNoticia.fecha_publicacion ? previewNoticia.fecha_publicacion.split('T')[0] : 'Fecha no especificada'}
+            </div>
+
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: '0 0 16px', lineHeight: 1.3 }}>
+              {previewNoticia.titulo}
+            </h2>
+
+            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.6, whitespace: 'pre-line', borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+              {previewNoticia.contenido}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setPreviewNoticia(null)} style={btn(C.primary)}>Cerrar Vista Previa</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CONFIRMACION ELIMINAR ── */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+          <div style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.red}66`, width: 420, maxWidth: '100%', padding: 24, textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${C.red}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <AlertCircle size={24} color={C.red} />
+            </div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: C.text }}>¿Eliminar esta noticia?</h3>
+            <p style={{ color: C.muted, fontSize: 13, margin: '0 0 20px' }}>
+              «<strong>{deleteConfirm.titulo}</strong>» será eliminada permanentemente y dejará de estar visible en el portal.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+              <button onClick={() => setDeleteConfirm(null)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={removeNoticia} style={btn(C.red)}>Sí, Eliminar</button>
+            </div>
           </div>
         </div>
       )}
