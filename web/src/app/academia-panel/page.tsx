@@ -1486,61 +1486,6 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
             </div>
           </div>
         </Modal>
-      )}le={{ borderBottom: `1px solid ${C.border}33` }}>
-                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{q.alumno}</td>
-                      <td style={{ padding: '9px 14px', color: C.muted, fontFamily: 'monospace' }}>{q.periodo}</td>
-                      <td style={{ padding: '9px 14px', color: C.faint }}>Gs. {(q.monto_original || 0).toLocaleString('es-PY')}</td>
-                      <td style={{ padding: '9px 14px', color: q.descuento > 0 ? C.green : C.faint }}>
-                        {q.descuento > 0 ? `- Gs. ${(q.descuento || 0).toLocaleString('es-PY')}` : '—'}
-                      </td>
-                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>Gs. {(q.monto_final || 0).toLocaleString('es-PY')}</td>
-                      <td style={{ padding: '9px 14px', color: q.monto_pagado > 0 ? C.green : C.faint, fontSize: 12 }}>
-                        {q.monto_pagado > 0 ? `Gs. ${(q.monto_pagado || 0).toLocaleString('es-PY')}` : '—'}
-                        {saldo > 0 && q.estado === 'parcial' && (
-                          <div style={{ color: C.yellow, fontSize: 10 }}>Saldo: Gs. {saldo.toLocaleString('es-PY')}</div>
-                        )}
-                      </td>
-                      <td style={{ padding: '9px 14px' }}><span style={badge(estadoColor[q.estado] || C.faint)}>{q.estado}</span></td>
-                      <td style={{ padding: '9px 14px', color: C.muted, fontSize: 11 }}>{q.fecha_vencimiento}</td>
-                      <td style={{ padding: '9px 14px' }}>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {canPay && (
-                            <button onClick={() => {
-                              setModalPago(q);
-                              setPagoForm({ metodo_pago: 'Efectivo', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', notas: '' });
-                            }} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
-                              <DollarSign size={11} /> Pagar
-                            </button>
-                          )}
-                          <button onClick={async () => {
-                            setModalHistorial(q);
-                            await cargarHistorial(q.id);
-                          }} style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 9px' }} title="Ver historial de pagos">
-                            <Eye size={11} />
-                          </button>
-                          {canEdit && (
-                            <button onClick={() => {
-                              setModalEditar(q);
-                              setEditarForm({ monto_final: q.monto_final, descuento: q.descuento || 0, notas: q.notas || '' });
-                            }} style={{ ...btn(C.yellow, true), fontSize: 11, padding: '4px 9px' }} title="Editar cuota">
-                              <Pencil size={11} />
-                            </button>
-                          )}
-                          {canCancel && (
-                            <button onClick={() => { setModalAnular({ type: 'cuota', id: q.id }); setAnularMotivo(''); }}
-                              style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 9px' }} title="Anular cuota">
-                              <X size={11} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
       )}
 
       {/* ═══ SUB-TAB: MATRÍCULAS ═══ */}
