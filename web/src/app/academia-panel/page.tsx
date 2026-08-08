@@ -2719,9 +2719,12 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
   const listTutores = Array.isArray(tutores) ? tutores : [];
   const listAlumnos = Array.isArray(alumnos) ? alumnos : [];
   const [modal, setModal] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
 
   const abrirNuevo = () => {
     setModal({
+      id: 'new',
       nombre: '',
       apellido: '',
       telefono: '',
@@ -2732,17 +2735,50 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
     });
   };
 
+  const openEdit = (t: any) => {
+    setModal({
+      id: t.id,
+      nombre: t.nombre || '',
+      apellido: t.apellido || '',
+      telefono: t.telefono || '',
+      email: t.email || '',
+      vinculo: t.vinculo || 'Padre',
+      es_pagador: t.es_pagador !== false,
+      alumno_id: '',
+    });
+  };
+
   const guardar = async () => {
     if (!modal.nombre || !modal.nombre.trim()) {
       return notify('Ingresá el nombre del tutor', 'err');
     }
+    setSaving(true);
     try {
-      await apiFetch('/academia/tutores', {
-        method: 'POST',
-        body: JSON.stringify(modal),
-      });
-      notify('Tutor registrado exitosamente.');
+      if (modal.id === 'new') {
+        await apiFetch('/academia/tutores', {
+          method: 'POST',
+          body: JSON.stringify(modal),
+        });
+        notify('Tutor registrado exitosamente.');
+      } else {
+        await apiFetch(`/academia/tutores/${modal.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(modal),
+        });
+        notify('Tutor actualizado exitosamente.');
+      }
       setModal(null);
+      fetchAll();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setSaving(false);
+  };
+
+  const removeTutor = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await apiFetch(`/academia/tutores/${deleteConfirm.id}`, { method: 'DELETE' });
+      notify('Tutor eliminado exitosamente.');
+      setDeleteConfirm(null);
       fetchAll();
     } catch (e: any) { notify(e.message, 'err'); }
   };
@@ -2793,11 +2829,23 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
                 <td style={{ padding: '12px', color: C.muted }}>{t.email || '—'}</td>
                 <td style={{ padding: '12px', fontWeight: 600, color: C.text }}>{t.alumnos_vinculados || 'Sin alumnos'}</td>
                 <td style={{ padding: '12px', textAlign: 'right' }}>
-                  {t.telefono && (
-                    <a href={`https://wa.me/${t.telefono.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={btn(C.green, true)}>
-                      WhatsApp
-                    </a>
-                  )}
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                    {t.telefono && (
+                      <a href={`https://wa.me/${t.telefono.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" style={{ ...btn(C.green, true), padding: '6px 10px', fontSize: 12 }}>
+                        WhatsApp
+                      </a>
+                    )}
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => openEdit(t)} title="Editar tutor" style={{ ...btn(C.primary, true), padding: '6px 10px', fontSize: 12 }}>
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => setDeleteConfirm(t)} title="Eliminar tutor" style={{ ...btn(C.red, true), padding: '6px 10px', fontSize: 12 }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -2815,7 +2863,9 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 460, padding: 26 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>Registrar Tutor / Padre</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>
+              {modal.id === 'new' ? 'Registrar Tutor / Padre' : 'Editar Tutor / Padre'}
+            </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
@@ -2851,7 +2901,7 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={label()}>Asignar Alumno Inicial (opcional)</label>
+              <label style={label()}>{modal.id === 'new' ? 'Asignar Alumno Inicial (opcional)' : 'Vincular a Alumno (opcional)'}</label>
               <select value={modal.alumno_id} onChange={e => setModal({ ...modal, alumno_id: e.target.value })} style={input()}>
                 <option value="">Ninguno por ahora</option>
                 {listAlumnos.map((a: any) => (
@@ -2862,7 +2912,27 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setModal(null)} style={btn(C.faint, true)}>Cancelar</button>
-              <button onClick={guardar} style={btn(C.primary)}>Guardar Tutor</button>
+              <button onClick={guardar} disabled={saving} style={btn(C.primary)}>
+                {saving ? 'Guardando...' : modal.id === 'new' ? 'Guardar Tutor' : 'Actualizar Tutor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 20 }}>
+          <div style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.red}66`, width: 420, maxWidth: '100%', padding: 24, textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${C.red}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <AlertCircle size={24} color={C.red} />
+            </div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: C.text }}>¿Eliminar este tutor?</h3>
+            <p style={{ color: C.muted, fontSize: 13, margin: '0 0 20px' }}>
+              «<strong>{deleteConfirm.nombre} {deleteConfirm.apellido}</strong>» será eliminado permanentemente.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+              <button onClick={() => setDeleteConfirm(null)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={removeTutor} style={btn(C.red)}>Sí, Eliminar</button>
             </div>
           </div>
         </div>

@@ -283,6 +283,7 @@ class TutorRequest(BaseModel):
     email: Optional[str] = None
     vinculo: Optional[str] = None
     es_pagador: Optional[bool] = True
+    alumno_id: Optional[str] = None
 
 
 class VincularTutorRequest(BaseModel):
@@ -1452,19 +1453,22 @@ async def listar_tutores(
     res = await session.execute(text("""
         SELECT t.id, t.nombre, t.apellido, t.telefono, t.email, t.vinculo,
                t.es_pagador, t.creado_en,
+               STRING_AGG(CONCAT(a.nombre, ' ', a.apellido), ', ') AS alumnos_vinculados,
                COUNT(DISTINCT at2.alumno_id) AS total_alumnos
         FROM academias.tutores t
         LEFT JOIN academias.alumno_tutores at2 ON at2.tutor_id = t.id
-        WHERE t.academia_id = :aid
+        LEFT JOIN academias.alumnos a ON a.id = at2.alumno_id
+        WHERE t.academia_id = CAST(:aid AS UUID)
         GROUP BY t.id, t.nombre, t.apellido, t.telefono, t.email, t.vinculo, t.es_pagador, t.creado_en
         ORDER BY t.apellido, t.nombre
-    """), {"aid": current_user["academia_id"]})
+    """), {"aid": str(current_user["academia_id"])})
     return [
         {
             "id": str(r[0]), "nombre": r[1], "apellido": r[2],
             "telefono": r[3], "email": r[4], "vinculo": r[5],
             "es_pagador": r[6], "creado_en": r[7].isoformat() if r[7] else None,
-            "total_alumnos": r[8],
+            "alumnos_vinculados": r[8] or "Sin alumnos",
+            "total_alumnos": r[9],
         }
         for r in res.fetchall()
     ]
@@ -1477,19 +1481,116 @@ async def registrar_tutor(
     session: AsyncSession = Depends(get_session)
 ):
     """Registra un tutor/padre de familia."""
-    res = await session.execute(text("""
-        INSERT INTO academias.tutores (academia_id, nombre, apellido, telefono, email, vinculo, es_pagador)
-        VALUES (:aid, :nombre, :apellido, :telefono, :email, :vinculo, :es_pagador)
-        RETURNING id
-    """), {
-        "aid": current_user["academia_id"],
-        "nombre": data.nombre, "apellido": data.apellido,
-        "telefono": data.telefono, "email": data.email,
-        "vinculo": data.vinculo, "es_pagador": data.es_pagador,
-    })
-    new_id = res.fetchone()[0]
-    await session.commit()
-    return {"message": "Tutor registrado.", "id": str(new_id)}
+    try:
+        new_id = str(uuid.uuid4())
+        aid = str(current_user["academia_id"])
+        
+        await session.execute(text("""
+            INSERT INTO academias.tutores (id, academia_id, nombre, apellido, telefono, email, vinculo, es_pagador)
+            VALUES (CAST(:id AS UUID), CAST(:aid AS UUID), :nombre, :apellido, :telefono, :email, :vinculo, :es_pagador)
+        """), {
+            "id": new_id,
+            "aid": aid,
+            "nombre": data.nombre.strip() if data.nombre else "",
+            "apellido": _clean_str(data.apellido),
+            "telefono": _clean_str(data.telefono),
+            "email": _clean_str(data.email),
+            "vinculo": _clean_str(data.vinculo),
+            "es_pagador": data.es_pagador if data.es_pagador is not None else True,
+        })
+        
+        alumno_id = _clean_str(data.alumno_id)
+        if alumno_id:
+            await session.execute(text("""
+                INSERT INTO academias.alumno_tutores (alumno_id, tutor_id, es_tutor_principal)
+                VALUES (CAST(:alumno_id AS UUID), CAST(:tutor_id AS UUID), TRUE)
+                ON CONFLICT (alumno_id, tutor_id) DO UPDATE SET es_tutor_principal = TRUE
+            """), {"alumno_id": alumno_id, "tutor_id": new_id})
+
+        await session.commit()
+        return {"message": "Tutor registrado.", "id": new_id}
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR registrar_tutor]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al registrar tutor: {str(e)}"
+        )
+
+
+@router.put("/academia/tutores/{tutor_id}")
+async def actualizar_tutor(
+    tutor_id: str,
+    data: TutorRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Actualiza datos de un tutor/padre de familia."""
+    try:
+        aid = str(current_user["academia_id"])
+        await session.execute(text("""
+            UPDATE academias.tutores SET
+                nombre     = COALESCE(:nombre, nombre),
+                apellido   = :apellido,
+                telefono   = :telefono,
+                email      = :email,
+                vinculo    = :vinculo,
+                es_pagador = :es_pagador
+            WHERE id = CAST(:tutor_id AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {
+            "tutor_id": tutor_id, "aid": aid,
+            "nombre": data.nombre.strip() if data.nombre else None,
+            "apellido": _clean_str(data.apellido),
+            "telefono": _clean_str(data.telefono),
+            "email": _clean_str(data.email),
+            "vinculo": _clean_str(data.vinculo),
+            "es_pagador": data.es_pagador if data.es_pagador is not None else True,
+        })
+        
+        alumno_id = _clean_str(data.alumno_id)
+        if alumno_id:
+            await session.execute(text("""
+                INSERT INTO academias.alumno_tutores (alumno_id, tutor_id, es_tutor_principal)
+                VALUES (CAST(:alumno_id AS UUID), CAST(:tutor_id AS UUID), TRUE)
+                ON CONFLICT (alumno_id, tutor_id) DO UPDATE SET es_tutor_principal = TRUE
+            """), {"alumno_id": alumno_id, "tutor_id": tutor_id})
+
+        await session.commit()
+        return {"message": "Tutor actualizado."}
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR actualizar_tutor]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al actualizar tutor: {str(e)}"
+        )
+
+
+@router.delete("/academia/tutores/{tutor_id}")
+async def eliminar_tutor(
+    tutor_id: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Elimina un tutor registrado."""
+    try:
+        aid = str(current_user["academia_id"])
+        await session.execute(text("""
+            DELETE FROM academias.tutores
+            WHERE id = CAST(:tutor_id AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"tutor_id": tutor_id, "aid": aid})
+        await session.commit()
+        return {"message": "Tutor eliminado."}
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR eliminar_tutor]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al eliminar tutor: {str(e)}"
+        )
 
 
 @router.post("/academia/alumnos/{alumno_id}/tutores")
