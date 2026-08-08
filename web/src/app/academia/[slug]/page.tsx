@@ -4,10 +4,12 @@ import { useParams } from 'next/navigation';
 import {
   GraduationCap, MapPin, Phone, Mail, Camera, Video,
   Share2, MessageCircle, Globe, Building2, Star,
-  ChevronRight, Dumbbell, Clock, DollarSign, Calendar, Info, Award
+  ChevronRight, Dumbbell, Clock, DollarSign, Calendar, Info, Award,
+  Megaphone, FileText
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.micancha.com.py";
+
 
 interface Sucursal {
   id: string;
@@ -118,6 +120,7 @@ export default function AcademiaPublicaPage() {
   const slug = params?.slug as string;
 
   const [academia, setAcademia] = useState<Academia | null>(null);
+  const [noticias, setNoticias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState<string>('2026');
@@ -140,6 +143,12 @@ export default function AcademiaPublicaPage() {
         setAcademia(data);
         if (data.periodos_vigencia && data.periodos_vigencia.length > 0) {
           setPeriodoSeleccionado(data.periodos_vigencia[data.periodos_vigencia.length - 1]);
+        }
+        if (data.id) {
+          fetch(`${API_URL}/academias/${data.id}/noticias/publicas`)
+            .then(res => res.ok ? res.json() : [])
+            .then(nData => setNoticias(nData))
+            .catch(() => {});
         }
       })
       .catch(e => setError(e.message))
@@ -350,6 +359,63 @@ export default function AcademiaPublicaPage() {
             </a>
           )}
         </div>
+
+        {/* ── NOTICIAS Y COMUNICADOS ── */}
+        {noticias.length > 0 && (
+          <section style={{
+            ...sectionCard,
+            background: 'linear-gradient(145deg, #131d31 0%, #0b1324 100%)',
+            borderRadius: 20, padding: 24,
+            border: `1px solid ${primary}55`,
+            boxShadow: `0 8px 32px rgba(0,0,0,0.3)`,
+            marginTop: 28,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${primary}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Megaphone size={22} color={primary} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#f8fafc', letterSpacing: 0.5 }}>
+                    NOTICIAS Y COMUNICADOS
+                  </h2>
+                  <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>Avisos importantes y novedades de la academia</p>
+                </div>
+              </div>
+              <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 999, background: `${primary}22`, border: `1px solid ${primary}44`, color: primary, fontWeight: 700 }}>
+                Novedades Oficiales
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+              {noticias.map((n: any) => (
+                <div key={n.id} style={{
+                  background: '#0b1324', borderRadius: 16, overflow: 'hidden',
+                  border: '1px solid #1e293b', display: 'flex', flexDirection: 'column',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                }}>
+                  {n.imagen_url && (
+                    <div style={{ height: 180, width: '100%', overflow: 'hidden', background: '#000', borderBottom: '1px solid #1e293b' }}>
+                      <img src={n.imagen_url} alt={n.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e: any) => e.target.style.display = 'none'} />
+                    </div>
+                  )}
+                  <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontSize: 12, color: primary, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Calendar size={13} />
+                      {n.fecha_publicacion ? n.fecha_publicacion.split('T')[0] : ''}
+                    </div>
+                    <h3 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 800, color: '#f8fafc', lineHeight: 1.3 }}>
+                      {n.titulo}
+                    </h3>
+                    <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-line', flex: 1 }}>
+                      {n.contenido}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── HORARIOS DE OFICINA (Estilo Volante Image 1) ── */}
         {academia.horarios_oficina && academia.horarios_oficina.length > 0 && (
