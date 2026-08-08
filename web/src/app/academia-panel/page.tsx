@@ -1182,19 +1182,45 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
 // CUOTAS
 // ═══════════════════════════════════════════════════════════
 function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: any) {
+  const [subTab, setSubTab] = useState<'cuotas' | 'matriculas'>('cuotas');
   const [generando, setGenerando] = useState(false);
-  const [pagandoId, setPagandoId] = useState<string | null>(null);
-  const [metodoPago, setMetodoPago] = useState('Efectivo');
+  const [generandoMat, setGenerandoMat] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPeriodo, setFiltroPeriodo] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+
+  // Modals
+  const [modalPago, setModalPago] = useState<any>(null);       // cuota seleccionada para pagar
+  const [modalHistorial, setModalHistorial] = useState<any>(null); // cuota para ver historial
+  const [modalEditar, setModalEditar] = useState<any>(null);   // cuota para editar monto
+  const [modalAnular, setModalAnular] = useState<any>(null);   // cuota o pago a anular
+  const [historialPagos, setHistorialPagos] = useState<any[]>([]);
+  const [matriculas, setMatriculas] = useState<any[]>([]);
+  const [filtroMatEstado, setFiltroMatEstado] = useState('');
+
+  // Form states
+  const [pagoForm, setPagoForm] = useState<any>({ metodo_pago: 'Efectivo', monto: '', fecha_pago: '' });
+  const [editarForm, setEditarForm] = useState<any>({ monto_final: '', descuento: '', notas: '' });
+  const [anularMotivo, setAnularMotivo] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const hoy = new Date();
   const periodoActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
 
+  const estadoColor: Record<string, string> = {
+    pendiente: C.yellow, pagada: C.green, vencida: C.red,
+    becada: C.purple, anulada: C.faint, parcial: '#f97316',
+  };
+
   const filtered = cuotas.filter((q: any) =>
     (!filtroEstado || q.estado === filtroEstado) &&
-    (!filtroPeriodo || q.periodo === filtroPeriodo)
+    (!filtroPeriodo || q.periodo === filtroPeriodo) &&
+    (!busqueda || q.alumno?.toLowerCase().includes(busqueda.toLowerCase()))
   );
+
+  const totalFiltrado = filtered.reduce((s: number, q: any) => s + (q.monto_final || 0), 0);
+  const pendienteGs = filtered.filter((q: any) => ['pendiente', 'parcial', 'vencida'].includes(q.estado))
+    .reduce((s: number, q: any) => s + (q.monto_final || 0) - (q.monto_pagado || 0), 0);
 
   const generar = async () => {
     setGenerando(true);
@@ -1206,103 +1232,450 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
     setGenerando(false);
   };
 
-  const pagar = async (id: string) => {
+  const generarMatriculas = async () => {
+    setGenerandoMat(true);
     try {
-      await apiFetch(`/academia/cuotas/${id}/pagar`, {
-        method: 'PUT',
-        body: JSON.stringify({ metodo_pago: metodoPago }),
+      const data = await apiFetch(`/academia/matriculas/generar?anio=${hoy.getFullYear()}`, { method: 'POST' });
+      notify(`${data.generadas} matrículas generadas — Gs. ${(data.monto_por_alumno || 0).toLocaleString('es-PY')} c/u`);
+      cargarMatriculas();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setGenerandoMat(false);
+  };
+
+  const cargarMatriculas = async () => {
+    try {
+      const data = await apiFetch('/academia/matriculas');
+      setMatriculas(data);
+    } catch { setMatriculas([]); }
+  };
+
+  const cargarHistorial = async (cuotaId: string) => {
+    try {
+      const data = await apiFetch(`/academia/cuotas/${cuotaId}/pagos`);
+      setHistorialPagos(data);
+    } catch { setHistorialPagos([]); }
+  };
+
+  const registrarPago = async () => {
+    if (!modalPago) return;
+    setSaving(true);
+    try {
+      const body: any = { metodo_pago: pagoForm.metodo_pago };
+      if (pagoForm.monto) body.monto = parseFloat(pagoForm.monto);
+      if (pagoForm.fecha_pago) body.fecha_pago = pagoForm.fecha_pago;
+      if (pagoForm.notas) body.notas = pagoForm.notas;
+      const res = await apiFetch(`/academia/cuotas/${modalPago.id}/pagar`, {
+        method: 'PUT', body: JSON.stringify(body),
       });
-      notify('Pago registrado');
-      setPagandoId(null);
+      notify(res.message || 'Pago registrado');
+      setModalPago(null);
       await fetchAll();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setSaving(false);
+  };
+
+  const anularPago = async (pagoId: string) => {
+    setSaving(true);
+    try {
+      await apiFetch(`/academia/pagos/${pagoId}/anular`, {
+        method: 'PUT', body: JSON.stringify({ motivo_anulacion: anularMotivo }),
+      });
+      notify('Pago anulado y monto revertido');
+      setModalAnular(null);
+      setAnularMotivo('');
+      if (modalHistorial) {
+        await cargarHistorial(modalHistorial.id);
+      }
+      await fetchAll();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setSaving(false);
+  };
+
+  const anularCuota = async (cuotaId: string) => {
+    setSaving(true);
+    try {
+      await apiFetch(`/academia/cuotas/${cuotaId}/anular`, {
+        method: 'PUT', body: JSON.stringify({ motivo_anulacion: anularMotivo }),
+      });
+      notify('Cuota anulada');
+      setModalAnular(null);
+      setAnularMotivo('');
+      await fetchAll();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setSaving(false);
+  };
+
+  const editarCuota = async () => {
+    if (!modalEditar) return;
+    setSaving(true);
+    try {
+      await apiFetch(
+        `/academia/cuotas/${modalEditar.id}/editar?monto_final=${editarForm.monto_final}&descuento=${editarForm.descuento || 0}&notas=${encodeURIComponent(editarForm.notas || '')}`,
+        { method: 'PUT' }
+      );
+      notify('Cuota actualizada');
+      setModalEditar(null);
+      await fetchAll();
+    } catch (e: any) { notify(e.message, 'err'); }
+    setSaving(false);
+  };
+
+  const pagarMatricula = async (matId: string) => {
+    try {
+      await apiFetch(`/academia/matriculas/${matId}/pagar`, {
+        method: 'PUT', body: JSON.stringify({ metodo_pago: 'Efectivo' }),
+      });
+      notify('Matrícula pagada');
+      cargarMatriculas();
     } catch (e: any) { notify(e.message, 'err'); }
   };
 
-  const estadoColor: Record<string, string> = {
-    pendiente: C.yellow, pagada: C.green, vencida: C.red, becada: C.purple, anulada: C.faint,
+  const anularMatricula = async (matId: string) => {
+    if (!confirm('¿Anular esta matrícula?')) return;
+    try {
+      await apiFetch(`/academia/matriculas/${matId}/anular`, {
+        method: 'PUT', body: JSON.stringify({ motivo_anulacion: '' }),
+      });
+      notify('Matrícula anulada');
+      cargarMatriculas();
+    } catch (e: any) { notify(e.message, 'err'); }
   };
 
-  const totalFiltrado = filtered.reduce((s: number, q: any) => s + q.monto_final, 0);
+  const filtMatriculas = matriculas.filter((m: any) =>
+    !filtroMatEstado || m.estado === filtroMatEstado
+  );
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Cuotas y Pagos</h1>
-          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Gestión financiera de la academia</p>
+          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Gestión financiera integral de la academia</p>
         </div>
         {(isDueno || isTesorero) && (
-          <button onClick={generar} disabled={generando} style={btn(C.green)}>
-            <RefreshCw size={14} /> {generando ? 'Generando...' : `Generar cuotas ${periodoActual}`}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={generar} disabled={generando} style={btn(C.green)}>
+              <RefreshCw size={14} /> {generando ? 'Generando...' : `Generar cuotas ${periodoActual}`}
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Filtros */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ ...input({ width: 'auto', minWidth: 160 }) }}>
-          <option value="">Todos los estados</option>
-          {['pendiente', 'pagada', 'vencida', 'becada', 'anulada'].map(e => <option key={e} value={e}>{e}</option>)}
-        </select>
-        <input type="month" value={filtroPeriodo} onChange={e => setFiltroPeriodo(e.target.value)} style={{ ...input({ width: 180 }) }} />
-        <div style={{ marginLeft: 'auto', color: C.muted, fontSize: 13, display: 'flex', alignItems: 'center' }}>
-          Total filtrado: <strong style={{ color: C.text, marginLeft: 4 }}>Gs. {totalFiltrado.toLocaleString('es-PY')}</strong>
-        </div>
+      {/* KPIs resumen */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: 'Total cuotas', value: cuotas.length, color: C.primary },
+          { label: 'Pendiente/Parcial', value: `Gs. ${pendienteGs.toLocaleString('es-PY')}`, color: C.yellow },
+          { label: 'Cobrado este mes', value: `Gs. ${cuotas.filter((q: any) => q.estado === 'pagada' && q.periodo === periodoActual).reduce((s: number, q: any) => s + (q.monto_final || 0), 0).toLocaleString('es-PY')}`, color: C.green },
+          { label: 'Vencidas', value: cuotas.filter((q: any) => q.estado === 'vencida').length, color: C.red },
+        ].map(k => (
+          <div key={k.label} style={{ ...card({ padding: 16 }), borderLeft: `3px solid ${k.color}` }}>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 4 }}>{k.label}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: k.color }}>{k.value}</div>
+          </div>
+        ))}
       </div>
 
-      <div style={card({ padding: 0 })}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-              {['Alumno', 'Período', 'Monto original', 'Descuento', 'Total', 'Estado', 'Vence', 'Acción'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: C.muted, fontWeight: 600, fontSize: 12 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: C.faint }}>
-                No hay cuotas. Generá las del mes con el botón de arriba.
-              </td></tr>
-            )}
-            {filtered.map((q: any) => (
-              <tr key={q.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
-                <td style={{ padding: '10px 16px', fontWeight: 600 }}>{q.alumno}</td>
-                <td style={{ padding: '10px 16px', color: C.muted }}>{q.periodo}</td>
-                <td style={{ padding: '10px 16px', color: C.faint }}>Gs. {q.monto_original.toLocaleString('es-PY')}</td>
-                <td style={{ padding: '10px 16px', color: q.descuento > 0 ? C.green : C.faint }}>
-                  {q.descuento > 0 ? `- Gs. ${q.descuento.toLocaleString('es-PY')}` : '—'}
-                </td>
-                <td style={{ padding: '10px 16px', fontWeight: 700 }}>Gs. {q.monto_final.toLocaleString('es-PY')}</td>
-                <td style={{ padding: '10px 16px' }}><span style={badge(estadoColor[q.estado] || C.faint)}>{q.estado}</span></td>
-                <td style={{ padding: '10px 16px', color: C.muted, fontSize: 12 }}>{q.fecha_vencimiento}</td>
-                <td style={{ padding: '10px 16px' }}>
-                  {(isTesorero || isDueno) && q.estado === 'pendiente' && (
-                    pagandoId === q.id
-                      ? (
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)} style={{ ...input({ padding: '5px 8px', fontSize: 12, width: 110 }) }}>
-                            {['Efectivo', 'Transferencia', 'Tarjeta', 'QR'].map(m => <option key={m} value={m}>{m}</option>)}
-                          </select>
-                          <button onClick={() => pagar(q.id)} style={{ ...btn(C.green), fontSize: 11, padding: '5px 10px' }}><Check size={11} /></button>
-                          <button onClick={() => setPagandoId(null)} style={{ ...btn(C.red, true), fontSize: 11, padding: '5px 10px' }}><X size={11} /></button>
-                        </div>
-                      )
-                      : (
-                        <button onClick={() => setPagandoId(q.id)} style={{ ...btn(C.green, true), fontSize: 11, padding: '5px 10px' }}>
-                          <DollarSign size={11} /> Pagar
-                        </button>
-                      )
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+        {(['cuotas', 'matriculas'] as const).map(t => (
+          <button key={t} onClick={() => { setSubTab(t); if (t === 'matriculas') cargarMatriculas(); }}
+            style={{ ...btn(C.primary, subTab !== t), textTransform: 'capitalize' }}>
+            {t === 'cuotas' ? '📋 Cuotas Mensuales' : '🎓 Matrículas Anuales'}
+          </button>
+        ))}
       </div>
+
+      {/* ═══ SUB-TAB: CUOTAS ═══ */}
+      {subTab === 'cuotas' && (
+        <>
+          {/* Filtros */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.faint }} />
+              <input placeholder="Buscar alumno..." value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                style={{ ...input({ paddingLeft: 30 }) }} />
+            </div>
+            <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ ...input({ width: 'auto', minWidth: 150 }) }}>
+              <option value="">Todos los estados</option>
+              {['pendiente', 'parcial', 'pagada', 'vencida', 'becada', 'anulada'].map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+            <input type="month" value={filtroPeriodo} onChange={e => setFiltroPeriodo(e.target.value)} style={{ ...input({ width: 160 }) }} />
+            <div style={{ color: C.muted, fontSize: 13, whiteSpace: 'nowrap' }}>
+              Filtrado: <strong style={{ color: C.text }}>Gs. {totalFiltrado.toLocaleString('es-PY')}</strong>
+            </div>
+          </div>
+
+          <div style={card({ padding: 0 })}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                  {['Alumno', 'Período', 'Original', 'Descuento', 'Total', 'Pagado', 'Estado', 'Vence', 'Acciones'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '11px 14px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: C.faint }}>
+                    No hay cuotas con los filtros seleccionados. Generá las del mes con el botón de arriba.
+                  </td></tr>
+                )}
+                {filtered.map((q: any) => {
+                  const saldo = (q.monto_final || 0) - (q.monto_pagado || 0);
+                  const canPay = (isDueno || isTesorero) && ['pendiente', 'vencida', 'parcial'].includes(q.estado);
+                  const canEdit = (isDueno || isTesorero) && ['pendiente', 'vencida', 'parcial'].includes(q.estado);
+                  const canCancel = isDueno && q.estado !== 'anulada';
+                  return (
+                    <tr key={q.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{q.alumno}</td>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontFamily: 'monospace' }}>{q.periodo}</td>
+                      <td style={{ padding: '9px 14px', color: C.faint }}>Gs. {(q.monto_original || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '9px 14px', color: q.descuento > 0 ? C.green : C.faint }}>
+                        {q.descuento > 0 ? `- Gs. ${(q.descuento || 0).toLocaleString('es-PY')}` : '—'}
+                      </td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>Gs. {(q.monto_final || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '9px 14px', color: q.monto_pagado > 0 ? C.green : C.faint, fontSize: 12 }}>
+                        {q.monto_pagado > 0 ? `Gs. ${(q.monto_pagado || 0).toLocaleString('es-PY')}` : '—'}
+                        {saldo > 0 && q.estado === 'parcial' && (
+                          <div style={{ color: C.yellow, fontSize: 10 }}>Saldo: Gs. {saldo.toLocaleString('es-PY')}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '9px 14px' }}><span style={badge(estadoColor[q.estado] || C.faint)}>{q.estado}</span></td>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontSize: 11 }}>{q.fecha_vencimiento}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {canPay && (
+                            <button onClick={() => {
+                              setModalPago(q);
+                              setPagoForm({ metodo_pago: 'Efectivo', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', notas: '' });
+                            }} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
+                              <DollarSign size={11} /> Pagar
+                            </button>
+                          )}
+                          <button onClick={async () => {
+                            setModalHistorial(q);
+                            await cargarHistorial(q.id);
+                          }} style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 9px' }} title="Ver historial de pagos">
+                            <Eye size={11} />
+                          </button>
+                          {canEdit && (
+                            <button onClick={() => {
+                              setModalEditar(q);
+                              setEditarForm({ monto_final: q.monto_final, descuento: q.descuento || 0, notas: q.notas || '' });
+                            }} style={{ ...btn(C.yellow, true), fontSize: 11, padding: '4px 9px' }} title="Editar cuota">
+                              <Pencil size={11} />
+                            </button>
+                          )}
+                          {canCancel && (
+                            <button onClick={() => { setModalAnular({ type: 'cuota', id: q.id }); setAnularMotivo(''); }}
+                              style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 9px' }} title="Anular cuota">
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ═══ SUB-TAB: MATRÍCULAS ═══ */}
+      {subTab === 'matriculas' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <select value={filtroMatEstado} onChange={e => setFiltroMatEstado(e.target.value)} style={{ ...input({ width: 180 }) }}>
+              <option value="">Todos los estados</option>
+              {['pendiente', 'pagada', 'anulada', 'becada'].map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+            {(isDueno || isTesorero) && (
+              <button onClick={generarMatriculas} disabled={generandoMat} style={btn(C.green)}>
+                <RefreshCw size={14} /> {generandoMat ? 'Generando...' : `Generar matrículas ${hoy.getFullYear()}`}
+              </button>
+            )}
+          </div>
+          {filtMatriculas.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 50, color: C.faint }}>
+              <GraduationCap size={40} style={{ marginBottom: 12 }} />
+              <p>No hay matrículas generadas. Usá el botón para generar las de este año.</p>
+            </div>
+          ) : (
+            <div style={card({ padding: 0 })}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    {['Alumno', 'Año', 'Monto', 'Estado', 'Vence', 'Acciones'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '11px 14px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtMatriculas.map((m: any) => (
+                    <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{m.alumno}</td>
+                      <td style={{ padding: '9px 14px', color: C.muted }}>{m.anio}</td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>Gs. {(m.monto || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '9px 14px' }}><span style={badge(estadoColor[m.estado] || C.faint)}>{m.estado}</span></td>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontSize: 12 }}>{m.fecha_vencimiento}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {(isDueno || isTesorero) && m.estado === 'pendiente' && (
+                            <button onClick={() => pagarMatricula(m.id)} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
+                              <DollarSign size={11} /> Pagar
+                            </button>
+                          )}
+                          {isDueno && m.estado !== 'anulada' && (
+                            <button onClick={() => anularMatricula(m.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 9px' }}>
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ════ MODAL: Registrar Pago ════ */}
+      {modalPago && (
+        <Modal title={`Registrar Pago — ${modalPago.alumno}`} onClose={() => setModalPago(null)}>
+          <div style={{ background: `${C.primary}11`, border: `1px solid ${C.primary}33`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: C.muted }}>Cuota {modalPago.periodo}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: C.text }}>Gs. {(modalPago.monto_final || 0).toLocaleString('es-PY')}</div>
+            {modalPago.monto_pagado > 0 && (
+              <div style={{ fontSize: 12, color: C.green, marginTop: 4 }}>
+                Ya pagado: Gs. {(modalPago.monto_pagado || 0).toLocaleString('es-PY')} —
+                Saldo: Gs. {((modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)).toLocaleString('es-PY')}
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Monto a pagar (Gs.) <span style={{ color: C.faint, fontWeight: 400 }}>— vacío = pago total</span></label>
+            <input type="number" placeholder={`${(modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)}`}
+              value={pagoForm.monto} onChange={e => setPagoForm((f: any) => ({ ...f, monto: e.target.value }))} style={input()} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Método de pago *</label>
+            <select value={pagoForm.metodo_pago} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago: e.target.value }))} style={input()}>
+              {['Efectivo', 'Transferencia', 'Tarjeta', 'QR', 'Débito', 'Otro'].map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Fecha de pago (opcional — por defecto hoy)</label>
+            <input type="date" value={pagoForm.fecha_pago} onChange={e => setPagoForm((f: any) => ({ ...f, fecha_pago: e.target.value }))} style={input()} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Notas</label>
+            <input value={pagoForm.notas} onChange={e => setPagoForm((f: any) => ({ ...f, notas: e.target.value }))} style={input()} placeholder="Observaciones opcionales" />
+          </div>
+          <ModalActions onCancel={() => setModalPago(null)} onSave={registrarPago} saving={saving}
+            saveLabel={pagoForm.monto && parseFloat(pagoForm.monto) < (modalPago.monto_final - modalPago.monto_pagado) ? '💰 Registrar pago parcial' : '✅ Registrar pago total'} />
+        </Modal>
+      )}
+
+      {/* ════ MODAL: Historial de pagos ════ */}
+      {modalHistorial && (
+        <Modal title={`Historial de pagos — ${modalHistorial.alumno} (${modalHistorial.periodo})`} onClose={() => setModalHistorial(null)}>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 13, color: C.muted }}>
+              Total: <strong style={{ color: C.text }}>Gs. {(modalHistorial.monto_final || 0).toLocaleString('es-PY')}</strong>
+              {' '} · Pagado: <strong style={{ color: C.green }}>Gs. {(modalHistorial.monto_pagado || 0).toLocaleString('es-PY')}</strong>
+            </div>
+            <span style={badge(estadoColor[modalHistorial.estado] || C.faint)}>{modalHistorial.estado}</span>
+          </div>
+          {historialPagos.length === 0 ? (
+            <p style={{ color: C.faint, textAlign: 'center', padding: 24 }}>No hay pagos registrados para esta cuota.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {historialPagos.map((p: any) => (
+                <div key={p.id} style={{
+                  border: `1px solid ${p.anulado ? C.red + '44' : C.border}`,
+                  borderRadius: 8, padding: '10px 14px',
+                  background: p.anulado ? `${C.red}08` : 'transparent',
+                  opacity: p.anulado ? 0.6 : 1,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: 15 }}>Gs. {(p.monto || 0).toLocaleString('es-PY')}</span>
+                      <span style={{ color: C.muted, fontSize: 12, marginLeft: 8 }}>{p.metodo_pago}</span>
+                      <span style={{ color: C.faint, fontSize: 11, marginLeft: 8 }}>{p.fecha_pago}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {p.anulado && <span style={badge(C.red)}>Anulado</span>}
+                      {!p.anulado && isDueno && (
+                        <button onClick={() => { setModalAnular({ type: 'pago', id: p.id }); setAnularMotivo(''); }}
+                          style={{ ...btn(C.red, true), fontSize: 11, padding: '3px 8px' }}>
+                          <Trash2 size={11} /> Anular
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {p.notas && <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>{p.notas}</div>}
+                  {p.anulado && <div style={{ color: C.red, fontSize: 11, marginTop: 4 }}>Motivo: {p.motivo_anulacion || '—'}</div>}
+                  {p.registrado_por && <div style={{ color: C.faint, fontSize: 10, marginTop: 2 }}>Por: {p.registrado_por}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* ════ MODAL: Editar Cuota ════ */}
+      {modalEditar && (
+        <Modal title={`Editar Cuota — ${modalEditar.alumno} (${modalEditar.periodo})`} onClose={() => setModalEditar(null)}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Monto final (Gs.) *</label>
+            <input type="number" value={editarForm.monto_final} onChange={e => setEditarForm((f: any) => ({ ...f, monto_final: e.target.value }))} style={input()} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Descuento (Gs.)</label>
+            <input type="number" value={editarForm.descuento} onChange={e => setEditarForm((f: any) => ({ ...f, descuento: e.target.value }))} style={input()} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Notas</label>
+            <input value={editarForm.notas} onChange={e => setEditarForm((f: any) => ({ ...f, notas: e.target.value }))} style={input()} />
+          </div>
+          <ModalActions onCancel={() => setModalEditar(null)} onSave={editarCuota} saving={saving} saveLabel="Guardar cambios" />
+        </Modal>
+      )}
+
+      {/* ════ MODAL: Anular ════ */}
+      {modalAnular && (
+        <Modal title={`Anular ${modalAnular.type === 'cuota' ? 'Cuota' : 'Pago'}`} onClose={() => setModalAnular(null)}>
+          <div style={{ background: `${C.red}11`, border: `1px solid ${C.red}33`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <AlertCircle size={16} color={C.red} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+            <span style={{ color: C.red, fontSize: 13, fontWeight: 600 }}>
+              Esta acción {modalAnular.type === 'cuota' ? 'anula la cuota completa y revierte todos sus pagos' : 'revierte el monto al saldo pendiente de la cuota'}.
+            </span>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Motivo de anulación</label>
+            <input value={anularMotivo} onChange={e => setAnularMotivo(e.target.value)} style={input()} placeholder="Ej: Error de carga, devolución..." />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => setModalAnular(null)} style={btn(C.faint, true)}>Cancelar</button>
+            <button disabled={saving} style={btn(C.red)} onClick={() => {
+              if (modalAnular.type === 'cuota') anularCuota(modalAnular.id);
+              else anularPago(modalAnular.id);
+            }}>
+              {saving ? 'Anulando...' : '⚠️ Confirmar anulación'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
+
 
 // ═══════════════════════════════════════════════════════════
 // STAFF

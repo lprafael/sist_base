@@ -313,6 +313,20 @@ class InscripcionRequest(BaseModel):
 
 class PagarCuotaRequest(BaseModel):
     metodo_pago: str
+    monto: Optional[float] = None     # Si None → pago total; si float → pago parcial
+    fecha_pago: Optional[str] = None  # YYYY-MM-DD; None = hoy
+    notas: Optional[str] = None
+
+
+class AnularPagoRequest(BaseModel):
+    motivo_anulacion: Optional[str] = None
+
+
+class MatriculaRequest(BaseModel):
+    alumno_id: str
+    monto: Optional[float] = None   # None = usar config.matricula_anual
+    anio: Optional[int] = None      # None = año actual
+    fecha_vencimiento: Optional[str] = None
     notas: Optional[str] = None
 
 
@@ -1878,7 +1892,9 @@ async def listar_cuotas(
         SELECT q.id, a.nombre || ' ' || COALESCE(a.apellido, '') AS alumno,
                a.id AS alumno_id, q.periodo,
                q.monto_original, q.descuento, q.monto_final,
-               q.estado, q.fecha_vencimiento, q.fecha_pago, q.metodo_pago, q.notas
+               q.estado, q.fecha_vencimiento, q.fecha_pago, q.metodo_pago, q.notas,
+               COALESCE(q.monto_pagado, 0) AS monto_pagado,
+               COALESCE(q.tipo_cuota, 'mensual') AS tipo_cuota
         FROM academias.cuotas q
         JOIN academias.alumnos a ON a.id = q.alumno_id
         WHERE {where}
@@ -1893,6 +1909,7 @@ async def listar_cuotas(
             "fecha_vencimiento": r[8].isoformat() if r[8] else None,
             "fecha_pago": r[9].isoformat() if r[9] else None,
             "metodo_pago": r[10], "notas": r[11],
+            "monto_pagado": float(r[12]), "tipo_cuota": r[13],
         }
         for r in res.fetchall()
     ]
@@ -2009,23 +2026,563 @@ async def registrar_pago(
     current_user: dict = Depends(require_roles("dueño", "tesorero")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Registra el pago de una cuota."""
-    from datetime import datetime
-    await session.execute(text("""
-        UPDATE academias.cuotas SET
-            estado        = 'pagada',
-            fecha_pago    = :fecha_pago,
-            metodo_pago   = :metodo_pago,
-            notas         = :notas,
-            registrado_por = :reg_por
-        WHERE id = :cuota_id AND academia_id = :aid AND estado IN ('pendiente','vencida')
-    """), {
-        "cuota_id": cuota_id, "aid": current_user["academia_id"],
-        "fecha_pago": datetime.utcnow(), "metodo_pago": data.metodo_pago,
-        "notas": data.notas, "reg_por": current_user["user_id"],
-    })
-    await session.commit()
-    return {"message": "Pago registrado exitosamente."}
+    """
+    Registra pago de una cuota. Soporta pago total y pago parcial.
+    - Si 'monto' no se especifica → pago total del saldo pendiente.
+    - Si 'monto' < monto_final restante → pago parcial, estado queda 'parcial'.
+    - Si pago parcial cubre o supera el total → estado pasa a 'pagada'.
+    """
+    try:
+        aid = str(current_user["academia_id"])
+        fecha_pago = _clean_date(data.fecha_pago) or date.today()
+        metodo = _clean_str(data.metodo_pago) or "efectivo"
+
+        # Leer cuota actual
+        res = await session.execute(text("""
+            SELECT id, monto_final, monto_pagado, estado
+            FROM academias.cuotas
+            WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"cid": cuota_id, "aid": aid})
+        cuota = res.fetchone()
+        if not cuota:
+            raise HTTPException(status_code=404, detail="Cuota no encontrada.")
+
+        _, monto_final, monto_ya_pagado, estado_actual = cuota
+        monto_final = float(monto_final)
+        monto_ya_pagado = float(monto_ya_pagado)
+
+        if estado_actual in ("pagada", "anulada", "becada"):
+            raise HTTPException(status_code=400, detail=f"La cuota ya está en estado '{estado_actual}', no se puede pagar.")
+
+        saldo_pendiente = max(monto_final - monto_ya_pagado, 0)
+        monto_a_pagar = float(data.monto) if data.monto is not None else saldo_pendiente
+
+        if monto_a_pagar <= 0:
+            raise HTTPException(status_code=400, detail="El monto a pagar debe ser mayor a 0.")
+        if monto_a_pagar > saldo_pendiente + 0.01:
+            raise HTTPException(status_code=400, detail=f"El monto ({monto_a_pagar}) supera el saldo pendiente ({saldo_pendiente:.0f}).")
+
+        monto_pagado_nuevo = monto_ya_pagado + monto_a_pagar
+        estado_nuevo = "pagada" if monto_pagado_nuevo >= monto_final - 0.01 else "parcial"
+
+        # Registrar pago individual en tabla pagos
+        pago_id = str(uuid.uuid4())
+        await session.execute(text("""
+            INSERT INTO academias.pagos
+                (id, cuota_id, alumno_id, academia_id, monto, metodo_pago, fecha_pago, notas, registrado_por)
+            SELECT CAST(:pago_id AS UUID), CAST(:cid AS UUID), alumno_id,
+                   CAST(:aid AS UUID), :monto, :metodo, CAST(:fecha AS DATE), :notas, :reg_por
+            FROM academias.cuotas WHERE id = CAST(:cid AS UUID)
+        """), {
+            "pago_id": pago_id, "cid": cuota_id, "aid": aid,
+            "monto": monto_a_pagar, "metodo": metodo,
+            "fecha": fecha_pago, "notas": _clean_str(data.notas),
+            "reg_por": current_user["user_id"],
+        })
+
+        # Actualizar estado de la cuota
+        await session.execute(text("""
+            UPDATE academias.cuotas SET
+                estado         = :estado,
+                monto_pagado   = :monto_pagado,
+                metodo_pago    = :metodo,
+                fecha_pago     = CASE WHEN :estado = 'pagada' THEN NOW() ELSE fecha_pago END,
+                registrado_por = :reg_por
+            WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {
+            "cid": cuota_id, "aid": aid, "estado": estado_nuevo,
+            "monto_pagado": monto_pagado_nuevo,
+            "metodo": metodo, "reg_por": current_user["user_id"],
+        })
+
+        await session.commit()
+        return {
+            "message": f"Pago de Gs. {monto_a_pagar:,.0f} registrado. Estado: {estado_nuevo}.",
+            "pago_id": pago_id,
+            "monto_pagado": monto_pagado_nuevo,
+            "saldo_pendiente": max(monto_final - monto_pagado_nuevo, 0),
+            "estado": estado_nuevo,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR registrar_pago]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al registrar pago: {str(e)}")
+
+
+@router.get("/academia/cuotas/{cuota_id}/pagos")
+async def listar_pagos_cuota(
+    cuota_id: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Lista el historial de pagos de una cuota específica."""
+    res = await session.execute(text("""
+        SELECT p.id, p.monto, p.metodo_pago, p.fecha_pago, p.notas,
+               p.anulado, p.anulado_en, p.motivo_anulacion,
+               u.nombre || ' ' || COALESCE(u.apellido,'') AS registrado_por,
+               p.creado_en
+        FROM academias.pagos p
+        LEFT JOIN sistema.usuarios u ON u.id = p.registrado_por
+        WHERE p.cuota_id = CAST(:cid AS UUID) AND p.academia_id = CAST(:aid AS UUID)
+        ORDER BY p.fecha_pago, p.creado_en
+    """), {"cid": cuota_id, "aid": str(current_user["academia_id"])})
+    return [
+        {
+            "id": str(r[0]), "monto": float(r[1]), "metodo_pago": r[2],
+            "fecha_pago": r[3].isoformat() if r[3] else None,
+            "notas": r[4], "anulado": r[5],
+            "anulado_en": r[6].isoformat() if r[6] else None,
+            "motivo_anulacion": r[7],
+            "registrado_por": r[8].strip() if r[8] else None,
+            "creado_en": r[9].isoformat() if r[9] else None,
+        }
+        for r in res.fetchall()
+    ]
+
+
+@router.put("/academia/pagos/{pago_id}/anular")
+async def anular_pago(
+    pago_id: str,
+    data: AnularPagoRequest,
+    current_user: dict = Depends(require_roles("dueño", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Anula un pago individual. Revierte el monto_pagado en la cuota
+    y recalcula el estado (pendiente / parcial).
+    """
+    try:
+        aid = str(current_user["academia_id"])
+
+        # Leer pago
+        res_p = await session.execute(text("""
+            SELECT id, cuota_id, monto, anulado
+            FROM academias.pagos
+            WHERE id = CAST(:pid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"pid": pago_id, "aid": aid})
+        pago = res_p.fetchone()
+        if not pago:
+            raise HTTPException(status_code=404, detail="Pago no encontrado.")
+        if pago[3]:
+            raise HTTPException(status_code=400, detail="Este pago ya fue anulado.")
+
+        cuota_id = str(pago[1])
+        monto_devuelto = float(pago[2])
+
+        # Anular el pago
+        await session.execute(text("""
+            UPDATE academias.pagos SET
+                anulado = TRUE, anulado_en = NOW(),
+                anulado_por = :por, motivo_anulacion = :motivo
+            WHERE id = CAST(:pid AS UUID)
+        """), {"pid": pago_id, "por": current_user["user_id"], "motivo": _clean_str(data.motivo_anulacion)})
+
+        # Recalcular monto_pagado de la cuota (sumando solo pagos no anulados)
+        res_c = await session.execute(text("""
+            SELECT monto_final, COALESCE(SUM(p.monto), 0) AS pagado_valido
+            FROM academias.cuotas q
+            LEFT JOIN academias.pagos p ON p.cuota_id = q.id AND p.anulado = FALSE
+            WHERE q.id = CAST(:cid AS UUID)
+            GROUP BY q.monto_final
+        """), {"cid": cuota_id})
+        row_c = res_c.fetchone()
+        if row_c:
+            monto_final = float(row_c[0])
+            pagado_valido = float(row_c[1])
+            if pagado_valido <= 0:
+                nuevo_estado = "pendiente"
+            elif pagado_valido >= monto_final - 0.01:
+                nuevo_estado = "pagada"
+            else:
+                nuevo_estado = "parcial"
+
+            await session.execute(text("""
+                UPDATE academias.cuotas SET
+                    monto_pagado = :pagado, estado = :estado
+                WHERE id = CAST(:cid AS UUID)
+            """), {"cid": cuota_id, "pagado": pagado_valido, "estado": nuevo_estado})
+
+        await session.commit()
+        return {
+            "message": f"Pago de Gs. {monto_devuelto:,.0f} anulado. Saldo revertido a la cuota.",
+            "monto_devuelto": monto_devuelto,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR anular_pago]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al anular pago: {str(e)}")
+
+
+@router.put("/academia/cuotas/{cuota_id}/anular")
+async def anular_cuota(
+    cuota_id: str,
+    data: AnularPagoRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Anula completamente una cuota (sin importar su estado actual)."""
+    try:
+        aid = str(current_user["academia_id"])
+        # Anular todos los pagos activos de la cuota
+        await session.execute(text("""
+            UPDATE academias.pagos SET
+                anulado = TRUE, anulado_en = NOW(),
+                anulado_por = :por, motivo_anulacion = :motivo
+            WHERE cuota_id = CAST(:cid AS UUID) AND anulado = FALSE
+        """), {"cid": cuota_id, "por": current_user["user_id"], "motivo": _clean_str(data.motivo_anulacion)})
+
+        await session.execute(text("""
+            UPDATE academias.cuotas SET
+                estado = 'anulada', monto_pagado = 0
+            WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"cid": cuota_id, "aid": aid})
+
+        await session.commit()
+        return {"message": "Cuota anulada. Todos los pagos asociados fueron revertidos."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR anular_cuota]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al anular cuota: {str(e)}")
+
+
+@router.put("/academia/cuotas/{cuota_id}/editar")
+async def editar_cuota(
+    cuota_id: str,
+    monto_final: float,
+    descuento: Optional[float] = 0,
+    notas: Optional[str] = None,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Edita el monto y descuento de una cuota pendiente o parcial."""
+    try:
+        aid = str(current_user["academia_id"])
+        await session.execute(text("""
+            UPDATE academias.cuotas SET
+                monto_final = :monto_final,
+                descuento   = :descuento,
+                notas       = COALESCE(:notas, notas)
+            WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
+              AND estado IN ('pendiente', 'vencida', 'parcial')
+        """), {
+            "cid": cuota_id, "aid": aid,
+            "monto_final": float(monto_final),
+            "descuento": float(descuento or 0),
+            "notas": _clean_str(notas),
+        })
+        await session.commit()
+        return {"message": "Cuota actualizada correctamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR editar_cuota]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al editar cuota: {str(e)}")
+
+
+# ----------------------------------------------------------------
+# MATRÍCULAS ANUALES
+# ----------------------------------------------------------------
+
+@router.post("/academia/matriculas/generar")
+async def generar_matriculas(
+    current_user: dict = Depends(require_roles("dueño", "tesorero")),
+    session: AsyncSession = Depends(get_session),
+    anio: Optional[int] = None,
+):
+    """
+    Genera la matrícula anual para todos los alumnos activos
+    usando el monto configurado en config_cuotas.
+    Respeta alumnos con beca (genera en estado 'becada' con monto 0).
+    Si el alumno ya tiene matrícula para ese año → la omite.
+    """
+    try:
+        aid = str(current_user["academia_id"])
+        anio_target = anio or date.today().year
+
+        # Leer config
+        cfg_res = await session.execute(text("""
+            SELECT matricula_anual FROM academias.config_cuotas
+            WHERE academia_id = CAST(:aid AS UUID)
+        """), {"aid": aid})
+        cfg = cfg_res.fetchone()
+        monto_config = float(cfg[0]) if cfg and cfg[0] else 0
+
+        if monto_config <= 0:
+            raise HTTPException(status_code=400, detail="La matrícula anual configurada es 0. Configurala en Ajustes → Config Cuotas.")
+
+        # Obtener alumnos activos sin matrícula en este año
+        alumnos_res = await session.execute(text("""
+            SELECT a.id, a.academia_id,
+                   EXISTS(SELECT 1 FROM academias.inscripciones i WHERE i.alumno_id = a.id AND i.beca = TRUE AND i.estado = 'activa') AS tiene_beca
+            FROM academias.alumnos a
+            WHERE a.academia_id = CAST(:aid AS UUID) AND a.estado = 'activo'
+              AND NOT EXISTS (
+                  SELECT 1 FROM academias.matriculas m
+                  WHERE m.alumno_id = a.id AND m.anio = :anio AND m.estado != 'anulada'
+              )
+        """), {"aid": aid, "anio": anio_target})
+        alumnos = alumnos_res.fetchall()
+
+        generadas = 0
+        for a in alumnos:
+            alumno_id, _, tiene_beca = a
+            mat_id = str(uuid.uuid4())
+            monto = 0 if tiene_beca else monto_config
+            estado = "becada" if tiene_beca else "pendiente"
+            fecha_vcto = date(anio_target, 1, 31)
+
+            await session.execute(text("""
+                INSERT INTO academias.matriculas
+                    (id, alumno_id, academia_id, anio, monto, estado, fecha_vencimiento, registrado_por)
+                VALUES
+                    (CAST(:id AS UUID), CAST(:alumno_id AS UUID), CAST(:aid AS UUID),
+                     :anio, :monto, :estado, CAST(:fecha AS DATE), :reg_por)
+                ON CONFLICT (alumno_id, anio) DO NOTHING
+            """), {
+                "id": mat_id, "alumno_id": str(alumno_id), "aid": aid,
+                "anio": anio_target, "monto": monto, "estado": estado,
+                "fecha": fecha_vcto, "reg_por": current_user["user_id"],
+            })
+            generadas += 1
+
+        await session.commit()
+        return {
+            "message": f"Matrículas {anio_target} generadas.",
+            "generadas": generadas,
+            "monto_por_alumno": monto_config,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR generar_matriculas]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al generar matrículas: {str(e)}")
+
+
+@router.get("/academia/matriculas")
+async def listar_matriculas(
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session),
+    anio: Optional[int] = None,
+    estado: Optional[str] = None,
+):
+    """Lista matrículas anuales de la academia."""
+    aid = str(current_user["academia_id"])
+    conditions = ["m.academia_id = CAST(:aid AS UUID)"]
+    params: dict = {"aid": aid}
+    if anio:
+        conditions.append("m.anio = :anio")
+        params["anio"] = anio
+    if estado:
+        conditions.append("m.estado = :estado")
+        params["estado"] = estado
+    where = " AND ".join(conditions)
+
+    res = await session.execute(text(f"""
+        SELECT m.id, m.anio, m.monto, m.estado, m.fecha_vencimiento, m.notas,
+               a.nombre || ' ' || COALESCE(a.apellido,'') AS alumno, a.id AS alumno_id
+        FROM academias.matriculas m
+        JOIN academias.alumnos a ON a.id = m.alumno_id
+        WHERE {where}
+        ORDER BY m.anio DESC, a.apellido, a.nombre
+    """), params)
+    return [
+        {
+            "id": str(r[0]), "anio": r[1], "monto": float(r[2]), "estado": r[3],
+            "fecha_vencimiento": r[4].isoformat() if r[4] else None,
+            "notas": r[5], "alumno": r[6].strip(), "alumno_id": str(r[7]),
+        }
+        for r in res.fetchall()
+    ]
+
+
+@router.put("/academia/matriculas/{matricula_id}/pagar")
+async def pagar_matricula(
+    matricula_id: str,
+    data: PagarCuotaRequest,
+    current_user: dict = Depends(require_roles("dueño", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Registra el pago de una matrícula anual."""
+    try:
+        aid = str(current_user["academia_id"])
+        fecha_pago = _clean_date(data.fecha_pago) or date.today()
+
+        res = await session.execute(text("""
+            SELECT estado FROM academias.matriculas
+            WHERE id = CAST(:mid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"mid": matricula_id, "aid": aid})
+        mat = res.fetchone()
+        if not mat:
+            raise HTTPException(status_code=404, detail="Matrícula no encontrada.")
+        if mat[0] in ("pagada", "anulada", "becada"):
+            raise HTTPException(status_code=400, detail=f"Matrícula ya está '{mat[0]}'.")
+
+        await session.execute(text("""
+            UPDATE academias.matriculas SET
+                estado = 'pagada', notas = COALESCE(:notas, notas)
+            WHERE id = CAST(:mid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"mid": matricula_id, "aid": aid, "notas": _clean_str(data.notas)})
+
+        await session.commit()
+        return {"message": "Matrícula pagada exitosamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR pagar_matricula]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al pagar matrícula: {str(e)}")
+
+
+@router.put("/academia/matriculas/{matricula_id}/anular")
+async def anular_matricula(
+    matricula_id: str,
+    data: AnularPagoRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Anula una matrícula anual."""
+    try:
+        aid = str(current_user["academia_id"])
+        await session.execute(text("""
+            UPDATE academias.matriculas SET estado = 'anulada',
+                notas = COALESCE(:motivo, notas)
+            WHERE id = CAST(:mid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"mid": matricula_id, "aid": aid, "motivo": _clean_str(data.motivo_anulacion)})
+        await session.commit()
+        return {"message": "Matrícula anulada."}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al anular matrícula: {str(e)}")
+
+
+# ----------------------------------------------------------------
+# PAGO ANUAL (12 cuotas con descuento)
+# ----------------------------------------------------------------
+
+@router.post("/academia/cuotas/pago-anual/{alumno_id}")
+async def registrar_pago_anual(
+    alumno_id: str,
+    metodo_pago: str,
+    periodo_inicio: Optional[str] = None,
+    notas: Optional[str] = None,
+    current_user: dict = Depends(require_roles("dueño", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Registra un pago anual (12 meses) con descuento configurado.
+    Genera las 12 cuotas mensuales del año con estado 'pagada' y descuento aplicado.
+    """
+    try:
+        import calendar as cal
+        aid = str(current_user["academia_id"])
+        hoy = date.today()
+        inicio_str = periodo_inicio or hoy.strftime("%Y-%m")
+        year, month_ini = int(inicio_str.split("-")[0]), int(inicio_str.split("-")[1])
+
+        # Leer config
+        cfg_res = await session.execute(text("""
+            SELECT descuento_pago_anual, permite_pago_anual, dia_vencimiento
+            FROM academias.config_cuotas WHERE academia_id = CAST(:aid AS UUID)
+        """), {"aid": aid})
+        cfg = cfg_res.fetchone()
+        if not cfg or not cfg[1]:
+            raise HTTPException(status_code=400, detail="El pago anual no está habilitado. Activalo en Configuración.")
+        desc_pct = float(cfg[0])
+        dia_vcto = int(cfg[2]) if cfg[2] else 10
+
+        # Inscripciones activas del alumno
+        insc_res = await session.execute(text("""
+            SELECT i.id, i.cuota_mensual, i.categoria_id, i.beca, i.descuento_aplicado
+            FROM academias.inscripciones i
+            WHERE i.alumno_id = CAST(:alumno_id AS UUID) AND i.estado = 'activa'
+        """), {"alumno_id": alumno_id})
+        inscripciones = insc_res.fetchall()
+
+        if not inscripciones:
+            raise HTTPException(status_code=400, detail="El alumno no tiene inscripciones activas.")
+
+        generadas = 0
+        total_pagado = 0.0
+        for ins in inscripciones:
+            insc_id, cuota_base, _, beca, desc_ya = ins
+            cuota_base = float(cuota_base)
+
+            for i in range(12):
+                m = ((month_ini - 1 + i) % 12) + 1
+                y = year + ((month_ini - 1 + i) // 12)
+                periodo = f"{y:04d}-{m:02d}"
+                last_day = cal.monthrange(y, m)[1]
+                dia = min(dia_vcto, last_day)
+                fecha_vcto = date(y, m, dia)
+
+                if beca:
+                    monto_final = 0
+                    descuento_gs = cuota_base
+                    estado_cuota = "becada"
+                else:
+                    # Aplicar descuento anual sobre el mayor entre desc individual y desc hermanos
+                    pct_total = max(float(desc_ya), 0) + desc_pct
+                    pct_total = min(pct_total, 100)
+                    descuento_gs = round(cuota_base * pct_total / 100)
+                    monto_final = cuota_base - descuento_gs
+                    estado_cuota = "pagada"
+
+                cuota_id = str(uuid.uuid4())
+                await session.execute(text("""
+                    INSERT INTO academias.cuotas
+                        (id, inscripcion_id, alumno_id, academia_id, periodo,
+                         monto_original, descuento, monto_final, monto_pagado,
+                         estado, fecha_vencimiento, metodo_pago, registrado_por, notas, tipo_cuota)
+                    VALUES
+                        (CAST(:id AS UUID), CAST(:iid AS UUID), CAST(:alid AS UUID), CAST(:aid AS UUID), :periodo,
+                         :monto_original, :descuento, :monto_final, :monto_final,
+                         :estado, CAST(:fecha_vcto AS DATE), :metodo, :reg_por, :notas, 'mensual')
+                    ON CONFLICT (inscripcion_id, periodo) DO UPDATE SET
+                        estado       = EXCLUDED.estado,
+                        descuento    = EXCLUDED.descuento,
+                        monto_final  = EXCLUDED.monto_final,
+                        monto_pagado = EXCLUDED.monto_pagado,
+                        metodo_pago  = EXCLUDED.metodo_pago
+                """), {
+                    "id": cuota_id, "iid": str(insc_id), "alid": alumno_id, "aid": aid,
+                    "periodo": periodo, "monto_original": cuota_base,
+                    "descuento": descuento_gs, "monto_final": monto_final,
+                    "estado": estado_cuota, "fecha_vcto": fecha_vcto,
+                    "metodo": _clean_str(metodo_pago),
+                    "reg_por": current_user["user_id"],
+                    "notas": _clean_str(notas),
+                })
+                generadas += 1
+                total_pagado += monto_final
+
+        await session.commit()
+        return {
+            "message": f"Pago anual registrado: {generadas} cuotas con {desc_pct:.0f}% de descuento.",
+            "cuotas_generadas": generadas,
+            "total_pagado": total_pagado,
+            "descuento_aplicado_pct": desc_pct,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR registrar_pago_anual]: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Error al registrar pago anual: {str(e)}")
 
 
 # ================================================================
