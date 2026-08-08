@@ -1748,23 +1748,104 @@ async def inscribir_alumno(
     session: AsyncSession = Depends(get_session)
 ):
     """Inscribe un alumno en una categoría."""
-    res = await session.execute(text("""
-        INSERT INTO academias.inscripciones
-            (alumno_id, categoria_id, fecha_inicio, dias_por_semana,
-             cuota_mensual, descuento_aplicado, beca, notas)
-        VALUES
-            (:alumno_id, :categoria_id, :fecha_inicio, :dias_por_semana,
-             :cuota_mensual, :descuento_aplicado, :beca, :notas)
-        RETURNING id
-    """), {
-        "alumno_id": data.alumno_id, "categoria_id": data.categoria_id,
-        "fecha_inicio": data.fecha_inicio, "dias_por_semana": data.dias_por_semana,
-        "cuota_mensual": data.cuota_mensual, "descuento_aplicado": data.descuento_aplicado,
-        "beca": data.beca, "notas": data.notas,
-    })
-    new_id = res.fetchone()[0]
-    await session.commit()
-    return {"message": "Alumno inscrito exitosamente.", "id": str(new_id)}
+    try:
+        new_id = str(uuid.uuid4())
+        fecha_ini = _clean_date(data.fecha_inicio) or date.today()
+        
+        await session.execute(text("""
+            INSERT INTO academias.inscripciones
+                (id, alumno_id, categoria_id, fecha_inicio, dias_por_semana,
+                 cuota_mensual, descuento_aplicado, beca, notas)
+            VALUES
+                (CAST(:id AS UUID), CAST(:alumno_id AS UUID), CAST(:categoria_id AS UUID), CAST(:fecha_inicio AS DATE), :dias_por_semana,
+                 :cuota_mensual, :descuento_aplicado, :beca, :notas)
+        """), {
+            "id": new_id,
+            "alumno_id": str(data.alumno_id).strip(),
+            "categoria_id": str(data.categoria_id).strip(),
+            "fecha_inicio": fecha_ini,
+            "dias_por_semana": data.dias_por_semana or 3,
+            "cuota_mensual": float(data.cuota_mensual) if data.cuota_mensual is not None else 0.0,
+            "descuento_aplicado": float(data.descuento_aplicado) if data.descuento_aplicado is not None else 0.0,
+            "beca": data.beca if data.beca is not None else False,
+            "notas": _clean_str(data.notas),
+        })
+        await session.commit()
+        return {"message": "Alumno inscrito exitosamente.", "id": new_id}
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR inscribir_alumno]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al inscribir alumno: {str(e)}"
+        )
+
+
+@router.put("/academia/inscripciones/{inscripcion_id}")
+async def actualizar_inscripcion(
+    inscripcion_id: str,
+    data: InscripcionRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Actualiza una inscripción."""
+    try:
+        fecha_ini = _clean_date(data.fecha_inicio)
+        await session.execute(text("""
+            UPDATE academias.inscripciones SET
+                categoria_id       = CAST(:categoria_id AS UUID),
+                fecha_inicio       = CAST(:fecha_inicio AS DATE),
+                dias_por_semana    = :dias_por_semana,
+                cuota_mensual      = :cuota_mensual,
+                descuento_aplicado = :descuento_aplicado,
+                beca               = :beca,
+                notas              = :notas
+            WHERE id = CAST(:inscripcion_id AS UUID)
+        """), {
+            "inscripcion_id": inscripcion_id,
+            "categoria_id": str(data.categoria_id).strip(),
+            "fecha_inicio": fecha_ini,
+            "dias_por_semana": data.dias_por_semana or 3,
+            "cuota_mensual": float(data.cuota_mensual) if data.cuota_mensual is not None else 0.0,
+            "descuento_aplicado": float(data.descuento_aplicado) if data.descuento_aplicado is not None else 0.0,
+            "beca": data.beca if data.beca is not None else False,
+            "notas": _clean_str(data.notas),
+        })
+        await session.commit()
+        return {"message": "Inscripción actualizada."}
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR actualizar_inscripcion]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al actualizar inscripción: {str(e)}"
+        )
+
+
+@router.delete("/academia/inscripciones/{inscripcion_id}")
+async def cancelar_inscripcion(
+    inscripcion_id: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Cancela o elimina una inscripción."""
+    try:
+        await session.execute(text("""
+            UPDATE academias.inscripciones SET estado = 'cancelada'
+            WHERE id = CAST(:inscripcion_id AS UUID)
+        """), {"inscripcion_id": inscripcion_id})
+        await session.commit()
+        return {"message": "Inscripción cancelada."}
+    except Exception as e:
+        await session.rollback()
+        print(f"[ERROR cancelar_inscripcion]: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al cancelar inscripción: {str(e)}"
+        )
 
 
 # ================================================================
