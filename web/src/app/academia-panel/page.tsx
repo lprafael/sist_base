@@ -1305,6 +1305,16 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
     setWaSendingMasivo(false);
   };
 
+  const cargarHistorial = async (cuotaId: string) => {
+    setHistorialPagos([]);
+    try {
+      const data = await apiFetch(`/academia/cuotas/${cuotaId}/pagos`);
+      setHistorialPagos(data || []);
+    } catch (e: any) {
+      notify(e.message || 'Error al cargar historial de pagos', 'err');
+    }
+  };
+
   return (
     <div>
       {/* Header */}
