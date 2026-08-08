@@ -104,8 +104,10 @@ services:
       - SERVER_URL=http://evolution-api:8080
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=micancha_whatsapp_secret_2026
-      - DATABASE_ENABLED=false
-      - DATABASE_PROVIDER=local
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:admin@db:5432/BBDD_micancha?schema=evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_v2
       - DEL_INSTANCE=false
     volumes:
       - evolution_instances:/evolution/instances
