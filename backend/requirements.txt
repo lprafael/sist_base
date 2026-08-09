@@ -53,3 +53,7 @@ google-genai==1.17.0
 # ========== GENERACION PDF Y QR ==========
 reportlab==4.1.0
 qrcode[pil]==7.4.2
+
+# ========== FACTURACIÓN ELECTRÓNICA SIFEN ==========
+lxml>=5.2          # Generación y validación XML rDE + firma XMLDSig
+cryptography>=42.0 # Firma PKCS#12 (ya incluida vía python-jose, se especifica versión mín.)

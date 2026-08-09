@@ -236,6 +236,9 @@ app.include_router(perfil_organizador_router)
 from routers.academias import router as academias_router
 app.include_router(academias_router)
 
+from routers.facturacion_academias import router as facturacion_acad_router
+app.include_router(facturacion_acad_router)
+
 from routers.complejo import router as complejo_router
 app.include_router(complejo_router)
 

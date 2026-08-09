@@ -2096,12 +2096,48 @@ async def registrar_pago(
         })
 
         await session.commit()
+
+        # ── Facturación electrónica automática ──────────────────────────────
+        factura_result = None
+        if estado_nuevo == "pagada":
+            try:
+                from services.facturacion_service import intentar_emision_automatica
+                # Obtener datos para el concepto de la factura
+                info_res = await session.execute(text("""
+                    SELECT a.nombre || ' ' || COALESCE(a.apellido,'') AS alumno,
+                           cat.nombre AS categoria, c.anio, c.mes, i.alumno_id
+                    FROM academias.cuotas c
+                    JOIN academias.inscripciones i ON i.id = c.inscripcion_id
+                    JOIN academias.alumnos a ON a.id = i.alumno_id
+                    LEFT JOIN academias.categorias cat ON cat.id = i.categoria_id
+                    WHERE c.id = CAST(:cid AS UUID)
+                """), {"cid": cuota_id})
+                info = info_res.fetchone()
+                meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                         "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+                mes_nombre = meses[int(info[3])-1] if info and info[3] and 1<=int(info[3])<=12 else str(info[3] if info else "")
+                concepto = f"Cuota {mes_nombre} {info[2] if info else ''} - {info[0].strip() if info else ''} - {info[1] if info else 'Sin categoría'}"
+                alumno_id_str = str(info[4]) if info else None
+                factura_result = await intentar_emision_automatica(
+                    academia_id=aid,
+                    cuota_id=cuota_id,
+                    monto_gs=int(monto_final),
+                    concepto=concepto,
+                    alumno_id=alumno_id_str,
+                    session=session,
+                    creado_por=current_user["user_id"],
+                )
+            except Exception as fe:
+                print(f"[AVISO facturación automática cuota {cuota_id}]: {fe}")
+        # ────────────────────────────────────────────────────────────────────
+
         return {
             "message": f"Pago de Gs. {monto_a_pagar:,.0f} registrado. Estado: {estado_nuevo}.",
             "pago_id": pago_id,
             "monto_pagado": monto_pagado_nuevo,
             "saldo_pendiente": max(monto_final - monto_pagado_nuevo, 0),
             "estado": estado_nuevo,
+            "factura": factura_result,
         }
     except HTTPException:
         raise
@@ -2430,6 +2466,12 @@ async def pagar_matricula(
         if mat[0] in ("pagada", "anulada", "becada"):
             raise HTTPException(status_code=400, detail=f"Matrícula ya está '{mat[0]}'.")
 
+        res_mat = await session.execute(text("""
+            SELECT monto, alumno_id FROM academias.matriculas
+            WHERE id = CAST(:mid AS UUID) AND academia_id = CAST(:aid AS UUID)
+        """), {"mid": matricula_id, "aid": aid})
+        mat_data = res_mat.fetchone()
+
         await session.execute(text("""
             UPDATE academias.matriculas SET
                 estado = 'pagada', notas = COALESCE(:notas, notas)
@@ -2437,7 +2479,36 @@ async def pagar_matricula(
         """), {"mid": matricula_id, "aid": aid, "notas": _clean_str(data.notas)})
 
         await session.commit()
-        return {"message": "Matrícula pagada exitosamente."}
+
+        # ── Facturación electrónica automática ──────────────────────────────
+        factura_result = None
+        try:
+            from services.facturacion_service import intentar_emision_automatica
+            monto_mat = int(mat_data[0]) if mat_data else 0
+            alumno_id_str = str(mat_data[1]) if mat_data else None
+            if monto_mat > 0:
+                info_res = await session.execute(text("""
+                    SELECT a.nombre || ' ' || COALESCE(a.apellido,'') AS alumno, m.anio
+                    FROM academias.matriculas m
+                    JOIN academias.alumnos a ON a.id = m.alumno_id
+                    WHERE m.id = CAST(:mid AS UUID)
+                """), {"mid": matricula_id})
+                info = info_res.fetchone()
+                concepto = f"Matrícula {info[1] if info else ''} - {info[0].strip() if info else ''}"
+                factura_result = await intentar_emision_automatica(
+                    academia_id=aid,
+                    matricula_id=matricula_id,
+                    monto_gs=monto_mat,
+                    concepto=concepto,
+                    alumno_id=alumno_id_str,
+                    session=session,
+                    creado_por=current_user["user_id"],
+                )
+        except Exception as fe:
+            print(f"[AVISO facturación automática matrícula {matricula_id}]: {fe}")
+        # ────────────────────────────────────────────────────────────────────
+
+        return {"message": "Matrícula pagada exitosamente.", "factura": factura_result}
     except HTTPException:
         raise
     except Exception as e:
