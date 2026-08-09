@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Plus, Pencil, Trash2, Check, X, Upload,
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
-  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon
+  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
