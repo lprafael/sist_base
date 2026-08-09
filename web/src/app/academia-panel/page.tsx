@@ -3959,6 +3959,23 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
     window.print();
   };
 
+  const imprimirReporte = (tipo: string) => {
+    if (tipo === 'alumnos') {
+      setSubTab('alumnos');
+      setTimeout(() => window.print(), 250);
+    } else if (tipo === 'deudores') {
+      setSubTab('deudores');
+      setTimeout(() => window.print(), 250);
+    } else if (tipo === 'carnets') {
+      setSubTab('carnets');
+    } else if (tipo === 'asistencias') {
+      setSubTab('alumnos');
+      setTimeout(() => window.print(), 250);
+    } else {
+      window.print();
+    }
+  };
+
   const reclamarWhatsApp = (d: any) => {
     if (!d.tutor_telefono) {
       return notify('El alumno/tutor no tiene número de teléfono registrado.', 'err');
@@ -3986,6 +4003,48 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
           <button onClick={imprimir} style={btn(C.surface, true)}>
             <Printer size={16} /> Imprimir / PDF
           </button>
+        </div>
+      </div>
+
+      {/* ── TARJETA: MÓDULO DE IMPRESIÓN DE REPORTES ── */}
+      <div style={{ ...card(), marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Printer size={18} color={C.primary} /> Impresión de Reportes Oficiales
+            </h3>
+            <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0' }}>
+              Generación de planillas impresas, reportes contables y credenciales descargables en PDF.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          {[
+            { id: 'alumnos', label: 'Planilla Consolidada de Alumnos', desc: 'Listado por sede, categoría y contactos de emergencia', icon: ClipboardList, color: C.primary },
+            { id: 'deudores', label: 'Informe de Cartera Morosa', desc: 'Detalle de cuotas vencidas y saldos pendientes por cobro', icon: AlertCircle, color: C.red },
+            { id: 'carnets', label: 'Carnets y Credenciales Oficiales', desc: 'Emisión e impresión masiva de carnets con QR de alumnos', icon: QrCode, color: C.purple },
+            { id: 'asistencias', label: 'Planilla de Control de Asistencias', desc: 'Formulario impreso para control diario en prácticas', icon: Calendar, color: C.green },
+            { id: 'facturacion', label: 'Resumen de Cobros y SIFEN', desc: 'Estado contable de cobros y facturas electrónicas', icon: DollarSign, color: C.yellow },
+          ].map(rep => (
+            <div key={rep.id} style={{
+              background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ padding: 8, borderRadius: 8, background: `${rep.color}15`, color: rep.color, display: 'flex' }}>
+                  <rep.icon size={18} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{rep.label}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{rep.desc}</div>
+                </div>
+              </div>
+              <button onClick={() => imprimirReporte(rep.id)} style={{ ...btn(rep.color, true), padding: '6px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                <Printer size={13} /> Imprimir
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
