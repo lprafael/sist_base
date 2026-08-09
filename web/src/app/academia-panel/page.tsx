@@ -1425,6 +1425,132 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
     setGenerandoMat(false);
   };
 
+  const filtMatriculas = matriculas.filter((m: any) => !filtroMatEstado || m.estado === filtroMatEstado);
+
+  const cargarMatriculas = async () => {
+    try {
+      const data = await apiFetch('/academia/matriculas');
+      setMatriculas(data || []);
+    } catch (e: any) {
+      notify(e.message || 'Error al cargar matrículas', 'err');
+    }
+  };
+
+  const registrarPago = async () => {
+    if (!modalPago) return;
+    if (!pagoForm.monto || Number(pagoForm.monto) <= 0) {
+      notify('Ingresá un monto válido', 'err');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/academia/cuotas/${modalPago.id}/pagar`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          monto: Number(pagoForm.monto),
+          metodo_pago: pagoForm.metodo_pago || 'Efectivo',
+          fecha_pago: pagoForm.fecha_pago || undefined,
+          notas: pagoForm.notas || undefined
+        })
+      });
+      notify(res.message || 'Pago registrado exitosamente');
+      setModalPago(null);
+      if (fetchAll) await fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al registrar pago', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editarCuota = async () => {
+    if (!modalEditar) return;
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/academia/cuotas/${modalEditar.id}/editar`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          monto_final: Number(editarForm.monto_final),
+          descuento: Number(editarForm.descuento || 0),
+          notas: editarForm.notas || undefined
+        })
+      });
+      notify(res.message || 'Cuota actualizada');
+      setModalEditar(null);
+      if (fetchAll) await fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al editar cuota', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const anularCuota = async (cuotaId: string) => {
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/academia/cuotas/${cuotaId}/anular`, {
+        method: 'PUT',
+        body: JSON.stringify({ motivo_anulacion: anularMotivo })
+      });
+      notify(res.message || 'Cuota anulada exitosamente');
+      setModalAnular(null);
+      if (fetchAll) await fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al anular cuota', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const anularPago = async (pagoId: string) => {
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/academia/pagos/${pagoId}/anular`, {
+        method: 'PUT',
+        body: JSON.stringify({ motivo_anulacion: anularMotivo })
+      });
+      notify(res.message || 'Pago anulado exitosamente');
+      if (modalHistorial) {
+        await cargarHistorial(modalHistorial.id);
+      }
+      setModalAnular(null);
+      if (fetchAll) await fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al anular pago', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pagarMatricula = async (matriculaId: string) => {
+    try {
+      const res = await apiFetch(`/academia/matriculas/${matriculaId}/pagar`, {
+        method: 'PUT'
+      });
+      notify(res.message || 'Matrícula pagada exitosamente');
+      cargarMatriculas();
+      if (fetchAll) await fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al pagar matrícula', 'err');
+    }
+  };
+
+  const anularMatricula = async (matriculaId: string) => {
+    const motivo = prompt('Motivo de anulación de la matrícula:');
+    if (motivo === null) return;
+    try {
+      const res = await apiFetch(`/academia/matriculas/${matriculaId}/anular`, {
+        method: 'PUT',
+        body: JSON.stringify({ motivo })
+      });
+      notify(res.message || 'Matrícula anulada');
+      cargarMatriculas();
+      if (fetchAll) await fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al anular matrícula', 'err');
+    }
+  };
+
   // WhatsApp Gateway States
   const [waConnected, setWaConnected] = useState<boolean | null>(null);
   const [modalWaQr, setModalWaQr] = useState(false);
