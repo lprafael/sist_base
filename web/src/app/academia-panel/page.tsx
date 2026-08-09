@@ -55,7 +55,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'reportes' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -66,6 +66,12 @@ export default function AcademiaPanel() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [notif, setNotif] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+
+  useEffect(() => {
+    const handleNavSifen = () => setActiveTab('sifen');
+    window.addEventListener('nav-sifen', handleNavSifen);
+    return () => window.removeEventListener('nav-sifen', handleNavSifen);
+  }, []);
 
   // Data
   const [perfil, setPerfil] = useState<any>(null);
@@ -308,7 +314,15 @@ export default function AcademiaPanel() {
           {activeTab === 'reportes' && (
             <ReportesTab
               perfil={perfil} sucursales={sucursales} categorias={categorias}
-              notify={notify} apiFetch={apiFetch}
+              notify={notify} apiFetch={apiFetch} initialSubTab="alumnos"
+            />
+          )}
+
+          {/* ──────────────── FACTURACIÓN SIFEN / .P12 ──────────────── */}
+          {activeTab === 'sifen' && (
+            <ReportesTab
+              perfil={perfil} sucursales={sucursales} categorias={categorias}
+              notify={notify} apiFetch={apiFetch} initialSubTab="sifen"
             />
           )}
 
@@ -372,6 +386,7 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
     { id: 'inscripciones',     label: 'Inscripciones',          icon: BookOpen },
     { id: 'cuotas',            label: 'Cuotas / Pagos',         icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
     { id: 'reportes',          label: 'Reportes y Carnets',     icon: ClipboardList, roles: ['dueño','administrador','tesorero','profesor'] },
+    { id: 'sifen',             label: 'Facturación SIFEN / .P12', icon: ShieldCheck, roles: ['dueño','administrador','tesorero'] },
     { id: 'asistencias',       label: 'Asistencias',            icon: Calendar, roles: ['dueño','administrador','profesor'] },
     { id: 'noticias',          label: 'Noticias CMS',           icon: FileText, roles: ['dueño','administrador'] },
     { id: 'feedback',          label: 'Feedback Socios',        icon: MessageSquare, roles: ['dueño','administrador'] },
@@ -2302,6 +2317,24 @@ function ConfigTab({ configCuotas, setConfigCuotas, notify, apiFetch, isDueno, i
           </div>
         </div>
       </div>
+
+      {/* Tarjeta SIFEN en Configuración */}
+      <div style={{ ...card(), marginTop: 20, border: `1px solid ${C.yellow}44`, background: `${C.yellow}0a` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.yellow}22`, color: C.yellow }}>
+              <ShieldCheck size={24} />
+            </div>
+            <div>
+              <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.text }}>Facturación Electrónica SIFEN & Certificado Firma Digital (.P12)</h4>
+              <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 0' }}>Carga de certificado PKCS#12, datos de emisor SET y emisión opcional de comprobantes.</p>
+            </div>
+          </div>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('nav-sifen'))} style={btn(C.yellow)}>
+            <Upload size={14} /> Cargar Certificado .P12 / Configurar SIFEN
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -4066,8 +4099,8 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
 // ═══════════════════════════════════════════════════════════
 // REPORTES Y CARNETS TAB
 // ═══════════════════════════════════════════════════════════
-function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetch }: any) {
-  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets' | 'sifen'>('alumnos');
+function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetch, initialSubTab = 'alumnos' }: any) {
+  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets' | 'sifen'>(initialSubTab);
   const [reporteAlumnos, setReporteAlumnos] = useState<any[]>([]);
   const [deudores, setDeudores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
