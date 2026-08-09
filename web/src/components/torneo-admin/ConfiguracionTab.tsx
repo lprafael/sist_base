@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle, Edit3 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 import SitiosView from './modulos/SitiosView';
