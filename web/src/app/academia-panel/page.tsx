@@ -1568,6 +1568,7 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
           monto: Number(pagoForm.monto),
           metodo_pago: pagoForm.metodo_pago || 'Efectivo',
           fecha_pago: pagoForm.fecha_pago || undefined,
+          generar_factura: Boolean(pagoForm.generar_factura),
           notas: pagoForm.notas || undefined
         })
       });
@@ -1854,7 +1855,7 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
                           {canPay && (
                             <button onClick={() => {
                               setModalPago(q);
-                              setPagoForm({ metodo_pago: 'Efectivo', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', notas: '' });
+                              setPagoForm({ metodo_pago: 'Efectivo', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', generar_factura: false, notas: '' });
                             }} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
                               <DollarSign size={11} /> Pagar
                             </button>
@@ -2016,6 +2017,20 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
           <div style={{ marginBottom: 14 }}>
             <label style={label()}>Notas</label>
             <input value={pagoForm.notas} onChange={e => setPagoForm((f: any) => ({ ...f, notas: e.target.value }))} style={input()} placeholder="Observaciones opcionales" />
+          </div>
+          <div style={{ marginBottom: 14, background: `${C.yellow}11`, border: `1px solid ${C.yellow}33`, padding: 10, borderRadius: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.text }}>
+              <input
+                type="checkbox"
+                checked={pagoForm.generar_factura || false}
+                onChange={e => setPagoForm((f: any) => ({ ...f, generar_factura: e.target.checked }))}
+                style={{ width: 16, height: 16, accentColor: C.yellow }}
+              />
+              📄 Emitir Factura Electrónica SIFEN para este pago
+            </label>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 4, marginLeft: 26 }}>
+              Marque esta casilla solo si el tutor o alumno solicita factura oficial para este cobro.
+            </div>
           </div>
           <ModalActions onCancel={() => setModalPago(null)} onSave={registrarPago} saving={saving}
             saveLabel={pagoForm.monto && parseFloat(pagoForm.monto) < (modalPago.monto_final - modalPago.monto_pagado) ? '💰 Registrar pago parcial' : '✅ Registrar pago total'} />
