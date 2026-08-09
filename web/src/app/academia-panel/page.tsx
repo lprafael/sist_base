@@ -1142,13 +1142,25 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const fileFotoRef = useRef<HTMLInputElement>(null);
 
   const filtered = alumnos.filter((a: any) =>
     `${a.nombre} ${a.apellido}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const openNew = () => { setForm({ nombre: '', apellido: '', estado: 'activo' }); setModal('new'); };
+  const openNew = () => { setForm({ nombre: '', apellido: '', estado: 'activo', foto_perfil: '' }); setModal('new'); };
   const openEdit = (a: any) => { setForm({ ...a }); setModal(a.id); };
+
+  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((f: any) => ({ ...f, foto_perfil: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -1186,7 +1198,7 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-              {['Nombre', 'Sucursal', 'Edad', 'Estado', 'Acciones'].map(h => (
+              {['Alumno', 'Sucursal', 'Edad', 'Estado', 'Acciones'].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: C.muted, fontWeight: 600, fontSize: 12 }}>{h}</th>
               ))}
             </tr>
@@ -1200,7 +1212,16 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
               return (
                 <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
                   <td style={{ padding: '11px 16px', fontWeight: 600 }}>
-                    <div>{a.nombre} {a.apellido}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 38, height: 38, borderRadius: '50%', background: C.border, overflow: 'hidden',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        border: `1px solid ${C.border}`
+                      }}>
+                        {a.foto_perfil ? <img src={a.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={20} color={C.muted} />}
+                      </div>
+                      <div>{a.nombre} {a.apellido}</div>
+                    </div>
                   </td>
                   <td style={{ padding: '11px 16px', color: C.muted }}>{a.sucursal_nombre || '—'}</td>
                   <td style={{ padding: '11px 16px', color: C.muted }}>{edad != null ? `${edad} años` : '—'}</td>
@@ -1224,6 +1245,30 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
       {/* Modal alumno */}
       {modal && (
         <Modal title={modal === 'new' ? 'Nuevo Alumno' : 'Editar Alumno'} onClose={() => setModal(null)} wide>
+          {/* Subida de foto de perfil */}
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, background: `${C.bg}88`, padding: 14, borderRadius: 12, border: `1px solid ${C.border}` }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%', background: C.border, overflow: 'hidden',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${C.primary}`, flexShrink: 0
+            }}>
+              {form.foto_perfil ? <img src={form.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={32} color={C.muted} />}
+            </div>
+            <div>
+              <label style={{ ...label(), marginBottom: 4 }}>Foto para Carnet / Perfil</label>
+              <input type="file" ref={fileFotoRef} accept="image/*" onChange={handleFotoChange} style={{ display: 'none' }} />
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button type="button" onClick={() => fileFotoRef.current?.click()} style={btn(C.primary, true)}>
+                  <Upload size={13} /> Subir Foto
+                </button>
+                {form.foto_perfil && (
+                  <button type="button" onClick={() => setForm((f: any) => ({ ...f, foto_perfil: '' }))} style={btn(C.red, true)}>
+                    <Trash2 size={13} /> Quitar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <FormField label="Nombre *" value={form.nombre} onChange={v => setForm((f: any) => ({ ...f, nombre: v }))} placeholder="Juan" />
             <FormField label="Apellido" value={form.apellido} onChange={v => setForm((f: any) => ({ ...f, apellido: v }))} placeholder="Pérez" />
@@ -3939,6 +3984,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
   const [loading, setLoading] = useState(true);
   const [filtroSucursal, setFiltroSucursal] = useState('');
   const [modalCarnet, setModalCarnet] = useState<any>(null);
+  const carnetFotoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -3973,6 +4019,28 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
       setTimeout(() => window.print(), 250);
     } else {
       window.print();
+    }
+  };
+
+  const handleCarnetFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && modalCarnet) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const photoUrl = reader.result as string;
+        setModalCarnet((prev: any) => ({ ...prev, foto_perfil: photoUrl }));
+        setReporteAlumnos((prev: any[]) => prev.map((a: any) => a.id === modalCarnet.id ? { ...a, foto_perfil: photoUrl } : a));
+        try {
+          await apiFetch(`/academia/alumnos/${modalCarnet.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ foto_perfil: photoUrl })
+          });
+          notify('Foto del carnet actualizada exitosamente');
+        } catch {
+          notify('Error al guardar la foto del carnet', 'err');
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -4099,7 +4167,17 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
             <tbody>
               {alumnosFiltrados.map(a => (
                 <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
-                  <td style={{ padding: '10px', fontWeight: 700, color: C.text }}>{a.nombre_completo}</td>
+                  <td style={{ padding: '10px', fontWeight: 700, color: C.text }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%', background: C.border, overflow: 'hidden',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                      }}>
+                        {a.foto_perfil ? <img src={a.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={18} color={C.muted} />}
+                      </div>
+                      <div>{a.nombre_completo}</div>
+                    </div>
+                  </td>
                   <td style={{ padding: '10px', color: C.muted }}>{a.sucursal_nombre}</td>
                   <td style={{ padding: '10px' }}><span style={badge(a.categoria_color)}>{a.categoria_nombre}</span></td>
                   <td style={{ padding: '10px', color: C.text }}>{a.tutor_nombre}</td>
@@ -4217,8 +4295,14 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
 
               {/* Body Carnet */}
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div style={{ width: 90, height: 90, borderRadius: 14, background: '#000', overflow: 'hidden', border: '2px solid #fff', flexShrink: 0 }}>
-                  {modalCarnet.foto_perfil ? <img src={modalCarnet.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={44} color="#fff" />}
+                <div style={{ position: 'relative' }}>
+                  <div style={{ width: 90, height: 90, borderRadius: 14, background: '#000', overflow: 'hidden', border: '2px solid #fff', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {modalCarnet.foto_perfil ? <img src={modalCarnet.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={44} color="#fff" />}
+                  </div>
+                  <input type="file" ref={carnetFotoRef} accept="image/*" onChange={handleCarnetFotoChange} style={{ display: 'none' }} />
+                  <button onClick={() => carnetFotoRef.current?.click()} style={{ position: 'absolute', bottom: -6, right: -6, background: C.primary, border: '1px solid #fff', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }} title="Subir / Cambiar foto del alumno">
+                    <Upload size={12} />
+                  </button>
                 </div>
 
                 <div style={{ flex: 1 }}>

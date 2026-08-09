@@ -1458,6 +1458,46 @@ async def actualizar_alumno(
         )
 
 
+@router.post("/academia/alumnos/{alumno_id}/foto")
+async def subir_foto_alumno(
+    alumno_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Sube y actualiza la foto de perfil de un alumno."""
+    try:
+        raw_aid = current_user.get("academia_id")
+        if not raw_aid or str(raw_aid).strip() == "" or str(raw_aid).lower() == "none":
+            raise HTTPException(status_code=400, detail="No se encontró una academia válida vinculada a tu usuario.")
+        aid = str(raw_aid).strip()
+
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
+
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "uploads", "alumnos")
+        os.makedirs(upload_dir, exist_ok=True)
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"alumno_{alumno_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        with open(os.path.join(upload_dir, filename), "wb") as f:
+            f.write(await file.read())
+
+        url = f"https://api.micancha.com.py/static/uploads/alumnos/{filename}"
+
+        await session.execute(text("""
+            UPDATE academias.alumnos SET foto_perfil = :foto_perfil
+            WHERE id = CAST(:alumno_id AS UUID) AND academia_id = CAST(:academia_id AS UUID)
+        """), {"alumno_id": alumno_id, "academia_id": aid, "foto_perfil": url})
+        await session.commit()
+
+        return {"message": "Foto del alumno actualizada.", "url": url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al subir foto del alumno: {str(e)}")
+
+
 # ================================================================
 # ENDPOINTS — TUTORES
 # ================================================================
