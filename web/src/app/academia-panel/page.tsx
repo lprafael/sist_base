@@ -105,14 +105,17 @@ export default function AcademiaPanel() {
 
   const apiFetch = async (endpoint: string, opts: any = {}) => {
     const acadId = session?.academia_id || session?.id || '';
+    const headers: any = {
+      Authorization: `Bearer ${token}`,
+      ...(acadId ? { 'X-Academia-Id': acadId } : {}),
+      ...opts.headers,
+    };
+    if (!(opts.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...opts,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(acadId ? { 'X-Academia-Id': acadId } : {}),
-        ...opts.headers,
-      },
+      headers,
     });
     if (res.status === 401) {
       localStorage.removeItem('user_session');
@@ -1151,15 +1154,33 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
   const openNew = () => { setForm({ nombre: '', apellido: '', estado: 'activo', foto_perfil: '' }); setModal('new'); };
   const openEdit = (a: any) => { setForm({ ...a }); setModal(a.id); };
 
-  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((f: any) => ({ ...f, foto_perfil: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (modal && modal !== 'new') {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await apiFetch(`/academia/alumnos/${modal}/foto`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (res.url) {
+          setForm((f: any) => ({ ...f, foto_perfil: res.url }));
+          notify('Foto subida exitosamente');
+          return;
+        }
+      } catch (err: any) {
+        console.error('Error al subir foto directamente:', err);
+      }
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((f: any) => ({ ...f, foto_perfil: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const save = async () => {
@@ -4022,25 +4043,28 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
     }
   };
 
-  const handleCarnetFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCarnetFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && modalCarnet) {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const photoUrl = reader.result as string;
-        setModalCarnet((prev: any) => ({ ...prev, foto_perfil: photoUrl }));
-        setReporteAlumnos((prev: any[]) => prev.map((a: any) => a.id === modalCarnet.id ? { ...a, foto_perfil: photoUrl } : a));
-        try {
-          await apiFetch(`/academia/alumnos/${modalCarnet.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ foto_perfil: photoUrl })
-          });
-          notify('Foto del carnet actualizada exitosamente');
-        } catch {
-          notify('Error al guardar la foto del carnet', 'err');
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file || !modalCarnet) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiFetch(`/academia/alumnos/${modalCarnet.id}/foto`, {
+        method: 'POST',
+        body: formData,
+      });
+      const photoUrl = res.url || (await new Promise<string>(resolve => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      }));
+
+      setModalCarnet((prev: any) => ({ ...prev, foto_perfil: photoUrl }));
+      setReporteAlumnos((prev: any[]) => prev.map((a: any) => a.id === modalCarnet.id ? { ...a, foto_perfil: photoUrl } : a));
+      notify('Foto del carnet actualizada exitosamente');
+    } catch (err: any) {
+      notify(err.message || 'Error al guardar la foto del carnet', 'err');
     }
   };
 
