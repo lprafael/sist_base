@@ -2294,7 +2294,7 @@ async def listar_pagos_cuota(
     res = await session.execute(text("""
         SELECT p.id, p.monto, p.metodo_pago, p.fecha_pago, p.notas,
                p.anulado, p.anulado_en, p.motivo_anulacion,
-               u.nombre || ' ' || COALESCE(u.apellido,'') AS registrado_por,
+               COALESCE(u.nombre_completo, u.username) AS registrado_por,
                p.creado_en
         FROM academias.pagos p
         LEFT JOIN sistema.usuarios u ON u.id = p.registrado_por
