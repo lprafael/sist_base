@@ -154,7 +154,36 @@ async def emitir_factura_academia(
     Returns:
         Dict con id, cdc, estado, xml_generado, advertencias.
     """
-    advertencias: list[str] = []
+    # 0. Verificación anti-duplicación de factura por cuota o matrícula
+    if cuota_id:
+        res_exist = await session.execute(
+            text("""
+                SELECT id, cdc, numero_documento, estado
+                FROM facturacion.documentos_electronicos
+                WHERE cuota_id = CAST(:cid AS UUID) AND estado != 'anulado'
+            """),
+            {"cid": cuota_id}
+        )
+        doc_exist = res_exist.fetchone()
+        if doc_exist:
+            raise ValueError(
+                f"Ya existe una factura emitida para esta cuota (Factura N° {doc_exist[2]}, CDC: {doc_exist[1]})."
+            )
+
+    if matricula_id:
+        res_exist = await session.execute(
+            text("""
+                SELECT id, cdc, numero_documento, estado
+                FROM facturacion.documentos_electronicos
+                WHERE matricula_id = CAST(:mid AS UUID) AND estado != 'anulado'
+            """),
+            {"mid": matricula_id}
+        )
+        doc_exist = res_exist.fetchone()
+        if doc_exist:
+            raise ValueError(
+                f"Ya existe una factura emitida para esta matrícula (Factura N° {doc_exist[2]}, CDC: {doc_exist[1]})."
+            )
 
     # 1. Obtener y validar emisor
     emisor = await _obtener_emisor(academia_id, session)
