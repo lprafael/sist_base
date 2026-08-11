@@ -136,6 +136,28 @@ app.add_middleware(
     max_age=600
 )
 
+@app.middleware("http")
+async def custom_cors_middleware(request: Request, call_next):
+    origin = request.headers.get("origin", "")
+    req_headers = request.headers.get("access-control-request-headers", "*")
+    if request.method == "OPTIONS":
+        res = Response(status_code=204)
+        if origin:
+            res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+        else:
+            res.headers["Access-Control-Allow-Origin"] = "*"
+        res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        res.headers["Access-Control-Allow-Headers"] = req_headers
+        res.headers["Access-Control-Max-Age"] = "86400"
+        return res
+
+    response = await call_next(request)
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
