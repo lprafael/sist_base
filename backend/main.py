@@ -246,6 +246,9 @@ app.include_router(complejo_router)
 from routers.academias_mejoras import router as academias_mejoras_router
 app.include_router(academias_mejoras_router)
 
+from routers.cuentas_caja import router as cuentas_caja_router
+app.include_router(cuentas_caja_router)
+
 from routers.whatsapp import router as whatsapp_router
 app.include_router(whatsapp_router)
 

@@ -55,7 +55,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'tesoreria' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -84,6 +84,8 @@ export default function AcademiaPanel() {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [deportes, setDeportes] = useState<string[]>([]);
   const [configCuotas, setConfigCuotas] = useState<any>(null);
+  const [cuentas, setCuentas] = useState<any[]>([]);
+  const [metodosPago, setMetodosPago] = useState<any[]>([]);
 
   // Modals
   const [modalSucursal, setModalSucursal] = useState<any>(null); // null | {} | {existing}
@@ -158,6 +160,8 @@ export default function AcademiaPanel() {
       apiFetch('/academia/cuotas').then(setCuotas).catch(() => {});
       apiFetch('/academia/miembros').then(setStaff).catch(() => {});
       apiFetch('/academia/config-cuotas').then(setConfigCuotas).catch(() => {});
+      apiFetch('/academia/cuentas').then(setCuentas).catch(() => {});
+      apiFetch('/academia/metodos-pago').then(setMetodosPago).catch(() => {});
     } catch (e: any) {
       notify(e.message, 'err');
     }
@@ -307,6 +311,18 @@ export default function AcademiaPanel() {
             <CuotasTab
               cuotas={cuotas} notify={notify} apiFetch={apiFetch}
               isTesorero={isTesorero} isDueno={isDueno} fetchAll={fetchAll}
+              cuentas={cuentas} metodosPago={metodosPago}
+            />
+          )}
+
+          {/* ────────────────── TESORERÍA ────────────────── */}
+          {activeTab === 'tesoreria' && (
+            <TesoreriaTab
+              notify={notify} apiFetch={apiFetch}
+              isDueno={isDueno} isTesorero={isTesorero}
+              cuentas={cuentas} setCuentas={setCuentas}
+              metodosPago={metodosPago} setMetodosPago={setMetodosPago}
+              fetchAll={fetchAll}
             />
           )}
 
@@ -385,6 +401,7 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
     { id: 'tutores',           label: 'Tutores / Padres',       icon: Users, roles: ['dueño','administrador','tesorero'] },
     { id: 'inscripciones',     label: 'Inscripciones',          icon: BookOpen },
     { id: 'cuotas',            label: 'Cuotas / Pagos',         icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
+    { id: 'tesoreria',         label: 'Tesorería / Cuentas',    icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
     { id: 'reportes',          label: 'Reportes y Carnets',     icon: ClipboardList, roles: ['dueño','administrador','tesorero','profesor'] },
     { id: 'sifen',             label: 'Facturación SIFEN / .P12', icon: ShieldCheck, roles: ['dueño','administrador','tesorero'] },
     { id: 'asistencias',       label: 'Asistencias',            icon: Calendar, roles: ['dueño','administrador','profesor'] },
@@ -1497,7 +1514,7 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
 // ═══════════════════════════════════════════════════════════
 // CUOTAS
 // ═══════════════════════════════════════════════════════════
-function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: any) {
+function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cuentas = [], metodosPago = [] }: any) {
   const [subTab, setSubTab] = useState<'cuotas' | 'matriculas'>('cuotas');
   const [generando, setGenerando] = useState(false);
   const [generandoMat, setGenerandoMat] = useState(false);
@@ -1506,16 +1523,24 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
   const [busqueda, setBusqueda] = useState('');
 
   // Modals
-  const [modalPago, setModalPago] = useState<any>(null);       // cuota seleccionada para pagar
-  const [modalHistorial, setModalHistorial] = useState<any>(null); // cuota para ver historial
-  const [modalEditar, setModalEditar] = useState<any>(null);   // cuota para editar monto
-  const [modalAnular, setModalAnular] = useState<any>(null);   // cuota o pago a anular
+  const [modalPago, setModalPago] = useState<any>(null);
+  const [modalHistorial, setModalHistorial] = useState<any>(null);
+  const [modalEditar, setModalEditar] = useState<any>(null);
+  const [modalAnular, setModalAnular] = useState<any>(null);
   const [historialPagos, setHistorialPagos] = useState<any[]>([]);
   const [matriculas, setMatriculas] = useState<any[]>([]);
   const [filtroMatEstado, setFiltroMatEstado] = useState('');
 
   // Form states
-  const [pagoForm, setPagoForm] = useState<any>({ metodo_pago: 'Efectivo', monto: '', fecha_pago: '' });
+  const [pagoForm, setPagoForm] = useState<any>({
+    cuenta_id: '',
+    metodo_pago_id: '',
+    metodo_pago: '',       // texto libre (fallback)
+    monto: '',
+    fecha_pago: '',
+    generar_factura: false,
+    notas: ''
+  });
   const [editarForm, setEditarForm] = useState<any>({ monto_final: '', descuento: '', notas: '' });
   const [anularMotivo, setAnularMotivo] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1577,15 +1602,23 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
     }
     setSaving(true);
     try {
+      const body: any = {
+        monto: Number(pagoForm.monto),
+        fecha_pago: pagoForm.fecha_pago || undefined,
+        generar_factura: Boolean(pagoForm.generar_factura),
+        notas: pagoForm.notas || undefined,
+      };
+      // Cuenta destino
+      if (pagoForm.cuenta_id) body.cuenta_id = pagoForm.cuenta_id;
+      // Método de pago estructurado (FK) tiene prioridad
+      if (pagoForm.metodo_pago_id) {
+        body.metodo_pago_id = pagoForm.metodo_pago_id;
+      } else if (pagoForm.metodo_pago) {
+        body.metodo_pago = pagoForm.metodo_pago;
+      }
       const res = await apiFetch(`/academia/cuotas/${modalPago.id}/pagar`, {
         method: 'PUT',
-        body: JSON.stringify({
-          monto: Number(pagoForm.monto),
-          metodo_pago: pagoForm.metodo_pago || 'Efectivo',
-          fecha_pago: pagoForm.fecha_pago || undefined,
-          generar_factura: Boolean(pagoForm.generar_factura),
-          notas: pagoForm.notas || undefined
-        })
+        body: JSON.stringify(body)
       });
       notify(res.message || 'Pago registrado exitosamente');
       setModalPago(null);
@@ -1870,7 +1903,7 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
                           {canPay && (
                             <button onClick={() => {
                               setModalPago(q);
-                              setPagoForm({ metodo_pago: 'Efectivo', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', generar_factura: false, notas: '' });
+                              setPagoForm({ cuenta_id: '', metodo_pago_id: '', metodo_pago: '', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', generar_factura: false, notas: '' });
                             }} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
                               <DollarSign size={11} /> Pagar
                             </button>
@@ -2020,10 +2053,34 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll }: 
               value={pagoForm.monto} onChange={e => setPagoForm((f: any) => ({ ...f, monto: e.target.value }))} style={input()} />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Método de pago *</label>
-            <select value={pagoForm.metodo_pago} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago: e.target.value }))} style={input()}>
-              {['Efectivo', 'Transferencia', 'Tarjeta', 'QR', 'Débito', 'Otro'].map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <label style={label()}>Cuenta destino {cuentas.length > 0 ? '*' : <span style={{ color: C.faint, fontWeight: 400 }}>(configurá cuentas en Tesorería)</span>}</label>
+            {cuentas.length > 0 ? (
+              <select value={pagoForm.cuenta_id} onChange={e => setPagoForm((f: any) => ({ ...f, cuenta_id: e.target.value }))} style={input()}>
+                <option value="">— Sin especificar cuenta —</option>
+                {cuentas.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.tipo === 'efectivo' ? '💵' : c.tipo === 'banco' ? '🏦' : '📱'} {c.nombre}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ ...input(), color: C.faint, display: 'flex', alignItems: 'center' }}>No hay cuentas configuradas</div>
+            )}
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Método de pago {metodosPago.length > 0 ? '*' : <span style={{ color: C.faint, fontWeight: 400 }}>(configurá métodos en Tesorería)</span>}</label>
+            {metodosPago.length > 0 ? (
+              <select value={pagoForm.metodo_pago_id} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago_id: e.target.value, metodo_pago: '' }))} style={input()}>
+                <option value="">— Sin especificar método —</option>
+                {metodosPago.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
+              </select>
+            ) : (
+              <select value={pagoForm.metodo_pago} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago: e.target.value }))} style={input()}>
+                {['Efectivo', 'Transferencia', 'Tarjeta', 'QR', 'Débito', 'Otro'].map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            )}
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={label()}>Fecha de pago (opcional — por defecto hoy)</label>
@@ -4667,6 +4724,647 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TESORERÍA — Cuentas, Métodos de Pago, Movimientos y Cierre de Caja
+// ═══════════════════════════════════════════════════════════
+function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuentas, metodosPago, setMetodosPago, fetchAll }: any) {
+  const [subTab, setSubTab] = useState<'cuentas' | 'metodos' | 'movimientos' | 'cierre'>('cuentas');
+
+  // ── Estado Cuentas ──
+  const [modalCuenta, setModalCuenta] = useState<any>(null);
+  const [cuentaForm, setCuentaForm] = useState<any>({ nombre: '', tipo: 'efectivo', descripcion: '', numero_cuenta: '', banco: '', moneda: 'GS', es_principal: false, saldo_inicial: 0 });
+  const [savingCuenta, setSavingCuenta] = useState(false);
+
+  // ── Estado Métodos de Pago ──
+  const [modalMetodo, setModalMetodo] = useState<any>(null);
+  const [metodoForm, setMetodoForm] = useState<any>({ nombre: '', tipo: 'efectivo', descripcion: '' });
+  const [savingMetodo, setSavingMetodo] = useState(false);
+
+  // ── Estado Movimientos ──
+  const [movimientos, setMovimientos] = useState<any[]>([]);
+  const [loadingMov, setLoadingMov] = useState(false);
+  const [modalEgreso, setModalEgreso] = useState(false);
+  const [egresoForm, setEgresoForm] = useState<any>({ cuenta_id: '', metodo_pago_id: '', categoria: 'otro', concepto: '', monto: '', fecha: '', referencia: '', notas: '' });
+  const [filtroMovCuenta, setFiltroMovCuenta] = useState('');
+  const [filtroMovTipo, setFiltroMovTipo] = useState('');
+  const [savingMov, setSavingMov] = useState(false);
+
+  // ── Estado Cierre de Caja ──
+  const [cierre, setCierre] = useState<any>(null);
+  const [loadingCierre, setLoadingCierre] = useState(false);
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [cierreFechaDesde, setCierreFechaDesde] = useState(primerDiaMes);
+  const [cierreFechaHasta, setCierreFechaHasta] = useState(hoyStr);
+
+  const tiposCuenta = [
+    { value: 'efectivo', label: '💵 Efectivo (Caja)' },
+    { value: 'banco', label: '🏦 Cuenta Bancaria' },
+    { value: 'billetera_digital', label: '📱 Billetera Digital' },
+    { value: 'otro', label: '📦 Otro' },
+  ];
+
+  const tiposMetodo = [
+    { value: 'efectivo', label: 'Efectivo' },
+    { value: 'transferencia', label: 'Transferencia Bancaria' },
+    { value: 'tarjeta', label: 'Tarjeta de Crédito/Débito' },
+    { value: 'qr', label: 'Pago QR' },
+    { value: 'debito', label: 'Débito Automático' },
+    { value: 'otro', label: 'Otro' },
+  ];
+
+  const categoriasEgreso = [
+    { value: 'alquiler', label: 'Alquiler / Local' },
+    { value: 'sueldos', label: 'Sueldos / Honorarios' },
+    { value: 'materiales', label: 'Materiales / Equipamiento' },
+    { value: 'servicios', label: 'Servicios (Agua, Luz, etc.)' },
+    { value: 'impuestos', label: 'Impuestos / Tasas' },
+    { value: 'transferencia_interna', label: 'Transferencia entre Cuentas' },
+    { value: 'otro', label: 'Otro' },
+  ];
+
+  const cargarMovimientos = async () => {
+    setLoadingMov(true);
+    try {
+      let url = '/academia/caja/movimientos?limit=150';
+      if (filtroMovCuenta) url += `&cuenta_id=${filtroMovCuenta}`;
+      if (filtroMovTipo) url += `&tipo=${filtroMovTipo}`;
+      const data = await apiFetch(url);
+      setMovimientos(data || []);
+    } catch (e: any) { notify(e.message || 'Error al cargar movimientos', 'err'); }
+    setLoadingMov(false);
+  };
+
+  const cargarCierre = async () => {
+    setLoadingCierre(true);
+    try {
+      const data = await apiFetch(`/academia/caja/cierre?fecha_desde=${cierreFechaDesde}&fecha_hasta=${cierreFechaHasta}`);
+      setCierre(data);
+    } catch (e: any) { notify(e.message || 'Error al generar cierre', 'err'); }
+    setLoadingCierre(false);
+  };
+
+  // Cargar movimientos y cierre al cambiar sub-tab
+  const handleSubTab = (t: typeof subTab) => {
+    setSubTab(t);
+    if (t === 'movimientos') cargarMovimientos();
+    if (t === 'cierre') cargarCierre();
+  };
+
+  // ── CRUD Cuentas ──
+  const guardarCuenta = async () => {
+    if (!cuentaForm.nombre) { notify('El nombre es obligatorio', 'err'); return; }
+    setSavingCuenta(true);
+    try {
+      if (modalCuenta?.id) {
+        await apiFetch(`/academia/cuentas/${modalCuenta.id}`, { method: 'PUT', body: JSON.stringify(cuentaForm) });
+        notify('Cuenta actualizada');
+      } else {
+        await apiFetch('/academia/cuentas', { method: 'POST', body: JSON.stringify(cuentaForm) });
+        notify('Cuenta creada correctamente');
+      }
+      setModalCuenta(null);
+      const data = await apiFetch('/academia/cuentas?solo_activas=false');
+      setCuentas(data || []);
+    } catch (e: any) { notify(e.message || 'Error al guardar cuenta', 'err'); }
+    setSavingCuenta(false);
+  };
+
+  const desactivarCuenta = async (id: string) => {
+    if (!confirm('¿Desactivar esta cuenta?')) return;
+    try {
+      const res = await apiFetch(`/academia/cuentas/${id}`, { method: 'DELETE' });
+      notify(res.message || 'Cuenta desactivada');
+      const data = await apiFetch('/academia/cuentas?solo_activas=false');
+      setCuentas(data || []);
+    } catch (e: any) { notify(e.message || 'Error', 'err'); }
+  };
+
+  // ── CRUD Métodos de Pago ──
+  const guardarMetodo = async () => {
+    if (!metodoForm.nombre) { notify('El nombre es obligatorio', 'err'); return; }
+    setSavingMetodo(true);
+    try {
+      if (modalMetodo?.id) {
+        await apiFetch(`/academia/metodos-pago/${modalMetodo.id}`, { method: 'PUT', body: JSON.stringify(metodoForm) });
+        notify('Método actualizado');
+      } else {
+        await apiFetch('/academia/metodos-pago', { method: 'POST', body: JSON.stringify(metodoForm) });
+        notify('Método de pago creado');
+      }
+      setModalMetodo(null);
+      const data = await apiFetch('/academia/metodos-pago?solo_activos=false');
+      setMetodosPago(data || []);
+    } catch (e: any) { notify(e.message || 'Error al guardar', 'err'); }
+    setSavingMetodo(false);
+  };
+
+  const eliminarMetodo = async (id: string) => {
+    if (!confirm('¿Eliminar este método de pago?')) return;
+    try {
+      const res = await apiFetch(`/academia/metodos-pago/${id}`, { method: 'DELETE' });
+      notify(res.message || 'Eliminado');
+      const data = await apiFetch('/academia/metodos-pago?solo_activos=false');
+      setMetodosPago(data || []);
+    } catch (e: any) { notify(e.message || 'Error', 'err'); }
+  };
+
+  // ── Registrar Egreso ──
+  const registrarEgreso = async () => {
+    if (!egresoForm.cuenta_id) { notify('Seleccioná una cuenta', 'err'); return; }
+    if (!egresoForm.concepto) { notify('El concepto es obligatorio', 'err'); return; }
+    if (!egresoForm.monto || Number(egresoForm.monto) <= 0) { notify('Ingresá un monto válido', 'err'); return; }
+    setSavingMov(true);
+    try {
+      const body: any = {
+        ...egresoForm,
+        tipo: 'egreso',
+        monto: Number(egresoForm.monto),
+        metodo_pago_id: egresoForm.metodo_pago_id || undefined,
+        fecha: egresoForm.fecha || undefined,
+        referencia: egresoForm.referencia || undefined,
+        notas: egresoForm.notas || undefined,
+      };
+      const res = await apiFetch('/academia/caja/movimientos', { method: 'POST', body: JSON.stringify(body) });
+      notify(res.message || 'Egreso registrado');
+      setModalEgreso(false);
+      setEgresoForm({ cuenta_id: '', metodo_pago_id: '', categoria: 'otro', concepto: '', monto: '', fecha: '', referencia: '', notas: '' });
+      cargarMovimientos();
+    } catch (e: any) { notify(e.message || 'Error al registrar egreso', 'err'); }
+    setSavingMov(false);
+  };
+
+  const anularMovimiento = async (id: string) => {
+    const motivo = prompt('Motivo de anulación (opcional):');
+    if (motivo === null) return;
+    try {
+      const res = await apiFetch(`/academia/caja/movimientos/${id}/anular`, { method: 'PUT', body: JSON.stringify({ motivo_anulacion: motivo }) });
+      notify(res.message || 'Anulado');
+      cargarMovimientos();
+    } catch (e: any) { notify(e.message || 'Error', 'err'); }
+  };
+
+  const tipoCuentaLabel = (tipo: string) => tiposCuenta.find(t => t.value === tipo)?.label || tipo;
+  const tipoMovColor = (tipo: string) => tipo === 'ingreso' ? C.green : C.red;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Tesorería / Cuentas</h1>
+        <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Administrá las cuentas, métodos de pago y el flujo de caja de tu academia</p>
+      </div>
+
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap' }}>
+        {[
+          { id: 'cuentas', label: '🏦 Cuentas' },
+          { id: 'metodos', label: '💳 Métodos de Pago' },
+          { id: 'movimientos', label: '📊 Movimientos' },
+          { id: 'cierre', label: '🔒 Cierre de Caja' },
+        ].map(t => (
+          <button key={t.id} onClick={() => handleSubTab(t.id as any)}
+            style={{ ...btn(C.primary, subTab !== t.id) }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ════ CUENTAS ════ */}
+      {subTab === 'cuentas' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ color: C.muted, fontSize: 13 }}>
+              {cuentas.length} cuenta{cuentas.length !== 1 ? 's' : ''} configurada{cuentas.length !== 1 ? 's' : ''}
+            </div>
+            {isDueno && (
+              <button onClick={() => { setModalCuenta({}); setCuentaForm({ nombre: '', tipo: 'efectivo', descripcion: '', numero_cuenta: '', banco: '', moneda: 'GS', es_principal: false, saldo_inicial: 0 }); }} style={btn(C.green)}>
+                + Nueva Cuenta
+              </button>
+            )}
+          </div>
+
+          {cuentas.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 60, color: C.faint }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🏦</div>
+              <h3 style={{ margin: '0 0 8px', color: C.text }}>No hay cuentas configuradas</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13 }}>Creá tu primera cuenta (Caja, Banco, etc.) para empezar a registrar movimientos</p>
+              {isDueno && <button onClick={() => { setModalCuenta({}); setCuentaForm({ nombre: '', tipo: 'efectivo', descripcion: '', numero_cuenta: '', banco: '', moneda: 'GS', es_principal: false, saldo_inicial: 0 }); }} style={btn(C.green)}>+ Crear primera cuenta</button>}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+              {cuentas.map((c: any) => (
+                <div key={c.id} style={{ ...card({ padding: 20 }), borderLeft: `4px solid ${c.tipo === 'efectivo' ? C.green : c.tipo === 'banco' ? C.primary : C.purple}`, opacity: c.activa ? 1 : 0.5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {c.tipo === 'efectivo' ? '💵' : c.tipo === 'banco' ? '🏦' : '📱'} {c.nombre}
+                        {c.es_principal && <span style={badge(C.green)}>Principal</span>}
+                        {!c.activa && <span style={badge(C.faint)}>Inactiva</span>}
+                      </div>
+                      <div style={{ color: C.muted, fontSize: 12 }}>{tipoCuentaLabel(c.tipo)}</div>
+                      {c.banco && <div style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{c.banco}</div>}
+                      {c.numero_cuenta && <div style={{ color: C.faint, fontSize: 11, fontFamily: 'monospace' }}>{c.numero_cuenta}</div>}
+                    </div>
+                    {isDueno && (
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => { setModalCuenta(c); setCuentaForm({ nombre: c.nombre, tipo: c.tipo, descripcion: c.descripcion || '', numero_cuenta: c.numero_cuenta || '', banco: c.banco || '', moneda: c.moneda, es_principal: c.es_principal, saldo_inicial: c.saldo_inicial }); }} style={{ ...btn(C.yellow, true), fontSize: 11, padding: '4px 8px' }}>
+                          <Pencil size={11} />
+                        </button>
+                        <button onClick={() => desactivarCuenta(c.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 8px' }}>
+                          <X size={11} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 11, color: C.muted }}>Saldo inicial configurado</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Gs. {(c.saldo_inicial || 0).toLocaleString('es-PY')}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Modal Cuenta */}
+          {modalCuenta !== null && (
+            <Modal title={modalCuenta.id ? `Editar — ${modalCuenta.nombre}` : 'Nueva Cuenta'} onClose={() => setModalCuenta(null)}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Nombre *</label>
+                <input value={cuentaForm.nombre} onChange={e => setCuentaForm((f: any) => ({ ...f, nombre: e.target.value }))} style={input()} placeholder="Ej: Caja Principal, Banco Itaú, Tigo Money" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Tipo *</label>
+                <select value={cuentaForm.tipo} onChange={e => setCuentaForm((f: any) => ({ ...f, tipo: e.target.value }))} style={input()}>
+                  {tiposCuenta.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              {cuentaForm.tipo === 'banco' && (
+                <>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={label()}>Nombre del banco</label>
+                    <input value={cuentaForm.banco} onChange={e => setCuentaForm((f: any) => ({ ...f, banco: e.target.value }))} style={input()} placeholder="Ej: Banco Itaú, BNF, Continental" />
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={label()}>Número de cuenta</label>
+                    <input value={cuentaForm.numero_cuenta} onChange={e => setCuentaForm((f: any) => ({ ...f, numero_cuenta: e.target.value }))} style={input()} placeholder="Número de cuenta bancaria" />
+                  </div>
+                </>
+              )}
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Saldo inicial (Gs.) — para estimación de saldo actual</label>
+                <input type="number" value={cuentaForm.saldo_inicial} onChange={e => setCuentaForm((f: any) => ({ ...f, saldo_inicial: e.target.value }))} style={input()} placeholder="0" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Descripción</label>
+                <input value={cuentaForm.descripcion} onChange={e => setCuentaForm((f: any) => ({ ...f, descripcion: e.target.value }))} style={input()} placeholder="Notas adicionales (opcional)" />
+              </div>
+              <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="checkbox" id="es_principal" checked={cuentaForm.es_principal}
+                  onChange={e => setCuentaForm((f: any) => ({ ...f, es_principal: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: C.primary }} />
+                <label htmlFor="es_principal" style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Establecer como cuenta principal</label>
+              </div>
+              <ModalActions onCancel={() => setModalCuenta(null)} onSave={guardarCuenta} saving={savingCuenta} saveLabel={modalCuenta.id ? 'Guardar cambios' : 'Crear cuenta'} />
+            </Modal>
+          )}
+        </div>
+      )}
+
+      {/* ════ MÉTODOS DE PAGO ════ */}
+      {subTab === 'metodos' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ color: C.muted, fontSize: 13 }}>
+              Métodos de pago disponibles para tu academia
+            </div>
+            {(isDueno || isTesorero) && (
+              <button onClick={() => { setModalMetodo({}); setMetodoForm({ nombre: '', tipo: 'efectivo', descripcion: '' }); }} style={btn(C.green)}>
+                + Nuevo Método
+              </button>
+            )}
+          </div>
+
+          {metodosPago.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 60, color: C.faint }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>💳</div>
+              <h3 style={{ margin: '0 0 8px', color: C.text }}>No hay métodos de pago</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13 }}>Configurá los métodos de pago aceptados (Efectivo, Transferencia Itaú, QR Tigo, etc.)</p>
+              {isDueno && <button onClick={() => { setModalMetodo({}); setMetodoForm({ nombre: '', tipo: 'efectivo', descripcion: '' }); }} style={btn(C.green)}>+ Crear primer método</button>}
+            </div>
+          ) : (
+            <div style={card({ padding: 0 })}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    {['Nombre', 'Tipo', 'Descripción', 'Estado', 'Acciones'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '11px 14px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {metodosPago.map((m: any) => (
+                    <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}33`, opacity: m.activo ? 1 : 0.5 }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>{m.nombre}</td>
+                      <td style={{ padding: '9px 14px', color: C.muted }}>{tiposMetodo.find(t => t.value === m.tipo)?.label || m.tipo}</td>
+                      <td style={{ padding: '9px 14px', color: C.faint, fontSize: 12 }}>{m.descripcion || '—'}</td>
+                      <td style={{ padding: '9px 14px' }}><span style={badge(m.activo ? C.green : C.faint)}>{m.activo ? 'Activo' : 'Inactivo'}</span></td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {isDueno && (
+                            <>
+                              <button onClick={() => { setModalMetodo(m); setMetodoForm({ nombre: m.nombre, tipo: m.tipo, descripcion: m.descripcion || '', activo: m.activo }); }} style={{ ...btn(C.yellow, true), fontSize: 11, padding: '4px 8px' }}>
+                                <Pencil size={11} />
+                              </button>
+                              <button onClick={() => eliminarMetodo(m.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 8px' }}>
+                                <X size={11} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal Método */}
+          {modalMetodo !== null && (
+            <Modal title={modalMetodo.id ? `Editar — ${modalMetodo.nombre}` : 'Nuevo Método de Pago'} onClose={() => setModalMetodo(null)}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Nombre *</label>
+                <input value={metodoForm.nombre} onChange={e => setMetodoForm((f: any) => ({ ...f, nombre: e.target.value }))} style={input()} placeholder="Ej: Efectivo, Transferencia Itaú, QR Tigo Money" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Tipo *</label>
+                <select value={metodoForm.tipo} onChange={e => setMetodoForm((f: any) => ({ ...f, tipo: e.target.value }))} style={input()}>
+                  {tiposMetodo.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Descripción</label>
+                <input value={metodoForm.descripcion} onChange={e => setMetodoForm((f: any) => ({ ...f, descripcion: e.target.value }))} style={input()} placeholder="Descripción opcional" />
+              </div>
+              <ModalActions onCancel={() => setModalMetodo(null)} onSave={guardarMetodo} saving={savingMetodo} saveLabel={modalMetodo.id ? 'Guardar cambios' : 'Crear método'} />
+            </Modal>
+          )}
+        </div>
+      )}
+
+      {/* ════ MOVIMIENTOS ════ */}
+      {subTab === 'movimientos' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select value={filtroMovCuenta} onChange={e => setFiltroMovCuenta(e.target.value)} style={{ ...input({ width: 180 }) }}>
+                <option value="">Todas las cuentas</option>
+                {cuentas.map((c: any) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              <select value={filtroMovTipo} onChange={e => setFiltroMovTipo(e.target.value)} style={{ ...input({ width: 150 }) }}>
+                <option value="">Ing. y Egr.</option>
+                <option value="ingreso">Solo Ingresos</option>
+                <option value="egreso">Solo Egresos</option>
+              </select>
+              <button onClick={cargarMovimientos} style={btn(C.primary, true)}>
+                <RefreshCw size={13} /> Filtrar
+              </button>
+            </div>
+            {isTesorero && (
+              <button onClick={() => { setModalEgreso(true); setEgresoForm({ cuenta_id: cuentas[0]?.id || '', metodo_pago_id: '', categoria: 'otro', concepto: '', monto: '', fecha: '', referencia: '', notas: '' }); }} style={btn(C.red)}>
+                ➖ Registrar Egreso
+              </button>
+            )}
+          </div>
+
+          {/* KPIs del período */}
+          {movimientos.length > 0 && (() => {
+            const ingresos = movimientos.filter((m: any) => m.tipo === 'ingreso').reduce((s: number, m: any) => s + m.monto, 0);
+            const egresos = movimientos.filter((m: any) => m.tipo === 'egreso').reduce((s: number, m: any) => s + m.monto, 0);
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+                {[
+                  { label: 'Total Ingresos', value: ingresos, color: C.green },
+                  { label: 'Total Egresos', value: egresos, color: C.red },
+                  { label: 'Resultado Neto', value: ingresos - egresos, color: ingresos >= egresos ? C.green : C.red },
+                ].map(k => (
+                  <div key={k.label} style={{ ...card({ padding: 14 }), borderLeft: `3px solid ${k.color}` }}>
+                    <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{k.label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: k.color }}>Gs. {k.value.toLocaleString('es-PY')}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {loadingMov ? (
+            <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Cargando movimientos...</div>
+          ) : movimientos.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 50, color: C.faint }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+              <p>No hay movimientos registrados con los filtros actuales.</p>
+            </div>
+          ) : (
+            <div style={card({ padding: 0 })}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    {['Fecha', 'Tipo', 'Categoría', 'Concepto', 'Cuenta', 'Método', 'Monto', 'Acciones'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '10px 12px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {movimientos.map((m: any) => (
+                    <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}22` }}>
+                      <td style={{ padding: '8px 12px', color: C.muted, fontSize: 11, fontFamily: 'monospace' }}>{m.fecha}</td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <span style={badge(tipoMovColor(m.tipo))}>{m.tipo === 'ingreso' ? '↑ Ingreso' : '↓ Egreso'}</span>
+                      </td>
+                      <td style={{ padding: '8px 12px', color: C.faint, fontSize: 11 }}>{m.categoria}</td>
+                      <td style={{ padding: '8px 12px', fontWeight: 600, maxWidth: 200 }}>{m.concepto}</td>
+                      <td style={{ padding: '8px 12px', color: C.muted, fontSize: 12 }}>{m.cuenta_nombre}</td>
+                      <td style={{ padding: '8px 12px', color: C.faint, fontSize: 11 }}>{m.metodo_pago_nombre || '—'}</td>
+                      <td style={{ padding: '8px 12px', fontWeight: 700, color: tipoMovColor(m.tipo) }}>
+                        {m.tipo === 'egreso' ? '−' : '+'}Gs. {m.monto.toLocaleString('es-PY')}
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        {isDueno && !m.pago_id && (
+                          <button onClick={() => anularMovimiento(m.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '3px 7px' }}>
+                            <Trash2 size={10} />
+                          </button>
+                        )}
+                        {m.pago_id && <span title="Originado por pago de cuota" style={{ color: C.faint, fontSize: 10 }}>🔗 cuota</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal Egreso */}
+          {modalEgreso && (
+            <Modal title="Registrar Egreso" onClose={() => setModalEgreso(false)}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Cuenta *</label>
+                <select value={egresoForm.cuenta_id} onChange={e => setEgresoForm((f: any) => ({ ...f, cuenta_id: e.target.value }))} style={input()}>
+                  <option value="">— Seleccioná cuenta —</option>
+                  {cuentas.map((c: any) => <option key={c.id} value={c.id}>{c.tipo === 'efectivo' ? '💵' : '🏦'} {c.nombre}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Categoría *</label>
+                <select value={egresoForm.categoria} onChange={e => setEgresoForm((f: any) => ({ ...f, categoria: e.target.value }))} style={input()}>
+                  {categoriasEgreso.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Concepto *</label>
+                <input value={egresoForm.concepto} onChange={e => setEgresoForm((f: any) => ({ ...f, concepto: e.target.value }))} style={input()} placeholder="Descripción del egreso" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Monto (Gs.) *</label>
+                <input type="number" value={egresoForm.monto} onChange={e => setEgresoForm((f: any) => ({ ...f, monto: e.target.value }))} style={input()} placeholder="0" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Método de pago usado</label>
+                <select value={egresoForm.metodo_pago_id} onChange={e => setEgresoForm((f: any) => ({ ...f, metodo_pago_id: e.target.value }))} style={input()}>
+                  <option value="">— Sin especificar —</option>
+                  {metodosPago.map((m: any) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Fecha</label>
+                <input type="date" value={egresoForm.fecha} onChange={e => setEgresoForm((f: any) => ({ ...f, fecha: e.target.value }))} style={input()} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Referencia (Nro. comprobante, etc.)</label>
+                <input value={egresoForm.referencia} onChange={e => setEgresoForm((f: any) => ({ ...f, referencia: e.target.value }))} style={input()} placeholder="Opcional" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Notas</label>
+                <input value={egresoForm.notas} onChange={e => setEgresoForm((f: any) => ({ ...f, notas: e.target.value }))} style={input()} placeholder="Observaciones (opcional)" />
+              </div>
+              <ModalActions onCancel={() => setModalEgreso(false)} onSave={registrarEgreso} saving={savingMov} saveLabel="➖ Registrar Egreso" />
+            </Modal>
+          )}
+        </div>
+      )}
+
+      {/* ════ CIERRE DE CAJA ════ */}
+      {subTab === 'cierre' && (
+        <div>
+          <div style={{ ...card({ padding: 16 }), marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label style={label()}>Desde</label>
+              <input type="date" value={cierreFechaDesde} onChange={e => setCierreFechaDesde(e.target.value)} style={{ ...input({ width: 160 }) }} />
+            </div>
+            <div>
+              <label style={label()}>Hasta</label>
+              <input type="date" value={cierreFechaHasta} onChange={e => setCierreFechaHasta(e.target.value)} style={{ ...input({ width: 160 }) }} />
+            </div>
+            <button onClick={cargarCierre} disabled={loadingCierre} style={btn(C.primary)}>
+              {loadingCierre ? 'Calculando...' : '📊 Generar Cierre'}
+            </button>
+          </div>
+
+          {cierre && (
+            <>
+              {/* Resumen Global */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: 'Total Ingresos del período', value: cierre.resumen_global.total_ingresos, color: C.green },
+                  { label: 'Total Egresos del período', value: cierre.resumen_global.total_egresos, color: C.red },
+                  { label: 'Resultado Neto', value: cierre.resumen_global.resultado_neto, color: cierre.resumen_global.resultado_neto >= 0 ? C.green : C.red },
+                ].map(k => (
+                  <div key={k.label} style={{ ...card({ padding: 18 }), borderLeft: `4px solid ${k.color}` }}>
+                    <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{k.label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: k.color }}>Gs. {k.value.toLocaleString('es-PY')}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Por cuenta */}
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>Detalle por Cuenta</h3>
+              {cierre.cuentas.map((c: any) => (
+                <div key={c.cuenta_id} style={{ ...card({ padding: 18 }), marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 16 }}>
+                        {c.cuenta_tipo === 'efectivo' ? '💵' : c.cuenta_tipo === 'banco' ? '🏦' : '📱'} {c.cuenta_nombre}
+                      </div>
+                      <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{c.moneda}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: C.muted }}>Saldo estimado</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: c.saldo_estimado >= 0 ? C.green : C.red }}>
+                        Gs. {c.saldo_estimado.toLocaleString('es-PY')}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${C.border}` }}>
+                    {[
+                      { label: 'Saldo Inicial', value: c.saldo_inicial, color: C.muted },
+                      { label: `↑ Ingresos (${c.cant_ingresos})`, value: c.total_ingresos, color: C.green },
+                      { label: `↓ Egresos (${c.cant_egresos})`, value: c.total_egresos, color: C.red },
+                    ].map(k => (
+                      <div key={k.label}>
+                        <div style={{ fontSize: 11, color: C.muted }}>{k.label}</div>
+                        <div style={{ fontWeight: 700, color: k.color }}>Gs. {k.value.toLocaleString('es-PY')}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desglose por método de pago */}
+                  {c.por_metodo_pago.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>Por método de pago:</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {c.por_metodo_pago.map((mp: any, i: number) => (
+                          <div key={i} style={{ background: `${tipoMovColor(mp.mov_tipo)}18`, border: `1px solid ${tipoMovColor(mp.mov_tipo)}44`, borderRadius: 8, padding: '6px 12px', fontSize: 12 }}>
+                            <span style={{ color: tipoMovColor(mp.mov_tipo), fontWeight: 700 }}>{mp.metodo}</span>
+                            <span style={{ color: C.muted, marginLeft: 6 }}>{mp.mov_tipo === 'ingreso' ? '↑' : '↓'} Gs. {mp.total.toLocaleString('es-PY')} ({mp.cantidad})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Desglose por categoría */}
+                  {c.por_categoria.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>Por categoría:</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {c.por_categoria.map((cat: any, i: number) => (
+                          <div key={i} style={{ background: `${C.border}`, borderRadius: 8, padding: '5px 10px', fontSize: 11 }}>
+                            <span style={{ color: tipoMovColor(cat.mov_tipo) }}>{cat.mov_tipo === 'ingreso' ? '↑' : '↓'}</span>
+                            {' '}<span style={{ color: C.text }}>{cat.categoria}</span>
+                            <span style={{ color: C.muted, marginLeft: 6 }}>Gs. {cat.total.toLocaleString('es-PY')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+
+          {!cierre && !loadingCierre && (
+            <div style={{ ...card(), textAlign: 'center', padding: 50, color: C.faint }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+              <h3 style={{ margin: '0 0 8px', color: C.text }}>Cierre de Caja</h3>
+              <p style={{ fontSize: 13 }}>Seleccioná el período y hacé clic en "Generar Cierre" para ver el resumen financiero</p>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -336,9 +336,11 @@ class InscripcionRequest(BaseModel):
 
 
 class PagarCuotaRequest(BaseModel):
-    metodo_pago: str
-    monto: Optional[float] = None     # Si None → pago total; si float → pago parcial
-    fecha_pago: Optional[str] = None  # YYYY-MM-DD; None = hoy
+    metodo_pago: Optional[str] = None       # Texto libre (compatibilidad) o nombre del método
+    metodo_pago_id: Optional[str] = None    # ID del método de pago configurado por el tenant
+    cuenta_id: Optional[str] = None         # ID de la cuenta destino del pago
+    monto: Optional[float] = None           # Si None → pago total; si float → pago parcial
+    fecha_pago: Optional[str] = None        # YYYY-MM-DD; None = hoy
     generar_factura: Optional[bool] = False # Si True → emite factura electronica SIFEN
     notas: Optional[str] = None
 
@@ -2172,11 +2174,39 @@ async def registrar_pago(
     try:
         aid = str(current_user["academia_id"])
         fecha_pago = _clean_date(data.fecha_pago) or date.today()
-        metodo = _clean_str(data.metodo_pago) or "efectivo"
+
+        # ── Resolver método de pago ──────────────────────────────────────
+        # Prioridad: metodo_pago_id (FK a tabla) > metodo_pago (texto libre)
+        metodo_pago_id_db = None
+        metodo_str = _clean_str(data.metodo_pago) or "efectivo"
+        if data.metodo_pago_id:
+            res_mp = await session.execute(text("""
+                SELECT id, nombre FROM academias.metodos_pago
+                WHERE id = CAST(:id AS UUID) AND academia_id = CAST(:aid AS UUID) AND activo = TRUE
+            """), {"id": data.metodo_pago_id, "aid": aid})
+            mp_row = res_mp.fetchone()
+            if not mp_row:
+                raise HTTPException(status_code=404, detail="Método de pago no encontrado o inactivo.")
+            metodo_pago_id_db = str(mp_row[0])
+            metodo_str = mp_row[1]  # usar nombre del método registrado
+
+        # ── Resolver cuenta destino ──────────────────────────────────────
+        cuenta_id_db = None
+        if data.cuenta_id:
+            res_c = await session.execute(text("""
+                SELECT id, nombre, activa FROM academias.cuentas
+                WHERE id = CAST(:id AS UUID) AND academia_id = CAST(:aid AS UUID)
+            """), {"id": data.cuenta_id, "aid": aid})
+            c_row = res_c.fetchone()
+            if not c_row:
+                raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
+            if not c_row[2]:
+                raise HTTPException(status_code=400, detail=f"La cuenta '{c_row[1]}' está desactivada.")
+            cuenta_id_db = str(c_row[0])
 
         # Leer cuota actual
         res = await session.execute(text("""
-            SELECT id, monto_final, monto_pagado, estado
+            SELECT id, monto_final, monto_pagado, estado, alumno_id
             FROM academias.cuotas
             WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
         """), {"cid": cuota_id, "aid": aid})
@@ -2184,7 +2214,7 @@ async def registrar_pago(
         if not cuota:
             raise HTTPException(status_code=404, detail="Cuota no encontrada.")
 
-        _, monto_final, monto_ya_pagado, estado_actual = cuota
+        _, monto_final, monto_ya_pagado, estado_actual, cuota_alumno_id = cuota
         monto_final = float(monto_final)
         monto_ya_pagado = float(monto_ya_pagado)
 
@@ -2202,17 +2232,24 @@ async def registrar_pago(
         monto_pagado_nuevo = monto_ya_pagado + monto_a_pagar
         estado_nuevo = "pagada" if monto_pagado_nuevo >= monto_final - 0.01 else "parcial"
 
-        # Registrar pago individual en tabla pagos
+        # Registrar pago individual en tabla pagos (con cuenta_id y metodo_pago_id)
         pago_id = str(uuid.uuid4())
         await session.execute(text("""
             INSERT INTO academias.pagos
-                (id, cuota_id, alumno_id, academia_id, monto, metodo_pago, fecha_pago, notas, registrado_por)
+                (id, cuota_id, alumno_id, academia_id, monto,
+                 metodo_pago, metodo_pago_id, cuenta_id,
+                 fecha_pago, notas, registrado_por)
             SELECT CAST(:pago_id AS UUID), CAST(:cid AS UUID), alumno_id,
-                   CAST(:aid AS UUID), :monto, :metodo, CAST(:fecha AS DATE), :notas, :reg_por
+                   CAST(:aid AS UUID), :monto,
+                   :metodo, CAST(:metodo_pago_id AS UUID), CAST(:cuenta_id AS UUID),
+                   CAST(:fecha AS DATE), :notas, :reg_por
             FROM academias.cuotas WHERE id = CAST(:cid AS UUID)
         """), {
             "pago_id": pago_id, "cid": cuota_id, "aid": aid,
-            "monto": monto_a_pagar, "metodo": metodo,
+            "monto": monto_a_pagar,
+            "metodo": metodo_str,
+            "metodo_pago_id": metodo_pago_id_db,
+            "cuenta_id": cuenta_id_db,
             "fecha": fecha_pago, "notas": _clean_str(data.notas),
             "reg_por": current_user["user_id"],
         })
@@ -2229,8 +2266,40 @@ async def registrar_pago(
         """), {
             "cid": cuota_id, "aid": aid, "estado": estado_nuevo,
             "monto_pagado": monto_pagado_nuevo,
-            "metodo": metodo, "reg_por": current_user["user_id"],
+            "metodo": metodo_str, "reg_por": current_user["user_id"],
         })
+
+        # ── Crear movimiento de INGRESO en caja si se indicó cuenta ──────
+        if cuenta_id_db:
+            # Obtener concepto desde la cuota (alumno + período)
+            info_res = await session.execute(text("""
+                SELECT a.nombre || ' ' || COALESCE(a.apellido,'') AS alumno_nombre,
+                       q.periodo
+                FROM academias.cuotas q
+                JOIN academias.alumnos a ON a.id = q.alumno_id
+                WHERE q.id = CAST(:cid AS UUID)
+            """), {"cid": cuota_id})
+            info_cuota = info_res.fetchone()
+            concepto_mov = f"Cuota {info_cuota[1] if info_cuota else ''} — {(info_cuota[0] or '').strip()}" if info_cuota else f"Pago cuota {cuota_id[:8]}"
+
+            await session.execute(text("""
+                INSERT INTO academias.movimientos_caja
+                    (academia_id, cuenta_id, metodo_pago_id, tipo, categoria,
+                     concepto, monto, fecha, pago_id, registrado_por)
+                VALUES
+                    (CAST(:aid AS UUID), CAST(:cuenta_id AS UUID),
+                     CAST(:metodo_pago_id AS UUID), 'ingreso', 'cuota',
+                     :concepto, :monto, CAST(:fecha AS DATE),
+                     CAST(:pago_id AS UUID), :reg_por)
+            """), {
+                "aid": aid, "cuenta_id": cuenta_id_db,
+                "metodo_pago_id": metodo_pago_id_db,
+                "concepto": concepto_mov[:300],
+                "monto": monto_a_pagar,
+                "fecha": fecha_pago,
+                "pago_id": pago_id,
+                "reg_por": current_user["user_id"],
+            })
 
         await session.commit()
 
