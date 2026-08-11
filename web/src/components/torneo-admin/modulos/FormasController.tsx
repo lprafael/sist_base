@@ -54,8 +54,8 @@ export default function FormasController({ match, onClose, onSaved }: { match: a
       const payload = {
         jueces: jueces,
         puntaje_final: total,
-        puntaje_descartado_alto: jueces[highIndex],
-        puntaje_descartado_bajo: jueces[lowIndex],
+        puntaje_descartado_alto: highIndex !== -1 ? jueces[highIndex] : 0,
+        puntaje_descartado_bajo: lowIndex !== -1 ? jueces[lowIndex] : 0,
         filtro1_min_valido: minValid,
         filtro2_max_valido: maxValid,
         filtro3_min_descartado: minExcluded,
@@ -67,7 +67,7 @@ export default function FormasController({ match, onClose, onSaved }: { match: a
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({
           estadisticas: payload,
-          goles_local: total, // Usar goles local para renderizar rapido en la tabla si se requiere
+          goles_local: Math.round(total),
           estado: 'finalizado'
         })
       });

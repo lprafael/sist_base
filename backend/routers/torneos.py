@@ -135,8 +135,8 @@ class EquipoTecnicoUpdate(BaseModel):
     foto_url: Optional[str] = None
 
 class PartidoUpdate(BaseModel):
-    goles_local: Optional[int] = None
-    goles_visitante: Optional[int] = None
+    goles_local: Optional[Union[int, float]] = None
+    goles_visitante: Optional[Union[int, float]] = None
     estado: Optional[str] = None
     estadisticas: Optional[dict] = None
     observaciones: Optional[str] = None
@@ -2902,10 +2902,10 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
 
         if payload.goles_local is not None:
             updates.append("goles_local = :goles_local")
-            params["goles_local"] = payload.goles_local
+            params["goles_local"] = int(round(payload.goles_local))
         if payload.goles_visitante is not None:
             updates.append("goles_visitante = :goles_visitante")
-            params["goles_visitante"] = payload.goles_visitante
+            params["goles_visitante"] = int(round(payload.goles_visitante))
         if payload.estado is not None:
             updates.append("estado = :estado")
             params["estado"] = payload.estado
