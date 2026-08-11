@@ -107,6 +107,9 @@ export default function FormasController({ match, onClose, onSaved }: { match: a
 
           <div className="grid grid-cols-3 gap-4 mb-8">
             {[0, 1, 2].map(idx => {
+              const isHigh = highIndex === idx;
+              const isLow = lowIndex === idx;
+              const isDiscarded = (highIndex !== -1 && isHigh) || (lowIndex !== -1 && isLow);
 
               return (
                 <div key={idx} className={`flex flex-col items-center bg-white p-3 rounded-xl border-2 transition border-slate-200 shadow-sm`}>
