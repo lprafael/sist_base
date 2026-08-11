@@ -8,18 +8,29 @@ import {
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, TrendingDown, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
   MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock,
-  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt
+  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt, Sun, Moon
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
 
-// ─── Colores ───────────────────────────────────────────────
-const C = {
+// ─── Temas (Oscuro y Claro) ───────────────────────────────
+const darkTheme = {
   bg: '#0f172a', surface: '#1e293b', border: '#334155',
   primary: '#3b82f6', primaryHover: '#2563eb',
   text: '#f1f5f9', muted: '#94a3b8', faint: '#64748b',
   green: '#10b981', red: '#ef4444', yellow: '#f59e0b', purple: '#8b5cf6',
+  sidebarBg: '#0b1120', inputBg: '#0f172a',
 };
+
+const lightTheme = {
+  bg: '#f8fafc', surface: '#ffffff', border: '#cbd5e1',
+  primary: '#2563eb', primaryHover: '#1d4ed8',
+  text: '#0f172a', muted: '#475569', faint: '#64748b',
+  green: '#059669', red: '#dc2626', yellow: '#d97706', purple: '#7c3aed',
+  sidebarBg: '#ffffff', inputBg: '#f1f5f9',
+};
+
+const C: Record<string, string> = { ...darkTheme };
 
 const sportColors: Record<string, string> = {
   'Fútbol': '#10B981', 'Fútbol 5': '#10B981', 'Fútbol 7': '#10B981',
@@ -43,7 +54,7 @@ const btn = (color = C.primary, ghost = false): any => ({
 });
 const input = (extra?: any): any => ({
   width: '100%', padding: '10px 14px', borderRadius: 9,
-  background: '#0f172a', border: `1px solid ${C.border}`,
+  background: C.inputBg || C.bg, border: `1px solid ${C.border}`,
   color: C.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' as any, ...extra,
 });
 const label = (extra?: any): any => ({
@@ -67,6 +78,24 @@ export default function AcademiaPanel() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [notif, setNotif] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+
+  // Tema del panel (Oscuro vs Claro)
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('academia_theme_mode');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      setThemeMode(savedTheme);
+      Object.assign(C, savedTheme === 'light' ? lightTheme : darkTheme);
+    }
+  }, []);
+
+  const toggleTheme = (newMode?: 'dark' | 'light') => {
+    const next = newMode || (themeMode === 'dark' ? 'light' : 'dark');
+    setThemeMode(next);
+    localStorage.setItem('academia_theme_mode', next);
+    Object.assign(C, next === 'light' ? lightTheme : darkTheme);
+  };
 
   useEffect(() => {
     const handleNavSifen = () => setActiveTab('sifen');
@@ -206,7 +235,7 @@ export default function AcademiaPanel() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: "'Inter', sans-serif", color: C.text }}>
       {/* ── Sidebar ── */}
-      <Sidebar activeTab={activeTab} setTab={setActiveTab} perfil={perfil} rolInterno={rolInterno} session={session} />
+      <Sidebar activeTab={activeTab} setTab={setActiveTab} perfil={perfil} rolInterno={rolInterno} session={session} themeMode={themeMode} toggleTheme={toggleTheme} />
 
       {/* ── Main ── */}
       <div style={{ flex: 1, overflow: 'auto' }}>
@@ -240,6 +269,7 @@ export default function AcademiaPanel() {
               perfil={perfil} setPerfil={setPerfil} token={token}
               fileLogoRef={fileLogoRef} fileBannerRef={fileBannerRef}
               notify={notify} apiFetch={apiFetch} isDueno={isDueno} fetchAll={fetchAll}
+              themeMode={themeMode} toggleTheme={toggleTheme}
             />
           )}
 
@@ -391,7 +421,7 @@ export default function AcademiaPanel() {
 // ═══════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
-function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
+function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, toggleTheme }: any) {
   const navItems: { id: Tab; label: string; icon: any; roles?: string[] }[] = [
     { id: 'dashboard',         label: 'Dashboard',             icon: BarChart3 },
     { id: 'perfil',            label: 'Mi Academia',            icon: GraduationCap, roles: ['dueño','administrador'] },
@@ -417,7 +447,7 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
 
   return (
     <div style={{
-      width: 230, background: '#0b1120', borderRight: `1px solid ${C.border}`,
+      width: 230, background: C.sidebarBg || C.surface, borderRight: `1px solid ${C.border}`,
       display: 'flex', flexDirection: 'column', minHeight: '100vh',
       position: 'sticky', top: 0, height: '100vh', flexShrink: 0,
     }}>
@@ -464,8 +494,27 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
         })}
       </nav>
 
-      {/* Footer sidebar */}
+      {/* Footer sidebar con Switch de Tema */}
       <div style={{ padding: '12px 10px', borderTop: `1px solid ${C.border}` }}>
+        <button
+          onClick={() => toggleTheme()}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 10px', borderRadius: 8, marginBottom: 8,
+            background: themeMode === 'light' ? `${C.primary}12` : `${C.primary}18`,
+            border: `1px solid ${C.border}`,
+            color: C.text, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            transition: 'all .15s'
+          }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {themeMode === 'dark' ? <Moon size={14} color={C.primary} /> : <Sun size={14} color={C.yellow} />}
+            {themeMode === 'dark' ? 'Tema Oscuro' : 'Tema Claro'}
+          </span>
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: C.primary, color: '#fff', fontWeight: 800 }}>
+            {themeMode === 'dark' ? '🌙' : '☀️'}
+          </span>
+        </button>
+
         {perfil?.enlace_sitio && (
           <a href={`/academia/${perfil.enlace_sitio}`} target="_blank" rel="noopener noreferrer" style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -1067,7 +1116,7 @@ function HorariosOficinaEditor({ perfil, notify, apiFetch }: any) {
 // ═══════════════════════════════════════════════════════════
 // PERFIL (Mi Academia)
 // ═══════════════════════════════════════════════════════════
-function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notify, apiFetch, isDueno }: any) {
+function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notify, apiFetch, isDueno, themeMode, toggleTheme }: any) {
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
 
@@ -1237,6 +1286,38 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
                   <input value={form.color_primario || '#1e3a8a'} onChange={e => setForm((f: any) => ({ ...f, color_primario: e.target.value }))}
                     style={{ ...input(), flex: 1 }} />
                 </div>
+              </div>
+            </div>
+
+            {/* ── Apariencia y Tema del Panel ── */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+              <label style={label()}>Apariencia del Panel (Diseño visual)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => toggleTheme && toggleTheme('dark')}
+                  style={{
+                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                    background: '#0f172a', border: themeMode === 'dark' ? `2px solid ${C.primary}` : '1px solid #334155',
+                    color: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    fontWeight: 700, fontSize: 13, transition: 'all .15s'
+                  }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>🌙 Tema Oscuro</span>
+                  {themeMode === 'dark' && <Check size={16} color={C.primary} />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleTheme && toggleTheme('light')}
+                  style={{
+                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                    background: '#ffffff', border: themeMode === 'light' ? `2px solid ${C.primary}` : '1px solid #cbd5e1',
+                    color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    fontWeight: 700, fontSize: 13, transition: 'all .15s'
+                  }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>☀️ Tema Claro</span>
+                  {themeMode === 'light' && <Check size={16} color={C.primary} />}
+                </button>
               </div>
             </div>
 
