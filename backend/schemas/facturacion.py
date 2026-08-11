@@ -39,28 +39,28 @@ class EmisorAcademiaUpdate(BaseModel):
 class EmisorAcademiaOut(BaseModel):
     id:                     str
     academia_id:            str
-    ruc_con_dv:             str
-    tipo_contribuyente:     int
-    razon_social:           str
-    nombre_fantasia:        Optional[str]
-    direccion:              Optional[str]
-    num_casa:               Optional[str]
-    telefono:               Optional[str]
-    email:                  Optional[str]
-    c_dep_emi:              Optional[int]
-    d_des_dep_emi:          Optional[str]
-    c_ciu_emi:              Optional[int]
-    d_des_ciu_emi:          Optional[str]
-    c_act_eco:              Optional[str]
-    d_des_act_eco:          Optional[str]
-    num_tim:                Optional[str]
-    d_est:                  str
-    d_pun_exp:              str
-    id_csc:                 str
-    ultimo_num_doc:         int
-    activo:                 bool
+    ruc_con_dv:             str = ""
+    tipo_contribuyente:     int = 1
+    razon_social:           str = ""
+    nombre_fantasia:        Optional[str] = None
+    direccion:              Optional[str] = None
+    num_casa:               Optional[str] = None
+    telefono:               Optional[str] = None
+    email:                  Optional[str] = None
+    c_dep_emi:              Optional[int] = None
+    d_des_dep_emi:          Optional[str] = None
+    c_ciu_emi:              Optional[int] = None
+    d_des_ciu_emi:          Optional[str] = None
+    c_act_eco:              Optional[str] = None
+    d_des_act_eco:          Optional[str] = None
+    num_tim:                Optional[str] = None
+    d_est:                  str = "001"
+    d_pun_exp:              str = "001"
+    id_csc:                 str = "0001"
+    ultimo_num_doc:         int = 0
+    activo:                 bool = True
     tiene_certificado:      bool = False
-    actualizado_en:         Optional[datetime]
+    actualizado_en:         Optional[datetime] = None
 
 
 # ============================================================
