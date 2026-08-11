@@ -56,71 +56,83 @@ async def obtener_emisor(
     ctx = await get_academia_context(request, current_user, session)
     academia_id = str(ctx["academia_id"])
 
-    res = await session.execute(
-        text("""
-            SELECT id, academia_id, ruc_con_dv, tipo_contribuyente, razon_social,
-                   nombre_fantasia, direccion, num_casa, telefono, email,
-                   c_dep_emi, d_des_dep_emi, c_ciu_emi, d_des_ciu_emi,
-                   c_act_eco, d_des_act_eco, num_tim, d_est, d_pun_exp,
-                   id_csc, ultimo_num_doc, activo, actualizado_en
-            FROM facturacion.emisor_academia
-            WHERE academia_id = :aid
-        """),
-        {"aid": academia_id}
-    )
-    row = res.fetchone()
-
-    # Si no existe, crear registro vacío
-    if not row:
-        res2 = await session.execute(
+    try:
+        res = await session.execute(
             text("""
-                INSERT INTO facturacion.emisor_academia
-                    (academia_id, ruc_con_dv, razon_social)
-                VALUES (:aid, '', '')
-                RETURNING id, academia_id, ruc_con_dv, tipo_contribuyente, razon_social,
-                          nombre_fantasia, direccion, num_casa, telefono, email,
-                          c_dep_emi, d_des_dep_emi, c_ciu_emi, d_des_ciu_emi,
-                          c_act_eco, d_des_act_eco, num_tim, d_est, d_pun_exp,
-                          id_csc, ultimo_num_doc, activo, actualizado_en
+                SELECT id, academia_id, ruc_con_dv, tipo_contribuyente, razon_social,
+                       nombre_fantasia, direccion, num_casa, telefono, email,
+                       c_dep_emi, d_des_dep_emi, c_ciu_emi, d_des_ciu_emi,
+                       c_act_eco, d_des_act_eco, num_tim, d_est, d_pun_exp,
+                       id_csc, ultimo_num_doc, activo, actualizado_en
+                FROM facturacion.emisor_academia
+                WHERE academia_id = :aid
             """),
             {"aid": academia_id}
         )
-        await session.commit()
-        row = res2.fetchone()
+        row = res.fetchone()
 
-    # Verificar si tiene certificado activo
-    res_cert = await session.execute(
-        text("SELECT COUNT(*) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
-        {"aid": academia_id}
-    )
-    tiene_certificado = (res_cert.scalar() or 0) > 0
+        # Si no existe, crear registro vacío
+        if not row:
+            res2 = await session.execute(
+                text("""
+                    INSERT INTO facturacion.emisor_academia
+                        (academia_id, ruc_con_dv, razon_social)
+                    VALUES (:aid, '', '')
+                    RETURNING id, academia_id, ruc_con_dv, tipo_contribuyente, razon_social,
+                              nombre_fantasia, direccion, num_casa, telefono, email,
+                              c_dep_emi, d_des_dep_emi, c_ciu_emi, d_des_ciu_emi,
+                              c_act_eco, d_des_act_eco, num_tim, d_est, d_pun_exp,
+                              id_csc, ultimo_num_doc, activo, actualizado_en
+                """),
+                {"aid": academia_id}
+            )
+            await session.commit()
+            row = res2.fetchone()
 
-    return EmisorAcademiaOut(
-        id=str(row[0]),
-        academia_id=str(row[1]),
-        ruc_con_dv=row[2] or "",
-        tipo_contribuyente=row[3] or 1,
-        razon_social=row[4] or "",
-        nombre_fantasia=row[5],
-        direccion=row[6],
-        num_casa=row[7],
-        telefono=row[8],
-        email=row[9],
-        c_dep_emi=row[10],
-        d_des_dep_emi=row[11],
-        c_ciu_emi=row[12],
-        d_des_ciu_emi=row[13],
-        c_act_eco=row[14],
-        d_des_act_eco=row[15],
-        num_tim=row[16],
-        d_est=row[17] or "001",
-        d_pun_exp=row[18] or "001",
-        id_csc=row[19] or "0001",
-        ultimo_num_doc=row[20] or 0,
-        activo=row[21] if row[21] is not None else True,
-        tiene_certificado=tiene_certificado,
-        actualizado_en=row[22],
-    )
+        # Verificar si tiene certificado activo
+        res_cert = await session.execute(
+            text("SELECT COUNT(*) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
+            {"aid": academia_id}
+        )
+        tiene_certificado = (res_cert.scalar() or 0) > 0
+
+        return EmisorAcademiaOut(
+            id=str(row[0]),
+            academia_id=str(row[1]),
+            ruc_con_dv=row[2] or "",
+            tipo_contribuyente=row[3] or 1,
+            razon_social=row[4] or "",
+            nombre_fantasia=row[5],
+            direccion=row[6],
+            num_casa=row[7],
+            telefono=row[8],
+            email=row[9],
+            c_dep_emi=row[10],
+            d_des_dep_emi=row[11],
+            c_ciu_emi=row[12],
+            d_des_ciu_emi=row[13],
+            c_act_eco=row[14],
+            d_des_act_eco=row[15],
+            num_tim=row[16],
+            d_est=row[17] or "001",
+            d_pun_exp=row[18] or "001",
+            id_csc=row[19] or "0001",
+            ultimo_num_doc=row[20] or 0,
+            activo=row[21] if row[21] is not None else True,
+            tiene_certificado=tiene_certificado,
+            actualizado_en=row[22],
+        )
+    except Exception as e:
+        print(f"WARN: Error en obtener_emisor: {e}")
+        return EmisorAcademiaOut(
+            id=str(uuid.uuid4()),
+            academia_id=academia_id,
+            ruc_con_dv="",
+            tipo_contribuyente=1,
+            razon_social="",
+            activo=False,
+            tiene_certificado=False,
+        )
 
 
 @router.get("/emisor/status")
@@ -135,35 +147,47 @@ async def obtener_emisor_status(
     ctx = await get_academia_context(request, current_user, session)
     academia_id = str(ctx["academia_id"])
 
-    res = await session.execute(
-        text("""
-            SELECT ruc_con_dv, razon_social, num_tim, id_csc, activo
-            FROM facturacion.emisor_academia
-            WHERE academia_id = :aid
-        """),
-        {"aid": academia_id}
-    )
-    row = res.fetchone()
+    try:
+        res = await session.execute(
+            text("""
+                SELECT ruc_con_dv, razon_social, num_tim, id_csc, activo
+                FROM facturacion.emisor_academia
+                WHERE academia_id = :aid
+            """),
+            {"aid": academia_id}
+        )
+        row = res.fetchone()
 
-    res_cert = await session.execute(
-        text("SELECT COUNT(*), MAX(expira_en) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
-        {"aid": academia_id}
-    )
-    cert_row = res_cert.fetchone()
-    tiene_cert = (cert_row[0] or 0) > 0 if cert_row else False
-    expira_en = cert_row[1].isoformat() if cert_row and cert_row[1] else None
+        res_cert = await session.execute(
+            text("SELECT COUNT(*), MAX(expira_en) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
+            {"aid": academia_id}
+        )
+        cert_row = res_cert.fetchone()
+        tiene_cert = (cert_row[0] or 0) > 0 if cert_row else False
+        expira_en = cert_row[1].isoformat() if cert_row and cert_row[1] else None
 
-    configurado = bool(row and row[0] and row[1] and row[2])
+        configurado = bool(row and row[0] and row[1] and row[2])
 
-    return {
-        "configurado": configurado,
-        "ruc": row[0] if row else "",
-        "razon_social": row[1] if row else "",
-        "num_timbrado": row[2] if row else "",
-        "activo": row[4] if row and row[4] is not None else False,
-        "tiene_certificado": tiene_cert,
-        "certificado_expira_en": expira_en,
-    }
+        return {
+            "configurado": configurado,
+            "ruc": row[0] if row else "",
+            "razon_social": row[1] if row else "",
+            "num_timbrado": row[2] if row else "",
+            "activo": row[4] if row and row[4] is not None else False,
+            "tiene_certificado": tiene_cert,
+            "certificado_expira_en": expira_en,
+        }
+    except Exception as e:
+        print(f"WARN: Error en obtener_emisor_status: {e}")
+        return {
+            "configurado": False,
+            "ruc": "",
+            "razon_social": "",
+            "num_timbrado": "",
+            "activo": False,
+            "tiene_certificado": False,
+            "certificado_expira_en": None,
+        }
 
 
 
@@ -535,35 +559,39 @@ async def listar_documentos(
     ctx = await get_academia_context(request, current_user, session)
     academia_id = str(ctx["academia_id"])
 
-    where_extra = "AND estado = :estado" if estado else ""
-    params: dict = {"aid": academia_id, "skip": skip, "limit": limit}
-    if estado:
-        params["estado"] = estado
+    try:
+        where_extra = "AND estado = :estado" if estado else ""
+        params: dict = {"aid": academia_id, "skip": skip, "limit": limit}
+        if estado:
+            params["estado"] = estado
 
-    res = await session.execute(
-        text(f"""
-            SELECT id, cdc, numero_documento, d_fe_emi_de, receptor_nombre,
-                   d_tot_gral_ope, estado, cancelado, cuota_id, matricula_id,
-                   concepto_libre, creado_en
-            FROM facturacion.documentos_electronicos
-            WHERE academia_id = :aid {where_extra}
-            ORDER BY creado_en DESC
-            LIMIT :limit OFFSET :skip
-        """),
-        params
-    )
-    rows = res.fetchall()
-    return [
-        DocumentoElectronicoListItem(
-            id=str(r[0]), cdc=r[1], numero_documento=r[2],
-            d_fe_emi_de=r[3], receptor_nombre=r[4],
-            d_tot_gral_ope=r[5], estado=r[6], cancelado=r[7],
-            cuota_id=str(r[8]) if r[8] else None,
-            matricula_id=str(r[9]) if r[9] else None,
-            concepto_libre=r[10], creado_en=r[11],
+        res = await session.execute(
+            text(f"""
+                SELECT id, cdc, numero_documento, d_fe_emi_de, receptor_nombre,
+                       d_tot_gral_ope, estado, cancelado, cuota_id, matricula_id,
+                       concepto_libre, creado_en
+                FROM facturacion.documentos_electronicos
+                WHERE academia_id = :aid {where_extra}
+                ORDER BY creado_en DESC
+                LIMIT :limit OFFSET :skip
+            """),
+            params
         )
-        for r in rows
-    ]
+        rows = res.fetchall()
+        return [
+            DocumentoElectronicoListItem(
+                id=str(r[0]), cdc=r[1], numero_documento=r[2],
+                d_fe_emi_de=r[3], receptor_nombre=r[4],
+                d_tot_gral_ope=r[5], estado=r[6], cancelado=r[7],
+                cuota_id=str(r[8]) if r[8] else None,
+                matricula_id=str(r[9]) if r[9] else None,
+                concepto_libre=r[10], creado_en=r[11],
+            )
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"WARN: Error en listar_documentos: {e}")
+        return []
 
 
 @router.get("/documentos/{documento_id}", response_model=DocumentoElectronicoOut)

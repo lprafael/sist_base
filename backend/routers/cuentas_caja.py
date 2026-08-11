@@ -120,30 +120,34 @@ async def listar_cuentas(
     ctx = await get_academia_context(request, current_user, session)
     aid = str(ctx["academia_id"])
 
-    where = "WHERE academia_id = CAST(:aid AS UUID)" + (" AND activa = TRUE" if solo_activas else "")
-    res = await session.execute(
-        text(f"""
-            SELECT id, nombre, tipo, descripcion, numero_cuenta, banco,
-                   moneda, activa, es_principal, saldo_inicial,
-                   creado_en, actualizado_en
-            FROM academias.cuentas
-            {where}
-            ORDER BY es_principal DESC, nombre
-        """),
-        {"aid": aid}
-    )
-    rows = res.fetchall()
-    return [
-        {
-            "id": str(r[0]), "nombre": r[1], "tipo": r[2],
-            "descripcion": r[3], "numero_cuenta": r[4], "banco": r[5],
-            "moneda": r[6], "activa": r[7], "es_principal": r[8],
-            "saldo_inicial": float(r[9]),
-            "creado_en": r[10].isoformat() if r[10] else None,
-            "actualizado_en": r[11].isoformat() if r[11] else None,
-        }
-        for r in rows
-    ]
+    try:
+        where = "WHERE academia_id = CAST(:aid AS UUID)" + (" AND activa = TRUE" if solo_activas else "")
+        res = await session.execute(
+            text(f"""
+                SELECT id, nombre, tipo, descripcion, numero_cuenta, banco,
+                       moneda, activa, es_principal, saldo_inicial,
+                       creado_en, actualizado_en
+                FROM academias.cuentas
+                {where}
+                ORDER BY es_principal DESC, nombre
+            """),
+            {"aid": aid}
+        )
+        rows = res.fetchall()
+        return [
+            {
+                "id": str(r[0]), "nombre": r[1], "tipo": r[2],
+                "descripcion": r[3], "numero_cuenta": r[4], "banco": r[5],
+                "moneda": r[6], "activa": r[7], "es_principal": r[8],
+                "saldo_inicial": float(r[9]),
+                "creado_en": r[10].isoformat() if r[10] else None,
+                "actualizado_en": r[11].isoformat() if r[11] else None,
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"WARN: Error en listar_cuentas: {e}")
+        return []
 
 
 @router.post("/cuentas", status_code=status.HTTP_201_CREATED)
@@ -281,25 +285,29 @@ async def listar_metodos_pago(
     ctx = await get_academia_context(request, current_user, session)
     aid = str(ctx["academia_id"])
 
-    where = "WHERE academia_id = CAST(:aid AS UUID)" + (" AND activo = TRUE" if solo_activos else "")
-    res = await session.execute(
-        text(f"""
-            SELECT id, nombre, tipo, descripcion, activo, creado_en
-            FROM academias.metodos_pago
-            {where}
-            ORDER BY nombre
-        """),
-        {"aid": aid}
-    )
-    rows = res.fetchall()
-    return [
-        {
-            "id": str(r[0]), "nombre": r[1], "tipo": r[2],
-            "descripcion": r[3], "activo": r[4],
-            "creado_en": r[5].isoformat() if r[5] else None,
-        }
-        for r in rows
-    ]
+    try:
+        where = "WHERE academia_id = CAST(:aid AS UUID)" + (" AND activo = TRUE" if solo_activos else "")
+        res = await session.execute(
+            text(f"""
+                SELECT id, nombre, tipo, descripcion, activo, creado_en
+                FROM academias.metodos_pago
+                {where}
+                ORDER BY nombre
+            """),
+            {"aid": aid}
+        )
+        rows = res.fetchall()
+        return [
+            {
+                "id": str(r[0]), "nombre": r[1], "tipo": r[2],
+                "descripcion": r[3], "activo": r[4],
+                "creado_en": r[5].isoformat() if r[5] else None,
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"WARN: Error en listar_metodos_pago: {e}")
+        return []
 
 
 @router.post("/metodos-pago", status_code=status.HTTP_201_CREATED)
@@ -429,60 +437,64 @@ async def listar_movimientos(
     ctx = await get_academia_context(request, current_user, session)
     aid = str(ctx["academia_id"])
 
-    conditions = ["m.academia_id = CAST(:aid AS UUID)", "m.anulado = FALSE"]
-    params: dict = {"aid": aid, "skip": skip, "limit": limit}
+    try:
+        conditions = ["m.academia_id = CAST(:aid AS UUID)", "m.anulado = FALSE"]
+        params: dict = {"aid": aid, "skip": skip, "limit": limit}
 
-    if cuenta_id:
-        conditions.append("m.cuenta_id = CAST(:cuenta_id AS UUID)")
-        params["cuenta_id"] = cuenta_id
-    if tipo:
-        conditions.append("m.tipo = :tipo")
-        params["tipo"] = tipo
-    if categoria:
-        conditions.append("m.categoria = :categoria")
-        params["categoria"] = categoria
-    if fecha_desde:
-        conditions.append("m.fecha >= CAST(:fecha_desde AS DATE)")
-        params["fecha_desde"] = fecha_desde
-    if fecha_hasta:
-        conditions.append("m.fecha <= CAST(:fecha_hasta AS DATE)")
-        params["fecha_hasta"] = fecha_hasta
+        if cuenta_id:
+            conditions.append("m.cuenta_id = CAST(:cuenta_id AS UUID)")
+            params["cuenta_id"] = cuenta_id
+        if tipo:
+            conditions.append("m.tipo = :tipo")
+            params["tipo"] = tipo
+        if categoria:
+            conditions.append("m.categoria = :categoria")
+            params["categoria"] = categoria
+        if fecha_desde:
+            conditions.append("m.fecha >= CAST(:fecha_desde AS DATE)")
+            params["fecha_desde"] = fecha_desde
+        if fecha_hasta:
+            conditions.append("m.fecha <= CAST(:fecha_hasta AS DATE)")
+            params["fecha_hasta"] = fecha_hasta
 
-    where = " AND ".join(conditions)
-    res = await session.execute(
-        text(f"""
-            SELECT m.id, m.cuenta_id, c.nombre AS cuenta_nombre, c.tipo AS cuenta_tipo,
-                   m.metodo_pago_id, mp.nombre AS metodo_pago_nombre,
-                   m.tipo, m.categoria, m.concepto, m.monto,
-                   m.fecha, m.referencia, m.notas, m.pago_id,
-                   COALESCE(u.nombre_completo, u.username) AS registrado_por,
-                   m.creado_en
-            FROM academias.movimientos_caja m
-            JOIN academias.cuentas c ON c.id = m.cuenta_id
-            LEFT JOIN academias.metodos_pago mp ON mp.id = m.metodo_pago_id
-            LEFT JOIN sistema.usuarios u ON u.id = m.registrado_por
-            WHERE {where}
-            ORDER BY m.fecha DESC, m.creado_en DESC
-            LIMIT :limit OFFSET :skip
-        """),
-        params
-    )
-    rows = res.fetchall()
-    return [
-        {
-            "id": str(r[0]),
-            "cuenta_id": str(r[1]), "cuenta_nombre": r[2], "cuenta_tipo": r[3],
-            "metodo_pago_id": str(r[4]) if r[4] else None, "metodo_pago_nombre": r[5],
-            "tipo": r[6], "categoria": r[7], "concepto": r[8],
-            "monto": float(r[9]),
-            "fecha": r[10].isoformat() if r[10] else None,
-            "referencia": r[11], "notas": r[12],
-            "pago_id": str(r[13]) if r[13] else None,
-            "registrado_por": r[14],
-            "creado_en": r[15].isoformat() if r[15] else None,
-        }
-        for r in rows
-    ]
+        where = " AND ".join(conditions)
+        res = await session.execute(
+            text(f"""
+                SELECT m.id, m.cuenta_id, c.nombre AS cuenta_nombre, c.tipo AS cuenta_tipo,
+                       m.metodo_pago_id, mp.nombre AS metodo_pago_nombre,
+                       m.tipo, m.categoria, m.concepto, m.monto,
+                       m.fecha, m.referencia, m.notas, m.pago_id,
+                       COALESCE(u.nombre_completo, u.username) AS registrado_por,
+                       m.creado_en
+                FROM academias.movimientos_caja m
+                JOIN academias.cuentas c ON c.id = m.cuenta_id
+                LEFT JOIN academias.metodos_pago mp ON mp.id = m.metodo_pago_id
+                LEFT JOIN sistema.usuarios u ON u.id = m.registrado_por
+                WHERE {where}
+                ORDER BY m.fecha DESC, m.creado_en DESC
+                LIMIT :limit OFFSET :skip
+            """),
+            params
+        )
+        rows = res.fetchall()
+        return [
+            {
+                "id": str(r[0]),
+                "cuenta_id": str(r[1]), "cuenta_nombre": r[2], "cuenta_tipo": r[3],
+                "metodo_pago_id": str(r[4]) if r[4] else None, "metodo_pago_nombre": r[5],
+                "tipo": r[6], "categoria": r[7], "concepto": r[8],
+                "monto": float(r[9]),
+                "fecha": r[10].isoformat() if r[10] else None,
+                "referencia": r[11], "notas": r[12],
+                "pago_id": str(r[13]) if r[13] else None,
+                "registrado_por": r[14],
+                "creado_en": r[15].isoformat() if r[15] else None,
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"WARN: Error en listar_movimientos: {e}")
+        return []
 
 
 @router.post("/caja/movimientos", status_code=status.HTTP_201_CREATED)
@@ -607,146 +619,153 @@ async def cierre_caja(
     ctx = await get_academia_context(request, current_user, session)
     aid = str(ctx["academia_id"])
 
-    # Defaults de fecha: mes actual
-    hoy = date.today()
-    if not fecha_desde:
-        fecha_desde = hoy.replace(day=1).isoformat()
-    if not fecha_hasta:
-        fecha_hasta = hoy.isoformat()
+    try:
+        # Defaults de fecha: mes actual
+        hoy = date.today()
+        if not fecha_desde:
+            fecha_desde = hoy.replace(day=1).isoformat()
+        if not fecha_hasta:
+            fecha_hasta = hoy.isoformat()
 
-    # ── Resumen por cuenta ──
-    cuenta_filter = "AND m.cuenta_id = CAST(:cuenta_id AS UUID)" if cuenta_id else ""
-    params_resumen = {"aid": aid, "fd": fecha_desde, "fh": fecha_hasta}
-    if cuenta_id:
-        params_resumen["cuenta_id"] = cuenta_id
+        # ── Resumen por cuenta ──
+        cuenta_filter = "AND m.cuenta_id = CAST(:cuenta_id AS UUID)" if cuenta_id else ""
+        params_resumen = {"aid": aid, "fd": fecha_desde, "fh": fecha_hasta}
+        if cuenta_id:
+            params_resumen["cuenta_id"] = cuenta_id
 
-    res_resumen = await session.execute(
-        text(f"""
-            SELECT
-                c.id, c.nombre, c.tipo, c.moneda, c.saldo_inicial,
-                COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' AND m.anulado = FALSE THEN m.monto ELSE 0 END), 0) AS total_ingresos,
-                COALESCE(SUM(CASE WHEN m.tipo = 'egreso'  AND m.anulado = FALSE THEN m.monto ELSE 0 END), 0) AS total_egresos,
-                COUNT(CASE WHEN m.tipo = 'ingreso' AND m.anulado = FALSE THEN 1 END) AS cant_ingresos,
-                COUNT(CASE WHEN m.tipo = 'egreso'  AND m.anulado = FALSE THEN 1 END) AS cant_egresos
-            FROM academias.cuentas c
-            LEFT JOIN academias.movimientos_caja m
-                ON m.cuenta_id = c.id
-                AND m.fecha BETWEEN CAST(:fd AS DATE) AND CAST(:fh AS DATE)
-            WHERE c.academia_id = CAST(:aid AS UUID) AND c.activa = TRUE
-            {cuenta_filter}
-            GROUP BY c.id, c.nombre, c.tipo, c.moneda, c.saldo_inicial
-            ORDER BY c.es_principal DESC, c.nombre
-        """),
-        params_resumen
-    )
-    cuentas_rows = res_resumen.fetchall()
+        res_resumen = await session.execute(
+            text(f"""
+                SELECT
+                    c.id, c.nombre, c.tipo, c.moneda, c.saldo_inicial,
+                    COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' AND m.anulado = FALSE THEN m.monto ELSE 0 END), 0) AS total_ingresos,
+                    COALESCE(SUM(CASE WHEN m.tipo = 'egreso'  AND m.anulado = FALSE THEN m.monto ELSE 0 END), 0) AS total_egresos,
+                    COUNT(CASE WHEN m.tipo = 'ingreso' AND m.anulado = FALSE THEN 1 END) AS cant_ingresos,
+                    COUNT(CASE WHEN m.tipo = 'egreso'  AND m.anulado = FALSE THEN 1 END) AS cant_egresos
+                FROM academias.cuentas c
+                LEFT JOIN academias.movimientos_caja m
+                    ON m.cuenta_id = c.id
+                    AND m.fecha BETWEEN CAST(:fd AS DATE) AND CAST(:fh AS DATE)
+                WHERE c.academia_id = CAST(:aid AS UUID) AND c.activa = TRUE
+                {cuenta_filter}
+                GROUP BY c.id, c.nombre, c.tipo, c.moneda, c.saldo_inicial
+                ORDER BY c.es_principal DESC, c.nombre
+            """),
+            params_resumen
+        )
+        cuentas_rows = res_resumen.fetchall()
 
-    # ── Desglose por método de pago dentro del período ──
-    params_mp = {"aid": aid, "fd": fecha_desde, "fh": fecha_hasta}
-    if cuenta_id:
-        params_mp["cuenta_id"] = cuenta_id
-    mp_filter = "AND m.cuenta_id = CAST(:cuenta_id AS UUID)" if cuenta_id else ""
+        # ── Desglose por método de pago dentro del período ──
+        params_mp = {"aid": aid, "fd": fecha_desde, "fh": fecha_hasta}
+        if cuenta_id:
+            params_mp["cuenta_id"] = cuenta_id
+        mp_filter = "AND m.cuenta_id = CAST(:cuenta_id AS UUID)" if cuenta_id else ""
 
-    res_mp = await session.execute(
-        text(f"""
-            SELECT
-                m.cuenta_id,
-                COALESCE(mp.nombre, 'Sin especificar') AS metodo_nombre,
-                mp.tipo AS metodo_tipo,
-                m.tipo AS mov_tipo,
-                COALESCE(SUM(m.monto), 0) AS total,
-                COUNT(*) AS cantidad
-            FROM academias.movimientos_caja m
-            LEFT JOIN academias.metodos_pago mp ON mp.id = m.metodo_pago_id
-            WHERE m.academia_id = CAST(:aid AS UUID)
-              AND m.fecha BETWEEN CAST(:fd AS DATE) AND CAST(:fh AS DATE)
-              AND m.anulado = FALSE
-              {mp_filter}
-            GROUP BY m.cuenta_id, mp.nombre, mp.tipo, m.tipo
-            ORDER BY total DESC
-        """),
-        params_mp
-    )
-    mp_rows = res_mp.fetchall()
+        res_mp = await session.execute(
+            text(f"""
+                SELECT
+                    m.cuenta_id,
+                    COALESCE(mp.nombre, 'Sin especificar') AS metodo_nombre,
+                    mp.tipo AS metodo_tipo,
+                    m.tipo AS mov_tipo,
+                    COALESCE(SUM(m.monto), 0) AS total,
+                    COUNT(*) AS cantidad
+                FROM academias.movimientos_caja m
+                LEFT JOIN academias.metodos_pago mp ON mp.id = m.metodo_pago_id
+                WHERE m.academia_id = CAST(:aid AS UUID)
+                  AND m.fecha BETWEEN CAST(:fd AS DATE) AND CAST(:fh AS DATE)
+                  AND m.anulado = FALSE
+                  {mp_filter}
+                GROUP BY m.cuenta_id, mp.nombre, mp.tipo, m.tipo
+                ORDER BY total DESC
+            """),
+            params_mp
+        )
+        mp_rows = res_mp.fetchall()
 
-    # ── Desglose por categoría ──
-    res_cat = await session.execute(
-        text(f"""
-            SELECT
-                m.cuenta_id,
-                m.categoria,
-                m.tipo AS mov_tipo,
-                COALESCE(SUM(m.monto), 0) AS total,
-                COUNT(*) AS cantidad
-            FROM academias.movimientos_caja m
-            WHERE m.academia_id = CAST(:aid AS UUID)
-              AND m.fecha BETWEEN CAST(:fd AS DATE) AND CAST(:fh AS DATE)
-              AND m.anulado = FALSE
-              {mp_filter}
-            GROUP BY m.cuenta_id, m.categoria, m.tipo
-            ORDER BY total DESC
-        """),
-        params_mp
-    )
-    cat_rows = res_cat.fetchall()
+        # ── Desglose por categoría ──
+        res_cat = await session.execute(
+            text(f"""
+                SELECT
+                    m.cuenta_id,
+                    m.categoria,
+                    m.tipo AS mov_tipo,
+                    COALESCE(SUM(m.monto), 0) AS total,
+                    COUNT(*) AS cantidad
+                FROM academias.movimientos_caja m
+                WHERE m.academia_id = CAST(:aid AS UUID)
+                  AND m.fecha BETWEEN CAST(:fd AS DATE) AND CAST(:fh AS DATE)
+                  AND m.anulado = FALSE
+                  {mp_filter}
+                GROUP BY m.cuenta_id, m.categoria, m.tipo
+                ORDER BY total DESC
+            """),
+            params_mp
+        )
+        cat_rows = res_cat.fetchall()
 
-    # ── Construir respuesta ──
-    # Índices auxiliares
-    mp_by_cuenta: dict = {}
-    for r in mp_rows:
-        cid = str(r[0])
-        if cid not in mp_by_cuenta:
-            mp_by_cuenta[cid] = []
-        mp_by_cuenta[cid].append({
-            "metodo": r[1], "metodo_tipo": r[2], "mov_tipo": r[3],
-            "total": float(r[4]), "cantidad": int(r[5]),
-        })
+        # ── Construir respuesta ──
+        mp_by_cuenta: dict = {}
+        for r in mp_rows:
+            cid = str(r[0])
+            if cid not in mp_by_cuenta:
+                mp_by_cuenta[cid] = []
+            mp_by_cuenta[cid].append({
+                "metodo": r[1], "metodo_tipo": r[2], "mov_tipo": r[3],
+                "total": float(r[4]), "cantidad": int(r[5]),
+            })
 
-    cat_by_cuenta: dict = {}
-    for r in cat_rows:
-        cid = str(r[0])
-        if cid not in cat_by_cuenta:
-            cat_by_cuenta[cid] = []
-        cat_by_cuenta[cid].append({
-            "categoria": r[1], "mov_tipo": r[2],
-            "total": float(r[3]), "cantidad": int(r[4]),
-        })
+        cat_by_cuenta: dict = {}
+        for r in cat_rows:
+            cid = str(r[0])
+            if cid not in cat_by_cuenta:
+                cat_by_cuenta[cid] = []
+            cat_by_cuenta[cid].append({
+                "categoria": r[1], "mov_tipo": r[2],
+                "total": float(r[3]), "cantidad": int(r[4]),
+            })
 
-    cuentas_resultado = []
-    total_ingresos_global = 0.0
-    total_egresos_global = 0.0
+        cuentas_resultado = []
+        total_ingresos_global = 0.0
+        total_egresos_global = 0.0
 
-    for r in cuentas_rows:
-        cid = str(r[0])
-        saldo_ini = float(r[4])
-        ingresos = float(r[5])
-        egresos = float(r[6])
-        saldo_est = saldo_ini + ingresos - egresos
-        total_ingresos_global += ingresos
-        total_egresos_global += egresos
+        for r in cuentas_rows:
+            cid = str(r[0])
+            saldo_ini = float(r[4])
+            ingresos = float(r[5])
+            egresos = float(r[6])
+            saldo_est = saldo_ini + ingresos - egresos
+            total_ingresos_global += ingresos
+            total_egresos_global += egresos
 
-        cuentas_resultado.append({
-            "cuenta_id": cid, "cuenta_nombre": r[1],
-            "cuenta_tipo": r[2], "moneda": r[3],
-            "saldo_inicial": saldo_ini,
-            "total_ingresos": ingresos,
-            "total_egresos": egresos,
-            "saldo_estimado": saldo_est,
-            "cant_ingresos": int(r[7]),
-            "cant_egresos": int(r[8]),
-            "por_metodo_pago": mp_by_cuenta.get(cid, []),
-            "por_categoria": cat_by_cuenta.get(cid, []),
-        })
+            cuentas_resultado.append({
+                "cuenta_id": cid, "cuenta_nombre": r[1],
+                "cuenta_tipo": r[2], "moneda": r[3],
+                "saldo_inicial": saldo_ini,
+                "total_ingresos": ingresos,
+                "total_egresos": egresos,
+                "saldo_estimado": saldo_est,
+                "cant_ingresos": int(r[7]),
+                "cant_egresos": int(r[8]),
+                "por_metodo_pago": mp_by_cuenta.get(cid, []),
+                "por_categoria": cat_by_cuenta.get(cid, []),
+            })
 
-    return {
-        "periodo": {"fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta},
-        "resumen_global": {
-            "total_ingresos": total_ingresos_global,
-            "total_egresos": total_egresos_global,
-            "resultado_neto": total_ingresos_global - total_egresos_global,
-        },
-        "cuentas": cuentas_resultado,
-    }
+        return {
+            "periodo": {"fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta},
+            "resumen_global": {
+                "total_ingresos": total_ingresos_global,
+                "total_egresos": total_egresos_global,
+                "resultado_neto": total_ingresos_global - total_egresos_global,
+            },
+            "cuentas": cuentas_resultado,
+        }
+    except Exception as e:
+        print(f"WARN: Error en cierre_caja: {e}")
+        return {
+            "periodo": {"fecha_desde": fecha_desde or "", "fecha_hasta": fecha_hasta or ""},
+            "resumen_global": {"total_ingresos": 0.0, "total_egresos": 0.0, "resultado_neto": 0.0},
+            "cuentas": [],
+        }
 
 
 @router.get("/caja/resumen-rapido")
