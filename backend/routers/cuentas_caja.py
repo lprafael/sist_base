@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,6 +89,22 @@ class AnularMovimientoRequest(BaseModel):
 
 def _clean(v: Optional[str]) -> Optional[str]:
     return v.strip() if v and isinstance(v, str) else v
+
+
+def _clean_date(val: Optional[Union[str, date]]) -> Optional[date]:
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    s = str(val).strip()
+    if not s:
+        return None
+    if "T" in s:
+        s = s.split("T")[0]
+    try:
+        return date.fromisoformat(s)
+    except Exception:
+        return None
 
 
 async def _validar_cuenta(cuenta_id: str, academia_id: str, session: AsyncSession):
@@ -454,10 +470,10 @@ async def listar_movimientos(
             params["categoria"] = categoria
         if fecha_desde:
             conditions.append("m.fecha >= CAST(:fecha_desde AS DATE)")
-            params["fecha_desde"] = fecha_desde
+            params["fecha_desde"] = _clean_date(fecha_desde)
         if fecha_hasta:
             conditions.append("m.fecha <= CAST(:fecha_hasta AS DATE)")
-            params["fecha_hasta"] = fecha_hasta
+            params["fecha_hasta"] = _clean_date(fecha_hasta)
 
         where = " AND ".join(conditions)
         res = await session.execute(
@@ -531,7 +547,7 @@ async def registrar_movimiento(
         if not res_mp.fetchone():
             raise HTTPException(status_code=404, detail="Método de pago no encontrado o inactivo.")
 
-    fecha_mov = data.fecha or date.today().isoformat()
+    fecha_mov = _clean_date(data.fecha) or date.today()
 
     res = await session.execute(
         text("""
@@ -625,14 +641,12 @@ async def cierre_caja(
     try:
         # Defaults de fecha: mes actual
         hoy = date.today()
-        if not fecha_desde:
-            fecha_desde = hoy.replace(day=1).isoformat()
-        if not fecha_hasta:
-            fecha_hasta = hoy.isoformat()
+        fd_date = _clean_date(fecha_desde) or hoy.replace(day=1)
+        fh_date = _clean_date(fecha_hasta) or hoy
 
         # ── Resumen por cuenta ──
         cuenta_filter = "AND m.cuenta_id = CAST(:cuenta_id AS UUID)" if cuenta_id else ""
-        params_resumen = {"aid": aid, "fd": fecha_desde, "fh": fecha_hasta}
+        params_resumen = {"aid": aid, "fd": fd_date, "fh": fh_date}
         if cuenta_id:
             params_resumen["cuenta_id"] = cuenta_id
 
@@ -658,7 +672,7 @@ async def cierre_caja(
         cuentas_rows = res_resumen.fetchall()
 
         # ── Desglose por método de pago dentro del período ──
-        params_mp = {"aid": aid, "fd": fecha_desde, "fh": fecha_hasta}
+        params_mp = {"aid": aid, "fd": fd_date, "fh": fh_date}
         if cuenta_id:
             params_mp["cuenta_id"] = cuenta_id
         mp_filter = "AND m.cuenta_id = CAST(:cuenta_id AS UUID)" if cuenta_id else ""
@@ -785,7 +799,7 @@ async def resumen_rapido(
     ctx = await get_academia_context(request, current_user, session)
     aid = str(ctx["academia_id"])
     hoy = date.today()
-    primer_dia = hoy.replace(day=1).isoformat()
+    primer_dia = hoy.replace(day=1)
 
     res = await session.execute(
         text("""
@@ -801,7 +815,7 @@ async def resumen_rapido(
             GROUP BY c.id, c.nombre, c.tipo
             ORDER BY c.es_principal DESC, c.nombre
         """),
-        {"aid": aid, "fd": primer_dia, "fh": hoy.isoformat()}
+        {"aid": aid, "fd": primer_dia, "fh": hoy}
     )
     rows = res.fetchall()
     cuentas = [
