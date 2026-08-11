@@ -123,6 +123,50 @@ async def obtener_emisor(
     )
 
 
+@router.get("/emisor/status")
+async def obtener_emisor_status(
+    request: Request,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Retorna el estado de configuración del emisor SIFEN para la academia.
+    """
+    ctx = await get_academia_context(request, current_user, session)
+    academia_id = str(ctx["academia_id"])
+
+    res = await session.execute(
+        text("""
+            SELECT ruc_con_dv, razon_social, num_tim, id_csc, activo
+            FROM facturacion.emisor_academia
+            WHERE academia_id = :aid
+        """),
+        {"aid": academia_id}
+    )
+    row = res.fetchone()
+
+    res_cert = await session.execute(
+        text("SELECT COUNT(*), MAX(expira_en) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
+        {"aid": academia_id}
+    )
+    cert_row = res_cert.fetchone()
+    tiene_cert = (cert_row[0] or 0) > 0 if cert_row else False
+    expira_en = cert_row[1].isoformat() if cert_row and cert_row[1] else None
+
+    configurado = bool(row and row[0] and row[1] and row[2])
+
+    return {
+        "configurado": configurado,
+        "ruc": row[0] if row else "",
+        "razon_social": row[1] if row else "",
+        "num_timbrado": row[2] if row else "",
+        "activo": row[4] if row and row[4] is not None else False,
+        "tiene_certificado": tiene_cert,
+        "certificado_expira_en": expira_en,
+    }
+
+
+
 @router.put("/emisor")
 async def actualizar_emisor(
     req: EmisorAcademiaUpdate,
