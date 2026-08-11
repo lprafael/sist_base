@@ -6,8 +6,9 @@ import {
   GraduationCap, Building2, Users, CreditCard, ClipboardList,
   Settings, LogOut, Plus, Pencil, Trash2, Check, X, Upload,
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
-  Calendar, TrendingUp, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
-  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock
+  Calendar, TrendingUp, TrendingDown, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
+  MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock,
+  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -228,7 +229,8 @@ export default function AcademiaPanel() {
           {activeTab === 'dashboard' && (
             <DashboardTab 
               perfil={perfil} sucursales={sucursales} alumnos={alumnos}
-              inscripciones={inscripciones} cuotas={cuotas} setTab={setActiveTab}
+              inscripciones={inscripciones} cuotas={cuotas} cuentas={cuentas}
+              categorias={categorias} setTab={setActiveTab} apiFetch={apiFetch}
             />
           )}
 
@@ -489,101 +491,503 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session }: any) {
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════
-function DashboardTab({ stats: propStats, cuotasPendientesGs: propCuotasPendientes, cuotas = [], alumnos = [], sucursales = [], perfil, inscripciones = [] }: any) {
-  const stats: Stat[] = propStats || [
-    { label: 'Alumnos activos', value: alumnos.filter((a: any) => a.estado === 'activo').length, icon: Users, color: C.green },
-    { label: 'Sucursales', value: sucursales.filter((s: any) => s.activa).length, icon: Building2, color: C.primary },
-    { label: 'Inscripciones activas', value: inscripciones.filter((i: any) => i.estado === 'activa').length, icon: BookOpen, color: C.purple },
-    { label: 'Cuotas pendientes', value: cuotas.filter((q: any) => q.estado === 'pendiente').length, icon: CreditCard, color: C.yellow },
-  ];
+function DashboardTab({
+  stats: propStats,
+  cuotasPendientesGs: propCuotasPendientes,
+  cuotas = [],
+  alumnos = [],
+  sucursales = [],
+  perfil,
+  inscripciones = [],
+  cuentas = [],
+  categorias = [],
+  setTab,
+  apiFetch,
+}: any) {
+  const [movimientos, setMovimientos] = useState<any[]>([]);
+  const [loadingMovs, setLoadingMovs] = useState<boolean>(false);
+  const [activeSubView, setActiveSubView] = useState<'cuotas' | 'movimientos'>('cuotas');
+  const [periodoFiltro, setPeriodoFiltro] = useState<'mes' | 'todos'>('mes');
 
+  useEffect(() => {
+    if (apiFetch) {
+      setLoadingMovs(true);
+      apiFetch('/academia/caja/movimientos?limit=100')
+        .then((data: any) => setMovimientos(Array.isArray(data) ? data : []))
+        .catch(() => setMovimientos([]))
+        .finally(() => setLoadingMovs(false));
+    }
+  }, [apiFetch]);
+
+  // Filtrado por fecha (mes actual vs todos)
+  const now = new Date();
+  const primerDiaMes = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const movsFiltrados = movimientos.filter((m: any) => {
+    if (periodoFiltro === 'mes' && m.fecha) {
+      return new Date(m.fecha) >= primerDiaMes;
+    }
+    return true;
+  });
+
+  const cuotasFiltradas = cuotas.filter((q: any) => {
+    if (periodoFiltro === 'mes' && q.fecha_pago) {
+      return new Date(q.fecha_pago) >= primerDiaMes;
+    }
+    return true;
+  });
+
+  // Calculos financieros
+  const ingresosMovs = movsFiltrados
+    .filter((m: any) => m.tipo === 'ingreso' && !m.anulado)
+    .reduce((s: number, m: any) => s + (m.monto || 0), 0);
+
+  const egresosMovs = movsFiltrados
+    .filter((m: any) => m.tipo === 'egreso' && !m.anulado)
+    .reduce((s: number, m: any) => s + (m.monto || 0), 0);
+
+  // Fallback si no hay movimientos de ingresos registrados, calcular desde cuotas pagadas
+  const cuotasPagadasGs = cuotasFiltradas
+    .filter((q: any) => q.estado === 'pagada')
+    .reduce((s: number, q: any) => s + (q.monto_final || 0), 0);
+
+  const totalIngresos = ingresosMovs > 0 ? ingresosMovs : cuotasPagadasGs;
+  const totalEgresos = egresosMovs;
+  const balanceNeto = totalIngresos - totalEgresos;
+
+  const cuotasPendientesCount = cuotas.filter((q: any) => q.estado === 'pendiente').length;
   const cuotasPendientesGs = propCuotasPendientes ?? cuotas.filter((q: any) => q.estado === 'pendiente').reduce((s: number, q: any) => s + (q.monto_final || 0), 0);
-  const cuotasMes = cuotas.slice(0, 8);
+
+  const cuotasPagadasCount = cuotas.filter((q: any) => q.estado === 'pagada').length;
+  const totalCuotasCount = cuotas.length;
+  const tasaCobranza = totalCuotasCount > 0 ? Math.round((cuotasPagadasCount / totalCuotasCount) * 100) : 0;
+
+  const alumnosActivos = alumnos.filter((a: any) => a.estado === 'activo').length;
+  const sucursalesActivas = sucursales.filter((s: any) => s.activa).length;
+  const inscripcionesActivas = inscripciones.filter((i: any) => i.estado === 'activa').length;
+
+  const saldoTotalCuentas = cuentas.reduce((s: number, c: any) => s + (c.saldo_actual || 0), 0);
+
+  const cuotasRecientes = cuotas.slice(0, 7);
+  const movsRecientes = movimientos.slice(0, 7);
+
   return (
     <div>
-      <h1 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800 }}>Dashboard</h1>
-      <p style={{ color: C.muted, margin: '0 0 28px', fontSize: 14 }}>Resumen general de tu academia</p>
+      {/* Header con título, filtro de periodo y botones rápidos */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+        <div>
+          <h1 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <BarChart3 size={28} color={C.primary} /> Dashboard Financiero & Operativo
+          </h1>
+          <p style={{ color: C.muted, margin: 0, fontSize: 14 }}>Resumen de ingresos, egresos, cobros y estado general de la academia</p>
+        </div>
 
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-        {stats.map((s: Stat, i: number) => {
-          const Icon = s.icon;
-          return (
-            <div key={i} style={card()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: s.color }}>{s.value}</div>
-                </div>
-                <div style={{ padding: 10, borderRadius: 10, background: `${s.color}18` }}>
-                  <Icon size={22} color={s.color} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Selector de periodo */}
+          <div style={{ display: 'inline-flex', background: C.surface, padding: 4, borderRadius: 10, border: `1px solid ${C.border}` }}>
+            <button
+              onClick={() => setPeriodoFiltro('mes')}
+              style={{
+                padding: '6px 14px', borderRadius: 7, border: 'none',
+                background: periodoFiltro === 'mes' ? C.primary : 'transparent',
+                color: periodoFiltro === 'mes' ? '#fff' : C.muted,
+                fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .15s'
+              }}>
+              Este Mes
+            </button>
+            <button
+              onClick={() => setPeriodoFiltro('todos')}
+              style={{
+                padding: '6px 14px', borderRadius: 7, border: 'none',
+                background: periodoFiltro === 'todos' ? C.primary : 'transparent',
+                color: periodoFiltro === 'todos' ? '#fff' : C.muted,
+                fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .15s'
+              }}>
+              Histórico
+            </button>
+          </div>
+
+          {/* Botones de acción rápida */}
+          {setTab && (
+            <>
+              <button onClick={() => setTab('cuotas')} style={btn(C.green)}>
+                <CreditCard size={15} /> Cobrar Cuota
+              </button>
+              <button onClick={() => setTab('tesoreria')} style={btn(C.surface, true)}>
+                <Wallet size={15} /> Ir a Tesorería
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Alerta de cuotas pendientes */}
-      {cuotasPendientesGs > 0 && (
+      {/* ─── Grid de Tarjetas KPI (Financieras y Operativas) ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14, marginBottom: 24 }}>
+        {/* Ingresos Totales */}
         <div style={{
-          ...card(), marginBottom: 20,
-          border: `1px solid ${C.yellow}44`, background: `${C.yellow}08`,
-          display: 'flex', alignItems: 'center', gap: 14,
+          ...card(),
+          background: `linear-gradient(135deg, ${C.surface} 0%, rgba(16, 185, 129, 0.08) 100%)`,
+          border: `1px solid ${C.green}33`, position: 'relative', overflow: 'hidden'
         }}>
-          <AlertCircle size={22} color={C.yellow} />
-          <div>
-            <div style={{ fontWeight: 700, color: C.yellow }}>Cuotas pendientes de cobro</div>
-            <div style={{ color: C.muted, fontSize: 13 }}>
-              {cuotas.filter((q: any) => q.estado === 'pendiente').length} cuotas por un total de
-              {' '}
-              <strong style={{ color: C.text }}>
-                Gs. {cuotasPendientesGs.toLocaleString('es-PY')}
-              </strong>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Ingresos Totales ({periodoFiltro === 'mes' ? 'Mes' : 'Total'})</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: C.green }}>Gs. {totalIngresos.toLocaleString('es-PY')}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <ArrowUpRight size={12} color={C.green} /> Cobros y entradas registradas
+              </div>
+            </div>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.green}18` }}>
+              <TrendingUp size={22} color={C.green} />
             </div>
           </div>
         </div>
-      )}
 
-      {/* Últimas cuotas */}
-      {cuotasMes.length > 0 && (
+        {/* Egresos Totales */}
+        <div style={{
+          ...card(),
+          background: `linear-gradient(135deg, ${C.surface} 0%, rgba(239, 68, 68, 0.08) 100%)`,
+          border: `1px solid ${C.red}33`, position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Egresos / Gastos Totales</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: C.red }}>Gs. {totalEgresos.toLocaleString('es-PY')}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <ArrowDownRight size={12} color={C.red} /> Gastos operativos y salidas
+              </div>
+            </div>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.red}18` }}>
+              <TrendingDown size={22} color={C.red} />
+            </div>
+          </div>
+        </div>
+
+        {/* Balance Neto */}
+        <div style={{
+          ...card(),
+          background: `linear-gradient(135deg, ${C.surface} 0%, rgba(59, 130, 246, 0.08) 100%)`,
+          border: `1px solid ${C.primary}33`, position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Balance Neto (Flujo)</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: balanceNeto >= 0 ? C.primary : C.red }}>
+                Gs. {balanceNeto.toLocaleString('es-PY')}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                Ingresos menos egresos
+              </div>
+            </div>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.primary}18` }}>
+              <Wallet size={22} color={C.primary} />
+            </div>
+          </div>
+        </div>
+
+        {/* Pendiente de Cobro */}
+        <div style={{
+          ...card(),
+          background: `linear-gradient(135deg, ${C.surface} 0%, rgba(245, 158, 11, 0.08) 100%)`,
+          border: `1px solid ${C.yellow}33`, position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Pendiente de Cobro</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: C.yellow }}>Gs. {cuotasPendientesGs.toLocaleString('es-PY')}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                {cuotasPendientesCount} cuotas impagas
+              </div>
+            </div>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.yellow}18` }}>
+              <Clock size={22} color={C.yellow} />
+            </div>
+          </div>
+        </div>
+
+        {/* Alumnos Activos */}
         <div style={card()}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CreditCard size={16} color={C.primary} /> Últimas cuotas registradas
-          </h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                {['Alumno', 'Período', 'Monto', 'Estado'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: C.muted, fontWeight: 600 }}>{h}</th>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Alumnos Activos</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: C.green }}>{alumnosActivos}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>de {alumnos.length} inscritos en total</div>
+            </div>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.green}18` }}>
+              <Users size={22} color={C.green} />
+            </div>
+          </div>
+        </div>
+
+        {/* Inscripciones Activas */}
+        <div style={card()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Inscripciones Activas</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: C.purple }}>{inscripcionesActivas}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>en {sucursalesActivas} sucursales</div>
+            </div>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.purple}18` }}>
+              <BookOpen size={22} color={C.purple} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Sección Central: Análisis Financiero + Cuentas de Tesorería ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 28 }}>
+        
+        {/* Panel Izquierdo: Resumen de Rendimiento y Tasa de Cobranza */}
+        <div style={card()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Activity size={18} color={C.primary} /> Resumen de Flujo & Cobranza
+            </h3>
+            <span style={badge(C.primary)}>{periodoFiltro === 'mes' ? 'Este Mes' : 'Histórico'}</span>
+          </div>
+
+          {/* Comparativo Ingresos vs Egresos */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+              <span style={{ color: C.muted }}>Relación Ingresos / Egresos</span>
+              <span style={{ fontWeight: 700, color: C.text }}>
+                {totalIngresos + totalEgresos > 0 ? Math.round((totalEgresos / (totalIngresos + totalEgresos)) * 100) || 0 : 0}% egresos
+              </span>
+            </div>
+            <div style={{ height: 10, borderRadius: 999, background: C.bg, overflow: 'hidden', display: 'flex' }}>
+              <div style={{ width: `${totalIngresos + totalEgresos > 0 ? (totalIngresos / (totalIngresos + totalEgresos)) * 100 : 100}%`, background: C.green, transition: 'width .3s' }} />
+              <div style={{ width: `${totalIngresos + totalEgresos > 0 ? (totalEgresos / (totalIngresos + totalEgresos)) * 100 : 0}%`, background: C.red, transition: 'width .3s' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.muted, marginTop: 6 }}>
+              <span style={{ color: C.green, fontWeight: 600 }}>● Ingresos: Gs. {totalIngresos.toLocaleString('es-PY')}</span>
+              <span style={{ color: C.red, fontWeight: 600 }}>● Egresos: Gs. {totalEgresos.toLocaleString('es-PY')}</span>
+            </div>
+          </div>
+
+          {/* Progress bar de Cobranza */}
+          <div style={{ padding: 14, borderRadius: 10, background: `${C.bg}`, border: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Tasa de Cobranza de Cuotas</span>
+              <span style={{ fontSize: 14, fontWeight: 900, color: tasaCobranza > 70 ? C.green : tasaCobranza > 40 ? C.yellow : C.red }}>
+                {tasaCobranza}%
+              </span>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: C.border, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{
+                width: `${tasaCobranza}%`,
+                background: tasaCobranza > 70 ? C.green : tasaCobranza > 40 ? C.yellow : C.red,
+                height: '100%', borderRadius: 999, transition: 'width .4s'
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.muted }}>
+              <span>{cuotasPagadasCount} cuotas cobradas</span>
+              <span>{cuotasPendientesCount} pendientes</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel Derecho: Saldos por Cuenta de Tesorería */}
+        <div style={card()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Wallet size={18} color={C.green} /> Cuentas & Tesorería
+            </h3>
+            {setTab && (
+              <button onClick={() => setTab('tesoreria')} style={{ background: 'none', border: 'none', color: C.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Gestionar →
+              </button>
+            )}
+          </div>
+
+          {cuentas.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px 16px', background: C.bg, borderRadius: 10, border: `1px solid ${C.border}` }}>
+              <Building2 size={32} color={C.muted} style={{ marginBottom: 8 }} />
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>No tenés cuentas registradas</div>
+              <p style={{ fontSize: 12, color: C.muted, margin: '0 0 12px' }}>Creá tu Caja Chica o Cuenta Bancaria para organizar tus cobros y saldos.</p>
+              {setTab && (
+                <button onClick={() => setTab('tesoreria')} style={btn(C.primary)}>
+                  <Plus size={14} /> Crear primera cuenta
+                </button>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 180, overflowY: 'auto' }}>
+                {cuentas.map((c: any) => (
+                  <div key={c.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 14px', borderRadius: 8, background: C.bg, border: `1px solid ${C.border}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ padding: 6, borderRadius: 6, background: c.tipo === 'banco' ? `${C.primary}20` : `${C.green}20` }}>
+                        {c.tipo === 'banco' ? <Building2 size={16} color={C.primary} /> : <Wallet size={16} color={C.green} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{c.nombre}</div>
+                        <div style={{ fontSize: 11, color: C.muted, textTransform: 'capitalize' }}>{c.tipo} {c.numero_cuenta ? `• ${c.numero_cuenta}` : ''}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: c.saldo_actual >= 0 ? C.text : C.red }}>
+                        Gs. {(c.saldo_actual || 0).toLocaleString('es-PY')}
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {cuotasMes.map((q: any) => (
-                <tr key={q.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
-                  <td style={{ padding: '9px 8px', fontWeight: 600 }}>{q.alumno}</td>
-                  <td style={{ padding: '9px 8px', color: C.muted }}>{q.periodo}</td>
-                  <td style={{ padding: '9px 8px' }}>Gs. {q.monto_final.toLocaleString('es-PY')}</td>
-                  <td style={{ padding: '9px 8px' }}>
-                    <span style={badge(q.estado === 'pagada' ? C.green : q.estado === 'pendiente' ? C.yellow : C.red)}>
-                      {q.estado}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </div>
+
+              {/* Total acumulado */}
+              <div style={{
+                marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>Saldo Total en Cuentas</span>
+                <span style={{ fontSize: 16, fontWeight: 900, color: C.green }}>Gs. {saldoTotalCuentas.toLocaleString('es-PY')}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* ─── Alerta de cuotas pendientes ─── */}
+      {cuotasPendientesGs > 0 && (
+        <div style={{
+          ...card(), marginBottom: 24,
+          border: `1px solid ${C.yellow}55`, background: `linear-gradient(90deg, ${C.yellow}12 0%, ${C.surface} 100%)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ padding: 10, borderRadius: 10, background: `${C.yellow}22` }}>
+              <AlertCircle size={24} color={C.yellow} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: C.yellow }}>Cuotas pendientes por cobranza</div>
+              <div style={{ color: C.muted, fontSize: 13 }}>
+                Tenés <strong style={{ color: C.text }}>{cuotasPendientesCount} cuotas sin cobrar</strong> por un total de{' '}
+                <strong style={{ color: C.yellow, fontSize: 14 }}>Gs. {cuotasPendientesGs.toLocaleString('es-PY')}</strong>.
+              </div>
+            </div>
+          </div>
+          {setTab && (
+            <button onClick={() => setTab('cuotas')} style={btn(C.yellow)}>
+              Ir a Cobranzas →
+            </button>
+          )}
         </div>
       )}
 
-      {/* Sin configurar página */}
+      {/* ─── Tabla con Sub-pestañas: Cuotas Recientes vs Movimientos de Caja ─── */}
+      <div style={card()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => setActiveSubView('cuotas')}
+              style={{
+                padding: '6px 14px', borderRadius: 8, border: 'none',
+                background: activeSubView === 'cuotas' ? `${C.primary}25` : 'transparent',
+                color: activeSubView === 'cuotas' ? C.primary : C.muted,
+                fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+              }}>
+              <CreditCard size={15} /> Últimas Cuotas ({cuotasRecientes.length})
+            </button>
+            <button
+              onClick={() => setActiveSubView('movimientos')}
+              style={{
+                padding: '6px 14px', borderRadius: 8, border: 'none',
+                background: activeSubView === 'movimientos' ? `${C.primary}25` : 'transparent',
+                color: activeSubView === 'movimientos' ? C.primary : C.muted,
+                fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+              }}>
+              <Receipt size={15} /> Últimos Movimientos ({movsRecientes.length})
+            </button>
+          </div>
+
+          {setTab && (
+            <button onClick={() => setTab(activeSubView === 'cuotas' ? 'cuotas' : 'tesoreria')} style={{ background: 'none', border: 'none', color: C.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              Ver todos →
+            </button>
+          )}
+        </div>
+
+        {activeSubView === 'cuotas' ? (
+          cuotasRecientes.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted }}>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Alumno</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Período</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Monto</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cuotasRecientes.map((q: any) => (
+                    <tr key={q.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
+                      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{q.alumno}</td>
+                      <td style={{ padding: '10px 8px', color: C.muted }}>{q.periodo}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: 700 }}>Gs. {(q.monto_final || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <span style={badge(q.estado === 'pagada' ? C.green : q.estado === 'pendiente' ? C.yellow : C.red)}>
+                          {q.estado}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 24, color: C.muted }}>No hay cuotas registradas.</div>
+          )
+        ) : (
+          loadingMovs ? (
+            <div style={{ textAlign: 'center', padding: 24, color: C.muted }}>Cargando movimientos...</div>
+          ) : movsRecientes.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.muted }}>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Fecha</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Tipo</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Concepto</th>
+                    <th style={{ textAlign: 'left', padding: '8px' }}>Cuenta</th>
+                    <th style={{ textAlign: 'right', padding: '8px' }}>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movsRecientes.map((m: any) => (
+                    <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
+                      <td style={{ padding: '10px 8px', color: C.muted }}>{m.fecha || '—'}</td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <span style={badge(m.tipo === 'ingreso' ? C.green : C.red)}>
+                          {m.tipo}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{m.concepto}</td>
+                      <td style={{ padding: '10px 8px', color: C.muted }}>{m.cuenta_nombre}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, color: m.tipo === 'ingreso' ? C.green : C.red }}>
+                        {m.tipo === 'ingreso' ? '+' : '-'} Gs. {(m.monto || 0).toLocaleString('es-PY')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 24, color: C.muted }}>No hay movimientos de caja registrados.</div>
+          )
+        )}
+      </div>
+
+      {/* ─── Aviso si no está configurada la página pública ─── */}
       {!perfil?.enlace_sitio && (
-        <div style={{ ...card(), marginTop: 20, border: `1px solid ${C.primary}44`, background: `${C.primary}08` }}>
+        <div style={{ ...card(), marginTop: 24, border: `1px solid ${C.primary}44`, background: `${C.primary}08` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <LinkIcon size={20} color={C.primary} />
+            <LinkIcon size={22} color={C.primary} />
             <div>
-              <div style={{ fontWeight: 700, color: C.primary }}>Tu página pública no está configurada</div>
+              <div style={{ fontWeight: 700, color: C.primary, fontSize: 14 }}>Tu página pública aún no está configurada</div>
               <div style={{ color: C.muted, fontSize: 13 }}>
                 Configurá tu enlace en la sección "Mi Academia" para que los alumnos encuentren tu academia en{' '}
                 <strong>micancha.com.py/academia/TU-NOMBRE</strong>
