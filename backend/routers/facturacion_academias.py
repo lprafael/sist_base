@@ -65,7 +65,7 @@ async def obtener_emisor(
                        c_act_eco, d_des_act_eco, num_tim, d_est, d_pun_exp,
                        id_csc, ultimo_num_doc, activo, actualizado_en
                 FROM facturacion.emisor_academia
-                WHERE academia_id = :aid
+                WHERE academia_id = CAST(:aid AS UUID)
             """),
             {"aid": academia_id}
         )
@@ -77,7 +77,7 @@ async def obtener_emisor(
                 text("""
                     INSERT INTO facturacion.emisor_academia
                         (academia_id, ruc_con_dv, razon_social)
-                    VALUES (:aid, '', '')
+                    VALUES (CAST(:aid AS UUID), '', '')
                     RETURNING id, academia_id, ruc_con_dv, tipo_contribuyente, razon_social,
                               nombre_fantasia, direccion, num_casa, telefono, email,
                               c_dep_emi, d_des_dep_emi, c_ciu_emi, d_des_ciu_emi,
@@ -91,7 +91,7 @@ async def obtener_emisor(
 
         # Verificar si tiene certificado activo
         res_cert = await session.execute(
-            text("SELECT COUNT(*) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
+            text("SELECT COUNT(*) FROM facturacion.certificados_digitales WHERE academia_id = CAST(:aid AS UUID) AND activo = TRUE"),
             {"aid": academia_id}
         )
         tiene_certificado = (res_cert.scalar() or 0) > 0
@@ -123,6 +123,7 @@ async def obtener_emisor(
             actualizado_en=row[22],
         )
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en obtener_emisor: {e}")
         return EmisorAcademiaOut(
             id=str(uuid.uuid4()),
@@ -156,14 +157,14 @@ async def obtener_emisor_status(
             text("""
                 SELECT ruc_con_dv, razon_social, num_tim, id_csc, activo
                 FROM facturacion.emisor_academia
-                WHERE academia_id = :aid
+                WHERE academia_id = CAST(:aid AS UUID)
             """),
             {"aid": academia_id}
         )
         row = res.fetchone()
 
         res_cert = await session.execute(
-            text("SELECT COUNT(*), MAX(expira_en) FROM facturacion.certificados_digitales WHERE academia_id = :aid AND activo = TRUE"),
+            text("SELECT COUNT(*), MAX(expira_en) FROM facturacion.certificados_digitales WHERE academia_id = CAST(:aid AS UUID) AND activo = TRUE"),
             {"aid": academia_id}
         )
         cert_row = res_cert.fetchone()
@@ -182,6 +183,7 @@ async def obtener_emisor_status(
             "certificado_expira_en": expira_en,
         }
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en obtener_emisor_status: {e}")
         return {
             "configurado": False,
@@ -575,7 +577,7 @@ async def listar_documentos(
                        d_tot_gral_ope, estado, cancelado, cuota_id, matricula_id,
                        concepto_libre, creado_en
                 FROM facturacion.documentos_electronicos
-                WHERE academia_id = :aid {where_extra}
+                WHERE academia_id = CAST(:aid AS UUID) {where_extra}
                 ORDER BY creado_en DESC
                 LIMIT :limit OFFSET :skip
             """),
@@ -594,6 +596,7 @@ async def listar_documentos(
             for r in rows
         ]
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en listar_documentos: {e}")
         return []
 

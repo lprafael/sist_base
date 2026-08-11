@@ -146,6 +146,7 @@ async def listar_cuentas(
             for r in rows
         ]
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en listar_cuentas: {e}")
         return []
 
@@ -306,6 +307,7 @@ async def listar_metodos_pago(
             for r in rows
         ]
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en listar_metodos_pago: {e}")
         return []
 
@@ -493,6 +495,7 @@ async def listar_movimientos(
             for r in rows
         ]
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en listar_movimientos: {e}")
         return []
 
@@ -760,6 +763,7 @@ async def cierre_caja(
             "cuentas": cuentas_resultado,
         }
     except Exception as e:
+        await session.rollback()
         print(f"WARN: Error en cierre_caja: {e}")
         return {
             "periodo": {"fecha_desde": fecha_desde or "", "fecha_hasta": fecha_hasta or ""},
