@@ -1008,19 +1008,28 @@ export default function AdminConsole() {
     const headers: any = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    const payload: any = {
+      nombre: editOrganizador.nombre,
+      plan: editOrganizador.plan || 'basico',
+      max_torneos: Number(editOrganizador.max_torneos || 3)
+    };
+    if (editOrganizador.usuario_id) {
+      payload.usuario_id = Number(editOrganizador.usuario_id);
+    }
+    if (editOrganizador.usuario_email) {
+      payload.usuario_email = editOrganizador.usuario_email.trim();
+    }
+
     try {
       const res = await fetch(`${API_URL}/cancha/torneos/organizadores`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          usuario_id: Number(editOrganizador.usuario_id),
-          nombre: editOrganizador.nombre,
-          plan: editOrganizador.plan || 'basico',
-          max_torneos: Number(editOrganizador.max_torneos || 3)
-        })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        const targetUid = resData.usuario_id || Number(editOrganizador.usuario_id);
         const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
         const resOrg = await fetch(`${API_URL}/cancha/torneos/organizadores`, fetchOpts);
         let updatedOrgs = organizadores;
@@ -1030,7 +1039,7 @@ export default function AdminConsole() {
         }
 
         // Obtener el ID del organizador recién creado/editado.
-        const orgMatch = updatedOrgs.find((o: any) => o.usuario_id === Number(editOrganizador.usuario_id));
+        const orgMatch = updatedOrgs.find((o: any) => o.usuario_id === targetUid || (editOrganizador.usuario_email && o.usuario_email?.toLowerCase() === editOrganizador.usuario_email?.toLowerCase()));
         if (orgMatch && editOrganizador.deportesHabilitados) {
            const orgId = orgMatch.id;
            const resDeportes = await fetch(`${API_URL}/api/organizadores/${orgId}/deportes`);
@@ -2884,20 +2893,56 @@ export default function AdminConsole() {
 
             {editOrganizador.isNew ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700 }}>Seleccionar Usuario (Email)</label>
-                <select
-                  value={editOrganizador.usuario_id || ''}
-                  onChange={e => setEditOrganizador({ ...editOrganizador, usuario_id: Number(e.target.value) })}
-                  style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
-                  required
-                >
-                  <option value="">-- Seleccionar --</option>
-                  {usuarios.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.nombre} {u.apellido} ({u.email})
-                    </option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>Asignar Usuario / Email</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditOrganizador((prev: any) => ({
+                        ...prev,
+                        modoNuevoEmail: !prev.modoNuevoEmail,
+                        usuario_id: prev.modoNuevoEmail ? prev.usuario_id : undefined,
+                        usuario_email: prev.modoNuevoEmail ? undefined : prev.usuario_email
+                      }));
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    {editOrganizador.modoNuevoEmail ? '📋 Seleccionar del listado' : '✍️ Ingresar correo nuevo'}
+                  </button>
+                </div>
+
+                {editOrganizador.modoNuevoEmail ? (
+                  <input
+                    type="email"
+                    value={editOrganizador.usuario_email || ''}
+                    onChange={e => setEditOrganizador({ ...editOrganizador, usuario_email: e.target.value, usuario_id: undefined })}
+                    placeholder="ejemplo@organizacion.com"
+                    style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                    required
+                  />
+                ) : (
+                  <select
+                    value={editOrganizador.usuario_id || ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '__NUEVO__') {
+                        setEditOrganizador({ ...editOrganizador, modoNuevoEmail: true, usuario_id: undefined, usuario_email: '' });
+                      } else {
+                        setEditOrganizador({ ...editOrganizador, usuario_id: Number(val), usuario_email: undefined });
+                      }
+                    }}
+                    style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
+                    required
+                  >
+                    <option value="">-- Seleccionar Usuario --</option>
+                    {usuarios.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.nombre} {u.apellido} ({u.email})
+                      </option>
+                    ))}
+                    <option value="__NUEVO__">✍️ + Ingresar un correo nuevo que no está en la lista...</option>
+                  </select>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

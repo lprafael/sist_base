@@ -60,7 +60,8 @@ class EventoCreate(BaseModel):
     categorias: List[CategoriaCreate] = []
 
 class OrganizadorCreate(BaseModel):
-    usuario_id: int
+    usuario_id: Optional[int] = None
+    usuario_email: Optional[str] = None
     nombre: str
     plan: Optional[str] = "basico"
     max_torneos: Optional[int] = 3
@@ -513,10 +514,38 @@ async def get_organizadores(session: AsyncSession = Depends(get_session)):
 @router.post("/organizadores", summary="Crear o actualizar organizador independiente")
 async def create_organizador(data: OrganizadorCreate, session: AsyncSession = Depends(get_session)):
     try:
+        uid = data.usuario_id
+
+        if not uid and data.usuario_email:
+            email_clean = data.usuario_email.strip().lower()
+            res_u = await session.execute(
+                text("SELECT id FROM sistema.usuarios WHERE LOWER(email) = :email"),
+                {"email": email_clean}
+            )
+            u_row = res_u.fetchone()
+            if u_row:
+                uid = u_row[0]
+            else:
+                from auth import get_password_hash
+                username = email_clean.split("@")[0] + "_" + str(uuid.uuid4())[:4]
+                default_pass = get_password_hash("Organizador2026!")
+                res_ins = await session.execute(text("""
+                    INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo)
+                    VALUES (:uname, :email, :pass, :nombre, 'organizador', TRUE)
+                    RETURNING id
+                """), {
+                    "uname": username, "email": email_clean,
+                    "pass": default_pass, "nombre": data.nombre
+                })
+                uid = res_ins.scalar()
+
+        if not uid:
+            raise HTTPException(status_code=400, detail="Debe seleccionar un usuario existente o ingresar un correo electrónico.")
+
         # Verificar si ya existe un organizador para este usuario
         chk = await session.execute(
             text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid"),
-            {"uid": data.usuario_id}
+            {"uid": uid}
         )
         row = chk.fetchone()
         if row:
@@ -525,17 +554,20 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
                 UPDATE cancha.organizadores
                 SET nombre = :nombre, plan = :plan, max_torneos = :max_torneos
                 WHERE usuario_id = :uid
-            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+            """), {"uid": uid, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
             await session.commit()
-            return {"status": "ok", "message": "Organizador actualizado exitosamente"}
+            return {"status": "ok", "message": "Organizador actualizado exitosamente", "usuario_id": uid}
         else:
             # Insertar
             await session.execute(text("""
                 INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos)
                 VALUES (:uid, :nombre, :plan, :max_torneos)
-            """), {"uid": data.usuario_id, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+            """), {"uid": uid, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
             await session.commit()
-            return {"status": "ok", "message": "Organizador independiente creado exitosamente"}
+            return {"status": "ok", "message": "Organizador independiente creado exitosamente", "usuario_id": uid}
+    except HTTPException:
+        await session.rollback()
+        raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
