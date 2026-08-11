@@ -130,6 +130,10 @@ async def obtener_emisor(
             ruc_con_dv="",
             tipo_contribuyente=1,
             razon_social="",
+            d_est="001",
+            d_pun_exp="001",
+            id_csc="0001",
+            ultimo_num_doc=0,
             activo=False,
             tiene_certificado=False,
         )
