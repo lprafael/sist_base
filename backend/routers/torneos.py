@@ -7,7 +7,7 @@ Cubre: equipos, jugadores, planilla, goles, tarjetas, posiciones, sanciones, W.O
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from typing import Optional, List
+from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime, date
 import uuid
