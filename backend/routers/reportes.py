@@ -722,9 +722,12 @@ async def exportar_carnets_pdf(torneo_id: str, config: CarnetExportConfig, sessi
         from reportlab.lib.units import mm
         from reportlab.lib import colors
         
-        equipo_ids_str = "''"
-        if config.equipo_ids:
-            equipo_ids_str = ",".join(f"'{eid}'" for eid in config.equipo_ids)
+        where_clause = "WHERE te.torneo_id = :tid"
+        if config.equipo_ids and len(config.equipo_ids) > 0:
+            clean_eids = [f"'{eid}'" for eid in config.equipo_ids if eid]
+            if clean_eids:
+                equipo_ids_str = ",".join(clean_eids)
+                where_clause += f" AND te.id IN ({equipo_ids_str})"
             
         sql = f"""
             SELECT te.id as equipo_id, te.nombre as nombre_equipo, te.logo as escudo_equipo,
@@ -736,7 +739,7 @@ async def exportar_carnets_pdf(torneo_id: str, config: CarnetExportConfig, sessi
                    tp.foto_url as foto_jugador
             FROM torneos.tournament_players tp
             JOIN torneos.equipos te ON te.id = tp.torneo_equipo_id
-            WHERE te.torneo_id = :tid AND te.id IN ({equipo_ids_str})
+            {where_clause}
             ORDER BY te.nombre, tp.nombre
         """
         res = await session.execute(text(sql), {"tid": torneo_id})
@@ -751,8 +754,14 @@ async def exportar_carnets_pdf(torneo_id: str, config: CarnetExportConfig, sessi
 
         buffer = io.BytesIO()
         
+        hex_color = config.color if config.color and config.color.startswith("#") else f"#{config.color or '0b5cd5'}"
+        try:
+            banner_color = colors.HexColor(hex_color)
+        except Exception:
+            banner_color = colors.HexColor("#0b5cd5")
+
         def draw_carnet(c, jug, x, y):
-            c.setFillColor(colors.HexColor(config.color))
+            c.setFillColor(banner_color)
             c.rect(x, y + c_height - 25*mm, c_width, 25*mm, fill=1, stroke=0)
             
             c.setStrokeColor(colors.black)
@@ -761,9 +770,9 @@ async def exportar_carnets_pdf(torneo_id: str, config: CarnetExportConfig, sessi
             
             c.setFillColor(colors.white)
             c.setFont("Helvetica-Bold", 10)
-            c.drawCentredString(x + c_width/2, y + c_height - 10*mm, config.titulo[:25])
+            c.drawCentredString(x + c_width/2, y + c_height - 10*mm, (config.titulo or "")[:25])
             c.setFont("Helvetica", 8)
-            c.drawCentredString(x + c_width/2, y + c_height - 15*mm, config.subtitulo[:30])
+            c.drawCentredString(x + c_width/2, y + c_height - 15*mm, (config.subtitulo or "")[:30])
             
             c.setFillColor(colors.lightgrey)
             foto_w, foto_h = 25*mm, 30*mm
@@ -822,7 +831,7 @@ async def exportar_carnets_pdf(torneo_id: str, config: CarnetExportConfig, sessi
         buffer.close()
         
         filename = f"Carnets_{torneo_id}.pdf"
-        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}", "Access-Control-Expose-Headers": "Content-Disposition"})
     except HTTPException:
         raise
     except Exception as e:
