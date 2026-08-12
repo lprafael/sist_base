@@ -722,18 +722,18 @@ async def exportar_carnets_pdf(torneo_id: str, config: CarnetExportConfig, sessi
         from reportlab.lib.units import mm
         from reportlab.lib import colors
         
-        where_clause = "WHERE te.torneo_id = :tid"
+        where_clause = "WHERE te.torneo_id::text = :tid"
         if config.equipo_ids and len(config.equipo_ids) > 0:
             clean_eids = [f"'{eid}'" for eid in config.equipo_ids if eid]
             if clean_eids:
                 equipo_ids_str = ",".join(clean_eids)
-                where_clause += f" AND te.id IN ({equipo_ids_str})"
+                where_clause += f" AND te.id::text IN ({equipo_ids_str})"
             
         sql = f"""
-            SELECT te.id as equipo_id, te.nombre as nombre_equipo, te.logo as escudo_equipo,
+            SELECT te.id as equipo_id, te.nombre as nombre_equipo, te.logo_url as escudo_equipo,
                    tp.nombre as nombre_jugador,
-                   tp.documento as dni,
-                   tp.dorsal as camiseta,
+                   tp.dni as dni,
+                   tp.numero_camiseta as camiseta,
                    tp.posicion as posicion,
                    tp.telefono as telefono,
                    tp.foto_url as foto_jugador
