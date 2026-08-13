@@ -484,6 +484,7 @@ async def crear_academia(req: AcademiaAdminCreateRequest, session: AsyncSession 
             usuario_id = row_usr[0]
         else:
             from security import get_password_hash
+            from email_service import email_service
             temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
             pass_hash = get_password_hash(temp_pass)
             username = req.usuario_email.split('@')[0]
@@ -492,19 +493,32 @@ async def crear_academia(req: AcademiaAdminCreateRequest, session: AsyncSession 
                 username = f"{username}_{random.randint(100, 999)}"
             
             res_new = await session.execute(text("""
-                INSERT INTO sistema.usuarios (username, email, password_hash, rol, activo, nombre_completo)
+                INSERT INTO sistema.usuarios (username, email, hashed_password, rol, activo, nombre_completo)
                 VALUES (:u, :e, :p, 'academia', TRUE, :nom)
                 RETURNING id
             """), {"u": username, "e": req.usuario_email, "p": pass_hash, "nom": req.nombre})
             usuario_id = res_new.fetchone()[0]
+            
+            try:
+                email_service.send_organizador_academia_credentials(
+                    to_email=req.usuario_email,
+                    username=username,
+                    password=temp_pass,
+                    role="academia",
+                    login_url="https://micancha.com.py/academias/login"
+                )
+            except Exception as mail_err:
+                print(f"Error al enviar correo de bienvenida: {mail_err}")
+
 
     if not usuario_id:
         from security import get_password_hash
         username = f"acad_{uuid.uuid4().hex[:8]}"
         email = f"{username}@micancha.com.py"
-        pass_hash = get_password_hash("Academia123!")
+        temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        pass_hash = get_password_hash(temp_pass)
         res_new = await session.execute(text("""
-            INSERT INTO sistema.usuarios (username, email, password_hash, rol, activo, nombre_completo)
+            INSERT INTO sistema.usuarios (username, email, hashed_password, rol, activo, nombre_completo)
             VALUES (:u, :e, :p, 'academia', TRUE, :nom)
             RETURNING id
         """), {"u": username, "e": email, "p": pass_hash, "nom": req.nombre})

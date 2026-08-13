@@ -2,14 +2,98 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, LogOut, MessageSquare, Send, Check, CheckCheck, Bell, Star, MapPin } from 'lucide-react';
+import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, LogOut, MessageSquare, Send, Check, CheckCheck, Bell, Star, MapPin, Lock } from 'lucide-react';
 import SitiosView from '../../components/torneo-admin/modulos/SitiosView';
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState({ text: '', type: '' });
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setMsg({ text: 'Las contraseñas no coinciden', type: 'error' });
+      return;
+    }
+    setLoading(true);
+    setMsg({ text: '', type: '' });
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      const token = sessionStr ? JSON.parse(sessionStr).access_token : '';
+      const res = await fetch(`${API_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      });
+      if (res.ok) {
+        setMsg({ text: 'Contraseña cambiada exitosamente', type: 'success' });
+        setTimeout(onClose, 1500);
+      } else {
+        const err = await res.json();
+        setMsg({ text: err.detail || 'Error al cambiar contraseña', type: 'error' });
+      }
+    } catch (e: any) {
+      setMsg({ text: 'Error de red', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl relative overflow-hidden">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-slate-800">Cambiar Contraseña</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+            <X size={20} />
+          </button>
+        </div>
+        
+        {msg.text && (
+          <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${msg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
+            {msg.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Contraseña Actual</label>
+            <input type="password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Nueva Contraseña</label>
+            <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Confirmar Nueva Contraseña</label>
+            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700" />
+          </div>
+          <div className="pt-4 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
+            <button type="submit" disabled={loading} className="px-5 py-2.5 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-2">
+              {loading ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminFutbolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("Cargando...");
   const [showSitiosModal, setShowSitiosModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   React.useEffect(() => {
     const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
@@ -29,6 +113,7 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
     { name: "Patrocinios y Apoyos", href: "/admin-futbol/patrocinios", icon: <Star size={22} /> },
     { name: "Planes de suscripción", href: "/admin-futbol/suscripciones", icon: <BookOpen size={22} /> },
     { name: "Arbitraje", href: "/admin-futbol/arbitraje", icon: <UserCog size={22} /> },
+    { name: "Cambiar contraseña", isModal: true, onClick: () => setShowPasswordModal(true), icon: <Lock size={22} /> },
   ];
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
@@ -508,6 +593,10 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
 
       {showSitiosModal && (
         <SitiosView onClose={() => setShowSitiosModal(false)} />
+      )}
+      
+      {showPasswordModal && (
+        <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
       )}
     </div>
   );

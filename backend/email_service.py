@@ -298,5 +298,40 @@ class EmailService:
         """
         return self.send_email(to_email, subject, html_body, is_html=True)
 
+    def send_organizador_academia_credentials(self, to_email: str, username: str, password: str, role: str, login_url: str) -> bool:
+        """Envía email con credenciales de acceso para organizadores y academias"""
+        subject = "Bienvenido al Sistema - Credenciales de Acceso"
+        
+        role_display = "Organizador de Torneos" if role == "organizador" else "Academia/Escuela"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h2 style="color: #1e293b; margin-top: 0;">Bienvenido al Sistema</h2>
+                <p style="color: #334155; font-size: 16px;">Hola,</p>
+                <p style="color: #334155; font-size: 16px;">Tu cuenta de <strong>{role_display}</strong> ha sido creada exitosamente con los siguientes datos:</p>
+                <div style="background-color: #f1f5f9; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                    <ul style="list-style-type: none; padding: 0; margin: 0;">
+                        <li style="margin-bottom: 10px; color: #334155;"><strong>Usuario:</strong> {username}</li>
+                        <li style="color: #334155;"><strong>Contraseña:</strong> {password}</li>
+                    </ul>
+                </div>
+                <p style="color: #334155; font-size: 16px;">Puedes ingresar al sistema desde el siguiente enlace:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{login_url}" style="display: inline-block; padding: 12px 24px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                        Ingresar al Sistema
+                    </a>
+                </div>
+                <p style="color: #334155; font-size: 14px;">Por seguridad, te recomendamos cambiar tu contraseña una vez que hayas ingresado en el panel de configuración.</p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+                <p style="color: #64748b; font-size: 12px; margin-bottom: 0;">Saludos,<br>Equipo de Desarrollo de MiCancha</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return self.send_email(to_email, subject, html_body, is_html=True)
+
 # Instancia global del servicio de email
 email_service = EmailService()

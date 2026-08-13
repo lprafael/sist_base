@@ -526,18 +526,37 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
             if u_row:
                 uid = u_row[0]
             else:
+                import string
+                import random
                 from auth import get_password_hash
+                from email_service import email_service
+                
+                temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
                 username = email_clean.split("@")[0] + "_" + str(uuid.uuid4())[:4]
-                default_pass = get_password_hash("Organizador2026!")
+                pass_hash = get_password_hash(temp_pass)
+                
                 res_ins = await session.execute(text("""
                     INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo)
                     VALUES (:uname, :email, :pass, :nombre, 'organizador', TRUE)
                     RETURNING id
                 """), {
                     "uname": username, "email": email_clean,
-                    "pass": default_pass, "nombre": data.nombre
+                    "pass": pass_hash, "nombre": data.nombre
                 })
                 uid = res_ins.scalar()
+                
+                # Enviar correo con credenciales
+                try:
+                    email_service.send_organizador_academia_credentials(
+                        to_email=email_clean,
+                        username=username,
+                        password=temp_pass,
+                        role="organizador",
+                        login_url="https://micancha.com.py/torneos/login"
+                    )
+                except Exception as mail_err:
+                    print(f"Error al enviar correo de bienvenida: {mail_err}")
+
 
         if not uid:
             raise HTTPException(status_code=400, detail="Debe seleccionar un usuario existente o ingresar un correo electrónico.")

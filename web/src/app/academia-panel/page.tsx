@@ -79,6 +79,7 @@ export default function AcademiaPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [notif, setNotif] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // Tema del panel (Oscuro vs Claro)
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
@@ -384,6 +385,7 @@ export default function AcademiaPanel() {
         toggleTheme={toggleTheme} 
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
+        setShowPasswordModal={setShowPasswordModal}
       />
 
       {/* ── Main ── */}
@@ -606,6 +608,84 @@ export default function AcademiaPanel() {
           )}
         </div>
       </div>
+      
+      {showPasswordModal && (
+        <ChangePasswordModal 
+          onClose={() => setShowPasswordModal(false)} 
+          apiFetch={apiFetch} 
+          notify={notify} 
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHANGE PASSWORD MODAL
+// ═══════════════════════════════════════════════════════════
+function ChangePasswordModal({ onClose, apiFetch, notify }: any) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      notify('Las contraseñas nuevas no coinciden', 'err');
+      return;
+    }
+    setLoading(true);
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      const token = sessionStr ? JSON.parse(sessionStr).access_token : '';
+      const res = await fetch(`${API_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      });
+      if (res.ok) {
+        notify('Contraseña cambiada exitosamente', 'ok');
+        onClose();
+      } else {
+        const err = await res.json();
+        notify(err.detail || 'Error al cambiar contraseña', 'err');
+      }
+    } catch (e: any) {
+      notify('Error de red al cambiar contraseña', 'err');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+      <div style={{ background: C.surface, padding: 24, borderRadius: 12, width: '90%', maxWidth: 400, border: `1px solid ${C.border}` }}>
+        <h3 style={{ margin: '0 0 16px 0', color: C.text }}>Cambiar Contraseña</h3>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={label()}>Contraseña Actual</label>
+            <input type="password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} style={input()} />
+          </div>
+          <div>
+            <label style={label()}>Nueva Contraseña</label>
+            <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} style={input()} />
+          </div>
+          <div>
+            <label style={label()}>Confirmar Nueva Contraseña</label>
+            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={input()} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button type="button" onClick={onClose} style={btn(C.muted, true)}>Cancelar</button>
+            <button type="submit" disabled={loading} style={btn(C.primary)}>
+              {loading ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -613,7 +693,7 @@ export default function AcademiaPanel() {
 // ═══════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
-function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, toggleTheme, mobileMenuOpen, setMobileMenuOpen }: any) {
+function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, toggleTheme, mobileMenuOpen, setMobileMenuOpen, setShowPasswordModal }: any) {
   const navItems: { id: Tab; label: string; icon: any; roles?: string[] }[] = [
     { id: 'dashboard',         label: 'Dashboard',             icon: BarChart3 },
     { id: 'perfil',            label: 'Mi Academia',            icon: GraduationCap, roles: ['dueño','administrador'] },
@@ -734,6 +814,13 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, to
               <Eye size={14} /> Ver página pública
             </a>
           )}
+          <button onClick={() => { if (setShowPasswordModal) setShowPasswordModal(true); if (setMobileMenuOpen) setMobileMenuOpen(false); }} style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', borderRadius: 8, background: 'transparent',
+            border: 'none', color: C.text, fontSize: 12, cursor: 'pointer', marginBottom: 6,
+          }}>
+            <Lock size={14} /> Cambiar contraseña
+          </button>
           <button onClick={() => { localStorage.removeItem('user_session'); window.location.href = 'https://micancha.com.py'; }} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 12px', borderRadius: 8, background: 'transparent',
