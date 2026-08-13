@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-outfit",
+});
 
 import SessionGuardian from "@/components/SessionGuardian";
 
@@ -56,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
       </head>
-      <body className={`${inter.variable} select-none`}>
+      <body className={`${inter.variable} ${outfit.variable} select-none`}>
         <SessionGuardian />
         {children}
         <Script id="disable-zoom" strategy="beforeInteractive">

@@ -312,7 +312,6 @@ export default function TorneosLoginPage() {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (min-width: 900px) { .left-panel { display: flex !important; } }
       `}} />
