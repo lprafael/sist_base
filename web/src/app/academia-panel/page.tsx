@@ -8,7 +8,7 @@ import {
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, TrendingDown, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
   MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock,
-  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt, Sun, Moon
+  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt, Sun, Moon, Menu
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -78,6 +78,7 @@ export default function AcademiaPanel() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [notif, setNotif] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Tema del panel (Oscuro vs Claro)
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
@@ -233,12 +234,103 @@ export default function AcademiaPanel() {
 
   // ─── Render principal ────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: "'Inter', sans-serif", color: C.text }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: "'Inter', sans-serif", color: C.text, position: 'relative' }}>
+      {/* Estilos responsivos globales para móviles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .mobile-header-bar { display: none; }
+        .sidebar-close-btn { display: none; }
+        .sidebar-drawer-backdrop { display: none; }
+        @media (max-width: 768px) {
+          .mobile-header-bar { display: flex !important; }
+          .sidebar-close-btn { display: flex !important; }
+          .sidebar-drawer-backdrop { display: block !important; }
+          .sidebar-drawer {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            z-index: 10000 !important;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease-in-out !important;
+            box-shadow: 4px 0 25px rgba(0,0,0,0.5) !important;
+          }
+          .sidebar-drawer.mobile-open {
+            transform: translateX(0) !important;
+          }
+          .main-content-area {
+            padding: 16px 12px !important;
+          }
+          .responsive-table-container {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            width: 100% !important;
+            margin-bottom: 12px;
+          }
+          .responsive-table-container table {
+            min-width: 600px;
+          }
+        }
+      ` }} />
+
       {/* ── Sidebar ── */}
-      <Sidebar activeTab={activeTab} setTab={setActiveTab} perfil={perfil} rolInterno={rolInterno} session={session} themeMode={themeMode} toggleTheme={toggleTheme} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setTab={setActiveTab} 
+        perfil={perfil} 
+        rolInterno={rolInterno} 
+        session={session} 
+        themeMode={themeMode} 
+        toggleTheme={toggleTheme} 
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
+      />
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* Header Superior Móvil */}
+        <div className="mobile-header-bar" style={{
+          alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', background: C.surface, borderBottom: `1px solid ${C.border}`,
+          position: 'sticky', top: 0, zIndex: 900
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{
+                background: 'transparent', border: `1px solid ${C.border}`,
+                color: C.text, borderRadius: 8, padding: '6px 8px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >
+              <Menu size={22} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 8, background: C.primary,
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <GraduationCap size={16} color="#fff" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, lineHeight: 1.2 }}>Panel Academia</div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'capitalize' }}>{perfil?.nombre || rolInterno}</div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => toggleTheme()}
+            style={{
+              background: `${C.primary}20`, border: `1px solid ${C.border}`,
+              color: C.text, borderRadius: 8, padding: '6px 10px', fontSize: 12, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
+            }}
+          >
+            {themeMode === 'dark' ? <Moon size={14} color={C.primary} /> : <Sun size={14} color={C.yellow} />}
+          </button>
+        </div>
+
         {/* Notificación flotante */}
         {notif && (
           <div style={{
@@ -253,7 +345,7 @@ export default function AcademiaPanel() {
           </div>
         )}
 
-        <div style={{ padding: '32px 28px', maxWidth: 1100 }}>
+        <div className="main-content-area" style={{ padding: '32px 28px', maxWidth: 1100 }}>
           {/* ──────────────── DASHBOARD ──────────────── */}
           {activeTab === 'dashboard' && (
             <DashboardTab 
@@ -421,7 +513,7 @@ export default function AcademiaPanel() {
 // ═══════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
-function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, toggleTheme }: any) {
+function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, toggleTheme, mobileMenuOpen, setMobileMenuOpen }: any) {
   const navItems: { id: Tab; label: string; icon: any; roles?: string[] }[] = [
     { id: 'dashboard',         label: 'Dashboard',             icon: BarChart3 },
     { id: 'perfil',            label: 'Mi Academia',            icon: GraduationCap, roles: ['dueño','administrador'] },
@@ -446,94 +538,112 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, to
   const visible = navItems.filter(n => !n.roles || n.roles.includes(rolInterno));
 
   return (
-    <div style={{
-      width: 230, background: C.sidebarBg || C.surface, borderRight: `1px solid ${C.border}`,
-      display: 'flex', flexDirection: 'column', minHeight: '100vh',
-      position: 'sticky', top: 0, height: '100vh', flexShrink: 0,
-    }}>
-      {/* Logo */}
-      <div style={{ padding: '22px 20px', borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 10,
-            background: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <GraduationCap size={20} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>Panel Academia</div>
-            <div style={{ fontSize: 11, color: C.faint, textTransform: 'capitalize' }}>{rolInterno}</div>
-          </div>
-        </div>
-        {perfil?.nombre && (
-          <div style={{ marginTop: 10, fontSize: 12, color: C.muted, fontWeight: 600, lineHeight: 1.3 }}>
-            {perfil.nombre}
-          </div>
-        )}
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
-        {visible.map(item => {
-          const Icon = item.icon;
-          const active = activeTab === item.id;
-          return (
-            <button key={item.id} onClick={() => setTab(item.id)} style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 12px', borderRadius: 8, marginBottom: 2,
-              background: active ? `${C.primary}22` : 'transparent',
-              border: active ? `1px solid ${C.primary}44` : '1px solid transparent',
-              color: active ? C.primary : C.muted,
-              fontWeight: active ? 700 : 500, fontSize: 13, cursor: 'pointer',
-              transition: 'all .15s', textAlign: 'left',
-            }}>
-              <Icon size={16} />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Footer sidebar con Switch de Tema */}
-      <div style={{ padding: '12px 10px', borderTop: `1px solid ${C.border}` }}>
-        <button
-          onClick={() => toggleTheme()}
+    <>
+      {/* Fondo oscuro overlay en celular cuando el menú está abierto */}
+      {mobileMenuOpen && (
+        <div
+          className="sidebar-drawer-backdrop"
+          onClick={() => setMobileMenuOpen && setMobileMenuOpen(false)}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 10px', borderRadius: 8, marginBottom: 8,
-            background: themeMode === 'light' ? `${C.primary}12` : `${C.primary}18`,
-            border: `1px solid ${C.border}`,
-            color: C.text, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            transition: 'all .15s'
-          }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {themeMode === 'dark' ? <Moon size={14} color={C.primary} /> : <Sun size={14} color={C.yellow} />}
-            {themeMode === 'dark' ? 'Tema Oscuro' : 'Tema Claro'}
-          </span>
-          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: C.primary, color: '#fff', fontWeight: 800 }}>
-            {themeMode === 'dark' ? '🌙' : '☀️'}
-          </span>
-        </button>
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)', zIndex: 9999
+          }}
+        />
+      )}
 
-        {perfil?.enlace_sitio && (
-          <a href={`/academia/${perfil.enlace_sitio}`} target="_blank" rel="noopener noreferrer" style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 12px', borderRadius: 8, marginBottom: 6,
-            background: `${C.green}18`, color: C.green,
-            fontSize: 12, fontWeight: 600, textDecoration: 'none',
+      <div className={`sidebar-drawer ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{
+        width: 250, background: C.sidebarBg || C.surface, borderRight: `1px solid ${C.border}`,
+        display: 'flex', flexDirection: 'column', minHeight: '100vh',
+        position: 'sticky', top: 0, height: '100vh', flexShrink: 0,
+      }}>
+        {/* Logo y Botón Cerrar en Móvil */}
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 10,
+              background: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <GraduationCap size={20} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>Panel Academia</div>
+              <div style={{ fontSize: 11, color: C.faint, textTransform: 'capitalize' }}>{rolInterno}</div>
+            </div>
+          </div>
+          <button
+            className="sidebar-close-btn"
+            onClick={() => setMobileMenuOpen && setMobileMenuOpen(false)}
+            style={{
+              background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', padding: 4
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
+          {visible.map(item => {
+            const Icon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <button key={item.id} onClick={() => { setTab(item.id); if (setMobileMenuOpen) setMobileMenuOpen(false); }} style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 8, marginBottom: 2,
+                background: active ? `${C.primary}22` : 'transparent',
+                border: active ? `1px solid ${C.primary}44` : '1px solid transparent',
+                color: active ? C.primary : C.muted,
+                fontWeight: active ? 700 : 500, fontSize: 13, cursor: 'pointer',
+                transition: 'all .15s', textAlign: 'left',
+              }}>
+                <Icon size={16} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Footer sidebar con Switch de Tema */}
+        <div style={{ padding: '12px 10px', borderTop: `1px solid ${C.border}` }}>
+          <button
+            onClick={() => toggleTheme()}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 10px', borderRadius: 8, marginBottom: 8,
+              background: themeMode === 'light' ? `${C.primary}12` : `${C.primary}18`,
+              border: `1px solid ${C.border}`,
+              color: C.text, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              transition: 'all .15s'
+            }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {themeMode === 'dark' ? <Moon size={14} color={C.primary} /> : <Sun size={14} color={C.yellow} />}
+              {themeMode === 'dark' ? 'Tema Oscuro' : 'Tema Claro'}
+            </span>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: C.primary, color: '#fff', fontWeight: 800 }}>
+              {themeMode === 'dark' ? '🌙' : '☀️'}
+            </span>
+          </button>
+
+          {perfil?.enlace_sitio && (
+            <a href={`/academia/${perfil.enlace_sitio}`} target="_blank" rel="noopener noreferrer" style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', borderRadius: 8, marginBottom: 6,
+              background: `${C.green}18`, color: C.green,
+              fontSize: 12, fontWeight: 600, textDecoration: 'none',
+            }}>
+              <Eye size={14} /> Ver página pública
+            </a>
+          )}
+          <button onClick={() => { localStorage.removeItem('user_session'); window.location.href = 'https://micancha.com.py'; }} style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', borderRadius: 8, background: 'transparent',
+            border: 'none', color: C.faint, fontSize: 12, cursor: 'pointer',
           }}>
-            <Eye size={14} /> Ver página pública
-          </a>
-        )}
-        <button onClick={() => { localStorage.removeItem('user_session'); window.location.href = 'https://micancha.com.py'; }} style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 8, background: 'transparent',
-          border: 'none', color: C.faint, fontSize: 12, cursor: 'pointer',
-        }}>
-          <LogOut size={14} /> Cerrar sesión
-        </button>
+            <LogOut size={14} /> Cerrar sesión
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -110,18 +110,16 @@ async def login(
     # Obtener academia_id y rol_academia (para dueños e integrantes invitados)
     academia_id = None
     rol_academia = None
-    if user.rol == "academia":
-        from sqlalchemy import text as sql_text
-        acad_result = await session.execute(
-            sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid"),
-            {"uid": user.id}
-        )
-        acad_row = acad_result.fetchone()
-        if acad_row:
-            academia_id = str(acad_row[0])
-            rol_academia = "dueño"
+    from sqlalchemy import text as sql_text
+    acad_result = await session.execute(
+        sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
+        {"uid": user.id}
+    )
+    acad_row = acad_result.fetchone()
+    if acad_row:
+        academia_id = str(acad_row[0])
+        rol_academia = "dueño"
     else:
-        from sqlalchemy import text as sql_text
         mem_result = await session.execute(
             sql_text("""
                 SELECT academia_id, rol FROM academias.miembros
@@ -192,25 +190,55 @@ async def impersonate(
         user_agent=request.headers.get("user-agent")
     ))
     
-    # Obtener tipo_torneo si el usuario es organizador
+    # Obtener tipo_torneo y datos de organizador/academia si aplica
     tipo_torneo = None
-    if target_user.rol == "organizador":
-        from sqlalchemy import text as sql_text
-        org_result = await session.execute(
-            sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
+    is_organizador = False
+    from sqlalchemy import text as sql_text
+    org_result = await session.execute(
+        sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
+        {"uid": target_user.id}
+    )
+    org_row = org_result.fetchone()
+    if org_row:
+        tipo_torneo = org_row[0]
+        is_organizador = True
+    elif target_user.rol in ["organizador", "veedor", "delegado", "admin", "super"]:
+        is_organizador = True
+
+    academia_id = None
+    rol_academia = None
+    acad_result = await session.execute(
+        sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
+        {"uid": target_user.id}
+    )
+    acad_row = acad_result.fetchone()
+    if acad_row:
+        academia_id = str(acad_row[0])
+        rol_academia = "dueño"
+    else:
+        mem_result = await session.execute(
+            sql_text("""
+                SELECT academia_id, rol FROM academias.miembros
+                WHERE usuario_id = :uid AND activo = TRUE LIMIT 1
+            """),
             {"uid": target_user.id}
         )
-        org_row = org_result.fetchone()
-        if org_row:
-            tipo_torneo = org_row[0]
+        mem_row = mem_result.fetchone()
+        if mem_row:
+            academia_id = str(mem_row[0])
+            rol_academia = mem_row[1]
 
     user_response = UserResponse.from_orm(target_user)
     user_response.tipo_torneo = tipo_torneo
+    user_response.is_organizador = is_organizador
 
     return Token(
         access_token=access_token, 
         token_type="bearer",
-        user=user_response
+        user=user_response,
+        is_organizador=is_organizador,
+        academia_id=academia_id,
+        rol_academia=rol_academia,
     )
 
 
@@ -309,10 +337,55 @@ async def google_login(
             user_agent=request.headers.get("user-agent")
         ))
         
+        # Obtener información de organizador y academia
+        tipo_torneo = None
+        is_organizador = False
+        from sqlalchemy import text as sql_text
+        org_result = await session.execute(
+            sql_text("SELECT tipo_torneo FROM cancha.organizadores WHERE usuario_id = :uid"),
+            {"uid": user.id}
+        )
+        org_row = org_result.fetchone()
+        if org_row:
+            tipo_torneo = org_row[0]
+            is_organizador = True
+        elif user.rol in ["organizador", "veedor", "delegado", "admin", "super"]:
+            is_organizador = True
+
+        academia_id = None
+        rol_academia = None
+        acad_result = await session.execute(
+            sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
+            {"uid": user.id}
+        )
+        acad_row = acad_result.fetchone()
+        if acad_row:
+            academia_id = str(acad_row[0])
+            rol_academia = "dueño"
+        else:
+            mem_result = await session.execute(
+                sql_text("""
+                    SELECT academia_id, rol FROM academias.miembros
+                    WHERE usuario_id = :uid AND activo = TRUE LIMIT 1
+                """),
+                {"uid": user.id}
+            )
+            mem_row = mem_result.fetchone()
+            if mem_row:
+                academia_id = str(mem_row[0])
+                rol_academia = mem_row[1]
+
+        user_response = UserResponse.from_orm(user)
+        user_response.tipo_torneo = tipo_torneo
+        user_response.is_organizador = is_organizador
+
         return Token(
             access_token=access_token,
             token_type="bearer",
-            user=UserResponse.from_orm(user)
+            user=user_response,
+            is_organizador=is_organizador,
+            academia_id=academia_id,
+            rol_academia=rol_academia,
         )
         
     except ValueError as e:

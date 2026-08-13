@@ -44,20 +44,23 @@ export default function Nav({ scrolled }: NavProps) {
 
       <div className="nav-actions">
         {session ? (
-          <>
-            {session.role === 'academia' || session.academia_id ? (
-              <a href="/academia-panel" className="btn btn-outline btn-sm">
-                Panel Academia
-              </a>
-            ) : session.role === 'complejo' || session.complejo_id ? (
-              <a href="/complejo-panel" className="btn btn-outline btn-sm">
-                Panel Complejo
-              </a>
-            ) : session.role === 'organizador' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {(session.role === 'organizador' || session.is_organizador) && (
               <a href="/admin-futbol/campeonatos" className="btn btn-outline btn-sm">
                 Panel Torneos
               </a>
-            ) : (
+            )}
+            {(session.role === 'academia' || session.academia_id) && (
+              <a href="/academia-panel" className="btn btn-outline btn-sm">
+                Panel Academia
+              </a>
+            )}
+            {(session.role === 'complejo' || session.complejo_id) && (
+              <a href="/complejo-panel" className="btn btn-outline btn-sm">
+                Panel Complejo
+              </a>
+            )}
+            {session.role === 'admin' && (
               <a href="/admin" className="btn btn-outline btn-sm">
                 Consola Clubes
               </a>
@@ -66,7 +69,7 @@ export default function Nav({ scrolled }: NavProps) {
             <button onClick={handleLogout} className="btn btn-primary btn-sm" style={{ border: 'none', cursor: 'pointer' }}>
               Salir
             </button>
-          </>
+          </div>
         ) : (
           <div style={{ position: 'relative' }} onMouseLeave={() => setShowLoginMenu(false)}>
             <button
