@@ -629,8 +629,20 @@ function ChangePasswordModal({ onClose, apiFetch, notify }: any) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const validations = {
+    length: newPassword.length >= 8,
+    upper: /[A-Z]/.test(newPassword),
+    lower: /[a-z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+  };
+  const strength = Object.values(validations).filter(Boolean).length;
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+    if (strength < 4) {
+      notify('La contraseña no cumple con los requisitos de seguridad', 'err');
+      return;
+    }
     if (newPassword !== confirmPassword) {
       notify('Las contraseñas nuevas no coinciden', 'err');
       return;
@@ -673,6 +685,26 @@ function ChangePasswordModal({ onClose, apiFetch, notify }: any) {
           <div>
             <label style={label()}>Nueva Contraseña</label>
             <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} style={input()} />
+            {newPassword.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                  {[1, 2, 3, 4].map(level => (
+                    <div key={level} style={{
+                      flex: 1, height: 4, borderRadius: 2,
+                      background: strength >= level 
+                        ? (strength === 4 ? C.green : strength >= 3 ? C.yellow : C.red) 
+                        : (C.border || '#cbd5e1')
+                    }} />
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ color: validations.length ? C.green : C.muted }}>{validations.length ? '✓' : '○'} Mínimo 8 caracteres</span>
+                  <span style={{ color: validations.upper ? C.green : C.muted }}>{validations.upper ? '✓' : '○'} Al menos 1 mayúscula</span>
+                  <span style={{ color: validations.lower ? C.green : C.muted }}>{validations.lower ? '✓' : '○'} Al menos 1 minúscula</span>
+                  <span style={{ color: validations.number ? C.green : C.muted }}>{validations.number ? '✓' : '○'} Al menos 1 número</span>
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label style={label()}>Confirmar Nueva Contraseña</label>

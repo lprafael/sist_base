@@ -14,8 +14,20 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
 
+  const validations = {
+    length: newPassword.length >= 8,
+    upper: /[A-Z]/.test(newPassword),
+    lower: /[a-z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+  };
+  const strength = Object.values(validations).filter(Boolean).length;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (strength < 4) {
+      setMsg({ text: 'La contraseña no cumple con los requisitos de seguridad', type: 'error' });
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setMsg({ text: 'Las contraseñas no coinciden', type: 'error' });
       return;
@@ -71,6 +83,25 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">Nueva Contraseña</label>
             <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700" />
+            {newPassword.length > 0 && (
+              <div className="mt-2">
+                <div className="flex gap-1 mb-2">
+                  {[1, 2, 3, 4].map(level => (
+                    <div key={level} className={`flex-1 h-1 rounded-full ${
+                      strength >= level 
+                        ? (strength === 4 ? 'bg-green-500' : strength >= 3 ? 'bg-yellow-500' : 'bg-red-500') 
+                        : 'bg-slate-200'
+                    }`} />
+                  ))}
+                </div>
+                <div className="text-[11px] flex flex-col gap-1 font-medium">
+                  <span className={validations.length ? "text-green-600" : "text-slate-400"}>{validations.length ? '✓' : '○'} Mínimo 8 caracteres</span>
+                  <span className={validations.upper ? "text-green-600" : "text-slate-400"}>{validations.upper ? '✓' : '○'} Al menos 1 mayúscula</span>
+                  <span className={validations.lower ? "text-green-600" : "text-slate-400"}>{validations.lower ? '✓' : '○'} Al menos 1 minúscula</span>
+                  <span className={validations.number ? "text-green-600" : "text-slate-400"}>{validations.number ? '✓' : '○'} Al menos 1 número</span>
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">Confirmar Nueva Contraseña</label>
