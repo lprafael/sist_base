@@ -240,6 +240,10 @@ export default function AcademiaPanel() {
         .mobile-header-bar { display: none; }
         .sidebar-close-btn { display: none; }
         .sidebar-drawer-backdrop { display: none; }
+
+        .academia-modal-box { box-sizing: border-box; }
+
+        /* Dispositivos Móviles (Teléfonos <= 768px) */
         @media (max-width: 768px) {
           .mobile-header-bar { display: flex !important; }
           .sidebar-close-btn { display: flex !important; }
@@ -259,16 +263,112 @@ export default function AcademiaPanel() {
             transform: translateX(0) !important;
           }
           .main-content-area {
-            padding: 16px 12px !important;
+            padding: 14px 10px !important;
           }
+
+          /* Adaptación automática de Modales en Móvil */
+          .academia-modal-box,
+          div[style*="position: fixed"] > div[style*="maxWidth"],
+          div[style*="position:fixed"] > div[style*="max-width"] {
+            width: 96vw !important;
+            max-width: 96vw !important;
+            padding: 16px 12px !important;
+            max-height: 88vh !important;
+            border-radius: 14px !important;
+            margin: 0 auto !important;
+          }
+
+          /* Adaptación de Botones de Acción en Modales */
+          .academia-modal-actions,
+          div[style*="justifyContent: 'flex-end'"],
+          div[style*="justify-content: flex-end"] {
+            display: flex !important;
+            flex-direction: column-reverse !important;
+            width: 100% !important;
+            gap: 8px !important;
+            margin-top: 16px !important;
+          }
+          .academia-modal-actions button,
+          div[style*="justifyContent: 'flex-end'"] > button {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 12px !important;
+          }
+
+          /* Desplazamiento Horizontal de Tablas sin romper layout */
+          div:has(> table),
           .responsive-table-container {
             overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch !important;
             width: 100% !important;
-            margin-bottom: 12px;
+            margin-bottom: 12px !important;
+            border-radius: 10px !important;
           }
-          .responsive-table-container table {
-            min-width: 600px;
+          table {
+            min-width: 520px !important;
+          }
+          th, td {
+            white-space: nowrap !important;
+            padding: 10px 12px !important;
+          }
+
+          /* Grillas de 2 y 3 columnas a 1 sola columna en Móvil */
+          div[style*="gridTemplateColumns: '1fr 1fr'"],
+          div[style*="gridTemplateColumns: '1fr 1fr 1fr'"],
+          div[style*="gridTemplateColumns: '1fr 1fr 1fr 1fr'"],
+          div[style*='gridTemplateColumns: "1fr 1fr"'],
+          div[style*='gridTemplateColumns: "1fr 1fr 1fr"'],
+          div[style*="grid-template-columns: 1fr 1fr"],
+          div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          /* Tarjetas KPI en Dashboard: 2 por fila */
+          div[style*="repeat(auto-fit, minmax(210px, 1fr))"],
+          div[style*="repeat(auto-fit, minmax(220px, 1fr))"],
+          div[style*="repeat(auto-fit, minmax(240px, 1fr))"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+          }
+
+          /* Ajuste de Botones y Filtros de Cabeceras */
+          div[style*="justifyContent: 'space-between'"],
+          div[style*="justify-content: space-between"] {
+            flex-wrap: wrap !important;
+            gap: 10px !important;
+          }
+          input[placeholder*="Buscar"],
+          input[type="search"],
+          select {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+
+          /* Títulos y Subtítulos */
+          h1 { font-size: 20px !important; }
+          h2 { font-size: 17px !important; }
+        }
+
+        /* Dispositivos Tablets (769px a 1024px) */
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .main-content-area {
+            padding: 20px 16px !important;
+            max-width: 100% !important;
+          }
+          .academia-modal-box {
+            max-width: 90vw !important;
+            max-height: 88vh !important;
+            padding: 22px 20px !important;
+          }
+          div[style*="repeat(auto-fit, minmax(210px, 1fr))"],
+          div[style*="repeat(auto-fit, minmax(220px, 1fr))"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+          }
+          div:has(> table) {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
           }
         }
       ` }} />
@@ -2999,9 +3099,9 @@ function Modal({ title, children, onClose, wide }: any) {
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9000, padding: 20,
+      zIndex: 9000, padding: 12,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
+      <div className="academia-modal-box" style={{
         background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`,
         padding: 28, width: '100%', maxWidth: wide ? 680 : 460,
         maxHeight: '90vh', overflowY: 'auto',
@@ -3029,7 +3129,7 @@ function FormField({ label: lbl, value, onChange, placeholder = '', type = 'text
 
 function ModalActions({ onCancel, onSave, saving, saveLabel = 'Guardar' }: any) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+    <div className="academia-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
       <button onClick={onCancel} style={btn(C.faint, true)}>Cancelar</button>
       <button onClick={onSave} disabled={saving} style={btn()}>
         {saving ? 'Guardando...' : saveLabel}
