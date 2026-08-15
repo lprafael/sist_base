@@ -14,6 +14,10 @@ interface Partido {
   visitante_nombre?: string;
   jugador_local_nombre?: string;
   jugador_visitante_nombre?: string;
+  jugador_local_id?: string;
+  jugador_visitante_id?: string;
+  equipo_local_id?: string;
+  equipo_visitante_id?: string;
   goles_local?: number;
   goles_visitante?: number;
   estado: string;
@@ -21,19 +25,21 @@ interface Partido {
   fase?: string;
   fecha_hora?: string;
   area?: number;
-  estadisticas?: {
-    local?: { faltas?: number; salidas?: number; puntos?: number };
-    visitante?: { faltas?: number; salidas?: number; puntos?: number };
-  } | null;
+  estadisticas?: any;
 }
+
 interface ResultadoHistorico {
   id: string;
   texto: string;
   tiempo: string;
   tipo: 'victoria' | 'empate' | 'descalificacion' | 'walkover';
 }
+
 interface TournamentData {
-  id: string; nombre: string; deporte: string; estado: string;
+  id: string;
+  nombre: string;
+  deporte: string;
+  estado: string;
 }
 
 /* ─── Helpers ─────────────────────────────────────────────────────── */
@@ -89,7 +95,7 @@ function FighterAvatar({ name, foto, size = 52, color }: { name: string; foto?: 
   );
 }
 
-/* ─── Fighter Row ─────────────────────────────────────────────────── */
+/* ─── Fighter Row (Combate) ───────────────────────────────────────── */
 function FighterRow({
   name, foto, score, faltas, salidas, isWinner, isLive, accentColor, side
 }: {
@@ -99,7 +105,7 @@ function FighterRow({
   return (
     <div style={{
       display: 'flex', alignItems: 'center',
-      justifyContent: side === 'visitante' ? 'space-between' : 'space-between',
+      justifyContent: 'space-between',
       gap: 12, padding: '10px 14px', borderRadius: 12,
       background: isWinner
         ? `linear-gradient(90deg, ${accentColor}18 0%, ${accentColor}08 100%)`
@@ -149,7 +155,7 @@ function FighterRow({
   );
 }
 
-/* ─── Match Card ─────────────────────────────────────────────────── */
+/* ─── Match Card (Combate 1v1) ────────────────────────────────────── */
 function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number }) {
   const palette = AREA_COLORS[areaIndex % AREA_COLORS.length];
   const isLive = partido.estado === 'en_curso';
@@ -165,7 +171,7 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
       borderRadius: 20, padding: '14px 16px',
       boxShadow: `0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px ${palette.border}22`,
       display: 'flex', flexDirection: 'column', gap: 8, position: 'relative',
-      backdropFilter: 'blur(12px)', overflow: 'hidden',
+      backdropFilter: 'blur(12px)', overflow: 'hidden', height: '100%',
     }}>
       {/* Accent top bar */}
       <div style={{
@@ -196,8 +202,8 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
         </div>
       </div>
 
-      {/* VS spacer */}
-      <div style={{ position: 'relative' }}>
+      {/* VS body */}
+      <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <FighterRow
           name={partido.jugador_local_nombre || partido.local_nombre || partido.equipo_local || '?'}
           score={partido.goles_local}
@@ -222,6 +228,303 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
           accentColor='#ef4444'
           side="visitante"
         />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Formas Athlete Interface & Calculations ───────────────────── */
+interface FormasAthlete {
+  id: string;
+  nombre: string;
+  puntaje_final: number;
+  jueces: number[];
+  max_descartado: number;
+  min_descartado: number;
+  f1: number;
+  f2: number;
+  f3: number;
+  f4: number;
+  criterio_desempate: string;
+  estado: string;
+}
+
+function computeFormasStandings(matches: Partido[]): FormasAthlete[] {
+  const athletes: FormasAthlete[] = [];
+
+  matches.forEach(m => {
+    let stats: any = {};
+    try {
+      stats = typeof m.estadisticas === 'string' ? JSON.parse(m.estadisticas) : (m.estadisticas || {});
+    } catch (e) {}
+
+    const puntajeFinal = Number(stats.puntaje_final ?? m.goles_local ?? 0);
+    const jueces: number[] = Array.isArray(stats.jueces) ? stats.jueces : [];
+    const maxDescartado = Number(stats.puntaje_descartado_alto ?? (jueces.length > 0 ? Math.max(...jueces) : 0));
+    const minDescartado = Number(stats.puntaje_descartado_bajo ?? (jueces.length > 0 ? Math.min(...jueces) : 0));
+    const f1 = Number(stats.filtro1_min_no_descartado ?? 0);
+    const f2 = Number(stats.filtro2_max_no_descartado ?? 0);
+    const f3 = Number(stats.filtro3_min_descartado ?? minDescartado);
+    const f4 = Number(stats.filtro4_max_descartado ?? maxDescartado);
+    const nombre = m.jugador_local_nombre || m.local_nombre || m.equipo_local || 'Competidor';
+
+    athletes.push({
+      id: m.id,
+      nombre,
+      puntaje_final: puntajeFinal,
+      jueces,
+      max_descartado: maxDescartado,
+      min_descartado: minDescartado,
+      f1,
+      f2,
+      f3,
+      f4,
+      criterio_desempate: 'Puntaje Directo',
+      estado: m.estado,
+    });
+  });
+
+  // Algoritmo de 5 pasos en cascada ASAM
+  athletes.sort((a, b) => {
+    // Si uno no está finalizado, ponerlo al final
+    if (a.estado === 'finalizado' && b.estado !== 'finalizado') return -1;
+    if (a.estado !== 'finalizado' && b.estado === 'finalizado') return 1;
+
+    // Paso 0: Puntaje total
+    if (a.puntaje_final !== b.puntaje_final) {
+      return b.puntaje_final - a.puntaje_final;
+    }
+    // Paso 1: Filtro 1 (Menor no eliminado)
+    if (a.f1 !== b.f1) {
+      a.criterio_desempate = `Filtro 1: Menor Válido (${a.f1} vs ${b.f1})`;
+      b.criterio_desempate = `Filtro 1: Menor Válido (${a.f1} vs ${b.f1})`;
+      return b.f1 - a.f1;
+    }
+    // Paso 2: Filtro 2 (Mayor no eliminado)
+    if (a.f2 !== b.f2) {
+      a.criterio_desempate = `Filtro 2: Mayor Válido (${a.f2} vs ${b.f2})`;
+      b.criterio_desempate = `Filtro 2: Mayor Válido (${a.f2} vs ${b.f2})`;
+      return b.f2 - a.f2;
+    }
+    // Paso 3: Filtro 3 (Menor descartado)
+    if (a.f3 !== b.f3) {
+      a.criterio_desempate = `Filtro 3: Mín Descartado (${a.f3} vs ${b.f3})`;
+      b.criterio_desempate = `Filtro 3: Mín Descartado (${a.f3} vs ${b.f3})`;
+      return b.f3 - a.f3;
+    }
+    // Paso 4: Filtro 4 (Mayor descartado)
+    if (a.f4 !== b.f4) {
+      a.criterio_desempate = `Filtro 4: Máx Descartado (${a.f4} vs ${b.f4})`;
+      b.criterio_desempate = `Filtro 4: Máx Descartado (${a.f4} vs ${b.f4})`;
+      return b.f4 - a.f4;
+    }
+    // Paso 5: Empate absoluto
+    if (a.puntaje_final > 0) {
+      a.criterio_desempate = `Empate Absoluto (Segunda forma)`;
+      b.criterio_desempate = `Empate Absoluto (Segunda forma)`;
+    }
+    return 0;
+  });
+
+  return athletes;
+}
+
+function isFormasFase(faseStr: string, p?: Partido): boolean {
+  const fLower = (faseStr || '').toLowerCase();
+  return (
+    fLower.includes('forma') ||
+    fLower.includes('kata') ||
+    fLower.includes('poomsae') ||
+    fLower.includes('figura') ||
+    Boolean(p && !p.jugador_visitante_id && !p.equipo_visitante_id && !p.jugador_visitante_nombre && !p.visitante_nombre && fLower.length > 0)
+  );
+}
+
+/* ─── Formas Podium Card (Clasificación Oficial ASAM) ─────────────── */
+function FormasPodiumCard({
+  fase, division, partidos, areaIndex
+}: {
+  fase: string; division: string; partidos: Partido[]; areaIndex: number;
+}) {
+  const palette = AREA_COLORS[areaIndex % AREA_COLORS.length];
+  const standings = computeFormasStandings(partidos);
+
+  const hasLive = partidos.some(p => p.estado === 'en_curso');
+  const allFin = partidos.length > 0 && partidos.every(p => p.estado === 'finalizado');
+  const someFin = partidos.some(p => p.estado === 'finalizado');
+
+  const medallas = ['🥇', '🥈', '🥉'];
+
+  return (
+    <div style={{
+      background: 'linear-gradient(145deg, rgba(15,15,28,0.96) 0%, rgba(22,20,38,0.92) 100%)',
+      border: `1px solid ${palette.border}44`,
+      borderRadius: 20, padding: '14px 16px',
+      boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${palette.border}22`,
+      display: 'flex', flexDirection: 'column', gap: 8, position: 'relative',
+      backdropFilter: 'blur(12px)', overflow: 'hidden', height: '100%',
+    }}>
+      {/* Accent top bar */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+        background: `linear-gradient(90deg, #f59e0b, ${palette.border})`,
+      }} />
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 900, letterSpacing: '0.15em',
+              color: '#f59e0b', textTransform: 'uppercase',
+            }}>
+              ÁREA {areaIndex + 1} · FORMAS
+            </span>
+            <span style={{
+              fontSize: 9, fontWeight: 900, letterSpacing: '0.08em',
+              color: '#fbbf24', background: 'rgba(245,158,11,0.18)',
+              border: '1px solid rgba(245,158,11,0.4)', borderRadius: 12,
+              padding: '1px 7px', textTransform: 'uppercase',
+            }}>
+              MODALIDAD FORMAS (ASAM)
+            </span>
+          </div>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: '#f8fafc',
+            letterSpacing: '0.02em', marginTop: 2, textTransform: 'uppercase',
+          }}>
+            DIVISIÓN: {division || fase}
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px',
+          borderRadius: 20, fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
+          background: hasLive ? 'rgba(239,68,68,0.15)' : allFin ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.12)',
+          color: hasLive ? '#ef4444' : allFin ? '#10b981' : '#f59e0b',
+          border: `1px solid ${hasLive ? '#ef4444' : allFin ? '#10b981' : '#f59e0b'}44`,
+        }}>
+          {hasLive && <div style={{
+            width: 6, height: 6, borderRadius: '50%', background: '#ef4444',
+            animation: 'pulse-dot 1.2s infinite',
+          }} />}
+          {hasLive ? 'EN VIVO' : allFin ? 'FINALIZADO' : someFin ? 'EN PROCESO' : 'PROG.'}
+        </div>
+      </div>
+
+      {/* Tabla Clasificatoria / Podio Oficial */}
+      <div style={{
+        flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+        gap: 6, paddingRight: 2,
+      }}>
+        {standings.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, fontWeight: 700, margin: 'auto' }}>
+            Aún no hay calificaciones de formas registradas
+          </div>
+        ) : (
+          standings.map((atleta, idx) => {
+            const isPodium = idx < 3;
+            const isFirst = idx === 0 && atleta.puntaje_final > 0;
+            const rowBorderColor = isFirst ? '#f59e0b55' : isPodium ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)';
+            const rowBg = isFirst 
+              ? 'linear-gradient(90deg, rgba(245,158,11,0.18) 0%, rgba(245,158,11,0.04) 100%)'
+              : 'rgba(255,255,255,0.03)';
+
+            return (
+              <div
+                key={atleta.id}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '7px 10px', borderRadius: 10,
+                  background: rowBg,
+                  border: `1px solid ${rowBorderColor}`,
+                  gap: 8,
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {/* Posición + Avatar + Nombre */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: idx < 3 ? 16 : 11, fontWeight: 900,
+                    color: idx < 3 ? '#fff' : '#64748b',
+                    width: 22, textAlign: 'center', flexShrink: 0,
+                    lineHeight: 1,
+                  }}>
+                    {idx < 3 ? medallas[idx] : `#${idx + 1}`}
+                  </div>
+
+                  <FighterAvatar
+                    name={atleta.nombre}
+                    size={30}
+                    color={isFirst ? '#f59e0b' : idx === 1 ? '#cbd5e1' : idx === 2 ? '#d97706' : '#475569'}
+                  />
+
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      fontWeight: 800, fontSize: 12, color: isFirst ? '#fff' : '#e2e8f0',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                      {atleta.nombre}
+                    </div>
+                    <div style={{
+                      fontSize: 9, color: isFirst ? '#fbbf24' : '#64748b',
+                      fontWeight: 600, marginTop: 1,
+                    }}>
+                      {atleta.criterio_desempate}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notas de Jueces (Desglose ASAM con descartes tachados) */}
+                {atleta.jueces.length > 0 && (
+                  <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexShrink: 0 }}>
+                    {atleta.jueces.map((nota, jIdx) => {
+                      const isHigh = nota === atleta.max_descartado;
+                      const isLow = nota === atleta.min_descartado;
+                      const isDiscarded = isHigh || isLow;
+
+                      return (
+                        <span
+                          key={jIdx}
+                          style={{
+                            fontSize: 9, fontWeight: 800,
+                            padding: '1.5px 4px', borderRadius: 5,
+                            background: isDiscarded ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)',
+                            color: isDiscarded ? '#ef4444' : '#cbd5e1',
+                            textDecoration: isDiscarded ? 'line-through' : 'none',
+                            border: `1px solid ${isDiscarded ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                          }}
+                          title={isDiscarded ? (isHigh ? 'Máx Descartado' : 'Mín Descartado') : 'Nota Válida'}
+                        >
+                          {nota.toFixed(1)}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Total Final */}
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                  minWidth: 50, flexShrink: 0,
+                }}>
+                  <div style={{
+                    fontSize: 18, fontWeight: 900,
+                    fontFamily: "'Orbitron', monospace",
+                    color: isFirst ? '#fbbf24' : atleta.puntaje_final > 0 ? '#f59e0b' : '#64748b',
+                    textShadow: isFirst ? '0 0 12px rgba(245,158,11,0.5)' : 'none',
+                    lineHeight: 1,
+                  }}>
+                    {atleta.puntaje_final > 0 ? atleta.puntaje_final.toFixed(2) : '--'}
+                  </div>
+                  <span style={{ fontSize: 8, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginTop: 1 }}>
+                    PTS
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -272,6 +575,11 @@ function ResultItem({ r, index }: { r: ResultadoHistorico; index: number }) {
   );
 }
 
+/* ─── Type for Grid Areas ────────────────────────────────────────── */
+type DisplayAreaItem = 
+  | { type: 'combate'; partido: Partido; id: string; estado: string; fecha_hora?: string }
+  | { type: 'formas'; fase: string; division: string; partidos: Partido[]; id: string; estado: string; fecha_hora?: string };
+
 /* ─── MAIN PAGE ─────────────────────────────────────────────────── */
 export default function TVLivePage() {
   const params = useParams();
@@ -310,11 +618,25 @@ export default function TVLivePage() {
           .sort((a, b) => (b.fecha_hora ?? '').localeCompare(a.fecha_hora ?? ''))
           .slice(0, 10)
           .map((p, i): ResultadoHistorico => {
+            const isF = isFormasFase(p.fase || '', p);
+            if (isF) {
+              const atleta = p.jugador_local_nombre || p.local_nombre || p.equipo_local || 'Atleta';
+              let stats: any = {};
+              try { stats = typeof p.estadisticas === 'string' ? JSON.parse(p.estadisticas) : (p.estadisticas || {}); } catch(e) {}
+              const scoreVal = Number(stats.puntaje_final ?? p.goles_local ?? 0);
+              return {
+                id: p.id,
+                texto: `${atleta} (Formas) — ${scoreVal.toFixed(2)} pts`,
+                tiempo: p.fecha_hora ? timeSince(p.fecha_hora) : 'Reciente',
+                tipo: 'victoria'
+              };
+            }
+
             const lG = p.goles_local ?? 0, vG = p.goles_visitante ?? 0;
             const lN = p.jugador_local_nombre || p.local_nombre || p.equipo_local || '?';
             const vN = p.jugador_visitante_nombre || p.visitante_nombre || p.equipo_visitante || '?';
             const texto = lG === vG
-              ? `Empate: ${lN} vs ${vN} (${lG}-${vN})`
+              ? `Empate: ${lN} vs ${vN} (${lG}-${vG})`
               : lG > vG
               ? `${lN} vence a ${vN} (${lG}-${vG})`
               : `${vN} vence a ${lN} (${vG}-${lG})`;
@@ -345,15 +667,16 @@ export default function TVLivePage() {
 
   /* Si no hay datos reales usamos mocks para la demo visual */
   const displayPartidos: Partido[] = partidos.length > 0 ? partidos : [
-    { id: '1', equipo_local: 'J. Perez',   equipo_visitante: 'M. Gonzalez', goles_local: 4, goles_visitante: 2, estado: 'en_curso',   jornada: 1 },
-    { id: '2', equipo_local: 'L. Gomez',   equipo_visitante: 'F. Rojas',    goles_local: 0, goles_visitante: 0, estado: 'en_curso',   jornada: 1 },
-    { id: '3', equipo_local: 'C. Diaz',    equipo_visitante: 'R. Silva',    goles_local: 1, goles_visitante: 3, estado: 'finalizado', jornada: 1 },
-    { id: '4', equipo_local: 'A. Ramirez', equipo_visitante: 'T. Morales',  goles_local: 2, goles_visitante: 2, estado: 'programado', jornada: 2 },
+    { id: '1', jugador_local_nombre: 'J. Perez', jugador_visitante_nombre: 'M. Gonzalez', goles_local: 4, goles_visitante: 2, estado: 'en_curso', fase: 'Combate Adultos' },
+    { id: '2', jugador_local_nombre: 'Emma Valdez', goles_local: 8.3, estado: 'finalizado', fase: '2018-2019(Femenino) Formas - 1º Fase', estadisticas: { jueces: [8.3, 8.5, 8.0], puntaje_final: 8.3, puntaje_descartado_alto: 8.5, puntaje_descartado_bajo: 8.0 } as any },
+    { id: '3', jugador_local_nombre: 'Arami Alderete', goles_local: 8.2, estado: 'finalizado', fase: '2018-2019(Femenino) Formas - 1º Fase', estadisticas: { jueces: [8.2, 8.3, 8.1], puntaje_final: 8.2, puntaje_descartado_alto: 8.3, puntaje_descartado_bajo: 8.1 } as any },
+    { id: '4', jugador_local_nombre: 'Hatner Sotelo', goles_local: 8.1, estado: 'finalizado', fase: '2018-2019(Femenino) Formas - 1º Fase', estadisticas: { jueces: [8.1, 8.1, 8.1], puntaje_final: 8.1, puntaje_descartado_alto: 8.1, puntaje_descartado_bajo: 8.1 } as any },
+    { id: '5', jugador_local_nombre: 'L. Gomez', jugador_visitante_nombre: 'F. Rojas', goles_local: 0, goles_visitante: 0, estado: 'en_curso', fase: 'Combate Juvenil' },
   ];
 
   const displayHistorico: ResultadoHistorico[] = historico.length > 0 ? historico : [
     { id: '1', texto: 'Área 1: J. Perez vence a L. Silva (5-2)',       tiempo: 'Hace 1 min',  tipo: 'victoria'      },
-    { id: '2', texto: 'Área 2: M. Torres (Formas) - 27.5 pts',         tiempo: 'Hace 2 min',  tipo: 'victoria'      },
+    { id: '2', texto: 'Emma Valdez (Formas) — 8.30 pts',               tiempo: 'Hace 2 min',  tipo: 'victoria'      },
     { id: '3', texto: 'Área 3: R. Gomez vence por Descalificación',     tiempo: 'Hace 3 min',  tipo: 'descalificacion'},
     { id: '4', texto: 'Área 1: A. Ruiz vence por Hantei',               tiempo: 'Hace 4 min',  tipo: 'victoria'      },
     { id: '5', texto: 'Área 4: Empate técnico — decisión de jueces',    tiempo: 'Hace 7 min',  tipo: 'empate'        },
@@ -387,8 +710,56 @@ export default function TVLivePage() {
     return true;
   });
 
-  const enCurso = filteredPartidos.filter(p => p.estado === 'en_curso');
-  const otros   = filteredPartidos.filter(p => p.estado !== 'en_curso');
+  // Agrupación inteligente: Combate se muestra 1 a 1, Formas se agrupa por Fase/División
+  const items: DisplayAreaItem[] = [];
+  const formasByFase: Record<string, { division: string; partidos: Partido[] }> = {};
+
+  filteredPartidos.forEach(p => {
+    const fase = p.fase || 'Fase 1';
+    if (isFormasFase(fase, p)) {
+      let div = fase;
+      if (fase.includes(' - ')) {
+        const leftPart = fase.split(' - ')[0];
+        const words = leftPart.split(' ');
+        if (words.length > 1) {
+          div = words[0];
+        }
+      }
+      if (!formasByFase[fase]) {
+        formasByFase[fase] = { division: div, partidos: [] };
+      }
+      formasByFase[fase].partidos.push(p);
+    } else {
+      items.push({
+        type: 'combate',
+        partido: p,
+        id: p.id,
+        estado: p.estado,
+        fecha_hora: p.fecha_hora,
+      });
+    }
+  });
+
+  // Agregar los grupos de Formas
+  Object.keys(formasByFase).forEach(faseKey => {
+    const group = formasByFase[faseKey];
+    const hasLive = group.partidos.some(p => p.estado === 'en_curso');
+    const allFin = group.partidos.length > 0 && group.partidos.every(p => p.estado === 'finalizado');
+    const estado = hasLive ? 'en_curso' : (allFin ? 'finalizado' : 'programado');
+
+    items.push({
+      type: 'formas',
+      fase: faseKey,
+      division: group.division,
+      partidos: group.partidos,
+      id: `formas-${faseKey}`,
+      estado,
+      fecha_hora: group.partidos[0]?.fecha_hora,
+    });
+  });
+
+  const enCurso = items.filter(it => it.estado === 'en_curso');
+  const otros   = items.filter(it => it.estado !== 'en_curso');
   const allAreas = [...enCurso, ...otros];
 
   const pageSizeMap: Record<GridMode, number> = {
@@ -425,8 +796,8 @@ export default function TVLivePage() {
   }, [totalPages, rotationInterval]);
 
   const startIndex = currentPage * PAGE_SIZE;
-  const visiblePartidos = allAreas.slice(startIndex, startIndex + PAGE_SIZE);
-  const emptyCount = Math.max(0, PAGE_SIZE - visiblePartidos.length);
+  const visibleItems = allAreas.slice(startIndex, startIndex + PAGE_SIZE);
+  const emptyCount = Math.max(0, PAGE_SIZE - visibleItems.length);
 
   return (
     <>
@@ -685,11 +1056,28 @@ export default function TVLivePage() {
                 gridTemplateRows: gridStyleMap[gridMode].rows,
                 gap: 12, overflow: 'hidden',
               }}>
-                {visiblePartidos.map((p, i) => (
-                  <MatchCard key={p.id} partido={p} areaIndex={startIndex + i} />
-                ))}
+                {visibleItems.map((item, i) => {
+                  if (item.type === 'formas') {
+                    return (
+                      <FormasPodiumCard
+                        key={item.id}
+                        fase={item.fase}
+                        division={item.division}
+                        partidos={item.partidos}
+                        areaIndex={startIndex + i}
+                      />
+                    );
+                  }
+                  return (
+                    <MatchCard
+                      key={item.id}
+                      partido={item.partido}
+                      areaIndex={startIndex + i}
+                    />
+                  );
+                })}
                 {Array.from({ length: emptyCount }).map((_, i) => (
-                  <EmptyAreaCard key={`empty-${i}`} areaIndex={startIndex + visiblePartidos.length + i} />
+                  <EmptyAreaCard key={`empty-${i}`} areaIndex={startIndex + visibleItems.length + i} />
                 ))}
               </div>
             )}
