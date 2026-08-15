@@ -2769,7 +2769,7 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
     try:
         # 1. Obtener todos los jugadores con su fase asignada
         result = await session.execute(text("""
-            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.fase_asignada
+            SELECT tp.id, tp.torneo_equipo_id, tp.nombre, tp.fase_asignada, tp.modalidad
             FROM torneos.tournament_players tp
             JOIN torneos.equipos e ON tp.torneo_equipo_id = e.id
             WHERE e.torneo_id = :tid AND tp.estado = 'habilitado'
@@ -2808,10 +2808,18 @@ async def autoalineacion(torneo_id: str, payload: dict, session: AsyncSession = 
         matches_created = 0
 
         for fase_name, p_list in by_fase.items():
+            f_lower = fase_name.lower()
             cat_name = fase_name.split(' - ')[0] if ' - ' in fase_name else fase_name
-            tipo = cat_types.get(cat_name, 'combate')
+            cat_name_lower = cat_name.lower()
 
-            if tipo == 'formas':
+            is_formas = (
+                any(k in f_lower for k in ['forma', 'kata', 'poomsae', 'figura']) or
+                cat_types.get(cat_name) == 'formas' or
+                any(c_type == 'formas' and (c_name.lower() in f_lower or f_lower in c_name.lower() or c_name.lower() in cat_name_lower) for c_name, c_type in cat_types.items()) or
+                any(getattr(p, 'modalidad', '').lower() in ['formas', 'forma', 'kata', 'poomsae'] for p in p_list if hasattr(p, 'modalidad') and p.modalidad)
+            )
+
+            if is_formas:
                 for p1 in p_list:
                     if str(p1.id) in formas_jugadores_con_partido:
                         continue

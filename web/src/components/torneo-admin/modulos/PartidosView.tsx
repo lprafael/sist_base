@@ -141,11 +141,13 @@ export default function PartidosView({
     if (status === 'finalizado') return 'FINALIZADO';
     if (status === 'en_curso') return 'EN VIVO';
     return 'NO REALIZADO';
-  };
-
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
+   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
 
   let partidosAMostrar = faseOculta ? partidos : partidos.filter(p => (p.fase || 'Fase 1') === faseFilter);
+
+  const isFormasView = tipoCategoria === 'formas' || 
+    Boolean(faseOculta && (faseOculta.toLowerCase().includes('forma') || faseOculta.toLowerCase().includes('kata') || faseOculta.toLowerCase().includes('poomsae') || faseOculta.toLowerCase().includes('figura'))) ||
+    Boolean(faseFilter && (faseFilter.toLowerCase().includes('forma') || faseFilter.toLowerCase().includes('kata') || faseFilter.toLowerCase().includes('poomsae') || faseFilter.toLowerCase().includes('figura')));
 
   return (
     <div className={`bg-slate-50 border-slate-200 flex flex-col h-full ${faseOculta ? 'p-4' : 'border rounded-xl p-4'}`}>
@@ -153,7 +155,7 @@ export default function PartidosView({
         <div className="flex justify-between items-center mb-4">
           <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <Calendar className="text-blue-600" size={20} />
-            Juegos
+            {isFormasView ? 'Presentaciones de Formas' : 'Juegos'}
           </h4>
           <div className="flex gap-2">
             <select
@@ -198,133 +200,291 @@ export default function PartidosView({
       <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-2">
         {partidosAMostrar.length === 0 ? (
           <div className="text-center text-slate-400 mt-10">
-            No hay participantes o juegos en esta fase.
+            {isFormasView ? 'No hay atletas asignados a esta categoría de Formas.' : 'No hay participantes o juegos en esta fase.'}
           </div>
         ) : (
-          partidosAMostrar.map(p => (
-            <div key={p.id} className="relative">
-              <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition">
+          partidosAMostrar.map((p, idx) => {
+            const isMatchFormas = isFormasView || (!p.jugador_visitante_id && !p.equipo_visitante_id && (p.fase || '').toLowerCase().includes('forma'));
 
-                {/* Local */}
-                <div className="flex flex-col items-center flex-1">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 mb-1 overflow-hidden">
-                    {p.local_logo ? <img src={p.local_logo} className="w-full h-full object-cover" /> : <Trophy size={18} />}
+            if (isMatchFormas) {
+              let pStats: any = {};
+              try {
+                pStats = typeof p.estadisticas === 'string' ? JSON.parse(p.estadisticas) : (p.estadisticas || {});
+              } catch(e) {}
+              const jueces: number[] = Array.isArray(pStats.jueces) ? pStats.jueces : [];
+              const maxD = Number(pStats.puntaje_descartado_alto ?? (jueces.length > 0 ? Math.max(...jueces) : 0));
+              const minD = Number(pStats.puntaje_descartado_bajo ?? (jueces.length > 0 ? Math.min(...jueces) : 0));
+              const scoreVal = Number(pStats.puntaje_final ?? p.goles_local ?? 0);
+              const atletaNombre = p.jugador_local_nombre || p.local_nombre || 'Competidor';
+
+              return (
+                <div key={p.id} className="relative">
+                  <div className="bg-white border-2 border-slate-200 hover:border-amber-400 rounded-xl p-3 flex items-center justify-between shadow-sm hover:shadow-md transition gap-3">
+                    {/* Atleta Info */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 bg-amber-100/60 border border-amber-200 rounded-xl flex items-center justify-center text-amber-700 font-black text-sm shrink-0 overflow-hidden shadow-sm">
+                        {p.local_logo ? <img src={p.local_logo} className="w-full h-full object-cover" /> : <Trophy size={18} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200">
+                            Turno #{idx + 1}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${getStatusColor(p.estado)}`}>
+                            {p.estado === 'finalizado' ? 'CALIFICADO' : 'PENDIENTE'}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-800 text-sm truncate leading-tight mt-1">
+                          {atletaNombre}
+                        </h4>
+                        {p.local_nombre && p.local_nombre !== atletaNombre && (
+                          <p className="text-[11px] text-slate-400 font-medium truncate">
+                            {p.local_nombre}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Puntaje / Notas / Botón Calificar */}
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {p.estado === 'finalizado' ? (
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black text-amber-600 font-mono leading-none">
+                              {scoreVal.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">pts</span>
+                          </div>
+                          {jueces.length > 0 && (
+                            <div className="flex gap-1 mt-1">
+                              {jueces.map((j: number, jIdx: number) => {
+                                const isDisc = (j === maxD || j === minD);
+                                return (
+                                  <span 
+                                    key={jIdx}
+                                    className={`text-[10px] font-bold px-1 rounded ${isDisc ? 'bg-red-100 text-red-600 line-through' : 'bg-slate-100 text-slate-700'}`}
+                                  >
+                                    {j.toFixed(1)}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400 italic">Sin calificar</span>
+                      )}
+
+                      {/* Botón Acción Calificar */}
+                      <button
+                        onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+                          p.estado === 'finalizado'
+                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                        }`}
+                      >
+                        <Trophy size={14} />
+                        {p.estado === 'finalizado' ? 'Editar Notas' : 'Calificar'}
+                      </button>
+
+                      {/* Context Menu Button */}
+                      <button
+                        onClick={() => {
+                          setMenuOpenId(menuOpenId === p.id ? null : p.id);
+                          setShareSubmenuId(null);
+                        }}
+                        className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-xs font-medium text-center line-clamp-1">{p.jugador_local_nombre || p.local_nombre}</span>
-                </div>
 
-                {/* Marcador Central */}
-                <div className="flex flex-col items-center justify-center px-4">
-                  <div className={`text-[10px] font-bold px-2 py-0.5 rounded border mb-1 whitespace-nowrap ${getStatusColor(p.estado)}`}>
-                    {getStatusText(p.estado)}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setMenuOpenId(menuOpenId === p.id ? null : p.id);
-                      setShareSubmenuId(null);
-                    }}
-                    className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-md transition border border-slate-200 font-bold text-lg w-16"
-                  >
-                    {p.estado === 'programado' ? ':' : `${p.goles_local} - ${p.goles_visitante}`}
-                  </button>
-                </div>
+                  {/* Context Menu Dropdown for Formas */}
+                  {menuOpenId === p.id && (
+                    <div className="absolute top-full right-2 mt-2 w-52 bg-[#0c0c28] rounded-xl shadow-2xl z-30 overflow-hidden text-white font-medium text-xs animate-in fade-in zoom-in-95 border border-indigo-900">
+                      <button
+                        onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
+                        className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                      >
+                        <Trophy size={16} className="text-amber-400" /> {p.estado === 'finalizado' ? 'Editar Calificación' : 'Calificar Atleta'}
+                      </button>
 
-                {/* Visitante */}
-                <div className="flex flex-col items-center flex-1">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 mb-1 overflow-hidden">
-                    {p.visitante_logo ? <img src={p.visitante_logo} className="w-full h-full object-cover" /> : <Trophy size={18} />}
-                  </div>
-                  <span className="text-xs font-medium text-center line-clamp-1">{p.jugador_visitante_nombre || p.visitante_nombre || 'Esperando...'}</span>
-                </div>
-              </div>
-
-              {/* CONTEXT MENU DROPDOWN (Matching Image 1 & User Request) */}
-              {menuOpenId === p.id && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-[#0c0c28] rounded-xl shadow-2xl z-30 overflow-hidden text-white font-medium text-xs animate-in fade-in zoom-in-95 border border-indigo-900">
-
-                  {/* Ver partido */}
-                  <button
-                    onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
-                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
-                  >
-                    <PlayCircle size={16} className="text-indigo-400" /> Ver partido
-                  </button>
-
-                  {/* Seleccionar equipos */}
-                  <button
-                    onClick={() => { setSelectTeamsMatch(p); setMenuOpenId(null); }}
-                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
-                  >
-                    <List size={16} className="text-indigo-400" /> Seleccionar equipos
-                  </button>
-
-                  {/* Editar resultado */}
-                  <button
-                    onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
-                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
-                  >
-                    <Check size={16} className="text-indigo-400" /> Editar resultado
-                  </button>
-
-                  {/* Editar informacion */}
-                  <button
-                    onClick={() => { setEditInfoMatch(p); setMenuOpenId(null); }}
-                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
-                  >
-                    <Edit3 size={16} className="text-indigo-400" /> Editar informacion
-                  </button>
-
-                  {/* Compartir Submenu Toggle (Matching Image 1 & 3) */}
-                  <div className="relative border-b border-indigo-900/40">
-                    <button
-                      onClick={() => setShareSubmenuId(shareSubmenuId === p.id ? null : p.id)}
-                      className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-indigo-900/80 transition"
-                    >
-                      <span className="flex items-center gap-3">
-                        <Share2 size={16} className="text-indigo-400" /> Compartir
-                      </span>
-                      <ChevronRight size={14} className="text-slate-400" />
-                    </button>
-
-                    {/* Compartir Submenu Options: Arte de juego / Acta */}
-                    {shareSubmenuId === p.id && (
-                      <div className="bg-[#14143a] border-t border-indigo-900/60 divide-y divide-indigo-900/40 pl-4">
+                      <div className="relative border-b border-indigo-900/40">
                         <button
-                          onClick={() => { setArtDuJeuMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
-                          className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                          onClick={() => setShareSubmenuId(shareSubmenuId === p.id ? null : p.id)}
+                          className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-indigo-900/80 transition"
                         >
-                          <ImageIcon size={14} className="text-indigo-400" /> Arte de juego
+                          <span className="flex items-center gap-3">
+                            <Share2 size={16} className="text-indigo-400" /> Compartir
+                          </span>
+                          <ChevronRight size={14} className="text-slate-400" />
+                        </button>
+
+                        {shareSubmenuId === p.id && (
+                          <div className="bg-[#14143a] border-t border-indigo-900/60 divide-y divide-indigo-900/40 pl-4">
+                            <button
+                              onClick={() => { setArtDuJeuMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                              className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                            >
+                              <ImageIcon size={14} className="text-indigo-400" /> Arte de juego
+                            </button>
+                            <button
+                              onClick={() => { setActaMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                              className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                            >
+                              <FileText size={14} className="text-indigo-400" /> Acta
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-white divide-y divide-slate-100">
+                        <button
+                          onClick={() => handleRestaurarPartido(p.id)}
+                          className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
+                        >
+                          <RotateCcw size={16} /> Restaurar
                         </button>
                         <button
-                          onClick={() => { setActaMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
-                          className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                          onClick={() => handleQuitarPartido(p.id)}
+                          className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
                         >
-                          <FileText size={14} className="text-indigo-400" /> Acta
+                          <X size={16} /> Quitar
                         </button>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Red Options: Restaurar / Quitar */}
-                  <div className="bg-white divide-y divide-slate-100">
-                    <button
-                      onClick={() => handleRestaurarPartido(p.id)}
-                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
-                    >
-                      <RotateCcw size={16} /> Restaurar
-                    </button>
-                    <button
-                      onClick={() => handleQuitarPartido(p.id)}
-                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
-                    >
-                      <X size={16} /> Quitar
-                    </button>
-                  </div>
-
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))
+              );
+            }
+
+            return (
+              <div key={p.id} className="relative">
+                <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition">
+
+                  {/* Local */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 mb-1 overflow-hidden">
+                      {p.local_logo ? <img src={p.local_logo} className="w-full h-full object-cover" /> : <Trophy size={18} />}
+                    </div>
+                    <span className="text-xs font-medium text-center line-clamp-1">{p.jugador_local_nombre || p.local_nombre}</span>
+                  </div>
+
+                  {/* Marcador Central */}
+                  <div className="flex flex-col items-center justify-center px-4">
+                    <div className={`text-[10px] font-bold px-2 py-0.5 rounded border mb-1 whitespace-nowrap ${getStatusColor(p.estado)}`}>
+                      {getStatusText(p.estado)}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setMenuOpenId(menuOpenId === p.id ? null : p.id);
+                        setShareSubmenuId(null);
+                      }}
+                      className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-md transition border border-slate-200 font-bold text-lg w-16"
+                    >
+                      {p.estado === 'programado' ? ':' : `${p.goles_local} - ${p.goles_visitante}`}
+                    </button>
+                  </div>
+
+                  {/* Visitante */}
+                  <div className="flex flex-col items-center flex-1">
+                    <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 mb-1 overflow-hidden">
+                      {p.visitante_logo ? <img src={p.visitante_logo} className="w-full h-full object-cover" /> : <Trophy size={18} />}
+                    </div>
+                    <span className="text-xs font-medium text-center line-clamp-1">{p.jugador_visitante_nombre || p.visitante_nombre || 'Esperando...'}</span>
+                  </div>
+                </div>
+
+                {/* CONTEXT MENU DROPDOWN (Matching Image 1 & User Request) */}
+                {menuOpenId === p.id && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-[#0c0c28] rounded-xl shadow-2xl z-30 overflow-hidden text-white font-medium text-xs animate-in fade-in zoom-in-95 border border-indigo-900">
+
+                    {/* Ver partido */}
+                    <button
+                      onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                    >
+                      <PlayCircle size={16} className="text-indigo-400" /> Ver partido
+                    </button>
+
+                    {/* Seleccionar equipos */}
+                    <button
+                      onClick={() => { setSelectTeamsMatch(p); setMenuOpenId(null); }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                    >
+                      <List size={16} className="text-indigo-400" /> Seleccionar equipos
+                    </button>
+
+                    {/* Editar resultado */}
+                    <button
+                      onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                    >
+                      <Check size={16} className="text-indigo-400" /> Editar resultado
+                    </button>
+
+                    {/* Editar informacion */}
+                    <button
+                      onClick={() => { setEditInfoMatch(p); setMenuOpenId(null); }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-900/80 transition border-b border-indigo-900/40"
+                    >
+                      <Edit3 size={16} className="text-indigo-400" /> Editar informacion
+                    </button>
+
+                    {/* Compartir Submenu Toggle (Matching Image 1 & 3) */}
+                    <div className="relative border-b border-indigo-900/40">
+                      <button
+                        onClick={() => setShareSubmenuId(shareSubmenuId === p.id ? null : p.id)}
+                        className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-indigo-900/80 transition"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Share2 size={16} className="text-indigo-400" /> Compartir
+                        </span>
+                        <ChevronRight size={14} className="text-slate-400" />
+                      </button>
+
+                      {/* Compartir Submenu Options: Arte de juego / Acta */}
+                      {shareSubmenuId === p.id && (
+                        <div className="bg-[#14143a] border-t border-indigo-900/60 divide-y divide-indigo-900/40 pl-4">
+                          <button
+                            onClick={() => { setArtDuJeuMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                            className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                          >
+                            <ImageIcon size={14} className="text-indigo-400" /> Arte de juego
+                          </button>
+                          <button
+                            onClick={() => { setActaMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                            className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
+                          >
+                            <FileText size={14} className="text-indigo-400" /> Acta
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Red Options: Restaurar / Quitar */}
+                    <div className="bg-white divide-y divide-slate-100">
+                      <button
+                        onClick={() => handleRestaurarPartido(p.id)}
+                        className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
+                      >
+                        <RotateCcw size={16} /> Restaurar
+                      </button>
+                      <button
+                        onClick={() => handleQuitarPartido(p.id)}
+                        className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-red-500 hover:bg-red-50 transition font-bold"
+                      >
+                        <X size={16} /> Quitar
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -399,7 +559,7 @@ export default function PartidosView({
 
       {/* Match Controllers */}
       {activeMatch && (
-        tipoCategoria === 'formas' ? (
+        (tipoCategoria === 'formas' || isFormasView || (!activeMatch.jugador_visitante_id && (activeMatch.fase || '').toLowerCase().includes('forma'))) ? (
           <FormasController
             match={activeMatch}
             onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}

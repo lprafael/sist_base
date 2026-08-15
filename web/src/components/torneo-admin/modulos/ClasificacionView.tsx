@@ -363,7 +363,15 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
               <div className="p-4 flex flex-col gap-6">
                 {grouped[categoria].map(({ original, division }) => {
                   const partidosFase = partidos.filter(p => (p.fase || 'Fase 1') === original);
-                  const isFormas = original.includes('Formas') || (categorias.find(c => c.nombre === categoria)?.tipo_categoria === 'formas');
+                  const isFormas = 
+                    original.toLowerCase().includes('forma') || 
+                    original.toLowerCase().includes('kata') || 
+                    original.toLowerCase().includes('poomsae') || 
+                    original.toLowerCase().includes('figura') ||
+                    categoria.toLowerCase().includes('forma') ||
+                    categoria.toLowerCase().includes('kata') ||
+                    division.toLowerCase().includes('forma') ||
+                    (categorias.find(c => c.nombre === categoria || c.nombre.toLowerCase().includes('forma'))?.tipo_categoria === 'formas');
                   
                   const standings = computeStandings(partidosFase);
                   const formasStandings = computeFormasStandings(partidosFase);
