@@ -141,7 +141,9 @@ export default function PartidosView({
     if (status === 'finalizado') return 'FINALIZADO';
     if (status === 'en_curso') return 'EN VIVO';
     return 'NO REALIZADO';
-   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
+  };
+
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
 
   let partidosAMostrar = faseOculta ? partidos : partidos.filter(p => (p.fase || 'Fase 1') === faseFilter);
 
