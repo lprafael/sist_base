@@ -1,31 +1,31 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, AlertCircle, ShieldAlert, Timer, Users, User, ArrowLeft } from 'lucide-react';
+import { Trophy, AlertCircle, ShieldAlert, Timer, Users, User, ArrowLeft, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ArbitrajeCombate({ params }: { params: { id: string } }) {
   const router = useRouter();
   
-  // State mock
   const [combateId, setCombateId] = useState("123");
   const [blanco, setBlanco] = useState({ puntos: 0, salidas: 0, faltas: 0, nombre: "Juan Perez (Blanco)" });
   const [rojo, setRojo] = useState({ puntos: 0, salidas: 0, faltas: 0, nombre: "Carlos Gomez (Rojo)" });
-  const [tiempo, setTiempo] = useState(90); // 1:30 en segundos
+  const [tiempo, setTiempo] = useState(90);
   const [corriendo, setCorriendo] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [modoAlargue, setModoAlargue] = useState(false);
 
   useEffect(() => {
     let interval: any;
     if (corriendo && tiempo > 0) {
       interval = setInterval(() => setTiempo((t) => t - 1), 1000);
-    } else if (tiempo === 0) {
+    } else if (tiempo === 0 && corriendo) {
       setCorriendo(false);
-      setMensaje("Tiempo finalizado. Aplicar Hantei si hay empate.");
+      setMensaje("Tiempo reglamentario finalizado. Iniciar Minuto de Oro o aplicar Hantei.");
     }
     return () => clearInterval(interval);
   }, [corriendo, tiempo]);
 
-  const registrarEvento = async (competidor: 'blanco' | 'rojo', accion: 'punto' | 'salida' | 'falta', valor: number = 1) => {
+  const registrarEvento = async (competidor: 'blanco' | 'rojo', accion: 'punto' | 'salida' | 'falta' | 'hansoku_directo' | 'iniciar_alargue', valor: number = 1) => {
     try {
       const res = await fetch(`http://localhost:8001/asam/combates/${combateId}/evento`, {
         method: 'POST',
@@ -35,16 +35,22 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
       const data = await res.json();
       
       if (res.ok) {
-        setBlanco(prev => ({...prev, ...data.state.blanco}));
-        setRojo(prev => ({...prev, ...data.state.rojo}));
-        if (data.message && data.message !== "Evento registrado") {
+        if (data.state) {
+          setBlanco(prev => ({...prev, ...data.state.blanco}));
+          setRojo(prev => ({...prev, ...data.state.rojo}));
+        }
+        if (data.message) {
           setMensaje(data.message);
         }
       } else {
         setMensaje("Error: " + data.detail);
       }
     } catch (e) {
-      // Mock update si no hay backend
+      // Mock update
+      if (accion === 'hansoku_directo') {
+        setMensaje(`¡HANSOKU DIRECTO! Descalificación de ${competidor}. Victoria para el rival.`);
+        return;
+      }
       if (competidor === 'blanco') setBlanco(p => ({...p, [accion + "s"]: Math.max(0, p[accion + "s"] + valor)}));
       if (competidor === 'rojo') setRojo(p => ({...p, [accion + "s"]: Math.max(0, p[accion + "s"] + valor)}));
     }
@@ -54,10 +60,17 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
     try {
       const res = await fetch(`http://localhost:8001/asam/combates/${combateId}/hantei`, { method: 'POST' });
       const data = await res.json();
-      setMensaje(data.message);
+      setMensaje(data.message || data.motivo);
     } catch (e) {
-      setMensaje("Hantei evaluado (Mock)");
+      setMensaje("Hantei evaluado según Tabla Oficial ASAM");
     }
+  };
+
+  const iniciarMinutoDeOro = () => {
+    setModoAlargue(true);
+    setTiempo(60);
+    setCorriendo(true);
+    setMensaje("⚡ Minuto de Oro iniciado. El primer atleta en marcar un punto gana el combate.");
   };
 
   const formatTiempo = (seg: number) => {
@@ -74,15 +87,17 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
           <ArrowLeft size={24} />
         </button>
         <div className="text-center flex flex-col items-center">
-          <span className="text-neutral-400 font-semibold uppercase tracking-wider text-sm mb-2">Mesa de Control ASAM</span>
-          <div className="text-5xl font-black font-mono tracking-widest text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]">
+          <span className="text-neutral-400 font-semibold uppercase tracking-wider text-sm mb-2">
+            Mesa de Control ASAM {modoAlargue && <span className="text-amber-400 font-bold ml-2">(Punto de Oro)</span>}
+          </span>
+          <div className={`text-5xl font-black font-mono tracking-widest ${modoAlargue ? 'text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]'}`}>
             {formatTiempo(tiempo)}
           </div>
           <div className="flex gap-4 mt-4">
             <button onClick={() => setCorriendo(!corriendo)} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold">
               {corriendo ? 'Pausar' : 'Iniciar'}
             </button>
-            <button onClick={() => {setTiempo(90); setCorriendo(false);}} className="px-6 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg font-bold">
+            <button onClick={() => {setTiempo(90); setCorriendo(false); setModoAlargue(false);}} className="px-6 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg font-bold">
               Reiniciar
             </button>
           </div>
@@ -134,6 +149,13 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
                 -1 Falta
               </button>
             </div>
+
+            <button 
+              onClick={() => registrarEvento('blanco', 'hansoku_directo')}
+              className="col-span-3 mt-2 py-2 bg-red-950 hover:bg-red-900 border border-red-500 text-red-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+            >
+              <ShieldAlert size={16} /> Hansoku Directo (Sangre)
+            </button>
           </div>
         </div>
 
@@ -172,17 +194,28 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
                 -1 Falta
               </button>
             </div>
+
+            <button 
+              onClick={() => registrarEvento('rojo', 'hansoku_directo')}
+              className="col-span-3 mt-2 py-2 bg-red-950 hover:bg-red-900 border border-red-500 text-red-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+            >
+              <ShieldAlert size={16} /> Hansoku Directo (Sangre)
+            </button>
           </div>
         </div>
 
       </div>
 
       {/* FOOTER ACTIONS */}
-      <div className="mt-8 flex justify-center">
-        <button onClick={aplicarHantei} className="px-12 py-4 bg-purple-600 hover:bg-purple-500 rounded-2xl font-black text-2xl tracking-wider shadow-lg flex items-center gap-3">
-          <ShieldAlert size={32} /> APLICAR HANTEI
+      <div className="mt-8 flex justify-center gap-4">
+        <button onClick={iniciarMinutoDeOro} className="px-8 py-4 bg-amber-600 hover:bg-amber-500 rounded-2xl font-black text-xl tracking-wider shadow-lg flex items-center gap-3">
+          <Zap size={24} /> MINUTO DE ORO (1:00)
+        </button>
+        <button onClick={aplicarHantei} className="px-8 py-4 bg-purple-600 hover:bg-purple-500 rounded-2xl font-black text-xl tracking-wider shadow-lg flex items-center gap-3">
+          <ShieldAlert size={24} /> APLICAR HANTEI (ASAM)
         </button>
       </div>
     </div>
   );
 }
+

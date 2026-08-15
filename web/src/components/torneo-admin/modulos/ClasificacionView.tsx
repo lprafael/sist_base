@@ -81,6 +81,80 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     return Object.values(stats).sort((a, b) => b.pts - a.pts || (b.gf - b.gc) - (a.gf - a.gc));
   };
 
+  // Motor de clasificación y desempate oficial ASAM para FORMAS
+  const computeFormasStandings = (matches: any[]) => {
+    const athletes = matches
+      .filter(m => m.estado === 'finalizado')
+      .map(m => {
+        const nombre = m.jugador_local_nombre || m.local_nombre || 'Competidor';
+        let stats: any = {};
+        try {
+          stats = typeof m.estadisticas === 'string' ? JSON.parse(m.estadisticas) : (m.estadisticas || {});
+        } catch(e) {}
+
+        const puntajeFinal = Number(stats.puntaje_final ?? m.goles_local ?? 0);
+        const jueces: number[] = Array.isArray(stats.jueces) ? stats.jueces : [];
+        const maxDescartado = Number(stats.puntaje_descartado_alto ?? (jueces.length > 0 ? Math.max(...jueces) : 0));
+        const minDescartado = Number(stats.puntaje_descartado_bajo ?? (jueces.length > 0 ? Math.min(...jueces) : 0));
+        const f1 = Number(stats.filtro1_min_no_descartado ?? 0);
+        const f2 = Number(stats.filtro2_max_no_descartado ?? 0);
+        const f3 = Number(stats.filtro3_min_descartado ?? minDescartado);
+        const f4 = Number(stats.filtro4_max_descartado ?? maxDescartado);
+
+        return {
+          id: m.id,
+          nombre,
+          puntaje_final: puntajeFinal,
+          jueces,
+          max_descartado: maxDescartado,
+          min_descartado: minDescartado,
+          f1,
+          f2,
+          f3,
+          f4,
+          criterio_desempate: 'Puntaje Directo'
+        };
+      });
+
+    // Algoritmo de 5 pasos en cascada
+    athletes.sort((a, b) => {
+      // Paso 0: Puntaje total
+      if (a.puntaje_final !== b.puntaje_final) {
+        return b.puntaje_final - a.puntaje_final;
+      }
+      // Paso 1: Filtro 1 (Menor no eliminado)
+      if (a.f1 !== b.f1) {
+        a.criterio_desempate = `Filtro 1: Menor Válido (${a.f1} vs ${b.f1})`;
+        b.criterio_desempate = `Filtro 1: Menor Válido (${a.f1} vs ${b.f1})`;
+        return b.f1 - a.f1;
+      }
+      // Paso 2: Filtro 2 (Mayor no eliminado)
+      if (a.f2 !== b.f2) {
+        a.criterio_desempate = `Filtro 2: Mayor Válido (${a.f2} vs ${b.f2})`;
+        b.criterio_desempate = `Filtro 2: Mayor Válido (${a.f2} vs ${b.f2})`;
+        return b.f2 - a.f2;
+      }
+      // Paso 3: Filtro 3 (Menor descartado)
+      if (a.f3 !== b.f3) {
+        a.criterio_desempate = `Filtro 3: Mín Descartado (${a.f3} vs ${b.f3})`;
+        b.criterio_desempate = `Filtro 3: Mín Descartado (${a.f3} vs ${b.f3})`;
+        return b.f3 - a.f3;
+      }
+      // Paso 4: Filtro 4 (Mayor descartado)
+      if (a.f4 !== b.f4) {
+        a.criterio_desempate = `Filtro 4: Máx Descartado (${a.f4} vs ${b.f4})`;
+        b.criterio_desempate = `Filtro 4: Máx Descartado (${a.f4} vs ${b.f4})`;
+        return b.f4 - a.f4;
+      }
+      // Paso 5: Empate absoluto
+      a.criterio_desempate = `Empate Absoluto (Segunda forma en tatami)`;
+      b.criterio_desempate = `Empate Absoluto (Segunda forma en tatami)`;
+      return 0;
+    });
+
+    return athletes;
+  };
+
   const handleChange = (id: string, field: string, value: any) => {
     setCategorias(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
   };
@@ -289,13 +363,16 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
               <div className="p-4 flex flex-col gap-6">
                 {grouped[categoria].map(({ original, division }) => {
                   const partidosFase = partidos.filter(p => (p.fase || 'Fase 1') === original);
+                  const isFormas = original.includes('Formas') || (categorias.find(c => c.nombre === categoria)?.tipo_categoria === 'formas');
+                  
                   const standings = computeStandings(partidosFase);
+                  const formasStandings = computeFormasStandings(partidosFase);
                   
                   return (
                     <details key={original} className="bg-white border-2 border-slate-300 rounded-xl shadow-md overflow-hidden flex flex-col group/div" open>
                       <summary className="bg-slate-800 text-white p-3 cursor-pointer list-none flex justify-between items-center hover:bg-slate-700 transition">
                         <h3 className="font-bold text-lg uppercase tracking-wider">
-                          DIVISIÓN: {division}
+                          DIVISIÓN: {division} {isFormas && <span className="text-amber-400 font-black text-xs ml-2 px-2 py-0.5 bg-amber-400/20 rounded-full">MODALIDAD FORMAS (ASAM)</span>}
                         </h3>
                         <div className="flex items-center gap-4">
                           <span className="text-sm font-medium text-slate-400">{original}</span>
@@ -304,61 +381,124 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                       </summary>
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-                {/* Tabla de Posiciones */}
-                <div className="p-4 border-r border-slate-100 bg-slate-50">
-                  <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <BarChart2 className="text-blue-600" size={18} />
-                    Tabla de Posiciones
-                  </h4>
-                  {standings.length === 0 ? (
-                    <div className="text-center text-slate-400 mt-8 text-sm">
-                      Aún no hay resultados finalizados para calcular la tabla en esta división.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-200/50 text-slate-600 font-bold">
-                          <tr>
-                            <th className="py-2 px-3">#</th>
-                            <th className="py-2 px-3">Competidor</th>
-                            <th className="py-2 px-3 text-center">PJ</th>
-                            <th className="py-2 px-3 text-center">G</th>
-                            <th className="py-2 px-3 text-center">E</th>
-                            <th className="py-2 px-3 text-center">P</th>
-                            <th className="py-2 px-3 text-center text-blue-600">Pts</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {standings.map((s, idx) => (
-                            <tr key={s.nombre} className="hover:bg-slate-100/50">
-                              <td className="py-2 px-3 font-bold text-slate-400">{idx + 1}</td>
-                              <td className="py-2 px-3 font-semibold text-slate-700">{s.nombre}</td>
-                              <td className="py-2 px-3 text-center text-slate-500">{s.pj}</td>
-                              <td className="py-2 px-3 text-center text-green-600">{s.pg}</td>
-                              <td className="py-2 px-3 text-center text-slate-400">{s.pe}</td>
-                              <td className="py-2 px-3 text-center text-red-500">{s.pp}</td>
-                              <td className="py-2 px-3 text-center font-bold text-blue-600">{s.pts}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Partidos de esta Fase */}
-                <div className="p-0">
-                  <PartidosView 
-                    torneoId={torneoId} 
-                    deporte={torneo?.deporte} 
-                    torneo={torneo} 
-                    partidosProp={partidosFase}
-                    faseOculta={original}
-                    onRefresh={() => fetchData(true)}
-                    tipoCategoria={original.includes('Formas') ? 'formas' : (categorias.find(c => c.nombre === categoria)?.tipo_categoria || 'combate')}
-                    criterioDesempate={categorias.find(c => c.nombre === categoria)?.criterio_desempate || 'Automático'}
-                  />
-                </div>
+                        {/* Tabla de Clasificación */}
+                        <div className="p-4 border-r border-slate-100 bg-slate-50">
+                          <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <BarChart2 className="text-blue-600" size={18} />
+                            {isFormas ? 'Podio y Clasificación de Formas (ASAM)' : 'Tabla de Posiciones'}
+                          </h4>
+
+                          {isFormas ? (
+                            /* TABLA OFICIAL DE FORMAS ASAM */
+                            formasStandings.length === 0 ? (
+                              <div className="text-center text-slate-400 mt-8 text-sm">
+                                Aún no hay calificaciones de formas registradas en esta división.
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className="bg-slate-200/60 text-slate-700 font-bold text-xs uppercase">
+                                    <tr>
+                                      <th className="py-2.5 px-3">#</th>
+                                      <th className="py-2.5 px-3">Atleta</th>
+                                      <th className="py-2.5 px-3 text-center">Notas Jueces</th>
+                                      <th className="py-2.5 px-3 text-center text-amber-700">Total Final</th>
+                                      <th className="py-2.5 px-3 text-xs">Criterio ASAM</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {formasStandings.map((at, idx) => {
+                                      const medallas = ['🥇', '🥈', '🥉'];
+                                      return (
+                                        <tr key={at.id} className="hover:bg-slate-100/60 transition">
+                                          <td className="py-2.5 px-3 font-black text-slate-700">
+                                            {idx < 3 ? medallas[idx] : idx + 1}
+                                          </td>
+                                          <td className="py-2.5 px-3 font-bold text-slate-800">
+                                            {at.nombre}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-center">
+                                            <div className="flex gap-1 justify-center">
+                                              {at.jueces.map((j: number, jIdx: number) => {
+                                                const isHigh = j === at.max_descartado;
+                                                const isLow = j === at.min_descartado;
+                                                const isDisc = isHigh || isLow;
+                                                return (
+                                                  <span 
+                                                    key={jIdx} 
+                                                    className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${isDisc ? 'bg-red-100 text-red-600 line-through' : 'bg-slate-200 text-slate-800'}`}
+                                                  >
+                                                    {j.toFixed(1)}
+                                                  </span>
+                                                );
+                                              })}
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-center font-black text-base text-amber-600 font-mono">
+                                            {at.puntaje_final.toFixed(2)}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-[11px] font-medium text-slate-500">
+                                            {at.criterio_desempate}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          ) : (
+                            /* TABLA GENERAL DE COMBATE */
+                            standings.length === 0 ? (
+                              <div className="text-center text-slate-400 mt-8 text-sm">
+                                Aún no hay resultados finalizados para calcular la tabla en esta división.
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className="bg-slate-200/50 text-slate-600 font-bold text-xs uppercase">
+                                    <tr>
+                                      <th className="py-2 px-3">#</th>
+                                      <th className="py-2 px-3">Competidor</th>
+                                      <th className="py-2 px-3 text-center">PJ</th>
+                                      <th className="py-2 px-3 text-center">G</th>
+                                      <th className="py-2 px-3 text-center">E</th>
+                                      <th className="py-2 px-3 text-center">P</th>
+                                      <th className="py-2 px-3 text-center text-blue-600 font-black">Pts</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {standings.map((s, idx) => (
+                                      <tr key={s.nombre} className="hover:bg-slate-100/50">
+                                        <td className="py-2 px-3 font-bold text-slate-400">{idx + 1}</td>
+                                        <td className="py-2 px-3 font-semibold text-slate-700">{s.nombre}</td>
+                                        <td className="py-2 px-3 text-center text-slate-500">{s.pj}</td>
+                                        <td className="py-2 px-3 text-center text-green-600">{s.pg}</td>
+                                        <td className="py-2 px-3 text-center text-slate-400">{s.pe}</td>
+                                        <td className="py-2 px-3 text-center text-red-500">{s.pp}</td>
+                                        <td className="py-2 px-3 text-center font-bold text-blue-600">{s.pts}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          )}
+                        </div>
+                        
+                        {/* Partidos de esta Fase */}
+                        <div className="p-0">
+                          <PartidosView 
+                            torneoId={torneoId} 
+                            deporte={torneo?.deporte} 
+                            torneo={torneo} 
+                            partidosProp={partidosFase}
+                            faseOculta={original}
+                            onRefresh={() => fetchData(true)}
+                            tipoCategoria={isFormas ? 'formas' : 'combate'}
+                            criterioDesempate={categorias.find(c => c.nombre === categoria)?.criterio_desempate || 'Automático'}
+                          />
+                        </div>
                       </div>
                     </details>
                   );
