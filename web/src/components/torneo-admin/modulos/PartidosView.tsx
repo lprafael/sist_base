@@ -8,6 +8,8 @@ import MatchController from './MatchController';
 import MatchAddModal from './MatchAddModal';
 import MMAController from './MMAController';
 import FormasController from './FormasController';
+import KarateWKFController from './KarateWKFController';
+import KataWKFController from './KataWKFController';
 import EditMatchInfoModal from './EditMatchInfoModal';
 import SelectTeamsModal from './SelectTeamsModal';
 import ArtDuJeuModal from './ArtDuJeuModal';
@@ -560,29 +562,66 @@ export default function PartidosView({
       )}
 
       {/* Match Controllers */}
-      {activeMatch && (
-        (tipoCategoria === 'formas' || isFormasView || (!activeMatch.jugador_visitante_id && (activeMatch.fase || '').toLowerCase().includes('forma'))) ? (
-          <FormasController
-            match={activeMatch}
-            onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
-            onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
-          />
-        ) : (deporte === 'Artes Marciales Mixtas' || torneo?.deporte === 'Artes Marciales Mixtas') ? (
-          <MMAController
-            match={activeMatch}
-            onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
-            onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
-            onUpdate={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
-          />
-        ) : (
+      {activeMatch && (() => {
+        const isKarateSport = deporte === 'Karate' || torneo?.deporte === 'Karate' ||
+          (deporte || '').toLowerCase().includes('karate') || (torneo?.deporte || '').toLowerCase().includes('karate') ||
+          (activeMatch.fase || '').toLowerCase().includes('karate');
+
+        const isKataMatch = isFormasView || tipoCategoria === 'formas' ||
+          (!activeMatch.jugador_visitante_id && !activeMatch.equipo_visitante_id) ||
+          (activeMatch.fase || '').toLowerCase().includes('kata') ||
+          (activeMatch.fase || '').toLowerCase().includes('forma');
+
+        if (isKarateSport) {
+          if (isKataMatch) {
+            return (
+              <KataWKFController
+                match={activeMatch}
+                onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+                onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              />
+            );
+          }
+          return (
+            <KarateWKFController
+              match={activeMatch}
+              onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onUpdate={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+            />
+          );
+        }
+
+        if (isKataMatch) {
+          return (
+            <FormasController
+              match={activeMatch}
+              onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+            />
+          );
+        }
+
+        if (deporte === 'Artes Marciales Mixtas' || torneo?.deporte === 'Artes Marciales Mixtas' || (deporte || '').toLowerCase().includes('artes marciales') || (deporte || '').toLowerCase().includes('mma')) {
+          return (
+            <MMAController
+              match={activeMatch}
+              onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onUpdate={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+            />
+          );
+        }
+
+        return (
           <MatchController
             match={activeMatch}
             deporte={deporte}
             onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
             onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
           />
-        )
-      )}
+        );
+      })()}
     </div>
   );
 }

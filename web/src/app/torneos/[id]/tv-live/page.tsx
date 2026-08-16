@@ -95,13 +95,19 @@ function FighterAvatar({ name, foto, size = 52, color }: { name: string; foto?: 
   );
 }
 
-/* ─── Fighter Row (Combate) ───────────────────────────────────────── */
+/* ─── Fighter Row (Combate WKF / ASAM) ────────────────────────────── */
 function FighterRow({
-  name, foto, score, faltas, salidas, isWinner, isLive, accentColor, side
+  name, foto, score, faltas, salidas, stats, isWinner, isLive, accentColor, side
 }: {
-  name: string; foto?: string; score?: number; faltas?: number; salidas?: number; isWinner?: boolean;
+  name: string; foto?: string; score?: number; faltas?: number; salidas?: number; stats?: any; isWinner?: boolean;
   isLive?: boolean; accentColor: string; side: 'local' | 'visitante';
 }) {
+  const hasSenshu = stats?.senshu === true;
+  const hasYuko = (stats?.yuko ?? 0) > 0;
+  const hasWazaAri = (stats?.waza_ari ?? 0) > 0;
+  const hasIppon = (stats?.ippon ?? 0) > 0;
+  const isWkf = stats?.yuko !== undefined || stats?.waza_ari !== undefined || stats?.ippon !== undefined || stats?.tipo_reglamento === 'WKF';
+
   return (
     <div style={{
       display: 'flex', alignItems: 'center',
@@ -125,21 +131,42 @@ function FighterRow({
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
         <FighterAvatar name={name} foto={foto} size={46} color={isWinner ? accentColor : '#475569'} />
         <div style={{ minWidth: 0 }}>
-          <div style={{
-            fontWeight: 800, fontSize: 15, color: isWinner ? '#fff' : '#cbd5e1',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            letterSpacing: '0.01em'
-          }}>{name || '—'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{
+              fontWeight: 800, fontSize: 15, color: isWinner ? '#fff' : '#cbd5e1',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              letterSpacing: '0.01em'
+            }}>{name || '—'}</div>
+            {hasSenshu && (
+              <span style={{
+                fontSize: 9, fontWeight: 900, background: 'rgba(251,191,36,0.2)',
+                color: '#fbbf24', border: '1px solid rgba(251,191,36,0.5)',
+                borderRadius: 6, padding: '1px 5px', textTransform: 'uppercase'
+              }}>
+                SENSHU
+              </span>
+            )}
+          </div>
           {isWinner && (
             <div style={{ fontSize: 10, color: accentColor, fontWeight: 700, marginTop: 2, letterSpacing: '0.08em' }}>
               ★ GANADOR
             </div>
           )}
-          {((faltas ?? 0) > 0 || (salidas ?? 0) > 0) && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              {(faltas ?? 0) > 0 && <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>Faltas: {faltas}</span>}
-              {(salidas ?? 0) > 0 && <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>Salidas: {salidas}</span>}
+          {isWkf ? (
+            <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}>
+              {hasYuko && <span style={{ color: '#ef4444' }}>Y:{stats.yuko}</span>}
+              {hasWazaAri && <span style={{ color: '#f59e0b' }}>W:{stats.waza_ari}</span>}
+              {hasIppon && <span style={{ color: '#10b981' }}>I:{stats.ippon}</span>}
+              {(stats?.jogai ?? 0) > 0 && <span style={{ color: '#94a3b8' }}>Jogai:{stats.jogai}</span>}
+              {(stats?.penalizaciones ?? 0) > 0 && <span style={{ color: '#f43f5e' }}>Pen:{stats.penalizaciones}</span>}
             </div>
+          ) : (
+            ((faltas ?? 0) > 0 || (salidas ?? 0) > 0) && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                {(faltas ?? 0) > 0 && <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>Faltas: {faltas}</span>}
+                {(salidas ?? 0) > 0 && <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>Salidas: {salidas}</span>}
+              </div>
+            )
           )}
         </div>
       </div>
@@ -209,6 +236,7 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
           score={partido.goles_local}
           faltas={partido.estadisticas?.local?.faltas}
           salidas={partido.estadisticas?.local?.salidas}
+          stats={partido.estadisticas?.local}
           isWinner={isFin && localWins}
           isLive={isLive}
           accentColor={palette.accent}
@@ -223,6 +251,7 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
           score={partido.goles_visitante}
           faltas={partido.estadisticas?.visitante?.faltas}
           salidas={partido.estadisticas?.visitante?.salidas}
+          stats={partido.estadisticas?.visitante}
           isWinner={isFin && visitWins}
           isLive={isLive}
           accentColor='#ef4444'

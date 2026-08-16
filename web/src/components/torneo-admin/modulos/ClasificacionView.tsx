@@ -81,7 +81,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     return Object.values(stats).sort((a, b) => b.pts - a.pts || (b.gf - b.gc) - (a.gf - a.gc));
   };
 
-  // Motor de clasificación y desempate oficial ASAM para FORMAS
+  // Motor de clasificación y desempate oficial ASAM / WKF para FORMAS / KATA
   const computeFormasStandings = (matches: any[]) => {
     const athletes = matches
       .filter(m => m.estado === 'finalizado')
@@ -92,14 +92,25 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           stats = typeof m.estadisticas === 'string' ? JSON.parse(m.estadisticas) : (m.estadisticas || {});
         } catch(e) {}
 
+        const esWKF = stats.tipo_reglamento === 'WKF';
+        const modalidadKata = stats.modalidad_kata || (esWKF ? 'banderas' : 'decimal');
         const puntajeFinal = Number(stats.puntaje_final ?? m.goles_local ?? 0);
-        const jueces: number[] = Array.isArray(stats.jueces) ? stats.jueces : [];
+        const jueces: number[] = Array.isArray(stats.notas_tecnicas) ? stats.notas_tecnicas : (Array.isArray(stats.jueces) ? stats.jueces : []);
         const maxDescartado = Number(stats.puntaje_descartado_alto ?? (jueces.length > 0 ? Math.max(...jueces) : 0));
         const minDescartado = Number(stats.puntaje_descartado_bajo ?? (jueces.length > 0 ? Math.min(...jueces) : 0));
         const f1 = Number(stats.filtro1_min_no_descartado ?? 0);
         const f2 = Number(stats.filtro2_max_no_descartado ?? 0);
         const f3 = Number(stats.filtro3_min_descartado ?? minDescartado);
         const f4 = Number(stats.filtro4_max_descartado ?? maxDescartado);
+        const descalificado = Boolean(stats.descalificado);
+        const motivoDesc = stats.motivo_descalificacion;
+
+        let criterioInicial = 'Puntaje Directo';
+        if (descalificado) {
+          criterioInicial = `Descalificación (0.0: ${motivoDesc || 'Hansoku'})`;
+        } else if (modalidadKata === 'banderas' && stats.diferencia) {
+          criterioInicial = `Decisión por Banderas WKF (${stats.diferencia})`;
+        }
 
         return {
           id: m.id,
@@ -112,12 +123,19 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           f2,
           f3,
           f4,
-          criterio_desempate: 'Puntaje Directo'
+          es_wkf: esWKF,
+          modalidad_kata: modalidadKata,
+          descalificado,
+          criterio_desempate: criterioInicial
         };
       });
 
-    // Algoritmo de 5 pasos en cascada
+    // Algoritmo de desempate
     athletes.sort((a, b) => {
+      // Descalificados al final
+      if (a.descalificado && !b.descalificado) return 1;
+      if (!a.descalificado && b.descalificado) return -1;
+
       // Paso 0: Puntaje total
       if (a.puntaje_final !== b.puntaje_final) {
         return b.puntaje_final - a.puntaje_final;
@@ -147,8 +165,10 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
         return b.f4 - a.f4;
       }
       // Paso 5: Empate absoluto
-      a.criterio_desempate = `Empate Absoluto (Segunda forma en tatami)`;
-      b.criterio_desempate = `Empate Absoluto (Segunda forma en tatami)`;
+      if (a.puntaje_final > 0) {
+        a.criterio_desempate = `Empate Absoluto (Segunda forma)`;
+        b.criterio_desempate = `Empate Absoluto (Segunda forma)`;
+      }
       return 0;
     });
 

@@ -224,6 +224,9 @@ app.include_router(asam_scoring_router)
 from routers.pkf_scoring import router as pkf_scoring_router
 app.include_router(pkf_scoring_router)
 
+from routers.wkf_scoring import router as wkf_scoring_router
+app.include_router(wkf_scoring_router)
+
 from routers.sorteos import router as sorteos_router
 app.include_router(sorteos_router)
 
