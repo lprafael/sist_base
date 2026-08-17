@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Matemática · Clase de Límites Indeterminados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0c1a1a;
+      --muted: #3d5450;
+      --paper: #f3f6f4;
+      --card: #ffffff;
+      --line: #c5d4cf;
+      --teal: #0f6b5c;
+      --teal-deep: #08483e;
+      --lime: #b8e06a;
+      --amber: #e8b84a;
+      --sky: #2a6f97;
+      --ok: #1b7a4a;
+      --shadow: 0 18px 50px rgba(8, 72, 62, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #0a1614;
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+    }
+
+    .deck {
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      padding: clamp(1.25rem, 3vw, 2.5rem);
+      background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(184, 224, 106, 0.18), transparent 55%),
+        radial-gradient(900px 500px at -10% 110%, rgba(42, 111, 151, 0.16), transparent 50%),
+        linear-gradient(160deg, #eef4f1 0%, #f7faf8 45%, #e8f0ec 100%);
+    }
+
+    .slide.active { display: flex; flex-direction: column; }
+
+    .brand-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .brand {
+      font-family: Archivo, sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.4rem, 2.4vw, 2rem);
+      letter-spacing: -0.03em;
+      color: var(--teal-deep);
+    }
+
+    .brand span { color: var(--teal); }
+
+    .meta {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    h1, h2, h3 {
+      font-family: Archivo, sans-serif;
+      letter-spacing: -0.03em;
+      line-height: 1.12;
+    }
+
+    h1 { font-size: clamp(2rem, 4.5vw, 3.4rem); color: var(--teal-deep); max-width: 16ch; }
+    h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); color: var(--teal-deep); margin-bottom: 0.85rem; }
+    h3 { font-size: 1.05rem; color: var(--teal); margin-bottom: 0.4rem; }
+
+    p, li { color: var(--muted); line-height: 1.45; }
+
+    .lead {
+      margin-top: 1rem;
+      font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+      max-width: 42ch;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .hero-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 1.5rem;
+      align-items: end;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid, .two, .three, .compare { grid-template-columns: 1fr !important; }
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 1.15rem 1.25rem;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem;
+      margin: 1rem 0 1.25rem;
+    }
+
+    @media (max-width: 700px) {
+      .kpi-row { grid-template-columns: 1fr; }
+    }
+
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi .label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .kpi .value {
+      font-family: Archivo, sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+      color: var(--teal-deep);
+      margin-top: 0.25rem;
+    }
+    .kpi .hint { font-size: 0.85rem; margin-top: 0.25rem; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.28rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(15, 107, 92, 0.1);
+      color: var(--teal-deep);
+      border: 1px solid rgba(15, 107, 92, 0.2);
+    }
+
+    .badge.ok { background: rgba(27, 122, 74, 0.12); color: var(--ok); border-color: rgba(27, 122, 74, 0.25); }
+    .badge.warn { background: rgba(232, 184, 74, 0.2); color: #7a5608; border-color: rgba(232, 184, 74, 0.45); }
+    .badge.sky { background: rgba(42, 111, 151, 0.12); color: var(--sky); border-color: rgba(42, 111, 151, 0.25); }
+
+    .two {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      min-height: 0;
+    }
+
+    .three {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.9rem;
+    }
+
+    .compare {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    ul.clean {
+      list-style: none;
+      display: grid;
+      gap: 0.45rem;
+      margin-top: 0.5rem;
+    }
+
+    ul.clean li {
+      position: relative;
+      padding-left: 1rem;
+      font-size: 0.95rem;
+    }
+
+    ul.clean li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 2px;
+      background: var(--lime);
+      box-shadow: 0 0 0 3px rgba(184, 224, 106, 0.25);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      background: var(--card);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    th, td {
+      padding: 0.7rem 0.85rem;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--teal-deep);
+      color: #fff;
+      font-family: Archivo, sans-serif;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    tr:nth-child(even) td { background: #f7faf8; }
+
+    .quote {
+      margin-top: auto;
+      padding: 1rem 1.15rem;
+      border-left: 4px solid var(--lime);
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: 0 14px 14px 0;
+      font-size: 1.05rem;
+      color: var(--ink);
+      font-weight: 500;
+      max-width: 60ch;
+    }
+
+    .steps {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.85rem;
+      align-items: start;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .step .n {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: var(--teal);
+      color: white;
+      font-family: Archivo, sans-serif;
+      font-weight: 800;
+    }
+
+    .footer-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      background: rgba(8, 72, 62, 0.92);
+      color: #e8f0ec;
+      backdrop-filter: blur(8px);
+      z-index: 20;
+    }
+
+    .footer-nav button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: transparent;
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .footer-nav button:hover { background: rgba(255,255,255,0.1); }
+
+    .dots {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.35);
+      border: 0;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .dot.on { background: var(--lime); width: 1.35rem; }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding-bottom: 3.5rem;
+      overflow: auto;
+    }
+
+    .tagline {
+      font-family: Archivo, sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.15rem, 2vw, 1.5rem);
+      color: var(--ink);
+      margin-top: 0.75rem;
+      max-width: 28ch;
+    }
+
+    .stat-pill {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.55rem 0.85rem;
+      background: var(--teal-deep);
+      color: white;
+      border-radius: 12px;
+      font-family: Archivo, sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .hero-side {
+      background:
+        linear-gradient(145deg, rgba(15, 107, 92, 0.95), rgba(8, 72, 62, 0.98)),
+        #08483e;
+      color: #eef6f3;
+      border-radius: 22px;
+      padding: 1.4rem 1.35rem;
+      box-shadow: var(--shadow);
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hero-side h3 { color: var(--lime); }
+    .hero-side p { color: rgba(238, 246, 243, 0.88); }
+    .hero-side .big {
+      font-family: Archivo, sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin: 0.6rem 0;
+    }
+
+    .formula-box {
+      background: var(--teal-deep);
+      color: #fff;
+      padding: 1.25rem;
+      border-radius: 16px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-family: Archivo, sans-serif;
+      font-weight: 700;
+      margin: 1rem 0;
+    }
+
+    .formula-box span { color: var(--lime); }
+
+    .hint-keys { font-size: 0.8rem; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div class="deck" id="deck">
+
+    <section class="slide active" data-title="Portada">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">Turno Noche · 2 Horas Cátedra</div>
+        </div>
+        <div class="hero-grid">
+          <div>
+            <span class="badge">Cálculo Diferencial</span>
+            <h1>Límites Indeterminados</h1>
+            <p class="tagline">Concepto y resolución de la forma 0/0.</p>
+            <p class="lead">Comprenderemos y aplicaremos técnicas algebraicas de factorización y simplificación para romper el estancamiento matemático.</p>
+            <div class="stat-pill">2 Horas Cátedra · Análisis y Práctica</div>
+          </div>
+          <aside class="hero-side">
+            <div>
+              <h3>Objetivo General</h3>
+              <p>Resolver límites indeterminados de la forma 0/0 en funciones racionales mediante técnicas algebraicas.</p>
+            </div>
+            <div>
+              <div class="big" style="letter-spacing: 0;">0 / 0</div>
+              <p>Una expresión que pide ser transformada</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Inicio">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">01 · Inicio & Desafío</div>
+        </div>
+        <h2>El Conflicto Cognitivo</h2>
+        <div class="kpi-row">
+          <div class="kpi">
+            <div class="label">Ejemplo A</div>
+            <div class="value" style="font-size:1.5rem">lim<sub>x&rarr;2</sub> (x + 3)</div>
+            <div class="hint">Sustitución: 2 + 3 = 5 (Determinado)</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Ejemplo B</div>
+            <div class="value" style="font-size:1.5rem">lim<sub>x&rarr;2</sub> (x² &minus; 4) / (x &minus; 2)</div>
+            <div class="hint">Sustitución: (4 &minus; 4) / (2 &minus; 2) = 0/0</div>
+          </div>
+          <div class="kpi">
+            <div class="label">El Enigma</div>
+            <div class="value" style="color:var(--amber)">0 / 0</div>
+            <div class="hint">¿Qué representa esta expresión?</div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>¿Significa que el límite no existe?</h3>
+          <p class="lead" style="max-width:100%">No necesariamente. Un resultado de <strong>0/0</strong> nos indica que existe un "estancamiento" y necesitamos usar una <strong>estrategia algebraica</strong> para encontrar el verdadero valor.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Concepto">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">02 · Definición</div>
+        </div>
+        <h2>¿Qué es una Indeterminación?</h2>
+        <p>Cuando al sustituir la variable por el valor al que tiende obtenemos <strong>0/0</strong>, no se puede predecir de antemano el resultado final.</p>
+        
+        <div class="formula-box">
+          lim<sub>x&rarr;a</sub> f(x)/g(x) = 0/0 &nbsp;&nbsp;&rArr;&nbsp;&nbsp; ¡Necesitamos factorizar!
+        </div>
+
+        <div class="three">
+          <div class="panel">
+            <span class="badge ok">1</span>
+            <h3>Raíz Común</h3>
+            <p>El valor al que tiende la variable es una raíz común del numerador y del denominador.</p>
+          </div>
+          <div class="panel">
+            <span class="badge sky">2</span>
+            <h3>Factorizar</h3>
+            <p>Usaremos casos de factoreo para descomponer los polinomios y hacer visible al causante del cero.</p>
+          </div>
+          <div class="panel">
+            <span class="badge warn">3</span>
+            <h3>Simplificar</h3>
+            <p>Eliminaremos los factores comunes que producen la división por cero.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Reglas">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">03 · Estrategia Algebraica</div>
+        </div>
+        <h2>Herramientas de Factorización</h2>
+        <div class="two">
+          <div class="panel">
+            <span class="badge ok">Técnica 1</span>
+            <h3 style="margin-top:0.5rem">Diferencia de Cuadrados</h3>
+            <p>Se aplica a binomios donde ambos términos tienen raíz cuadrada exacta.</p>
+            <div style="font-family:Archivo; font-size:1.3rem; font-weight:700; color:var(--teal); margin:0.5rem 0">a² &minus; b² = (a &minus; b)(a + b)</div>
+            <p style="font-size:0.85rem"><i>Ejemplo: x² &minus; 4 = (x &minus; 2)(x + 2)</i></p>
+          </div>
+
+          <div class="panel">
+            <span class="badge sky">Técnica 2</span>
+            <h3 style="margin-top:0.5rem">Trinomios Cuadráticos</h3>
+            <p>Se aplica a expresiones de la forma x² + bx + c buscando dos números que sumados den "b" y multiplicados "c".</p>
+            <div style="font-family:Archivo; font-size:1.3rem; font-weight:700; color:var(--teal); margin:0.5rem 0">x² + bx + c</div>
+            <p style="font-size:0.85rem"><i>Ejemplo: x² &minus; 3x + 2 = (x &minus; 2)(x &minus; 1)</i></p>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:1rem">
+          <span class="badge warn">Paso Final</span>
+          <ul class="clean" style="margin-top:0.5rem">
+            <li><strong>Simplificar</strong> el factor común entre numerador y denominador.</li>
+            <li><strong>Reemplazar</strong> nuevamente la variable por el valor de tendencia para hallar el límite final.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Ejemplos">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">04 · Práctica Guiada</div>
+        </div>
+        <h2>Resolución Paso a Paso</h2>
+        <div style="overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Límite Original</th>
+                <th>Factorización y Simplificación</th>
+                <th>Reevaluación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>lim<sub>x&rarr;2</sub> (x² &minus; 4) / (x &minus; 2)</strong></td>
+                <td>(x &minus; 2)(x + 2) / (x &minus; 2) &nbsp;&rightarrow;&nbsp; Queda: <strong>(x + 2)</strong></td>
+                <td><span class="badge ok">2 + 2 = 4</span></td>
+              </tr>
+              <tr>
+                <td><strong>lim<sub>x&rarr;2</sub> (x² &minus; 3x + 2) / (x² &minus; 4)</strong></td>
+                <td>(x &minus; 2)(x &minus; 1) / (x &minus; 2)(x + 2) &nbsp;&rightarrow;&nbsp; Queda: <strong>(x &minus; 1)/(x + 2)</strong></td>
+                <td><span class="badge ok">1 / 4</span></td>
+              </tr>
+              <tr>
+                <td><strong>lim<sub>x&rarr;3</sub> (x² &minus; 9) / (x &minus; 3)</strong></td>
+                <td>(x &minus; 3)(x + 3) / (x &minus; 3) &nbsp;&rightarrow;&nbsp; Queda: <strong>(x + 3)</strong></td>
+                <td><span class="badge ok">3 + 3 = 6</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Taller">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">05 · Dinámica Grupal</div>
+        </div>
+        <h2>Taller "Desafío de Factorización y Límites"</h2>
+        <div class="two">
+          <div class="panel">
+            <h3>Actividad Práctica</h3>
+            <p>Calcula los siguientes límites de la forma 0/0 aplicando factorización y simplificación:</p>
+            <ul class="clean" style="margin-top:0.75rem; font-size:1.1rem; gap:0.8rem">
+              <li>a) lim<sub>x&rarr;1</sub> (x⁴ &minus; 1) / (x &minus; 1)</li>
+              <li>b) lim<sub>x&rarr;3</sub> (x² &minus; 9) / (x &minus; 3)</li>
+              <li>c) lim<sub>x&rarr;5</sub> (x &minus; 5) / (x² &minus; 25)</li>
+              <li>d) lim<sub>x&rarr;&minus;1</sub> (x³ + 1) / (x² &minus; 1)</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>Indicaciones</h3>
+            <ul class="clean" style="margin-top:0.75rem">
+              <li>Trabajen en <strong>parejas o tríos</strong>.</li>
+              <li>Comprueben primero que exista indeterminación 0/0.</li>
+              <li>Identifiquen el caso de factoreo correcto en cada polinomio.</li>
+              <li><strong>Socialización:</strong> Representantes de cada grupo presentarán sus procesos en la pizarra.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Resumen">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">06 · Recapitulación</div>
+        </div>
+        <h2>Ideas Clave de la Jornada</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="n">1</div>
+            <div>
+              <h3>Verificar la Indeterminación</h3>
+              <p>Si la sustitución directa produce 0/0, la función tiene un factor problemático en común.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">2</div>
+            <div>
+              <h3>Descomponer (Factorizar)</h3>
+              <p>Aplicar Diferencia de Cuadrados o Trinomios Cuadráticos para revelar los causantes del cero.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">3</div>
+            <div>
+              <h3>Simplificar y Resolver</h3>
+              <p>Se elimina (simplifica) el factor que causa el cero tanto arriba como abajo y luego se vuelve a evaluar el límite.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Cierre">
+      <div class="slide-body">
+        <div class="brand-bar">
+          <div class="brand">Matemática<span>3º</span></div>
+          <div class="meta">07 · Cierre de Clase</div>
+        </div>
+        <div class="hero-grid" style="align-items:center">
+          <div>
+            <span class="badge ok">Evaluación Formativa</span>
+            <h1 style="max-width:18ch;margin-top:0.6rem">Ticket de Salida (10 min)</h1>
+            <p class="lead">Responde de manera individual en una hoja corta antes de salir:</p>
+            <div class="panel" style="margin-top:1rem">
+              <p>1. Calcula el límite: <strong>lim<sub>x&rarr;3</sub> (x² &minus; 5x + 6) / (x &minus; 3)</strong></p>
+              <p style="margin-top:0.75rem">2. Completa: Para levantar la indeterminación 0/0, el primer paso es <strong>________</strong> los polinomios para luego <strong>________</strong> los factores comunes.</p>
+            </div>
+          </div>
+          <aside class="hero-side">
+            <div>
+              <h3>¡Gran trabajo!</h3>
+              <p>Gracias por el análisis y la participación de hoy.</p>
+            </div>
+            <div>
+              <div class="big" style="font-size:2.4rem">¡Hasta la próxima!</div>
+              <p>Matemática · 3º Curso Turno Noche</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer-nav">
+    <button type="button" id="prevBtn" aria-label="Anterior">← Anterior</button>
+    <div>
+      <div class="dots" id="dots"></div>
+      <div class="hint-keys" style="text-align:center;margin-top:0.25rem">← → o espacio · F pantalla completa</div>
+    </div>
+    <button type="button" id="nextBtn" aria-label="Siguiente">Siguiente →</button>
+  </div>
+
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const dots = document.getElementById('dots');
+    let i = 0;
+
+    slides.forEach((_, idx) => {
+      const b = document.createElement('button');
+      b.className = 'dot' + (idx === 0 ? ' on' : '');
+      b.type = 'button';
+      b.title = slides[idx].dataset.title || ('Slide ' + (idx + 1));
+      b.addEventListener('click', () => go(idx));
+      dots.appendChild(b);
+    });
+
+    function go(n) {
+      i = (n + slides.length) % slides.length;
+      slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+      [...dots.children].forEach((d, idx) => d.classList.toggle('on', idx === i));
+      document.getElementById('prevBtn').disabled = false;
+      document.getElementById('nextBtn').disabled = false;
+    }
+
+    document.getElementById('prevBtn').addEventListener('click', () => go(i - 1));
+    document.getElementById('nextBtn').addEventListener('click', () => go(i + 1));
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        go(i + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        go(i - 1);
+      } else if (e.key === 'Home') {
+        go(0);
+      } else if (e.key === 'End') {
+        go(slides.length - 1);
+      } else if (e.key.toLowerCase() === 'f') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      }
+    });
+  </script>
+</body>
+</html>

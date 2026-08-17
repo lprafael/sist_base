@@ -278,6 +278,10 @@ app.include_router(modulos_sistema_router)
 
 from routers.multimedia import router as multimedia_router
 app.include_router(multimedia_router)
+
+from routers.ajedrez import router as ajedrez_router
+app.include_router(ajedrez_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================

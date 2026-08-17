@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía del Panel Academia — Mi Cancha</title>
+    <meta name="description" content="Guía completa de todas las funcionalidades del módulo Academia de Mi Cancha: gestión de alumnos, cuotas, asistencias, tesorería y más.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Cinzel:wght@700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-base: #060b14;
+            --bg-surface: #0d1829;
+            --bg-card: rgba(13, 24, 41, 0.85);
+            --border-subtle: rgba(255,255,255,0.07);
+            --border-hover: rgba(255,255,255,0.18);
+            --blue: #3b82f6;
+            --blue-glow: rgba(59,130,246,0.25);
+            --green: #10b981;
+            --green-glow: rgba(16,185,129,0.2);
+            --purple: #8b5cf6;
+            --purple-glow: rgba(139,92,246,0.2);
+            --gold: #f59e0b;
+            --gold-glow: rgba(245,158,11,0.2);
+            --red: #ef4444;
+            --red-glow: rgba(239,68,68,0.2);
+            --teal: #06b6d4;
+            --teal-glow: rgba(6,182,212,0.2);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --font-sans: 'Outfit', sans-serif;
+            --font-display: 'Cinzel', serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.65;
+            background-image:
+                radial-gradient(circle at 15% 10%, rgba(59,130,246,0.08) 0%, transparent 45%),
+                radial-gradient(circle at 85% 20%, rgba(139,92,246,0.06) 0%, transparent 45%),
+                radial-gradient(circle at 50% 90%, rgba(16,185,129,0.05) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 20px 100px;
+        }
+
+        /* ── HERO ── */
+        .hero {
+            position: relative;
+            background: linear-gradient(135deg, rgba(20,35,65,0.85) 0%, rgba(8,14,28,0.95) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 28px;
+            padding: 44px 48px;
+            margin-bottom: 32px;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -120px; right: -80px;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(59,130,246,0.13) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: -100px; left: -80px;
+            width: 350px; height: 350px;
+            background: radial-gradient(circle, rgba(139,92,246,0.09) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-inner {
+            position: relative; z-index: 2;
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 32px; flex-wrap: wrap;
+        }
+        .hero-badges {
+            display: flex; align-items: center; gap: 10px;
+            flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 13px; border-radius: 999px;
+            font-size: 11px; font-weight: 800;
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .badge-blue { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.35); color: #93c5fd; }
+        .badge-green { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.35); color: #6ee7b7; }
+        .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: 38px; font-weight: 900;
+            color: #fff; line-height: 1.15;
+            letter-spacing: 0.02em; margin-bottom: 10px;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+        }
+        .hero-title span { color: var(--blue); }
+        .hero-subtitle {
+            font-size: 15px; color: var(--gold);
+            font-weight: 600; letter-spacing: 0.04em;
+            text-transform: uppercase; margin-bottom: 18px;
+        }
+        .hero-desc { font-size: 15px; color: var(--text-secondary); max-width: 560px; }
+        .hero-icon-box {
+            width: 120px; height: 120px; border-radius: 24px;
+            background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 8px 32px rgba(59,130,246,0.4);
+            flex-shrink: 0; font-size: 52px;
+        }
+        .hero-stats {
+            display: flex; gap: 20px; margin-top: 24px; flex-wrap: wrap;
+        }
+        .hero-stat {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px; padding: 12px 20px;
+            text-align: center;
+        }
+        .hero-stat-num { font-size: 28px; font-weight: 900; color: var(--blue); font-family: var(--font-mono); }
+        .hero-stat-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+        /* ── NAV ── */
+        .nav-container { position: sticky; top: 16px; z-index: 100; margin-bottom: 36px; }
+        .nav-tabs {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(8,14,28,0.88); backdrop-filter: blur(18px);
+            border: 1px solid var(--border-subtle);
+            padding: 5px 7px; border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow-x: auto; scrollbar-width: none;
+        }
+        .nav-tabs::-webkit-scrollbar { display: none; }
+        .nav-tab {
+            padding: 7px 14px; border-radius: 12px;
+            font-size: 12.5px; font-weight: 700;
+            color: var(--text-secondary); text-decoration: none;
+            transition: all .2s; white-space: nowrap;
+            display: flex; align-items: center; gap: 5px;
+            cursor: pointer; border: none; background: transparent;
+        }
+        .nav-tab:hover { background: var(--blue); color: #fff; box-shadow: 0 4px 12px var(--blue-glow); }
+
+        /* ── SECTION ── */
+        .section { margin-bottom: 52px; scroll-margin-top: 80px; }
+        .section-header {
+            display: flex; align-items: center; gap: 16px;
+            margin-bottom: 24px; padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .section-num {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 15px; color: #fff; flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .section-icon { font-size: 22px; }
+        .section-title { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+        .section-title span { font-size: 13px; font-weight: 600; margin-left: 10px; padding: 2px 10px; border-radius: 999px; }
+
+        /* ── CARDS GRID ── */
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px; padding: 22px;
+            transition: border-color .2s, transform .2s, box-shadow .2s;
+            backdrop-filter: blur(12px);
+            position: relative; overflow: hidden;
+        }
+        .card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+        }
+        .card-accent {
+            position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        }
+        .card-icon { font-size: 26px; margin-bottom: 12px; }
+        .card-title { font-size: 15px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+        .card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+        .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+        .tag {
+            font-size: 10.5px; font-weight: 700; padding: 3px 9px;
+            border-radius: 999px; letter-spacing: 0.04em; text-transform: uppercase;
+        }
+
+        /* ── FEATURE ROW (wide card with screenshot mockup) ── */
+        .feature-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 768px) { .feature-row { grid-template-columns: 1fr; } }
+
+        .feature-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px; padding: 28px;
+            backdrop-filter: blur(12px);
+        }
+        .feature-panel-head {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+        }
+        .feature-panel-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+        .feature-panel-title { font-size: 17px; font-weight: 800; }
+        .feature-panel-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .feature-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .feature-list li {
+            display: flex; align-items: flex-start; gap: 10px;
+            font-size: 13px; color: var(--text-secondary);
+        }
+        .feature-list li::before {
+            content: '✦';
+            font-size: 9px; margin-top: 4px; flex-shrink: 0;
+        }
+
+        /* ── MOCKUP TERMINAL ── */
+        .mockup-terminal {
+            background: #050d1a;
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 12px; overflow: hidden;
+        }
+        .mockup-topbar {
+            background: rgba(59,130,246,0.08);
+            border-bottom: 1px solid rgba(59,130,246,0.15);
+            padding: 9px 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .mockup-title { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-left: auto; }
+        .mockup-body { padding: 16px 20px; font-family: var(--font-mono); font-size: 12px; color: #94a3b8; line-height: 1.7; }
+        .mockup-key { color: #60a5fa; }
+        .mockup-val { color: #a3e635; }
+        .mockup-str { color: #f472b6; }
+        .mockup-comment { color: #475569; }
+
+        /* ── FLOW STEPS ── */
+        .steps { display: flex; flex-direction: column; gap: 0; }
+        .step {
+            display: flex; gap: 20px; position: relative;
+        }
+        .step:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 19px; top: 44px; bottom: 0;
+            width: 2px; background: var(--border-subtle);
+        }
+        .step-num {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; font-weight: 900; flex-shrink: 0;
+            position: relative; z-index: 1;
+        }
+        .step-body { padding: 8px 0 28px; }
+        .step-title { font-size: 15px; font-weight: 800; margin-bottom: 6px; }
+        .step-desc { font-size: 13px; color: var(--text-secondary); }
+
+        /* ── ROLES TABLE ── */
+        .roles-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .roles-table th {
+            text-align: left; padding: 12px 16px;
+            font-size: 11px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.05em; color: var(--text-muted);
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .roles-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        .roles-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .check { color: #10b981; font-size: 16px; }
+        .dash { color: var(--text-muted); }
+
+        /* ── PILL STATUS ── */
+        .pill {
+            display: inline-block; padding: 3px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 700;
+        }
+        .pill-green { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3); }
+        .pill-blue  { background: rgba(59,130,246,.15);  color: #93c5fd;  border: 1px solid rgba(59,130,246,.3); }
+        .pill-yellow{ background: rgba(245,158,11,.15); color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
+        .pill-red   { background: rgba(239,68,68,.15);   color: #fca5a5;  border: 1px solid rgba(239,68,68,.3); }
+        .pill-purple{ background: rgba(139,92,246,.15);  color: #c4b5fd;  border: 1px solid rgba(139,92,246,.3); }
+
+        /* ── CALLOUT ── */
+        .callout {
+            display: flex; gap: 14px; align-items: flex-start;
+            padding: 16px 20px; border-radius: 14px; margin: 20px 0;
+            border-left: 3px solid;
+        }
+        .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+        .callout-body { font-size: 13px; color: var(--text-secondary); }
+        .callout-blue { background: rgba(59,130,246,.07); border-color: var(--blue); }
+        .callout-green { background: rgba(16,185,129,.07); border-color: var(--green); }
+        .callout-gold { background: rgba(245,158,11,.07); border-color: var(--gold); }
+
+        /* ── FOOTER ── */
+        .footer {
+            text-align: center; padding: 40px 20px;
+            color: var(--text-muted); font-size: 13px;
+            border-top: 1px solid var(--border-subtle); margin-top: 60px;
+        }
+        .footer a { color: var(--blue); text-decoration: none; }
+        .footer a:hover { color: #fff; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .hero { padding: 28px 22px; }
+            .hero-title { font-size: 26px; }
+            .hero-icon-box { width: 80px; height: 80px; font-size: 36px; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .nav-tabs { gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         HERO
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="hero">
+        <div class="hero-inner">
+            <div>
+                <div class="hero-badges">
+                    <span class="badge badge-blue">🎓 Módulo Academia</span>
+                    <span class="badge badge-green"><span class="badge-dot"></span> Guía Completa</span>
+                </div>
+                <h1 class="hero-title">PANEL DE<br><span>ACADEMIA</span></h1>
+                <p class="hero-subtitle">Guía de Funcionalidades — Mi Cancha</p>
+                <p class="hero-desc">
+                    Todo lo que necesitás saber para gestionar tu academia deportiva: 
+                    alumnos, sucursales, cuotas, asistencias, tesorería, carnets y mucho más, 
+                    desde un único panel centralizado.
+                </p>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">18</div>
+                        <div class="hero-stat-lbl">Módulos</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">3</div>
+                        <div class="hero-stat-lbl">Roles de Acceso</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">100%</div>
+                        <div class="hero-stat-lbl">Online</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">📱</div>
+                        <div class="hero-stat-lbl">Responsive</div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-icon-box">🎓</div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         NAV
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="nav-container">
+        <div class="nav-tabs">
+            <a class="nav-tab" href="#acceso">🔐 Acceso y Roles</a>
+            <a class="nav-tab" href="#dashboard">📊 Dashboard</a>
+            <a class="nav-tab" href="#perfil">🏫 Perfil</a>
+            <a class="nav-tab" href="#sucursales">📍 Sucursales</a>
+            <a class="nav-tab" href="#categorias">🏷️ Categorías</a>
+            <a class="nav-tab" href="#alumnos">👥 Alumnos</a>
+            <a class="nav-tab" href="#cuotas">💳 Cuotas</a>
+            <a class="nav-tab" href="#tesoreria">🏦 Tesorería</a>
+            <a class="nav-tab" href="#reportes">📄 Reportes</a>
+            <a class="nav-tab" href="#otros">⚙️ Otros</a>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 1 — ACCESO Y ROLES
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="acceso">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#1d4ed8,#7c3aed);">1</div>
+            <span class="section-icon">🔐</span>
+            <h2 class="section-title">Acceso y Roles
+                <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">Sistema de permisos</span>
+            </h2>
+        </div>
+
+        <div class="callout callout-blue">
+            <span class="callout-icon">💡</span>
+            <div>
+                <div class="callout-title">Panel multi-rol</div>
+                <div class="callout-body">El Panel Academia soporta tres roles internos. Cada sección del panel muestra u oculta opciones automáticamente según el rol del usuario autenticado.</div>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto; border:1px solid var(--border-subtle); border-radius:14px; margin-bottom:20px;">
+            <table class="roles-table">
+                <thead>
+                    <tr>
+                        <th>Funcionalidad</th>
+                        <th>Dueño 👑</th>
+                        <th>Administrador 🛠️</th>
+                        <th>Tesorero 💰</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Dashboard completo</td><td class="check">✔</td><td class="check">✔</td><td class="check">✔</td></tr>
+                    <tr><td>Editar perfil de academia</td><td class="check">✔</td><td class="dash">—</td><td class="dash">—</td></tr>
+                    <tr><td>Crear/editar sucursales</td><td class="check">✔</td><td class="check">✔</td><td class="dash">—</td></tr>
+                    <tr><td>Gestionar categorías</td><td class="check">✔</td><td class="check">✔</td><td class="dash">—</td></tr>
+                    <tr><td>Alumnos (alta, edición)</td><td class="check">✔</td><td class="check">✔</td><td class="dash">—</td></tr>
+                    <tr><td>Ver cuotas</td><td class="check">✔</td><td class="check">✔</td><td class="check">✔</td></tr>
+                    <tr><td>Registrar pagos</td><td class="check">✔</td><td class="check">✔</td><td class="check">✔</td></tr>
+                    <tr><td>Tesorería y cuentas</td><td class="check">✔</td><td class="check">✔</td><td class="check">✔</td></tr>
+                    <tr><td>Gestionar staff</td><td class="check">✔</td><td class="dash">—</td><td class="dash">—</td></tr>
+                    <tr><td>Configuración SIFEN</td><td class="check">✔</td><td class="dash">—</td><td class="dash">—</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout callout-gold">
+            <span class="callout-icon">🔑</span>
+            <div>
+                <div class="callout-title">Cambio de contraseña</div>
+                <div class="callout-body">Desde la barra lateral, cualquier usuario puede cambiar su propia contraseña en cualquier momento desde el menú de perfil.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 2 — DASHBOARD
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="dashboard">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#059669,#0284c7);">2</div>
+            <span class="section-icon">📊</span>
+            <h2 class="section-title">Dashboard
+                <span style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;">Vista principal</span>
+            </h2>
+        </div>
+
+        <p style="color:var(--text-secondary);margin-bottom:24px;">La pantalla de inicio del panel concentra los indicadores clave de la academia en tiempo real.</p>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#10b981,#059669);"></div>
+                <div class="card-icon">👥</div>
+                <div class="card-title">Alumnos Activos</div>
+                <div class="card-desc">Contador en tiempo real de todos los alumnos con estado <strong>activo</strong> en la academia.</div>
+                <div class="card-tags"><span class="tag pill-green">KPI</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#3b82f6,#1d4ed8);"></div>
+                <div class="card-icon">🏢</div>
+                <div class="card-title">Sucursales Activas</div>
+                <div class="card-desc">Cantidad de sedes habilitadas para operar. Permite acceso rápido a la gestión de cada sucursal.</div>
+                <div class="card-tags"><span class="tag pill-blue">KPI</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div>
+                <div class="card-icon">📚</div>
+                <div class="card-title">Inscripciones Activas</div>
+                <div class="card-desc">Inscripciones vigentes en el período actual. Incluye información de categoría, sede y estado de pago.</div>
+                <div class="card-tags"><span class="tag pill-purple">KPI</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+                <div class="card-icon">💳</div>
+                <div class="card-title">Cuotas Pendientes</div>
+                <div class="card-desc">Cantidad y monto total (en Gs.) de cuotas adeudadas. Acceso directo a la lista de deudores.</div>
+                <div class="card-tags"><span class="tag pill-yellow">KPI</span><span class="tag pill-yellow">Finanzas</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#06b6d4,#0284c7);"></div>
+                <div class="card-icon">📈</div>
+                <div class="card-title">Resumen Financiero</div>
+                <div class="card-desc">Ingresos y egresos del mes en curso, con variación respecto al mes anterior y gráficos de tendencia.</div>
+                <div class="card-tags"><span class="tag pill-blue">Finanzas</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#ef4444,#b91c1c);"></div>
+                <div class="card-icon">⚡</div>
+                <div class="card-title">Accesos Rápidos</div>
+                <div class="card-desc">Botones directos para registrar un alumno nuevo, cobrar una cuota o generar un reporte, sin cambiar de sección.</div>
+                <div class="card-tags"><span class="tag pill-red">Acción rápida</span></div>
+            </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top:24px;">
+            <span class="callout-icon">🌙</span>
+            <div>
+                <div class="callout-title">Modo oscuro y claro</div>
+                <div class="callout-body">El panel incluye un interruptor de tema (oscuro/claro) accesible desde la barra superior. La preferencia se guarda automáticamente en el navegador.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 3 — PERFIL DE LA ACADEMIA
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="perfil">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#7c3aed,#4f46e5);">3</div>
+            <span class="section-icon">🏫</span>
+            <h2 class="section-title">Perfil de la Academia
+                <span style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);color:#c4b5fd;">Solo Dueño</span>
+            </h2>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(139,92,246,.15);">🖼️</div>
+                    <div>
+                        <div class="feature-panel-title">Identidad Visual</div>
+                        <div class="feature-panel-subtitle">Logo y banner de la academia</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Subir y reemplazar el <strong>logo</strong> oficial de la academia (cualquier formato de imagen)</li>
+                    <li>Subir un <strong>banner</strong> de portada para la página pública de la academia</li>
+                    <li>Vista previa en tiempo real antes de guardar</li>
+                    <li>Imágenes almacenadas y servidas desde el servidor seguro</li>
+                </ul>
+            </div>
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(59,130,246,.15);">📋</div>
+                    <div>
+                        <div class="feature-panel-title">Datos Institucionales</div>
+                        <div class="feature-panel-subtitle">Información pública de la academia</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Nombre oficial, descripción y deporte principal</li>
+                    <li>Dirección física, ciudad y país</li>
+                    <li>Teléfono de contacto, email y sitio web</li>
+                    <li>Redes sociales (Instagram, Facebook, etc.)</li>
+                    <li>RUC y datos para facturación electrónica</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="callout callout-blue">
+            <span class="callout-icon">🌐</span>
+            <div>
+                <div class="callout-title">Página pública</div>
+                <div class="callout-body">La información del perfil alimenta automáticamente la página pública de la academia en <strong>micancha.com.py/academia/[slug]</strong>, visible para cualquier persona sin necesidad de iniciar sesión.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 4 — SUCURSALES
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="sucursales">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#0284c7,#0369a1);">4</div>
+            <span class="section-icon">📍</span>
+            <h2 class="section-title">Sucursales / Sedes
+                <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">Multi-sede</span>
+            </h2>
+        </div>
+
+        <p style="color:var(--text-secondary);margin-bottom:24px;">El sistema soporta academias con <strong>múltiples sedes</strong>. Cada sucursal es un centro operativo independiente con sus propias categorías, horarios y alumnos.</p>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#0284c7,#0ea5e9);"></div>
+                <div class="card-icon">🏗️</div>
+                <div class="card-title">Crear y Administrar Sedes</div>
+                <div class="card-desc">Alta, edición y desactivación de sucursales. Cada sede tiene nombre, dirección, teléfono y horarios propios.</div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#10b981,#059669);"></div>
+                <div class="card-icon">🗺️</div>
+                <div class="card-title">Información de Ubicación</div>
+                <div class="card-desc">Dirección completa, referencias y geolocalización para facilitar que los alumnos encuentren la sede.</div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div>
+                <div class="card-icon">🏷️</div>
+                <div class="card-title">Categorías por Sede</div>
+                <div class="card-desc">Cada sucursal tiene asignadas sus categorías activas. Una misma categoría puede estar disponible en varias sedes.</div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+                <div class="card-icon">🔗</div>
+                <div class="card-title">Link de Inscripción Público</div>
+                <div class="card-desc">Cada sede genera automáticamente un enlace de pre-inscripción pública que se puede compartir por WhatsApp o redes sociales.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 5 — CATEGORÍAS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="categorias">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#d97706,#b45309);">5</div>
+            <span class="section-icon">🏷️</span>
+            <h2 class="section-title">Categorías de Práctica
+                <span style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#fcd34d;">Horarios y Tarifas</span>
+            </h2>
+        </div>
+
+        <p style="color:var(--text-secondary);margin-bottom:24px;">Las categorías definen los grupos de práctica (por edad, nivel, deporte, etc.). Son el núcleo alrededor del cual giran las inscripciones, horarios y cuotas.</p>
+
+        <div class="feature-row">
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(245,158,11,.15);">📝</div>
+                    <div>
+                        <div class="feature-panel-title">Gestión de Categorías</div>
+                        <div class="feature-panel-subtitle">Alta, edición y baja</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Nombre de la categoría (ej: <em>Iniciación Sub-10</em>, <em>Avanzados Adultos</em>)</li>
+                    <li>Deporte asociado y nivel de práctica</li>
+                    <li>Rango de edad mínimo y máximo</li>
+                    <li>Sede(s) donde se dicta la categoría</li>
+                    <li>Cupo máximo de alumnos por categoría</li>
+                    <li>Descripción visible en la página pública</li>
+                </ul>
+            </div>
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(16,185,129,.15);">🕐</div>
+                    <div>
+                        <div class="feature-panel-title">Horarios de Práctica</div>
+                        <div class="feature-panel-subtitle">Agenda semanal por categoría</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Configuración de días y horarios de entrenamiento (ej: <em>Lunes y Miércoles 18:00–19:30</em>)</li>
+                    <li>Múltiples turnos por categoría</li>
+                    <li>Horarios visibles para los alumnos en la app</li>
+                    <li>Gestión desde una vista de agenda semanal</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="feature-panel" style="margin-top:16px;">
+            <div class="feature-panel-head">
+                <div class="feature-panel-icon" style="background:rgba(239,68,68,.15);">💰</div>
+                <div>
+                    <div class="feature-panel-title">Tarifas y Costos</div>
+                    <div class="feature-panel-subtitle">Monto de cuota mensual por categoría</div>
+                </div>
+            </div>
+            <ul class="feature-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <li>Definición del monto de cuota mensual (en Gs.) por categoría</li>
+                <li>Fecha de vencimiento y período de gracia</li>
+                <li>Descuentos automáticos por hermanos o cantidad de categorías</li>
+                <li>Recargos por mora automáticos configurables</li>
+                <li>Configuración de métodos de pago aceptados por sede</li>
+                <li>Exportación de lista de tarifas para difundir</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 6 — ALUMNOS Y TUTORES
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="alumnos">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#10b981,#059669);">6</div>
+            <span class="section-icon">👥</span>
+            <h2 class="section-title">Alumnos y Tutores
+                <span style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;">Gestión de personas</span>
+            </h2>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(16,185,129,.15);">🎽</div>
+                    <div>
+                        <div class="feature-panel-title">Módulo de Alumnos</div>
+                        <div class="feature-panel-subtitle">Registro completo del deportista</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Datos personales: nombre, fecha de nacimiento, DNI/cédula, género</li>
+                    <li>Foto de perfil del alumno</li>
+                    <li>Contacto: teléfono, email, dirección</li>
+                    <li>Estado: <span class="pill pill-green">Activo</span> <span class="pill pill-yellow">Inactivo</span> <span class="pill pill-red">Suspendido</span></li>
+                    <li>Sede principal asignada</li>
+                    <li>Historial de inscripciones y pagos desde el perfil del alumno</li>
+                    <li>Buscador y filtros por nombre, categoría, sucursal o estado</li>
+                </ul>
+            </div>
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(59,130,246,.15);">👨‍👧</div>
+                    <div>
+                        <div class="feature-panel-title">Módulo de Tutores</div>
+                        <div class="feature-panel-subtitle">Padres o responsables de menores</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Registro del tutor/padre/madre/responsable legal</li>
+                    <li>Vinculación de un tutor a uno o varios alumnos</li>
+                    <li>Datos de contacto del tutor (para notificaciones de cuotas)</li>
+                    <li>El tutor puede tener acceso limitado al estado de cuotas de su hijo</li>
+                    <li>Útil para academias con alumnos menores de edad</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <div class="mockup-terminal">
+                <div class="mockup-topbar">
+                    <div class="mockup-dot" style="background:#ef4444;"></div>
+                    <div class="mockup-dot" style="background:#f59e0b;"></div>
+                    <div class="mockup-dot" style="background:#10b981;"></div>
+                    <span class="mockup-title">Ficha de alumno — ejemplo</span>
+                </div>
+                <div class="mockup-body">
+<span class="mockup-comment">// Registro de alumno</span><br>
+{<br>
+&nbsp;&nbsp;<span class="mockup-key">"nombre"</span>: <span class="mockup-str">"Valentina García"</span>,<br>
+&nbsp;&nbsp;<span class="mockup-key">"fecha_nacimiento"</span>: <span class="mockup-str">"2012-04-15"</span>,<br>
+&nbsp;&nbsp;<span class="mockup-key">"estado"</span>: <span class="mockup-val">"activo"</span>,<br>
+&nbsp;&nbsp;<span class="mockup-key">"categorias_activas"</span>: [<span class="mockup-str">"Karate Cadete"</span>],<br>
+&nbsp;&nbsp;<span class="mockup-key">"cuotas_pendientes"</span>: <span class="mockup-val">1</span>,<br>
+&nbsp;&nbsp;<span class="mockup-key">"tutor_referente"</span>: <span class="mockup-str">"María García (madre)"</span><br>
+}
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 7 — INSCRIPCIONES
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#7c3aed,#6d28d9);">7</div>
+            <span class="section-icon">📋</span>
+            <h2 class="section-title">Inscripciones
+                <span style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);color:#c4b5fd;">Alta de alumnos a categorías</span>
+            </h2>
+        </div>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-num" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">1</div>
+                <div class="step-body">
+                    <div class="step-title">Seleccionar Alumno</div>
+                    <div class="step-desc">Buscar el alumno ya registrado en el sistema o crear uno nuevo directamente desde el modal de inscripción.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">2</div>
+                <div class="step-body">
+                    <div class="step-title">Elegir Categoría y Sede</div>
+                    <div class="step-desc">Seleccionar la categoría de práctica y la sucursal donde asistirá el alumno.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">3</div>
+                <div class="step-body">
+                    <div class="step-title">Confirmar y Facturar</div>
+                    <div class="step-desc">Confirmar la inscripción. El sistema genera automáticamente las cuotas del mes en curso y los siguientes, y ofrece registrar el primer pago.</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">4</div>
+                <div class="step-body">
+                    <div class="step-title">Estado de Inscripción</div>
+                    <div class="step-desc">La inscripción queda en estado <span class="pill pill-green">Activa</span> y el alumno puede verse en los listados de la categoría y asistencia.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 8 — CUOTAS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="cuotas">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#d97706,#b45309);">8</div>
+            <span class="section-icon">💳</span>
+            <h2 class="section-title">Gestión de Cuotas
+                <span style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#fcd34d;">Cobros mensuales</span>
+            </h2>
+        </div>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+                <div class="card-icon">📅</div>
+                <div class="card-title">Generación Automática</div>
+                <div class="card-desc">Las cuotas se generan automáticamente cada mes para todos los alumnos activos, según la tarifa de su categoría.</div>
+                <div class="card-tags"><span class="tag pill-yellow">Automático</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#10b981,#059669);"></div>
+                <div class="card-icon">✅</div>
+                <div class="card-title">Registro de Pago</div>
+                <div class="card-desc">Marcar cuotas como pagadas registrando el método de pago (efectivo, transferencia, tarjeta) y la fecha exacta.</div>
+                <div class="card-tags"><span class="tag pill-green">Cobro</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#ef4444,#b91c1c);"></div>
+                <div class="card-icon">⚠️</div>
+                <div class="card-title">Mora Automática</div>
+                <div class="card-desc">Las cuotas vencidas pasan a estado "En mora" automáticamente, aplicando el recargo configurado en la categoría.</div>
+                <div class="card-tags"><span class="tag pill-red">Mora</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#06b6d4,#0284c7);"></div>
+                <div class="card-icon">🔍</div>
+                <div class="card-title">Filtros y Búsqueda</div>
+                <div class="card-desc">Filtrar cuotas por alumno, categoría, sucursal, mes, estado (pendiente, pagada, en mora) o rango de fechas.</div>
+                <div class="card-tags"><span class="tag pill-blue">Gestión</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div>
+                <div class="card-icon">🖨️</div>
+                <div class="card-title">Recibo de Pago</div>
+                <div class="card-desc">Generar e imprimir recibos de pago por cada cuota registrada, con datos de la academia, alumno y período.</div>
+                <div class="card-tags"><span class="tag pill-purple">Impresión</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+                <div class="card-icon">📲</div>
+                <div class="card-title">Notificación por WhatsApp</div>
+                <div class="card-desc">Envío de recordatorio de cuota pendiente directamente por WhatsApp al tutor o alumno desde el panel, con un solo clic.</div>
+                <div class="card-tags"><span class="tag pill-yellow">WhatsApp</span></div>
+            </div>
+        </div>
+
+        <div class="callout callout-blue" style="margin-top:20px;">
+            <span class="callout-icon">🔧</span>
+            <div>
+                <div class="callout-title">Configuración de Cuotas</div>
+                <div class="callout-body">Desde la sección <strong>Configuración</strong> se puede definir: día de vencimiento mensual, período de gracia en días, porcentaje de recargo por mora y si se permiten descuentos especiales.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 9 — TESORERÍA
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="tesoreria">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#059669,#047857);">9</div>
+            <span class="section-icon">🏦</span>
+            <h2 class="section-title">Tesorería
+                <span style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;">Control financiero</span>
+            </h2>
+        </div>
+
+        <p style="color:var(--text-secondary);margin-bottom:24px;">El módulo de Tesorería centraliza todos los movimientos de dinero de la academia: ingresos por cuotas, egresos operativos y el saldo de las cuentas.</p>
+
+        <div class="feature-row">
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(16,185,129,.15);">📥</div>
+                    <div>
+                        <div class="feature-panel-title">Cuentas</div>
+                        <div class="feature-panel-subtitle">Cajas y cuentas bancarias</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Crear múltiples cuentas: <em>Caja Efectivo</em>, <em>Cuenta Bancaria</em>, <em>Cuenta Digital</em></li>
+                    <li>Saldo actual de cada cuenta actualizado en tiempo real</li>
+                    <li>Transferencias entre cuentas propias</li>
+                    <li>Historial de movimientos por cuenta y período</li>
+                </ul>
+            </div>
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(239,68,68,.15);">📤</div>
+                    <div>
+                        <div class="feature-panel-title">Egresos</div>
+                        <div class="feature-panel-subtitle">Gastos y salidas de dinero</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Registro de egresos con categoría: alquiler, salarios, equipamiento, servicios, etc.</li>
+                    <li>Asignación a la cuenta que efectúa el egreso</li>
+                    <li>Comprobante adjunto opcional (foto o PDF)</li>
+                    <li>Historial y filtros por período y categoría de gasto</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="callout callout-green" style="margin-top:16px;">
+            <span class="callout-icon">📊</span>
+            <div>
+                <div class="callout-title">Métodos de pago</div>
+                <div class="callout-body">Se pueden configurar y habilitar múltiples métodos de pago (efectivo, transferencia bancaria, tarjeta, Billetera PY, etc.) y asociar cada uno a una cuenta de tesorería.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 10 — ASISTENCIAS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#0284c7,#075985);">10</div>
+            <span class="section-icon">✅</span>
+            <h2 class="section-title">Control de Asistencias
+                <span style="background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.3);color:#67e8f9;">Por categoría</span>
+            </h2>
+        </div>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#06b6d4,#0284c7);"></div>
+                <div class="card-icon">📋</div>
+                <div class="card-title">Registro de Presencia</div>
+                <div class="card-desc">Lista de asistencia por categoría y fecha. Marcar presente / ausente / tarde con un solo toque por alumno.</div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div>
+                <div class="card-icon">📈</div>
+                <div class="card-title">Historial por Alumno</div>
+                <div class="card-desc">Ver el porcentaje de asistencia histórico de cada alumno, con gráfico de presencias por mes.</div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#10b981,#059669);"></div>
+                <div class="card-icon">📆</div>
+                <div class="card-title">Filtros por Fecha y Sede</div>
+                <div class="card-desc">Consultar asistencias de un día específico, semana o mes, filtrando por categoría o sucursal.</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 11 — REPORTES Y CARNETS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="reportes">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#dc2626,#991b1b);">11</div>
+            <span class="section-icon">📄</span>
+            <h2 class="section-title">Reportes y Carnets
+                <span style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;">Documentación</span>
+            </h2>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(239,68,68,.15);">🪪</div>
+                    <div>
+                        <div class="feature-panel-title">Carnets de Alumno</div>
+                        <div class="feature-panel-subtitle">Credenciales imprimibles con QR</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Generación de carnet digital con foto, nombre, categoría y academia</li>
+                    <li>Código QR único por alumno para verificación rápida</li>
+                    <li>Descarga en PDF lista para imprimir (formato estándar de carnet)</li>
+                    <li>Generación masiva para toda la categoría</li>
+                    <li>Logo e identidad visual de la academia en el carnet</li>
+                </ul>
+            </div>
+            <div class="feature-panel">
+                <div class="feature-panel-head">
+                    <div class="feature-panel-icon" style="background:rgba(59,130,246,.15);">📊</div>
+                    <div>
+                        <div class="feature-panel-title">Reportes de Gestión</div>
+                        <div class="feature-panel-subtitle">Excel y PDF exportables</div>
+                    </div>
+                </div>
+                <ul class="feature-list">
+                    <li>Reporte de alumnos activos con datos completos (exportable a Excel)</li>
+                    <li>Reporte de cuotas del mes: cobradas, pendientes y en mora</li>
+                    <li>Estado financiero mensual: ingresos vs. egresos</li>
+                    <li>Reporte de asistencia por período y categoría</li>
+                    <li>Listado de alumnos con cuotas vencidas para gestión de cobranza</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 12 — FACTURACIÓN SIFEN
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#1d4ed8,#1e40af);">12</div>
+            <span class="section-icon">🧾</span>
+            <h2 class="section-title">Facturación Electrónica (SIFEN)
+                <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">Paraguay — SET</span>
+            </h2>
+        </div>
+
+        <p style="color:var(--text-secondary);margin-bottom:20px;">Integración nativa con el sistema de facturación electrónica de la <strong>Subsecretaría de Estado de Tributación (SET)</strong> de Paraguay.</p>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#1d4ed8,#3b82f6);"></div>
+                <div class="card-icon">🔑</div>
+                <div class="card-title">Configuración del Certificado .P12</div>
+                <div class="card-desc">Subir y configurar el certificado digital .P12 emitido por la SET para habilitar la facturación electrónica.</div>
+                <div class="card-tags"><span class="tag pill-blue">Configuración</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#10b981,#059669);"></div>
+                <div class="card-icon">📤</div>
+                <div class="card-title">Emisión de Facturas</div>
+                <div class="card-desc">Emitir facturas electrónicas (FE) al registrar cobros de cuotas o servicios, con envío automático a la SET.</div>
+                <div class="card-tags"><span class="tag pill-green">Factura</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+                <div class="card-icon">📋</div>
+                <div class="card-title">Historial de Documentos</div>
+                <div class="card-desc">Listado completo de facturas y notas de crédito emitidas, con estado de aprobación de la SET y descarga en PDF.</div>
+                <div class="card-tags"><span class="tag pill-yellow">Historial</span></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SECCIÓN 13 — OTROS MÓDULOS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="otros">
+        <div class="section-header">
+            <div class="section-num" style="background: linear-gradient(135deg,#475569,#334155);">13</div>
+            <span class="section-icon">⚙️</span>
+            <h2 class="section-title">Módulos Adicionales</h2>
+        </div>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div>
+                <div class="card-icon">👥</div>
+                <div class="card-title">Gestión de Staff</div>
+                <div class="card-desc">Invitar y gestionar los miembros del equipo interno (profesores, administrativos, tesoreros). Asignación de rol y permisos por usuario.</div>
+                <div class="card-tags"><span class="tag pill-purple">Roles</span><span class="tag pill-purple">Solo Dueño</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#f59e0b,#d97706);"></div>
+                <div class="card-icon">📢</div>
+                <div class="card-title">Noticias y Comunicados</div>
+                <div class="card-desc">Publicar novedades, avisos y comunicados de la academia. Se muestran en la página pública y en la app de los alumnos.</div>
+                <div class="card-tags"><span class="tag pill-yellow">Comunicación</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#10b981,#059669);"></div>
+                <div class="card-icon">⭐</div>
+                <div class="card-title">Feedback de Alumnos</div>
+                <div class="card-desc">Ver y gestionar las opiniones y calificaciones que los alumnos o tutores dejan sobre la academia. Promedio de rating visible.</div>
+                <div class="card-tags"><span class="tag pill-green">Opiniones</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#06b6d4,#0284c7);"></div>
+                <div class="card-icon">💬</div>
+                <div class="card-title">Chat con Soporte</div>
+                <div class="card-desc">Canal de chat directo con el equipo de soporte de Mi Cancha para resolver dudas técnicas desde el propio panel.</div>
+                <div class="card-tags"><span class="tag pill-blue">Soporte</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#ef4444,#b91c1c);"></div>
+                <div class="card-icon">🔧</div>
+                <div class="card-title">Configuración General</div>
+                <div class="card-desc">Ajustes globales del panel: política de cuotas, fechas de vencimiento, modos de facturación y preferencias de notificaciones.</div>
+                <div class="card-tags"><span class="tag pill-red">Admin</span></div>
+            </div>
+            <div class="card">
+                <div class="card-accent" style="background:linear-gradient(90deg,#8b5cf6,#7c3aed);"></div>
+                <div class="card-icon">📱</div>
+                <div class="card-title">Diseño 100% Responsive</div>
+                <div class="card-desc">El panel está optimizado para teléfonos, tablets y computadoras. El menú lateral se convierte en un drawer deslizable en móvil.</div>
+                <div class="card-tags"><span class="tag pill-purple">UX</span></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         RESUMEN VISUAL
+    ═══════════════════════════════════════════════════════════ -->
+    <div style="background:linear-gradient(135deg,rgba(20,35,65,0.9),rgba(8,14,28,0.95));border:1px solid var(--border-subtle);border-radius:24px;padding:36px 40px;text-align:center;margin-top:16px;">
+        <h2 style="font-family:var(--font-display);font-size:24px;font-weight:900;color:#fff;margin-bottom:8px;">Panel Academia — Resumen de Módulos</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:28px;">Todos los módulos disponibles en el Panel Academia de Mi Cancha</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;text-align:left;">
+            <!-- módulos -->
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🏠 Dashboard</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(139,92,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🏫 Perfil</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">📍 Sucursales</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🏷️ Categorías</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🕐 Horarios</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">💰 Tarifas</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">👥 Alumnos</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">👨‍👧 Tutores</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(139,92,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">📋 Inscripciones</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">💳 Cuotas</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🏦 Tesorería</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(6,182,212,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">✅ Asistencias</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🪪 Carnets</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">📊 Reportes</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">🧾 SIFEN</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(139,92,246,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">👥 Staff</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">📢 Noticias</div>
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;">⭐ Feedback</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2025 <strong>Mi Cancha</strong> — Sistema de Gestión Deportiva &nbsp;|&nbsp; 
+        <a href="https://micancha.com.py" target="_blank">micancha.com.py</a></p>
+        <p style="margin-top:6px;font-size:11px;">Este documento es una guía de referencia interna del módulo Academia.</p>
+    </div>
+
+</div>
+
+</body>
+</html>
