@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, AlertCircle, ShieldAlert, Timer, ArrowLeft, Zap, Award, Video, RotateLeft } from 'lucide-react';
+import { Trophy, AlertCircle, ShieldAlert, Timer, ArrowLeft, Zap, Award, Video, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ArbitrajeCombate({ params }: { params: { id: string } }) {
@@ -245,7 +245,7 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
                   {aka.senshu ? '★ Senshu Activo' : 'Asignar Senshu'}
                 </button>
                 <button onClick={() => registrarEventoWKF('aka', 'invalidar_punto')} className="py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1">
-                  <RotateLeft size={14} /> Falta Zanshin
+                  <RotateCcw size={14} /> Falta Zanshin
                 </button>
               </div>
 
@@ -308,7 +308,7 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
                   {ao.senshu ? '★ Senshu Activo' : 'Asignar Senshu'}
                 </button>
                 <button onClick={() => registrarEventoWKF('ao', 'invalidar_punto')} className="py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1">
-                  <RotateLeft size={14} /> Falta Zanshin
+                  <RotateCcw size={14} /> Falta Zanshin
                 </button>
               </div>
 

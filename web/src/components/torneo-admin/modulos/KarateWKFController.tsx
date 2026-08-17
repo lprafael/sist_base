@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, RotateLeft, Award } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, Award } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -505,7 +505,7 @@ export default function KarateWKFController({
                   className="py-2 px-3 bg-slate-800/80 hover:bg-slate-700 text-rose-300 border border-slate-700 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5"
                   title="Restar técnica por pérdida de Zanshin"
                 >
-                  <RotateLeft size={14} /> Falta Zanshin
+                  <RotateCcw size={14} /> Falta Zanshin
                 </button>
               </div>
 
@@ -730,7 +730,7 @@ export default function KarateWKFController({
                   className="py-2 px-3 bg-slate-800/80 hover:bg-slate-700 text-rose-300 border border-slate-700 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5"
                   title="Restar técnica por pérdida de Zanshin"
                 >
-                  <RotateLeft size={14} /> Falta Zanshin
+                  <RotateCcw size={14} /> Falta Zanshin
                 </button>
               </div>
 
