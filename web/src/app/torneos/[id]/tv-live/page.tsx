@@ -212,7 +212,7 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
           fontSize: 10, fontWeight: 800, letterSpacing: '0.15em',
           color: palette.accent, textTransform: 'uppercase',
         }}>
-          ÁREA {areaIndex + 1} · {partido.fase || `J${partido.jornada || 1}`}
+          {partido.cancha_nombre ? `${partido.cancha_nombre} · ` : `ÁREA ${partido.area || areaIndex + 1} · `}{partido.fase || (partido.jornada ? `JORNADA ${partido.jornada}` : 'MATCH')}
         </div>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px',
@@ -694,22 +694,24 @@ export default function TVLivePage() {
     };
   }, [loadData]);
 
-  /* Si no hay datos reales usamos mocks para la demo visual */
-  const displayPartidos: Partido[] = partidos.length > 0 ? partidos : [
+  const isDemo = id === "demo" || id === "ficticio";
+
+  /* Si no hay datos reales usamos mocks ÚNICAMENTE si la ruta es demo */
+  const displayPartidos: Partido[] = isDemo && partidos.length === 0 ? [
     { id: '1', jugador_local_nombre: 'J. Perez', jugador_visitante_nombre: 'M. Gonzalez', goles_local: 4, goles_visitante: 2, estado: 'en_curso', fase: 'Combate Adultos' },
     { id: '2', jugador_local_nombre: 'Emma Valdez', goles_local: 8.3, estado: 'finalizado', fase: '2018-2019(Femenino) Formas - 1º Fase', estadisticas: { jueces: [8.3, 8.5, 8.0], puntaje_final: 8.3, puntaje_descartado_alto: 8.5, puntaje_descartado_bajo: 8.0 } as any },
     { id: '3', jugador_local_nombre: 'Arami Alderete', goles_local: 8.2, estado: 'finalizado', fase: '2018-2019(Femenino) Formas - 1º Fase', estadisticas: { jueces: [8.2, 8.3, 8.1], puntaje_final: 8.2, puntaje_descartado_alto: 8.3, puntaje_descartado_bajo: 8.1 } as any },
     { id: '4', jugador_local_nombre: 'Hatner Sotelo', goles_local: 8.1, estado: 'finalizado', fase: '2018-2019(Femenino) Formas - 1º Fase', estadisticas: { jueces: [8.1, 8.1, 8.1], puntaje_final: 8.1, puntaje_descartado_alto: 8.1, puntaje_descartado_bajo: 8.1 } as any },
     { id: '5', jugador_local_nombre: 'L. Gomez', jugador_visitante_nombre: 'F. Rojas', goles_local: 0, goles_visitante: 0, estado: 'en_curso', fase: 'Combate Juvenil' },
-  ];
+  ] : partidos;
 
-  const displayHistorico: ResultadoHistorico[] = historico.length > 0 ? historico : [
+  const displayHistorico: ResultadoHistorico[] = isDemo && historico.length === 0 ? [
     { id: '1', texto: 'Área 1: J. Perez vence a L. Silva (5-2)',       tiempo: 'Hace 1 min',  tipo: 'victoria'      },
     { id: '2', texto: 'Emma Valdez (Formas) — 8.30 pts',               tiempo: 'Hace 2 min',  tipo: 'victoria'      },
     { id: '3', texto: 'Área 3: R. Gomez vence por Descalificación',     tiempo: 'Hace 3 min',  tipo: 'descalificacion'},
     { id: '4', texto: 'Área 1: A. Ruiz vence por Hantei',               tiempo: 'Hace 4 min',  tipo: 'victoria'      },
     { id: '5', texto: 'Área 4: Empate técnico — decisión de jueces',    tiempo: 'Hace 7 min',  tipo: 'empate'        },
-  ];
+  ] : historico;
 
   type GridMode = '1x1' | '1x2' | '2x2' | '2x3';
   const [gridMode, setGridMode] = useState<GridMode>('2x2');
@@ -718,11 +720,12 @@ export default function TVLivePage() {
 
   // Filtros Checkbox
   const [filterEnVivo, setFilterEnVivo] = useState<boolean>(true);
-  const [filterProgramadosHoy, setFilterProgramadosHoy] = useState<boolean>(true);
-  const [filterFinalizadosHoy, setFilterFinalizadosHoy] = useState<boolean>(true);
+  const [filterProgramados, setFilterProgramados] = useState<boolean>(true);
+  const [filterFinalizados, setFilterFinalizados] = useState<boolean>(true);
+  const [filterSoloHoy, setFilterSoloHoy] = useState<boolean>(false);
 
   const isToday = (dateStr?: string) => {
-    if (!dateStr) return true; // Si no tiene fecha, mostrar para demostración
+    if (!dateStr) return true;
     const d = new Date(dateStr);
     const today = new Date();
     return (
@@ -733,9 +736,10 @@ export default function TVLivePage() {
   };
 
   const filteredPartidos = displayPartidos.filter(p => {
+    if (filterSoloHoy && p.fecha_hora && !isToday(p.fecha_hora)) return false;
     if (p.estado === 'en_curso') return filterEnVivo;
-    if (p.estado === 'programado') return filterProgramadosHoy && isToday(p.fecha_hora);
-    if (p.estado === 'finalizado') return filterFinalizadosHoy && isToday(p.fecha_hora);
+    if (p.estado === 'programado') return filterProgramados;
+    if (p.estado === 'finalizado') return filterFinalizados;
     return true;
   });
 
@@ -811,7 +815,7 @@ export default function TVLivePage() {
   // Reset page if gridMode or filters change
   useEffect(() => {
     setCurrentPage(0);
-  }, [gridMode, filterEnVivo, filterProgramadosHoy, filterFinalizadosHoy]);
+  }, [gridMode, filterEnVivo, filterProgramados, filterFinalizados, filterSoloHoy]);
 
   // Auto rotación según el intervalo configurado (si rotationInterval > 0 y totalPages > 1)
   useEffect(() => {
@@ -1024,24 +1028,34 @@ export default function TVLivePage() {
                   <span>En Vivo</span>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterProgramadosHoy ? '#38bdf8' : '#64748b', userSelect: 'none' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterProgramados ? '#38bdf8' : '#64748b', userSelect: 'none' }}>
                   <input 
                     type="checkbox" 
-                    checked={filterProgramadosHoy} 
-                    onChange={e => setFilterProgramadosHoy(e.target.checked)}
+                    checked={filterProgramados} 
+                    onChange={e => setFilterProgramados(e.target.checked)}
                     style={{ accentColor: '#38bdf8', width: 15, height: 15, cursor: 'pointer' }}
                   />
-                  <span>Programados (hoy)</span>
+                  <span>Programados</span>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterFinalizadosHoy ? '#10b981' : '#64748b', userSelect: 'none' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterFinalizados ? '#10b981' : '#64748b', userSelect: 'none' }}>
                   <input 
                     type="checkbox" 
-                    checked={filterFinalizadosHoy} 
-                    onChange={e => setFilterFinalizadosHoy(e.target.checked)}
+                    checked={filterFinalizados} 
+                    onChange={e => setFilterFinalizados(e.target.checked)}
                     style={{ accentColor: '#10b981', width: 15, height: 15, cursor: 'pointer' }}
                   />
-                  <span>Finalizados (hoy)</span>
+                  <span>Finalizados</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800, color: filterSoloHoy ? '#f59e0b' : '#64748b', userSelect: 'none' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={filterSoloHoy} 
+                    onChange={e => setFilterSoloHoy(e.target.checked)}
+                    style={{ accentColor: '#f59e0b', width: 15, height: 15, cursor: 'pointer' }}
+                  />
+                  <span>Solo de hoy</span>
                 </label>
               </div>
 
@@ -1077,6 +1091,35 @@ export default function TVLivePage() {
             {loading ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ fontSize: 14, color: '#475569', fontWeight: 700, letterSpacing: '0.1em' }}>CARGANDO...</div>
+              </div>
+            ) : allAreas.length === 0 ? (
+              <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', textAlign: 'center', padding: '2.5rem',
+                background: 'rgba(15,15,25,0.4)', borderRadius: 20,
+                border: '1px dashed rgba(255,255,255,0.1)', margin: 'auto 0',
+              }}>
+                <div style={{ fontSize: 44, marginBottom: 12 }}>🏆</div>
+                <div style={{
+                  fontSize: 18, fontWeight: 900, fontFamily: "'Orbitron', monospace",
+                  color: '#00ff88', letterSpacing: '0.06em', textTransform: 'uppercase'
+                }}>
+                  {tournament?.nombre || 'Torneo'}
+                </div>
+                <div style={{ fontSize: 14, color: '#94a3b8', marginTop: 8, maxWidth: 460, lineHeight: 1.6 }}>
+                  {displayPartidos.length === 0 
+                    ? `Este torneo no tiene partidos ni combates registrados todavía.`
+                    : `No hay encuentros que coincidan con los filtros seleccionados.`}
+                </div>
+                <Link href={`/torneos/${id}/resumen`} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 18,
+                  padding: '10px 20px', borderRadius: 12,
+                  background: 'linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.05))',
+                  border: '1px solid rgba(0,255,136,0.35)',
+                  color: '#00ff88', textDecoration: 'none', fontSize: 13, fontWeight: 800
+                }}>
+                  ← Volver al Resumen del Torneo
+                </Link>
               </div>
             ) : (
               <div style={{
@@ -1140,8 +1183,8 @@ export default function TVLivePage() {
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px' }}>
               {displayHistorico.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#334155', fontSize: 12, fontWeight: 700, marginTop: 32 }}>
-                  Sin resultados aún
+                <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, fontWeight: 700, marginTop: 32, padding: '0 12px', lineHeight: 1.5 }}>
+                  Sin resultados finalizados aún en este torneo
                 </div>
               ) : (
                 displayHistorico.map((r, i) => <ResultItem key={r.id} r={r} index={i} />)

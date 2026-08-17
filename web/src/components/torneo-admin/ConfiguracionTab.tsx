@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle, Edit3 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
@@ -11,11 +11,35 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const isInternalChangeRef = useRef(false);
+
+  // Sync value from props into editor DOM only when changed externally
+  useEffect(() => {
+    if (editorRef.current) {
+      if (isInternalChangeRef.current) {
+        isInternalChangeRef.current = false;
+        return;
+      }
+      if (editorRef.current.innerHTML !== (value || '')) {
+        editorRef.current.innerHTML = value || '';
+      }
+    }
+  }, [value]);
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      isInternalChangeRef.current = true;
+      onChange(editorRef.current.innerHTML);
+    }
+  };
 
   const exec = (command: string, val: string | null = null) => {
-    document.execCommand(command, false, val || undefined);
     editorRef.current?.focus();
-    onChange(editorRef.current?.innerHTML || '');
+    document.execCommand(command, false, val || undefined);
+    if (editorRef.current) {
+      isInternalChangeRef.current = true;
+      onChange(editorRef.current.innerHTML);
+    }
   };
 
   return (
@@ -41,10 +65,9 @@ const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) 
       <div
         ref={editorRef}
         contentEditable
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        onInput={handleInput}
         className="p-3 min-h-[200px] outline-none max-h-[300px] overflow-y-auto"
         style={{ whiteSpace: 'pre-wrap' }}
-        dangerouslySetInnerHTML={{ __html: value }}
       />
     </div>
   );

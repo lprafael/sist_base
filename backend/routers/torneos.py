@@ -2586,7 +2586,7 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
                p.jugador_local_id, p.jugador_visitante_id, p.estadisticas,
                jl.nombre AS jugador_local_nombre, jv.nombre AS jugador_visitante_nombre
         FROM torneos.partidos p
-        JOIN torneos.equipos el ON p.equipo_local_id = el.id
+        LEFT JOIN torneos.equipos el ON p.equipo_local_id = el.id
         LEFT JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
         LEFT JOIN torneos.tournament_players jl ON p.jugador_local_id = jl.id
