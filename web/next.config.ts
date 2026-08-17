@@ -6,9 +6,7 @@ const nextConfig: NextConfig = {
     // Pre-existing pages may have type errors - skip during Docker build
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
   async redirects() {
     return [
       {
