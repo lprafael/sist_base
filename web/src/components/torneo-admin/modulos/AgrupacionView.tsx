@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, Plus, Trash2, Loader2, GitMerge } from 'lucide-react';
+import { Trophy, Plus, Trash2, Loader2, GitMerge, Shield, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight, Users } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -9,6 +9,17 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   const [divisiones, setDivisiones] = useState<any[]>([]);
   const [jugadoresDisponibles, setJugadoresDisponibles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // WKF grouping state
+  const [wkfStatus, setWkfStatus] = useState<{
+    loading: boolean;
+    done: boolean;
+    error?: string;
+    resumen?: { categoria: string; atletas: number }[];
+    sin_categoria?: { id: string; nombre: string; razon: string }[];
+  }>({ loading: false, done: false });
+  const [showWkfDetail, setShowWkfDetail] = useState(false);
+
 
   // Modal create llave
   const [isCreating, setIsCreating] = useState(false);
@@ -27,6 +38,29 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem('user_session') || '{}');
     return session.access_token || session.token || '';
+  };
+
+  const handleAgruparWKF = async () => {
+    if (!confirm('¿Ejecutar agrupación automática WKF?\n\nSe crearán divisiones para todos los atletas habilitados según las categorías oficiales de la WKF (Kumite, Kata y Para-Karate).\n\n⚠️ Si ya existen divisiones previas, los atletas podrían quedar duplicados.')) return;
+    setWkfStatus({ loading: true, done: false });
+    try {
+      const res = await fetch(`${API_URL}/api/marciales/torneos/${torneoId}/agrupacion-wkf`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Error al agrupar');
+      setWkfStatus({
+        loading: false,
+        done: true,
+        resumen: data.resumen || [],
+        sin_categoria: data.sin_categoria || []
+      });
+      fetchLlaves();
+      fetchDivisiones();
+    } catch (e: any) {
+      setWkfStatus({ loading: false, done: false, error: e.message });
+    }
   };
 
   const fetchLlaves = async () => {
@@ -108,6 +142,91 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
 
   return (
     <div className="space-y-6">
+
+      {/* ===== PANEL AGRUPACIÓN WKF ===== */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 border border-slate-700 shadow-lg">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="bg-red-600 rounded-xl p-2.5 shadow-md">
+              <Shield size={20} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-sm">Agrupación Automática WKF</h3>
+              <p className="text-slate-400 text-xs mt-0.5">Clasifica a todos los atletas habilitados según el reglamento oficial de la Federación Mundial de Karate.</p>
+            </div>
+          </div>
+          <button
+            id="btn-agrupar-wkf"
+            onClick={handleAgruparWKF}
+            disabled={wkfStatus.loading}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-md whitespace-nowrap"
+          >
+            {wkfStatus.loading ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+            {wkfStatus.loading ? 'Agrupando...' : 'Agrupar por WKF'}
+          </button>
+        </div>
+
+        {/* Error */}
+        {wkfStatus.error && (
+          <div className="mt-4 flex items-start gap-2 bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span>{wkfStatus.error}</span>
+          </div>
+        )}
+
+        {/* Resultado exitoso */}
+        {wkfStatus.done && wkfStatus.resumen && (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+              <CheckCircle2 size={16} />
+              Se crearon {wkfStatus.resumen.length} categorías WKF
+            </div>
+
+            {/* Resumen de categorías */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {wkfStatus.resumen.map((cat, i) => {
+                const isKumite = cat.categoria.startsWith('Kumite');
+                const isParaKarate = cat.categoria.startsWith('Para');
+                const color = isParaKarate ? 'border-purple-600 bg-purple-900/30' : isKumite ? 'border-red-600 bg-red-900/20' : 'border-blue-600 bg-blue-900/20';
+                const badge = isParaKarate ? 'bg-purple-700 text-purple-100' : isKumite ? 'bg-red-700 text-red-100' : 'bg-blue-700 text-blue-100';
+                return (
+                  <div key={i} className={`border ${color} rounded-xl p-3 flex items-center justify-between gap-2`}>
+                    <span className="text-white text-xs font-medium leading-tight">{cat.categoria}</span>
+                    <span className={`${badge} text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0`}>
+                      <Users size={10} /> {cat.atletas}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Sin categoría */}
+            {wkfStatus.sin_categoria && wkfStatus.sin_categoria.length > 0 && (
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-3">
+                <button
+                  onClick={() => setShowWkfDetail(!showWkfDetail)}
+                  className="flex items-center gap-2 text-yellow-400 text-sm font-semibold w-full"
+                >
+                  <AlertTriangle size={14} />
+                  {wkfStatus.sin_categoria.length} atleta(s) sin categoría asignada
+                  {showWkfDetail ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+                {showWkfDetail && (
+                  <ul className="mt-2 space-y-1">
+                    {wkfStatus.sin_categoria.map(a => (
+                      <li key={a.id} className="text-yellow-200 text-xs pl-4">
+                        • <strong>{a.nombre}</strong> — {a.razon}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ===== CABECERA LLAVES MANUALES ===== */}
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
           <GitMerge size={20} className="text-blue-500"/>
@@ -120,6 +239,7 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
           <Plus size={18} /> Programar Combate
         </button>
       </div>
+
 
       {Object.keys(llavesPorDivision).length === 0 ? (
         <div className="h-48 flex flex-col items-center justify-center p-12 text-slate-400 bg-slate-50 border border-slate-200 border-dashed rounded-xl">
