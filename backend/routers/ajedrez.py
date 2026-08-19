@@ -95,16 +95,7 @@ class RatingUpdate(BaseModel):
 
 
 
-    """Retorna los puntos obtenidos por 'blancas' o 'negras' según el resultado."""
-    if resultado == "1-0":
-        return 1.0 if lado == "blancas" else 0.0
-    if resultado == "0-1":
-        return 0.0 if lado == "blancas" else 1.0
-    if resultado == "0.5-0.5":
-        return 0.5
-    if resultado in ("BYE", "FF"):
-        return 1.0 if lado == "blancas" else 0.0
-    return 0.0
+
 
 
 async def _calcular_posiciones(torneo_id: str, ronda_numero: int, session: AsyncSession):
