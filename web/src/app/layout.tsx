@@ -13,14 +13,13 @@ const outfit = Outfit({
 import SessionGuardian from "@/components/SessionGuardian";
 
 export const metadata: Metadata = {
-  title: "MiCancha — Gestión de Canchas y Torneos en Paraguay",
-  description: "Encuentra y reserva al instante las mejores canchas de fútbol, pádel, tenis y más en Paraguay. Gestiona tus torneos, organiza partidos y disfruta del deporte.",
-  keywords: "canchas deportivas, alquiler de canchas, reserva de canchas, fútbol, pádel, tenis, torneos, campeonatos, Asunción, Paraguay, micancha, deportes, sintético",
+  title: "MiCancha — Gestión de Canchas, Torneos y Academias Deportivas en Paraguay",
+  description: "Encuentra y reserva al instante las mejores canchas de fútbol, pádel, tenis y más en Paraguay. Gestiona tus torneos, academias deportivas, organiza partidos y disfruta del deporte.",
+  keywords: "canchas deportivas, alquiler de canchas, reserva de canchas, fútbol, pádel, tenis, torneos, campeonatos, academias deportivas, escuelas de fútbol, Asunción, Paraguay, micancha, deportes, sintético",
   authors: [{ name: "MiCancha" }],
   openGraph: {
-    title: "MiCancha — Gestión de Canchas y Torneos en Paraguay",
-    // description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos.",
-    description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos. Gestión de turnos y torneos en un solo lugar.",
+    title: "MiCancha — Gestión de Canchas, Torneos y Academias Deportivas en Paraguay",
+    description: "Encuentra las mejores canchas de Paraguay y resérvalas online en segundos. Gestión de turnos, torneos y academias deportivas en un solo lugar.",
     url: "https://micancha.com.py",
     siteName: "MiCancha",
     locale: "es_PY",
@@ -28,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MiCancha — Reserva de Canchas",
-    description: "Reserva canchas de fútbol, pádel y más en Paraguay al instante.",
+    title: "MiCancha — Canchas, Torneos y Academias Deportivas",
+    description: "Reserva canchas de fútbol, pádel y gestiona torneos y academias deportivas en Paraguay al instante.",
   },
   robots: {
     index: true,
