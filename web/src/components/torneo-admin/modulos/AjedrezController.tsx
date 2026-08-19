@@ -4,7 +4,7 @@ import {
   Plus, Loader2, Check, X,
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
-  PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight
+  PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
@@ -737,7 +737,7 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                     </td>
                     {!isPublic && (
                       <td className="px-4 py-3 text-center">
-                        {!isFin && (
+                        {!isFin ? (
                           <button
                             onClick={() => cambiarEstado(p.id, isLive ? 'pendiente' : 'en_curso')}
                             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
@@ -749,7 +749,23 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                           >
                             {isLive ? '⏸ Pausar' : '▶ Iniciar'}
                           </button>
-                        )}
+                        ) : !ronda.estado.includes('finalizada') ? (
+                          <button
+                            onClick={() => setCfm({
+                              title: 'Reiniciar Partida',
+                              body: `Se borrará el resultado del Tablero ${p.tablero_numero ?? idx + 1} y volverá a estar pendiente. Las posiciones se recalcularán automáticamente.`,
+                              fn: async () => {
+                                await fetch(`${API_URL}/api/ajedrez/partidas/${p.id}/reiniciar`, { method: 'POST', headers: authHdrs() });
+                                setToast({ msg: 'Partida reiniciada', type: 'ok' });
+                                load();
+                              }
+                            })}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition"
+                            title="Reiniciar y borrar resultado"
+                          >
+                            🔄 Reiniciar
+                          </button>
+                        ) : null}
                       </td>
                     )}
                   </tr>
@@ -806,6 +822,25 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
     } catch (e: any) {
       setToast({ msg: e.message, type: 'err' });
     }
+  };
+
+  const reiniciar = async (id: string) => {
+    setSavingId(id);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/partidas/${id}/reiniciar`, {
+        method: 'POST',
+        headers: authHdrs(),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error al reiniciar partida');
+      }
+      setToast({ msg: 'Partida reiniciada. Se han recalculado las posiciones.', type: 'ok' });
+      load();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+    setSavingId(null);
   };
 
   const iniciarTodas = async () => {
@@ -918,7 +953,7 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
             const isFin = Boolean(p.resultado) || p.estado === 'finalizada' || p.estado === 'finalizado';
             const isLive = !isFin && (p.estado === 'en_curso' || p.estado === 'iniciado');
             return (
-              <div key={p.id} className={`bg-white rounded-2xl border-2 overflow-hidden ${p.resultado ? 'border-emerald-200' : isLive ? 'border-red-300 shadow-sm' : 'border-slate-200 hover:border-amber-200'}`}>
+              <div key={p.id} className={`bg-white rounded-2xl border-2 overflow-hidden ${p.resultado ? 'border-emerald-200 shadow-sm' : isLive ? 'border-red-300 shadow-sm' : 'border-slate-200 hover:border-amber-200'}`}>
                 <div className="flex items-center px-5 py-4 gap-4 flex-wrap sm:flex-nowrap">
                   <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 font-black text-sm flex items-center justify-center flex-shrink-0">{p.tablero_numero ?? i + 1}</span>
                   <div className="flex-1 flex items-center gap-2 min-w-0">
@@ -966,13 +1001,39 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                     ))}
                   </div>
                 )}
+
                 {!yaFin && p.resultado && (
-                  <div className="border-t border-slate-100 px-5 py-2 flex flex-wrap gap-2 items-center bg-slate-50/50">
-                    <span className="text-xs text-slate-400 font-bold">Corregir resultado:</span>
-                    {BTNS.filter(b => b.r !== p.resultado).map(b => (
-                      <button key={b.r} onClick={() => guardar(p.id, b.r)} disabled={isSv}
-                        className={`px-3 py-1 rounded-lg font-bold text-xs opacity-70 hover:opacity-100 ${b.c}`}>{b.l}</button>
-                    ))}
+                  <div className="border-t border-slate-100 px-5 py-3 flex flex-wrap gap-3 items-center justify-between bg-slate-50/70">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-slate-500 font-bold">Cambiar resultado:</span>
+                      {BTNS.map(b => (
+                        <button
+                          key={b.r}
+                          onClick={() => guardar(p.id, b.r)}
+                          disabled={isSv}
+                          className={`px-3 py-1 rounded-lg text-xs font-black transition ${
+                            b.r === p.resultado
+                              ? 'ring-2 ring-emerald-500 ring-offset-1 shadow-sm ' + b.c
+                              : 'opacity-60 hover:opacity-100 ' + b.c
+                          }`}
+                        >
+                          {b.l}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCfm({
+                        title: 'Reiniciar Partida',
+                        body: `Se borrará el resultado del Tablero ${p.tablero_numero ?? i + 1} y volverá a estado pendiente. Las posiciones del torneo se recalcularán automáticamente.`,
+                        fn: () => reiniciar(p.id)
+                      })}
+                      disabled={isSv}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition"
+                      title="Borrar resultado y reiniciar la partida"
+                    >
+                      <RotateCcw size={13} /> Reiniciar Partida
+                    </button>
                   </div>
                 )}
               </div>

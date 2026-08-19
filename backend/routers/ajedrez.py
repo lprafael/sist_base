@@ -1082,6 +1082,41 @@ async def iniciar_todas_partidas_ronda(
     return {"mensaje": "Todas las partidas pendientes han sido iniciadas"}
 
 
+@router.post("/partidas/{partida_id}/reiniciar")
+async def reiniciar_partida(
+    partida_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Limpia el resultado de una partida y la devuelve a estado 'pendiente'.
+    Recalcula automáticamente las posiciones del torneo.
+    """
+    partida_q = await session.execute(text("""
+        SELECT p.*, r.torneo_id, r.numero_ronda
+        FROM torneos_generales.ajedrez_partidas p
+        JOIN torneos_generales.ajedrez_rondas r ON r.id = p.ronda_id
+        WHERE p.id = :pid
+    """), {"pid": partida_id})
+    partida = partida_q.fetchone()
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    await session.execute(text("""
+        UPDATE torneos_generales.ajedrez_partidas
+        SET resultado = NULL, ganador_id = NULL,
+            puntos_blancas = NULL, puntos_negras = NULL,
+            estado = 'pendiente', actualizado_en = NOW()
+        WHERE id = :pid
+    """), {"pid": partida_id})
+    await session.commit()
+
+    # Recalcular posiciones de la ronda actual tras limpiar el resultado
+    await _calcular_posiciones(str(partida.torneo_id), partida.numero_ronda, session)
+
+    return {"mensaje": "Partida reiniciada y posiciones recalculadas", "estado": "pendiente"}
+
+
 # ==============================================================================
 # ENDPOINTS — POSICIONES
 # ==============================================================================
