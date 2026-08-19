@@ -97,8 +97,29 @@ class RatingUpdate(BaseModel):
     categoria_jugada: Optional[str] = None
 
 
-
-
+def _puntos_de_resultado(resultado: Optional[str], color: str) -> Optional[float]:
+    """
+    Retorna los puntos asignados según el resultado de la partida y el color del jugador.
+    - '1-0':     blancas = 1.0, negras = 0.0
+    - '0-1':     blancas = 0.0, negras = 1.0
+    - '0.5-0.5': blancas = 0.5, negras = 0.5
+    - 'BYE':     blancas = 1.0, negras = None / 0.0
+    - 'FF':      0.0 para ambos
+    """
+    if not resultado:
+        return None
+    res = str(resultado).strip()
+    if res == "1-0":
+        return 1.0 if color == "blancas" else 0.0
+    elif res == "0-1":
+        return 0.0 if color == "blancas" else 1.0
+    elif res in ("0.5-0.5", "1/2-1/2", "0.5 - 0.5", "1/2 - 1/2"):
+        return 0.5
+    elif res == "BYE":
+        return 1.0 if color == "blancas" else 0.0
+    elif res == "FF":
+        return 0.0
+    return None
 
 
 async def _calcular_posiciones(torneo_id: str, ronda_numero: int, session: AsyncSession):
@@ -110,7 +131,7 @@ async def _calcular_posiciones(torneo_id: str, ronda_numero: int, session: Async
     # 1. Traer todos los participantes del torneo
     partic_q = await session.execute(text("""
         SELECT id FROM torneos_generales.participantes
-        WHERE torneo_id = :tid AND estado != 'Descalificado'
+        WHERE torneo_id = :tid AND (estado IS NULL OR estado != 'Descalificado')
     """), {"tid": torneo_id})
     participantes = [str(r.id) for r in partic_q.fetchall()]
 
