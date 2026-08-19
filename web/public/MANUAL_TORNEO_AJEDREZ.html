@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual del Módulo de Ajedrez — MiCancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet">
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: #0e1422;
+      --bg-card-hover: #141c2e;
+      --border-color: #1c263c;
+      --border-color-glow: rgba(245, 158, 11, 0.3);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #f59e0b;
+      --primary-glow: rgba(245, 158, 11, 0.15);
+      --primary-hover: #fbbf24;
+      --accent-green: #10b981;
+      --accent-green-glow: rgba(16, 185, 129, 0.15);
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.15);
+      --accent-purple: #8b5cf6;
+      --sidebar-width: 290px;
+      --shadow-premium: 0 12px 35px -10px rgba(0, 0, 0, 0.8);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4, h5 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: #0a0e17;
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.8rem;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      text-decoration: none;
+    }
+
+    .brand-logo {
+      background: linear-gradient(135deg, #10b981, #f59e0b);
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: 900;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
+    }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      margin-top: 2px;
+    }
+
+    .nav-menu {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .nav-section-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin: 0.8rem 0 0.3rem 0.5rem;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.75rem 0.95rem;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: all 0.25s ease;
+      border: 1px solid transparent;
+    }
+
+    .nav-item a:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.08);
+      transform: translateX(4px);
+    }
+
+    .nav-item.active a {
+      color: #fbbf24;
+      background-color: var(--primary-glow);
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .btn-print {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-print:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Content Area */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      padding: 3rem 4rem;
+      max-width: 1200px;
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      background: radial-gradient(circle at 85% 20%, rgba(245, 158, 11, 0.12), transparent 45%),
+                  radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.10), transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.05), transparent 60%);
+      padding: 4rem 3.5rem;
+      border-radius: 28px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 4rem;
+      overflow: hidden;
+      box-shadow: var(--shadow-premium);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--primary-glow);
+      color: #fbbf24;
+      padding: 0.4rem 1.1rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-size: 3.2rem;
+      line-height: 1.1;
+      margin-bottom: 1.2rem;
+      background: linear-gradient(to right, #ffffff 30%, #fbbf24 90%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 760px;
+      margin-bottom: 2rem;
+      line-height: 1.7;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 4.5rem;
+      scroll-margin-top: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.8rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--primary-glow);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .section-icon.green {
+      background: var(--accent-green-glow);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--accent-green);
+    }
+
+    .section-icon.blue {
+      background: var(--accent-blue-glow);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: var(--accent-blue);
+    }
+
+    .section-icon.purple {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.3);
+      color: #a78bfa;
+    }
+
+    .section-title {
+      font-size: 1.85rem;
+      color: var(--text-main);
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 1rem;
+      margin-bottom: 1.8rem;
+      line-height: 1.7;
+    }
+
+    /* Cards Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 1.8rem;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: rgba(245, 158, 11, 0.3);
+      background-color: var(--bg-card-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      color: #fff;
+    }
+
+    .card-body {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* Step Timeline */
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1.5rem;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 1.6rem;
+      position: relative;
+    }
+
+    .step-number {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0f172a;
+      font-weight: 900;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .step-title {
+      font-size: 1.2rem;
+      color: #fff;
+    }
+
+    .step-tag {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Status Badges Preview */
+    .status-preview-box {
+      background: #090e18;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: center;
+      justify-content: space-around;
+    }
+
+    .status-sample {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      text-align: center;
+    }
+
+    .badge-sample {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+
+    .badge-sample.programado {
+      background: rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .badge-sample.en_juego {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      animation: pulseGlow 2s infinite;
+    }
+
+    .badge-sample.finalizado {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+
+    /* Table Styles */
+    .custom-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--bg-card);
+      margin: 1.5rem 0;
+    }
+
+    .custom-table th {
+      background: #111827;
+      color: #cbd5e1;
+      font-weight: 800;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 1rem 1.25rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .custom-table td {
+      padding: 1rem 1.25rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .custom-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .custom-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-main);
+    }
+
+    .code-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #f59e0b;
+    }
+
+    /* Alert Boxes */
+    .alert-box {
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .alert-box.info {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      color: #93c5fd;
+    }
+
+    .alert-box.tip {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #6ee7b7;
+    }
+
+    .alert-box.warning {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      color: #fde68a;
+    }
+
+    .alert-icon {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .alert-content p {
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .sidebar {
+        display: none;
+      }
+      .main-content {
+        margin-left: 0;
+        padding: 2rem 1.5rem;
+      }
+      .hero {
+        padding: 2.5rem 1.5rem;
+      }
+      .hero-title {
+        font-size: 2.2rem;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #fff !important;
+        color: #000 !important;
+      }
+      .sidebar, .btn-print, .hero-badge {
+        display: none !important;
+      }
+      .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      .hero, .card, .step-item, .custom-table {
+        border: 1px solid #ccc !important;
+        background: #fff !important;
+        color: #000 !important;
+        box-shadow: none !important;
+      }
+      .hero-title, .section-title, .card-title, .step-title {
+        color: #000 !important;
+        -webkit-text-fill-color: #000 !important;
+      }
+      .section-icon {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+        background: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+
+    <!-- ── SIDEBAR NAVIGATION ── -->
+    <aside class="sidebar">
+      <a href="#" class="brand">
+        <div class="brand-logo">♟️</div>
+        <div>
+          <div class="brand-title">MiCancha</div>
+          <span class="brand-tag">Módulo Ajedrez</span>
+        </div>
+      </a>
+
+      <ul class="nav-menu">
+        <div class="nav-section-title">General</div>
+        <li class="nav-item active"><a href="#resumen"><i data-lucide="sparkles" size="18"></i> Visión General</a></li>
+        <li class="nav-item"><a href="#caracteristicas"><i data-lucide="layers" size="18"></i> Funcionalidades</a></li>
+        
+        <div class="nav-section-title">Operación en Vivo</div>
+        <li class="nav-item"><a href="#suizo"><i data-lucide="shuffle" size="18"></i> Sistema Suizo & BYE</a></li>
+        <li class="nav-item"><a href="#estados"><i data-lucide="play-circle" size="18"></i> Control Tablero x Tablero</a></li>
+        <li class="nav-item"><a href="#desempates"><i data-lucide="calculator" size="18"></i> Desempates FIDE</a></li>
+        <li class="nav-item"><a href="#tv-live"><i data-lucide="tv" size="18"></i> Pantalla TV Live</a></li>
+        
+        <div class="nav-section-title">Paso a Paso</div>
+        <li class="nav-item"><a href="#guia-pasos"><i data-lucide="list-checks" size="18"></i> Flujo del Torneo</a></li>
+        <li class="nav-item"><a href="#circuitos"><i data-lucide="school" size="18"></i> Circuitos Escolares</a></li>
+        <li class="nav-item"><a href="#faq"><i data-lucide="help-circle" size="18"></i> Preguntas Frecuentes</a></li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <button class="btn-print" onclick="window.print()">
+          <i data-lucide="printer" size="16"></i> Imprimir / Guardar PDF
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main-content">
+
+      <!-- HERO SECTION -->
+      <section class="hero" id="resumen">
+        <div class="hero-badge">
+          <i data-lucide="crown" size="16"></i> Plataforma Oficial para Torneos de Ajedrez
+        </div>
+        <h1 class="hero-title">Sistema de Gestión & Transmisión de Ajedrez en Vivo</h1>
+        <p class="hero-subtitle">
+          Una solución integral diseñada para federaciones, clubes, colegios y organizadores. Gestiona emparejamientos mediante el <strong>Sistema Suizo FIDE</strong>, transmite cada tablero en tiempo real a pantallas gigantes (TV Live), y calcula al instante los desempates oficiales (Bucholz y Sonneborn-Berger).
+        </p>
+        <div class="hero-pills">
+          <span class="pill"><i data-lucide="check-circle" size="16" style="color:#10b981;"></i> Sistema Suizo Automático</span>
+          <span class="pill"><i data-lucide="tv" size="16" style="color:#f59e0b;"></i> TV Live Scoreboard 4K</span>
+          <span class="pill"><i data-lucide="zap" size="16" style="color:#3b82f6;"></i> Control Individual por Partida</span>
+          <span class="pill"><i data-lucide="award" size="16" style="color:#8b5cf6;"></i> Desempates FIDE Automatizados</span>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 1: CARACTERÍSTICAS PRINCIPALES ── -->
+      <section id="caracteristicas">
+        <div class="section-header">
+          <div class="section-icon"><i data-lucide="layers" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Funcionalidades Principales</h2>
+          </div>
+        </div>
+        <p class="section-desc">
+          El módulo de Ajedrez de <strong>MiCancha</strong> está diseñado para brindar máxima agilidad a los árbitros y una experiencia visual inmersiva para competidores y espectadores.
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="shuffle" size="20" style="color:#f59e0b;"></i> Emparejamiento Suizo</h3>
+            <p class="card-body">
+              Algoritmo de emparejamiento automático que agrupa a los jugadores por puntos similares, equilibra la alternancia de piezas (Blancas / Negras), evita repetición de rivales y gestiona el punto de <strong>BYE</strong> de forma justa.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="activity" size="20" style="color:#ef4444;"></i> Control en Vivo</h3>
+            <p class="card-body">
+              Monitoreo y cambio de estado individual por tablero: <strong>Programado</strong> ⏳, <strong>En Juego</strong> 🔴 (con animación pulsante en TV) y <strong>Finalizado</strong> 🟢 al cargar el resultado.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="tv" size="20" style="color:#3b82f6;"></i> Pantalla TV Live</h3>
+            <p class="card-body">
+              Diseñada para proyectores y televisores en la sala de juego. Muestra la grilla de tableros activos, rotación automática configurable y la tabla de posiciones en vivo al costado.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="calculator" size="20" style="color:#10b981;"></i> Desempates Oficiales</h3>
+            <p class="card-body">
+              Cálculo en milisegundos de <strong>Bucholz Cut-1 (BC1)</strong>, <strong>Bucholz Total (BT)</strong> y <strong>Sonneborn-Berger (SB)</strong> tras finalizar cada partida.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="smartphone" size="20" style="color:#a78bfa;"></i> Portal Público Móvil</h3>
+            <p class="card-body">
+              Jugadores y padres pueden escanear el QR del torneo y ver desde su celular qué tablero y color les toca jugar, además de seguir la tabla de posiciones al segundo.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="school" size="20" style="color:#f59e0b;"></i> Circuitos & Colegios</h3>
+            <p class="card-body">
+              Soporte para ligas de múltiples etapas acumulativas con ranking de instituciones (colegios/clubes) sumando las actuaciones de todos sus alumnos.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 2: CONTROL INDIVIDUAL DE PARTIDAS ── -->
+      <section id="estados">
+        <div class="section-header">
+          <div class="section-icon green"><i data-lucide="play-circle" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Control de Estado Tablero por Tablero</h2>
+          </div>
+        </div>
+        <p class="section-desc">
+          A diferencia de los sistemas tradicionales donde toda la ronda tiene un único estado global, en <strong>MiCancha</strong> cada emparejamiento posee su propio ciclo de vida independiente.
+        </p>
+
+        <!-- Preview Visual de los Estados -->
+        <div class="status-preview-box">
+          <div class="status-sample">
+            <span class="badge-sample programado">⏳ PROGRAMADO</span>
+            <span style="font-size: 0.8rem; color: #94a3b8;">Tablero listo para iniciar</span>
+          </div>
+
+          <div class="status-sample">
+            <span class="badge-sample en_juego">🔴 EN JUEGO</span>
+            <span style="font-size: 0.8rem; color: #f87171;">Reloj corriendo (En vivo en TV)</span>
+          </div>
+
+          <div class="status-sample">
+            <span class="badge-sample finalizado">🟢 FINAL: 1 - 0</span>
+            <span style="font-size: 0.8rem; color: #34d399;">Resultado guardado y validado</span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="sliders" size="20" style="color:#10b981;"></i> ¿Cómo lo maneja el Árbitro?</h3>
+            <p class="card-body">
+              1. En la pestaña <strong>Emparejamiento</strong> o <strong>Resultados</strong>, cada tablero cuenta con un botón directo <code>[▶ Iniciar]</code> para ponerlo en vivo.<br><br>
+              2. O bien, puede presionar <code>[⚡ Iniciar Todas]</code> para dar la señal de comienzo a todos los tableros simultáneamente.<br><br>
+              3. Al terminar la partida, el árbitro simplemente hace click en el botón del resultado correspondiente (ej: <code>[1 - 0]</code> o <code>[1/2 - 1/2]</code>).
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="tv" size="20" style="color:#3b82f6;"></i> ¿Qué se ve en la Pantalla TV Live?</h3>
+            <p class="card-body">
+              • Los tableros en espera se muestran en estado <strong>PROGRAMADO</strong>.<br><br>
+              • Los tableros activos se iluminan en rojo con la leyenda <strong>🔴 EN JUEGO</strong> y borde animado.<br><br>
+              • Al cargarse el resultado, el tablero cambia instantáneamente a <strong>🟢 FINALIZADO</strong> destacando en dorado al jugador victorioso y actualizando el ranking lateral.
+            </p>
+          </div>
+        </div>
+
+        <div class="alert-box tip">
+          <i data-lucide="check" size="20" class="alert-icon"></i>
+          <div class="alert-content">
+            <p><strong>Carga rápida y corrección:</strong> Si hubo una equivocación al cargar el score, el sistema permite modificar el resultado en cualquier momento antes de cerrar la ronda, recalculando las posiciones automáticamente.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 3: SISTEMA SUIZO Y DESEMPATES FIDE ── -->
+      <section id="desempates">
+        <div class="section-header">
+          <div class="section-icon blue"><i data-lucide="calculator" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Desempates & Criterios Oficiales FIDE</h2>
+          </div>
+        </div>
+        <p class="section-desc">
+          El sistema procesa automáticamente los criterios de desempate homologados internacionalmente:
+        </p>
+
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Criterio</th>
+              <th>Código</th>
+              <th>Explicación del Cálculo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Puntos Totales</strong></td>
+              <td><span class="code-tag">PTS</span></td>
+              <td>1.0 punto por victoria, 0.5 puntos por tablas/empate, 1.0 punto por BYE.</td>
+            </tr>
+            <tr>
+              <td><strong>Bucholz Cut-1</strong></td>
+              <td><span class="code-tag">BC1</span></td>
+              <td>Suma de los puntos de todos los oponentes a los que se enfrentó el jugador, descartando al rival con la puntuación más baja (criterio principal de desempate).</td>
+            </tr>
+            <tr>
+              <td><strong>Bucholz Total</strong></td>
+              <td><span class="code-tag">BT</span></td>
+              <td>Suma total de los puntos obtenidos por todos los adversarios enfrentados en el torneo.</td>
+            </tr>
+            <tr>
+              <td><strong>Sonneborn-Berger</strong></td>
+              <td><span class="code-tag">SB</span></td>
+              <td>Suma del 100% de los puntos de los rivales a los que venció, más el 50% de los puntos de los rivales con quienes empató.</td>
+            </tr>
+            <tr>
+              <td><strong>Partidas Jugadas</strong></td>
+              <td><span class="code-tag">PJ</span></td>
+              <td>Total de partidas disputadas en las rondas transcurridas.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="alert-box info" id="suizo">
+          <i data-lucide="info" size="20" class="alert-icon"></i>
+          <div class="alert-content">
+            <p><strong>¿Qué ocurre si hay número impar de jugadores?</strong> El algoritmo asigna automáticamente un <strong>BYE (punto libre)</strong> al jugador con menor puntaje que aún no haya recibido un BYE previo en el torneo, garantizando equidad absoluta.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 4: PANTALLA TV LIVE ── -->
+      <section id="tv-live">
+        <div class="section-header">
+          <div class="section-icon purple"><i data-lucide="tv" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Pantalla Gigante (TV Live Scoreboard)</h2>
+          </div>
+        </div>
+        <p class="section-desc">
+          Disponible en la ruta <code>/torneos/[id]/tv-live</code>. Una vista optimizada para pantallas gigantes, televisores y salas de prensa.
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="grid" size="20" style="color:#a78bfa;"></i> Modos de Cuadrícula</h3>
+            <p class="card-body">
+              • <strong>1x1</strong>: Modo estelar para el Tablero 1 o la Gran Final.<br>
+              • <strong>1x2</strong>: 2 tableros principales en paralelo.<br>
+              • <strong>2x2</strong>: 4 tableros simultáneos.<br>
+              • <strong>2x3</strong>: 6 tableros por pantalla con rotación automática suave cada N segundos.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="trophy" size="20" style="color:#f59e0b;"></i> Panel Lateral Interactivo</h3>
+            <p class="card-body">
+              • Pestaña <strong>🏆 Posiciones</strong>: Tabla de clasificación al instante con medallas (🥇, 🥈, 🥉), nombre del jugador, ELO, Puntos y Bucholz.<br>
+              • Pestaña <strong>⚡ Resultados</strong>: Ticker de las últimas partidas concluidas con actualización automática cada 15 segundos.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 5: GUÍA PASO A PASO ── -->
+      <section id="guia-pasos">
+        <div class="section-header">
+          <div class="section-icon"><i data-lucide="list-checks" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Paso a Paso: ¿Cómo dirigir un Torneo?</h2>
+          </div>
+        </div>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <div class="step-header">
+                <h3 class="step-title">Inscripción y Carga de Jugadores</h3>
+                <span class="step-tag">Antes del Torneo</span>
+              </div>
+              <p class="card-body">
+                Carga los jugadores en la sección <strong>Participantes</strong> con su Rating FIDE o ELO local. El sistema los ordenará inicialmente por rating para la Ronda 1.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <div class="step-header">
+                <h3 class="step-title">Crear Ronda y Generar Suizo</h3>
+                <span class="step-tag">Pestaña Rondas</span>
+              </div>
+              <p class="card-body">
+                Presiona <strong>+ Nueva Ronda</strong> (Ronda 1). Luego entra a <strong>Emparejamiento</strong> y haz click en <strong>Generar Suizo</strong>. El sistema creará los tableros y asignará Blancas y Negras.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <div class="step-header">
+                <h3 class="step-title">Confirmar y Publicar Ronda</h3>
+                <span class="step-tag">Publicación</span>
+              </div>
+              <p class="card-body">
+                Haz click en <strong>Confirmar Ronda</strong>. Desde ese instante, los jugadores pueden ver sus tableros asignados en la web pública y en el TV Live.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <div class="step-header">
+                <h3 class="step-title">Iniciar Partidas y Cargar Resultados</h3>
+                <span class="step-tag">Durante el Juego</span>
+              </div>
+              <p class="card-body">
+                Presiona <strong>Iniciar Todas</strong> (o inicia cada tablero según comiencen). A medida que concluyan las partidas, marca el resultado (<code>1-0</code>, <code>½-½</code>, <code>0-1</code>).
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">5</div>
+            <div class="step-content">
+              <div class="step-header">
+                <h3 class="step-title">Finalizar Ronda y Siguiente Ronda</h3>
+                <span class="step-tag">Cierre de Ronda</span>
+              </div>
+              <p class="card-body">
+                Cuando todos los tableros tengan resultado, presiona <strong>Finalizar Ronda</strong>. El sistema recalcula la tabla con Bucholz. Luego crea la <strong>Ronda 2</strong> y repite el proceso.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">6</div>
+            <div class="step-content">
+              <div class="step-header">
+                <h3 class="step-title">Finalizar Torneo y Premiación</h3>
+                <span class="step-tag">Cierre Definitivo</span>
+              </div>
+              <p class="card-body">
+                Al concluir la última ronda establecida (ej: Ronda 5 o 7), ve a <strong>Tabla de Posiciones</strong> y presiona <strong>Finalizar Torneo</strong> para coronar al Campeón y generar el podio oficial.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 6: CIRCUITOS & RANKING INSTITUCIONAL ── -->
+      <section id="circuitos">
+        <div class="section-header">
+          <div class="section-icon green"><i data-lucide="school" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Circuitos y Ranking por Colegios / Clubes</h2>
+          </div>
+        </div>
+        <p class="section-desc">
+          Para campeonatos escolares o ligas anuales compuestas por varias etapas o torneos:
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="bar-chart-2" size="20" style="color:#10b981;"></i> Ranking Acumulado Individual</h3>
+            <p class="card-body">
+              Suma los puntos obtenidos por cada jugador en cada una de las etapas del circuito, aplicando una tabla de puntuación (ej: 1° = 12 pts, 2° = 11 pts, etc.).
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title"><i data-lucide="building" size="20" style="color:#f59e0b;"></i> Copa de Colegios / Instituciones</h3>
+            <p class="card-body">
+              Agrupa automáticamente los puntos de todos los alumnos de un mismo colegio o club para definir la institución campeona del certamen.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN 7: PREGUNTAS FRECUENTES ── -->
+      <section id="faq">
+        <div class="section-header">
+          <div class="section-icon blue"><i data-lucide="help-circle" size="24"></i></div>
+          <div>
+            <h2 class="section-title">Preguntas Frecuentes (FAQ)</h2>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">¿Qué significa el resultado "FF"?</h3>
+            <p class="card-body">
+              Significa <strong>Forfeit</strong> (incomparecencia / ausencia de un jugador). Otorga el punto al jugador presente y registra la ausencia para que el árbitro decida si continúa en las siguientes rondas.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">¿Se puede usar sin conexión a internet?</h3>
+            <p class="card-body">
+              El sistema está optimizado para funcionar en la nube en tiempo real, permitiendo que múltiples árbitros carguen resultados en paralelo desde tablets o teléfonos celulares.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">¿Cómo acceden los espectadores?</h3>
+            <p class="card-body">
+              Simplemente ingresando al enlace público del torneo en <code>micancha.com.py/torneos/[id]</code>. En la pestaña <strong>Partidos y Clasificación</strong> verán todos los tableros y posiciones sin permisos de edición.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">¿Se pueden reordenar partidas manualmente?</h3>
+            <p class="card-body">
+              Sí. Aunque el Sistema Suizo Automático es el recomendado, el organizador puede ajustar los tableros antes de confirmar la ronda.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer style="margin-top: 5rem; padding-top: 2rem; border-top: 1px solid var(--border-color); text-align: center; color: #64748b; font-size: 0.85rem;">
+        <p><strong>MiCancha</strong> · Plataforma Integral de Gestión de Torneos y Complejos Deportivos</p>
+        <p style="margin-top: 0.4rem;">© 2026 MiCancha · Todos los derechos reservados · Asunción, Paraguay</p>
+      </footer>
+
+    </main>
+  </div>
+
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Active sidebar link on scroll
+    const sections = document.querySelectorAll('section');
+    const navItems = document.querySelectorAll('.nav-item');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        if (pageYOffset >= sectionTop - 150) {
+          current = section.getAttribute('id');
+        }
+      });
+
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        const href = item.querySelector('a').getAttribute('href');
+        if (href === '#' + current) {
+          item.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
