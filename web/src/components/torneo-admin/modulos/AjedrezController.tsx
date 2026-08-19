@@ -90,16 +90,55 @@ function Toast({ msg, type, onClose }: { msg: string; type: 'ok' | 'err'; onClos
 }
 
 /* ─── Confirm Modal ─── */
-function Confirm({ title, body, onOk, onCancel, busy }: { title: string; body: string; onOk: () => void; onCancel: () => void; busy?: boolean }) {
+function Confirm({
+  title,
+  body,
+  onOk,
+  onCancel,
+  busy,
+}: {
+  title: string;
+  body: string;
+  onOk: () => void | Promise<void>;
+  onCancel: () => void;
+  busy?: boolean;
+}) {
+  const [internalBusy, setInternalBusy] = useState(false);
+
+  const handleOk = async () => {
+    setInternalBusy(true);
+    try {
+      await onOk();
+      onCancel();
+    } catch (err) {
+      console.error(err);
+      onCancel();
+    } finally {
+      setInternalBusy(false);
+    }
+  };
+
+  const isSpinning = busy || internalBusy;
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-150">
         <h3 className="text-xl font-black text-slate-800 mb-2">{title}</h3>
-        <p className="text-slate-500 mb-6">{body}</p>
+        <p className="text-slate-500 mb-6 text-sm">{body}</p>
         <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-5 py-2 rounded-lg border border-slate-300 text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
-          <button onClick={onOk} disabled={busy} className="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black flex items-center gap-2">
-            {busy && <Loader2 size={16} className="animate-spin" />} Confirmar
+          <button
+            onClick={onCancel}
+            disabled={isSpinning}
+            className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleOk}
+            disabled={isSpinning}
+            className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm flex items-center gap-2 shadow transition disabled:opacity-50"
+          >
+            {isSpinning && <Loader2 size={16} className="animate-spin" />} Confirmar
           </button>
         </div>
       </div>
