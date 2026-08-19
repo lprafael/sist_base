@@ -4,7 +4,7 @@ import {
   Plus, Loader2, Check, X,
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
-  PlayCircle, CheckCircle2
+  PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
