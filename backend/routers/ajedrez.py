@@ -92,6 +92,9 @@ class RatingUpdate(BaseModel):
     codigo_fide: Optional[str] = None
     usuario_lichess: Optional[str] = None
     usuario_chess_com: Optional[str] = None
+    institucion_id: Optional[str] = None
+    categoria_base: Optional[str] = None
+    categoria_jugada: Optional[str] = None
 
 
 
@@ -579,6 +582,7 @@ async def eliminar_etapa(
 # ==============================================================================
 
 @router.post("/circuitos/{circuito_id}/calcular-ranking", status_code=200)
+@router.post("/circuitos/{circuito_id}/recalcular-ranking", status_code=200)
 async def calcular_ranking_circuito(
     circuito_id: str,
     session: AsyncSession = Depends(get_session),
@@ -736,6 +740,48 @@ async def listar_rondas(torneo_id: str, session: AsyncSession = Depends(get_sess
         GROUP BY r.id
         ORDER BY r.numero_ronda
     """), {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
+
+@router.post("/torneos/{torneo_id}/rondas", status_code=201)
+async def crear_ronda(
+    torneo_id: str,
+    payload: RondaCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Crea una nueva ronda en el torneo."""
+    # Verificar si el torneo existe
+    t_q = await session.execute(text("""
+        SELECT id FROM torneos_generales.torneos WHERE id = :tid
+    """), {"tid": torneo_id})
+    if not t_q.fetchone():
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+
+    # Verificar si el número de ronda ya existe
+    existe_q = await session.execute(text("""
+        SELECT id FROM torneos_generales.ajedrez_rondas
+        WHERE torneo_id = :tid AND numero_ronda = :num
+    """), {"tid": torneo_id, "num": payload.numero_ronda})
+    if existe_q.fetchone():
+        raise HTTPException(status_code=400, detail=f"La ronda {payload.numero_ronda} ya existe")
+
+    res = await session.execute(text("""
+        INSERT INTO torneos_generales.ajedrez_rondas
+            (torneo_id, numero_ronda, fecha_hora, modo_emparejamiento, notas)
+        VALUES
+            (:tid, :num, :fh, :modo, :notas)
+        RETURNING id, torneo_id, numero_ronda, estado, fecha_hora, modo_emparejamiento, notas, creado_en, actualizado_en
+    """), {
+        "tid": torneo_id,
+        "num": payload.numero_ronda,
+        "fh": payload.fecha_hora,
+        "modo": payload.modo_emparejamiento or "automatico",
+        "notas": payload.notas,
+    })
+    ronda = res.fetchone()
+    await session.commit()
+    return dict(ronda._mapping)
 
 
 @router.post("/torneos/{torneo_id}/rondas/{ronda_id}/emparejar")
@@ -841,9 +887,10 @@ async def guardar_emparejamiento_personalizado(
 
 
 @router.post("/torneos/{torneo_id}/rondas/{ronda_id}/confirmar")
+@router.post("/rondas/{ronda_id}/confirmar")
 async def confirmar_ronda(
-    torneo_id: str,
     ronda_id: str,
+    torneo_id: Optional[str] = None,
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
@@ -1119,6 +1166,9 @@ async def actualizar_rating(
     data = payload.model_dump(exclude_unset=True)
     if not data:
         raise HTTPException(status_code=400, detail="Sin datos para actualizar")
+
+    if "institucion_id" in data and not data["institucion_id"]:
+        data["institucion_id"] = None
 
     sets = ", ".join(f"{k} = :{k}" for k in data.keys())
     data["pid"] = participante_id
