@@ -736,15 +736,7 @@ async def listar_rondas(torneo_id: str, session: AsyncSession = Depends(get_sess
         GROUP BY r.id
         ORDER BY r.numero_ronda
     """), {"tid": torneo_id})
-    return [dict(r._mapping) for r in res.fetchall()]
 
-
-
-
-
-# ==============================================================================
-# ENDPOINTS — EMPAREJAMIENTO
-# ==============================================================================
 
 @router.post("/torneos/{torneo_id}/rondas/{ronda_id}/emparejar")
 async def emparejar_automatico(
