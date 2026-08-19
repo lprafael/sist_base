@@ -262,6 +262,183 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
   );
 }
 
+/* ─── Chess Board Card (Ajedrez Tablero) ─────────────────────────── */
+function ChessBoardCard({ partido, areaIndex }: { partido: Partido; areaIndex: number }) {
+  const palette = AREA_COLORS[areaIndex % AREA_COLORS.length];
+  const isLive = partido.estado === 'en_curso';
+  const isFin  = partido.estado === 'finalizado';
+
+  const stats = partido.estadisticas || {};
+  const res = stats.resultado || partido.resultado;
+  const bRating = stats.blancas_rating;
+  const nRating = stats.negras_rating;
+
+  const whiteWon = res === '1-0' || res === 'BYE';
+  const blackWon = res === '0-1';
+  const isDraw = res === '0.5-0.5' || res === '1/2-1/2';
+
+  const bPts = partido.goles_local != null ? Number(partido.goles_local) : (whiteWon ? 1 : isDraw ? 0.5 : 0);
+  const nPts = partido.goles_visitante != null ? Number(partido.goles_visitante) : (blackWon ? 1 : isDraw ? 0.5 : 0);
+
+  const bName = partido.jugador_local_nombre || 'Blancas';
+  const nName = partido.jugador_visitante_nombre || 'Negras';
+
+  return (
+    <div style={{
+      background: 'linear-gradient(145deg, rgba(16,18,30,0.96) 0%, rgba(22,24,42,0.92) 100%)',
+      border: `1px solid ${isLive ? '#ef4444' : isFin ? '#10b98144' : palette.border + '33'}`,
+      borderRadius: 20, padding: '14px 16px',
+      boxShadow: isLive 
+        ? '0 0 24px rgba(239,68,68,0.2), 0 4px 20px rgba(0,0,0,0.5)'
+        : `0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px ${palette.border}22`,
+      display: 'flex', flexDirection: 'column', gap: 8, position: 'relative',
+      backdropFilter: 'blur(12px)', overflow: 'hidden', height: '100%',
+    }}>
+      {/* Accent top bar */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+        background: isLive 
+          ? 'linear-gradient(90deg, #ef4444, #f59e0b)'
+          : isFin 
+          ? 'linear-gradient(90deg, #10b981, #00ff88)' 
+          : `linear-gradient(90deg, #f59e0b, ${palette.border})`,
+      }} />
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 900, letterSpacing: '0.12em',
+            color: '#f59e0b', textTransform: 'uppercase',
+          }}>
+            ♟️ {partido.cancha_nombre || `TABLERO ${partido.area || areaIndex + 1}`}
+          </span>
+          <span style={{
+            fontSize: 9, fontWeight: 800, color: '#94a3b8',
+            background: 'rgba(255,255,255,0.06)', borderRadius: 6,
+            padding: '1px 6px', letterSpacing: '0.05em'
+          }}>
+            {partido.fase || `RONDA ${partido.jornada || 1}`}
+          </span>
+        </div>
+
+        {/* Badge Estado */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px',
+          borderRadius: 20, fontSize: 10, fontWeight: 900, letterSpacing: '0.08em',
+          background: isLive ? 'rgba(239,68,68,0.18)' : isFin ? 'rgba(16,185,129,0.18)' : 'rgba(56,189,248,0.12)',
+          color: isLive ? '#ef4444' : isFin ? '#10b981' : '#38bdf8',
+          border: `1px solid ${isLive ? '#ef4444' : isFin ? '#10b981' : '#38bdf8'}44`,
+        }}>
+          {isLive && <div style={{
+            width: 6, height: 6, borderRadius: '50%', background: '#ef4444',
+            animation: 'pulse-dot 1.2s infinite',
+          }} />}
+          {isLive ? 'EN JUEGO' : isFin ? (res ? `FINAL: ${res}` : 'FINALIZADO') : 'PROGRAMADO'}
+        </div>
+      </div>
+
+      {/* Players vs body */}
+      <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
+        
+        {/* Blancas */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 12px', borderRadius: 12,
+          background: whiteWon 
+            ? 'linear-gradient(90deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.05) 100%)' 
+            : isDraw 
+            ? 'rgba(255,255,255,0.04)' 
+            : 'rgba(255,255,255,0.02)',
+          border: `1px solid ${whiteWon ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.06)'}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: '#f8fafc', color: '#0f172a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 900, fontSize: 18, border: '1px solid #cbd5e1', flexShrink: 0
+            }}>
+              ♔
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontWeight: 800, fontSize: 14, color: whiteWon ? '#fff' : '#e2e8f0',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+              }}>
+                {bName}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8' }}>BLANCAS</span>
+                {bRating ? <span style={{ fontSize: 9, fontWeight: 800, color: '#fbbf24', background: 'rgba(245,158,11,0.15)', padding: '0.5px 5px', borderRadius: 4 }}>ELO {bRating}</span> : null}
+                {whiteWon && <span style={{ fontSize: 9, fontWeight: 900, color: '#10b981' }}>★ VICTORIA</span>}
+              </div>
+            </div>
+          </div>
+          <div style={{
+            fontFamily: "'Orbitron', monospace", fontSize: 24, fontWeight: 900,
+            color: whiteWon ? '#fbbf24' : isDraw ? '#cbd5e1' : isFin ? '#64748b' : '#38bdf8',
+            minWidth: 40, textAlign: 'right'
+          }}>
+            {isFin ? (bPts === 0.5 ? '½' : bPts) : '—'}
+          </div>
+        </div>
+
+        {/* Separador VS */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '1px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+          <span style={{ fontSize: 9, fontWeight: 900, color: '#475569', letterSpacing: '0.15em' }}>VS</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+        </div>
+
+        {/* Negras */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 12px', borderRadius: 12,
+          background: blackWon 
+            ? 'linear-gradient(90deg, rgba(139,92,246,0.18) 0%, rgba(139,92,246,0.06) 100%)' 
+            : isDraw 
+            ? 'rgba(255,255,255,0.04)' 
+            : 'rgba(255,255,255,0.02)',
+          border: `1px solid ${blackWon ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.06)'}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: '#0f172a', color: '#f8fafc',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 900, fontSize: 18, border: '1px solid #334155', flexShrink: 0
+            }}>
+              ♚
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontWeight: 800, fontSize: 14, color: blackWon ? '#fff' : '#e2e8f0',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+              }}>
+                {nName}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8' }}>NEGRAS</span>
+                {nRating ? <span style={{ fontSize: 9, fontWeight: 800, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', padding: '0.5px 5px', borderRadius: 4 }}>ELO {nRating}</span> : null}
+                {blackWon && <span style={{ fontSize: 9, fontWeight: 900, color: '#a78bfa' }}>★ VICTORIA</span>}
+              </div>
+            </div>
+          </div>
+          <div style={{
+            fontFamily: "'Orbitron', monospace", fontSize: 24, fontWeight: 900,
+            color: blackWon ? '#a78bfa' : isDraw ? '#cbd5e1' : isFin ? '#64748b' : '#38bdf8',
+            minWidth: 40, textAlign: 'right'
+          }}>
+            {isFin ? (nPts === 0.5 ? '½' : nPts) : '—'}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 /* ─── Formas Athlete Interface & Calculations ───────────────────── */
 interface FormasAthlete {
   id: string;
@@ -607,6 +784,7 @@ function ResultItem({ r, index }: { r: ResultadoHistorico; index: number }) {
 /* ─── Type for Grid Areas ────────────────────────────────────────── */
 type DisplayAreaItem = 
   | { type: 'combate'; partido: Partido; id: string; estado: string; fecha_hora?: string }
+  | { type: 'ajedrez'; partido: Partido; id: string; estado: string; fecha_hora?: string }
   | { type: 'formas'; fase: string; division: string; partidos: Partido[]; id: string; estado: string; fecha_hora?: string };
 
 /* ─── MAIN PAGE ─────────────────────────────────────────────────── */
@@ -618,6 +796,8 @@ export default function TVLivePage() {
   const [tournament, setTournament] = useState<TournamentData | null>(null);
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [historico, setHistorico] = useState<ResultadoHistorico[]>([]);
+  const [ajedrezPosiciones, setAjedrezPosiciones] = useState<any[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<'historico' | 'posiciones'>('posiciones');
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
   const tickRef = useRef<NodeJS.Timeout | null>(null);
@@ -630,12 +810,104 @@ export default function TVLivePage() {
   const loadData = useCallback(async () => {
     if (!id) return;
     try {
-      const [tRes, mRes] = await Promise.allSettled([
+      const [tRes, mRes, ajRondasRes, ajPosRes] = await Promise.allSettled([
         fetch(`${API_URL}/cancha/torneos/${id}`),
         fetch(`${API_URL}/cancha/torneos/${id}/partidos`),
+        fetch(`${API_URL}/api/ajedrez/torneos/${id}/rondas`),
+        fetch(`${API_URL}/api/ajedrez/torneos/${id}/posiciones?ronda=0`),
       ]);
-      if (tRes.status === 'fulfilled' && tRes.value.ok)
-        setTournament(await tRes.value.json());
+
+      let tData: TournamentData | null = null;
+      if (tRes.status === 'fulfilled' && tRes.value.ok) {
+        tData = await tRes.value.json();
+        setTournament(tData);
+      }
+
+      const isAjedrez = (tData?.deporte || '').toLowerCase().includes('ajedrez');
+
+      let ajRondas: any[] = [];
+      if (ajRondasRes.status === 'fulfilled' && ajRondasRes.value.ok) {
+        const rJson = await ajRondasRes.value.json();
+        ajRondas = Array.isArray(rJson) ? rJson : [];
+      }
+
+      if (ajPosRes.status === 'fulfilled' && ajPosRes.value.ok) {
+        const pJson = await ajPosRes.value.json();
+        setAjedrezPosiciones(Array.isArray(pJson) ? pJson : []);
+      }
+
+      // Si es un torneo de Ajedrez o tiene rondas de ajedrez
+      if (isAjedrez || ajRondas.length > 0) {
+        if (ajRondas.length > 0) {
+          const rondasPartidasProms = ajRondas.map(r =>
+            fetch(`${API_URL}/api/ajedrez/rondas/${r.id}/partidas`)
+              .then(res => res.ok ? res.json() : [])
+              .then(data => ({ ronda: r, partidas: Array.isArray(data) ? data : [] }))
+              .catch(() => ({ ronda: r, partidas: [] }))
+          );
+
+          const results = await Promise.all(rondasPartidasProms);
+          const chessPartidos: Partido[] = [];
+          const chessHistorico: ResultadoHistorico[] = [];
+
+          results.forEach(({ ronda, partidas }) => {
+            partidas.forEach((p: any) => {
+              const bName = `${p.blancas_nombre || ''} ${p.blancas_apellido || ''}`.trim() || (p.resultado === 'BYE' ? 'BYE' : 'Blancas');
+              const nName = `${p.negras_nombre || ''} ${p.negras_apellido || ''}`.trim() || (p.resultado === 'BYE' ? 'BYE' : 'Negras');
+              const res = p.resultado;
+              const isFin = Boolean(res);
+              const isLive = !isFin && ronda.estado === 'en_curso';
+              const estado = isFin ? 'finalizado' : isLive ? 'en_curso' : 'programado';
+
+              const chessItem: Partido = {
+                id: p.id,
+                jugador_local_nombre: bName,
+                jugador_visitante_nombre: nName,
+                goles_local: p.puntos_blancas != null ? p.puntos_blancas : (res === '1-0' ? 1 : res === '0.5-0.5' ? 0.5 : res === 'BYE' ? 1 : 0),
+                goles_visitante: p.puntos_negras != null ? p.puntos_negras : (res === '0-1' ? 1 : res === '0.5-0.5' ? 0.5 : 0),
+                fase: `Ronda ${ronda.numero_ronda}`,
+                jornada: ronda.numero_ronda,
+                area: p.tablero_numero || 1,
+                cancha_nombre: `TABLERO ${p.tablero_numero ?? 1}`,
+                estado: estado,
+                fecha_hora: ronda.fecha_hora || p.creado_en || ronda.creado_en,
+                estadisticas: {
+                  tipo: 'ajedrez',
+                  resultado: res,
+                  blancas_rating: p.blancas_rating,
+                  negras_rating: p.negras_rating,
+                  ronda_id: ronda.id,
+                  ronda_numero: ronda.numero_ronda,
+                  ronda_estado: ronda.estado,
+                }
+              };
+
+              chessPartidos.push(chessItem);
+
+              if (isFin) {
+                let texto = '';
+                if (res === '1-0') texto = `Tablero ${p.tablero_numero ?? 1} (Ronda ${ronda.numero_ronda}): ${bName} vence a ${nName} (1 - 0)`;
+                else if (res === '0-1') texto = `Tablero ${p.tablero_numero ?? 1} (Ronda ${ronda.numero_ronda}): ${nName} vence a ${bName} (0 - 1)`;
+                else if (res === '0.5-0.5') texto = `Tablero ${p.tablero_numero ?? 1} (Ronda ${ronda.numero_ronda}): Empate ${bName} vs ${nName} (½ - ½)`;
+                else if (res === 'BYE') texto = `Tablero ${p.tablero_numero ?? 1} (Ronda ${ronda.numero_ronda}): BYE para ${bName} (1 - 0)`;
+                else if (res === 'FF') texto = `Tablero ${p.tablero_numero ?? 1} (Ronda ${ronda.numero_ronda}): Forfeit en ${bName} vs ${nName}`;
+                else texto = `Tablero ${p.tablero_numero ?? 1} (Ronda ${ronda.numero_ronda}): ${bName} vs ${nName} (${res})`;
+
+                chessHistorico.push({
+                  id: p.id,
+                  texto,
+                  tiempo: ronda.fecha_hora ? timeSince(ronda.fecha_hora) : 'Reciente',
+                  tipo: res === '0.5-0.5' ? 'empate' : 'victoria'
+                });
+              }
+            });
+          });
+
+          setPartidos(chessPartidos);
+          setHistorico(chessHistorico.slice(0, 15));
+          return;
+        }
+      }
 
       if (mRes.status === 'fulfilled' && mRes.value.ok) {
         const d = await mRes.value.json();
@@ -743,13 +1015,21 @@ export default function TVLivePage() {
     return true;
   });
 
-  // Agrupación inteligente: Combate se muestra 1 a 1, Formas se agrupa por Fase/División
+  // Agrupación inteligente: Combate se muestra 1 a 1, Formas se agrupa por Fase/División, Ajedrez 1 a 1 por Tablero
   const items: DisplayAreaItem[] = [];
   const formasByFase: Record<string, { division: string; partidos: Partido[] }> = {};
 
   filteredPartidos.forEach(p => {
     const fase = p.fase || 'Fase 1';
-    if (isFormasFase(fase, p)) {
+    if (p.estadisticas?.tipo === 'ajedrez') {
+      items.push({
+        type: 'ajedrez',
+        partido: p,
+        id: p.id,
+        estado: p.estado,
+        fecha_hora: p.fecha_hora,
+      });
+    } else if (isFormasFase(fase, p)) {
       let div = fase;
       if (fase.includes(' - ')) {
         const leftPart = fase.split(' - ')[0];
@@ -1129,6 +1409,15 @@ export default function TVLivePage() {
                 gap: 12, overflow: 'hidden',
               }}>
                 {visibleItems.map((item, i) => {
+                  if (item.type === 'ajedrez') {
+                    return (
+                      <ChessBoardCard
+                        key={item.id}
+                        partido={item.partido}
+                        areaIndex={startIndex + i}
+                      />
+                    );
+                  }
                   if (item.type === 'formas') {
                     return (
                       <FormasPodiumCard
@@ -1155,34 +1444,100 @@ export default function TVLivePage() {
             )}
           </div>
 
-          {/* ── RIGHT: HISTORICO ── */}
+          {/* ── RIGHT: HISTORICO / POSICIONES ── */}
           <div style={{
-            width: 300, flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.06)',
+            width: 320, flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.06)',
             background: 'rgba(6,6,16,0.7)', display: 'flex', flexDirection: 'column',
             backdropFilter: 'blur(10px)',
           }}>
             <div style={{
-              padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0
+              padding: '14px 14px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14
-                }}>🏆</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0', letterSpacing: '0.05em' }}>
-                    Últimos Finalizados
-                  </div>
-                  <div style={{ fontSize: 10, color: '#475569', fontWeight: 600, marginTop: 1 }}>
-                    Actualiza cada 15s
+              {ajedrezPosiciones.length > 0 ? (
+                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 10 }}>
+                  <button
+                    onClick={() => setSidebarTab('posiciones')}
+                    style={{
+                      flex: 1, padding: '6px 8px', borderRadius: 8, border: 'none',
+                      background: sidebarTab === 'posiciones' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'transparent',
+                      color: sidebarTab === 'posiciones' ? '#fff' : '#94a3b8',
+                      fontWeight: 800, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    🏆 Posiciones
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('historico')}
+                    style={{
+                      flex: 1, padding: '6px 8px', borderRadius: 8, border: 'none',
+                      background: sidebarTab === 'historico' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'transparent',
+                      color: sidebarTab === 'historico' ? '#fff' : '#94a3b8',
+                      fontWeight: 800, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    ⚡ Resultados ({displayHistorico.length})
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14
+                  }}>🏆</div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0', letterSpacing: '0.05em' }}>
+                      Últimos Finalizados
+                    </div>
+                    <div style={{ fontSize: 10, color: '#475569', fontWeight: 600, marginTop: 1 }}>
+                      Actualiza cada 15s
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px' }}>
-              {displayHistorico.length === 0 ? (
+              {sidebarTab === 'posiciones' && ajedrezPosiciones.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {ajedrezPosiciones.map((pos, idx) => {
+                    const med = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${pos.posicion || idx + 1}`;
+                    return (
+                      <div
+                        key={pos.participante_id || idx}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 10px', borderRadius: 10,
+                          background: idx < 3 ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${idx < 3 ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.05)'}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: idx < 3 ? 14 : 11, fontWeight: 900, width: 22, textAlign: 'center', color: idx < 3 ? '#fbbf24' : '#64748b' }}>
+                            {med}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 800, fontSize: 12, color: idx < 3 ? '#fff' : '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {pos.nombre} {pos.apellido || ''}
+                            </div>
+                            <div style={{ fontSize: 9, color: '#64748b', fontWeight: 600 }}>
+                              {pos.rating_fide ? `ELO ${pos.rating_fide} · ` : ''}PJ: {pos.partidas_jugadas ?? 0}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                          <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 14, fontWeight: 900, color: '#fbbf24' }}>
+                            {pos.puntos ?? 0} <span style={{ fontSize: 8, color: '#94a3b8' }}>PTS</span>
+                          </div>
+                          <div style={{ fontSize: 8, color: '#64748b', fontWeight: 700 }}>
+                            BC1: {Number(pos.bucholz_cut1 ?? 0).toFixed(1)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : displayHistorico.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, fontWeight: 700, marginTop: 32, padding: '0 12px', lineHeight: 1.5 }}>
                   Sin resultados finalizados aún en este torneo
                 </div>

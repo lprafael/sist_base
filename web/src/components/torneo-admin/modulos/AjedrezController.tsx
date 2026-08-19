@@ -108,9 +108,9 @@ function Confirm({ title, body, onOk, onCancel, busy }: { title: string; body: s
 }
 
 /* ─── Tab Rondas ─── */
-function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa }: {
+function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa, isPublic }: {
   torneoId: string; rondas?: Ronda[]; loading: boolean;
-  onRefresh: () => void; onSelect: (r: Ronda) => void; activa?: Ronda | null;
+  onRefresh: () => void; onSelect: (r: Ronda) => void; activa?: Ronda | null; isPublic?: boolean;
 }) {
   const listaRondas = Array.isArray(rondas) ? rondas : [];
   const [modal, setModal] = useState(false);
@@ -149,9 +149,11 @@ function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-black text-slate-800">Rondas del Torneo</h3>
-        <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
-          <Plus size={16} /> Nueva Ronda
-        </button>
+        {!isPublic && (
+          <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
+            <Plus size={16} /> Nueva Ronda
+          </button>
+        )}
       </div>
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-amber-500" size={36} /></div>
@@ -230,7 +232,7 @@ function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa
 }
 
 /* ─── Tab Emparejamiento ─── */
-function TabEmparejamiento({ torneoId, ronda, onRefresh }: { torneoId: string; ronda: Ronda; onRefresh: () => void }) {
+function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId: string; ronda: Ronda; onRefresh: () => void; isPublic?: boolean }) {
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -299,23 +301,25 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh }: { torneoId: string; r
           <h3 className="text-lg font-black text-slate-800">Emparejamiento — Ronda {ronda.numero_ronda}</h3>
           <p className="text-slate-400 text-xs font-semibold">Modo: {ronda.modo_emparejamiento} · Estado: {ronda.estado}</p>
         </div>
-        <div className="flex gap-2">
-          {ronda.estado !== 'finalizada' && (
-            <>
-              <button onClick={generar} disabled={busy}
-                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
-                {busy ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
-                {listaPartidas.length === 0 ? 'Generar Suizo' : 'Re-Emparejar'}
-              </button>
-              {ronda.estado === 'pendiente' && listaPartidas.length > 0 && (
-                <button onClick={() => setCfm({ title: 'Confirmar Ronda', body: 'Se publicara la ronda para comenzar a cargar resultados.', fn: confirmar })} disabled={busy}
-                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
-                  <Check size={16} /> Confirmar Ronda
+        {!isPublic && (
+          <div className="flex gap-2">
+            {ronda.estado !== 'finalizada' && (
+              <>
+                <button onClick={generar} disabled={busy}
+                  className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
+                  {listaPartidas.length === 0 ? 'Generar Suizo' : 'Re-Emparejar'}
                 </button>
-              )}
-            </>
-          )}
-        </div>
+                {ronda.estado === 'pendiente' && listaPartidas.length > 0 && (
+                  <button onClick={() => setCfm({ title: 'Confirmar Ronda', body: 'Se publicara la ronda para comenzar a cargar resultados.', fn: confirmar })} disabled={busy}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
+                    <Check size={16} /> Confirmar Ronda
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -324,9 +328,11 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh }: { torneoId: string; r
         <div className="border-2 border-dashed border-slate-200 rounded-2xl p-16 text-center">
           <Shuffle size={48} className="mx-auto text-slate-300 mb-4" />
           <p className="text-slate-500 font-bold mb-4">No hay partidas generadas para esta ronda</p>
-          <button onClick={generar} disabled={busy} className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow">
-            Generar Emparejamiento Suizo
-          </button>
+          {!isPublic && (
+            <button onClick={generar} disabled={busy} className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow">
+              Generar Emparejamiento Suizo
+            </button>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
@@ -526,7 +532,7 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
 }
 
 /* ─── Tab Posiciones ─── */
-function TabPosiciones({ torneoId, rondas = [], finalizable }: { torneoId: string; rondas?: Ronda[]; finalizable: boolean }) {
+function TabPosiciones({ torneoId, rondas = [], finalizable, isPublic }: { torneoId: string; rondas?: Ronda[]; finalizable: boolean; isPublic?: boolean }) {
   const listaRondas = Array.isArray(rondas) ? rondas : [];
   const [pos, setPos] = useState<Posicion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -584,7 +590,7 @@ function TabPosiciones({ torneoId, rondas = [], finalizable }: { torneoId: strin
             <option value={0}>Ultima calculada</option>
             {listaRondas.filter(r => r.estado !== 'pendiente').map(r => <option key={r.numero_ronda} value={r.numero_ronda}>Despues de Ronda {r.numero_ronda}</option>)}
           </select>
-          {finalizable && (
+          {!isPublic && finalizable && (
             <button onClick={() => setCfm(true)} disabled={busy} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />} Finalizar Torneo
             </button>
@@ -647,7 +653,7 @@ function TabPosiciones({ torneoId, rondas = [], finalizable }: { torneoId: strin
 }
 
 /* ─── MAIN EXPORT ─── */
-export default function AjedrezController({ torneoId, torneo }: { torneoId: string; torneo?: any }) {
+export default function AjedrezController({ torneoId, torneo, isPublic = false }: { torneoId: string; torneo?: any; isPublic?: boolean }) {
   const [tab, setTab] = useState<'rondas' | 'emparejamiento' | 'resultados' | 'posiciones'>('rondas');
   const [rondas, setRondas] = useState<Ronda[]>([]);
   const [loadingR, setLoadingR] = useState(true);
@@ -680,7 +686,11 @@ export default function AjedrezController({ torneoId, torneo }: { torneoId: stri
   const seleccionar = (r: Ronda) => { setRondaSel(r); setTab('emparejamiento'); };
   const finalizable = listaRondas.length > 0 && listaRondas.every(r => r.estado === 'finalizada');
 
-  const TABS = [
+  const TABS = isPublic ? [
+    { id: 'rondas',         label: 'Rondas',               icon: <ListOrdered size={16} />, off: false         },
+    { id: 'emparejamiento', label: 'Partidas y Resultados',icon: <Shuffle size={16} />,     off: !rondaSel     },
+    { id: 'posiciones',     label: 'Tabla de Posiciones',  icon: <BarChart2 size={16} />,   off: false         },
+  ] : [
     { id: 'rondas',         label: 'Rondas',         icon: <ListOrdered size={16} />, off: false         },
     { id: 'emparejamiento', label: 'Emparejamiento', icon: <Shuffle size={16} />,     off: !rondaSel     },
     { id: 'resultados',     label: 'Resultados',     icon: <Zap size={16} />,         off: !rondaSel     },
@@ -728,10 +738,10 @@ export default function AjedrezController({ torneoId, torneo }: { torneoId: stri
 
       {/* Content */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        {tab === 'rondas'         && <TabRondas torneoId={torneoId} rondas={listaRondas} loading={loadingR} onRefresh={fetchRondas} onSelect={seleccionar} activa={rondaSel} />}
-        {tab === 'emparejamiento' && rondaSel && <TabEmparejamiento torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} />}
-        {tab === 'resultados'     && rondaSel && <TabResultados torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} />}
-        {tab === 'posiciones'     && <TabPosiciones torneoId={torneoId} rondas={listaRondas} finalizable={finalizable} />}
+        {tab === 'rondas'         && <TabRondas torneoId={torneoId} rondas={listaRondas} loading={loadingR} onRefresh={fetchRondas} onSelect={seleccionar} activa={rondaSel} isPublic={isPublic} />}
+        {tab === 'emparejamiento' && rondaSel && <TabEmparejamiento torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} isPublic={isPublic} />}
+        {!isPublic && tab === 'resultados' && rondaSel && <TabResultados torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} />}
+        {tab === 'posiciones'     && <TabPosiciones torneoId={torneoId} rondas={listaRondas} finalizable={finalizable} isPublic={isPublic} />}
         {(tab === 'emparejamiento' || tab === 'resultados') && !rondaSel && (
           <div className="text-center py-16">
             <Shuffle size={48} className="mx-auto text-slate-200 mb-4" />
@@ -743,3 +753,4 @@ export default function AjedrezController({ torneoId, torneo }: { torneoId: stri
     </div>
   );
 }
+

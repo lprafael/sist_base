@@ -10,6 +10,9 @@ import SidebarTorneo from '@/components/torneo-admin/SidebarTorneo';
 import PublicTournamentView from '@/components/torneo-admin/PublicTournamentView';
 import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
 
+import AjedrezController from '@/components/torneo-admin/modulos/AjedrezController';
+import ClasificacionView from '@/components/torneo-admin/modulos/ClasificacionView';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function TournamentDetailPage() {
@@ -73,11 +76,14 @@ export default function TournamentDetailPage() {
         return <PublicTournamentView tournament={tournament} />;
       case 'clasificacion':
         return (
-          <main className="flex-1 overflow-y-auto p-8 relative">
+          <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
             <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase">Partidos y Clasificación</h2>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
-               <p className="text-slate-500">Consulta los resultados y la tabla de posiciones.</p>
-               {/* Aquí puedes montar un componente de Clasificacion público */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[60vh]">
+              {tournament?.deporte === 'Ajedrez' || (tournament?.deporte || '').toLowerCase().includes('ajedrez') ? (
+                <AjedrezController torneoId={id as string} torneo={tournament} isPublic={true} />
+              ) : (
+                <ClasificacionView torneoId={id as string} torneo={tournament} />
+              )}
             </div>
           </main>
         );
