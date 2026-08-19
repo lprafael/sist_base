@@ -107,32 +107,7 @@ function Confirm({ title, body, onOk, onCancel, busy }: { title: string; body: s
   );
 }
 
-/* ─── Tab Rondas ─── */
-function TabRondas({ torneoId, rondas, loading, onRefresh, onSelect, activa }: {
-  torneoId: string; rondas: Ronda[]; loading: boolean;
-  onRefresh: () => void; onSelect: (r: Ronda) => void; activa?: Ronda | null;
-}) {
-  const [modal, setModal] = useState(false);
-  const [num, setNum] = useState(1);
-  const [fh, setFh] = useState('');
-  const [modo, setModo] = useState('automatico');
-  const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
 
-  useEffect(() => { setNum((rondas.length || 0) + 1); }, [rondas.length]);
-
-  const crear = async () => {
-    setBusy(true);
-    try {
-      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas`, {
-        method: 'POST', headers: authHdrs(),
-        body: JSON.stringify({ numero_ronda: num, fecha_hora: fh || null, modo_emparejamiento: modo }),
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
-      setModal(false); setToast({ msg: 'Ronda creada', type: 'ok' }); onRefresh();
-    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
-    setBusy(false);
-  };
 
   return (
     <div>
@@ -547,47 +522,7 @@ export default function AjedrezController({ torneoId, torneo }: { torneoId: stri
   const [loadingR, setLoadingR] = useState(true);
   const [rondaSel, setRondaSel] = useState<Ronda | null>(null);
 
-  const fetchRondas = useCallback(async () => {
-    setLoadingR(true);
-    try {
-      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas`);
-      if (r.ok) {
-        const data: Ronda[] = await r.json();
-        setRondas(data);
-        if (rondaSel) { const u = data.find(x => x.id === rondaSel.id); if (u) setRondaSel(u); }
-      }
-    } catch {}
-    setLoadingR(false);
-  }, [torneoId, rondaSel?.id]);
 
-  useEffect(() => { fetchRondas(); }, [torneoId]);
-
-  const seleccionar = (r: Ronda) => { setRondaSel(r); setTab('emparejamiento'); };
-  const finalizable = rondas.length > 0 && rondas.every(r => r.estado === 'finalizada');
-
-  const TABS = [
-    { id: 'rondas',         label: 'Rondas',         icon: <ListOrdered size={16} />, off: false         },
-    { id: 'emparejamiento', label: 'Emparejamiento', icon: <Shuffle size={16} />,     off: !rondaSel     },
-    { id: 'resultados',     label: 'Resultados',     icon: <Zap size={16} />,         off: !rondaSel     },
-    { id: 'posiciones',     label: 'Posiciones',     icon: <BarChart2 size={16} />,   off: false         },
-  ];
-
-  return (
-    <div className="min-h-96">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl mb-6 p-8" style={{ background: 'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)' }}>
-        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-conic-gradient(#fff 0% 25%,transparent 0% 50%)', backgroundSize: '40px 40px' }} />
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2"><span className="text-4xl">♟️</span><h2 className="text-2xl font-black text-white">Torneo de Ajedrez</h2></div>
-            <p className="text-slate-400 text-sm">Sistema Suizo · Desempates: Bucholz · Sonneborn-Berger</p>
-          </div>
-          <div className="flex gap-4 text-center">
-            <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-black text-white">{rondas.length}</p><p className="text-xs text-slate-400 font-bold">Rondas</p></div>
-            <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-black text-amber-400">{rondas.filter(r => r.estado === 'finalizada').length}</p><p className="text-xs text-slate-400 font-bold">Finalizadas</p></div>
-          </div>
-        </div>
-      </div>
 
       {rondaSel && (
         <div className="flex items-center gap-3 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">

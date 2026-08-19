@@ -63,26 +63,7 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
   const [vincBusy, setVincBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
 
-  const loadCircuitos = useCallback(async () => {
-    setLoading(true);
-    try { const r = await fetch(`${API_URL}/api/ajedrez/circuitos`); if (r.ok) setCircuitos(await r.json()); } catch {}
-    setLoading(false);
-  }, []);
 
-  useEffect(() => { loadCircuitos(); }, [loadCircuitos]);
-
-  const loadRanking = async (c: Circuito) => {
-    setSelected(c); setLoadingRk(true);
-    try {
-      const [rR, iR] = await Promise.all([
-        fetch(`${API_URL}/api/ajedrez/circuitos/${c.id}/ranking`),
-        fetch(`${API_URL}/api/ajedrez/circuitos/${c.id}/ranking-institucional`),
-      ]);
-      if (rR.ok) setRanking(await rR.json());
-      if (iR.ok) setRankingInst(await iR.json());
-    } catch {}
-    setLoadingRk(false);
-  };
 
   const recalcular = async () => {
     if (!selected) return;

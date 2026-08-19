@@ -49,18 +49,7 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
   const [historialNombre, setHistorialNombre] = useState('');
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [pR, iR] = await Promise.all([
-        fetch(`${API_URL}/api/torneos-generales/torneos/${torneoId}/participantes`, { headers: authHdrs() }),
-        fetch(`${API_URL}/api/ajedrez/instituciones`),
-      ]);
-      if (pR.ok) setParticipantes(await pR.json());
-      if (iR.ok) setInstituciones(await iR.json());
-    } catch {}
-    setLoading(false);
-  }, [torneoId]);
+
 
   useEffect(() => { load(); }, [load]);
 
