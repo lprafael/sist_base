@@ -231,11 +231,294 @@ function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa
   );
 }
 
+/* ─── Modal Emparejamiento Manual ─── */
+interface ParManual {
+  blancas_id: string;
+  negras_id: string | null;
+  tablero_numero: number;
+}
+
+function ModalEmparejamientoManual({
+  torneoId,
+  ronda,
+  partidasActuales,
+  onClose,
+  onSave,
+}: {
+  torneoId: string;
+  ronda: Ronda;
+  partidasActuales: Partida[];
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const [participantes, setParticipantes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [pares, setPares] = useState<ParManual[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchParts = async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/participantes`);
+        if (r.ok) {
+          const list = await r.json();
+          const pList = Array.isArray(list) ? list : [];
+          setParticipantes(pList);
+
+          if (partidasActuales.length > 0) {
+            setPares(
+              partidasActuales.map((p, idx) => ({
+                blancas_id: p.blancas_id || '',
+                negras_id: p.negras_id || null,
+                tablero_numero: p.tablero_numero || idx + 1,
+              }))
+            );
+          } else if (pList.length > 0) {
+            const initial: ParManual[] = [];
+            for (let i = 0; i < Math.ceil(pList.length / 2); i++) {
+              initial.push({
+                blancas_id: pList[i * 2]?.id || '',
+                negras_id: pList[i * 2 + 1]?.id || null,
+                tablero_numero: i + 1,
+              });
+            }
+            setPares(initial);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      setLoading(false);
+    };
+    fetchParts();
+  }, [torneoId, ronda.id, partidasActuales]);
+
+  const agregarFila = () => {
+    setPares(prev => [
+      ...prev,
+      { blancas_id: '', negras_id: null, tablero_numero: prev.length + 1 },
+    ]);
+  };
+
+  const eliminarFila = (index: number) => {
+    setPares(prev => prev.filter((_, i) => i !== index).map((p, i) => ({ ...p, tablero_numero: i + 1 })));
+  };
+
+  const invertirColores = (index: number) => {
+    setPares(prev =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+        return {
+          ...p,
+          blancas_id: p.negras_id || '',
+          negras_id: p.blancas_id || null,
+        };
+      })
+    );
+  };
+
+  const actualizarBlancas = (index: number, pid: string) => {
+    setPares(prev => prev.map((p, i) => (i === index ? { ...p, blancas_id: pid } : p)));
+  };
+
+  const actualizarNegras = (index: number, pid: string) => {
+    setPares(prev =>
+      prev.map((p, i) => (i === index ? { ...p, negras_id: pid === 'BYE' || !pid ? null : pid } : p))
+    );
+  };
+
+  const guardar = async () => {
+    setErr(null);
+    for (let i = 0; i < pares.length; i++) {
+      if (!pares[i].blancas_id) {
+        setErr(`El Tablero ${i + 1} debe tener al menos un jugador de Blancas seleccionado.`);
+        return;
+      }
+    }
+
+    const elegidos = new Set<string>();
+    for (const p of pares) {
+      if (p.blancas_id) {
+        if (elegidos.has(p.blancas_id)) {
+          setErr('Hay jugadores asignados más de una vez en distintos tableros. Verifica los pares.');
+          return;
+        }
+        elegidos.add(p.blancas_id);
+      }
+      if (p.negras_id) {
+        if (elegidos.has(p.negras_id)) {
+          setErr('Hay jugadores asignados más de una vez en distintos tableros. Verifica los pares.');
+          return;
+        }
+        elegidos.add(p.negras_id);
+      }
+    }
+
+    setBusy(true);
+    try {
+      const payload = {
+        partidas: pares.map((p, idx) => ({
+          blancas_id: p.blancas_id,
+          negras_id: p.negras_id,
+          tablero_numero: idx + 1,
+          modalidad_partida: 'presencial',
+        })),
+      };
+
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas/${ronda.id}/emparejamiento`, {
+        method: 'PUT',
+        headers: authHdrs(),
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.detail || 'Error al guardar emparejamiento manual');
+      }
+      onSave();
+      onClose();
+    } catch (e: any) {
+      setErr(e.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <div>
+            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+              <Edit3 size={18} className="text-amber-500" />
+              Emparejamiento Manual — Ronda {ronda.numero_ronda}
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold">
+              Asigna los jugadores por tablero y define quién juega con Blancas, Negras o recibe BYE.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition">
+            <X size={20} />
+          </button>
+        </div>
+
+        {err && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
+            <AlertCircle size={16} className="flex-shrink-0" />
+            {err}
+          </div>
+        )}
+
+        <div className="p-6 overflow-y-auto flex-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="animate-spin text-amber-500" size={32} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pares.map((par, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="w-9 h-9 rounded-lg bg-slate-800 text-white font-black text-xs flex items-center justify-center flex-shrink-0">
+                    T{idx + 1}
+                  </div>
+
+                  {/* Selector Blancas */}
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 flex items-center gap-1">
+                      <span>♔ Blancas</span>
+                    </label>
+                    <select
+                      value={par.blancas_id}
+                      onChange={e => actualizarBlancas(idx, e.target.value)}
+                      className="w-full text-xs font-bold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-amber-400 outline-none"
+                    >
+                      <option value="">-- Seleccionar Jugador --</option>
+                      {participantes.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre} {p.apellido} {p.rating_fide ? `(ELO ${p.rating_fide})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Botón Invertir Colores */}
+                  <button
+                    type="button"
+                    onClick={() => invertirColores(idx)}
+                    title="Invertir Blancas y Negras"
+                    className="mt-4 p-2 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-800 transition"
+                  >
+                    <ArrowLeftRight size={16} />
+                  </button>
+
+                  {/* Selector Negras */}
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 flex items-center gap-1">
+                      <span>♚ Negras</span>
+                    </label>
+                    <select
+                      value={par.negras_id || 'BYE'}
+                      onChange={e => actualizarNegras(idx, e.target.value)}
+                      className="w-full text-xs font-bold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-amber-400 outline-none"
+                    >
+                      <option value="BYE">⭐ BYE (Punto libre / Sin Rival)</option>
+                      {participantes.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre} {p.apellido} {p.rating_fide ? `(ELO ${p.rating_fide})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Botón Eliminar Tablero */}
+                  <button
+                    type="button"
+                    onClick={() => eliminarFila(idx)}
+                    title="Eliminar Tablero"
+                    className="mt-4 p-2 hover:bg-red-100 rounded-lg text-red-500 hover:text-red-700 transition"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={agregarFila}
+                className="w-full py-2.5 border-2 border-dashed border-slate-300 hover:border-amber-400 hover:bg-amber-50/50 rounded-xl text-xs font-bold text-slate-600 hover:text-amber-700 transition flex items-center justify-center gap-2"
+              >
+                <Plus size={16} /> Agregar Otro Tablero
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={guardar}
+            disabled={busy || loading}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow transition disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            Guardar y Aplicar Emparejamiento
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Tab Emparejamiento ─── */
 function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId: string; ronda: Ronda; onRefresh: () => void; isPublic?: boolean }) {
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [modalManual, setModalManual] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
 
@@ -332,6 +615,20 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
     <div>
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {cfm && <Confirm title={cfm.title} body={cfm.body} onOk={() => cfm.fn()} onCancel={() => setCfm(null)} busy={busy} />}
+      
+      {modalManual && (
+        <ModalEmparejamientoManual
+          torneoId={torneoId}
+          ronda={ronda}
+          partidasActuales={listaPartidas}
+          onClose={() => setModalManual(false)}
+          onSave={() => {
+            setToast({ msg: 'Emparejamiento manual guardado con éxito', type: 'ok' });
+            load();
+            onRefresh();
+          }}
+        />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
@@ -349,6 +646,11 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                     <Zap size={14} /> Iniciar Todas
                   </button>
                 )}
+                <button onClick={() => setModalManual(true)} disabled={busy}
+                  className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-3.5 py-2 rounded-lg font-bold text-xs shadow"
+                  title="Editar o armar los pares y tableros manualmente">
+                  <Edit3 size={14} /> Emparejamiento Manual
+                </button>
                 <button onClick={generar} disabled={busy}
                   className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
                   {busy ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
@@ -373,9 +675,14 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
           <Shuffle size={48} className="mx-auto text-slate-300 mb-4" />
           <p className="text-slate-500 font-bold mb-4">No hay partidas generadas para esta ronda</p>
           {!isPublic && (
-            <button onClick={generar} disabled={busy} className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow">
-              Generar Emparejamiento Suizo
-            </button>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <button onClick={generar} disabled={busy} className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow">
+                Generar Emparejamiento Suizo
+              </button>
+              <button onClick={() => setModalManual(true)} disabled={busy} className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-black text-sm shadow">
+                ✍️ Emparejar Manualmente
+              </button>
+            </div>
           )}
         </div>
       ) : (

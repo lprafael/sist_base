@@ -1237,8 +1237,24 @@ async def finalizar_torneo(
 
 
 # ==============================================================================
-# ENDPOINTS — ELO / RATING
+# ENDPOINTS — ELO / RATING Y PARTICIPANTES
 # ==============================================================================
+
+@router.get("/torneos/{torneo_id}/participantes")
+async def listar_participantes_torneo(
+    torneo_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Lista todos los participantes de un torneo de ajedrez con sus datos y rating."""
+    res = await session.execute(text("""
+        SELECT p.*, i.nombre AS institucion_nombre
+        FROM torneos_generales.participantes p
+        LEFT JOIN torneos_generales.ajedrez_instituciones i ON i.id = p.institucion_id
+        WHERE p.torneo_id = :tid
+        ORDER BY p.rating_fide DESC NULLS LAST, p.nombre, p.apellido
+    """), {"tid": torneo_id})
+    return [dict(r._mapping) for r in res.fetchall()]
+
 
 @router.patch("/participantes/{participante_id}/rating")
 async def actualizar_rating(
