@@ -745,6 +745,11 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 { id: 'arbitraje', icon: Shield, label: 'Arbitraje (Mesa Veedores)' },
                 { id: 'sitios', icon: MapPin, label: 'Sitios' },
                 { id: 'config_clasificacion', icon: BarChart2, label: 'Criterios de clasificación' },
+                ...((torneo?.deporte === 'Ajedrez' || (torneo?.deporte || '').toLowerCase().includes('ajedrez')) ? [
+                  { id: 'ajedrez_partidas', icon: Trophy, label: '♟️ Ajedrez: Rondas y Emparejamiento' },
+                  { id: 'ajedrez_participantes', icon: Users, label: '♟️ Ajedrez: ELO / Ratings Participantes' },
+                  { id: 'ajedrez_circuitos', icon: BarChart2, label: '♟️ Ajedrez: Circuitos y Ranking' },
+                ] : []),
               ].map(item => (
                 <li key={item.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition">
                   <div className="flex items-center gap-3 text-slate-700">

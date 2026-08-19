@@ -16,6 +16,9 @@ import FasesSettings from '@/components/torneo-admin/modulos/FasesSettings';
 import GruposSettings from '@/components/torneo-admin/modulos/GruposSettings';
 import CriteriosSettings from '@/components/torneo-admin/modulos/CriteriosSettings';
 import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
+import AjedrezController from '@/components/torneo-admin/modulos/AjedrezController';
+import AjedrezParticipantesView from '@/components/torneo-admin/modulos/AjedrezParticipantesView';
+import AjedrezCircuitosView from '@/components/torneo-admin/modulos/AjedrezCircuitosView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -115,6 +118,12 @@ export default function TorneoAdminPage() {
             <GruposSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
           ) : activeSubSection === 'config_clasificacion' ? (
             <CriteriosSettings torneo={torneo} onUpdate={updateTorneo} onBack={() => setActiveSubSection(null)} />
+          ) : activeSubSection === 'ajedrez_partidas' ? (
+            <AjedrezController torneoId={id as string} torneo={torneo} />
+          ) : activeSubSection === 'ajedrez_participantes' ? (
+            <AjedrezParticipantesView torneoId={id as string} />
+          ) : activeSubSection === 'ajedrez_circuitos' ? (
+            <AjedrezCircuitosView torneoId={id as string} organizadorId={torneo?.organizador_id} />
           ) : (
             <div className="p-8 border-2 border-dashed border-slate-300 rounded-xl text-center">
               <p className="text-slate-500 mb-2">Sección <strong>{activeSubSection}</strong> no configurada.</p>

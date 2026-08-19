@@ -1,0 +1,630 @@
+"use client";
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Plus, Loader2, Check, X,
+  Shuffle, BarChart2, ListOrdered,
+  RefreshCw, Zap, Flag, Crown, AlertCircle,
+  PlayCircle, CheckCircle2
+} from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
+interface Ronda {
+  id: string;
+  numero_ronda: number;
+  estado: 'pendiente' | 'en_curso' | 'finalizada';
+  fecha_hora?: string;
+  modo_emparejamiento: string;
+  total_partidas?: number;
+  partidas_finalizadas?: number;
+}
+
+interface Partida {
+  id: string;
+  tablero_numero?: number;
+  blancas_nombre?: string;
+  blancas_apellido?: string;
+  blancas_rating?: number;
+  negras_nombre?: string;
+  negras_apellido?: string;
+  negras_rating?: number;
+  resultado?: string;
+  estado: string;
+}
+
+interface Posicion {
+  posicion: number;
+  participante_id: string;
+  nombre: string;
+  apellido: string;
+  rating_fide?: number;
+  codigo_fide?: string;
+  categoria_base?: string;
+  institucion_nombre?: string;
+  puntos: number;
+  partidas_jugadas: number;
+  victorias: number;
+  empates: number;
+  derrotas: number;
+  byes: number;
+  bucholz_cut1: number;
+  bucholz_total: number;
+  sonneborn_berger: number;
+}
+
+const getToken = () => {
+  try {
+    const s = JSON.parse(localStorage.getItem('user_session') || '{}');
+    return s.access_token || s.token || '';
+  } catch { return ''; }
+};
+
+const authHdrs = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
+
+const RES_LABEL: Record<string, { l: string; cls: string }> = {
+  '1-0':     { l: '1 – 0',    cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+  '0.5-0.5': { l: '½ – ½',   cls: 'bg-slate-100 text-slate-700 border-slate-300' },
+  '0-1':     { l: '0 – 1',   cls: 'bg-slate-200 text-slate-800 border-slate-400' },
+  'BYE':     { l: 'BYE',     cls: 'bg-blue-100 text-blue-700 border-blue-300'  },
+  'FF':      { l: 'Forfeit', cls: 'bg-red-100 text-red-700 border-red-300'    },
+};
+
+const ST: Record<string, { label: string; color: string }> = {
+  pendiente:  { label: 'Pendiente',  color: 'text-slate-400'   },
+  en_curso:   { label: 'En curso',   color: 'text-amber-500'   },
+  finalizada: { label: 'Finalizada', color: 'text-emerald-500' },
+};
+
+/* ─── Toast ─── */
+function Toast({ msg, type, onClose }: { msg: string; type: 'ok' | 'err'; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white font-semibold text-sm ${type === 'ok' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+      {type === 'ok' ? <Check size={18} /> : <AlertCircle size={18} />} {msg}
+      <button onClick={onClose}><X size={16} /></button>
+    </div>
+  );
+}
+
+/* ─── Confirm Modal ─── */
+function Confirm({ title, body, onOk, onCancel, busy }: { title: string; body: string; onOk: () => void; onCancel: () => void; busy?: boolean }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <h3 className="text-xl font-black text-slate-800 mb-2">{title}</h3>
+        <p className="text-slate-500 mb-6">{body}</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-5 py-2 rounded-lg border border-slate-300 text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+          <button onClick={onOk} disabled={busy} className="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black flex items-center gap-2">
+            {busy && <Loader2 size={16} className="animate-spin" />} Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Tab Rondas ─── */
+function TabRondas({ torneoId, rondas, loading, onRefresh, onSelect, activa }: {
+  torneoId: string; rondas: Ronda[]; loading: boolean;
+  onRefresh: () => void; onSelect: (r: Ronda) => void; activa?: Ronda | null;
+}) {
+  const [modal, setModal] = useState(false);
+  const [num, setNum] = useState(1);
+  const [fh, setFh] = useState('');
+  const [modo, setModo] = useState('automatico');
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+
+  useEffect(() => { setNum((rondas.length || 0) + 1); }, [rondas.length]);
+
+  const crear = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas`, {
+        method: 'POST', headers: authHdrs(),
+        body: JSON.stringify({ numero_ronda: num, fecha_hora: fh || null, modo_emparejamiento: modo }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
+      setModal(false); setToast({ msg: 'Ronda creada', type: 'ok' }); onRefresh();
+    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
+    setBusy(false);
+  };
+
+  return (
+    <div>
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-black text-slate-800">Rondas del Torneo</h3>
+        <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
+          <Plus size={16} /> Nueva Ronda
+        </button>
+      </div>
+      {loading
+        ? <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-amber-500" size={36} /></div>
+        : rondas.length === 0
+          ? <div className="border-2 border-dashed border-slate-200 rounded-2xl p-16 text-center">
+              <div className="text-6xl mb-4">♟️</div>
+              <p className="text-slate-500 font-bold">No hay rondas. Crea la primera para comenzar.</p>
+            </div>
+          : <div className="space-y-3">
+              {rondas.map(r => {
+                const st = ST[r.estado] || ST.pendiente;
+                const pct = r.total_partidas ? Math.round(((r.partidas_finalizadas || 0) / r.total_partidas) * 100) : 0;
+                const isA = activa?.id === r.id;
+                return (
+                  <button key={r.id} onClick={() => onSelect(r)}
+                    className={`w-full text-left flex items-center gap-5 p-5 rounded-2xl border-2 transition group ${isA ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${isA ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{r.numero_ronda}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-black text-slate-800">Ronda {r.numero_ronda}</span>
+                        <span className={`text-xs font-bold ${st.color}`}>{st.label}</span>
+                      </div>
+                      {r.total_partidas
+                        ? <div className="flex items-center gap-3">
+                            <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} /></div>
+                            <span className="text-xs text-slate-500 font-bold">{r.partidas_finalizadas}/{r.total_partidas}</span>
+                          </div>
+                        : <span className="text-xs text-slate-400">Sin emparejamiento</span>}
+                    </div>
+                    <span className="text-slate-300 group-hover:text-amber-400">›</span>
+                  </button>
+                );
+              })}
+            </div>}
+      {modal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-black text-slate-800 mb-6">Nueva Ronda</h3>
+            <div className="space-y-4">
+              <div><label className="text-sm font-bold text-slate-600 block mb-1">Numero de ronda</label>
+                <input type="number" value={num} onChange={e => setNum(+e.target.value)} min={1}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:border-amber-400 outline-none" /></div>
+              <div><label className="text-sm font-bold text-slate-600 block mb-1">Modo de emparejamiento</label>
+                <select value={modo} onChange={e => setModo(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:border-amber-400 outline-none">
+                  <option value="automatico">Automatico (Sistema Suizo)</option>
+                  <option value="drag_drop">Drag and Drop</option>
+                  <option value="manual">Manual</option>
+                </select></div>
+              <div><label className="text-sm font-bold text-slate-600 block mb-1">Fecha y hora (opcional)</label>
+                <input type="datetime-local" value={fh} onChange={e => setFh(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:border-amber-400 outline-none" /></div>
+            </div>
+            <div className="flex gap-3 mt-6 justify-end">
+              <button onClick={() => setModal(false)} className="px-5 py-2 border border-slate-300 rounded-lg text-slate-600 font-bold">Cancelar</button>
+              <button onClick={crear} disabled={busy} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-black flex items-center gap-2">
+                {busy && <Loader2 size={16} className="animate-spin" />} Crear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Tab Emparejamiento ─── */
+function TabEmparejamiento({ torneoId, ronda, onRefresh }: { torneoId: string; ronda: Ronda; onRefresh: () => void }) {
+  const [partidas, setPartidas] = useState<Partida[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await fetch(`${API_URL}/api/ajedrez/rondas/${ronda.id}/partidas`); if (r.ok) setPartidas(await r.json()); } catch {}
+    setLoading(false);
+  }, [ronda.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const generar = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas/${ronda.id}/emparejar`, { method: 'POST', headers: authHdrs() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Error');
+      setToast({ msg: 'Emparejamiento generado (Sistema Suizo)', type: 'ok' });
+      load(); onRefresh();
+    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
+    setBusy(false);
+  };
+
+  const confirmar = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/rondas/${ronda.id}/confirmar`, { method: 'POST', headers: authHdrs() });
+      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
+      setToast({ msg: 'Ronda confirmada y publicada', type: 'ok' }); onRefresh();
+    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
+    setBusy(false); setCfm(null);
+  };
+
+  return (
+    <div>
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {cfm && <Confirm title={cfm.title} body={cfm.body} onOk={() => { cfm.fn(); setCfm(null); }} onCancel={() => setCfm(null)} busy={busy} />}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h3 className="text-lg font-black text-slate-800">Ronda {ronda.numero_ronda} — Emparejamiento</h3>
+          <p className="text-sm text-slate-500">Modo: <strong>{ronda.modo_emparejamiento}</strong></p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {partidas.length === 0
+            ? <button onClick={generar} disabled={busy} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />} Generar Sistema Suizo
+              </button>
+            : <>
+                <button onClick={() => setCfm({ title: 'Regenerar', body: 'Se eliminaran las partidas actuales y se generaran nuevas.', fn: generar })}
+                  className="flex items-center gap-2 border-2 border-amber-400 text-amber-700 hover:bg-amber-50 px-4 py-2 rounded-lg font-bold text-sm">
+                  <RefreshCw size={16} /> Regenerar
+                </button>
+                {ronda.estado === 'pendiente' && (
+                  <button onClick={() => setCfm({ title: 'Confirmar ronda', body: 'La ronda pasara a "En curso".', fn: confirmar })} disabled={busy}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
+                    <PlayCircle size={16} /> Confirmar y publicar
+                  </button>
+                )}
+              </>}
+        </div>
+      </div>
+      {loading
+        ? <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-amber-500" size={36} /></div>
+        : partidas.length === 0
+          ? <div className="border-2 border-dashed border-amber-200 rounded-2xl p-16 text-center bg-amber-50/50">
+              <Shuffle size={48} className="mx-auto text-amber-300 mb-4" />
+              <p className="text-slate-600 font-bold">Sin emparejamiento generado</p>
+            </div>
+          : <div className="space-y-3">
+              {partidas.map((p, i) => (
+                <div key={p.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+                  <div className="flex items-stretch">
+                    <div className="w-14 bg-slate-800 flex items-center justify-center text-white font-black text-lg">{p.tablero_numero ?? i + 1}</div>
+                    <div className="flex-1 flex items-center divide-x divide-slate-100">
+                      <div className="flex-1 px-5 py-4 flex items-center gap-3">
+                        <span className="text-2xl">♔</span>
+                        <div>
+                          <p className="font-black text-slate-800">{p.blancas_nombre ? `${p.blancas_nombre} ${p.blancas_apellido || ''}` : 'BYE'}</p>
+                          {p.blancas_rating ? <p className="text-xs text-slate-400 font-mono">FIDE {p.blancas_rating}</p> : null}
+                        </div>
+                      </div>
+                      <div className="px-6 py-4 text-center">
+                        {p.resultado
+                          ? <span className={`inline-block px-3 py-1 rounded-lg border text-sm font-black ${RES_LABEL[p.resultado]?.cls || ''}`}>{RES_LABEL[p.resultado]?.l || p.resultado}</span>
+                          : <span className="text-slate-300 text-xl font-black">vs</span>}
+                      </div>
+                      <div className="flex-1 px-5 py-4 flex items-center gap-3 flex-row-reverse text-right">
+                        <span className="text-2xl">♚</span>
+                        <div>
+                          <p className="font-black text-slate-800">{p.negras_nombre ? `${p.negras_nombre} ${p.negras_apellido || ''}` : 'BYE'}</p>
+                          {p.negras_rating ? <p className="text-xs text-slate-400 font-mono">FIDE {p.negras_rating}</p> : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>}
+    </div>
+  );
+}
+
+/* ─── Tab Resultados ─── */
+function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda: Ronda; onRefresh: () => void }) {
+  const [partidas, setPartidas] = useState<Partida[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [finBusy, setFinBusy] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await fetch(`${API_URL}/api/ajedrez/rondas/${ronda.id}/partidas`); if (r.ok) setPartidas(await r.json()); } catch {}
+    setLoading(false);
+  }, [ronda.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const guardar = async (id: string, res: string) => {
+    setSavingId(id);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/partidas/${id}/resultado`, {
+        method: 'PATCH', headers: authHdrs(), body: JSON.stringify({ resultado: res }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
+      setToast({ msg: 'Resultado guardado', type: 'ok' }); load();
+    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
+    setSavingId(null);
+  };
+
+  const finRonda = async () => {
+    setFinBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas/${ronda.numero_ronda}/finalizar`, { method: 'POST', headers: authHdrs() });
+      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
+      setToast({ msg: `Ronda ${ronda.numero_ronda} finalizada`, type: 'ok' }); onRefresh(); load();
+    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
+    setFinBusy(false); setCfm(null);
+  };
+
+  const completadas = partidas.filter(p => p.resultado).length;
+  const total = partidas.length;
+  const yaFin = ronda.estado === 'finalizada';
+
+  const BTNS = [
+    { r: '1-0',     l: '1 - 0',     c: 'bg-amber-400 hover:bg-amber-500 text-slate-900' },
+    { r: '0.5-0.5', l: '1/2 - 1/2', c: 'bg-slate-200 hover:bg-slate-300 text-slate-800' },
+    { r: '0-1',     l: '0 - 1',     c: 'bg-slate-700 hover:bg-slate-800 text-white' },
+    { r: 'BYE',     l: 'BYE',       c: 'bg-blue-100 hover:bg-blue-200 text-blue-800' },
+    { r: 'FF',      l: 'FF',        c: 'bg-red-100 hover:bg-red-200 text-red-700' },
+  ];
+
+  return (
+    <div>
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {cfm && <Confirm title={cfm.title} body={cfm.body} onOk={() => cfm.fn()} onCancel={() => setCfm(null)} busy={finBusy} />}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h3 className="text-lg font-black text-slate-800">Ronda {ronda.numero_ronda} — Resultados</h3>
+          {total > 0 && (
+            <div className="flex items-center gap-3 mt-1">
+              <div className="w-40 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${total > 0 ? (completadas / total) * 100 : 0}%` }} />
+              </div>
+              <span className="text-sm text-slate-500 font-bold">{completadas}/{total}</span>
+            </div>
+          )}
+        </div>
+        {!yaFin && completadas === total && total > 0 && (
+          <button onClick={() => setCfm({ title: 'Finalizar Ronda', body: 'Se cerrara la ronda y se calcularan las posiciones.', fn: finRonda })} disabled={finBusy}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
+            {finBusy ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Finalizar Ronda
+          </button>
+        )}
+        {yaFin && <span className="flex items-center gap-2 text-emerald-600 font-black text-sm"><CheckCircle2 size={18} /> Ronda Finalizada</span>}
+      </div>
+      {loading
+        ? <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-amber-500" size={36} /></div>
+        : partidas.length === 0
+          ? <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center"><p className="text-slate-400 font-bold">Genera el emparejamiento primero</p></div>
+          : <div className="space-y-3">
+              {partidas.map((p, i) => {
+                const isSv = savingId === p.id;
+                return (
+                  <div key={p.id} className={`bg-white rounded-2xl border-2 overflow-hidden ${p.resultado ? 'border-emerald-200' : 'border-slate-200 hover:border-amber-200'}`}>
+                    <div className="flex items-center px-5 py-4 gap-4">
+                      <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 font-black text-sm flex items-center justify-center">{p.tablero_numero ?? i + 1}</span>
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <span className="text-lg">♔</span>
+                        <span className="font-bold text-slate-800 truncate flex-1">{p.blancas_nombre ? `${p.blancas_nombre} ${p.blancas_apellido || ''}` : '—'}{p.blancas_rating ? ` (${p.blancas_rating})` : ''}</span>
+                        <span className="text-slate-300 font-bold text-sm flex-shrink-0">vs</span>
+                        <span className="font-bold text-slate-800 truncate flex-1 text-right">{p.negras_nombre ? `${p.negras_nombre} ${p.negras_apellido || ''}` : '—'}{p.negras_rating ? ` (${p.negras_rating})` : ''}</span>
+                        <span className="text-lg">♚</span>
+                      </div>
+                      {p.resultado && (
+                        <span className={`flex-shrink-0 px-3 py-1 rounded-lg border text-sm font-black ${RES_LABEL[p.resultado]?.cls || ''}`}>{RES_LABEL[p.resultado]?.l || p.resultado}</span>
+                      )}
+                    </div>
+                    {!yaFin && !p.resultado && (
+                      <div className="border-t border-slate-100 px-5 py-3 flex flex-wrap gap-2">
+                        <span className="text-xs text-slate-400 font-bold self-center mr-1">Resultado:</span>
+                        {BTNS.map(b => (
+                          <button key={b.r} onClick={() => guardar(p.id, b.r)} disabled={isSv}
+                            className={`px-4 py-1.5 rounded-lg font-black text-sm transition ${b.c} ${isSv ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {isSv ? <Loader2 size={14} className="animate-spin" /> : b.l}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!yaFin && p.resultado && (
+                      <div className="border-t border-slate-100 px-5 py-2 flex flex-wrap gap-2 items-center">
+                        <span className="text-xs text-slate-400 font-bold">Corregir:</span>
+                        {BTNS.filter(b => b.r !== p.resultado).map(b => (
+                          <button key={b.r} onClick={() => guardar(p.id, b.r)} disabled={isSv}
+                            className={`px-3 py-1 rounded-lg font-bold text-xs opacity-70 hover:opacity-100 ${b.c}`}>{b.l}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>}
+    </div>
+  );
+}
+
+/* ─── Tab Posiciones ─── */
+function TabPosiciones({ torneoId, rondas, finalizable }: { torneoId: string; rondas: Ronda[]; finalizable: boolean }) {
+  const [pos, setPos] = useState<Posicion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [rv, setRv] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [cfm, setCfm] = useState(false);
+
+  const load = useCallback(async (r: number) => {
+    setLoading(true);
+    try { const res = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/posiciones?ronda=${r}`); if (res.ok) setPos(await res.json()); } catch {}
+    setLoading(false);
+  }, [torneoId]);
+
+  useEffect(() => { load(rv); }, [load, rv]);
+
+  const finTorneo = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/finalizar`, { method: 'POST', headers: authHdrs() });
+      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
+      setToast({ msg: 'Torneo finalizado. Posiciones definitivas guardadas.', type: 'ok' }); load(0);
+    } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
+    setBusy(false); setCfm(false);
+  };
+
+  const M: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+  return (
+    <div>
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {cfm && <Confirm title="Finalizar Torneo" body="Se calcularan las posiciones definitivas. Esta accion es irreversible." onOk={finTorneo} onCancel={() => setCfm(false)} busy={busy} />}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h3 className="text-lg font-black text-slate-800">Tabla de Posiciones</h3>
+        <div className="flex items-center gap-3">
+          <select value={rv} onChange={e => setRv(+e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-400 outline-none">
+            <option value={0}>Ultima calculada</option>
+            {rondas.filter(r => r.estado !== 'pendiente').map(r => <option key={r.numero_ronda} value={r.numero_ronda}>Despues de Ronda {r.numero_ronda}</option>)}
+          </select>
+          {finalizable && (
+            <button onClick={() => setCfm(true)} disabled={busy} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />} Finalizar Torneo
+            </button>
+          )}
+        </div>
+      </div>
+      {loading
+        ? <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-amber-500" size={36} /></div>
+        : pos.length === 0
+          ? <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center">
+              <BarChart2 size={48} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-400 font-bold">Las posiciones se calculan al finalizar cada ronda</p>
+            </div>
+          : <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-800 text-white text-xs">
+                    {['#','Jugador','ELO','PTS','PJ','V','E','D','BY','BC1','BT','SB'].map((h,i) => (
+                      <th key={h} className={`px-4 py-3 font-black ${i === 0 ? 'text-left' : i === 1 ? 'text-left' : 'text-center'} ${h === 'PTS' ? 'bg-amber-600' : ''}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pos.map((p, idx) => (
+                    <tr key={p.participante_id} className={`hover:bg-amber-50 transition ${p.posicion <= 3 ? 'bg-amber-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
+                      <td className="px-4 py-3 font-black text-slate-700">{M[p.posicion] || p.posicion}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-black text-slate-800">{p.nombre} {p.apellido}</p>
+                        <div className="flex gap-2 flex-wrap mt-0.5">
+                          {p.categoria_base && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">{p.categoria_base}</span>}
+                          {p.institucion_nombre && <span className="text-xs text-slate-400 font-bold">{p.institucion_nombre}</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{p.rating_fide || '—'}</td>
+                      <td className="px-4 py-3 text-center font-black text-xl text-amber-700">{p.puntos}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-600">{p.partidas_jugadas}</td>
+                      <td className="px-4 py-3 text-center font-bold text-emerald-600">{p.victorias}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-500">{p.empates}</td>
+                      <td className="px-4 py-3 text-center font-bold text-red-500">{p.derrotas}</td>
+                      <td className="px-4 py-3 text-center font-bold text-blue-500">{p.byes}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.bucholz_cut1).toFixed(1)}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.bucholz_total).toFixed(1)}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.sonneborn_berger).toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="border-t border-slate-200 px-6 py-3 bg-slate-50 flex flex-wrap gap-3 text-xs text-slate-500">
+                <span><strong className="text-amber-600">PTS</strong> Puntos</span>
+                <span><strong>PJ</strong> Partidas Jugadas</span>
+                <span><strong className="text-amber-500">BC1</strong> Bucholz Cut-1</span>
+                <span><strong className="text-amber-400">BT</strong> Bucholz Total</span>
+                <span><strong className="text-purple-600">SB</strong> Sonneborn-Berger</span>
+              </div>
+            </div>}
+    </div>
+  );
+}
+
+/* ─── MAIN EXPORT ─── */
+export default function AjedrezController({ torneoId, torneo }: { torneoId: string; torneo?: any }) {
+  const [tab, setTab] = useState<'rondas' | 'emparejamiento' | 'resultados' | 'posiciones'>('rondas');
+  const [rondas, setRondas] = useState<Ronda[]>([]);
+  const [loadingR, setLoadingR] = useState(true);
+  const [rondaSel, setRondaSel] = useState<Ronda | null>(null);
+
+  const fetchRondas = useCallback(async () => {
+    setLoadingR(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas`);
+      if (r.ok) {
+        const data: Ronda[] = await r.json();
+        setRondas(data);
+        if (rondaSel) { const u = data.find(x => x.id === rondaSel.id); if (u) setRondaSel(u); }
+      }
+    } catch {}
+    setLoadingR(false);
+  }, [torneoId, rondaSel?.id]);
+
+  useEffect(() => { fetchRondas(); }, [torneoId]);
+
+  const seleccionar = (r: Ronda) => { setRondaSel(r); setTab('emparejamiento'); };
+  const finalizable = rondas.length > 0 && rondas.every(r => r.estado === 'finalizada');
+
+  const TABS = [
+    { id: 'rondas',         label: 'Rondas',         icon: <ListOrdered size={16} />, off: false         },
+    { id: 'emparejamiento', label: 'Emparejamiento', icon: <Shuffle size={16} />,     off: !rondaSel     },
+    { id: 'resultados',     label: 'Resultados',     icon: <Zap size={16} />,         off: !rondaSel     },
+    { id: 'posiciones',     label: 'Posiciones',     icon: <BarChart2 size={16} />,   off: false         },
+  ];
+
+  return (
+    <div className="min-h-96">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 p-8" style={{ background: 'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)' }}>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-conic-gradient(#fff 0% 25%,transparent 0% 50%)', backgroundSize: '40px 40px' }} />
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2"><span className="text-4xl">♟️</span><h2 className="text-2xl font-black text-white">Torneo de Ajedrez</h2></div>
+            <p className="text-slate-400 text-sm">Sistema Suizo · Desempates: Bucholz · Sonneborn-Berger</p>
+          </div>
+          <div className="flex gap-4 text-center">
+            <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-black text-white">{rondas.length}</p><p className="text-xs text-slate-400 font-bold">Rondas</p></div>
+            <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-black text-amber-400">{rondas.filter(r => r.estado === 'finalizada').length}</p><p className="text-xs text-slate-400 font-bold">Finalizadas</p></div>
+          </div>
+        </div>
+      </div>
+
+      {rondaSel && (
+        <div className="flex items-center gap-3 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <span className="text-amber-600 font-bold text-sm">Ronda activa:</span>
+          <span className="bg-amber-500 text-white font-black text-sm px-3 py-0.5 rounded-full">Ronda {rondaSel.numero_ronda}</span>
+          <span className={`text-xs font-bold ${ST[rondaSel.estado]?.color}`}>{ST[rondaSel.estado]?.label}</span>
+          <button onClick={() => { setRondaSel(null); setTab('rondas'); }} className="ml-auto text-xs text-slate-400 hover:text-slate-600 font-bold">Cambiar</button>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => !t.off && setTab(t.id as any)} disabled={t.off}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition
+              ${tab === t.id ? 'bg-slate-800 text-white shadow-sm' : ''}
+              ${tab !== t.id && !t.off ? 'text-slate-600 hover:bg-slate-100' : ''}
+              ${t.off ? 'text-slate-300 cursor-not-allowed' : ''}`}>
+            {t.icon}<span className="hidden sm:inline">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        {tab === 'rondas'         && <TabRondas torneoId={torneoId} rondas={rondas} loading={loadingR} onRefresh={fetchRondas} onSelect={seleccionar} activa={rondaSel} />}
+        {tab === 'emparejamiento' && rondaSel && <TabEmparejamiento torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} />}
+        {tab === 'resultados'     && rondaSel && <TabResultados torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} />}
+        {tab === 'posiciones'     && <TabPosiciones torneoId={torneoId} rondas={rondas} finalizable={finalizable} />}
+        {(tab === 'emparejamiento' || tab === 'resultados') && !rondaSel && (
+          <div className="text-center py-16">
+            <Shuffle size={48} className="mx-auto text-slate-200 mb-4" />
+            <p className="text-slate-400 font-bold">Selecciona una ronda desde la pestana "Rondas"</p>
+            <button onClick={() => setTab('rondas')} className="mt-4 text-amber-600 font-black hover:underline text-sm">Ir a Rondas</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

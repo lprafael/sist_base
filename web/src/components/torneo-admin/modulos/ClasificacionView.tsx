@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart2, Save, Loader2, Info } from 'lucide-react';
 import PartidosView from './PartidosView';
 import AsignacionCategoriasModal from './AsignacionCategoriasModal';
+import AjedrezController from './AjedrezController';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -196,7 +197,13 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     setSavingId(null);
   };
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
+
+
+    if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
+
+  if (torneo?.deporte === 'Ajedrez' || (torneo?.deporte || '').toLowerCase().includes('ajedrez')) {
+    return <AjedrezController torneoId={torneoId} torneo={torneo} />;
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col">
