@@ -25,4 +25,8 @@ admin.micancha.com.py {
     tls internal
 }
 
-
+# 4. API Backend (micancha-backend)
+api.micancha.com.py {
+    tls internal
+    reverse_proxy backend:8001
+}
