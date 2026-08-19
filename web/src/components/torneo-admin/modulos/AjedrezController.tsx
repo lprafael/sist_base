@@ -119,6 +119,7 @@ function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa
   const [modo, setModo] = useState('automatico');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
 
   useEffect(() => {
     setNum(listaRondas.length + 1);
@@ -144,9 +145,30 @@ function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa
     setBusy(false);
   };
 
+  const borrarRonda = async (rondaId: string, numero: number) => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas/${rondaId}`, {
+        method: 'DELETE',
+        headers: authHdrs(),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error al eliminar la ronda');
+      }
+      setToast({ msg: `Ronda ${numero} eliminada correctamente`, type: 'ok' });
+      onRefresh();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+    setBusy(false);
+    setCfm(null);
+  };
+
   return (
     <div>
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {cfm && <Confirm title={cfm.title} body={cfm.body} onOk={() => cfm.fn()} onCancel={() => setCfm(null)} busy={busy} />}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-black text-slate-800">Rondas del Torneo</h3>
         {!isPublic && (
@@ -169,25 +191,44 @@ function TabRondas({ torneoId, rondas = [], loading, onRefresh, onSelect, activa
             const pct = r.total_partidas ? Math.round(((r.partidas_finalizadas || 0) / r.total_partidas) * 100) : 0;
             const isA = activa?.id === r.id;
             return (
-              <button key={r.id} onClick={() => onSelect(r)}
-                className={`w-full text-left flex items-center gap-5 p-5 rounded-2xl border-2 transition group ${isA ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50'}`}>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${isA ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{r.numero_ronda}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-black text-slate-800">Ronda {r.numero_ronda}</span>
-                    <span className={`text-xs font-bold ${st.color}`}>{st.label}</span>
-                  </div>
-                  {r.total_partidas ? (
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} /></div>
-                      <span className="text-xs text-slate-500 font-bold">{r.partidas_finalizadas}/{r.total_partidas}</span>
+              <div key={r.id} className="flex items-center gap-2">
+                <button onClick={() => onSelect(r)}
+                  className={`flex-1 text-left flex items-center gap-5 p-5 rounded-2xl border-2 transition group ${isA ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/50'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${isA ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{r.numero_ronda}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-black text-slate-800">Ronda {r.numero_ronda}</span>
+                      <span className={`text-xs font-bold ${st.color}`}>{st.label}</span>
                     </div>
-                  ) : (
-                    <span className="text-xs text-slate-400">Sin emparejamiento</span>
-                  )}
-                </div>
-                <span className="text-slate-300 group-hover:text-amber-400">›</span>
-              </button>
+                    {r.total_partidas ? (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} /></div>
+                        <span className="text-xs text-slate-500 font-bold">{r.partidas_finalizadas}/{r.total_partidas}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">Sin emparejamiento</span>
+                    )}
+                  </div>
+                  <span className="text-slate-300 group-hover:text-amber-400">›</span>
+                </button>
+
+                {!isPublic && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCfm({
+                        title: `Eliminar Ronda ${r.numero_ronda}`,
+                        body: `¿Estás seguro de eliminar la Ronda ${r.numero_ronda}? Se eliminarán todas sus partidas, emparejamientos y resultados cargados.`,
+                        fn: () => borrarRonda(r.id, r.numero_ronda)
+                      });
+                    }}
+                    className="p-4 bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-2xl border-2 border-slate-200 hover:border-red-200 transition shadow-sm"
+                    title={`Eliminar Ronda ${r.numero_ronda}`}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -662,6 +703,21 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                     <Check size={16} /> Confirmar Ronda
                   </button>
                 )}
+                <button
+                  onClick={() => setCfm({
+                    title: `Eliminar Ronda ${ronda.numero_ronda}`,
+                    body: `¿Estás seguro de eliminar la Ronda ${ronda.numero_ronda}? Se eliminarán todas sus partidas, emparejamientos y resultados cargados.`,
+                    fn: async () => {
+                      await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas/${ronda.id}`, { method: 'DELETE', headers: authHdrs() });
+                      onRefresh();
+                    }
+                  })}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold text-xs shadow-sm transition"
+                  title="Eliminar esta ronda por completo"
+                >
+                  <Trash2 size={14} /> Eliminar Ronda
+                </button>
               </>
             )}
           </div>
@@ -1183,10 +1239,16 @@ export default function AjedrezController({ torneoId, torneo, isPublic = false }
         setRondas(arr);
         if (rondaSel) {
           const u = arr.find(x => x.id === rondaSel.id);
-          if (u) setRondaSel(u);
+          if (u) {
+            setRondaSel(u);
+          } else {
+            setRondaSel(null);
+            setTab('rondas');
+          }
         }
       } else {
         setRondas([]);
+        setRondaSel(null);
       }
     } catch {
       setRondas([]);

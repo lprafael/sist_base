@@ -811,6 +811,58 @@ async def crear_ronda(
     return dict(ronda._mapping)
 
 
+@router.delete("/torneos/{torneo_id}/rondas/{ronda_id}")
+@router.delete("/rondas/{ronda_id}")
+async def eliminar_ronda(
+    ronda_id: str,
+    torneo_id: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Elimina una ronda completa, incluyendo todas sus partidas y desempates calculados.
+    """
+    ronda_q = await session.execute(text("""
+        SELECT * FROM torneos_generales.ajedrez_rondas WHERE id = :rid
+    """), {"rid": ronda_id})
+    ronda = ronda_q.fetchone()
+    if not ronda:
+        raise HTTPException(status_code=404, detail="Ronda no encontrada")
+
+    tid = str(ronda.torneo_id)
+    num = ronda.numero_ronda
+
+    # Eliminar partidas de la ronda
+    await session.execute(text("""
+        DELETE FROM torneos_generales.ajedrez_partidas WHERE ronda_id = :rid
+    """), {"rid": ronda_id})
+
+    # Eliminar snapshots de posiciones de esta ronda
+    await session.execute(text("""
+        DELETE FROM torneos_generales.ajedrez_posiciones WHERE torneo_id = :tid AND ronda_numero = :num
+    """), {"tid": tid, "num": num})
+
+    # Eliminar la ronda
+    await session.execute(text("""
+        DELETE FROM torneos_generales.ajedrez_rondas WHERE id = :rid
+    """), {"rid": ronda_id})
+
+    await session.commit()
+
+    # Si aún quedan rondas con partidas finalizadas, recalcular posiciones de la última calculada
+    max_ronda_q = await session.execute(text("""
+        SELECT MAX(r.numero_ronda)
+        FROM torneos_generales.ajedrez_rondas r
+        JOIN torneos_generales.ajedrez_partidas p ON p.ronda_id = r.id
+        WHERE r.torneo_id = :tid AND p.resultado IS NOT NULL
+    """), {"tid": tid})
+    max_r = max_ronda_q.scalar()
+    if max_r and max_r > 0:
+        await _calcular_posiciones(tid, max_r, session)
+
+    return {"mensaje": f"Ronda {num} eliminada correctamente"}
+
+
 @router.post("/torneos/{torneo_id}/rondas/{ronda_id}/emparejar")
 async def emparejar_automatico(
     torneo_id: str,
