@@ -855,8 +855,8 @@ export default function TVLivePage() {
               const bName = `${p.blancas_nombre || ''} ${p.blancas_apellido || ''}`.trim() || (p.resultado === 'BYE' ? 'BYE' : 'Blancas');
               const nName = `${p.negras_nombre || ''} ${p.negras_apellido || ''}`.trim() || (p.resultado === 'BYE' ? 'BYE' : 'Negras');
               const res = p.resultado;
-              const isFin = Boolean(res);
-              const isLive = !isFin && ronda.estado === 'en_curso';
+              const isFin = Boolean(res) || p.estado === 'finalizada' || p.estado === 'finalizado';
+              const isLive = !isFin && (p.estado === 'en_curso' || p.estado === 'iniciado');
               const estado = isFin ? 'finalizado' : isLive ? 'en_curso' : 'programado';
 
               const chessItem: Partido = {

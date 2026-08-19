@@ -86,6 +86,12 @@ class ResultadoPartida(BaseModel):
     )
     url_partida: Optional[str] = None
 
+class EstadoPartidaPayload(BaseModel):
+    estado: str = Field(
+        ...,
+        description="'pendiente' (Programado) | 'en_curso' (Iniciado / En juego) | 'finalizada' (Finalizado)"
+    )
+
 class RatingUpdate(BaseModel):
     rating_fide: Optional[int] = None
     rating_nacional: Optional[int] = None
@@ -1016,6 +1022,64 @@ async def registrar_resultado(
     await _calcular_posiciones(str(partida.torneo_id), partida.numero_ronda, session)
 
     return {"mensaje": "Resultado registrado y posiciones actualizadas"}
+
+
+@router.patch("/partidas/{partida_id}/estado")
+async def actualizar_estado_partida(
+    partida_id: str,
+    payload: EstadoPartidaPayload,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Actualiza el estado de una partida individual:
+    - 'pendiente' / 'programado'
+    - 'en_curso' / 'iniciado'
+    - 'finalizada' / 'finalizado'
+    """
+    est = payload.estado.lower().strip()
+    if est in ["pendiente", "programado", "prog"]:
+        est_db = "pendiente"
+    elif est in ["en_curso", "en curso", "iniciado", "iniciada", "en_juego", "en juego", "live"]:
+        est_db = "en_curso"
+    elif est in ["finalizada", "finalizado", "fin"]:
+        est_db = "finalizada"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Estado no válido. Valores permitidos: 'pendiente', 'en_curso', 'finalizada'"
+        )
+
+    partida_q = await session.execute(text("""
+        SELECT p.id FROM torneos_generales.ajedrez_partidas p WHERE p.id = :pid
+    """), {"pid": partida_id})
+    if not partida_q.fetchone():
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    await session.execute(text("""
+        UPDATE torneos_generales.ajedrez_partidas
+        SET estado = :est, actualizado_en = NOW()
+        WHERE id = :pid
+    """), {"pid": partida_id, "est": est_db})
+    await session.commit()
+
+    return {"mensaje": f"Estado de partida actualizado a {est_db}", "estado": est_db}
+
+
+@router.post("/rondas/{ronda_id}/iniciar-partidas")
+async def iniciar_todas_partidas_ronda(
+    ronda_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Pasa todas las partidas pendientes de la ronda a 'en_curso'."""
+    await session.execute(text("""
+        UPDATE torneos_generales.ajedrez_partidas
+        SET estado = 'en_curso', actualizado_en = NOW()
+        WHERE ronda_id = :rid AND resultado IS NULL
+    """), {"rid": ronda_id})
+    await session.commit()
+    return {"mensaje": "Todas las partidas pendientes han sido iniciadas"}
 
 
 # ==============================================================================

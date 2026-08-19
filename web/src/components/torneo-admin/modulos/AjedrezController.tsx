@@ -289,6 +289,43 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
     setCfm(null);
   };
 
+  const cambiarEstado = async (partidaId: string, nuevoEstado: string) => {
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/estado`, {
+        method: 'PATCH',
+        headers: authHdrs(),
+        body: JSON.stringify({ estado: nuevoEstado }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error al actualizar estado');
+      }
+      setToast({ msg: `Partida marcada como ${nuevoEstado === 'en_curso' ? 'Iniciada' : nuevoEstado === 'pendiente' ? 'Programada' : 'Finalizada'}`, type: 'ok' });
+      load();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+  };
+
+  const iniciarTodas = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/rondas/${ronda.id}/iniciar-partidas`, {
+        method: 'POST',
+        headers: authHdrs(),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error');
+      }
+      setToast({ msg: 'Todas las partidas pendientes han sido iniciadas', type: 'ok' });
+      load();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+    setBusy(false);
+  };
+
   const listaPartidas = Array.isArray(partidas) ? partidas : [];
 
   return (
@@ -302,9 +339,16 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
           <p className="text-slate-400 text-xs font-semibold">Modo: {ronda.modo_emparejamiento} · Estado: {ronda.estado}</p>
         </div>
         {!isPublic && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {ronda.estado !== 'finalizada' && (
               <>
+                {listaPartidas.length > 0 && (
+                  <button onClick={iniciarTodas} disabled={busy}
+                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg font-bold text-xs shadow"
+                    title="Marcar todas las partidas pendientes como iniciadas">
+                    <Zap size={14} /> Iniciar Todas
+                  </button>
+                )}
                 <button onClick={generar} disabled={busy}
                   className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">
                   {busy ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
@@ -340,36 +384,70 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
             <thead>
               <tr className="bg-slate-800 text-white text-xs">
                 <th className="px-4 py-3 text-center w-12 font-black">Tab.</th>
-                <th className="px-6 py-3 text-left font-black">Blancas</th>
-                <th className="px-4 py-3 text-center font-black">ELO</th>
+                <th className="px-5 py-3 text-left font-black">Blancas</th>
+                <th className="px-3 py-3 text-center font-black">ELO</th>
                 <th className="px-4 py-3 text-center font-black">Res.</th>
-                <th className="px-4 py-3 text-center font-black">ELO</th>
-                <th className="px-6 py-3 text-right font-black">Negras</th>
+                <th className="px-3 py-3 text-center font-black">ELO</th>
+                <th className="px-5 py-3 text-right font-black">Negras</th>
+                <th className="px-4 py-3 text-center font-black">Estado</th>
+                {!isPublic && <th className="px-4 py-3 text-center font-black">Acción</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {listaPartidas.map((p, idx) => (
-                <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                  <td className="px-4 py-3 text-center font-black text-slate-400">{p.tablero_numero ?? idx + 1}</td>
-                  <td className="px-6 py-3 font-bold text-slate-800">
-                    <span className="inline-block w-3 h-3 rounded-full bg-slate-100 border border-slate-400 mr-2" />
-                    {p.blancas_nombre ? `${p.blancas_nombre} ${p.blancas_apellido || ''}` : <span className="text-slate-400 italic">BYE</span>}
-                  </td>
-                  <td className="px-4 py-3 text-center font-mono text-xs text-slate-500">{p.blancas_rating || '—'}</td>
-                  <td className="px-4 py-3 text-center font-black">
-                    {p.resultado ? (
-                      <span className={`px-2.5 py-1 rounded-md text-xs border ${RES_LABEL[p.resultado]?.cls || 'bg-slate-100'}`}>{RES_LABEL[p.resultado]?.l || p.resultado}</span>
-                    ) : (
-                      <span className="text-slate-300 font-normal">vs</span>
+              {listaPartidas.map((p, idx) => {
+                const isFin = Boolean(p.resultado) || p.estado === 'finalizada' || p.estado === 'finalizado';
+                const isLive = !isFin && (p.estado === 'en_curso' || p.estado === 'iniciado');
+                return (
+                  <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                    <td className="px-4 py-3 text-center font-black text-slate-400">{p.tablero_numero ?? idx + 1}</td>
+                    <td className="px-5 py-3 font-bold text-slate-800">
+                      <span className="inline-block w-3 h-3 rounded-full bg-slate-100 border border-slate-400 mr-2" />
+                      {p.blancas_nombre ? `${p.blancas_nombre} ${p.blancas_apellido || ''}` : <span className="text-slate-400 italic">BYE</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono text-xs text-slate-500">{p.blancas_rating || '—'}</td>
+                    <td className="px-4 py-3 text-center font-black">
+                      {p.resultado ? (
+                        <span className={`px-2.5 py-1 rounded-md text-xs border ${RES_LABEL[p.resultado]?.cls || 'bg-slate-100'}`}>{RES_LABEL[p.resultado]?.l || p.resultado}</span>
+                      ) : (
+                        <span className="text-slate-300 font-normal">vs</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono text-xs text-slate-500">{p.negras_rating || '—'}</td>
+                    <td className="px-5 py-3 text-right font-bold text-slate-800">
+                      {p.negras_nombre ? `${p.negras_nombre} ${p.negras_apellido || ''}` : <span className="text-slate-400 italic">BYE</span>}
+                      <span className="inline-block w-3 h-3 rounded-full bg-slate-800 mr-0 ml-2" />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black ${
+                        isFin
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : isLive
+                          ? 'bg-red-100 text-red-700 border border-red-300 animate-pulse'
+                          : 'bg-slate-100 text-slate-600 border border-slate-300'
+                      }`}>
+                        {isFin ? '● Finalizado' : isLive ? '🔴 En Juego' : '⏳ Programado'}
+                      </span>
+                    </td>
+                    {!isPublic && (
+                      <td className="px-4 py-3 text-center">
+                        {!isFin && (
+                          <button
+                            onClick={() => cambiarEstado(p.id, isLive ? 'pendiente' : 'en_curso')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                              isLive
+                                ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                                : 'bg-red-500 hover:bg-red-600 text-white shadow-sm'
+                            }`}
+                            title={isLive ? 'Poner en espera / programado' : 'Iniciar partida en vivo'}
+                          >
+                            {isLive ? '⏸ Pausar' : '▶ Iniciar'}
+                          </button>
+                        )}
+                      </td>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-center font-mono text-xs text-slate-500">{p.negras_rating || '—'}</td>
-                  <td className="px-6 py-3 text-right font-bold text-slate-800">
-                    {p.negras_nombre ? `${p.negras_nombre} ${p.negras_apellido || ''}` : <span className="text-slate-400 italic">BYE</span>}
-                    <span className="inline-block w-3 h-3 rounded-full bg-slate-800 mr-0 ml-2" />
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -405,6 +483,41 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
 
   useEffect(() => { load(); }, [load]);
 
+  const cambiarEstado = async (partidaId: string, nuevoEstado: string) => {
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/estado`, {
+        method: 'PATCH',
+        headers: authHdrs(),
+        body: JSON.stringify({ estado: nuevoEstado }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error al actualizar estado');
+      }
+      setToast({ msg: `Estado actualizado a ${nuevoEstado === 'en_curso' ? 'Iniciado' : 'Programado'}`, type: 'ok' });
+      load();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+  };
+
+  const iniciarTodas = async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/rondas/${ronda.id}/iniciar-partidas`, {
+        method: 'POST',
+        headers: authHdrs(),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error');
+      }
+      setToast({ msg: 'Todas las partidas pendientes han sido iniciadas', type: 'ok' });
+      load();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+  };
+
   const guardar = async (id: string, res: string) => {
     setSavingId(id);
     try {
@@ -415,7 +528,7 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
         const err = await r.json().catch(() => ({}));
         throw new Error(err.detail || 'Error');
       }
-      setToast({ msg: 'Resultado guardado', type: 'ok' });
+      setToast({ msg: 'Resultado guardado y partida finalizada', type: 'ok' });
       load();
     } catch (e: any) {
       setToast({ msg: e.message, type: 'err' });
@@ -466,16 +579,24 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
               <div className="w-40 h-2 bg-slate-200 rounded-full overflow-hidden">
                 <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${total > 0 ? (completadas / total) * 100 : 0}%` }} />
               </div>
-              <span className="text-sm text-slate-500 font-bold">{completadas}/{total}</span>
+              <span className="text-sm text-slate-500 font-bold">{completadas}/{total} finalizadas</span>
             </div>
           )}
         </div>
-        {!yaFin && completadas === total && total > 0 && (
-          <button onClick={() => setCfm({ title: 'Finalizar Ronda', body: 'Se cerrara la ronda y se calcularan las posiciones.', fn: finRonda })} disabled={finBusy}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
-            {finBusy ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Finalizar Ronda
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {!yaFin && total > 0 && (
+            <button onClick={iniciarTodas}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-bold text-xs shadow">
+              <Zap size={14} /> Iniciar Todas
+            </button>
+          )}
+          {!yaFin && completadas === total && total > 0 && (
+            <button onClick={() => setCfm({ title: 'Finalizar Ronda', body: 'Se cerrara la ronda y se calcularan las posiciones.', fn: finRonda })} disabled={finBusy}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
+              {finBusy ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Finalizar Ronda
+            </button>
+          )}
+        </div>
         {yaFin && <span className="flex items-center gap-2 text-emerald-600 font-black text-sm"><CheckCircle2 size={18} /> Ronda Finalizada</span>}
       </div>
 
@@ -487,10 +608,12 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
         <div className="space-y-3">
           {listaPartidas.map((p, i) => {
             const isSv = savingId === p.id;
+            const isFin = Boolean(p.resultado) || p.estado === 'finalizada' || p.estado === 'finalizado';
+            const isLive = !isFin && (p.estado === 'en_curso' || p.estado === 'iniciado');
             return (
-              <div key={p.id} className={`bg-white rounded-2xl border-2 overflow-hidden ${p.resultado ? 'border-emerald-200' : 'border-slate-200 hover:border-amber-200'}`}>
-                <div className="flex items-center px-5 py-4 gap-4">
-                  <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 font-black text-sm flex items-center justify-center">{p.tablero_numero ?? i + 1}</span>
+              <div key={p.id} className={`bg-white rounded-2xl border-2 overflow-hidden ${p.resultado ? 'border-emerald-200' : isLive ? 'border-red-300 shadow-sm' : 'border-slate-200 hover:border-amber-200'}`}>
+                <div className="flex items-center px-5 py-4 gap-4 flex-wrap sm:flex-nowrap">
+                  <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 font-black text-sm flex items-center justify-center flex-shrink-0">{p.tablero_numero ?? i + 1}</span>
                   <div className="flex-1 flex items-center gap-2 min-w-0">
                     <span className="text-lg">♔</span>
                     <span className="font-bold text-slate-800 truncate flex-1">{p.blancas_nombre ? `${p.blancas_nombre} ${p.blancas_apellido || ''}` : '—'}{p.blancas_rating ? ` (${p.blancas_rating})` : ''}</span>
@@ -498,13 +621,36 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                     <span className="font-bold text-slate-800 truncate flex-1 text-right">{p.negras_nombre ? `${p.negras_nombre} ${p.negras_apellido || ''}` : '—'}{p.negras_rating ? ` (${p.negras_rating})` : ''}</span>
                     <span className="text-lg">♚</span>
                   </div>
-                  {p.resultado && (
-                    <span className={`flex-shrink-0 px-3 py-1 rounded-lg border text-sm font-black ${RES_LABEL[p.resultado]?.cls || ''}`}>{RES_LABEL[p.resultado]?.l || p.resultado}</span>
+                  
+                  {/* Badge de Estado */}
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black flex-shrink-0 ${
+                    isFin
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : isLive
+                      ? 'bg-red-100 text-red-700 border border-red-300 animate-pulse'
+                      : 'bg-slate-100 text-slate-600 border border-slate-300'
+                  }`}>
+                    {isFin ? (p.resultado ? `Final: ${p.resultado}` : 'Finalizado') : isLive ? '🔴 En Juego' : '⏳ Programado'}
+                  </span>
+
+                  {/* Botón rápido de iniciar/pausar estado individual */}
+                  {!yaFin && !isFin && (
+                    <button
+                      onClick={() => cambiarEstado(p.id, isLive ? 'pendiente' : 'en_curso')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition flex-shrink-0 ${
+                        isLive
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                          : 'bg-red-500 hover:bg-red-600 text-white shadow-sm'
+                      }`}
+                    >
+                      {isLive ? '⏸ Poner Programado' : '▶ Iniciar Partida'}
+                    </button>
                   )}
                 </div>
+
                 {!yaFin && !p.resultado && (
-                  <div className="border-t border-slate-100 px-5 py-3 flex flex-wrap gap-2">
-                    <span className="text-xs text-slate-400 font-bold self-center mr-1">Resultado:</span>
+                  <div className="border-t border-slate-100 px-5 py-3 flex flex-wrap gap-2 items-center bg-slate-50/50">
+                    <span className="text-xs text-slate-500 font-bold mr-1">Cargar Resultado:</span>
                     {BTNS.map(b => (
                       <button key={b.r} onClick={() => guardar(p.id, b.r)} disabled={isSv}
                         className={`px-4 py-1.5 rounded-lg font-black text-sm transition ${b.c} ${isSv ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -514,8 +660,8 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                   </div>
                 )}
                 {!yaFin && p.resultado && (
-                  <div className="border-t border-slate-100 px-5 py-2 flex flex-wrap gap-2 items-center">
-                    <span className="text-xs text-slate-400 font-bold">Corregir:</span>
+                  <div className="border-t border-slate-100 px-5 py-2 flex flex-wrap gap-2 items-center bg-slate-50/50">
+                    <span className="text-xs text-slate-400 font-bold">Corregir resultado:</span>
                     {BTNS.filter(b => b.r !== p.resultado).map(b => (
                       <button key={b.r} onClick={() => guardar(p.id, b.r)} disabled={isSv}
                         className={`px-3 py-1 rounded-lg font-bold text-xs opacity-70 hover:opacity-100 ${b.c}`}>{b.l}</button>
