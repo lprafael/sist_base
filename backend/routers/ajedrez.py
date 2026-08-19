@@ -94,11 +94,7 @@ class RatingUpdate(BaseModel):
     usuario_chess_com: Optional[str] = None
 
 
-# ==============================================================================
-# HELPERS INTERNOS
-# ==============================================================================
 
-def _puntos_de_resultado(resultado: str, lado: str) -> float:
     """Retorna los puntos obtenidos por 'blancas' o 'negras' según el resultado."""
     if resultado == "1-0":
         return 1.0 if lado == "blancas" else 0.0
@@ -752,37 +748,7 @@ async def listar_rondas(torneo_id: str, session: AsyncSession = Depends(get_sess
     return [dict(r._mapping) for r in res.fetchall()]
 
 
-@router.post("/torneos/{torneo_id}/rondas", status_code=201)
-async def crear_ronda(
-    torneo_id: str,
-    payload: RondaCreate,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(get_current_user)
-):
-    """Crea una nueva ronda. No genera emparejamiento aún."""
-    # Verificar que no exista ya esta ronda
-    check = await session.execute(text("""
-        SELECT id FROM torneos_generales.ajedrez_rondas
-        WHERE torneo_id = :tid AND numero_ronda = :num
-    """), {"tid": torneo_id, "num": payload.numero_ronda})
-    if check.fetchone():
-        raise HTTPException(status_code=409, detail=f"La ronda {payload.numero_ronda} ya existe")
 
-    res = await session.execute(text("""
-        INSERT INTO torneos_generales.ajedrez_rondas
-            (torneo_id, numero_ronda, fecha_hora, modo_emparejamiento, notas)
-        VALUES (:tid, :num, :fh, :modo, :notas)
-        RETURNING id
-    """), {
-        "tid": torneo_id,
-        "num": payload.numero_ronda,
-        "fh": payload.fecha_hora,
-        "modo": payload.modo_emparejamiento,
-        "notas": payload.notas,
-    })
-    new_id = res.scalar()
-    await session.commit()
-    return {"id": str(new_id), "mensaje": "Ronda creada. Use /emparejar para generar el emparejamiento."}
 
 
 # ==============================================================================
