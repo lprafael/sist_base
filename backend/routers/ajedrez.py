@@ -2814,7 +2814,11 @@ async def registrar_movimiento_en_vivo(
         analisis["total_jugadas"] = payload.total_jugadas
 
     nuevo_estado = partida.estado
-    if partida.estado == 'pendiente' and (payload.total_jugadas or 0) > 0:
+    nuevo_resultado = partida.resultado
+    if payload.game_over and isinstance(payload.game_over, dict) and payload.game_over.get("result"):
+        nuevo_resultado = payload.game_over.get("result")
+        nuevo_estado = 'finalizada'
+    elif partida.estado == 'pendiente' and (payload.total_jugadas or 0) > 0:
         nuevo_estado = 'en_curso'
 
     await session.execute(text("""
@@ -2822,12 +2826,14 @@ async def registrar_movimiento_en_vivo(
         SET analisis_partida = CAST(:analisis AS JSONB),
             modalidad_partida = 'tablero_nativo',
             estado = :estado,
+            resultado = :resultado,
             actualizado_en = NOW()
         WHERE id = :pid
     """), {
         "pid": partida_id,
         "analisis": json.dumps(analisis),
         "estado": nuevo_estado,
+        "resultado": nuevo_resultado,
     })
     await session.commit()
 

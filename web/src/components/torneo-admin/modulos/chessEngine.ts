@@ -94,6 +94,10 @@ export class ChessGame {
     return [...this.history];
   }
 
+  public setHistory(history: Move[]) {
+    this.history = [...history];
+  }
+
   public getPiece(sq: Square): Piece | null {
     const [r, c] = squareToCoords(sq);
     return this.board[r]?.[c] || null;

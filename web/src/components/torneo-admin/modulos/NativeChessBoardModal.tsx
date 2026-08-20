@@ -248,26 +248,8 @@ export default function NativeChessBoardModal({
 
   const [savingResult, setSavingResult] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
-
-  // Reset al abrir
-  useEffect(() => {
-    if (isOpen) {
-      const g = new ChessGame();
-      setGame(g);
-      setBoard(g.getBoard());
-      setTurn('w');
-      setSelectedSquare(null);
-      setLegalMoves([]);
-      setLastMove(null);
-      setPendingPromotion(null);
-      setWhiteTime(initialTimeMinutes * 60);
-      setBlackTime(initialTimeMinutes * 60);
-      setClockRunning(false);
-      setGameOver({ over: false });
-      setSavedSuccess(false);
-    }
-  }, [isOpen, initialTimeMinutes]);
-
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [showRestartConfirm, setShowRestartConfirm] = useState<boolean>(false);
   const [copiedPgn, setCopiedPgn] = useState(false);
 
   const generatePGN = useCallback(() => {
@@ -297,6 +279,98 @@ export default function NativeChessBoardModal({
 
     return `${header}\n\n${pgnMoves.trim()} ${res}`;
   }, [game, gameOver, numeroRonda, blancasNombre, negrasNombre, initialTimeMinutes, initialIncrementSeconds]);
+
+  // Recuperar estado previo al abrir para reanudar sin perder la partida
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    setInitialLoading(true);
+
+    const initBoard = async () => {
+      const g = new ChessGame();
+      let wTime = initialTimeMinutes * 60;
+      let bTime = initialTimeMinutes * 60;
+      let isRunning = false;
+      let loadedGameOver = { over: false };
+      let lastM = null;
+
+      if (partidaId) {
+        try {
+          const res = await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/live`);
+          if (res.ok) {
+            const data = await res.json();
+            const live = data.live;
+            const fen = live?.fen || data.analisis_partida?.fen_final;
+
+            if (fen && (live?.total_jugadas > 0 || (data.analisis_partida?.movimientos?.length > 0))) {
+              g.loadFen(fen);
+              if (live?.history && Array.isArray(live.history)) {
+                g.setHistory(live.history);
+              } else if (data.analisis_partida?.movimientos && Array.isArray(data.analisis_partida.movimientos)) {
+                g.setHistory(data.analisis_partida.movimientos);
+              }
+
+              if (live?.last_move) {
+                lastM = { from: live.last_move.from, to: live.last_move.to };
+              }
+
+              if (live?.white_time !== undefined) wTime = live.white_time;
+              if (live?.black_time !== undefined) bTime = live.black_time;
+
+              // Calcular tiempo continuo transcurrido si estaba en juego
+              if (!data.resultado && !live?.game_over?.over && data.estado === 'en_curso') {
+                isRunning = true;
+                if (live?.updated_at) {
+                  const elapsed = Math.max(0, Math.floor((Date.now() - new Date(live.updated_at).getTime()) / 1000));
+                  if (elapsed > 0 && elapsed < 86400) {
+                    if (g.getTurn() === 'w') {
+                      wTime = Math.max(0, wTime - elapsed);
+                    } else {
+                      bTime = Math.max(0, bTime - elapsed);
+                    }
+                  }
+                }
+              }
+
+              if (live?.game_over?.over || data.resultado) {
+                loadedGameOver = {
+                  over: true,
+                  result: data.resultado || live?.game_over?.result || '1-0',
+                  reason: live?.game_over?.reason || data.notas || 'Partida Finalizada',
+                };
+                isRunning = false;
+              }
+            }
+          }
+        } catch (e) {
+          console.debug('Error recuperando estado previo:', e);
+        }
+      }
+
+      if (!isMounted) return;
+
+      setGame(g);
+      setBoard(g.getBoard());
+      setTurn(g.getTurn());
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      setLastMove(lastM);
+      setPendingPromotion(null);
+      setWhiteTime(wTime);
+      setBlackTime(bTime);
+      setClockRunning(isRunning);
+      setGameOver(loadedGameOver as any);
+      setSavedSuccess(false);
+      setInitialLoading(false);
+    };
+
+    initBoard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, partidaId, initialTimeMinutes]);
 
   const emitLiveState = useCallback(async (customGameOver?: typeof gameOver, customWTime?: number, customBTime?: number) => {
     if (!partidaId) return;
@@ -490,6 +564,48 @@ export default function NativeChessBoardModal({
     emitLiveState(go);
   };
 
+  const handleReiniciarTablero = async () => {
+    const g = new ChessGame();
+    setGame(g);
+    setBoard(g.getBoard());
+    setTurn('w');
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setLastMove(null);
+    setPendingPromotion(null);
+    setWhiteTime(initialTimeMinutes * 60);
+    setBlackTime(initialTimeMinutes * 60);
+    setClockRunning(false);
+    setGameOver({ over: false });
+    setSavedSuccess(false);
+    setShowRestartConfirm(false);
+
+    if (partidaId) {
+      try {
+        await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/live-move`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${getToken()}`,
+          },
+          body: JSON.stringify({
+            fen: g.getFen(),
+            last_move: null,
+            turn: 'w',
+            white_time: initialTimeMinutes * 60,
+            black_time: initialTimeMinutes * 60,
+            history: [],
+            pgn: '',
+            game_over: null,
+            total_jugadas: 0,
+          }),
+        });
+      } catch (e) {
+        console.debug('Error reiniciando en vivo:', e);
+      }
+    }
+  };
+
   const handleCopyPGN = () => {
     const pgn = generatePGN();
     navigator.clipboard.writeText(pgn);
@@ -596,6 +712,13 @@ export default function NativeChessBoardModal({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowRestartConfirm(true)}
+              className="p-2 rounded-xl text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition"
+              title="Reiniciar tablero desde la jugada 1"
+            >
+              <RotateCcw size={18} />
+            </button>
+            <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
               title={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}
@@ -618,10 +741,62 @@ export default function NativeChessBoardModal({
           </div>
         </div>
 
+        {/* Modal de Confirmación de Reinicio */}
+        {showRestartConfirm && (
+          <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-sm w-full shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 mx-auto flex items-center justify-center">
+                <RotateCcw size={24} />
+              </div>
+              <h4 className="text-lg font-black text-white">¿Reiniciar Partida?</h4>
+              <p className="text-xs text-slate-300">
+                Se restablecerán el tablero, los relojes ({initialTimeMinutes} min) y se borrarán las jugadas actuales para comenzar desde la jugada 1.
+              </p>
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  onClick={() => setShowRestartConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleReiniciarTablero}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition shadow-lg shadow-red-600/20"
+                >
+                  Sí, Reiniciar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal Content: Tablero a la izquierda, Panel a la derecha */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center bg-slate-950/40">
           {/* TABLERO & RELOJES */}
           <div className="flex flex-col items-center w-full max-w-[460px] sm:max-w-[490px]">
+            
+            {/* Banner Informativo de Inicio y Estado Continuo */}
+            {initialLoading ? (
+              <div className="w-full mb-3 px-3 py-2 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center gap-2 text-xs text-slate-400">
+                <span className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                <span>Cargando estado guardado de la partida...</span>
+              </div>
+            ) : history.length === 0 && !gameOver.over ? (
+              <div className="w-full mb-3 px-3.5 py-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-amber-200">
+                <Clock size={14} className="text-amber-400 flex-shrink-0" />
+                <span>
+                  <strong>Inicio automático:</strong> El reloj comenzará a correr con la primera jugada de Blancas. Si sales, la partida se guarda y continúa activa.
+                </span>
+              </div>
+            ) : !gameOver.over ? (
+              <div className="w-full mb-3 px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between text-xs text-emerald-200">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Partida en curso ({history.length} jugadas) · Guardado y transmitido en vivo</span>
+                </div>
+              </div>
+            ) : null}
+
             {/* Reloj Superior (Negras por defecto o Blancas si girado) */}
             <div className="w-full flex items-center justify-between px-3 py-2 bg-slate-900/90 border border-slate-800 rounded-2xl mb-2.5">
               <div className="flex items-center gap-2">
