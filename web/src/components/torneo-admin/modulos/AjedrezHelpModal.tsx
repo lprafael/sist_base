@@ -137,19 +137,19 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
                   <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
-                    <span>⚖️</span> Reglas Oficiales FIDE Completas
+                    <span>🎬</span> Repetición Jugada a Jugada (Replay)
                   </strong>
                   <p className="text-slate-600">
-                    Validación estricta de movimientos legales, enroques, peón al paso, jaque, jaque mate, tablas por rey ahogado, repetición triple y coronación de peones.
+                    En cualquier partida finalizada, pulsa <strong>"👁️ Ver Jugadas / Repetición"</strong> para avanzar, retroceder con las flechas (← / →), reproducir en modo automático o hacer clic en cualquier jugada del PGN para ver la posición exacta en ese instante.
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
                   <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
-                    <span>⏱️</span> Relojes Digitales con Incremento
+                    <span>⚖️</span> Reglas Oficiales FIDE Completas
                   </strong>
                   <p className="text-slate-600">
-                    Temporizadores con cuenta regresiva para ambos jugadores y adición automática de incrementos de tiempo en cada jugada, con detección de caída de bandera.
+                    Validación estricta de movimientos legales, enroques, peón al paso, jaque, jaque mate, tablas por rey ahogado, repetición triple y coronación de peones.
                   </p>
                 </div>
 

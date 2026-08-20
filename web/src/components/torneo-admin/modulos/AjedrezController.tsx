@@ -956,10 +956,10 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                           <button
                             onClick={() => setNativeViewerPartida(p)}
                             className="px-2.5 py-1 rounded-lg text-xs font-black bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 flex items-center gap-1 transition shadow-sm"
-                            title="Ver transmisión en tiempo real de este tablero nativo"
+                            title="Ver transmisión en tiempo real o reproducir movimientos de este tablero nativo"
                           >
                             <Radio size={12} className={isLive ? "text-red-600 animate-pulse" : "text-slate-500"} />
-                            <span>{isLive ? "En Vivo" : "Ver Tablero"}</span>
+                            <span>{isLive ? "En Vivo" : isFin ? "👁️ Repetición" : "Ver Tablero"}</span>
                           </button>
                         )}
 
@@ -1502,10 +1502,10 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                       <button
                         onClick={() => setNativeViewerModalPartida(p)}
                         className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 flex items-center gap-1.5 transition shadow-xs"
-                        title="Ver tablero interactivo y jugadas en tiempo real"
+                        title="Ver tablero interactivo y reproducir jugadas paso a paso"
                       >
                         <Radio size={12} className={p.estado === 'en_curso' ? 'text-red-500 animate-pulse' : 'text-slate-500'} />
-                        <span>{p.estado === 'en_curso' ? 'Ver en Vivo' : 'Ver Tablero'}</span>
+                        <span>{p.estado === 'en_curso' ? 'Ver en Vivo' : '👁️ Ver Jugadas / Repetición'}</span>
                       </button>
 
                       {p.analisis_partida?.pgn && (
