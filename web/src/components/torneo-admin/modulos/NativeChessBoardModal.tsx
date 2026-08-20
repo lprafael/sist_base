@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, RotateCcw, ArrowLeftRight, Flag, Handshake,
   Play, Pause, Trophy, Clock, CheckCircle2, Volume2,
-  VolumeX, Sparkles, AlertTriangle, ShieldCheck, ChevronRight
+  VolumeX, Sparkles, AlertTriangle, ShieldCheck, ChevronRight,
+  Copy, Check, FileText
 } from 'lucide-react';
 import {
   ChessGame, Square, PieceType, Color, Move,
@@ -412,10 +413,50 @@ export default function NativeChessBoardModal({
     playSynthSound('gameover', soundEnabled);
   };
 
+  const [copiedPgn, setCopiedPgn] = useState(false);
+
+  const generatePGN = useCallback(() => {
+    const historyList = game.getHistory();
+    let pgnMoves = '';
+    for (let i = 0; i < historyList.length; i += 2) {
+      const moveNum = Math.floor(i / 2) + 1;
+      const white = historyList[i]?.san || '';
+      const black = historyList[i + 1]?.san || '';
+      pgnMoves += `${moveNum}. ${white} ${black ? black + ' ' : ''}`;
+    }
+
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+    const res = gameOver.result || '*';
+    const header = [
+      `[Event "Torneo Mi Cancha - Ronda ${numeroRonda || 1}"]`,
+      `[Site "Mi Cancha"]`,
+      `[Date "${today}"]`,
+      `[Round "${numeroRonda || 1}"]`,
+      `[White "${blancasNombre || 'Blancas'}"]`,
+      `[Black "${negrasNombre || 'Negras'}"]`,
+      `[Result "${res}"]`,
+      `[TimeControl "${(initialTimeMinutes || 5) * 60}+${initialIncrementSeconds || 3}"]`,
+      `[Termination "${gameOver.reason || 'Normal'}"]`,
+      `[FEN "${game.getFen()}"]`,
+    ].join('\n');
+
+    return `${header}\n\n${pgnMoves.trim()} ${res}`;
+  }, [game, gameOver, numeroRonda, blancasNombre, negrasNombre, initialTimeMinutes, initialIncrementSeconds]);
+
+  const handleCopyPGN = () => {
+    const pgn = generatePGN();
+    navigator.clipboard.writeText(pgn);
+    setCopiedPgn(true);
+    setTimeout(() => setCopiedPgn(false), 2500);
+  };
+
   const handleGuardarResultado = async () => {
     if (!partidaId || !gameOver.result) return;
     setSavingResult(true);
     try {
+      const pgn = generatePGN();
+      const historyList = game.getHistory();
+
       const res = await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/resultado`, {
         method: 'PATCH',
         headers: {
@@ -424,6 +465,35 @@ export default function NativeChessBoardModal({
         },
         body: JSON.stringify({
           resultado: gameOver.result,
+          modalidad_partida: 'tablero_nativo',
+          notas: gameOver.reason || 'Partida completada en tablero nativo',
+          analisis_partida: {
+            origen: 'tablero_nativo',
+            pgn: pgn,
+            fen_final: game.getFen(),
+            total_jugadas: historyList.length,
+            motivo_fin: gameOver.reason,
+            fecha_finalizacion: new Date().toISOString(),
+            blancas: {
+              nombre: blancasNombre,
+              tiempo_restante_segundos: whiteTime,
+            },
+            negras: {
+              nombre: negrasNombre,
+              tiempo_restante_segundos: blackTime,
+            },
+            movimientos: historyList.map((m, idx) => ({
+              numero: Math.floor(idx / 2) + 1,
+              color: m.color,
+              san: m.san,
+              from: m.from,
+              to: m.to,
+              pieza: m.piece,
+              captura: m.flags.isCapture,
+              jaque: m.flags.isCheck,
+              jaque_mate: m.flags.isCheckmate,
+            })),
+          },
         }),
       });
       if (!res.ok) throw new Error('Error al guardar resultado');
@@ -653,11 +723,11 @@ export default function NativeChessBoardModal({
                 </div>
 
                 {partidaId && (
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-2">
                     {savedSuccess ? (
                       <div className="p-3 bg-emerald-950/80 border border-emerald-800 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
                         <CheckCircle2 size={16} />
-                        <span>¡Resultado registrado con éxito en la tabla del torneo!</span>
+                        <span>¡Resultado y movimientos guardados con éxito!</span>
                       </div>
                     ) : (
                       <button
@@ -669,6 +739,14 @@ export default function NativeChessBoardModal({
                         <span>{savingResult ? 'Guardando...' : `Guardar Resultado Oficial (${gameOver.result})`}</span>
                       </button>
                     )}
+
+                    <button
+                      onClick={handleCopyPGN}
+                      className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition flex items-center justify-center gap-2 border border-slate-700"
+                    >
+                      {copiedPgn ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      <span>{copiedPgn ? '¡PGN Copiado al Portapapeles!' : 'Copiar Registro PGN'}</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -724,7 +802,17 @@ export default function NativeChessBoardModal({
             <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 flex-1 flex flex-col min-h-[160px] max-h-[220px]">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs font-bold text-slate-400">
                 <span>Historial de Jugadas ({history.length})</span>
-                <span className="font-mono text-[11px] text-amber-400">PGN</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyPGN}
+                    className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-amber-400 transition"
+                    title="Copiar notación PGN completa"
+                  >
+                    {copiedPgn ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    <span>{copiedPgn ? 'Copiado' : 'Copiar PGN'}</span>
+                  </button>
+                  <span className="font-mono text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800 text-amber-400">PGN</span>
+                </div>
               </div>
               <div className="overflow-y-auto flex-1 pt-2 space-y-1 text-xs font-mono">
                 {history.length === 0 ? (

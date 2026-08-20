@@ -1301,6 +1301,7 @@ async def registrar_resultado(
             url_partida = COALESCE(:url, url_partida),
             modalidad_partida = COALESCE(:mod, modalidad_partida),
             analisis_partida = COALESCE(CAST(:analisis AS JSONB), analisis_partida),
+            notas = COALESCE(:notas, notas),
             estado = 'finalizada', actualizado_en = NOW()
         WHERE id = :pid
     """), {
@@ -1309,6 +1310,7 @@ async def registrar_resultado(
         "url": payload.url_partida,
         "mod": payload.modalidad_partida,
         "analisis": analisis_json,
+        "notas": payload.notas,
     })
     await session.commit()
 

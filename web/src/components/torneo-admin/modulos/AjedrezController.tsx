@@ -5,7 +5,7 @@ import {
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
   PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw,
-  ExternalLink, Globe, Sparkles, HelpCircle
+  ExternalLink, Globe, Sparkles, HelpCircle, Copy
 } from 'lucide-react';
 import LichessBoardModal, { extraerLichessId } from './LichessBoardModal';
 import AjedrezHelpModal from './AjedrezHelpModal';
@@ -1451,6 +1451,26 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                           Auto-completar desde Lichess
                         </button>
                       )}
+                    </div>
+                  )}
+
+                  {p.analisis_partida?.pgn && !p.url_partida && (
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-xs">
+                        <span>🎮</span>
+                        <span>Tablero Nativo ({p.analisis_partida.total_jugadas || 0} jugadas)</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(p.analisis_partida.pgn);
+                          setToast({ msg: 'Registro PGN copiado al portapapeles', type: 'ok' });
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 flex items-center gap-1 transition shadow-xs"
+                        title="Copiar notación PGN completa"
+                      >
+                        <Copy size={12} />
+                        <span>Copiar PGN</span>
+                      </button>
                     </div>
                   )}
                 </div>
