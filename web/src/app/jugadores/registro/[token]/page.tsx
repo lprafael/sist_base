@@ -38,12 +38,39 @@ export default function JugadorRegistroPage({ params }: { params: { token: strin
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [pageError, setPageError] = useState('');
+  const [cedulaInfo, setCedulaInfo] = useState<any>(null);
 
   const [form, setForm] = useState({
     nombre: '', dni: '', fecha_nacimiento: '', email: '',
     numero_camiseta: '', posicion: '', peso_declarado: '',
     estatura_declarada: '', categoria_id: '',
   });
+
+  useEffect(() => {
+    if (!form.dni || form.dni.length < 5) {
+      setCedulaInfo(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetch(`${API_URL}/api/ajedrez/participantes/verificar-cedula/${encodeURIComponent(form.dni)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.encontrado) {
+            setCedulaInfo(data);
+            if (!form.nombre && data.nombre_completo) {
+              setForm(prev => ({ ...prev, nombre: data.nombre_completo }));
+            }
+            if (!form.fecha_nacimiento && data.fecha_nacimiento) {
+              setForm(prev => ({ ...prev, fecha_nacimiento: data.fecha_nacimiento }));
+            }
+          } else {
+            setCedulaInfo(null);
+          }
+        })
+        .catch(() => setCedulaInfo(null));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form.dni]);
 
   useEffect(() => {
     fetch(`${API_URL}/cancha/torneos/jugadores/token/${token}`)
@@ -187,6 +214,16 @@ export default function JugadorRegistroPage({ params }: { params: { token: strin
                         <label className="block text-xs font-bold text-slate-500 mb-1.5">CI / DNI *</label>
                         <input required type="text" value={form.dni} onChange={e => setForm({ ...form, dni: e.target.value })}
                           className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-slate-50" />
+                        {cedulaInfo && (
+                          <div className={`mt-1.5 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border ${
+                            cedulaInfo.validado_este_anio
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>
+                            <ShieldCheck size={14} className={cedulaInfo.validado_este_anio ? 'text-emerald-600' : 'text-slate-400'} />
+                            <span>{cedulaInfo.mensaje}</span>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1.5">Fecha de Nacimiento *</label>

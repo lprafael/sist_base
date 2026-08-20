@@ -13,17 +13,23 @@ Cubre:
   - ELO/Rating de jugadores
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
+import os
 import uuid
 import json
 import re
 import httpx
+import zipfile
+import xml.etree.ElementTree as ET
+import csv
+import io
 
 from database import get_session
 from security import get_current_user
@@ -45,7 +51,7 @@ class CircuitoCreate(BaseModel):
     organizador_id: Optional[int] = None
     nombre: str
     anio: int
-    modalidad: str = "presencial"   # presencial | online | mixto
+    modalidad: str = "presencial"  # presencial | virtual | hibrido
     min_etapas_para_ranking: int = 1
     descripcion: Optional[str] = None
 
@@ -59,40 +65,26 @@ class CircuitoUpdate(BaseModel):
 class EtapaCreate(BaseModel):
     torneo_id: str
     numero_etapa: int
-    puntos_tabla: Optional[Dict[str, int]] = {
-        "1": 12, "2": 11, "3": 10, "4": 9, "5": 8,
-        "6": 7,  "7": 6,  "8": 5,  "9": 4, "10": 3
-    }
+    puntos_tabla: Optional[Dict[str, int]] = None
 
 class RondaCreate(BaseModel):
     numero_ronda: int
-    fecha_hora: Optional[datetime] = None
-    modo_emparejamiento: str = "automatico"   # automatico | drag_drop | manual
-    notas: Optional[str] = None
+    sistema: str = "suizo"  # suizo | round_robin | eliminatoria
+    fecha_ronda: Optional[str] = None
 
-class EmparejamientoManualItem(BaseModel):
-    blancas_id: Optional[str] = None
-    negras_id: Optional[str] = None   # None = BYE
-    tablero_numero: Optional[int] = None
-    modalidad_partida: str = "presencial"
-    url_partida: Optional[str] = None
+class PartidaResultado(BaseModel):
+    resultado: str   # '1-0' | '0-1' | '0.5-0.5' | 'BYE' | 'FF'
+
+class PartidaEstado(BaseModel):
+    estado: str      # 'pendiente' | 'en_curso' | 'finalizada'
+
+class EmparejamientoManual(BaseModel):
+    blancas_id: str
+    negras_id: Optional[str] = None
+    tablero_numero: int
 
 class EmparejamientoManualPayload(BaseModel):
-    """Usado tanto para drag-drop como para manual completo."""
-    partidas: List[EmparejamientoManualItem]
-
-class ResultadoPartida(BaseModel):
-    resultado: str = Field(
-        ...,
-        description="'1-0' victoria blancas | '0.5-0.5' empate | '0-1' victoria negras | 'BYE' | 'FF' forfeit"
-    )
-    url_partida: Optional[str] = None
-
-class EstadoPartidaPayload(BaseModel):
-    estado: str = Field(
-        ...,
-        description="'pendiente' (Programado) | 'en_curso' (Iniciado / En juego) | 'finalizada' (Finalizado)"
-    )
+    partidas: List[EmparejamientoManual]
 
 class RatingUpdate(BaseModel):
     rating_fide: Optional[int] = None
@@ -109,6 +101,27 @@ class SincronizarLichessPayload(BaseModel):
 
 class SincronizarParticipanteLichessPayload(BaseModel):
     usuario_lichess: Optional[str] = None
+
+class ParticipanteImportItem(BaseModel):
+    nombre: str
+    apellido: Optional[str] = ""
+    rating_fide: Optional[int] = 0
+    codigo_fide: Optional[str] = None
+    rating_nacional: Optional[int] = 0
+    usuario_lichess: Optional[str] = None
+    categoria_base: Optional[str] = "Abierta"
+    categoria_jugada: Optional[str] = "Abierta"
+    institucion_nombre: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
+    genero: Optional[str] = None
+
+class ImportarChessResultsPayload(BaseModel):
+    jugadores: List[ParticipanteImportItem]
+    anio_referencia: Optional[int] = None
+    auto_clasificar_sub: bool = True
+
+class ReclasificarCategoriasPayload(BaseModel):
+    anio_referencia: Optional[int] = None
 
 
 def _puntos_de_resultado(resultado: Optional[str], color: str) -> Optional[float]:
@@ -1006,7 +1019,7 @@ async def _get_partidas_con_nombres(ronda_id: str, session: AsyncSession) -> Lis
         SELECT
             p.id, p.tablero_numero, p.resultado, p.estado,
             p.puntos_blancas, p.puntos_negras,
-            p.modalidad_partida, p.url_partida,
+            p.modalidad_partida, p.url_partida, p.analisis_partida,
             p.blancas_id, pb.nombre AS blancas_nombre, pb.apellido AS blancas_apellido,
             pb.rating_fide AS blancas_rating,
             p.negras_id,  pn.nombre AS negras_nombre,  pn.apellido AS negras_apellido,
@@ -1408,6 +1421,618 @@ async def historial_participante(
 
 
 # ==============================================================================
+# ENDPOINTS — REGISTRO ÚNICO ANUAL Y VALIDACIÓN DE CÉDULA DE IDENTIDAD
+# ==============================================================================
+
+CEDULAS_UPLOAD_DIR = Path("static/uploads/cedulas")
+CEDULAS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+@router.get("/participantes/verificar-cedula/{documento}")
+async def verificar_cedula_anual(
+    documento: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Verifica si una cédula ya fue registrada y validada en la temporada anual actual.
+    Si ya cuenta con foto/validación de este año, permite omitir la carga obligatoria del archivo.
+    """
+    clean_doc = re.sub(r'[^\w]', '', documento.strip())
+    if not clean_doc:
+        raise HTTPException(status_code=400, detail="Documento inválido")
+
+    current_year = datetime.now().year
+
+    # Asegurar columnas
+    await session.execute(text("""
+        ALTER TABLE torneos_generales.participantes
+        ADD COLUMN IF NOT EXISTS foto_documento_url TEXT,
+        ADD COLUMN IF NOT EXISTS documento_validado BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS documento_validado_anio INTEGER;
+    """))
+
+    res = await session.execute(text("""
+        SELECT nombre, apellido, documento, foto_documento_url,
+               documento_validado, documento_validado_anio, fecha_nacimiento
+        FROM torneos_generales.participantes
+        WHERE regexp_replace(COALESCE(documento, ''), '[^a-zA-Z0-9]', '', 'g') = :doc
+          AND foto_documento_url IS NOT NULL
+        ORDER BY documento_validado_anio DESC NULLS LAST, actualizado_en DESC
+        LIMIT 1
+    """), {"doc": clean_doc})
+    row = res.fetchone()
+
+    if not row:
+        return {
+            "encontrado": False,
+            "documento": documento,
+            "requiere_foto": True,
+            "mensaje": "Documento no registrado previamente. Se requiere adjuntar foto de cédula."
+        }
+
+    es_valido_anio = (row.documento_validado_anio == current_year or row.documento_validado is True)
+
+    return {
+        "encontrado": True,
+        "documento": row.documento,
+        "nombre_completo": f"{row.nombre} {row.apellido or ''}".strip(),
+        "foto_documento_url": row.foto_documento_url,
+        "validado_este_anio": es_valido_anio,
+        "anio_validacion": row.documento_validado_anio,
+        "fecha_nacimiento": str(row.fecha_nacimiento)[:10] if row.fecha_nacimiento else None,
+        "requiere_foto": not bool(row.foto_documento_url),
+        "mensaje": (
+            f"Cédula validada para la temporada {current_year}. No es necesario volver a subir el documento."
+            if es_valido_anio else
+            "Cédula encontrada pero requiere actualización para la temporada actual."
+        )
+    }
+
+
+@router.post("/participantes/{participante_id}/documento/upload")
+async def subir_foto_cedula_participante(
+    participante_id: str,
+    file: UploadFile = File(...),
+    documento: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Sube la foto del documento / cédula de identidad del participante.
+    - Guarda el archivo en static/uploads/cedulas
+    - Marca documento_validado = TRUE y documento_validado_anio = año_actual
+    - Sincroniza la foto en todos los torneos donde participe el mismo jugador.
+    """
+    # 1. Validar participante
+    part_q = await session.execute(text("""
+        SELECT * FROM torneos_generales.participantes WHERE id = :pid
+    """), {"pid": participante_id})
+    part = part_q.fetchone()
+    if not part:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+
+    # 2. Guardar archivo
+    ext = os.path.splitext(file.filename or "")[1] or ".jpg"
+    filename = f"cedula_{participante_id}_{uuid.uuid4().hex[:8]}{ext}"
+    dest_path = CEDULAS_UPLOAD_DIR / filename
+
+    contents = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(contents)
+
+    file_url = f"/static/uploads/cedulas/{filename}"
+    current_year = datetime.now().year
+    doc_val = documento or part.documento
+
+    # 3. Actualizar registro
+    await session.execute(text("""
+        UPDATE torneos_generales.participantes
+        SET documento = COALESCE(:doc, documento),
+            foto_documento_url = :url,
+            documento_validado = TRUE,
+            documento_validado_anio = :anio,
+            actualizado_en = NOW()
+        WHERE id = :pid
+    """), {
+        "pid": participante_id,
+        "doc": doc_val,
+        "url": file_url,
+        "anio": current_year,
+    })
+
+    # 4. Sincronizar en otros torneos para el mismo documento
+    if doc_val:
+        await session.execute(text("""
+            UPDATE torneos_generales.participantes
+            SET foto_documento_url = :url,
+                documento_validado = TRUE,
+                documento_validado_anio = :anio,
+                actualizado_en = NOW()
+            WHERE documento = :doc AND id != :pid
+        """), {
+            "doc": doc_val,
+            "url": file_url,
+            "anio": current_year,
+            "pid": participante_id
+        })
+
+    await session.commit()
+
+    return {
+        "mensaje": f"Documento subido y validado exitosamente para la temporada {current_year}.",
+        "foto_documento_url": file_url,
+        "documento_validado": True,
+        "documento_validado_anio": current_year
+    }
+
+
+@router.post("/participantes/{participante_id}/validar-documento")
+async def toggle_validar_documento(
+    participante_id: str,
+    validado: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """Permite al árbitro u organizador dar el 'OK' o revocar la validación de la cédula."""
+    current_year = datetime.now().year
+    await session.execute(text("""
+        UPDATE torneos_generales.participantes
+        SET documento_validado = :val,
+            documento_validado_anio = :anio,
+            actualizado_en = NOW()
+        WHERE id = :pid
+    """), {
+        "pid": participante_id,
+        "val": validado,
+        "anio": current_year if validado else None
+    })
+    await session.commit()
+    return {"mensaje": f"Estado de documento actualizado a {'Validado' if validado else 'Pendiente'}."}
+
+
+# ==============================================================================
+# ENDPOINTS — IMPORTACIÓN CHESS-RESULTS & RECLASIFICACIÓN DE CATEGORÍAS
+# ==============================================================================
+
+def _calcular_categoria_fide(anio_nac: Optional[int], anio_torneo: Optional[int] = None) -> str:
+    if not anio_nac:
+        return "Abierta"
+    if not anio_torneo:
+        anio_torneo = datetime.now().year
+    edad = anio_torneo - anio_nac
+    if edad <= 7:
+        return "Sub-7"
+    elif edad <= 9:
+        return "Sub-9"
+    elif edad <= 11:
+        return "Sub-11"
+    elif edad <= 13:
+        return "Sub-13"
+    elif edad <= 15:
+        return "Sub-15"
+    elif edad <= 18:
+        return "Sub-18"
+    return "Abierta"
+
+
+def _parse_chess_results_xlsx_bytes(file_bytes: bytes) -> List[List[str]]:
+    with zipfile.ZipFile(io.BytesIO(file_bytes), 'r') as z:
+        strings = []
+        if 'xl/sharedStrings.xml' in z.namelist():
+            tree = ET.fromstring(z.read('xl/sharedStrings.xml'))
+            for si in tree.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si'):
+                text_parts = [t.text for t in si.iter('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t') if t.text]
+                strings.append("".join(text_parts))
+        
+        sheet_files = [f for f in z.namelist() if f.startswith('xl/worksheets/sheet') and f.endswith('.xml')]
+        if not sheet_files:
+            return []
+        
+        tree = ET.fromstring(z.read(sheet_files[0]))
+        rows = []
+        for row in tree.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheetData/{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row'):
+            row_vals = []
+            for c in row.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}c'):
+                v = c.find('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}v')
+                t_attr = c.attrib.get('t')
+                val = v.text if v is not None else ''
+                if t_attr == 's' and val.isdigit():
+                    idx = int(val)
+                    val = strings[idx] if idx < len(strings) else val
+                row_vals.append(val.strip() if val else '')
+            if any(row_vals):
+                rows.append(row_vals)
+        return rows
+
+
+def _parse_chess_results_matrix(rows: List[List[str]], anio_torneo: Optional[int] = None) -> List[Dict[str, Any]]:
+    if not anio_torneo:
+        anio_torneo = datetime.now().year
+
+    header_idx = -1
+    col_map = {}
+    
+    for idx, r in enumerate(rows):
+        r_lower = [str(cell).lower().strip() for cell in r]
+        for c_idx, cell in enumerate(r_lower):
+            if any(term == cell or term in cell for term in ['nombre', 'jugador', 'apellido', 'player', 'name']):
+                if 'nombre' not in col_map:
+                    col_map['nombre'] = c_idx
+            elif any(term in cell for term in ['fide-id', 'fide id', 'fide_id', 'id fide', 'código fide', 'codigo fide']):
+                col_map['codigo_fide'] = c_idx
+            elif any(term in cell for term in ['elo', 'rating', 'rtg', 'ptos', 'pts']):
+                if 'elo' not in col_map:
+                    col_map['elo'] = c_idx
+            elif any(term in cell for term in ['fed', 'pais', 'club', 'colegio', 'institucion', 'ciudad']):
+                if 'club' not in col_map:
+                    col_map['club'] = c_idx
+            elif any(term in cell for term in ['nac', 'nacimiento', 'fecha nac', 'birth', 'edad', 'fnac']):
+                col_map['nacimiento'] = c_idx
+            elif any(term == cell or cell.startswith('cat') or 'sub' in cell for term in ['categoría', 'categoria']):
+                if cell not in ['no.', 'no', 'pos', 'puesto', 'nr']:
+                    col_map['categoria'] = c_idx
+            elif any(term in cell for term in ['sex', 'sexo', 'gen', 'genero', 'género']):
+                col_map['genero'] = c_idx
+
+        if 'nombre' in col_map:
+            header_idx = idx
+            break
+
+    if header_idx == -1:
+        header_idx = 4 if len(rows) > 4 else 0
+        col_map = {'nombre': 2, 'codigo_fide': 3, 'club': 4, 'elo': 5}
+
+    participantes = []
+    for r in rows[header_idx + 1:]:
+        if len(r) <= col_map.get('nombre', 0):
+            continue
+        
+        nombre_raw = r[col_map['nombre']].strip()
+        if not nombre_raw or nombre_raw.lower().startswith(('no.', 'ranking', 'tabla', 'fuente', 'de la base')):
+            continue
+            
+        if ',' in nombre_raw:
+            partes = nombre_raw.split(',', 1)
+            apellido = partes[0].strip()
+            nombre = partes[1].strip()
+        else:
+            partes = nombre_raw.split()
+            if len(partes) > 1:
+                nombre = partes[0]
+                apellido = " ".join(partes[1:])
+            else:
+                nombre = nombre_raw
+                apellido = ""
+
+        elo_val = 0
+        if 'elo' in col_map and len(r) > col_map['elo']:
+            elo_str = re.sub(r'[^\d]', '', str(r[col_map['elo']]))
+            if elo_str.isdigit():
+                elo_val = int(elo_str)
+
+        fide_id = ""
+        if 'codigo_fide' in col_map and len(r) > col_map['codigo_fide']:
+            fide_str = str(r[col_map['codigo_fide']]).strip()
+            if fide_str.isdigit():
+                fide_id = fide_str
+
+        club = ""
+        if 'club' in col_map and len(r) > col_map['club']:
+            club = str(r[col_map['club']]).strip()
+
+        cat_sugerida = "Abierta"
+        fecha_nac_str = None
+        if 'nacimiento' in col_map and len(r) > col_map['nacimiento']:
+            nac_str = str(r[col_map['nacimiento']]).strip()
+            m_year = re.search(r'\b(19\d\d|20\d\d)\b', nac_str)
+            if m_year:
+                anio_nac = int(m_year.group(1))
+                cat_sugerida = _calcular_categoria_fide(anio_nac, anio_torneo)
+                fecha_nac_str = f"{anio_nac}-01-01"
+        elif 'categoria' in col_map and len(r) > col_map['categoria']:
+            c_val = str(r[col_map['categoria']]).strip()
+            if c_val:
+                cat_sugerida = c_val
+
+        genero_val = None
+        if 'genero' in col_map and len(r) > col_map['genero']:
+            g_str = str(r[col_map['genero']]).strip().lower()
+            if g_str in ['f', 'fem', 'femenino', 'w', 'mujer']:
+                genero_val = 'Femenino'
+            elif g_str in ['m', 'masc', 'masculino', 'varon', 'hombre']:
+                genero_val = 'Masculino'
+
+        participantes.append({
+            "nombre": nombre,
+            "apellido": apellido,
+            "rating_fide": elo_val,
+            "codigo_fide": fide_id,
+            "institucion_nombre": club,
+            "categoria_base": cat_sugerida,
+            "categoria_jugada": cat_sugerida,
+            "fecha_nacimiento": fecha_nac_str,
+            "genero": genero_val,
+        })
+    return participantes
+
+
+@router.post("/torneos/{torneo_id}/importar-chess-results/upload")
+async def preview_upload_chess_results(
+    torneo_id: str,
+    file: UploadFile = File(...),
+    anio_referencia: Optional[int] = Form(None),
+):
+    """
+    Parsea un archivo subido (Excel o CSV de Chess-Results/Swiss-Manager) y devuelve la lista
+    de participantes detectados con su categoría calculada para vista previa antes de guardar.
+    """
+    contents = await file.read()
+    filename = (file.filename or "").lower()
+
+    if filename.endswith(".xlsx"):
+        rows = _parse_chess_results_xlsx_bytes(contents)
+    elif filename.endswith(".csv"):
+        text_str = contents.decode("utf-8", errors="replace")
+        rows = list(csv.reader(io.StringIO(text_str)))
+    else:
+        # Intentar parsear como XLSX
+        try:
+            rows = _parse_chess_results_xlsx_bytes(contents)
+        except Exception:
+            text_str = contents.decode("utf-8", errors="replace")
+            rows = list(csv.reader(io.StringIO(text_str)))
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="No se pudieron extraer filas del archivo")
+
+    parsed = _parse_chess_results_matrix(rows, anio_referencia)
+    if not parsed:
+        raise HTTPException(status_code=400, detail="No se encontraron jugadores válidos en el archivo")
+
+    # Resumen por categorías
+    cat_counts: Dict[str, int] = {}
+    for p in parsed:
+        cat = p.get("categoria_base") or "Abierta"
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
+    return {
+        "total_detectados": len(parsed),
+        "categorias_resumen": cat_counts,
+        "jugadores": parsed
+    }
+
+
+@router.post("/torneos/{torneo_id}/importar-chess-results")
+async def confirmar_importacion_chess_results(
+    torneo_id: str,
+    payload: ImportarChessResultsPayload,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Guarda los participantes parseados en el torneo.
+    - Asocia o crea instituciones según 'institucion_nombre'.
+    - Hace UPSERT en torneos_generales.participantes por (torneo_id, nombre, apellido) o inserta nuevo.
+    """
+    if not payload.jugadores:
+        raise HTTPException(status_code=400, detail="Lista de jugadores vacía")
+
+    # Cache de instituciones
+    inst_res = await session.execute(text("SELECT id, nombre FROM torneos_generales.ajedrez_instituciones"))
+    inst_map = {r.nombre.lower().strip(): str(r.id) for r in inst_res.fetchall()}
+
+    creados = 0
+    actualizados = 0
+    cat_counts: Dict[str, int] = {}
+
+    for j in payload.jugadores:
+        nombre = j.nombre.strip()
+        apellido = (j.apellido or "").strip()
+        if not nombre:
+            continue
+
+        # Resolver o crear institución
+        inst_id = None
+        if j.institucion_nombre and j.institucion_nombre.strip():
+            raw_inst = j.institucion_nombre.strip()
+            inst_key = raw_inst.lower()
+            if inst_key in inst_map:
+                inst_id = inst_map[inst_key]
+            else:
+                new_inst_id = str(uuid.uuid4())
+                await session.execute(text("""
+                    INSERT INTO torneos_generales.ajedrez_instituciones (id, nombre, tipo)
+                    VALUES (:id, :nom, 'colegio')
+                """), {"id": new_inst_id, "nom": raw_inst})
+                inst_map[inst_key] = new_inst_id
+                inst_id = new_inst_id
+
+        # Categoría
+        cat_base = j.categoria_base or "Abierta"
+        cat_jug = j.categoria_jugada or cat_base
+        cat_counts[cat_base] = cat_counts.get(cat_base, 0) + 1
+
+        # Verificar si ya existe en el torneo
+        part_q = await session.execute(text("""
+            SELECT id FROM torneos_generales.participantes
+            WHERE torneo_id = :tid AND LOWER(TRIM(nombre)) = :nom AND LOWER(TRIM(COALESCE(apellido, ''))) = :ape
+        """), {
+            "tid": torneo_id,
+            "nom": nombre.lower(),
+            "ape": apellido.lower(),
+        })
+        existing = part_q.fetchone()
+
+        if existing:
+            await session.execute(text("""
+                UPDATE torneos_generales.participantes
+                SET rating_fide = COALESCE(:rf, rating_fide),
+                    codigo_fide = COALESCE(:cf, codigo_fide),
+                    institucion_id = COALESCE(:iid, institucion_id),
+                    categoria_base = :cb,
+                    categoria_jugada = :cj,
+                    actualizado_en = NOW()
+                WHERE id = :pid
+            """), {
+                "pid": str(existing.id),
+                "rf": j.rating_fide,
+                "cf": j.codigo_fide or None,
+                "iid": inst_id,
+                "cb": cat_base,
+                "cj": cat_jug,
+            })
+            actualizados += 1
+        else:
+            await session.execute(text("""
+                INSERT INTO torneos_generales.participantes
+                    (torneo_id, nombre, apellido, rating_fide, codigo_fide,
+                     institucion_id, categoria_base, categoria_jugada, estado, creado_en)
+                VALUES
+                    (:tid, :nom, :ape, :rf, :cf,
+                     :iid, :cb, :cj, 'confirmado', NOW())
+            """), {
+                "tid": torneo_id,
+                "nom": nombre,
+                "ape": apellido,
+                "rf": j.rating_fide or 0,
+                "cf": j.codigo_fide or None,
+                "iid": inst_id,
+                "cb": cat_base,
+                "cj": cat_jug,
+            })
+            creados += 1
+
+    await session.commit()
+
+    return {
+        "mensaje": f"Importación completada: {creados} registrados, {actualizados} actualizados.",
+        "creados": creados,
+        "actualizados": actualizados,
+        "total": creados + actualizados,
+        "categorias_resumen": cat_counts
+    }
+
+
+@router.post("/torneos/{torneo_id}/reclasificar-categorias")
+async def reclasificar_categorias_torneo(
+    torneo_id: str,
+    payload: Optional[ReclasificarCategoriasPayload] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Reclasifica a todos los participantes del torneo en Sub-7, Sub-9, Sub-11, Sub-13 o Abierta
+    según su fecha de nacimiento o año de corte.
+    """
+    anio_ref = (payload.anio_referencia if payload and payload.anio_referencia else datetime.now().year)
+
+    part_q = await session.execute(text("""
+        SELECT id, nombre, apellido, fecha_nacimiento, categoria_base
+        FROM torneos_generales.participantes
+        WHERE torneo_id = :tid
+    """), {"tid": torneo_id})
+    participantes = part_q.fetchall()
+
+    actualizados = 0
+    cat_counts: Dict[str, int] = {}
+
+    for p in participantes:
+        nueva_cat = p.categoria_base or "Abierta"
+        if p.fecha_nacimiento:
+            try:
+                fn = p.fecha_nacimiento if isinstance(p.fecha_nacimiento, datetime) else datetime.strptime(str(p.fecha_nacimiento)[:10], "%Y-%m-%d")
+                nueva_cat = _calcular_categoria_fide(fn.year, anio_ref)
+            except Exception:
+                pass
+
+        cat_counts[nueva_cat] = cat_counts.get(nueva_cat, 0) + 1
+
+        await session.execute(text("""
+            UPDATE torneos_generales.participantes
+            SET categoria_base = :cb, categoria_jugada = :cb, actualizado_en = NOW()
+            WHERE id = :pid
+        """), {"cb": nueva_cat, "pid": str(p.id)})
+        actualizados += 1
+
+    await session.commit()
+
+    return {
+        "mensaje": f"Reclasificación completada para {actualizados} participantes (Año de corte: {anio_ref}).",
+        "actualizados": actualizados,
+        "categorias_resumen": cat_counts
+    }
+
+
+@router.get("/torneos/{torneo_id}/ranking-por-categorias")
+async def ranking_por_categorias(
+    torneo_id: str,
+    ronda_numero: Optional[int] = Query(None, description="Número de ronda (omite para última o final)"),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Retorna la tabla de posiciones clasificada y segregada por categorías (Sub-7, Sub-9, Sub-11, Sub-13, Abierta)
+    extrayendo el Top 10 de cada una para premiaciones y reportes.
+    """
+    if ronda_numero is None:
+        r_q = await session.execute(text("""
+            SELECT MAX(ronda_numero) FROM torneos_generales.ajedrez_posiciones WHERE torneo_id = :tid
+        """), {"tid": torneo_id})
+        ronda_numero = r_q.scalar() or 0
+
+    res = await session.execute(text("""
+        SELECT
+            ap.*,
+            p.nombre, p.apellido, p.rating_fide, p.codigo_fide,
+            COALESCE(p.categoria_base, 'Abierta') AS categoria,
+            p.genero,
+            i.nombre AS institucion_nombre
+        FROM torneos_generales.ajedrez_posiciones ap
+        JOIN torneos_generales.participantes p ON p.id = ap.participante_id
+        LEFT JOIN torneos_generales.ajedrez_instituciones i ON i.id = p.institucion_id
+        WHERE ap.torneo_id = :tid AND ap.ronda_numero = :ronda
+        ORDER BY ap.puntos DESC, ap.bucholz_cut1 DESC, ap.bucholz_total DESC,
+                 ap.sonneborn_berger DESC
+    """), {"tid": torneo_id, "ronda": ronda_numero})
+
+    filas = [dict(r._mapping) for r in res.fetchall()]
+
+    categorias_dict: Dict[str, List[Dict]] = {
+        "General": filas,
+        "Sub-7": [],
+        "Sub-9": [],
+        "Sub-11": [],
+        "Sub-13": [],
+        "Sub-15": [],
+        "Sub-18": [],
+        "Abierta": [],
+        "Femenino": [],
+    }
+
+    for idx, f in enumerate(filas, start=1):
+        f["posicion_general"] = idx
+        cat = f.get("categoria") or "Abierta"
+        if cat in categorias_dict:
+            categorias_dict[cat].append(f)
+        else:
+            categorias_dict.setdefault(cat, []).append(f)
+
+        if str(f.get("genero", "")).lower() in ["femenino", "f", "fem"]:
+            categorias_dict["Femenino"].append(f)
+
+    top10_por_categoria: Dict[str, List[Dict]] = {}
+    for cat_key, items in categorias_dict.items():
+        top10_por_categoria[cat_key] = items[:10]
+
+    return {
+        "torneo_id": torneo_id,
+        "ronda_numero": ronda_numero,
+        "total_participantes": len(filas),
+        "categorias_disponibles": [k for k, v in categorias_dict.items() if len(v) > 0],
+        "posiciones_por_categoria": categorias_dict,
+        "top10_por_categoria": top10_por_categoria
+    }
+
+
+# ==============================================================================
 # ENDPOINTS — INTEGRACIÓN LICHESS & TABLERO EMBEBIDO
 # ==============================================================================
 
@@ -1473,6 +2098,99 @@ async def consultar_usuario_lichess(username: str):
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
 
 
+def _evaluar_antitrampa(
+    white_analysis: Optional[Dict],
+    black_analysis: Optional[Dict],
+    status: Optional[str],
+    winner: Optional[str],
+    total_moves: int,
+    white_user: str,
+    black_user: str,
+    white_rating: Optional[int],
+    black_rating: Optional[int],
+) -> Dict[str, Any]:
+    """
+    Evalúa métricas de precisión y pérdida media de centipeones (ACPL)
+    para detectar anomalías estadísticas o posible asistencia de motor de ajedrez.
+    
+    Escala ACPL (Average Centipawn Loss):
+    - < 16: Nivel Super GM / Motor de Ajedrez (Sospechoso en jugadores sin título / < 2200)
+    - 16 - 28: Nivel Maestro / Muy alta precisión
+    - 29 - 50: Nivel Club / Avanzado normal
+    - > 50: Nivel Aficionado / Escolar estándar
+    """
+    def _eval_lado(analisis: Optional[Dict], rating: Optional[int]) -> Dict[str, Any]:
+        if not analisis or not isinstance(analisis, dict):
+            return {
+                "disponible": False,
+                "acpl": None,
+                "inaccuracy": 0,
+                "mistake": 0,
+                "blunder": 0,
+                "precision_nivel": "Sin análisis de motor",
+                "sospechoso": False,
+                "motivo": None,
+            }
+        
+        acpl = analisis.get("acpl")
+        inacc = analisis.get("inaccuracy", 0)
+        mist = analisis.get("mistake", 0)
+        blund = analisis.get("blunder", 0)
+        
+        sospechoso = False
+        motivo = None
+        
+        if acpl is not None:
+            if acpl <= 16 and blund == 0 and total_moves >= 15:
+                if not rating or rating < 2200:
+                    sospechoso = True
+                    motivo = f"Pérdida media de centipeones extremadamente baja (ACPL: {acpl}) sin errores graves en {total_moves} jugadas (Precisión equivalente a motor)."
+                precision = "Extrema / Posible Motor"
+            elif acpl <= 26 and blund == 0 and total_moves >= 12:
+                precision = "Muy Alta (Nivel Maestro)"
+            elif acpl <= 48:
+                precision = "Alta (Nivel Club)"
+            elif acpl <= 75:
+                precision = "Media (Estándar)"
+            else:
+                precision = "Baja (Aficionado)"
+        else:
+            precision = "No evaluado"
+
+        return {
+            "disponible": True,
+            "acpl": acpl,
+            "inaccuracy": inacc,
+            "mistake": mist,
+            "blunder": blund,
+            "precision_nivel": precision,
+            "sospechoso": sospechoso,
+            "motivo": motivo,
+        }
+
+    eval_w = _eval_lado(white_analysis, white_rating)
+    eval_b = _eval_lado(black_analysis, black_rating)
+    
+    es_cheat = (status == "cheat")
+    hay_alerta = eval_w["sospechoso"] or eval_b["sospechoso"] or es_cheat
+
+    motivo_general = []
+    if es_cheat:
+        motivo_general.append("Lichess marcó la partida con sanción de trampa (Cheat detected).")
+    if eval_w["sospechoso"]:
+        motivo_general.append(f"Blancas (@{white_user}): {eval_w['motivo']}")
+    if eval_b["sospechoso"]:
+        motivo_general.append(f"Negras (@{black_user}): {eval_b['motivo']}")
+
+    return {
+        "alerta_sospecha": hay_alerta,
+        "cheat_flag_lichess": es_cheat,
+        "resumen_alerta": " | ".join(motivo_general) if hay_alerta else "Partida dentro de parámetros normales",
+        "blancas": eval_w,
+        "negras": eval_b,
+    }
+
+
 @router.get("/lichess/game/{game_id_or_url:path}")
 async def consultar_partida_lichess(game_id_or_url: str):
     """
@@ -1513,8 +2231,26 @@ async def consultar_partida_lichess(game_id_or_url: str):
             players = data.get("players", {})
             white_user = players.get("white", {}).get("user", {}).get("name") or players.get("white", {}).get("name") or "Blancas"
             white_rating = players.get("white", {}).get("rating")
+            white_analysis = players.get("white", {}).get("analysis")
+
             black_user = players.get("black", {}).get("user", {}).get("name") or players.get("black", {}).get("name") or "Negras"
             black_rating = players.get("black", {}).get("rating")
+            black_analysis = players.get("black", {}).get("analysis")
+
+            moves_str = data.get("moves") or ""
+            total_moves = len(moves_str.split()) // 2 if moves_str else 0
+
+            antitrampa = _evaluar_antitrampa(
+                white_analysis=white_analysis,
+                black_analysis=black_analysis,
+                status=status,
+                winner=winner,
+                total_moves=total_moves,
+                white_user=white_user,
+                black_user=black_user,
+                white_rating=white_rating,
+                black_rating=black_rating,
+            )
 
             return {
                 "game_id": game_id,
@@ -1526,10 +2262,12 @@ async def consultar_partida_lichess(game_id_or_url: str):
                 "finalizada": resultado is not None,
                 "speed": data.get("speed"),
                 "perf": data.get("perf"),
-                "white": {"username": white_user, "rating": white_rating},
-                "black": {"username": black_user, "rating": black_rating},
-                "moves": data.get("moves"),
+                "white": {"username": white_user, "rating": white_rating, "analysis": white_analysis},
+                "black": {"username": black_user, "rating": black_rating, "analysis": black_analysis},
+                "moves": moves_str,
+                "total_moves": total_moves,
                 "last_fen": data.get("lastFen") or data.get("fen"),
+                "antitrampa": antitrampa,
             }
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
@@ -1546,9 +2284,15 @@ async def sincronizar_partida_lichess(
     Sincroniza automáticamente una partida desde Lichess:
     1. Si se envía url_partida en el payload, se actualiza; sino se usa la existente.
     2. Consulta la API de Lichess.
-    3. Si la partida concluyó, registra el resultado (1-0, 0-1, 0.5-0.5), ganador, puntos y estado='finalizada'.
+    3. Si la partida concluyó, registra el resultado (1-0, 0-1, 0.5-0.5), ganador, puntos, análisis antitrampa y estado='finalizada'.
     4. Recalcula automáticamente las posiciones del torneo.
     """
+    # 0. Asegurar columna analisis_partida en la base de datos
+    await session.execute(text("""
+        ALTER TABLE torneos_generales.ajedrez_partidas
+        ADD COLUMN IF NOT EXISTS analisis_partida JSONB;
+    """))
+
     # 1. Traer partida
     partida_q = await session.execute(text("""
         SELECT p.*, r.torneo_id, r.numero_ronda
@@ -1572,6 +2316,7 @@ async def sincronizar_partida_lichess(
     lichess_info = await consultar_partida_lichess(game_id)
     canonical_url = lichess_info["url"]
     resultado = lichess_info["resultado"]
+    antitrampa = lichess_info.get("antitrampa")
 
     if resultado:
         pts_b = _puntos_de_resultado(resultado, "blancas")
@@ -1586,8 +2331,8 @@ async def sincronizar_partida_lichess(
             UPDATE torneos_generales.ajedrez_partidas
             SET resultado = :res, ganador_id = :gid,
                 puntos_blancas = :pb, puntos_negras = :pn,
-                url_partida = :url, estado = 'finalizada',
-                actualizado_en = NOW()
+                url_partida = :url, analisis_partida = :analisis,
+                estado = 'finalizada', actualizado_en = NOW()
             WHERE id = :pid
         """), {
             "pid": partida_id,
@@ -1596,6 +2341,7 @@ async def sincronizar_partida_lichess(
             "pb": pts_b,
             "pn": pts_n,
             "url": canonical_url,
+            "analisis": json.dumps(antitrampa) if antitrampa else None,
         })
         await session.commit()
 
@@ -1610,14 +2356,20 @@ async def sincronizar_partida_lichess(
             "embed_url": lichess_info["embed_url"],
             "estado": "finalizada",
             "posiciones_actualizadas": True,
+            "antitrampa": antitrampa,
         }
     else:
         # Partida en curso o sin definir
         await session.execute(text("""
             UPDATE torneos_generales.ajedrez_partidas
-            SET url_partida = :url, estado = 'en_curso', actualizado_en = NOW()
+            SET url_partida = :url, analisis_partida = :analisis,
+                estado = 'en_curso', actualizado_en = NOW()
             WHERE id = :pid
-        """), {"pid": partida_id, "url": canonical_url})
+        """), {
+            "pid": partida_id,
+            "url": canonical_url,
+            "analisis": json.dumps(antitrampa) if antitrampa else None,
+        })
         await session.commit()
 
         return {
@@ -1627,6 +2379,7 @@ async def sincronizar_partida_lichess(
             "embed_url": lichess_info["embed_url"],
             "estado": "en_curso",
             "posiciones_actualizadas": False,
+            "antitrampa": antitrampa,
         }
 
 

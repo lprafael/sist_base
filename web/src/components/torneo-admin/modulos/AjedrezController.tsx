@@ -5,9 +5,10 @@ import {
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
   PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw,
-  ExternalLink, Globe, Sparkles
+  ExternalLink, Globe, Sparkles, HelpCircle
 } from 'lucide-react';
 import LichessBoardModal, { extraerLichessId } from './LichessBoardModal';
+import AjedrezHelpModal from './AjedrezHelpModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -34,6 +35,7 @@ interface Partida {
   estado: string;
   url_partida?: string;
   modalidad_partida?: string;
+  analisis_partida?: any;
 }
 
 interface Posicion {
@@ -855,11 +857,21 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        {p.analisis_partida?.alerta_sospecha && (
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-300 animate-pulse flex items-center gap-1 cursor-pointer"
+                            onClick={() => setLichessPartida(p)}
+                            title={p.analisis_partida.resumen_alerta}
+                          >
+                            ⚠️ Alerta ACPL
+                          </span>
+                        )}
+
                         {lichessId && (
                           <button
                             onClick={() => setLichessPartida(p)}
                             className="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition shadow-sm"
-                            title="Abrir visor interactivo de tablero Lichess"
+                            title="Abrir visor interactivo de tablero Lichess y auditoría antitrampa"
                           >
                             <span>♟️</span> Tablero
                           </button>
@@ -1176,6 +1188,16 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                     {isFin ? (p.resultado ? `Final: ${p.resultado}` : 'Finalizado') : isLive ? '🔴 En Juego' : '⏳ Programado'}
                   </span>
 
+                  {p.analisis_partida?.alerta_sospecha && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-red-100 text-red-700 border border-red-300 animate-pulse flex-shrink-0 cursor-pointer shadow-sm"
+                      onClick={() => setLichessModalPartida(p)}
+                      title={p.analisis_partida.resumen_alerta}
+                    >
+                      ⚠️ Alerta ACPL
+                    </span>
+                  )}
+
                   {/* Botón rápido de iniciar/pausar estado individual */}
                   {!yaFin && !isFin && (
                     <button
@@ -1253,20 +1275,49 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                   </div>
 
                   {p.url_partida && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {p.analisis_partida && (
+                        <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                          {p.analisis_partida.blancas?.acpl !== null && p.analisis_partida.blancas?.acpl !== undefined && (
+                            <span
+                              className={`px-2 py-0.5 rounded border font-black ${
+                                p.analisis_partida.blancas.acpl <= 16
+                                  ? 'bg-red-100 text-red-700 border-red-300'
+                                  : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                              title={`Blancas: ACPL ${p.analisis_partida.blancas.acpl} (${p.analisis_partida.blancas.precision_nivel})`}
+                            >
+                              ♔ {p.analisis_partida.blancas.acpl} ACPL
+                            </span>
+                          )}
+                          {p.analisis_partida.negras?.acpl !== null && p.analisis_partida.negras?.acpl !== undefined && (
+                            <span
+                              className={`px-2 py-0.5 rounded border font-black ${
+                                p.analisis_partida.negras.acpl <= 16
+                                  ? 'bg-red-100 text-red-700 border-red-300'
+                                  : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                              title={`Negras: ACPL ${p.analisis_partida.negras.acpl} (${p.analisis_partida.negras.precision_nivel})`}
+                            >
+                              ♚ {p.analisis_partida.negras.acpl} ACPL
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <button
                         onClick={() => setLichessModalPartida(p)}
                         className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black rounded-lg transition flex items-center gap-1.5 shadow-sm"
-                        title="Ver tablero embebido interactivo de Lichess"
+                        title="Ver tablero interactivo y auditoría antitrampa"
                       >
-                        <span>♟️</span> Ver Tablero
+                        <span>♟️</span> Ver Tablero & ACPL
                       </button>
                       {!yaFin && (
                         <button
                           onClick={() => autoSincronizarLichess(p)}
                           disabled={syncingLichessId === p.id}
                           className="px-3 py-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black rounded-lg transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-                          title="Capturar resultado automático desde Lichess"
+                          title="Capturar resultado automático y evaluar métricas antitrampa"
                         >
                           {syncingLichessId === p.id ? (
                             <Loader2 size={13} className="animate-spin" />
@@ -1341,6 +1392,7 @@ function TabPosiciones({ torneoId, rondas = [], finalizable, isPublic }: { torne
   const [pos, setPos] = useState<Posicion[]>([]);
   const [loading, setLoading] = useState(false);
   const [rv, setRv] = useState(0);
+  const [selectedCat, setSelectedCat] = useState<string>('General');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [cfm, setCfm] = useState(false);
@@ -1383,71 +1435,147 @@ function TabPosiciones({ torneoId, rondas = [], finalizable, isPublic }: { torne
   const listaPos = Array.isArray(pos) ? pos : [];
   const M: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
+  const CATEGORY_COLORS: Record<string, string> = {
+    'Sub-7': 'bg-purple-100 text-purple-800 border-purple-300',
+    'Sub-9': 'bg-blue-100 text-blue-800 border-blue-300',
+    'Sub-11': 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    'Sub-13': 'bg-amber-100 text-amber-800 border-amber-300',
+    'Sub-15': 'bg-orange-100 text-orange-800 border-orange-300',
+    'Sub-18': 'bg-rose-100 text-rose-800 border-rose-300',
+    'Abierta': 'bg-slate-100 text-slate-800 border-slate-300',
+  };
+
+  const listaFiltrada = React.useMemo(() => {
+    if (selectedCat === 'General') return listaPos;
+    if (selectedCat === 'Femenino') {
+      return listaPos.filter(p => String((p as any).genero || '').toLowerCase().startsWith('f'));
+    }
+    return listaPos.filter(p => (p.categoria_base || 'Abierta') === selectedCat);
+  }, [listaPos, selectedCat]);
+
   return (
     <div>
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {cfm && <Confirm title="Finalizar Torneo" body="Se calcularan las posiciones definitivas. Esta accion es irreversible." onOk={finTorneo} onCancel={() => setCfm(false)} busy={busy} />}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h3 className="text-lg font-black text-slate-800">Tabla de Posiciones</h3>
-        <div className="flex items-center gap-3">
-          <select value={rv} onChange={e => setRv(+e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:border-amber-400 outline-none">
-            <option value={0}>Ultima calculada</option>
-            {listaRondas.filter(r => r.estado !== 'pendiente').map(r => <option key={r.numero_ronda} value={r.numero_ronda}>Despues de Ronda {r.numero_ronda}</option>)}
+      
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div>
+          <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <span>🏆</span> Tabla de Posiciones & Desempates
+          </h3>
+          <p className="text-xs text-slate-500 font-medium">
+            Clasificación FIDE con Buchholz Cut 1, Buchholz Total y Sonneborn-Berger.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select value={rv} onChange={e => setRv(+e.target.value)} className="border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 focus:border-amber-400 outline-none bg-white">
+            <option value={0}>Última calculada</option>
+            {listaRondas.filter(r => r.estado !== 'pendiente').map(r => <option key={r.numero_ronda} value={r.numero_ronda}>Después de Ronda {r.numero_ronda}</option>)}
           </select>
           {!isPublic && finalizable && (
-            <button onClick={() => setCfm(true)} disabled={busy} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-black text-sm shadow">
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />} Finalizar Torneo
+            <button onClick={() => setCfm(true)} disabled={busy} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-black text-xs shadow-md">
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <Crown size={15} />} Finalizar Torneo
             </button>
           )}
         </div>
       </div>
+
+      {/* Selector de Categorías / Podio Top 10 */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-3 mb-5 flex flex-wrap items-center gap-1.5 shadow-sm">
+        <span className="text-xs font-black text-slate-400 mr-2 flex items-center gap-1">
+          <span>🏅</span> Vista:
+        </span>
+        {['General', 'Sub-7', 'Sub-9', 'Sub-11', 'Sub-13', 'Abierta', 'Femenino'].map(cat => {
+          const isSel = selectedCat === cat;
+          const count =
+            cat === 'General'
+              ? listaPos.length
+              : cat === 'Femenino'
+              ? listaPos.filter(p => String((p as any).genero || '').toLowerCase().startsWith('f')).length
+              : listaPos.filter(p => (p.categoria_base || 'Abierta') === cat).length;
+
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCat(cat)}
+              className={`px-3 py-1 rounded-xl text-xs font-black transition flex items-center gap-1.5 border ${
+                isSel
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+            >
+              <span>{cat === 'General' ? 'General' : `Top ${cat}`}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                  isSel ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-600'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-amber-500" size={36} /></div>
-      ) : listaPos.length === 0 ? (
-        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center">
-          <BarChart2 size={48} className="mx-auto text-slate-300 mb-4" />
-          <p className="text-slate-400 font-bold">Las posiciones se calculan al finalizar cada ronda</p>
+      ) : listaFiltrada.length === 0 ? (
+        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center bg-white">
+          <BarChart2 size={44} className="mx-auto text-slate-300 mb-3" />
+          <p className="text-slate-500 font-bold text-sm">No hay posiciones registradas para esta vista</p>
+          <p className="text-xs text-slate-400 mt-1">Las posiciones se calculan automáticamente al finalizar cada ronda.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-800 text-white text-xs">
-                {['#','Jugador','ELO','PTS','PJ','V','E','D','BY','BC1','BT','SB'].map((h,i) => (
-                  <th key={h} className={`px-4 py-3 font-black ${i === 0 ? 'text-left' : i === 1 ? 'text-left' : 'text-center'} ${h === 'PTS' ? 'bg-amber-600' : ''}`}>{h}</th>
+                {['# Cat.','# Gen.','Jugador','Categoría','ELO','PTS','PJ','V','E','D','BY','BC1','BT','SB'].map((h,i) => (
+                  <th key={h} className={`px-4 py-3 font-black whitespace-nowrap ${i === 0 || i === 1 ? 'text-center' : i === 2 ? 'text-left' : 'text-center'} ${h === 'PTS' ? 'bg-amber-600' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {listaPos.map((p, idx) => (
-                <tr key={p.participante_id} className={`hover:bg-amber-50 transition ${p.posicion <= 3 ? 'bg-amber-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
-                  <td className="px-4 py-3 font-black text-slate-700">{M[p.posicion] || p.posicion}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-black text-slate-800">{p.nombre} {p.apellido}</p>
-                    <div className="flex gap-2 flex-wrap mt-0.5">
-                      {p.categoria_base && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">{p.categoria_base}</span>}
-                      {p.institucion_nombre && <span className="text-xs text-slate-400 font-bold">{p.institucion_nombre}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{p.rating_fide || '—'}</td>
-                  <td className="px-4 py-3 text-center font-black text-xl text-amber-700">{p.puntos}</td>
-                  <td className="px-4 py-3 text-center font-bold text-slate-600">{p.partidas_jugadas}</td>
-                  <td className="px-4 py-3 text-center font-bold text-emerald-600">{p.victorias}</td>
-                  <td className="px-4 py-3 text-center font-bold text-slate-500">{p.empates}</td>
-                  <td className="px-4 py-3 text-center font-bold text-red-500">{p.derrotas}</td>
-                  <td className="px-4 py-3 text-center font-bold text-blue-500">{p.byes}</td>
-                  <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.bucholz_cut1).toFixed(1)}</td>
-                  <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.bucholz_total).toFixed(1)}</td>
-                  <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.sonneborn_berger).toFixed(1)}</td>
-                </tr>
-              ))}
+              {listaFiltrada.map((p, catIdx) => {
+                const medal = M[catIdx + 1];
+                const cat = p.categoria_base || 'Abierta';
+                return (
+                  <tr key={p.participante_id} className={`hover:bg-amber-50/50 transition ${catIdx < 3 ? 'bg-amber-50/30' : catIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
+                    <td className="px-4 py-3 text-center font-black text-slate-800 text-sm">
+                      {medal || catIdx + 1}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-slate-400 text-xs">
+                      #{p.posicion}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-black text-slate-800">{p.nombre} {p.apellido}</p>
+                      {p.institucion_nombre && <span className="text-xs text-slate-400 font-medium">{p.institucion_nombre}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-black border ${CATEGORY_COLORS[cat] || 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                        {cat}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs font-bold">{p.rating_fide || '—'}</td>
+                    <td className="px-4 py-3 text-center font-black text-lg text-amber-700 bg-amber-50/60">{p.puntos}</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-600">{p.partidas_jugadas}</td>
+                    <td className="px-4 py-3 text-center font-bold text-emerald-600">{p.victorias}</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-500">{p.empates}</td>
+                    <td className="px-4 py-3 text-center font-bold text-red-500">{p.derrotas}</td>
+                    <td className="px-4 py-3 text-center font-bold text-blue-500">{p.byes}</td>
+                    <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.bucholz_cut1).toFixed(1)}</td>
+                    <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.bucholz_total).toFixed(1)}</td>
+                    <td className="px-4 py-3 text-center font-mono text-slate-600 text-xs">{Number(p.sonneborn_berger).toFixed(1)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-          <div className="border-t border-slate-200 px-6 py-3 bg-slate-50 flex flex-wrap gap-3 text-xs text-slate-500">
+          <div className="border-t border-slate-200 px-6 py-3 bg-slate-50 flex flex-wrap gap-4 text-xs text-slate-500">
             <span><strong className="text-amber-600">PTS</strong> Puntos</span>
             <span><strong>PJ</strong> Partidas Jugadas</span>
-            <span><strong className="text-amber-500">BC1</strong> Bucholz Cut-1</span>
-            <span><strong className="text-amber-400">BT</strong> Bucholz Total</span>
+            <span><strong className="text-amber-600">BC1</strong> Bucholz Cut-1</span>
+            <span><strong className="text-amber-600">BT</strong> Bucholz Total</span>
             <span><strong className="text-purple-600">SB</strong> Sonneborn-Berger</span>
           </div>
         </div>
@@ -1462,6 +1590,7 @@ export default function AjedrezController({ torneoId, torneo, isPublic = false }
   const [rondas, setRondas] = useState<Ronda[]>([]);
   const [loadingR, setLoadingR] = useState(true);
   const [rondaSel, setRondaSel] = useState<Ronda | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const fetchRondas = useCallback(async () => {
     setLoadingR(true);
@@ -1509,6 +1638,8 @@ export default function AjedrezController({ torneoId, torneo, isPublic = false }
 
   return (
     <div className="min-h-96">
+      <AjedrezHelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+
       {/* Header */}
       <div className="relative overflow-hidden rounded-2xl mb-6 p-8" style={{ background: 'linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)' }}>
         <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-conic-gradient(#fff 0% 25%,transparent 0% 50%)', backgroundSize: '40px 40px' }} />
@@ -1517,7 +1648,15 @@ export default function AjedrezController({ torneoId, torneo, isPublic = false }
             <div className="flex items-center gap-3 mb-2"><span className="text-4xl">♟️</span><h2 className="text-2xl font-black text-white">Torneo de Ajedrez</h2></div>
             <p className="text-slate-400 text-sm">Sistema Suizo · Desempates: Bucholz · Sonneborn-Berger</p>
           </div>
-          <div className="flex gap-4 text-center">
+          <div className="flex items-center gap-3 text-center flex-wrap">
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="bg-white/10 hover:bg-white/20 text-white rounded-xl px-4 py-3 text-xs font-bold transition flex items-center gap-2 border border-white/10"
+              title="Centro de ayuda y guías de ajedrez"
+            >
+              <HelpCircle size={16} className="text-amber-400" />
+              <span>Guía & FAQ</span>
+            </button>
             <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-black text-white">{listaRondas.length}</p><p className="text-xs text-slate-400 font-bold">Rondas</p></div>
             <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-black text-amber-400">{listaRondas.filter(r => r.estado === 'finalizada').length}</p><p className="text-xs text-slate-400 font-bold">Finalizadas</p></div>
           </div>

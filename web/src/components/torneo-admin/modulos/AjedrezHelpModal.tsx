@@ -1,0 +1,259 @@
+"use client";
+import React, { useState } from 'react';
+import {
+  X, HelpCircle, BookOpen, ShieldAlert,
+  FileSpreadsheet, Sparkles, Trophy, Users, CheckCircle2, ChevronRight
+} from 'lucide-react';
+
+interface AjedrezHelpModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalProps) {
+  const [activeTab, setActiveTab] = useState<'lichess' | 'antitrampa' | 'chessresults' | 'cedula' | 'suizo'>('lichess');
+
+  if (!isOpen) return null;
+
+  const TABS = [
+    { id: 'lichess',      l: 'Lichess & En vivo',    icon: Sparkles },
+    { id: 'antitrampa',   l: 'Control Antitrampa',   icon: ShieldAlert },
+    { id: 'chessresults', l: 'Importar Excel/Sub-X', icon: FileSpreadsheet },
+    { id: 'cedula',       l: 'Cédula & Validación',  icon: Users },
+    { id: 'suizo',        l: 'Sistema Suizo & FIDE', icon: Trophy },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl border border-slate-200 w-full max-w-4xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black">
+              <BookOpen size={22} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-slate-800">
+                Guía Rápida & Centro de Ayuda de Ajedrez
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Instrucciones paso a paso para organizadores, árbitros, instructores y padres.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Tabs de Navegación */}
+        <div className="px-6 pt-3 border-b border-slate-100 flex items-center gap-2 overflow-x-auto bg-slate-50/40">
+          {TABS.map(t => {
+            const Icon = t.icon;
+            const isSel = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id as any)}
+                className={`px-4 py-2.5 rounded-t-2xl font-black text-xs transition flex items-center gap-2 border-b-2 whitespace-nowrap ${
+                  isSel
+                    ? 'border-amber-500 text-slate-900 bg-white shadow-xs'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Icon size={14} className={isSel ? 'text-amber-600' : 'text-slate-400'} />
+                <span>{t.l}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Contenido del Tab */}
+        <div className="p-6 overflow-y-auto flex-1 text-slate-700 text-sm space-y-4">
+          {activeTab === 'lichess' && (
+            <div className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <h4 className="font-black text-amber-900 text-sm mb-1">
+                  ♟️ ¿Cómo conectar partidas de Lichess y ver tableros en vivo?
+                </h4>
+                <p className="text-xs text-amber-800">
+                  La plataforma se enlaza de forma nativa con la API de Lichess.org, permitiendo seguir los movimientos en tiempo real y sincronizar los resultados sin errores manuales.
+                </p>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                  <div>
+                    <strong className="block text-slate-800 text-sm">Pegar el enlace o ID de la partida:</strong>
+                    En la pestaña <em>Emparejamiento</em> o <em>Resultados</em> de la ronda, haz clic en "+ Enlazar partida de Lichess" y pega la URL (ej. <code className="bg-white px-1.5 py-0.5 rounded border text-indigo-700">https://lichess.org/qa7x6Y4w</code>).
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                  <div>
+                    <strong className="block text-slate-800 text-sm">Ver el tablero interactivo embebido:</strong>
+                    Haz clic en el botón <strong>"♟️ Ver Tablero"</strong> para abrir el visor oficial de Lichess, donde padres y espectadores pueden seguir el reloj y las jugadas en vivo.
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                  <div>
+                    <strong className="block text-slate-800 text-sm">Auto-completar el resultado con 1 clic:</strong>
+                    Al concluir la partida en Lichess, presiona <strong>"⚡ Auto-completar desde Lichess"</strong>. El sistema registrará 1-0, 0-1 o ½-½ y recalculará la tabla de posiciones inmediatamente.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'antitrampa' && (
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <h4 className="font-black text-red-900 text-sm mb-1">
+                  🛡️ ¿Cómo funciona el Control Antitrampa y la escala ACPL?
+                </h4>
+                <p className="text-xs text-red-800">
+                  La API analiza la <strong>Pérdida Media de Centipeones (ACPL - Average Centipawn Loss)</strong>, errores graves (blunders) y concordancia con motores (Stockfish).
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-2xl bg-red-100/60 border border-red-300">
+                  <strong className="text-red-900 block font-black">🔴 &lt; 16 ACPL (Alerta Sospecha)</strong>
+                  <p className="text-red-800 mt-1">
+                    Precisión extrema equivalente a motor de ajedrez o Super Gran Maestro. Si un jugador escolar/aficionado juega con &lt; 16 centipeones sin errores, el sistema muestra una <strong>⚠️ Alerta ACPL</strong>.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+                  <strong className="text-amber-900 block font-black">🟡 16 - 28 ACPL (Nivel Maestro)</strong>
+                  <p className="text-amber-800 mt-1">
+                    Muy alta precisión técnica. Típica de maestros titulados o partidas con teoría muy estudiada.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
+                  <strong className="text-blue-900 block font-black">🔵 29 - 48 ACPL (Nivel Club)</strong>
+                  <p className="text-blue-800 mt-1">
+                    Juego competitivo estándar de torneo presencial/virtual.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                  <strong className="text-emerald-900 block font-black">🟢 &gt; 50 ACPL (Nivel Aficionado)</strong>
+                  <p className="text-emerald-800 mt-1">
+                    Rango normal y esperado para categorías escolares Sub-7 a Sub-13 y torneos abiertos amateurs.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'chessresults' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                <h4 className="font-black text-blue-900 text-sm mb-1">
+                  📊 Importación de Excel & Reclasificación FIDE a Sub-X
+                </h4>
+                <p className="text-xs text-blue-800">
+                  Importa bases de datos de Chess-Results o torneos escolares por ciclos y reclasifícalos automáticamente a sus franjas de edad reales.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <p>
+                  <strong>1. Arrastra tu archivo Excel:</strong> Compatible con hojas exportadas de Swiss-Manager o Chess-Results (.xlsx, .xls, .csv).
+                </p>
+                <p>
+                  <strong>2. Reclasificación oficial FIDE:</strong>
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-600">
+                  <li><strong>Sub-7:</strong> Jugadores con 7 años o menos.</li>
+                  <li><strong>Sub-9:</strong> Jugadores de 8 y 9 años.</li>
+                  <li><strong>Sub-11:</strong> Jugadores de 10 y 11 años.</li>
+                  <li><strong>Sub-13:</strong> Jugadores de 12 y 13 años.</li>
+                  <li><strong>Abierta:</strong> Mayores de 14 años.</li>
+                </ul>
+                <p>
+                  <strong>3. Podio y Top 10:</strong> En la pestaña <em>Posiciones</em>, puedes filtrar por cualquier categoría para ver los 10 mejores y la asignación de medallas 🥇 🥈 🥉.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'cedula' && (
+            <div className="space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+                <h4 className="font-black text-purple-900 text-sm mb-1">
+                  🪪 Registro Único Anual de Cédula de Identidad
+                </h4>
+                <p className="text-xs text-purple-800">
+                  Evita que los padres o jugadores deban adjuntar su cédula en cada torneo del circuito.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-xs text-slate-600">
+                <p>
+                  • <strong>Persistencia anual:</strong> Cuando un participante sube su documento una vez en el año, queda guardado en su perfil maestro.
+                </p>
+                <p>
+                  • <strong>Validación por el organizador:</strong> El árbitro puede revisar la foto de la cédula y dar "Aprobar Cédula".
+                </p>
+                <p>
+                  • <strong>Inscripción ágil:</strong> En los siguientes torneos del año, el sistema detecta que la cédula ya está validada y no vuelve a pedir la foto.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'suizo' && (
+            <div className="space-y-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <h4 className="font-black text-slate-900 text-sm mb-1">
+                  🏆 Desempates Oficiales FIDE (Buchholz & Sonneborn-Berger)
+                </h4>
+                <p className="text-xs text-slate-600">
+                  Cálculo automatizado bajo las Leyes del Ajedrez de la FIDE.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-xs text-slate-600">
+                <p>
+                  • <strong className="text-slate-800">PTS (Puntos):</strong> 1.0 victoria, 0.5 empate, 0.0 derrota.
+                </p>
+                <p>
+                  • <strong className="text-slate-800">BC1 (Buchholz Cut 1):</strong> Suma de puntos de todos los rivales enfrentados, descartando la puntuación del rival más débil.
+                </p>
+                <p>
+                  • <strong className="text-slate-800">BT (Buchholz Total):</strong> Suma total de puntos de todos los oponentes.
+                </p>
+                <p>
+                  • <strong className="text-slate-800">SB (Sonneborn-Berger):</strong> Suma de los puntos de los rivales a quienes se venció, más la mitad de los puntos de los rivales con quienes se empató.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <span className="text-xs text-slate-400 font-medium">
+            Sistema Oficial de Torneos de Ajedrez — MiCancha & Poliverso
+          </span>
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition"
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
