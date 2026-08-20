@@ -78,6 +78,10 @@ class RondaCreate(BaseModel):
 
 class ResultadoPartida(BaseModel):
     resultado: str   # '1-0' | '0-1' | '0.5-0.5' | 'BYE' | 'FF'
+    url_partida: Optional[str] = None
+    modalidad_partida: Optional[str] = None
+    notas: Optional[str] = None
+    analisis_partida: Optional[Dict[str, Any]] = None
 
 class EstadoPartidaPayload(BaseModel):
     estado: str      # 'pendiente' | 'en_curso' | 'finalizada'
@@ -1253,6 +1257,7 @@ async def registrar_resultado(
     Registra el resultado de una partida.
     Actualiza automáticamente las posiciones del torneo.
     """
+    await _ensure_chess_tables(session)
     resultados_validos = {"1-0", "0.5-0.5", "0-1", "BYE", "FF"}
     if payload.resultado not in resultados_validos:
         raise HTTPException(
@@ -1280,17 +1285,23 @@ async def registrar_resultado(
     elif res == "0-1":
         ganador_id = str(partida.negras_id) if partida.negras_id else None
 
+    analisis_json = json.dumps(payload.analisis_partida) if payload.analisis_partida else None
+
     await session.execute(text("""
         UPDATE torneos_generales.ajedrez_partidas
         SET resultado = :res, ganador_id = :gid,
             puntos_blancas = :pb, puntos_negras = :pn,
             url_partida = COALESCE(:url, url_partida),
+            modalidad_partida = COALESCE(:mod, modalidad_partida),
+            analisis_partida = COALESCE(CAST(:analisis AS JSONB), analisis_partida),
             estado = 'finalizada', actualizado_en = NOW()
         WHERE id = :pid
     """), {
         "pid": partida_id, "res": res, "gid": ganador_id,
         "pb": pts_b, "pn": pts_n,
         "url": payload.url_partida,
+        "mod": payload.modalidad_partida,
+        "analisis": analisis_json,
     })
     await session.commit()
 
