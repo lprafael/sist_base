@@ -25,7 +25,8 @@ import os
 import uuid
 import json
 import re
-import httpx
+import urllib.request
+import urllib.error
 import zipfile
 import xml.etree.ElementTree as ET
 import csv
@@ -2067,18 +2068,13 @@ async def consultar_usuario_lichess(username: str):
     url = f"https://lichess.org/api/user/{clean_user}"
     headers = {
         "Accept": "application/json",
-        "User-Agent": "MiCanchaChessEngine/1.0 (lprafael@poliverso.com)"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MiCanchaChess/1.0"
     }
 
+    req = urllib.request.Request(url, headers=headers)
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=headers)
-            if resp.status_code == 404:
-                raise HTTPException(status_code=404, detail=f"Usuario de Lichess '{clean_user}' no encontrado")
-            if resp.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Error en servicio de Lichess (código {resp.status_code})")
-
-            data = resp.json()
+        with urllib.request.urlopen(req, timeout=10.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
             perfs = data.get("perfs", {})
             total_games = sum(p.get("games", 0) for p in perfs.values() if isinstance(p, dict))
 
@@ -2094,7 +2090,11 @@ async def consultar_usuario_lichess(username: str):
                 "total_partidas": total_games,
                 "profile_url": f"https://lichess.org/@/{data.get('username', clean_user)}"
             }
-    except httpx.RequestError as e:
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise HTTPException(status_code=404, detail=f"Usuario de Lichess '{clean_user}' no encontrado")
+        raise HTTPException(status_code=502, detail=f"Error en servicio de Lichess (código {e.code})")
+    except Exception as e:
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
 
 
@@ -2204,20 +2204,15 @@ async def consultar_partida_lichess(game_id_or_url: str):
     url = f"https://lichess.org/game/export/{game_id}?pgnInJson=true&clocks=true&evals=true"
     headers = {
         "Accept": "application/json",
-        "User-Agent": "MiCanchaChessEngine/1.0 (lprafael@poliverso.com)"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MiCanchaChess/1.0"
     }
 
+    req = urllib.request.Request(url, headers=headers)
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=headers)
-            if resp.status_code == 404:
-                raise HTTPException(status_code=404, detail=f"Partida de Lichess '{game_id}' no encontrada")
-            if resp.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Error en Lichess (código {resp.status_code})")
-
-            data = resp.json()
-            status = data.get("status")  # created, started, aborted, mate, resign, stalemate, timeout, draw, outoftime, cheat, etc.
-            winner = data.get("winner")  # 'white', 'black', or None
+        with urllib.request.urlopen(req, timeout=10.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            status = data.get("status")
+            winner = data.get("winner")
 
             resultado = None
             if status in ["mate", "resign", "timeout", "outoftime", "cheat", "noStart", "unknownFinish"]:
@@ -2269,7 +2264,11 @@ async def consultar_partida_lichess(game_id_or_url: str):
                 "last_fen": data.get("lastFen") or data.get("fen"),
                 "antitrampa": antitrampa,
             }
-    except httpx.RequestError as e:
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise HTTPException(status_code=404, detail=f"Partida de Lichess '{game_id}' no encontrada")
+        raise HTTPException(status_code=502, detail=f"Error en Lichess (código {e.code})")
+    except Exception as e:
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
 
 
