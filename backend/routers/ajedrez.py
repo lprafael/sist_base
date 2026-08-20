@@ -73,11 +73,14 @@ class RondaCreate(BaseModel):
     sistema: str = "suizo"  # suizo | round_robin | eliminatoria
     fecha_ronda: Optional[str] = None
 
-class PartidaResultado(BaseModel):
+class ResultadoPartida(BaseModel):
     resultado: str   # '1-0' | '0-1' | '0.5-0.5' | 'BYE' | 'FF'
 
-class PartidaEstado(BaseModel):
+class EstadoPartidaPayload(BaseModel):
     estado: str      # 'pendiente' | 'en_curso' | 'finalizada'
+
+PartidaResultado = ResultadoPartida
+PartidaEstado = EstadoPartidaPayload
 
 class EmparejamientoManual(BaseModel):
     blancas_id: str
