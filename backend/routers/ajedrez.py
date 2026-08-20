@@ -22,6 +22,8 @@ from datetime import datetime
 from decimal import Decimal
 import uuid
 import json
+import re
+import httpx
 
 from database import get_session
 from security import get_current_user
@@ -101,6 +103,12 @@ class RatingUpdate(BaseModel):
     institucion_id: Optional[str] = None
     categoria_base: Optional[str] = None
     categoria_jugada: Optional[str] = None
+
+class SincronizarLichessPayload(BaseModel):
+    url_partida: Optional[str] = None
+
+class SincronizarParticipanteLichessPayload(BaseModel):
+    usuario_lichess: Optional[str] = None
 
 
 def _puntos_de_resultado(resultado: Optional[str], color: str) -> Optional[float]:
@@ -1397,3 +1405,278 @@ async def historial_participante(
         ORDER BY r.torneo_id, r.numero_ronda
     """), {"pid": participante_id})
     return [dict(r._mapping) for r in res.fetchall()]
+
+
+# ==============================================================================
+# ENDPOINTS — INTEGRACIÓN LICHESS & TABLERO EMBEBIDO
+# ==============================================================================
+
+def _extraer_lichess_game_id(url_o_id: Optional[str]) -> Optional[str]:
+    """
+    Extrae el gameId de 8 caracteres de Lichess a partir de una URL o ID.
+    Ejemplos soportados:
+    - 'https://lichess.org/qa7x6Y4w' -> 'qa7x6Y4w'
+    - 'https://lichess.org/qa7x6Y4w/white' -> 'qa7x6Y4w'
+    - 'https://lichess.org/embed/game/qa7x6Y4w' -> 'qa7x6Y4w'
+    - 'qa7x6Y4w' -> 'qa7x6Y4w'
+    - 'qa7x6Y4w1234' (12 chars con token de jugador) -> 'qa7x6Y4w'
+    """
+    if not url_o_id:
+        return None
+    s = url_o_id.strip()
+    match = re.search(r'(?:lichess\.org/(?:embed/game/)?|lichess\.org/)?([a-zA-Z0-9]{8})', s)
+    if match:
+        return match.group(1)
+    return None
+
+
+@router.get("/lichess/user/{username}")
+async def consultar_usuario_lichess(username: str):
+    """
+    Consulta información pública de un usuario en Lichess (ratings, títulos, online).
+    """
+    clean_user = username.strip().lower()
+    if not clean_user:
+        raise HTTPException(status_code=400, detail="Nombre de usuario requerido")
+
+    url = f"https://lichess.org/api/user/{clean_user}"
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "MiCanchaChessEngine/1.0 (lprafael@poliverso.com)"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"Usuario de Lichess '{clean_user}' no encontrado")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Error en servicio de Lichess (código {resp.status_code})")
+
+            data = resp.json()
+            perfs = data.get("perfs", {})
+            total_games = sum(p.get("games", 0) for p in perfs.values() if isinstance(p, dict))
+
+            return {
+                "id": data.get("id"),
+                "username": data.get("username", clean_user),
+                "title": data.get("title"),  # GM, IM, FM, etc.
+                "online": data.get("online", False),
+                "rating_blitz": perfs.get("blitz", {}).get("rating"),
+                "rating_rapid": perfs.get("rapid", {}).get("rating"),
+                "rating_classical": perfs.get("classical", {}).get("rating"),
+                "rating_bullet": perfs.get("bullet", {}).get("rating"),
+                "total_partidas": total_games,
+                "profile_url": f"https://lichess.org/@/{data.get('username', clean_user)}"
+            }
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
+
+
+@router.get("/lichess/game/{game_id_or_url:path}")
+async def consultar_partida_lichess(game_id_or_url: str):
+    """
+    Consulta el estado y resultado de una partida en Lichess.
+    Retorna información de jugadores, FEN, movimientos, ganador y resultado compatible.
+    """
+    game_id = _extraer_lichess_game_id(game_id_or_url)
+    if not game_id:
+        raise HTTPException(status_code=400, detail="Formato de ID o URL de Lichess inválido")
+
+    url = f"https://lichess.org/game/export/{game_id}?pgnInJson=true&clocks=true&evals=true"
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "MiCanchaChessEngine/1.0 (lprafael@poliverso.com)"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"Partida de Lichess '{game_id}' no encontrada")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Error en Lichess (código {resp.status_code})")
+
+            data = resp.json()
+            status = data.get("status")  # created, started, aborted, mate, resign, stalemate, timeout, draw, outoftime, cheat, etc.
+            winner = data.get("winner")  # 'white', 'black', or None
+
+            resultado = None
+            if status in ["mate", "resign", "timeout", "outoftime", "cheat", "noStart", "unknownFinish"]:
+                if winner == "white":
+                    resultado = "1-0"
+                elif winner == "black":
+                    resultado = "0-1"
+            elif status in ["stalemate", "draw"]:
+                resultado = "0.5-0.5"
+
+            players = data.get("players", {})
+            white_user = players.get("white", {}).get("user", {}).get("name") or players.get("white", {}).get("name") or "Blancas"
+            white_rating = players.get("white", {}).get("rating")
+            black_user = players.get("black", {}).get("user", {}).get("name") or players.get("black", {}).get("name") or "Negras"
+            black_rating = players.get("black", {}).get("rating")
+
+            return {
+                "game_id": game_id,
+                "url": f"https://lichess.org/{game_id}",
+                "embed_url": f"https://lichess.org/embed/game/{game_id}?theme=auto&bg=auto",
+                "status": status,
+                "winner": winner,
+                "resultado": resultado,
+                "finalizada": resultado is not None,
+                "speed": data.get("speed"),
+                "perf": data.get("perf"),
+                "white": {"username": white_user, "rating": white_rating},
+                "black": {"username": black_user, "rating": black_rating},
+                "moves": data.get("moves"),
+                "last_fen": data.get("lastFen") or data.get("fen"),
+            }
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
+
+
+@router.post("/partidas/{partida_id}/sincronizar-lichess")
+async def sincronizar_partida_lichess(
+    partida_id: str,
+    payload: Optional[SincronizarLichessPayload] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Sincroniza automáticamente una partida desde Lichess:
+    1. Si se envía url_partida en el payload, se actualiza; sino se usa la existente.
+    2. Consulta la API de Lichess.
+    3. Si la partida concluyó, registra el resultado (1-0, 0-1, 0.5-0.5), ganador, puntos y estado='finalizada'.
+    4. Recalcula automáticamente las posiciones del torneo.
+    """
+    # 1. Traer partida
+    partida_q = await session.execute(text("""
+        SELECT p.*, r.torneo_id, r.numero_ronda
+        FROM torneos_generales.ajedrez_partidas p
+        JOIN torneos_generales.ajedrez_rondas r ON r.id = p.ronda_id
+        WHERE p.id = :pid
+    """), {"pid": partida_id})
+    partida = partida_q.fetchone()
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    url_target = (payload.url_partida if payload and payload.url_partida else partida.url_partida)
+    if not url_target:
+        raise HTTPException(status_code=400, detail="La partida no tiene URL de Lichess asignada")
+
+    game_id = _extraer_lichess_game_id(url_target)
+    if not game_id:
+        raise HTTPException(status_code=400, detail="URL o ID de Lichess inválido")
+
+    # 2. Consultar Lichess
+    lichess_info = await consultar_partida_lichess(game_id)
+    canonical_url = lichess_info["url"]
+    resultado = lichess_info["resultado"]
+
+    if resultado:
+        pts_b = _puntos_de_resultado(resultado, "blancas")
+        pts_n = _puntos_de_resultado(resultado, "negras") if partida.negras_id else None
+        ganador_id = None
+        if resultado == "1-0":
+            ganador_id = str(partida.blancas_id) if partida.blancas_id else None
+        elif resultado == "0-1":
+            ganador_id = str(partida.negras_id) if partida.negras_id else None
+
+        await session.execute(text("""
+            UPDATE torneos_generales.ajedrez_partidas
+            SET resultado = :res, ganador_id = :gid,
+                puntos_blancas = :pb, puntos_negras = :pn,
+                url_partida = :url, estado = 'finalizada',
+                actualizado_en = NOW()
+            WHERE id = :pid
+        """), {
+            "pid": partida_id,
+            "res": resultado,
+            "gid": ganador_id,
+            "pb": pts_b,
+            "pn": pts_n,
+            "url": canonical_url,
+        })
+        await session.commit()
+
+        # Recalcular posiciones
+        await _calcular_posiciones(str(partida.torneo_id), partida.numero_ronda, session)
+
+        return {
+            "mensaje": f"Partida sincronizada con éxito ({resultado})",
+            "resultado": resultado,
+            "ganador": lichess_info["winner"],
+            "url_partida": canonical_url,
+            "embed_url": lichess_info["embed_url"],
+            "estado": "finalizada",
+            "posiciones_actualizadas": True,
+        }
+    else:
+        # Partida en curso o sin definir
+        await session.execute(text("""
+            UPDATE torneos_generales.ajedrez_partidas
+            SET url_partida = :url, estado = 'en_curso', actualizado_en = NOW()
+            WHERE id = :pid
+        """), {"pid": partida_id, "url": canonical_url})
+        await session.commit()
+
+        return {
+            "mensaje": f"Partida en curso en Lichess (estado: {lichess_info['status']})",
+            "resultado": None,
+            "url_partida": canonical_url,
+            "embed_url": lichess_info["embed_url"],
+            "estado": "en_curso",
+            "posiciones_actualizadas": False,
+        }
+
+
+@router.post("/participantes/{participante_id}/sincronizar-lichess")
+async def sincronizar_participante_lichess(
+    participante_id: str,
+    payload: Optional[SincronizarParticipanteLichessPayload] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Sincroniza el perfil y rating de Lichess de un participante.
+    Si tiene rating Blitz o Rapid, actualiza el rating si está en 0 o actualiza el usuario.
+    """
+    partic_q = await session.execute(text("""
+        SELECT * FROM torneos_generales.participantes WHERE id = :pid
+    """), {"pid": participante_id})
+    partic = partic_q.fetchone()
+    if not partic:
+        raise HTTPException(status_code=404, detail="Participante no encontrado")
+
+    user_lichess = (payload.usuario_lichess if payload and payload.usuario_lichess else partic.usuario_lichess)
+    if not user_lichess:
+        raise HTTPException(status_code=400, detail="El participante no tiene usuario de Lichess registrado")
+
+    user_info = await consultar_usuario_lichess(user_lichess)
+
+    # Preferir Rapid, luego Blitz, luego Clásico
+    rating_sugerido = user_info.get("rating_rapid") or user_info.get("rating_blitz") or user_info.get("rating_classical") or 0
+
+    await session.execute(text("""
+        UPDATE torneos_generales.participantes
+        SET usuario_lichess = :u_lic,
+            rating_fide = CASE WHEN COALESCE(rating_fide, 0) = 0 THEN :rat ELSE rating_fide END,
+            rating_nacional = CASE WHEN COALESCE(rating_nacional, 0) = 0 THEN :rat ELSE rating_nacional END,
+            actualizado_en = NOW()
+        WHERE id = :pid
+    """), {
+        "pid": participante_id,
+        "u_lic": user_info["username"],
+        "rat": rating_sugerido,
+    })
+    await session.commit()
+
+    return {
+        "mensaje": f"Perfil de Lichess sincronizado para @{user_info['username']}",
+        "usuario_lichess": user_info["username"],
+        "title": user_info["title"],
+        "rating_rapid": user_info["rating_rapid"],
+        "rating_blitz": user_info["rating_blitz"],
+        "rating_classical": user_info["rating_classical"],
+        "rating_sugerido": rating_sugerido,
+    }

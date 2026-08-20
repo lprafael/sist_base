@@ -4,8 +4,10 @@ import {
   Plus, Loader2, Check, X,
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
-  PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw
+  PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw,
+  ExternalLink, Globe, Sparkles
 } from 'lucide-react';
+import LichessBoardModal, { extraerLichessId } from './LichessBoardModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -30,6 +32,8 @@ interface Partida {
   negras_rating?: number;
   resultado?: string;
   estado: string;
+  url_partida?: string;
+  modalidad_partida?: string;
 }
 
 interface Posicion {
@@ -599,6 +603,7 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [modalManual, setModalManual] = useState(false);
+  const [lichessPartida, setLichessPartida] = useState<Partida | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
 
@@ -710,6 +715,23 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
         />
       )}
 
+      {lichessPartida && (
+        <LichessBoardModal
+          isOpen={Boolean(lichessPartida)}
+          onClose={() => setLichessPartida(null)}
+          gameUrlOrId={lichessPartida.url_partida || ''}
+          partidaId={lichessPartida.id}
+          blancasNombre={lichessPartida.blancas_nombre ? `${lichessPartida.blancas_nombre} ${lichessPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={lichessPartida.negras_nombre ? `${lichessPartida.negras_nombre} ${lichessPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={lichessPartida.tablero_numero}
+          resultadoActual={lichessPartida.resultado}
+          onResultadoSincronizado={() => {
+            load();
+            onRefresh();
+          }}
+        />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h3 className="text-lg font-black text-slate-800">Emparejamiento — Ronda {ronda.numero_ronda}</h3>
@@ -792,13 +814,14 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                 <th className="px-3 py-3 text-center font-black">ELO</th>
                 <th className="px-5 py-3 text-right font-black">Negras</th>
                 <th className="px-4 py-3 text-center font-black">Estado</th>
-                {!isPublic && <th className="px-4 py-3 text-center font-black">Acción</th>}
+                <th className="px-4 py-3 text-center font-black">Tablero / Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {listaPartidas.map((p, idx) => {
                 const isFin = Boolean(p.resultado) || p.estado === 'finalizada' || p.estado === 'finalizado';
                 const isLive = !isFin && (p.estado === 'en_curso' || p.estado === 'iniciado');
+                const lichessId = extraerLichessId(p.url_partida);
                 return (
                   <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
                     <td className="px-4 py-3 text-center font-black text-slate-400">{p.tablero_numero ?? idx + 1}</td>
@@ -830,9 +853,19 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                         {isFin ? '● Finalizado' : isLive ? '🔴 En Juego' : '⏳ Programado'}
                       </span>
                     </td>
-                    {!isPublic && (
-                      <td className="px-4 py-3 text-center">
-                        {!isFin ? (
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        {lichessId && (
+                          <button
+                            onClick={() => setLichessPartida(p)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition shadow-sm"
+                            title="Abrir visor interactivo de tablero Lichess"
+                          >
+                            <span>♟️</span> Tablero
+                          </button>
+                        )}
+
+                        {!isPublic && !isFin && (
                           <button
                             onClick={() => cambiarEstado(p.id, isLive ? 'pendiente' : 'en_curso')}
                             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
@@ -844,7 +877,9 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                           >
                             {isLive ? '⏸ Pausar' : '▶ Iniciar'}
                           </button>
-                        ) : !ronda.estado.includes('finalizada') ? (
+                        )}
+
+                        {!isPublic && isFin && !ronda.estado.includes('finalizada') && (
                           <button
                             onClick={() => setCfm({
                               title: 'Reiniciar Partida',
@@ -860,9 +895,9 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                           >
                             🔄 Reiniciar
                           </button>
-                        ) : null}
-                      </td>
-                    )}
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -880,6 +915,10 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [finBusy, setFinBusy] = useState(false);
+  const [lichessModalPartida, setLichessModalPartida] = useState<Partida | null>(null);
+  const [syncingLichessId, setSyncingLichessId] = useState<string | null>(null);
+  const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
+  const [inputUrl, setInputUrl] = useState<string>('');
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
 
@@ -973,6 +1012,53 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
     setSavingId(null);
   };
 
+  const guardarUrlLichess = async (partidaId: string, url: string) => {
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/sincronizar-lichess`, {
+        method: 'POST',
+        headers: authHdrs(),
+        body: JSON.stringify({ url_partida: url }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Error al conectar con Lichess');
+      setToast({
+        msg: d.resultado ? `Partida finalizada (${d.resultado}) y sincronizada` : 'Enlace de Lichess guardado',
+        type: 'ok',
+      });
+      setEditingUrlId(null);
+      setInputUrl('');
+      load();
+      onRefresh();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+  };
+
+  const autoSincronizarLichess = async (p: Partida) => {
+    if (!p.url_partida) return;
+    setSyncingLichessId(p.id);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/partidas/${p.id}/sincronizar-lichess`, {
+        method: 'POST',
+        headers: authHdrs(),
+        body: JSON.stringify({ url_partida: p.url_partida }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Error');
+      if (d.resultado) {
+        setToast({ msg: `¡Resultado obtenido de Lichess: ${d.resultado}! Posiciones actualizadas.`, type: 'ok' });
+      } else {
+        setToast({ msg: d.mensaje || 'Partida aún en curso en Lichess.', type: 'ok' });
+      }
+      load();
+      onRefresh();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    } finally {
+      setSyncingLichessId(null);
+    }
+  };
+
   const finRonda = async () => {
     setFinBusy(true);
     try {
@@ -1008,6 +1094,24 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
     <div>
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       {cfm && <Confirm title={cfm.title} body={cfm.body} onOk={() => cfm.fn()} onCancel={() => setCfm(null)} busy={finBusy} />}
+
+      {lichessModalPartida && (
+        <LichessBoardModal
+          isOpen={Boolean(lichessModalPartida)}
+          onClose={() => setLichessModalPartida(null)}
+          gameUrlOrId={lichessModalPartida.url_partida || ''}
+          partidaId={lichessModalPartida.id}
+          blancasNombre={lichessModalPartida.blancas_nombre ? `${lichessModalPartida.blancas_nombre} ${lichessModalPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={lichessModalPartida.negras_nombre ? `${lichessModalPartida.negras_nombre} ${lichessModalPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={lichessModalPartida.tablero_numero}
+          resultadoActual={lichessModalPartida.resultado}
+          onResultadoSincronizado={() => {
+            load();
+            onRefresh();
+          }}
+        />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h3 className="text-lg font-black text-slate-800">Ronda {ronda.numero_ronda} — Resultados</h3>
@@ -1047,6 +1151,8 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
             const isSv = savingId === p.id;
             const isFin = Boolean(p.resultado) || p.estado === 'finalizada' || p.estado === 'finalizado';
             const isLive = !isFin && (p.estado === 'en_curso' || p.estado === 'iniciado');
+            const lichessId = extraerLichessId(p.url_partida);
+
             return (
               <div key={p.id} className={`bg-white rounded-2xl border-2 overflow-hidden ${p.resultado ? 'border-emerald-200 shadow-sm' : isLive ? 'border-red-300 shadow-sm' : 'border-slate-200 hover:border-amber-200'}`}>
                 <div className="flex items-center px-5 py-4 gap-4 flex-wrap sm:flex-nowrap">
@@ -1085,9 +1191,98 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                   )}
                 </div>
 
+                {/* Barra de Integración Lichess */}
+                <div className="border-t border-slate-100 px-5 py-2.5 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-slate-500 flex items-center gap-1">
+                      <span>♟️</span> Lichess:
+                    </span>
+                    {p.url_partida ? (
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+                        <span className="font-mono text-indigo-700 font-bold">
+                          {lichessId || p.url_partida}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setEditingUrlId(p.id);
+                            setInputUrl(p.url_partida || '');
+                          }}
+                          className="text-slate-400 hover:text-slate-600 ml-1"
+                          title="Cambiar enlace de Lichess"
+                        >
+                          <Edit3 size={12} />
+                        </button>
+                      </div>
+                    ) : editingUrlId === p.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={inputUrl}
+                          onChange={e => setInputUrl(e.target.value)}
+                          placeholder="Pegar link de Lichess (ej: https://lichess.org/qa7x6Y4w)"
+                          className="border border-slate-300 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-amber-400 w-64 bg-white text-slate-800 font-mono"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => guardarUrlLichess(p.id, inputUrl)}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingUrlId(null);
+                            setInputUrl('');
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingUrlId(p.id);
+                          setInputUrl('');
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline flex items-center gap-1"
+                      >
+                        <span>+ Enlazar partida de Lichess</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {p.url_partida && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setLichessModalPartida(p)}
+                        className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black rounded-lg transition flex items-center gap-1.5 shadow-sm"
+                        title="Ver tablero embebido interactivo de Lichess"
+                      >
+                        <span>♟️</span> Ver Tablero
+                      </button>
+                      {!yaFin && (
+                        <button
+                          onClick={() => autoSincronizarLichess(p)}
+                          disabled={syncingLichessId === p.id}
+                          className="px-3 py-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black rounded-lg transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                          title="Capturar resultado automático desde Lichess"
+                        >
+                          {syncingLichessId === p.id ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Sparkles size={13} />
+                          )}
+                          Auto-completar desde Lichess
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {!yaFin && !p.resultado && (
                   <div className="border-t border-slate-100 px-5 py-3 flex flex-wrap gap-2 items-center bg-slate-50/50">
-                    <span className="text-xs text-slate-500 font-bold mr-1">Cargar Resultado:</span>
+                    <span className="text-xs text-slate-500 font-bold mr-1">Cargar Resultado Manual:</span>
                     {BTNS.map(b => (
                       <button key={b.r} onClick={() => guardar(p.id, b.r)} disabled={isSv}
                         className={`px-4 py-1.5 rounded-lg font-black text-sm transition ${b.c} ${isSv ? 'opacity-50 cursor-not-allowed' : ''}`}>

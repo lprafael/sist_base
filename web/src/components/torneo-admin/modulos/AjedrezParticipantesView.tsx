@@ -47,11 +47,53 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
   const [saving, setSaving] = useState(false);
   const [historial, setHistorial] = useState<any[] | null>(null);
   const [historialNombre, setHistorialNombre] = useState('');
-  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+  const [syncingLichess, setSyncingLichess] = useState<string | null>(null);
 
-
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rPart, rInst] = await Promise.all([
+        fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/participantes`),
+        fetch(`${API_URL}/api/ajedrez/instituciones`),
+      ]);
+      if (rPart.ok) setParticipantes(await rPart.json());
+      if (rInst.ok) setInstituciones(await rInst.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [torneoId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const syncLichessUser = async (participanteId: string, username?: string) => {
+    setSyncingLichess(participanteId);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/participantes/${participanteId}/sincronizar-lichess`, {
+        method: 'POST',
+        headers: authHdrs(),
+        body: JSON.stringify({ usuario_lichess: username }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Error al sincronizar con Lichess');
+
+      setToast({ msg: data.mensaje || 'Perfil de Lichess sincronizado', type: 'ok' });
+      if (editing && editing.id === participanteId) {
+        setEditData((prev: any) => ({
+          ...prev,
+          usuario_lichess: data.usuario_lichess || prev.usuario_lichess,
+          rating_fide: prev.rating_fide || data.rating_sugerido,
+          rating_nacional: prev.rating_nacional || data.rating_sugerido,
+        }));
+      }
+      load();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    } finally {
+      setSyncingLichess(null);
+    }
+  };
 
   const openEdit = (p: Participante) => {
     setEditing(p);
@@ -129,7 +171,34 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
                   <td className="px-4 py-3 font-mono text-center text-slate-700">{p.rating_fide || '—'}</td>
                   <td className="px-4 py-3 font-mono text-center text-slate-500 text-xs">{p.codigo_fide || '—'}</td>
                   <td className="px-4 py-3 font-mono text-center text-slate-700">{p.rating_nacional || '—'}</td>
-                  <td className="px-4 py-3 text-center text-blue-600 text-xs">{p.usuario_lichess || '—'}</td>
+                  <td className="px-4 py-3 text-center text-xs">
+                    {p.usuario_lichess ? (
+                      <div className="inline-flex items-center gap-1">
+                        <a
+                          href={`https://lichess.org/@/${p.usuario_lichess}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 font-bold hover:underline"
+                        >
+                          @{p.usuario_lichess}
+                        </a>
+                        <button
+                          onClick={() => syncLichessUser(p.id, p.usuario_lichess)}
+                          disabled={syncingLichess === p.id}
+                          title="Sincronizar rating de Lichess"
+                          className="p-1 hover:bg-blue-50 text-blue-500 rounded transition"
+                        >
+                          {syncingLichess === p.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <RefreshCw size={12} />
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-center text-green-700 text-xs">{p.usuario_chess_com || '—'}</td>
                   <td className="px-4 py-3 text-slate-600 text-xs">{p.institucion_nombre || '—'}</td>
                   <td className="px-4 py-3 text-center">
@@ -137,6 +206,20 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      {p.usuario_lichess && (
+                        <button
+                          onClick={() => syncLichessUser(p.id, p.usuario_lichess)}
+                          disabled={syncingLichess === p.id}
+                          title="Sincronizar ELO desde Lichess"
+                          className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition"
+                        >
+                          {syncingLichess === p.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <RefreshCw size={14} />
+                          )}
+                        </button>
+                      )}
                       <button onClick={() => openEdit(p)} title="Editar datos ajedrez"
                         className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition"><Edit3 size={14} /></button>
                       <button onClick={() => loadHistorial(p)} title="Ver historial"
@@ -152,7 +235,7 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
 
       {/* Modal editar */}
       {editing && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl">
             <h3 className="text-xl font-black text-slate-800 mb-6">Editar datos de ajedrez — {editing.nombre} {editing.apellido}</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -165,8 +248,25 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
                 { key: 'categoria_base', label: 'Categoría Base', type: 'text' },
                 { key: 'categoria_jugada', label: 'Categoría Jugada', type: 'text' },
               ].map(f => (
-                <div key={f.key}>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">{f.label}</label>
+                <div key={f.key} className={f.key === 'usuario_lichess' ? 'relative' : ''}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-600 block">{f.label}</label>
+                    {f.key === 'usuario_lichess' && editData.usuario_lichess && (
+                      <button
+                        type="button"
+                        onClick={() => syncLichessUser(editing.id, editData.usuario_lichess)}
+                        disabled={syncingLichess === editing.id}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        {syncingLichess === editing.id ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={11} />
+                        )}
+                        Importar ELO
+                      </button>
+                    )}
+                  </div>
                   <input type={f.type} value={editData[f.key] || ''} onChange={e => setEditData({ ...editData, [f.key]: f.type === 'number' ? +e.target.value : e.target.value })}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:border-amber-400 outline-none text-sm" />
                 </div>
