@@ -186,15 +186,20 @@ _CHESS_DDL_STATEMENTS = [
         id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         circuito_id                 UUID NOT NULL,
         participante_id             UUID NOT NULL,
-        categoria                   VARCHAR(30) NOT NULL DEFAULT 'General',
-        posicion                    SMALLINT NOT NULL,
-        puntos_totales              INTEGER NOT NULL DEFAULT 0,
+        categoria_base              VARCHAR(30),
+        institucion_id              UUID,
+        puntos_totales              NUMERIC(6,1) NOT NULL DEFAULT 0.0,
         etapas_jugadas              SMALLINT NOT NULL DEFAULT 0,
-        victorias_etapa             SMALLINT NOT NULL DEFAULT 0,
-        calculado_en                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        mejor_posicion              SMALLINT,
+        actualizado_en              TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""",
+    """ALTER TABLE torneos_generales.ajedrez_circuito_ranking ADD COLUMN IF NOT EXISTS categoria_base VARCHAR(30)""",
+    """ALTER TABLE torneos_generales.ajedrez_circuito_ranking ADD COLUMN IF NOT EXISTS institucion_id UUID""",
+    """ALTER TABLE torneos_generales.ajedrez_circuito_ranking ADD COLUMN IF NOT EXISTS mejor_posicion SMALLINT""",
+    """ALTER TABLE torneos_generales.ajedrez_circuito_ranking ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMPTZ DEFAULT NOW()""",
     """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_pos_torneo_ronda_part ON torneos_generales.ajedrez_posiciones(torneo_id, ronda_numero, participante_id)""",
-    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_rondas_torneo_num ON torneos_generales.ajedrez_rondas(torneo_id, numero_ronda)"""
+    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_rondas_torneo_num ON torneos_generales.ajedrez_rondas(torneo_id, numero_ronda)""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_circuito_ranking_unq ON torneos_generales.ajedrez_circuito_ranking(circuito_id, participante_id)"""
 ]
 
 _tables_checked = False
@@ -788,8 +793,10 @@ async def calcular_ranking_circuito(
 ):
     """
     Recalcula el ranking acumulado del circuito basándose en las posiciones
-    finales de cada etapa y la tabla de puntos configurada.
+    finales o actuales de cada etapa y la tabla de puntos configurada.
     """
+    await _ensure_chess_tables(session)
+
     # Traer etapas del circuito con su tabla de puntos
     etapas_q = await session.execute(text("""
         SELECT e.torneo_id, e.puntos_tabla
@@ -800,7 +807,7 @@ async def calcular_ranking_circuito(
     etapas = etapas_q.fetchall()
 
     if not etapas:
-        raise HTTPException(status_code=400, detail="El circuito no tiene etapas registradas")
+        return {"mensaje": "El circuito aún no tiene etapas vinculadas. Vincula un torneo para calcular el ranking.", "participantes_actualizados": 0}
 
     # Acumular puntos por participante
     acumulado: Dict[str, Dict] = {}
@@ -809,14 +816,22 @@ async def calcular_ranking_circuito(
         torneo_id = str(etapa.torneo_id)
         puntos_tabla: Dict = etapa.puntos_tabla if isinstance(etapa.puntos_tabla, dict) else json.loads(etapa.puntos_tabla)
 
-        # Traer posiciones finales de esta etapa (ronda_numero = 0)
+        # Traer posiciones de esta etapa (ronda_numero = 0 o la última ronda con posiciones calculadas)
         pos_q = await session.execute(text("""
-            SELECT ap.participante_id, ap.posicion_final,
+            SELECT ap.participante_id,
+                   COALESCE(ap.posicion_final, ap.posicion) AS posicion_final,
                    p.categoria_base, p.institucion_id
             FROM torneos_generales.ajedrez_posiciones ap
             JOIN torneos_generales.participantes p ON p.id = ap.participante_id
-            WHERE ap.torneo_id = :tid AND ap.ronda_numero = 0
-              AND ap.posicion_final IS NOT NULL
+            WHERE ap.torneo_id = :tid
+              AND ap.ronda_numero = (
+                  SELECT COALESCE(
+                      (SELECT 0 WHERE EXISTS (SELECT 1 FROM torneos_generales.ajedrez_posiciones WHERE torneo_id = :tid AND ronda_numero = 0)),
+                      MAX(ronda_numero)
+                  )
+                  FROM torneos_generales.ajedrez_posiciones
+                  WHERE torneo_id = :tid
+              )
         """), {"tid": torneo_id})
         posiciones = pos_q.fetchall()
 
