@@ -738,6 +738,39 @@ async def actualizar_circuito(
     return {"mensaje": "Circuito actualizado"}
 
 
+@router.delete("/circuitos/{circuito_id}")
+async def eliminar_circuito(
+    circuito_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Elimina un circuito y sus etapas vinculadas y ranking acumulado.
+    """
+    await _ensure_chess_tables(session)
+
+    # 1. Eliminar rankings del circuito
+    await session.execute(text("""
+        DELETE FROM torneos_generales.ajedrez_circuito_ranking
+        WHERE circuito_id = :cid
+    """), {"cid": circuito_id})
+
+    # 2. Eliminar etapas del circuito
+    await session.execute(text("""
+        DELETE FROM torneos_generales.ajedrez_circuito_etapas
+        WHERE circuito_id = :cid
+    """), {"cid": circuito_id})
+
+    # 3. Eliminar el circuito
+    await session.execute(text("""
+        DELETE FROM torneos_generales.ajedrez_circuitos
+        WHERE id = :cid
+    """), {"cid": circuito_id})
+    await session.commit()
+
+    return {"mensaje": "Circuito eliminado correctamente"}
+
+
 # ==============================================================================
 # ENDPOINTS — ETAPAS DEL CIRCUITO
 # ==============================================================================

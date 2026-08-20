@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, Plus, RefreshCw, Trophy, Check, X, AlertCircle, Award } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, Trophy, Check, X, AlertCircle, Award, Trash2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -61,6 +61,8 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
   const [form, setForm] = useState({ nombre: '', anio: new Date().getFullYear(), modalidad: 'presencial', min_etapas_para_ranking: 1, descripcion: '' });
   const [saveBusy, setSaveBusy] = useState(false);
   const [vincBusy, setVincBusy] = useState(false);
+  const [circuitoToDelete, setCircuitoToDelete] = useState<Circuito | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
 
   const loadRanking = async (circuito: Circuito) => {
@@ -108,10 +110,34 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
     setRecalcBusy(true);
     try {
       const r = await fetch(`${API_URL}/api/ajedrez/circuitos/${selected.id}/recalcular-ranking`, { method: 'POST', headers: authHdrs() });
-      if (!r.ok) throw new Error((await r.json()).detail || 'Error');
-      setToast({ msg: 'Ranking recalculado', type: 'ok' }); loadRanking(selected);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Error al recalcular');
+      setToast({ msg: data.mensaje || 'Ranking recalculado', type: 'ok' });
+      loadRanking(selected);
     } catch (e: any) { setToast({ msg: e.message, type: 'err' }); }
     setRecalcBusy(false);
+  };
+
+  const eliminarCircuito = async (circuitoId: string) => {
+    setDeleteBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/ajedrez/circuitos/${circuitoId}`, {
+        method: 'DELETE',
+        headers: authHdrs(),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || 'Error al eliminar circuito');
+      setToast({ msg: 'Circuito eliminado correctamente', type: 'ok' });
+      setCircuitoToDelete(null);
+      if (selected?.id === circuitoId) {
+        setSelected(null);
+        setRanking([]);
+        setRankingInst([]);
+      }
+      loadCircuitos();
+    } catch (e: any) {
+      setToast({ msg: e.message, type: 'err' });
+    }
+    setDeleteBusy(false);
   };
 
   const crearCircuito = async () => {
@@ -163,11 +189,20 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
               </div>
             : <div className="space-y-2">
                 {circuitos.map(c => (
-                  <div key={c.id} className={`rounded-xl border-2 p-4 cursor-pointer transition ${selected?.id === c.id ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                  <div key={c.id} className={`rounded-xl border-2 p-4 cursor-pointer transition relative group ${selected?.id === c.id ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}
                     onClick={() => loadRanking(c)}>
                     <div className="flex items-center justify-between">
                       <span className="font-black text-slate-800 text-sm">{c.nombre}</span>
-                      <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.anio}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.anio}</span>
+                        <button
+                          onClick={e => { e.stopPropagation(); setCircuitoToDelete(c); }}
+                          title="Eliminar circuito"
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{c.total_etapas} etapas · {c.estado}</p>
                     <button onClick={e => { e.stopPropagation(); vincularEtapa(c.id); }} disabled={vincBusy}
@@ -192,10 +227,15 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
                   <h3 className="text-lg font-black text-slate-800">{selected.nombre} {selected.anio}</h3>
                   <p className="text-sm text-slate-500">{selected.total_etapas} etapas · min. {selected.min_etapas_para_ranking} para ranking</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button onClick={recalcular} disabled={recalcBusy}
                     className="flex items-center gap-2 border-2 border-amber-400 text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-lg font-bold text-sm transition">
                     {recalcBusy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Recalcular
+                  </button>
+                  <button onClick={() => setCircuitoToDelete(selected)}
+                    className="flex items-center gap-1.5 border-2 border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-bold text-sm transition"
+                    title="Eliminar circuito">
+                    <Trash2 size={14} /> Eliminar
                   </button>
                 </div>
               </div>
@@ -288,6 +328,38 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
               <button onClick={() => setCrearModal(false)} className="px-5 py-2 border border-slate-300 rounded-lg text-slate-600 font-bold">Cancelar</button>
               <button onClick={crearCircuito} disabled={saveBusy || !form.nombre} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-black flex items-center gap-2 disabled:opacity-50">
                 {saveBusy && <Loader2 size={16} className="animate-spin" />} Crear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminación */}
+      {circuitoToDelete && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center mb-4 text-red-600">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">¿Eliminar circuito?</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              Estás a punto de eliminar el circuito <strong className="text-slate-900 font-bold">{circuitoToDelete.nombre} ({circuitoToDelete.anio})</strong>.
+              Esta acción desvinculará sus etapas y eliminará el ranking acumulado. Los torneos individuales permanecerán intactos.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCircuitoToDelete(null)}
+                disabled={deleteBusy}
+                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => eliminarCircuito(circuitoToDelete.id)}
+                disabled={deleteBusy}
+                className="px-5 py-2 text-sm font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition flex items-center gap-2 shadow-lg shadow-red-500/20 disabled:opacity-50"
+              >
+                {deleteBusy && <Loader2 size={16} className="animate-spin" />} Confirmar Eliminación
               </button>
             </div>
           </div>
