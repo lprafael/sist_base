@@ -181,10 +181,28 @@ _CHESS_DDL_STATEMENTS = [
         etapas_jugadas              SMALLINT NOT NULL DEFAULT 0,
         victorias_etapa             SMALLINT NOT NULL DEFAULT 0,
         calculado_en                TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )"""
+    )""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_pos_torneo_ronda_part ON torneos_generales.ajedrez_posiciones(torneo_id, ronda_numero, participante_id)""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_rondas_torneo_num ON torneos_generales.ajedrez_rondas(torneo_id, numero_ronda)"""
 ]
 
 _tables_checked = False
+
+def _parse_datetime(val: Optional[Any]) -> Optional[datetime]:
+    """Convierte de forma segura strings ISO/fecha a objeto datetime para asyncpg/PostgreSQL."""
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val
+    try:
+        s = str(val).strip()
+        if "T" in s:
+            return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if len(s) == 10 and "-" in s:
+            return datetime.strptime(s, "%Y-%m-%d")
+        return datetime.fromisoformat(s)
+    except Exception:
+        return None
 
 async def _ensure_chess_tables(session: AsyncSession):
     """Garantiza de forma idempotente que todas las tablas y columnas de ajedrez existan."""
@@ -937,6 +955,8 @@ async def crear_ronda(
     if existe_q.fetchone():
         raise HTTPException(status_code=400, detail=f"La ronda {payload.numero_ronda} ya existe")
 
+    fh_dt = _parse_datetime(payload.fecha_hora or payload.fecha_ronda)
+
     res = await session.execute(text("""
         INSERT INTO torneos_generales.ajedrez_rondas
             (torneo_id, numero_ronda, fecha_hora, modo_emparejamiento, notas)
@@ -946,7 +966,7 @@ async def crear_ronda(
     """), {
         "tid": torneo_id,
         "num": payload.numero_ronda,
-        "fh": payload.fecha_hora or payload.fecha_ronda,
+        "fh": fh_dt,
         "modo": payload.modo_emparejamiento or payload.sistema or "automatico",
         "notas": payload.notas,
     })
