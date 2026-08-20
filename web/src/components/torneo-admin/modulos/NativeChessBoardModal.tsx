@@ -417,7 +417,7 @@ export default function NativeChessBoardModal({
     setSavingResult(true);
     try {
       const res = await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/resultado`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,

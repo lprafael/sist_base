@@ -1253,6 +1253,7 @@ async def listar_partidas(ronda_id: str, session: AsyncSession = Depends(get_ses
 
 
 @router.patch("/partidas/{partida_id}/resultado")
+@router.post("/partidas/{partida_id}/resultado")
 async def registrar_resultado(
     partida_id: str,
     payload: ResultadoPartida,
