@@ -85,115 +85,119 @@ class EstadoPartidaPayload(BaseModel):
 PartidaResultado = ResultadoPartida
 PartidaEstado = EstadoPartidaPayload
 
+_CHESS_DDL_STATEMENTS = [
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_instituciones (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nombre          VARCHAR(200) NOT NULL,
+        tipo            VARCHAR(30) NOT NULL DEFAULT 'colegio',
+        ciudad          VARCHAR(100),
+        pais            VARCHAR(100) DEFAULT 'Paraguay',
+        creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS rating_fide INTEGER DEFAULT 0""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS codigo_fide VARCHAR(20)""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS rating_nacional INTEGER DEFAULT 0""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS usuario_lichess VARCHAR(50)""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS usuario_chess_com VARCHAR(50)""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS institucion_id UUID""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS categoria_base VARCHAR(30)""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS categoria_jugada VARCHAR(30)""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS documento VARCHAR(50)""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS foto_documento_url TEXT""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS documento_validado BOOLEAN DEFAULT FALSE""",
+    """ALTER TABLE torneos_generales.participantes ADD COLUMN IF NOT EXISTS documento_validado_anio INTEGER""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuitos (
+        id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organizador_id              INTEGER,
+        nombre                      VARCHAR(200) NOT NULL,
+        anio                        SMALLINT NOT NULL DEFAULT 2026,
+        modalidad                   VARCHAR(20) NOT NULL DEFAULT 'presencial',
+        min_etapas_para_ranking     SMALLINT NOT NULL DEFAULT 1,
+        estado                      VARCHAR(20) NOT NULL DEFAULT 'borrador',
+        descripcion                 TEXT,
+        creado_en                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        actualizado_en              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuito_etapas (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        circuito_id     UUID NOT NULL,
+        torneo_id       UUID NOT NULL,
+        numero_etapa    SMALLINT NOT NULL,
+        puntos_tabla    JSONB NOT NULL DEFAULT '{"1":12,"2":11,"3":10,"4":9,"5":8,"6":7,"7":6,"8":5,"9":4,"10":3}',
+        creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_rondas (
+        id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        torneo_id               UUID NOT NULL,
+        numero_ronda            SMALLINT NOT NULL,
+        estado                  VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        fecha_hora              TIMESTAMPTZ,
+        modo_emparejamiento     VARCHAR(20) NOT NULL DEFAULT 'automatico',
+        notas                   TEXT,
+        creado_en               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        actualizado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_partidas (
+        id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ronda_id            UUID NOT NULL,
+        tablero_numero      SMALLINT,
+        blancas_id          UUID NOT NULL,
+        negras_id           UUID,
+        resultado           VARCHAR(10),
+        puntos_blancas      NUMERIC(3,1),
+        puntos_negras       NUMERIC(3,1),
+        estado              VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        url_partida         TEXT,
+        modalidad_partida   VARCHAR(20) DEFAULT 'presencial',
+        analisis_partida    JSONB,
+        notas               TEXT,
+        creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_posiciones (
+        id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        torneo_id           UUID NOT NULL,
+        ronda_numero        SMALLINT NOT NULL DEFAULT 0,
+        participante_id     UUID NOT NULL,
+        posicion            SMALLINT NOT NULL,
+        puntos              NUMERIC(4,1) NOT NULL DEFAULT 0.0,
+        partidas_jugadas    SMALLINT NOT NULL DEFAULT 0,
+        victorias           SMALLINT NOT NULL DEFAULT 0,
+        empates             SMALLINT NOT NULL DEFAULT 0,
+        derrotas            SMALLINT NOT NULL DEFAULT 0,
+        byes                SMALLINT NOT NULL DEFAULT 0,
+        bucholz_cut1        NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+        bucholz_total       NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+        sonneborn_berger    NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+        calculado_en        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuito_ranking (
+        id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        circuito_id                 UUID NOT NULL,
+        participante_id             UUID NOT NULL,
+        categoria                   VARCHAR(30) NOT NULL DEFAULT 'General',
+        posicion                    SMALLINT NOT NULL,
+        puntos_totales              INTEGER NOT NULL DEFAULT 0,
+        etapas_jugadas              SMALLINT NOT NULL DEFAULT 0,
+        victorias_etapa             SMALLINT NOT NULL DEFAULT 0,
+        calculado_en                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )"""
+]
+
+_tables_checked = False
+
 async def _ensure_chess_tables(session: AsyncSession):
     """Garantiza de forma idempotente que todas las tablas y columnas de ajedrez existan."""
-    await session.execute(text("""
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_instituciones (
-            id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            nombre          VARCHAR(200) NOT NULL,
-            tipo            VARCHAR(30) NOT NULL DEFAULT 'colegio',
-            ciudad          VARCHAR(100),
-            pais            VARCHAR(100) DEFAULT 'Paraguay',
-            creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        ALTER TABLE torneos_generales.participantes
-            ADD COLUMN IF NOT EXISTS rating_fide        INTEGER DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS codigo_fide        VARCHAR(20),
-            ADD COLUMN IF NOT EXISTS rating_nacional    INTEGER DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS usuario_lichess    VARCHAR(50),
-            ADD COLUMN IF NOT EXISTS usuario_chess_com  VARCHAR(50),
-            ADD COLUMN IF NOT EXISTS institucion_id     UUID,
-            ADD COLUMN IF NOT EXISTS categoria_base     VARCHAR(30),
-            ADD COLUMN IF NOT EXISTS categoria_jugada   VARCHAR(30),
-            ADD COLUMN IF NOT EXISTS documento          VARCHAR(50),
-            ADD COLUMN IF NOT EXISTS foto_documento_url TEXT,
-            ADD COLUMN IF NOT EXISTS documento_validado BOOLEAN DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS documento_validado_anio INTEGER;
-
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuitos (
-            id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organizador_id              INTEGER,
-            nombre                      VARCHAR(200) NOT NULL,
-            anio                        SMALLINT NOT NULL DEFAULT 2026,
-            modalidad                   VARCHAR(20) NOT NULL DEFAULT 'presencial',
-            min_etapas_para_ranking     SMALLINT NOT NULL DEFAULT 1,
-            estado                      VARCHAR(20) NOT NULL DEFAULT 'borrador',
-            descripcion                 TEXT,
-            creado_en                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            actualizado_en              TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuito_etapas (
-            id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            circuito_id     UUID NOT NULL,
-            torneo_id       UUID NOT NULL,
-            numero_etapa    SMALLINT NOT NULL,
-            puntos_tabla    JSONB NOT NULL DEFAULT '{"1":12,"2":11,"3":10,"4":9,"5":8,"6":7,"7":6,"8":5,"9":4,"10":3}',
-            creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_rondas (
-            id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            torneo_id               UUID NOT NULL,
-            numero_ronda            SMALLINT NOT NULL,
-            estado                  VARCHAR(20) NOT NULL DEFAULT 'pendiente',
-            fecha_hora              TIMESTAMPTZ,
-            modo_emparejamiento     VARCHAR(20) NOT NULL DEFAULT 'automatico',
-            notas                   TEXT,
-            creado_en               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            actualizado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_partidas (
-            id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            ronda_id            UUID NOT NULL,
-            tablero_numero      SMALLINT,
-            blancas_id          UUID NOT NULL,
-            negras_id           UUID,
-            resultado           VARCHAR(10),
-            puntos_blancas      NUMERIC(3,1),
-            puntos_negras       NUMERIC(3,1),
-            estado              VARCHAR(20) NOT NULL DEFAULT 'pendiente',
-            url_partida         TEXT,
-            modalidad_partida   VARCHAR(20) DEFAULT 'presencial',
-            analisis_partida    JSONB,
-            notas               TEXT,
-            creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_posiciones (
-            id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            torneo_id           UUID NOT NULL,
-            ronda_numero        SMALLINT NOT NULL DEFAULT 0,
-            participante_id     UUID NOT NULL,
-            posicion            SMALLINT NOT NULL,
-            puntos              NUMERIC(4,1) NOT NULL DEFAULT 0.0,
-            partidas_jugadas    SMALLINT NOT NULL DEFAULT 0,
-            victorias           SMALLINT NOT NULL DEFAULT 0,
-            empates             SMALLINT NOT NULL DEFAULT 0,
-            derrotas            SMALLINT NOT NULL DEFAULT 0,
-            byes                SMALLINT NOT NULL DEFAULT 0,
-            bucholz_cut1        NUMERIC(5,2) NOT NULL DEFAULT 0.0,
-            bucholz_total       NUMERIC(5,2) NOT NULL DEFAULT 0.0,
-            sonneborn_berger    NUMERIC(5,2) NOT NULL DEFAULT 0.0,
-            calculado_en        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuito_ranking (
-            id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            circuito_id                 UUID NOT NULL,
-            participante_id             UUID NOT NULL,
-            categoria                   VARCHAR(30) NOT NULL DEFAULT 'General',
-            posicion                    SMALLINT NOT NULL,
-            puntos_totales              INTEGER NOT NULL DEFAULT 0,
-            etapas_jugadas              SMALLINT NOT NULL DEFAULT 0,
-            victorias_etapa             SMALLINT NOT NULL DEFAULT 0,
-            calculado_en                TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-    """))
-    await session.commit()
+    global _tables_checked
+    if _tables_checked:
+        return
+    for stmt in _CHESS_DDL_STATEMENTS:
+        try:
+            await session.execute(text(stmt))
+            await session.commit()
+        except Exception:
+            await session.rollback()
+    _tables_checked = True
 
 class EmparejamientoManual(BaseModel):
     blancas_id: str
