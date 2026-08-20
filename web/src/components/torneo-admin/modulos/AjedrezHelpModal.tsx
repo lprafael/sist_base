@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import {
   X, HelpCircle, BookOpen, ShieldAlert,
-  FileSpreadsheet, Sparkles, Trophy, Users, CheckCircle2, ChevronRight
+  FileSpreadsheet, Sparkles, Trophy, Users, CheckCircle2, ChevronRight,
+  Gamepad2, Zap, Clock
 } from 'lucide-react';
 
 interface AjedrezHelpModalProps {
@@ -11,12 +12,13 @@ interface AjedrezHelpModalProps {
 }
 
 export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalProps) {
-  const [activeTab, setActiveTab] = useState<'lichess' | 'antitrampa' | 'chessresults' | 'cedula' | 'suizo'>('lichess');
+  const [activeTab, setActiveTab] = useState<'lichess' | 'nativo' | 'antitrampa' | 'chessresults' | 'cedula' | 'suizo'>('lichess');
 
   if (!isOpen) return null;
 
   const TABS = [
-    { id: 'lichess',      l: 'Lichess & En vivo',    icon: Sparkles },
+    { id: 'lichess',      l: 'Lichess & 1-Clic',     icon: Sparkles },
+    { id: 'nativo',       l: 'Tablero Nativo (Jugar)', icon: Gamepad2 },
     { id: 'antitrampa',   l: 'Control Antitrampa',   icon: ShieldAlert },
     { id: 'chessresults', l: 'Importar Excel/Sub-X', icon: FileSpreadsheet },
     { id: 'cedula',       l: 'Cédula & Validación',  icon: Users },
@@ -77,19 +79,19 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                 <h4 className="font-black text-amber-900 text-sm mb-1">
-                  ♟️ ¿Cómo conectar partidas de Lichess y ver tableros en vivo?
+                  ♟️ Conexión y Creación de Partidas en Lichess con 1 Clic
                 </h4>
                 <p className="text-xs text-amber-800">
-                  La plataforma se enlaza de forma nativa con la API de Lichess.org, permitiendo seguir los movimientos en tiempo real y sincronizar los resultados sin errores manuales.
+                  Genera partidas con ritmos oficiales (Bullet, Blitz, Rápido, Clásico) de forma automatizada mediante la API de Lichess o enlaza partidas existentes para seguimiento y sincronización.
                 </p>
               </div>
 
               <div className="space-y-3 text-xs">
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                  <span className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center flex-shrink-0 text-xs">1</span>
                   <div>
-                    <strong className="block text-slate-800 text-sm">Pegar el enlace o ID de la partida:</strong>
-                    En la pestaña <em>Emparejamiento</em> o <em>Resultados</em> de la ronda, haz clic en "+ Enlazar partida de Lichess" y pega la URL (ej. <code className="bg-white px-1.5 py-0.5 rounded border text-indigo-700">https://lichess.org/qa7x6Y4w</code>).
+                    <strong className="block text-slate-800 text-sm">Crear Partida Automática con 1 Clic:</strong>
+                    Haz clic en el botón <strong className="text-amber-700">"⚡ Crear Lichess"</strong> en cualquier tablero. Selecciona el ritmo deseado (ej. Blitz 3+2 o 5+3) y el sistema generará los enlaces directos para Blancas y Negras, asignando el tablero al instante.
                   </div>
                 </div>
 
@@ -97,7 +99,7 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
                   <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">2</span>
                   <div>
                     <strong className="block text-slate-800 text-sm">Ver el tablero interactivo embebido:</strong>
-                    Haz clic en el botón <strong>"♟️ Ver Tablero"</strong> para abrir el visor oficial de Lichess, donde padres y espectadores pueden seguir el reloj y las jugadas en vivo.
+                    Haz clic en el botón <strong>"♟️ Tablero Lichess"</strong> para abrir el visor oficial, donde árbitros, público y padres pueden seguir el reloj y las jugadas en vivo.
                   </div>
                 </div>
 
@@ -105,12 +107,64 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
                   <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">3</span>
                   <div>
                     <strong className="block text-slate-800 text-sm">Auto-completar el resultado con 1 clic:</strong>
-                    Al concluir la partida en Lichess, presiona <strong>"⚡ Auto-completar desde Lichess"</strong>. El sistema registrará 1-0, 0-1 o ½-½ y recalculará la tabla de posiciones inmediatamente.
+                    Al concluir la partida en Lichess, presiona <strong>"⚡ Auto-completar desde Lichess"</strong> o abre el modal y pulsa <strong>"Sincronizar"</strong>. El sistema registrará 1-0, 0-1 o ½-½ y recalculará la tabla de posiciones inmediatamente.
                   </div>
                 </div>
               </div>
             </div>
           )}
+
+          {activeTab === 'nativo' && (
+            <div className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                <h4 className="font-black text-emerald-900 text-sm mb-1">
+                  🎮 Tablero Nativo de Juego Interno en Mi Cancha
+                </h4>
+                <p className="text-xs text-emerald-800">
+                  Juega directamente en la plataforma sin salir a sitios externos. Ideal para torneos presenciales, partidas en tablets/laptops o partidas rápidas de club.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
+                    <span>⚖️</span> Reglas Oficiales FIDE Completas
+                  </strong>
+                  <p className="text-slate-600">
+                    Validación estricta de movimientos legales, enroques, peón al paso, jaque, jaque mate, tablas por rey ahogado, repetición triple y coronación de peones.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
+                    <span>⏱️</span> Relojes Digitales con Incremento
+                  </strong>
+                  <p className="text-slate-600">
+                    Temporizadores con cuenta regresiva para ambos jugadores y adición automática de incrementos de tiempo en cada jugada, con detección de caída de bandera.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
+                    <span>🔊</span> Sonidos Nativos & PGN
+                  </strong>
+                  <p className="text-slate-600">
+                    Efectos de audio sintéticos para movimientos, capturas, jaque y victoria, acompañados del registro en notación algebraica oficial (PGN).
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
+                    <span>🏆</span> Guardado Directo al Torneo
+                  </strong>
+                  <p className="text-slate-600">
+                    Al finalizar el mate, tiempo o rendición, presiona <strong>"Guardar Resultado Oficial"</strong> para que el resultado impacte la tabla del torneo automáticamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {activeTab === 'antitrampa' && (
             <div className="space-y-4">

@@ -258,6 +258,12 @@ class RatingUpdate(BaseModel):
 class SincronizarLichessPayload(BaseModel):
     url_partida: Optional[str] = None
 
+class CrearDesafioLichessPayload(BaseModel):
+    tiempo_minutos: Optional[int] = 5
+    incremento_segundos: Optional[int] = 3
+    nombre_desafio: Optional[str] = None
+
+
 class SincronizarParticipanteLichessPayload(BaseModel):
     usuario_lichess: Optional[str] = None
 
@@ -2647,3 +2653,103 @@ async def sincronizar_participante_lichess(
         "rating_classical": user_info["rating_classical"],
         "rating_sugerido": rating_sugerido,
     }
+
+
+@router.post("/partidas/{partida_id}/crear-desafio-lichess")
+async def crear_desafio_lichess(
+    partida_id: str,
+    payload: Optional[CrearDesafioLichessPayload] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Crea un desafío abierto en Lichess vía API pública y vincula la URL a la partida.
+    Retorna los enlaces para el jugador de Blancas, Negras y el visor embebido.
+    """
+    partida_q = await session.execute(text("""
+        SELECT p.*, 
+               pb.nombre as b_nom, pb.apellido as b_ape,
+               pn.nombre as n_nom, pn.apellido as n_ape
+        FROM torneos_generales.ajedrez_partidas p
+        LEFT JOIN torneos_generales.participantes pb ON p.blancas_id = pb.id
+        LEFT JOIN torneos_generales.participantes pn ON p.negras_id = pn.id
+        WHERE p.id = :pid
+    """), {"pid": partida_id})
+    partida = partida_q.fetchone()
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    tiempo_min = payload.tiempo_minutos if payload and payload.tiempo_minutos is not None else 5
+    incremento_seg = payload.incremento_segundos if payload and payload.incremento_segundos is not None else 3
+
+    limit_seg = max(60, min(10800, tiempo_min * 60))
+    inc_seg = max(0, min(180, incremento_seg))
+
+    nom_b = f"{partida.b_nom or ''} {partida.b_ape or ''}".strip() or "Blancas"
+    nom_n = f"{partida.n_nom or ''} {partida.n_ape or ''}".strip() or "Negras"
+    tablero = partida.tablero_numero or 1
+    ronda = partida.numero_ronda or 1
+
+    nombre_desafio = (
+        payload.nombre_desafio
+        if payload and payload.nombre_desafio
+        else f"MiCancha R{ronda} T{tablero}: {nom_b} vs {nom_n}"
+    )
+
+    url_api = "https://lichess.org/api/challenge/open"
+    form_data = urllib.parse.urlencode({
+        "rated": "false",
+        "clock.limit": str(limit_seg),
+        "clock.increment": str(inc_seg),
+        "name": nombre_desafio,
+        "rules": "chess"
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url_api, data=form_data, headers={
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MiCanchaChess/1.0",
+        "Accept": "application/json"
+    })
+
+    try:
+        with urllib.request.urlopen(req, timeout=12.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            challenge = data.get("challenge", data)
+            game_id = challenge.get("id")
+            game_url = challenge.get("url") or f"https://lichess.org/{game_id}"
+            url_white = challenge.get("urlWhite") or challenge.get("url")
+            url_black = challenge.get("urlBlack") or challenge.get("url")
+            embed_url = f"https://lichess.org/embed/game/{game_id}?theme=auto&bg=auto"
+
+            # Actualizar la partida en base de datos
+            await session.execute(text("""
+                UPDATE torneos_generales.ajedrez_partidas
+                SET url_partida = :url, estado = 'en_curso', actualizado_en = NOW()
+                WHERE id = :pid
+            """), {
+                "pid": partida_id,
+                "url": game_url
+            })
+            await session.commit()
+
+            return {
+                "mensaje": "Desafío creado exitosamente en Lichess",
+                "game_id": game_id,
+                "url_partida": game_url,
+                "url_blancas": url_white,
+                "url_negras": url_black,
+                "embed_url": embed_url,
+                "tiempo_minutos": tiempo_min,
+                "incremento_segundos": inc_seg,
+                "nombre_desafio": nombre_desafio,
+                "blancas": nom_b,
+                "negras": nom_n,
+                "tablero_numero": tablero,
+                "numero_ronda": ronda,
+            }
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8") if e.fp else str(e)
+        raise HTTPException(status_code=502, detail=f"Error de Lichess al crear desafío ({e.code}): {err_body}")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
+

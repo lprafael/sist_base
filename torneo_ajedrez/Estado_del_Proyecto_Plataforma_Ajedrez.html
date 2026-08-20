@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado del Proyecto - Plataforma de Ajedrez | Mi Cancha</title>
+  <meta name="description" content="Informe ejecutivo y alcance técnico del sistema de gestión de torneos y circuitos de ajedrez Mi Cancha. Cumplimiento FIDE, integración Lichess y auditoría antitrampa.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-dark: #0f172a;
+      --primary-light: #3b82f6;
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --success: #10b981;
+      --success-bg: #ecfdf5;
+      --success-border: #a7f3d0;
+      --warning: #f59e0b;
+      --warning-bg: #fffbeb;
+      --danger: #ef4444;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --card-bg: #ffffff;
+      --body-bg: #f8fafc;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+    }
+
+    .dark {
+      --card-bg: #1e293b;
+      --body-bg: #0f172a;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      --slate-50: #1e293b;
+      --slate-100: #334155;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --success-border: rgba(16, 185, 129, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--body-bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding-bottom: 80px;
+      transition: background-color 0.25s ease, color 0.25s ease;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── TOP BAR / HEADER ─── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+    }
+    .dark .topbar {
+      background: rgba(15, 23, 42, 0.85);
+    }
+    .topbar-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--primary);
+    }
+    .brand-badge .chess-icon {
+      font-size: 1.5rem;
+      background: #eff6ff;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .dark .brand-badge {
+      color: #60a5fa;
+    }
+    .dark .brand-badge .chess-icon {
+      background: #1e3a8a;
+    }
+    .actions-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--slate-100);
+      color: var(--slate-700);
+      border-color: var(--slate-200);
+    }
+    .dark .btn-secondary {
+      background: var(--slate-800);
+      color: var(--slate-200);
+      border-color: var(--slate-700);
+    }
+    .btn-secondary:hover {
+      background: var(--slate-200);
+    }
+
+    /* ─── CONTAINER ─── */
+    .container {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+
+    /* ─── HERO CARD ─── */
+    .hero-card {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #1e3a8a 100%);
+      color: #ffffff;
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-xl);
+      margin-bottom: 32px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-card::after {
+      content: '♟';
+      position: absolute;
+      right: 30px;
+      bottom: -30px;
+      font-size: 240px;
+      opacity: 0.05;
+      pointer-events: none;
+      font-family: serif;
+    }
+    .hero-badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .status-pill {
+      background: #10b981;
+      color: #ffffff;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    }
+    .status-pill::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #ffffff;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    .version-pill {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .hero-title {
+      font-size: 2.3rem;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .hero-subtitle {
+      font-size: 1.05rem;
+      color: #94a3b8;
+      max-width: 800px;
+      margin-bottom: 28px;
+      font-weight: 400;
+    }
+    .hero-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 24px;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .meta-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #94a3b8;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .meta-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    /* ─── METRIC CARDS ─── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 36px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-light);
+    }
+    .metric-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 12px;
+      background: var(--slate-100);
+      color: var(--primary);
+    }
+    .dark .metric-icon-wrap {
+      background: var(--slate-800);
+    }
+    .metric-num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .metric-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    /* ─── SECTION HEADINGS ─── */
+    .section-header {
+      margin-top: 40px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .section-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title-icon {
+      color: var(--primary);
+    }
+
+    /* ─── CALLOUT BOX ─── */
+    .callout-box {
+      background: var(--success-bg);
+      border-left: 4px solid var(--success);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: 18px 22px;
+      margin-bottom: 28px;
+    }
+    .callout-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #065f46;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dark .callout-title {
+      color: #34d399;
+    }
+    .callout-desc {
+      font-size: 0.9rem;
+      color: var(--slate-700);
+      line-height: 1.5;
+    }
+    .dark .callout-desc {
+      color: #cbd5e1;
+    }
+
+    /* ─── TABLE STYLES ─── */
+    .table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 36px;
+    }
+    .table-toolbar {
+      padding: 16px 20px;
+      background: var(--slate-50);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-main);
+      font-size: 0.875rem;
+      font-family: inherit;
+      width: 260px;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    .table-responsive {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th {
+      background: #1e293b;
+      color: #ffffff;
+      padding: 12px 18px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background-color: rgba(59, 130, 246, 0.03);
+    }
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      background: var(--success-bg);
+      color: #047857;
+      border: 1px solid var(--success-border);
+      white-space: nowrap;
+    }
+    .dark .badge-status {
+      color: #34d399;
+    }
+    .code-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      background: var(--slate-100);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--slate-700);
+    }
+    .dark .code-pill {
+      background: var(--slate-800);
+      color: var(--slate-300);
+    }
+
+    /* ─── MODULES CARDS GRID ─── */
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 22px;
+      margin-bottom: 36px;
+    }
+    .module-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 26px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .module-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--slate-300);
+    }
+    .module-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .module-icon {
+      font-size: 1.6rem;
+      background: var(--slate-100);
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+    }
+    .dark .module-icon {
+      background: var(--slate-800);
+    }
+    .module-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.3;
+      margin-bottom: 4px;
+    }
+    .module-subtitle {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary-light);
+    }
+    .module-features {
+      list-style: none;
+      margin-bottom: 18px;
+    }
+    .module-features li {
+      position: relative;
+      padding-left: 20px;
+      font-size: 0.875rem;
+      color: var(--slate-600);
+      margin-bottom: 8px;
+      line-height: 1.45;
+    }
+    .dark .module-features li {
+      color: var(--slate-300);
+    }
+    .module-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--success);
+      font-weight: 900;
+      font-size: 0.85rem;
+    }
+    .module-features li strong {
+      color: var(--text-main);
+    }
+    .module-footer {
+      border-top: 1px solid var(--border-color);
+      padding-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── ROADMAP CARDS ─── */
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-bottom: 36px;
+    }
+    .roadmap-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      border-top: 4px solid var(--primary-light);
+    }
+    .roadmap-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--primary-light);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .roadmap-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+    .roadmap-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* ─── CONCLUSION CARD ─── */
+    .conclusion-card {
+      background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+      color: #ffffff;
+      border-radius: var(--radius-xl);
+      padding: 36px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+      margin-top: 40px;
+    }
+    .conclusion-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .conclusion-text {
+      font-size: 1rem;
+      color: #cbd5e1;
+      max-width: 800px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
+    }
+
+    /* ─── PRINT OPTIMIZATIONS ─── */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding-bottom: 0;
+      }
+      .topbar, .actions-bar, .search-input {
+        display: none !important;
+      }
+      .container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .hero-card {
+        background: #1e293b !important;
+        color: #ffffff !important;
+        padding: 24px !important;
+        margin-bottom: 20px !important;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+      }
+      .metric-card, .table-card, .module-card, .roadmap-card, .conclusion-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid;
+      }
+      .conclusion-card {
+        background: #1e3a8a !important;
+        color: #ffffff !important;
+      }
+      th {
+        background: #1e293b !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .badge-status {
+        border: 1px solid #059669 !important;
+        color: #059669 !important;
+        background: #ecfdf5 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 768px) {
+      .hero-card {
+        padding: 24px;
+      }
+      .hero-title {
+        font-size: 1.7rem;
+      }
+      .modules-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-container">
+      <div class="brand-badge">
+        <span class="chess-icon">♟️</span>
+        <span>Mi Cancha <span style="font-weight: 400; opacity: 0.7;">| Ajedrez</span></span>
+      </div>
+      <div class="actions-bar">
+        <button id="themeToggle" class="btn btn-secondary" onclick="toggleDarkMode()">
+          <span id="themeIcon">🌙</span> <span id="themeText">Modo Oscuro</span>
+        </button>
+        <button class="btn btn-primary" onclick="window.print()">
+          <span>🖨️</span> Imprimir / PDF
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Hero / Presentation Card -->
+    <section class="hero-card">
+      <div class="hero-badge-row">
+        <span class="status-pill">100% OPERATIVO EN PRODUCCIÓN</span>
+        <span class="version-pill">Release v2.4 (FIDE & Lichess Sync)</span>
+      </div>
+      <h1 class="hero-title">Informe de Estado y Alcance Técnico</h1>
+      <p class="hero-subtitle">
+        Plataforma integral para gestión de torneos escolares, abiertos y circuitos anuales de ajedrez con soporte oficial FIDE, sincronización Lichess y auditoría antitrampa en tiempo real.
+      </p>
+
+      <div class="hero-meta-grid">
+        <div class="meta-item">
+          <span class="meta-label">Proyecto / Cliente</span>
+          <span class="meta-value">Circuito y Federación de Ajedrez</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Fecha de Presentación</span>
+          <span class="meta-value">Agosto 2026</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Dictamen de Desarrollo</span>
+          <span class="meta-value" style="color: #34d399;">Listo para Puesta en Marcha</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Plataforma Base</span>
+          <span class="meta-value">Mi Cancha Sports Engine</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Metrics Dashboard -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon-wrap">🏆</div>
+        <div class="metric-num">100%</div>
+        <div class="metric-title">Normativa FIDE & Sistema Suizo</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon-wrap">♟️</div>
+        <div class="metric-num">1 Clic</div>
+        <div class="metric-title">Sincronización Lichess en Vivo</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon-wrap">🛡️</div>
+        <div class="metric-num">&lt; 16 ACPL</div>
+        <div class="metric-title">Auditoría Antitrampa Stockfish</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon-wrap">🪪</div>
+        <div class="metric-num">1 Vez/Año</div>
+        <div class="metric-title">Cédula con Registro Único Anual</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon-wrap">📊</div>
+        <div class="metric-num">Sub-7 a 18</div>
+        <div class="metric-title">Reclasificación Automática de Edad</div>
+      </div>
+    </section>
+
+    <!-- Resumen Ejecutivo Callout -->
+    <div class="callout-box">
+      <div class="callout-title">
+        <span>💡</span> Resumen Ejecutivo del Estado del Sistema
+      </div>
+      <p class="callout-desc">
+        Todos los requerimientos funcionales y técnicos acordados se encuentran <strong>100% desarrollados, verificados e integrados</strong> en la plataforma Mi Cancha. El sistema cubre de manera fluida el flujo completo de torneos: inscripciones con validación de pagos, emparejamiento suizo automático/manual asistido, visualización embebida de partidas, control antitrampa por centipeones, importador masivo desde Chess-Results/Swiss-Manager, ranking de circuitos y pantalla gigante en vivo para sedes.
+      </p>
+    </div>
+
+    <!-- Section: Matriz de Cobertura Funcional -->
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="section-title-icon">📋</span> Matriz de Cobertura Funcional
+      </h2>
+      <input type="text" id="tableSearch" class="search-input" placeholder="🔍 Filtrar funcionalidad..." onkeyup="filterTable()">
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
+          Listado de Módulos Implementados en Frontend y Backend
+        </span>
+        <span class="badge-status">10 de 10 Módulos Operativos</span>
+      </div>
+      <div class="table-responsive">
+        <table id="featuresTable">
+          <thead>
+            <tr>
+              <th>Módulo / Funcionalidad</th>
+              <th>Estado</th>
+              <th>Tecnología / Integración</th>
+              <th>Impacto Operacional para el Cliente</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Integración Lichess & Tablero Embebido</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Lichess Open API + Iframe Visor</span></td>
+              <td>Seguimiento visual jugada a jugada sin salir de Mi Cancha y sincronización de resultados en 1 solo clic.</td>
+            </tr>
+            <tr>
+              <td><strong>Auditoría & Control Antitrampa (ACPL)</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Stockfish Engine + Algoritmo ACPL</span></td>
+              <td>Medición de centipeones perdidos, blunders e imprecisiones. Alerta visual automática para el árbitro ante sospecha.</td>
+            </tr>
+            <tr>
+              <td><strong>Motor Suizo FIDE & Desempates Oficiales</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">FIDE Swiss (PTS, BC1, BT, SB)</span></td>
+              <td>Emparejamiento estricto por rating y puntos, modo manual/drag-and-drop y recálculo instantáneo de posiciones.</td>
+            </tr>
+            <tr>
+              <td><strong>Importador Chess-Results / Swiss-Manager</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Parser OpenPyXL / Pandas (.xlsx/.csv)</span></td>
+              <td>Carga masiva de atletas, ELO FIDE, clubes y reclasificación automática por franja de edad en segundos.</td>
+            </tr>
+            <tr>
+              <td><strong>Reclasificación a Sub-X y Podios Top 10</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Clasificador Dinámico por Nacimiento</span></td>
+              <td>Filtrado instantáneo en Sub-7, Sub-9, Sub-11, Sub-13, Abierta y Femenino con medallas 🥇🥈🥉 por categoría.</td>
+            </tr>
+            <tr>
+              <td><strong>Cédula de Identidad con Registro Único Anual</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Persistencia Anual (Ciclo 2026)</span></td>
+              <td>Foto validada 1 sola vez por temporada. El atleta no vuelve a adjuntar su documento en los siguientes torneos.</td>
+            </tr>
+            <tr>
+              <td><strong>Circuitos Anuales y Ranking Institucional</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Tablas JSONB Multi-Etapa</span></td>
+              <td>Puntuación acumulativa de múltiples fechas y ranking general para colegios, universidades y academias.</td>
+            </tr>
+            <tr>
+              <td><strong>Transmisión para Sedes (TV Live)</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">/torneos/[id]/tv-live Next.js</span></td>
+              <td>Pantalla gigante de proyección para sedes: rotación de tableros activos, cruces y podios en tiempo real.</td>
+            </tr>
+            <tr>
+              <td><strong>Centro de Ayuda Guiado e Interactivo (FAQ)</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Modal en 5 Pestañas Pedagógicas</span></td>
+              <td>Guías paso a paso para padres, entrenadores y árbitros sobre Lichess, pagos y emparejamientos.</td>
+            </tr>
+            <tr>
+              <td><strong>Inscripciones Públicas y Validación de Pagos</strong></td>
+              <td><span class="badge-status">✅ 100% Operativo</span></td>
+              <td><span class="code-pill">Formularios Públicos + Comprobantes</span></td>
+              <td>Control de cupos, carga de comprobantes bancarios, multi-cuenta bancaria y panel de aprobación administrativa.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section: Detalle por Módulo -->
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="section-title-icon">🧩</span> Detalle Técnico-Funcional por Módulo
+      </h2>
+    </div>
+
+    <div class="modules-grid">
+      <!-- Módulo 1 -->
+      <div class="module-card">
+        <div>
+          <div class="module-head">
+            <div class="module-icon">♟️</div>
+            <div>
+              <h3 class="module-title">Integración Lichess & Tableros en Vivo</h3>
+              <p class="module-subtitle">Partidas Embebidas y Sincronización</p>
+            </div>
+          </div>
+          <ul class="module-features">
+            <li><strong>Visor Embebido Interactivo:</strong> Tablero interactivo con piezas, reloj y notación PGN directamente dentro de Mi Cancha.</li>
+            <li><strong>Sincronización en 1 Clic:</strong> Al finalizar la partida online, el resultado oficial (1-0, 0-1, ½-½) se guarda en la base de datos de Mi Cancha.</li>
+            <li><strong>Experiencia Unificada:</strong> Árbitros y espectadores no necesitan abandonar micancha.com.py ni abrir pestañas externas.</li>
+          </ul>
+        </div>
+        <div class="module-footer">
+          <span>Componente: <code>LichessBoardModal.tsx</code></span>
+          <span class="badge-status">100% Listo</span>
+        </div>
+      </div>
+
+      <!-- Módulo 2 -->
+      <div class="module-card">
+        <div>
+          <div class="module-head">
+            <div class="module-icon">🛡️</div>
+            <div>
+              <h3 class="module-title">Auditoría Antitrampa (ACPL)</h3>
+              <p class="module-subtitle">Detección Automática por Centipeones</p>
+            </div>
+          </div>
+          <ul class="module-features">
+            <li><strong>Métricas de Stockfish:</strong> Calcula la pérdida media de centipeones (ACPL), blunders e imprecisiones de cada jugador.</li>
+            <li><strong>Alerta Visual para el Árbitro:</strong> Si un jugador aficionado/escolar muestra &lt; 16 ACPL o concordancia de motor, emite una advertencia ⚠️ <em>Alerta Sospecha</em>.</li>
+            <li><strong>Panel de Auditoría:</strong> Desglose estadístico detallado de cada bando disponible para el cuerpo arbitral.</li>
+          </ul>
+        </div>
+        <div class="module-footer">
+          <span>Módulo: <code>AntiCheat Engine ACPL</code></span>
+          <span class="badge-status">100% Listo</span>
+        </div>
+      </div>
+
+      <!-- Módulo 3 -->
+      <div class="module-card">
+        <div>
+          <div class="module-head">
+            <div class="module-icon">🏆</div>
+            <div>
+              <h3 class="module-title">Motor Suizo FIDE & Desempates</h3>
+              <p class="module-subtitle">Cálculo Oficial y Emparejamientos</p>
+            </div>
+          </div>
+          <ul class="module-features">
+            <li><strong>Emparejamiento Suizo Oficial:</strong> Algoritmo estricto por puntuación y ELO FIDE, garantizando alternancia de colores y evitando cruces repetidos.</li>
+            <li><strong>Modo Manual Asistido & Drag-and-Drop:</strong> Libertad para reordenar mesas o asignar BYEs y victorias por Forfeit (FF).</li>
+            <li><strong>Desempates FIDE:</strong> Cálculo automatizado de Buchholz Cut 1 (BC1), Buchholz Total (BT) y Sonneborn-Berger (SB).</li>
+          </ul>
+        </div>
+        <div class="module-footer">
+          <span>Componente: <code>AjedrezController.tsx</code></span>
+          <span class="badge-status">100% Listo</span>
+        </div>
+      </div>
+
+      <!-- Módulo 4 -->
+      <div class="module-card">
+        <div>
+          <div class="module-head">
+            <div class="module-icon">📊</div>
+            <div>
+              <h3 class="module-title">Importador Chess-Results & Sub-X</h3>
+              <p class="module-subtitle">Migración Masiva y Reclasificación</p>
+            </div>
+          </div>
+          <ul class="module-features">
+            <li><strong>Carga Masiva Excel (.xlsx / .csv):</strong> Lee listas de Chess-Results/Swiss-Manager extrayendo Nombre, ELO, Club y Nacimiento.</li>
+            <li><strong>Reclasificación por Edad:</strong> Asigna automáticamente la categoría correspondiente: Sub-7, Sub-9, Sub-11, Sub-13, Sub-15, Sub-18 o Abierta.</li>
+            <li><strong>Podios Top 10:</strong> Visualización filtrada con medallas 🥇, 🥈, 🥉 para premiaciones rápidas y circuitos.</li>
+          </ul>
+        </div>
+        <div class="module-footer">
+          <span>Componente: <code>ImportarChessResultsModal.tsx</code></span>
+          <span class="badge-status">100% Listo</span>
+        </div>
+      </div>
+
+      <!-- Módulo 5 -->
+      <div class="module-card">
+        <div>
+          <div class="module-head">
+            <div class="module-icon">🪪</div>
+            <div>
+              <h3 class="module-title">Cédula con Registro Único Anual</h3>
+              <p class="module-subtitle">Persistencia Temporada 2026</p>
+            </div>
+          </div>
+          <ul class="module-features">
+            <li><strong>Carga sin Restricciones:</strong> Sube fotos de documento sin límites restrictivos de Google Forms.</li>
+            <li><strong>Validación Anual Persistente:</strong> Validada una vez en el ciclo 2026, el jugador queda habilitado para todo el circuito sin volver a pedir la foto.</li>
+            <li><strong>Panel Árbitro:</strong> Visualizador de imagen ampliada y aprobación con 1 solo clic.</li>
+          </ul>
+        </div>
+        <div class="module-footer">
+          <span>Componente: <code>AjedrezCedulaModal.tsx</code></span>
+          <span class="badge-status">100% Listo</span>
+        </div>
+      </div>
+
+      <!-- Módulo 6 -->
+      <div class="module-card">
+        <div>
+          <div class="module-head">
+            <div class="module-icon">📺</div>
+            <div>
+              <h3 class="module-title">Circuitos, Ranking & TV Live</h3>
+              <p class="module-subtitle">Proyección en Sede y Copas Escolares</p>
+            </div>
+          </div>
+          <ul class="module-features">
+            <li><strong>Circuitos Multi-Etapa:</strong> Puntos acumulados entre torneos presenciales y virtuales con tablas configurables.</li>
+            <li><strong>Ranking Institucional:</strong> Copa por colegios y academias según rendimiento de alumnos.</li>
+            <li><strong>Modo Proyección TV Live:</strong> Pantalla para proyectores en sedes con tableros, cruces y posiciones en vivo.</li>
+          </ul>
+        </div>
+        <div class="module-footer">
+          <span>Ruta: <code>/torneos/[id]/tv-live</code></span>
+          <span class="badge-status">100% Listo</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Roadmap -->
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="section-title-icon">🚀</span> Hoja de Ruta y Próximas Mejoras Opcionales (Roadmap)
+      </h2>
+    </div>
+
+    <div class="roadmap-grid">
+      <div class="roadmap-card">
+        <div class="roadmap-num">Fase Evolutiva 1</div>
+        <h4 class="roadmap-title">Multi-idioma (i18n)</h4>
+        <p class="roadmap-desc">Soporte para cambiar la interfaz a Portugués e Inglés en torneos panamericanos o sudamericanos.</p>
+      </div>
+      <div class="roadmap-card">
+        <div class="roadmap-num">Fase Evolutiva 2</div>
+        <h4 class="roadmap-title">Exportación TRF FIDE</h4>
+        <p class="roadmap-desc">Generación del archivo oficial <code>.trf</code> (formato Krausse) para envío directo por correo al oficial de ELO FIDE.</p>
+      </div>
+      <div class="roadmap-card">
+        <div class="roadmap-num">Fase Evolutiva 3</div>
+        <h4 class="roadmap-title">Tableros Físicos DGT</h4>
+        <p class="roadmap-desc">Integración directa con tableros electrónicos DGT vía Bluetooth/USB para partidas magistrales de élite.</p>
+      </div>
+      <div class="roadmap-card">
+        <div class="roadmap-num">Fase Evolutiva 4</div>
+        <h4 class="roadmap-title">Alertas WhatsApp</h4>
+        <p class="roadmap-desc">Envío automatizado a tutores con la mesa y color asignado minutos antes de cada ronda.</p>
+      </div>
+    </div>
+
+    <!-- Conclusion Card -->
+    <section class="conclusion-card">
+      <h2 class="conclusion-title">✅ Plataforma 100% Lista para Puesta en Marcha</h2>
+      <p class="conclusion-text">
+        El módulo de Ajedrez de Mi Cancha cumple con los más altos estándares técnicos y deportivos, facilitando la administración arbitral, garantizando la transparencia antitrampa y entregando una experiencia visual de primer nivel a atletas y espectadores.
+      </p>
+      <div style="display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+        <button class="btn btn-primary" style="background: #ffffff; color: var(--primary);" onclick="window.print()">
+          <span>🖨️</span> Descargar Reporte en PDF
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+      if (isDark) {
+        icon.textContent = '☀️';
+        text.textContent = 'Modo Claro';
+      } else {
+        icon.textContent = '🌙';
+        text.textContent = 'Modo Oscuro';
+      }
+    }
+
+    function filterTable() {
+      const input = document.getElementById('tableSearch');
+      const filter = input.value.toLowerCase();
+      const table = document.getElementById('featuresTable');
+      const trs = table.getElementsByTagName('tr');
+
+      for (let i = 1; i < trs.length; i++) {
+        const text = trs[i].textContent || trs[i].innerText;
+        if (text.toLowerCase().indexOf(filter) > -1) {
+          trs[i].style.display = '';
+        } else {
+          trs[i].style.display = 'none';
+        }
+      }
+    }
+  </script>
+</body>
+</html>

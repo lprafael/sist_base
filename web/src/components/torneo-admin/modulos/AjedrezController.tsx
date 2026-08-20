@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import LichessBoardModal, { extraerLichessId } from './LichessBoardModal';
 import AjedrezHelpModal from './AjedrezHelpModal';
+import CrearLichessModal from './CrearLichessModal';
+import NativeChessBoardModal from './NativeChessBoardModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -606,6 +608,8 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
   const [busy, setBusy] = useState(false);
   const [modalManual, setModalManual] = useState(false);
   const [lichessPartida, setLichessPartida] = useState<Partida | null>(null);
+  const [crearLichessPartida, setCrearLichessPartida] = useState<Partida | null>(null);
+  const [nativeBoardPartida, setNativeBoardPartida] = useState<Partida | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
 
@@ -733,6 +737,42 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
           }}
         />
       )}
+
+      {crearLichessPartida && (
+        <CrearLichessModal
+          isOpen={Boolean(crearLichessPartida)}
+          onClose={() => setCrearLichessPartida(null)}
+          partidaId={crearLichessPartida.id}
+          blancasNombre={crearLichessPartida.blancas_nombre ? `${crearLichessPartida.blancas_nombre} ${crearLichessPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={crearLichessPartida.negras_nombre ? `${crearLichessPartida.negras_nombre} ${crearLichessPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={crearLichessPartida.tablero_numero}
+          numeroRonda={ronda.numero_ronda}
+          onDesafioCreado={() => {
+            load();
+            onRefresh();
+          }}
+          onAbrirVisor={(url) => {
+            setLichessPartida({ ...crearLichessPartida, url_partida: url });
+          }}
+        />
+      )}
+
+      {nativeBoardPartida && (
+        <NativeChessBoardModal
+          isOpen={Boolean(nativeBoardPartida)}
+          onClose={() => setNativeBoardPartida(null)}
+          partidaId={nativeBoardPartida.id}
+          blancasNombre={nativeBoardPartida.blancas_nombre ? `${nativeBoardPartida.blancas_nombre} ${nativeBoardPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={nativeBoardPartida.negras_nombre ? `${nativeBoardPartida.negras_nombre} ${nativeBoardPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={nativeBoardPartida.tablero_numero}
+          numeroRonda={ronda.numero_ronda}
+          onResultadoFinal={() => {
+            load();
+            onRefresh();
+          }}
+        />
+      )}
+
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
@@ -873,9 +913,31 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                             className="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition shadow-sm"
                             title="Abrir visor interactivo de tablero Lichess y auditoría antitrampa"
                           >
-                            <span>♟️</span> Tablero
+                            <span>♟️</span> Lichess
                           </button>
                         )}
+
+                        {!isFin && (
+                          <button
+                            onClick={() => setCrearLichessPartida(p)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 transition shadow-sm"
+                            title="Crear partida automática en Lichess con 1 clic"
+                          >
+                            <Zap size={12} className="text-amber-600" />
+                            <span>Crear Lichess</span>
+                          </button>
+                        )}
+
+                        {!isFin && (
+                          <button
+                            onClick={() => setNativeBoardPartida(p)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 transition shadow-sm"
+                            title="Jugar directamente en Mi Cancha con tablero nativo y reloj FIDE"
+                          >
+                            <span>🎮</span> Jugar
+                          </button>
+                        )}
+
 
                         {!isPublic && !isFin && (
                           <button
@@ -928,6 +990,8 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
   const [savingId, setSavingId] = useState<string | null>(null);
   const [finBusy, setFinBusy] = useState(false);
   const [lichessModalPartida, setLichessModalPartida] = useState<Partida | null>(null);
+  const [crearLichessModalPartida, setCrearLichessModalPartida] = useState<Partida | null>(null);
+  const [nativeBoardModalPartida, setNativeBoardModalPartida] = useState<Partida | null>(null);
   const [syncingLichessId, setSyncingLichessId] = useState<string | null>(null);
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState<string>('');
@@ -1124,6 +1188,42 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
         />
       )}
 
+      {crearLichessModalPartida && (
+        <CrearLichessModal
+          isOpen={Boolean(crearLichessModalPartida)}
+          onClose={() => setCrearLichessModalPartida(null)}
+          partidaId={crearLichessModalPartida.id}
+          blancasNombre={crearLichessModalPartida.blancas_nombre ? `${crearLichessModalPartida.blancas_nombre} ${crearLichessModalPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={crearLichessModalPartida.negras_nombre ? `${crearLichessModalPartida.negras_nombre} ${crearLichessModalPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={crearLichessModalPartida.tablero_numero}
+          numeroRonda={ronda.numero_ronda}
+          onDesafioCreado={() => {
+            load();
+            onRefresh();
+          }}
+          onAbrirVisor={(url) => {
+            setLichessModalPartida({ ...crearLichessModalPartida, url_partida: url });
+          }}
+        />
+      )}
+
+      {nativeBoardModalPartida && (
+        <NativeChessBoardModal
+          isOpen={Boolean(nativeBoardModalPartida)}
+          onClose={() => setNativeBoardModalPartida(null)}
+          partidaId={nativeBoardModalPartida.id}
+          blancasNombre={nativeBoardModalPartida.blancas_nombre ? `${nativeBoardModalPartida.blancas_nombre} ${nativeBoardModalPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={nativeBoardModalPartida.negras_nombre ? `${nativeBoardModalPartida.negras_nombre} ${nativeBoardModalPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={nativeBoardModalPartida.tablero_numero}
+          numeroRonda={ronda.numero_ronda}
+          onResultadoFinal={() => {
+            load();
+            onRefresh();
+          }}
+        />
+      )}
+
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h3 className="text-lg font-black text-slate-800">Ronda {ronda.numero_ronda} — Resultados</h3>
@@ -1262,17 +1362,41 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setEditingUrlId(p.id);
-                          setInputUrl('');
-                        }}
-                        className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline flex items-center gap-1"
-                      >
-                        <span>+ Enlazar partida de Lichess</span>
-                      </button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => {
+                            setEditingUrlId(p.id);
+                            setInputUrl('');
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline flex items-center gap-1 text-xs"
+                        >
+                          <span>+ Enlazar URL Lichess</span>
+                        </button>
+
+                        {!yaFin && !p.resultado && (
+                          <>
+                            <button
+                              onClick={() => setCrearLichessModalPartida(p)}
+                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold rounded-lg transition flex items-center gap-1 text-xs shadow-xs"
+                              title="Crear partida en Lichess con 1 clic"
+                            >
+                              <Zap size={12} className="text-amber-600" />
+                              <span>Crear Lichess</span>
+                            </button>
+                            <button
+                              onClick={() => setNativeBoardModalPartida(p)}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-lg transition flex items-center gap-1 text-xs shadow-xs"
+                              title="Jugar en Mi Cancha con tablero nativo y reloj FIDE"
+                            >
+                              <span>🎮</span>
+                              <span>Jugar en Mi Cancha</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
+
 
                   {p.url_partida && (
                     <div className="flex items-center gap-2 flex-wrap">
