@@ -154,6 +154,17 @@ _CHESS_DDL_STATEMENTS = [
         creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS analisis_partida JSONB""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS url_partida TEXT""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS modalidad_partida VARCHAR(20) DEFAULT 'presencial'""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS notas TEXT""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS ganador_id UUID""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS puntos_blancas NUMERIC(3,1)""",
+    """ALTER TABLE torneos_generales.ajedrez_partidas ADD COLUMN IF NOT EXISTS puntos_negras NUMERIC(3,1)""",
+    """ALTER TABLE torneos_generales.ajedrez_rondas ADD COLUMN IF NOT EXISTS modo_emparejamiento VARCHAR(20) DEFAULT 'automatico'""",
+    """ALTER TABLE torneos_generales.ajedrez_rondas ADD COLUMN IF NOT EXISTS notas TEXT""",
+    """ALTER TABLE torneos_generales.ajedrez_rondas ADD COLUMN IF NOT EXISTS fecha_hora TIMESTAMPTZ""",
+    """ALTER TABLE torneos_generales.ajedrez_posiciones ADD COLUMN IF NOT EXISTS posicion_final SMALLINT""",
     """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_posiciones (
         id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         torneo_id           UUID NOT NULL,
@@ -1158,6 +1169,7 @@ async def confirmar_ronda(
 # ==============================================================================
 
 async def _get_partidas_con_nombres(ronda_id: str, session: AsyncSession) -> List[Dict]:
+    await _ensure_chess_tables(session)
     res = await session.execute(text("""
         SELECT
             p.id, p.tablero_numero, p.resultado, p.estado,
