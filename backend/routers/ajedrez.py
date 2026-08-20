@@ -70,8 +70,11 @@ class EtapaCreate(BaseModel):
 
 class RondaCreate(BaseModel):
     numero_ronda: int
-    sistema: str = "suizo"  # suizo | round_robin | eliminatoria
+    sistema: Optional[str] = "suizo"  # suizo | round_robin | eliminatoria
     fecha_ronda: Optional[str] = None
+    fecha_hora: Optional[str] = None
+    modo_emparejamiento: Optional[str] = "automatico"
+    notas: Optional[str] = None
 
 class ResultadoPartida(BaseModel):
     resultado: str   # '1-0' | '0-1' | '0.5-0.5' | 'BYE' | 'FF'
@@ -81,6 +84,116 @@ class EstadoPartidaPayload(BaseModel):
 
 PartidaResultado = ResultadoPartida
 PartidaEstado = EstadoPartidaPayload
+
+async def _ensure_chess_tables(session: AsyncSession):
+    """Garantiza de forma idempotente que todas las tablas y columnas de ajedrez existan."""
+    await session.execute(text("""
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_instituciones (
+            id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            nombre          VARCHAR(200) NOT NULL,
+            tipo            VARCHAR(30) NOT NULL DEFAULT 'colegio',
+            ciudad          VARCHAR(100),
+            pais            VARCHAR(100) DEFAULT 'Paraguay',
+            creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        ALTER TABLE torneos_generales.participantes
+            ADD COLUMN IF NOT EXISTS rating_fide        INTEGER DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS codigo_fide        VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS rating_nacional    INTEGER DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS usuario_lichess    VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS usuario_chess_com  VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS institucion_id     UUID,
+            ADD COLUMN IF NOT EXISTS categoria_base     VARCHAR(30),
+            ADD COLUMN IF NOT EXISTS categoria_jugada   VARCHAR(30),
+            ADD COLUMN IF NOT EXISTS documento          VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS foto_documento_url TEXT,
+            ADD COLUMN IF NOT EXISTS documento_validado BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS documento_validado_anio INTEGER;
+
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuitos (
+            id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            organizador_id              INTEGER,
+            nombre                      VARCHAR(200) NOT NULL,
+            anio                        SMALLINT NOT NULL DEFAULT 2026,
+            modalidad                   VARCHAR(20) NOT NULL DEFAULT 'presencial',
+            min_etapas_para_ranking     SMALLINT NOT NULL DEFAULT 1,
+            estado                      VARCHAR(20) NOT NULL DEFAULT 'borrador',
+            descripcion                 TEXT,
+            creado_en                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuito_etapas (
+            id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            circuito_id     UUID NOT NULL,
+            torneo_id       UUID NOT NULL,
+            numero_etapa    SMALLINT NOT NULL,
+            puntos_tabla    JSONB NOT NULL DEFAULT '{"1":12,"2":11,"3":10,"4":9,"5":8,"6":7,"7":6,"8":5,"9":4,"10":3}',
+            creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_rondas (
+            id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            torneo_id               UUID NOT NULL,
+            numero_ronda            SMALLINT NOT NULL,
+            estado                  VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+            fecha_hora              TIMESTAMPTZ,
+            modo_emparejamiento     VARCHAR(20) NOT NULL DEFAULT 'automatico',
+            notas                   TEXT,
+            creado_en               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_partidas (
+            id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            ronda_id            UUID NOT NULL,
+            tablero_numero      SMALLINT,
+            blancas_id          UUID NOT NULL,
+            negras_id           UUID,
+            resultado           VARCHAR(10),
+            puntos_blancas      NUMERIC(3,1),
+            puntos_negras       NUMERIC(3,1),
+            estado              VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+            url_partida         TEXT,
+            modalidad_partida   VARCHAR(20) DEFAULT 'presencial',
+            analisis_partida    JSONB,
+            notas               TEXT,
+            creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_posiciones (
+            id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            torneo_id           UUID NOT NULL,
+            ronda_numero        SMALLINT NOT NULL DEFAULT 0,
+            participante_id     UUID NOT NULL,
+            posicion            SMALLINT NOT NULL,
+            puntos              NUMERIC(4,1) NOT NULL DEFAULT 0.0,
+            partidas_jugadas    SMALLINT NOT NULL DEFAULT 0,
+            victorias           SMALLINT NOT NULL DEFAULT 0,
+            empates             SMALLINT NOT NULL DEFAULT 0,
+            derrotas            SMALLINT NOT NULL DEFAULT 0,
+            byes                SMALLINT NOT NULL DEFAULT 0,
+            bucholz_cut1        NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+            bucholz_total       NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+            sonneborn_berger    NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+            calculado_en        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_circuito_ranking (
+            id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            circuito_id                 UUID NOT NULL,
+            participante_id             UUID NOT NULL,
+            categoria                   VARCHAR(30) NOT NULL DEFAULT 'General',
+            posicion                    SMALLINT NOT NULL,
+            puntos_totales              INTEGER NOT NULL DEFAULT 0,
+            etapas_jugadas              SMALLINT NOT NULL DEFAULT 0,
+            victorias_etapa             SMALLINT NOT NULL DEFAULT 0,
+            calculado_en                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    """))
+    await session.commit()
 
 class EmparejamientoManual(BaseModel):
     blancas_id: str
@@ -782,6 +895,7 @@ async def ranking_institucional(
 @router.get("/torneos/{torneo_id}/rondas")
 async def listar_rondas(torneo_id: str, session: AsyncSession = Depends(get_session)):
     """Lista todas las rondas de un torneo con conteo de partidas."""
+    await _ensure_chess_tables(session)
     res = await session.execute(text("""
         SELECT r.*,
                COUNT(p.id) AS total_partidas,
@@ -803,6 +917,7 @@ async def crear_ronda(
     current_user: dict = Depends(get_current_user)
 ):
     """Crea una nueva ronda en el torneo."""
+    await _ensure_chess_tables(session)
     # Verificar si el torneo existe
     t_q = await session.execute(text("""
         SELECT id FROM torneos_generales.torneos WHERE id = :tid
@@ -827,8 +942,8 @@ async def crear_ronda(
     """), {
         "tid": torneo_id,
         "num": payload.numero_ronda,
-        "fh": payload.fecha_hora,
-        "modo": payload.modo_emparejamiento or "automatico",
+        "fh": payload.fecha_hora or payload.fecha_ronda,
+        "modo": payload.modo_emparejamiento or payload.sistema or "automatico",
         "notas": payload.notas,
     })
     ronda = res.fetchone()
@@ -1208,6 +1323,7 @@ async def tabla_posiciones(
     Retorna la tabla de posiciones con desempates ajedrecísticos:
     Bucholz Cut-1, Bucholz Total, Sonneborn-Berger.
     """
+    await _ensure_chess_tables(session)
     # Si ronda=0, obtener el mayor ronda_numero con datos
     if ronda == 0:
         max_q = await session.execute(text("""
@@ -1358,6 +1474,7 @@ async def listar_participantes_torneo(
     session: AsyncSession = Depends(get_session)
 ):
     """Lista todos los participantes de un torneo de ajedrez con sus datos y rating."""
+    await _ensure_chess_tables(session)
     res = await session.execute(text("""
         SELECT p.*, i.nombre AS institucion_nombre
         FROM torneos_generales.participantes p
