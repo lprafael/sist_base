@@ -63,7 +63,45 @@ export default function AjedrezCircuitosView({ torneoId, organizadorId }: { torn
   const [vincBusy, setVincBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
 
+  const loadRanking = async (circuito: Circuito) => {
+    setSelected(circuito);
+    setLoadingRk(true);
+    try {
+      const [rInd, rInst] = await Promise.all([
+        fetch(`${API_URL}/api/ajedrez/circuitos/${circuito.id}/ranking`, { headers: authHdrs() }),
+        fetch(`${API_URL}/api/ajedrez/circuitos/${circuito.id}/ranking-institucional`, { headers: authHdrs() })
+      ]);
+      if (rInd.ok) setRanking(await rInd.json());
+      if (rInst.ok) setRankingInst(await rInst.json());
+    } catch (e: any) {
+      console.error(e);
+    }
+    setLoadingRk(false);
+  };
 
+  const loadCircuitos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const url = organizadorId
+        ? `${API_URL}/api/ajedrez/circuitos?organizador_id=${organizadorId}`
+        : `${API_URL}/api/ajedrez/circuitos`;
+      const r = await fetch(url, { headers: authHdrs() });
+      if (r.ok) {
+        const data: Circuito[] = await r.json();
+        setCircuitos(data);
+        if (data.length > 0 && !selected) {
+          loadRanking(data[0]);
+        }
+      }
+    } catch (e: any) {
+      console.error(e);
+    }
+    setLoading(false);
+  }, [organizadorId]);
+
+  useEffect(() => {
+    loadCircuitos();
+  }, [loadCircuitos]);
 
   const recalcular = async () => {
     if (!selected) return;
