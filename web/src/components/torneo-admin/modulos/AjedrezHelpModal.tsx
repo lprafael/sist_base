@@ -118,14 +118,23 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
             <div className="space-y-4">
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
                 <h4 className="font-black text-emerald-900 text-sm mb-1">
-                  🎮 Tablero Nativo de Juego Interno en Mi Cancha
+                  🎮 Tablero Nativo con Transmisión en Vivo en Tiempo Real
                 </h4>
                 <p className="text-xs text-emerald-800">
-                  Juega directamente en la plataforma sin salir a sitios externos. Ideal para torneos presenciales, partidas en tablets/laptops o partidas rápidas de club.
+                  Juega directamente en la plataforma o sigue las partidas en vivo movimiento a movimiento desde cualquier dispositivo. Ideal para torneos presenciales, tablets de mesa y espectadores.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
+                    <span>📡</span> Transmisión en Vivo Jugada a Jugada
+                  </strong>
+                  <p className="text-slate-600">
+                    Cualquier espectador o padre de familia puede pulsar <strong>"🔴 En Vivo"</strong> para abrir el visor en tiempo real y ver cómo se mueven las piezas y corren los relojes en directo.
+                  </p>
+                </div>
+
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
                   <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
                     <span>⚖️</span> Reglas Oficiales FIDE Completas
@@ -146,19 +155,10 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
                   <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
-                    <span>🔊</span> Sonidos Nativos & PGN
+                    <span>📋</span> Registro PGN & Copia Rápida
                   </strong>
                   <p className="text-slate-600">
-                    Efectos de audio sintéticos para movimientos, capturas, jaque y victoria, acompañados del registro en notación algebraica oficial (PGN).
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
-                  <strong className="text-slate-800 block text-sm flex items-center gap-1.5">
-                    <span>🏆</span> Guardado Directo al Torneo
-                  </strong>
-                  <p className="text-slate-600">
-                    Al finalizar el mate, tiempo o rendición, presiona <strong>"Guardar Resultado Oficial"</strong> para que el resultado impacte la tabla del torneo automáticamente.
+                    Guarda la notación PGN oficial con todos los movimientos y permite copiarla al portapapeles con 1 clic para analizarla en cualquier motor o visor.
                   </p>
                 </div>
               </div>

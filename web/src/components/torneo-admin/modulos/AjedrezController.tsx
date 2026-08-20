@@ -5,12 +5,13 @@ import {
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
   PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw,
-  ExternalLink, Globe, Sparkles, HelpCircle, Copy
+  ExternalLink, Globe, Sparkles, HelpCircle, Copy, Radio
 } from 'lucide-react';
 import LichessBoardModal, { extraerLichessId } from './LichessBoardModal';
 import AjedrezHelpModal from './AjedrezHelpModal';
 import CrearLichessModal from './CrearLichessModal';
 import NativeChessBoardModal from './NativeChessBoardModal';
+import NativeChessViewerModal from './NativeChessViewerModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -610,6 +611,7 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
   const [lichessPartida, setLichessPartida] = useState<Partida | null>(null);
   const [crearLichessPartida, setCrearLichessPartida] = useState<Partida | null>(null);
   const [nativeBoardPartida, setNativeBoardPartida] = useState<Partida | null>(null);
+  const [nativeViewerPartida, setNativeViewerPartida] = useState<Partida | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [cfm, setCfm] = useState<{ title: string; body: string; fn: () => void } | null>(null);
 
@@ -770,6 +772,18 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
             load();
             onRefresh();
           }}
+        />
+      )}
+
+      {nativeViewerPartida && (
+        <NativeChessViewerModal
+          isOpen={Boolean(nativeViewerPartida)}
+          onClose={() => setNativeViewerPartida(null)}
+          partidaId={nativeViewerPartida.id}
+          blancasNombre={nativeViewerPartida.blancas_nombre ? `${nativeViewerPartida.blancas_nombre} ${nativeViewerPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={nativeViewerPartida.negras_nombre ? `${nativeViewerPartida.negras_nombre} ${nativeViewerPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={nativeViewerPartida.tablero_numero}
+          numeroRonda={ronda.numero_ronda}
         />
       )}
 
@@ -938,6 +952,17 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                           </button>
                         )}
 
+                        {(isLive || p.analisis_partida?.live || p.analisis_partida?.pgn || p.modalidad_partida === 'tablero_nativo') && !lichessId && (
+                          <button
+                            onClick={() => setNativeViewerPartida(p)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-black bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 flex items-center gap-1 transition shadow-sm"
+                            title="Ver transmisión en tiempo real de este tablero nativo"
+                          >
+                            <Radio size={12} className={isLive ? "text-red-600 animate-pulse" : "text-slate-500"} />
+                            <span>{isLive ? "En Vivo" : "Ver Tablero"}</span>
+                          </button>
+                        )}
+
 
                         {!isPublic && !isFin && (
                           <button
@@ -992,6 +1017,7 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
   const [lichessModalPartida, setLichessModalPartida] = useState<Partida | null>(null);
   const [crearLichessModalPartida, setCrearLichessModalPartida] = useState<Partida | null>(null);
   const [nativeBoardModalPartida, setNativeBoardModalPartida] = useState<Partida | null>(null);
+  const [nativeViewerModalPartida, setNativeViewerModalPartida] = useState<Partida | null>(null);
   const [syncingLichessId, setSyncingLichessId] = useState<string | null>(null);
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState<string>('');
@@ -1220,6 +1246,18 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
             load();
             onRefresh();
           }}
+        />
+      )}
+
+      {nativeViewerModalPartida && (
+        <NativeChessViewerModal
+          isOpen={Boolean(nativeViewerModalPartida)}
+          onClose={() => setNativeViewerModalPartida(null)}
+          partidaId={nativeViewerModalPartida.id}
+          blancasNombre={nativeViewerModalPartida.blancas_nombre ? `${nativeViewerModalPartida.blancas_nombre} ${nativeViewerModalPartida.blancas_apellido || ''}` : 'Blancas'}
+          negrasNombre={nativeViewerModalPartida.negras_nombre ? `${nativeViewerModalPartida.negras_nombre} ${nativeViewerModalPartida.negras_apellido || ''}` : 'Negras'}
+          tableroNumero={nativeViewerModalPartida.tablero_numero}
+          numeroRonda={ronda.numero_ronda}
         />
       )}
 
@@ -1454,23 +1492,35 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                     </div>
                   )}
 
-                  {p.analisis_partida?.pgn && !p.url_partida && (
+                  {(p.analisis_partida?.pgn || p.analisis_partida?.live || p.modalidad_partida === 'tablero_nativo') && !p.url_partida && (
                     <div className="flex items-center gap-2 flex-wrap pt-1">
                       <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-xs">
                         <span>🎮</span>
-                        <span>Tablero Nativo ({p.analisis_partida.total_jugadas || 0} jugadas)</span>
+                        <span>Tablero Nativo ({p.analisis_partida?.total_jugadas || 0} jugadas)</span>
                       </span>
+
                       <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(p.analisis_partida.pgn);
-                          setToast({ msg: 'Registro PGN copiado al portapapeles', type: 'ok' });
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 flex items-center gap-1 transition shadow-xs"
-                        title="Copiar notación PGN completa"
+                        onClick={() => setNativeViewerModalPartida(p)}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 flex items-center gap-1.5 transition shadow-xs"
+                        title="Ver tablero interactivo y jugadas en tiempo real"
                       >
-                        <Copy size={12} />
-                        <span>Copiar PGN</span>
+                        <Radio size={12} className={p.estado === 'en_curso' ? 'text-red-500 animate-pulse' : 'text-slate-500'} />
+                        <span>{p.estado === 'en_curso' ? 'Ver en Vivo' : 'Ver Tablero'}</span>
                       </button>
+
+                      {p.analisis_partida?.pgn && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(p.analisis_partida.pgn);
+                            setToast({ msg: 'Registro PGN copiado al portapapeles', type: 'ok' });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 flex items-center gap-1 transition shadow-xs"
+                          title="Copiar notación PGN completa"
+                        >
+                          <Copy size={12} />
+                          <span>Copiar PGN</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

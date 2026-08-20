@@ -268,6 +268,67 @@ export default function NativeChessBoardModal({
     }
   }, [isOpen, initialTimeMinutes]);
 
+  const [copiedPgn, setCopiedPgn] = useState(false);
+
+  const generatePGN = useCallback(() => {
+    const historyList = game.getHistory();
+    let pgnMoves = '';
+    for (let i = 0; i < historyList.length; i += 2) {
+      const moveNum = Math.floor(i / 2) + 1;
+      const white = historyList[i]?.san || '';
+      const black = historyList[i + 1]?.san || '';
+      pgnMoves += `${moveNum}. ${white} ${black ? black + ' ' : ''}`;
+    }
+
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+    const res = gameOver.result || '*';
+    const header = [
+      `[Event "Torneo Mi Cancha - Ronda ${numeroRonda || 1}"]`,
+      `[Site "Mi Cancha"]`,
+      `[Date "${today}"]`,
+      `[Round "${numeroRonda || 1}"]`,
+      `[White "${blancasNombre || 'Blancas'}"]`,
+      `[Black "${negrasNombre || 'Negras'}"]`,
+      `[Result "${res}"]`,
+      `[TimeControl "${(initialTimeMinutes || 5) * 60}+${initialIncrementSeconds || 3}"]`,
+      `[Termination "${gameOver.reason || 'Normal'}"]`,
+      `[FEN "${game.getFen()}"]`,
+    ].join('\n');
+
+    return `${header}\n\n${pgnMoves.trim()} ${res}`;
+  }, [game, gameOver, numeroRonda, blancasNombre, negrasNombre, initialTimeMinutes, initialIncrementSeconds]);
+
+  const emitLiveState = useCallback(async (customGameOver?: typeof gameOver, customWTime?: number, customBTime?: number) => {
+    if (!partidaId) return;
+    try {
+      const historyList = game.getHistory();
+      const currentGameOver = customGameOver || gameOver;
+      const pgn = generatePGN();
+      const last = historyList[historyList.length - 1];
+
+      await fetch(`${API_URL}/api/ajedrez/partidas/${partidaId}/live-move`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          fen: game.getFen(),
+          last_move: last ? { from: last.from, to: last.to, san: last.san, piece: last.piece, color: last.color } : null,
+          turn: game.getTurn(),
+          white_time: customWTime !== undefined ? customWTime : whiteTime,
+          black_time: customBTime !== undefined ? customBTime : blackTime,
+          history: historyList,
+          pgn: pgn,
+          game_over: currentGameOver.over ? currentGameOver : null,
+          total_jugadas: historyList.length,
+        }),
+      });
+    } catch (e) {
+      console.debug('Error en streaming en vivo:', e);
+    }
+  }, [partidaId, game, gameOver, generatePGN, whiteTime, blackTime]);
+
   // Intervalo de Reloj
   useEffect(() => {
     if (!clockRunning || gameOver.over) return;
@@ -275,13 +336,15 @@ export default function NativeChessBoardModal({
       if (turn === 'w') {
         setWhiteTime((t) => {
           if (t <= 1) {
-            setGameOver({
+            const go = {
               over: true,
               result: '0-1',
               reason: 'Tiempo agotado (Ganan Negras por Bandera ⏱️)',
-            });
+            };
+            setGameOver(go);
             playSynthSound('gameover', soundEnabled);
             setClockRunning(false);
+            emitLiveState(go, 0, blackTime);
             return 0;
           }
           return t - 1;
@@ -289,13 +352,15 @@ export default function NativeChessBoardModal({
       } else {
         setBlackTime((t) => {
           if (t <= 1) {
-            setGameOver({
+            const go = {
               over: true,
               result: '1-0',
               reason: 'Tiempo agotado (Ganan Blancas por Bandera ⏱️)',
-            });
+            };
+            setGameOver(go);
             playSynthSound('gameover', soundEnabled);
             setClockRunning(false);
+            emitLiveState(go, whiteTime, 0);
             return 0;
           }
           return t - 1;
@@ -304,7 +369,7 @@ export default function NativeChessBoardModal({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [clockRunning, turn, gameOver.over, soundEnabled]);
+  }, [clockRunning, turn, gameOver.over, soundEnabled, emitLiveState, whiteTime, blackTime]);
 
   const executeMove = useCallback((from: Square, to: Square, promoPiece: PieceType = 'q') => {
     const move = game.makeMove(from, to, promoPiece);
@@ -323,11 +388,16 @@ export default function NativeChessBoardModal({
       setClockRunning(true);
     }
 
+    let nextWTime = whiteTime;
+    let nextBTime = blackTime;
+
     // Aplicar incremento de tiempo al jugador que acaba de mover
     if (move.color === 'w') {
-      setWhiteTime((t) => t + initialIncrementSeconds);
+      nextWTime = whiteTime + initialIncrementSeconds;
+      setWhiteTime(nextWTime);
     } else {
-      setBlackTime((t) => t + initialIncrementSeconds);
+      nextBTime = blackTime + initialIncrementSeconds;
+      setBlackTime(nextBTime);
     }
 
     // Sonidos
@@ -350,7 +420,10 @@ export default function NativeChessBoardModal({
         playSynthSound('gameover', soundEnabled);
       }
     }
-  }, [game, clockRunning, gameOver.over, initialIncrementSeconds, soundEnabled]);
+
+    // Transmitir jugada en vivo al servidor para los espectadores
+    emitLiveState(status, nextWTime, nextBTime);
+  }, [game, clockRunning, gameOver.over, initialIncrementSeconds, soundEnabled, whiteTime, blackTime, emitLiveState]);
 
   const handleSquareClick = (sq: Square) => {
     if (gameOver.over) return;
@@ -394,54 +467,28 @@ export default function NativeChessBoardModal({
   const handleRendirse = (color: Color) => {
     const res = color === 'w' ? '0-1' : '1-0';
     const ganador = color === 'w' ? 'Negras' : 'Blancas';
-    setGameOver({
+    const go = {
       over: true,
       result: res,
       reason: `Rendición de ${color === 'w' ? 'Blancas' : 'Negras'} (Ganan ${ganador})`,
-    });
+    };
+    setGameOver(go);
     setClockRunning(false);
     playSynthSound('gameover', soundEnabled);
+    emitLiveState(go);
   };
 
   const handleTablasAcordadas = () => {
-    setGameOver({
+    const go = {
       over: true,
       result: '0.5-0.5',
       reason: 'Tablas por Mutuo Acuerdo 🤝',
-    });
+    };
+    setGameOver(go);
     setClockRunning(false);
     playSynthSound('gameover', soundEnabled);
+    emitLiveState(go);
   };
-
-  const [copiedPgn, setCopiedPgn] = useState(false);
-
-  const generatePGN = useCallback(() => {
-    const historyList = game.getHistory();
-    let pgnMoves = '';
-    for (let i = 0; i < historyList.length; i += 2) {
-      const moveNum = Math.floor(i / 2) + 1;
-      const white = historyList[i]?.san || '';
-      const black = historyList[i + 1]?.san || '';
-      pgnMoves += `${moveNum}. ${white} ${black ? black + ' ' : ''}`;
-    }
-
-    const today = new Date().toISOString().split('T')[0].replace(/-/g, '.');
-    const res = gameOver.result || '*';
-    const header = [
-      `[Event "Torneo Mi Cancha - Ronda ${numeroRonda || 1}"]`,
-      `[Site "Mi Cancha"]`,
-      `[Date "${today}"]`,
-      `[Round "${numeroRonda || 1}"]`,
-      `[White "${blancasNombre || 'Blancas'}"]`,
-      `[Black "${negrasNombre || 'Negras'}"]`,
-      `[Result "${res}"]`,
-      `[TimeControl "${(initialTimeMinutes || 5) * 60}+${initialIncrementSeconds || 3}"]`,
-      `[Termination "${gameOver.reason || 'Normal'}"]`,
-      `[FEN "${game.getFen()}"]`,
-    ].join('\n');
-
-    return `${header}\n\n${pgnMoves.trim()} ${res}`;
-  }, [game, gameOver, numeroRonda, blancasNombre, negrasNombre, initialTimeMinutes, initialIncrementSeconds]);
 
   const handleCopyPGN = () => {
     const pgn = generatePGN();

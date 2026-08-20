@@ -263,6 +263,17 @@ class CrearDesafioLichessPayload(BaseModel):
     incremento_segundos: Optional[int] = 3
     nombre_desafio: Optional[str] = None
 
+class LiveMovePayload(BaseModel):
+    fen: str
+    last_move: Optional[Dict[str, Any]] = None
+    turn: str = "w"
+    white_time: Optional[int] = 300
+    black_time: Optional[int] = 300
+    history: Optional[List[Dict[str, Any]]] = None
+    pgn: Optional[str] = None
+    game_over: Optional[Dict[str, Any]] = None
+    total_jugadas: Optional[int] = 0
+
 
 class SincronizarParticipanteLichessPayload(BaseModel):
     usuario_lichess: Optional[str] = None
@@ -2755,4 +2766,129 @@ async def crear_desafio_lichess(
         raise HTTPException(status_code=502, detail=f"Error de Lichess al crear desafío ({e.code}): {err_body}")
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
+
+
+@router.post("/partidas/{partida_id}/live-move")
+async def registrar_movimiento_en_vivo(
+    partida_id: str,
+    payload: LiveMovePayload,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Registra el estado actual de una partida nativa en tiempo real (FEN, tiempos, último movimiento, jugadas).
+    """
+    partida_q = await session.execute(text("""
+        SELECT p.*, r.torneo_id, r.numero_ronda
+        FROM torneos_generales.ajedrez_partidas p
+        JOIN torneos_generales.ajedrez_rondas r ON r.id = p.ronda_id
+        WHERE p.id = :pid
+    """), {"pid": partida_id})
+    partida = partida_q.fetchone()
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    analisis = partida.analisis_partida or {}
+    if isinstance(analisis, str):
+        try:
+            analisis = json.loads(analisis)
+        except Exception:
+            analisis = {}
+
+    analisis["live"] = {
+        "fen": payload.fen,
+        "last_move": payload.last_move,
+        "turn": payload.turn,
+        "white_time": payload.white_time,
+        "black_time": payload.black_time,
+        "history": payload.history or [],
+        "pgn": payload.pgn,
+        "game_over": payload.game_over,
+        "total_jugadas": payload.total_jugadas or len(payload.history or []),
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    analisis["origen"] = "tablero_nativo"
+    if payload.pgn:
+        analisis["pgn"] = payload.pgn
+    if payload.total_jugadas:
+        analisis["total_jugadas"] = payload.total_jugadas
+
+    nuevo_estado = partida.estado
+    if partida.estado == 'pendiente' and (payload.total_jugadas or 0) > 0:
+        nuevo_estado = 'en_curso'
+
+    await session.execute(text("""
+        UPDATE torneos_generales.ajedrez_partidas
+        SET analisis_partida = CAST(:analisis AS JSONB),
+            modalidad_partida = 'tablero_nativo',
+            estado = :estado,
+            actualizado_en = NOW()
+        WHERE id = :pid
+    """), {
+        "pid": partida_id,
+        "analisis": json.dumps(analisis),
+        "estado": nuevo_estado,
+    })
+    await session.commit()
+
+    return {"status": "ok", "live": analisis["live"]}
+
+
+@router.get("/partidas/{partida_id}/live")
+async def obtener_partida_en_vivo(
+    partida_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Obtiene el estado en vivo de una partida para espectadores (Público).
+    """
+    partida_q = await session.execute(text("""
+        SELECT p.*, r.torneo_id, r.numero_ronda,
+               pb.nombre as b_nom, pb.apellido as b_ape, pb.rating_fide as b_fide, pb.rating_nacional as b_nac,
+               pn.nombre as n_nom, pn.apellido as n_ape, pn.rating_fide as n_fide, pn.rating_nacional as n_nac
+        FROM torneos_generales.ajedrez_partidas p
+        JOIN torneos_generales.ajedrez_rondas r ON r.id = p.ronda_id
+        LEFT JOIN torneos_generales.participantes pb ON p.blancas_id = pb.id
+        LEFT JOIN torneos_generales.participantes pn ON p.negras_id = pn.id
+        WHERE p.id = :pid
+    """), {"pid": partida_id})
+    partida = partida_q.fetchone()
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida no encontrada")
+
+    analisis = partida.analisis_partida or {}
+    if isinstance(analisis, str):
+        try:
+            analisis = json.loads(analisis)
+        except Exception:
+            analisis = {}
+
+    nom_b = f"{partida.b_nom or ''} {partida.b_ape or ''}".strip() or "Blancas"
+    nom_n = f"{partida.n_nom or ''} {partida.n_ape or ''}".strip() or "Negras"
+
+    return {
+        "partida_id": str(partida.id),
+        "torneo_id": str(partida.torneo_id),
+        "numero_ronda": partida.numero_ronda,
+        "tablero_numero": partida.tablero_numero or 1,
+        "estado": partida.estado,
+        "resultado": partida.resultado,
+        "blancas": {
+            "id": str(partida.blancas_id) if partida.blancas_id else None,
+            "nombre": nom_b,
+            "rating": partida.b_fide or partida.b_nac or 0
+        },
+        "negras": {
+            "id": str(partida.negras_id) if partida.negras_id else None,
+            "nombre": nom_n,
+            "rating": partida.n_fide or partida.n_nac or 0
+        },
+        "modalidad_partida": partida.modalidad_partida or "tablero_nativo",
+        "url_partida": partida.url_partida,
+        "live": analisis.get("live", None),
+        "pgn": analisis.get("pgn", None),
+        "analisis_partida": analisis,
+        "actualizado_en": partida.actualizado_en.isoformat() if partida.actualizado_en else None
+    }
+
 
