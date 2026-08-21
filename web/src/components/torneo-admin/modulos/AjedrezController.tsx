@@ -784,6 +784,7 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
           negrasNombre={nativeViewerPartida.negras_nombre ? `${nativeViewerPartida.negras_nombre} ${nativeViewerPartida.negras_apellido || ''}` : 'Negras'}
           tableroNumero={nativeViewerPartida.tablero_numero}
           numeroRonda={ronda.numero_ronda}
+          isPublic={isPublic}
         />
       )}
 
@@ -1269,6 +1270,7 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
           negrasNombre={nativeViewerModalPartida.negras_nombre ? `${nativeViewerModalPartida.negras_nombre} ${nativeViewerModalPartida.negras_apellido || ''}` : 'Negras'}
           tableroNumero={nativeViewerModalPartida.tablero_numero}
           numeroRonda={ronda.numero_ronda}
+          isPublic={isPublic}
         />
       )}
 

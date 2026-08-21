@@ -406,38 +406,35 @@ export default function NativeChessViewerModal({
           </div>
           <div className="flex items-center gap-2">
             {!isPublic && (
-              <>
-                {/* Retardo de Retransmisión */}
-                <div className="flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded-xl border border-slate-700 text-xs">
-                  <SlidersHorizontal size={12} className="text-slate-400" />
-                  <select
-                    value={broadcastDelay}
-                    onChange={(e) => setBroadcastDelay(Number(e.target.value))}
-                    className="bg-transparent text-slate-300 font-bold text-[11px] outline-none cursor-pointer"
-                    title="Retardo de retransmisión para evitar asistencia externa"
-                  >
-                    <option value={0} className="bg-slate-900 text-slate-100">Directo (0s)</option>
-                    <option value={15} className="bg-slate-900 text-slate-100">Delay +15s</option>
-                    <option value={30} className="bg-slate-900 text-slate-100">Delay +30s</option>
-                    <option value={60} className="bg-slate-900 text-slate-100">Delay +60s</option>
-                  </select>
-                </div>
-
-                {/* Botón Auditoría Fair Play */}
-                <button
-                  onClick={() => setShowFairPlayModal(true)}
-                  className={`px-2.5 py-1 rounded-xl transition flex items-center gap-1.5 text-xs font-bold ${
-                    antitrampa?.alerta_sospecha
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 shadow-xs'
-                      : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
-                  }`}
-                  title="Ver auditoría Fair Play y telemetría de juego"
+              <div className="flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded-xl border border-slate-700 text-xs">
+                <SlidersHorizontal size={12} className="text-slate-400" />
+                <select
+                  value={broadcastDelay}
+                  onChange={(e) => setBroadcastDelay(Number(e.target.value))}
+                  className="bg-transparent text-slate-300 font-bold text-[11px] outline-none cursor-pointer"
+                  title="Retardo de retransmisión para evitar asistencia externa"
                 >
-                  {antitrampa?.alerta_sospecha ? <ShieldAlert size={14} className="text-amber-400 animate-pulse" /> : <ShieldCheck size={14} className="text-emerald-400" />}
-                  <span className="hidden sm:inline">Fair Play</span>
-                </button>
-              </>
+                  <option value={0} className="bg-slate-900 text-slate-100">Directo (0s)</option>
+                  <option value={15} className="bg-slate-900 text-slate-100">Delay +15s</option>
+                  <option value={30} className="bg-slate-900 text-slate-100">Delay +30s</option>
+                  <option value={60} className="bg-slate-900 text-slate-100">Delay +60s</option>
+                </select>
+              </div>
             )}
+
+            {/* Botón Auditoría Fair Play */}
+            <button
+              onClick={() => setShowFairPlayModal(true)}
+              className={`px-2.5 py-1 rounded-xl transition flex items-center gap-1.5 text-xs font-bold ${
+                antitrampa?.alerta_sospecha
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 shadow-xs'
+                  : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+              title="Ver auditoría Fair Play y telemetría de juego"
+            >
+              {antitrampa?.alerta_sospecha ? <ShieldAlert size={14} className="text-amber-400 animate-pulse" /> : <ShieldCheck size={14} className="text-emerald-400" />}
+              <span className="hidden sm:inline">Fair Play</span>
+            </button>
 
             <button onClick={() => setSoundEnabled(!soundEnabled)} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition" title={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}>
               {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
