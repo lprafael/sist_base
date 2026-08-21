@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, RotateCcw, ArrowLeftRight, Flag, Handshake,
   Play, Pause, Trophy, Clock, CheckCircle2, Volume2,
-  VolumeX, Sparkles, AlertTriangle, ShieldCheck, ChevronRight,
+  VolumeX, Sparkles, AlertTriangle, ShieldCheck, ShieldAlert, ChevronRight,
   Copy, Check, FileText
 } from 'lucide-react';
 import {
@@ -252,6 +252,39 @@ export default function NativeChessBoardModal({
   const [showRestartConfirm, setShowRestartConfirm] = useState<boolean>(false);
   const [copiedPgn, setCopiedPgn] = useState(false);
 
+  // Telemetría Antitrampa / Fair Play
+  const [blurCountWhite, setBlurCountWhite] = useState<number>(0);
+  const [blurCountBlack, setBlurCountBlack] = useState<number>(0);
+  const [moveTimesWhite, setMoveTimesWhite] = useState<number[]>([]);
+  const [moveTimesBlack, setMoveTimesBlack] = useState<number[]>([]);
+  const lastTurnStartRef = useRef<number>(Date.now());
+
+  // Detector de cambio de pestañas / pérdida de foco (Tab Blur Tracking)
+  useEffect(() => {
+    if (!isOpen || !clockRunning || gameOver.over) return;
+
+    const handleBlur = () => {
+      if (turn === 'w') {
+        setBlurCountWhite((c) => c + 1);
+      } else {
+        setBlurCountBlack((c) => c + 1);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleBlur();
+      }
+    };
+
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isOpen, clockRunning, gameOver.over, turn]);
+
   const generatePGN = useCallback(() => {
     const historyList = game.getHistory();
     let pgnMoves = '';
@@ -302,6 +335,13 @@ export default function NativeChessBoardModal({
             const data = await res.json();
             const live = data.live;
             const fen = live?.fen || data.analisis_partida?.fen_final;
+
+            if (data.antitrampa) {
+              if (data.antitrampa.blur_count_w) setBlurCountWhite(data.antitrampa.blur_count_w);
+              if (data.antitrampa.blur_count_b) setBlurCountBlack(data.antitrampa.blur_count_b);
+              if (data.antitrampa.move_times_w) setMoveTimesWhite(data.antitrampa.move_times_w);
+              if (data.antitrampa.move_times_b) setMoveTimesBlack(data.antitrampa.move_times_b);
+            }
 
             if (fen && (live?.total_jugadas > 0 || (data.analisis_partida?.movimientos?.length > 0))) {
               g.loadFen(fen);
@@ -363,6 +403,7 @@ export default function NativeChessBoardModal({
       setGameOver(loadedGameOver as any);
       setSavedSuccess(false);
       setInitialLoading(false);
+      lastTurnStartRef.current = Date.now();
     };
 
     initBoard();
@@ -372,7 +413,13 @@ export default function NativeChessBoardModal({
     };
   }, [isOpen, partidaId, initialTimeMinutes]);
 
-  const emitLiveState = useCallback(async (customGameOver?: typeof gameOver, customWTime?: number, customBTime?: number) => {
+  const emitLiveState = useCallback(async (
+    customGameOver?: typeof gameOver,
+    customWTime?: number,
+    customBTime?: number,
+    customMoveTimesW?: number[],
+    customMoveTimesB?: number[]
+  ) => {
     if (!partidaId) return;
     try {
       const historyList = game.getHistory();
@@ -396,12 +443,18 @@ export default function NativeChessBoardModal({
           pgn: pgn,
           game_over: currentGameOver.over ? currentGameOver : null,
           total_jugadas: historyList.length,
+          antitrampa: {
+            blur_count_w: blurCountWhite,
+            blur_count_b: blurCountBlack,
+            move_times_w: customMoveTimesW || moveTimesWhite,
+            move_times_b: customMoveTimesB || moveTimesBlack,
+          },
         }),
       });
     } catch (e) {
       console.debug('Error en streaming en vivo:', e);
     }
-  }, [partidaId, game, gameOver, generatePGN, whiteTime, blackTime]);
+  }, [partidaId, game, gameOver, generatePGN, whiteTime, blackTime, blurCountWhite, blurCountBlack, moveTimesWhite, moveTimesBlack]);
 
   // Intervalo de Reloj
   useEffect(() => {
@@ -465,11 +518,23 @@ export default function NativeChessBoardModal({
     let nextWTime = whiteTime;
     let nextBTime = blackTime;
 
+    // Calcular tiempo invertido en este movimiento
+    const now = Date.now();
+    const timeSpent = Math.max(0.5, Math.round(((now - lastTurnStartRef.current) / 1000) * 10) / 10);
+    lastTurnStartRef.current = now;
+
+    let nextMoveTimesW = moveTimesWhite;
+    let nextMoveTimesB = moveTimesBlack;
+
     // Aplicar incremento de tiempo al jugador que acaba de mover
     if (move.color === 'w') {
+      nextMoveTimesW = [...moveTimesWhite, timeSpent];
+      setMoveTimesWhite(nextMoveTimesW);
       nextWTime = whiteTime + initialIncrementSeconds;
       setWhiteTime(nextWTime);
     } else {
+      nextMoveTimesB = [...moveTimesBlack, timeSpent];
+      setMoveTimesBlack(nextMoveTimesB);
       nextBTime = blackTime + initialIncrementSeconds;
       setBlackTime(nextBTime);
     }
@@ -495,9 +560,9 @@ export default function NativeChessBoardModal({
       }
     }
 
-    // Transmitir jugada en vivo al servidor para los espectadores
-    emitLiveState(status, nextWTime, nextBTime);
-  }, [game, clockRunning, gameOver.over, initialIncrementSeconds, soundEnabled, whiteTime, blackTime, emitLiveState]);
+    // Transmitir jugada en vivo y telemetría Fair Play al servidor
+    emitLiveState(status, nextWTime, nextBTime, nextMoveTimesW, nextMoveTimesB);
+  }, [game, clockRunning, gameOver.over, initialIncrementSeconds, soundEnabled, whiteTime, blackTime, moveTimesWhite, moveTimesBlack, emitLiveState]);
 
   const handleSquareClick = (sq: Square) => {
     if (gameOver.over) return;
@@ -792,8 +857,13 @@ export default function NativeChessBoardModal({
               <div className="w-full mb-3 px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between text-xs text-emerald-200">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Partida en curso ({history.length} jugadas) · Guardado y transmitido en vivo</span>
+                  <span>Partida en curso ({history.length} jugadas) · En vivo</span>
                 </div>
+                {(blurCountWhite > 0 || blurCountBlack > 0) && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1" title="Cambios de pestaña / salidas de foco detectadas">
+                    <ShieldAlert size={11} /> Fair Play: {blurCountWhite > 0 ? `B(${blurCountWhite})` : ''} {blurCountBlack > 0 ? `N(${blurCountBlack})` : ''}
+                  </span>
+                )}
               </div>
             ) : null}
 

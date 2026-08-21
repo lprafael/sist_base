@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, ArrowLeftRight, Clock, Trophy, Volume2,
   VolumeX, Copy, Check, Radio, RotateCcw, Sparkles,
-  ChevronLeft, ChevronRight, SkipBack, SkipForward, Play, Pause, AlertTriangle
+  ChevronLeft, ChevronRight, SkipBack, SkipForward, Play, Pause, AlertTriangle,
+  ShieldCheck, ShieldAlert, SlidersHorizontal, Eye
 } from 'lucide-react';
 import {
   ChessGame, Square, PieceType, Color,
@@ -190,6 +191,11 @@ export default function NativeChessViewerModal({
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
 
+  // Telemetría Antitrampa & Retardo de Retransmisión
+  const [antitrampa, setAntitrampa] = useState<any>(null);
+  const [showFairPlayModal, setShowFairPlayModal] = useState<boolean>(false);
+  const [broadcastDelay, setBroadcastDelay] = useState<number>(0);
+
   const prevHistoryLenRef = useRef<number>(0);
   const historyScrollRef = useRef<HTMLDivElement>(null);
   const activeMoveButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -225,6 +231,7 @@ export default function NativeChessViewerModal({
       const hist = live.history || data.analisis_partida?.movimientos || [];
       const currentPgn = live.pgn || data.pgn || data.analisis_partida?.pgn || '';
 
+      if (data.antitrampa) setAntitrampa(data.antitrampa);
       if (live.white_time !== undefined) setWhiteTime(live.white_time);
       if (live.black_time !== undefined) setBlackTime(live.black_time);
       if (currentPgn) setPgn(currentPgn);
@@ -396,6 +403,36 @@ export default function NativeChessViewerModal({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Retardo de Retransmisión */}
+            <div className="flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded-xl border border-slate-700 text-xs">
+              <SlidersHorizontal size={12} className="text-slate-400" />
+              <select
+                value={broadcastDelay}
+                onChange={(e) => setBroadcastDelay(Number(e.target.value))}
+                className="bg-transparent text-slate-300 font-bold text-[11px] outline-none cursor-pointer"
+                title="Retardo de retransmisión para evitar asistencia externa"
+              >
+                <option value={0} className="bg-slate-900 text-slate-100">Directo (0s)</option>
+                <option value={15} className="bg-slate-900 text-slate-100">Delay +15s</option>
+                <option value={30} className="bg-slate-900 text-slate-100">Delay +30s</option>
+                <option value={60} className="bg-slate-900 text-slate-100">Delay +60s</option>
+              </select>
+            </div>
+
+            {/* Botón Auditoría Fair Play */}
+            <button
+              onClick={() => setShowFairPlayModal(true)}
+              className={`px-2.5 py-1 rounded-xl transition flex items-center gap-1.5 text-xs font-bold ${
+                antitrampa?.alerta_sospecha
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 shadow-xs'
+                  : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+              title="Ver auditoría Fair Play y telemetría de juego"
+            >
+              {antitrampa?.alerta_sospecha ? <ShieldAlert size={14} className="text-amber-400 animate-pulse" /> : <ShieldCheck size={14} className="text-emerald-400" />}
+              <span className="hidden sm:inline">Fair Play</span>
+            </button>
+
             <button onClick={() => setSoundEnabled(!soundEnabled)} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition" title={soundEnabled ? 'Silenciar sonidos' : 'Activar sonidos'}>
               {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
             </button>
@@ -407,6 +444,108 @@ export default function NativeChessViewerModal({
             </button>
           </div>
         </div>
+
+        {/* Modal de Auditoría Fair Play */}
+        {showFairPlayModal && (
+          <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4 text-slate-200 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-white text-sm">Auditoría Fair Play & Telemetría</h4>
+                    <p className="text-[11px] text-slate-400">Controles de integridad y detección de asistencia</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowFairPlayModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Resumen de Alerta */}
+              <div className={`p-3 rounded-2xl border text-xs ${
+                antitrampa?.alerta_sospecha
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+              }`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  {antitrampa?.alerta_sospecha ? <ShieldAlert size={14} className="text-amber-400" /> : <ShieldCheck size={14} className="text-emerald-400" />}
+                  <span>{antitrampa?.alerta_sospecha ? 'Alerta de Detección Fair Play' : 'Partida con Parámetros Normales'}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  {antitrampa?.resumen_alerta || 'No se han detectado anomalías de foco o patrones de tiempo planos.'}
+                </p>
+              </div>
+
+              {/* Estadísticas por Jugador */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                {/* Blancas */}
+                <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2">
+                  <span className="font-black text-slate-200 flex items-center gap-1.5">
+                    <span>♔</span> {blancasNombre || 'Blancas'}
+                  </span>
+                  <div className="space-y-1 text-[11px] text-slate-400">
+                    <div className="flex justify-between">
+                      <span>Salidas de pestaña:</span>
+                      <strong className={antitrampa?.blur_count_w >= 3 ? 'text-amber-400' : 'text-slate-200'}>
+                        {antitrampa?.blur_count_w || 0}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Promedio tiempo:</span>
+                      <strong className="text-slate-200">{antitrampa?.blancas_ritmo?.promedio || 0}s</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Desviación (σ):</span>
+                      <strong className={antitrampa?.blancas_ritmo?.sospechoso ? 'text-amber-400' : 'text-slate-200'}>
+                        ±{antitrampa?.blancas_ritmo?.desviacion || 0}s
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Negras */}
+                <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2">
+                  <span className="font-black text-slate-200 flex items-center gap-1.5">
+                    <span>♚</span> {negrasNombre || 'Negras'}
+                  </span>
+                  <div className="space-y-1 text-[11px] text-slate-400">
+                    <div className="flex justify-between">
+                      <span>Salidas de pestaña:</span>
+                      <strong className={antitrampa?.blur_count_b >= 3 ? 'text-amber-400' : 'text-slate-200'}>
+                        {antitrampa?.blur_count_b || 0}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Promedio tiempo:</span>
+                      <strong className="text-slate-200">{antitrampa?.negras_ritmo?.promedio || 0}s</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Desviación (σ):</span>
+                      <strong className={antitrampa?.negras_ritmo?.sospechoso ? 'text-amber-400' : 'text-slate-200'}>
+                        ±{antitrampa?.negras_ritmo?.desviacion || 0}s
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={() => setShowFairPlayModal(false)}
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition"
+                >
+                  Cerrar Auditoría
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center bg-slate-950/40">
           <div className="flex flex-col items-center w-full max-w-[460px] sm:max-w-[490px]">

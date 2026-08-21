@@ -5,7 +5,7 @@ import {
   Shuffle, BarChart2, ListOrdered,
   RefreshCw, Zap, Flag, Crown, AlertCircle,
   PlayCircle, CheckCircle2, Edit3, Trash2, ArrowLeftRight, RotateCcw,
-  ExternalLink, Globe, Sparkles, HelpCircle, Copy, Radio
+  ExternalLink, Globe, Sparkles, HelpCircle, Copy, Radio, Download, ShieldAlert
 } from 'lucide-react';
 import LichessBoardModal, { extraerLichessId } from './LichessBoardModal';
 import AjedrezHelpModal from './AjedrezHelpModal';
@@ -798,11 +798,21 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
             {ronda.estado !== 'finalizada' && (
               <>
                 {listaPartidas.length > 0 && (
-                  <button onClick={iniciarTodas} disabled={busy}
-                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg font-bold text-xs shadow"
-                    title="Marcar todas las partidas pendientes como iniciadas">
-                    <Zap size={14} /> Iniciar Todas
-                  </button>
+                  <>
+                    <button onClick={iniciarTodas} disabled={busy}
+                      className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg font-bold text-xs shadow"
+                      title="Marcar todas las partidas pendientes como iniciadas">
+                      <Zap size={14} /> Iniciar Todas
+                    </button>
+                    <a
+                      href={`${API_URL}/api/ajedrez/torneos/${torneoId}/rondas/${ronda.numero_ronda}/pgn-export`}
+                      download={`torneo_ronda_${ronda.numero_ronda}.pgn`}
+                      className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3.5 py-2 rounded-lg font-bold text-xs shadow-xs transition"
+                      title="Descargar todos los PGNs de la ronda para screening Fair Play en PGN-Spy / FIDE"
+                    >
+                      <Download size={14} /> PGNs Ronda
+                    </a>
+                  </>
                 )}
                 <button onClick={() => setModalManual(true)} disabled={busy}
                   className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-3.5 py-2 rounded-lg font-bold text-xs shadow"
@@ -911,13 +921,14 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                        {p.analisis_partida?.alerta_sospecha && (
+                        {(p.analisis_partida?.alerta_sospecha || p.analisis_partida?.antitrampa?.alerta_sospecha) && (
                           <span
-                            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-300 animate-pulse flex items-center gap-1 cursor-pointer"
-                            onClick={() => setLichessPartida(p)}
-                            title={p.analisis_partida.resumen_alerta}
+                            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 animate-pulse flex items-center gap-1 cursor-pointer"
+                            onClick={() => lichessId ? setLichessPartida(p) : setNativeViewerPartida(p)}
+                            title={p.analisis_partida?.antitrampa?.resumen_alerta || p.analisis_partida?.resumen_alerta || 'Alerta Fair Play'}
                           >
-                            ⚠️ Alerta ACPL
+                            <ShieldAlert size={11} className="text-amber-600" />
+                            <span>Fair Play</span>
                           </span>
                         )}
 
@@ -1498,6 +1509,21 @@ function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda
                         <span>🎮</span>
                         <span>Tablero Nativo ({p.analisis_partida?.total_jugadas || 0} jugadas)</span>
                       </span>
+
+                      {p.analisis_partida?.antitrampa && (
+                        <button
+                          onClick={() => setNativeViewerModalPartida(p)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 shadow-xs transition ${
+                            p.analisis_partida.antitrampa.alerta_sospecha
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                          }`}
+                          title={p.analisis_partida.antitrampa.resumen_alerta}
+                        >
+                          <ShieldAlert size={12} className={p.analisis_partida.antitrampa.alerta_sospecha ? 'text-amber-600' : 'text-emerald-600'} />
+                          <span>Fair Play: {p.analisis_partida.antitrampa.alerta_sospecha ? '⚠️ Alerta' : 'Normal'}</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={() => setNativeViewerModalPartida(p)}

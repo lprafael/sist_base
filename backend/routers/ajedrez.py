@@ -14,6 +14,7 @@ Cubre:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional, List, Dict, Any
@@ -22,6 +23,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 import os
+import math
 import uuid
 import json
 import re
@@ -273,6 +275,7 @@ class LiveMovePayload(BaseModel):
     pgn: Optional[str] = None
     game_over: Optional[Dict[str, Any]] = None
     total_jugadas: Optional[int] = 0
+    antitrampa: Optional[Dict[str, Any]] = None
 
 
 class SincronizarParticipanteLichessPayload(BaseModel):
@@ -2768,6 +2771,33 @@ async def crear_desafio_lichess(
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
 
 
+def _evaluar_ritmo_tiempos(tiempos: List[float]) -> Dict[str, Any]:
+    """
+    Evalúa si la varianza de tiempos de decisión por jugada es sospechosamente baja (ritmo plano).
+    """
+    if not tiempos or len(tiempos) < 6:
+        return {"sospechoso": False, "desviacion": 0.0, "promedio": 0.0, "total_jugadas": len(tiempos or []), "motivo": None}
+
+    n = len(tiempos)
+    prom = sum(tiempos) / n
+    varianza = sum((t - prom) ** 2 for t in tiempos) / n
+    std_dev = math.sqrt(varianza)
+
+    # Sospechoso si tiene 10+ jugadas con desviación estándar menor a 1.2s y promedio >= 2.0s
+    es_sospechoso = bool(n >= 10 and std_dev < 1.2 and prom >= 2.0)
+    motivo = None
+    if es_sospechoso:
+        motivo = f"Ritmo de tiempos excesivamente plano (desv. estándar: {std_dev:.2f}s en {n} jugadas)"
+
+    return {
+        "sospechoso": es_sospechoso,
+        "desviacion": round(std_dev, 2),
+        "promedio": round(prom, 2),
+        "total_jugadas": n,
+        "motivo": motivo
+    }
+
+
 @router.post("/partidas/{partida_id}/live-move")
 async def registrar_movimiento_en_vivo(
     partida_id: str,
@@ -2776,7 +2806,7 @@ async def registrar_movimiento_en_vivo(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Registra el estado actual de una partida nativa en tiempo real (FEN, tiempos, último movimiento, jugadas).
+    Registra el estado actual de una partida nativa en tiempo real (FEN, tiempos, último movimiento, jugadas y telemetría antitrampa).
     """
     partida_q = await session.execute(text("""
         SELECT p.*, r.torneo_id, r.numero_ronda
@@ -2795,6 +2825,33 @@ async def registrar_movimiento_en_vivo(
         except Exception:
             analisis = {}
 
+    # Telemetría Antitrampa / Fair Play
+    antitrampa = payload.antitrampa or analisis.get("antitrampa") or {}
+    move_times_w = antitrampa.get("move_times_w") or []
+    move_times_b = antitrampa.get("move_times_b") or []
+    blur_w = antitrampa.get("blur_count_w", 0)
+    blur_b = antitrampa.get("blur_count_b", 0)
+
+    eval_w = _evaluar_ritmo_tiempos(move_times_w)
+    eval_b = _evaluar_ritmo_tiempos(move_times_b)
+
+    alertas = []
+    if blur_w >= 3:
+        alertas.append(f"Blancas salieron {blur_w} veces de la pestaña del juego.")
+    if blur_b >= 3:
+        alertas.append(f"Negras salieron {blur_b} veces de la pestaña del juego.")
+    if eval_w.get("sospechoso"):
+        alertas.append(f"Blancas: {eval_w.get('motivo')}")
+    if eval_b.get("sospechoso"):
+        alertas.append(f"Negras: {eval_b.get('motivo')}")
+
+    antitrampa["blancas_ritmo"] = eval_w
+    antitrampa["negras_ritmo"] = eval_b
+    antitrampa["blur_count_w"] = blur_w
+    antitrampa["blur_count_b"] = blur_b
+    antitrampa["alerta_sospecha"] = len(alertas) > 0
+    antitrampa["resumen_alerta"] = " | ".join(alertas) if alertas else "Parámetros normales de juego"
+
     analisis["live"] = {
         "fen": payload.fen,
         "last_move": payload.last_move,
@@ -2807,6 +2864,7 @@ async def registrar_movimiento_en_vivo(
         "total_jugadas": payload.total_jugadas or len(payload.history or []),
         "updated_at": datetime.utcnow().isoformat(),
     }
+    analisis["antitrampa"] = antitrampa
     analisis["origen"] = "tablero_nativo"
     if payload.pgn:
         analisis["pgn"] = payload.pgn
@@ -2837,7 +2895,7 @@ async def registrar_movimiento_en_vivo(
     })
     await session.commit()
 
-    return {"status": "ok", "live": analisis["live"]}
+    return {"status": "ok", "live": analisis["live"], "antitrampa": antitrampa}
 
 
 @router.get("/partidas/{partida_id}/live")
@@ -2969,8 +3027,89 @@ async def obtener_partida_en_vivo(
         "url_partida": partida.url_partida,
         "live": live,
         "pgn": analisis.get("pgn", None),
+        "antitrampa": analisis.get("antitrampa", None),
         "analisis_partida": analisis,
         "actualizado_en": partida.actualizado_en.isoformat() if partida.actualizado_en else None
     }
+
+
+@router.get("/torneos/{torneo_id}/rondas/{numero_ronda}/pgn-export")
+async def exportar_ronda_pgn(
+    torneo_id: str,
+    numero_ronda: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Exporta todas las partidas de una ronda en formato PGN estándar multi-partida para screening FIDE / Fair Play.
+    """
+    ronda_q = await session.execute(text("""
+        SELECT r.id, r.numero_ronda, t.nombre as torneo_nombre, t.fecha_inicio
+        FROM torneos_generales.ajedrez_rondas r
+        JOIN torneos_generales.torneos t ON t.id = r.torneo_id
+        WHERE r.torneo_id = :tid AND r.numero_ronda = :nr
+    """), {"tid": torneo_id, "nr": numero_ronda})
+    ronda = ronda_q.fetchone()
+    if not ronda:
+        raise HTTPException(status_code=404, detail="Ronda no encontrada")
+
+    partidas_q = await session.execute(text("""
+        SELECT p.*,
+               pb.nombre as b_nom, pb.apellido as b_ape, pb.rating_fide as b_fide, pb.rating_nacional as b_nac,
+               pn.nombre as n_nom, pn.apellido as n_ape, pn.rating_fide as n_fide, pn.rating_nacional as n_nac
+        FROM torneos_generales.ajedrez_partidas p
+        LEFT JOIN torneos_generales.participantes pb ON p.blancas_id = pb.id
+        LEFT JOIN torneos_generales.participantes pn ON p.negras_id = pn.id
+        WHERE p.ronda_id = :rid
+        ORDER BY p.tablero_numero ASC
+    """), {"rid": str(ronda.id)})
+    partidas = partidas_q.fetchall()
+
+    pgn_output = []
+    fecha_str = (ronda.fecha_inicio.strftime("%Y.%m.%d") if ronda.fecha_inicio else datetime.utcnow().strftime("%Y.%m.%d"))
+    torneo_nom = ronda.torneo_nombre or "Torneo de Ajedrez"
+
+    for p in partidas:
+        nom_b = f"{p.b_nom or ''} {p.b_ape or ''}".strip() or "Blancas"
+        nom_n = f"{p.n_nom or ''} {p.n_ape or ''}".strip() or "Negras"
+        elo_b = str(p.b_fide or p.b_nac or "")
+        elo_n = str(p.n_fide or p.n_nac or "")
+        res = p.resultado or "*"
+
+        analisis = p.analisis_partida or {}
+        if isinstance(analisis, str):
+            try:
+                analisis = json.loads(analisis)
+            except Exception:
+                analisis = {}
+
+        game_pgn = analisis.get("pgn") or ""
+        if "[Event " not in game_pgn:
+            headers = [
+                f'[Event "{torneo_nom}"]',
+                f'[Site "Mi Cancha"]',
+                f'[Date "{fecha_str}"]',
+                f'[Round "{numero_ronda}"]',
+                f'[Board "{p.tablero_numero or 1}"]',
+                f'[White "{nom_b}"]',
+                f'[Black "{nom_n}"]',
+                f'[Result "{res}"]',
+                f'[WhiteElo "{elo_b}"]',
+                f'[BlackElo "{elo_n}"]',
+            ]
+            moves_text = game_pgn.strip() or "*"
+            game_pgn = "\n".join(headers) + "\n\n" + moves_text + "\n"
+
+        pgn_output.append(game_pgn.strip())
+
+    full_pgn_text = "\n\n\n".join(pgn_output) + "\n"
+    filename = f"torneo_ronda_{numero_ronda}.pgn"
+
+    return PlainTextResponse(
+        content=full_pgn_text,
+        media_type="application/x-chess-pgn",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
 
 

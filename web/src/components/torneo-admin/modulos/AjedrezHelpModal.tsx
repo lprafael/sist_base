@@ -170,39 +170,39 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
                 <h4 className="font-black text-red-900 text-sm mb-1">
-                  🛡️ ¿Cómo funciona el Control Antitrampa y la escala ACPL?
+                  🛡️ Sistema Integral de Control Fair Play y Detección de Asistencia
                 </h4>
                 <p className="text-xs text-red-800">
-                  La API analiza la <strong>Pérdida Media de Centipeones (ACPL - Average Centipawn Loss)</strong>, errores graves (blunders) y concordancia con motores (Stockfish).
+                  El sistema combina análisis estadístico de tiempos, telemetría de foco de ventana, análisis de centipeones (ACPL) y screening forense FIDE.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-2xl bg-red-100/60 border border-red-300">
-                  <strong className="text-red-900 block font-black">🔴 &lt; 16 ACPL (Alerta Sospecha)</strong>
-                  <p className="text-red-800 mt-1">
-                    Precisión extrema equivalente a motor de ajedrez o Super Gran Maestro. Si un jugador escolar/aficionado juega con &lt; 16 centipeones sin errores, el sistema muestra una <strong>⚠️ Alerta ACPL</strong>.
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
+                  <strong className="text-amber-900 block font-black">🖥️ Detección de Foco (Tab Blur)</strong>
+                  <p className="text-amber-800">
+                    Registra en tiempo real si un jugador cambia de pestaña o minimiza el navegador durante su turno. Si acumula ≥3 salidas, se activa una alerta para el árbitro.
                   </p>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
-                  <strong className="text-amber-900 block font-black">🟡 16 - 28 ACPL (Nivel Maestro)</strong>
-                  <p className="text-amber-800 mt-1">
-                    Muy alta precisión técnica. Típica de maestros titulados o partidas con teoría muy estudiada.
+                <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-1">
+                  <strong className="text-indigo-900 block font-black">⏱️ Varianza de Tiempos (Time Uniformity)</strong>
+                  <p className="text-indigo-800">
+                    Evalúa la desviación estándar (σ) de decisión por jugada. Los tramposos que copian de motor presentan ritmos planos artificiales (ej. 5s ±0.4s en cada jugada).
                   </p>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
-                  <strong className="text-blue-900 block font-black">🔵 29 - 48 ACPL (Nivel Club)</strong>
-                  <p className="text-blue-800 mt-1">
-                    Juego competitivo estándar de torneo presencial/virtual.
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <strong className="text-slate-900 block font-black">📡 Retardo de Retransmisión (Delay)</strong>
+                  <p className="text-slate-700">
+                    Permite transmitir con +15s, +30s o +60s de retraso para evitar que espectadores o cómplices en la sala puedan soplar análisis de motor en tiempo real.
                   </p>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
-                  <strong className="text-emerald-900 block font-black">🟢 &gt; 50 ACPL (Nivel Aficionado)</strong>
-                  <p className="text-emerald-800 mt-1">
-                    Rango normal y esperado para categorías escolares Sub-7 a Sub-13 y torneos abiertos amateurs.
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+                  <strong className="text-emerald-900 block font-black">📥 Exportación PGN para Screening FIDE</strong>
+                  <p className="text-emerald-800">
+                    Botón de descarga masiva de todos los PGNs de la ronda para procesarlos en herramientas oficiales como <em>PGN-Spy</em> o el algoritmo de Ken Regan (FIDE).
                   </p>
                 </div>
               </div>
