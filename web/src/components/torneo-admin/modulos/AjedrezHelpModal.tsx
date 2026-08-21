@@ -173,36 +173,89 @@ export default function AjedrezHelpModal({ isOpen, onClose }: AjedrezHelpModalPr
                   🛡️ Sistema Integral de Control Fair Play y Detección de Asistencia
                 </h4>
                 <p className="text-xs text-red-800">
-                  El sistema combina análisis estadístico de tiempos, telemetría de foco de ventana, análisis de centipeones (ACPL) y screening forense FIDE.
+                  La plataforma combina telemetría en tiempo real, análisis estadístico de tiempos de decisión, auditoría de centipeones (ACPL), reloj ininterrumpible y protocolos oficiales FIDE.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
-                  <strong className="text-amber-900 block font-black">🖥️ Detección de Foco (Tab Blur)</strong>
-                  <p className="text-amber-800">
-                    Registra en tiempo real si un jugador cambia de pestaña o minimiza el navegador durante su turno. Si acumula ≥3 salidas, se activa una alerta para el árbitro.
-                  </p>
-                </div>
+              {/* Controles Digitales en la Plataforma */}
+              <div className="space-y-2">
+                <h5 className="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                  <span>💻</span> Controles Digitales & Telemetría en Tiempo Real
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
+                    <strong className="text-amber-900 block font-black">🖥️ Detección de Foco (Tab Blur Tracking)</strong>
+                    <p className="text-amber-800">
+                      Registra si un jugador cambia de pestaña o minimiza el navegador durante su turno para consultar un motor. Si acumula ≥3 salidas, se activa una <strong>⚠️ Alerta Fair Play</strong> visible para el árbitro.
+                    </p>
+                  </div>
 
-                <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-1">
-                  <strong className="text-indigo-900 block font-black">⏱️ Varianza de Tiempos (Time Uniformity)</strong>
-                  <p className="text-indigo-800">
-                    Evalúa la desviación estándar (σ) de decisión por jugada. Los tramposos que copian de motor presentan ritmos planos artificiales (ej. 5s ±0.4s en cada jugada).
-                  </p>
-                </div>
+                  <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-1">
+                    <strong className="text-indigo-900 block font-black">⏱️ Varianza de Tiempos (Time Uniformity)</strong>
+                    <p className="text-indigo-800">
+                      Calcula la desviación estándar (σ) de decisión por jugada. Los humanos varían su tiempo (1s en capturas vs 30s en tácticas); los tramposos que copian de motor presentan ritmos planos artificiales (ej. 5s ±0.4s en cada jugada).
+                    </p>
+                  </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                  <strong className="text-slate-900 block font-black">📡 Retardo de Retransmisión (Delay)</strong>
-                  <p className="text-slate-700">
-                    Permite transmitir con +15s, +30s o +60s de retraso para evitar que espectadores o cómplices en la sala puedan soplar análisis de motor en tiempo real.
-                  </p>
-                </div>
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+                    <strong className="text-emerald-900 block font-black">⏳ Reloj Continuo en Servidor (Antifraude)</strong>
+                    <p className="text-emerald-800">
+                      El reloj corre ininterrumpidamente en el servidor basándose en timestamps UTC. Cerrar la ventana o desconectarse no pausa el tiempo, y al llegar a 0:00 se declara derrota automática por bandera ⏱️.
+                    </p>
+                  </div>
 
-                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
-                  <strong className="text-emerald-900 block font-black">📥 Exportación PGN para Screening FIDE</strong>
-                  <p className="text-emerald-800">
-                    Botón de descarga masiva de todos los PGNs de la ronda para procesarlos en herramientas oficiales como <em>PGN-Spy</em> o el algoritmo de Ken Regan (FIDE).
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                    <strong className="text-slate-900 block font-black">📡 Retardo de Retransmisión (Broadcast Delay)</strong>
+                    <p className="text-slate-700">
+                      Permite transmitir en vivo con +15s, +30s o +60s de retardo para evitar que el público o cómplices en la sala puedan soplar análisis de motor en tiempo real.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Escala ACPL */}
+              <div className="space-y-2">
+                <h5 className="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                  <span>📊</span> Escala de Pérdida Media de Centipeones (ACPL)
+                </h5>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-red-100/70 border border-red-300 text-center">
+                    <strong className="text-red-900 block font-black text-xs">🔴 &lt; 16 ACPL</strong>
+                    <span className="text-[11px] text-red-800 font-bold block">Alerta Sospecha</span>
+                    <p className="text-[10px] text-red-700 mt-1">Precisión de Super GM / Motor</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-center">
+                    <strong className="text-amber-900 block font-black text-xs">🟡 16 - 28 ACPL</strong>
+                    <span className="text-[11px] text-amber-800 font-bold block">Nivel Maestro</span>
+                    <p className="text-[10px] text-amber-700 mt-1">Alta precisión técnica FIDE</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-center">
+                    <strong className="text-blue-900 block font-black text-xs">🔵 29 - 48 ACPL</strong>
+                    <span className="text-[11px] text-blue-800 font-bold block">Nivel Club</span>
+                    <p className="text-[10px] text-blue-700 mt-1">Juego competitivo estándar</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                    <strong className="text-emerald-900 block font-black text-xs">🟢 &gt; 50 ACPL</strong>
+                    <span className="text-[11px] text-emerald-800 font-bold block">Aficionado</span>
+                    <p className="text-[10px] text-emerald-700 mt-1">Rango normal escolar Sub-7/13</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Protocolo FIDE de Sala */}
+              <div className="space-y-2">
+                <h5 className="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                  <span>🏛️</span> Protocolo Oficial FIDE en Sala de Juego Presencial
+                </h5>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5 text-slate-700">
+                  <p>
+                    <strong>📱 Dispositivos Electrónicos:</strong> Móviles, smartwatches y auriculares deben permanecer apagados en la zona de depósito antes de iniciar.
+                  </p>
+                  <p>
+                    <strong>🚻 Salidas de Sala / Sanitarios:</strong> Prohibido abandonar el recinto durante el turno de juego sin autorización del árbitro.
+                  </p>
+                  <p>
+                    <strong>📥 Screening Forense:</strong> Botón <strong>"PGNs Ronda"</strong> para exportar masivamente partidas a <em>PGN-Spy</em> o algoritmos de Ken Regan (FIDE).
                   </p>
                 </div>
               </div>
