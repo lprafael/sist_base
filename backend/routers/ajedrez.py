@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 import os
@@ -2872,13 +2872,89 @@ async def obtener_partida_en_vivo(
     nom_b = f"{partida.b_nom or ''} {partida.b_ape or ''}".strip() or "Blancas"
     nom_n = f"{partida.n_nom or ''} {partida.n_ape or ''}".strip() or "Negras"
 
+    live = analisis.get("live", None)
+    estado = partida.estado
+    resultado = partida.resultado
+
+    # Cálculo dinámico de reloj continuo si la partida está en curso
+    if live and isinstance(live, dict) and estado == 'en_curso' and not resultado:
+        is_over = live.get("game_over") and isinstance(live["game_over"], dict) and live["game_over"].get("over")
+        if not is_over:
+            updated_at_str = live.get("updated_at")
+            if updated_at_str:
+                try:
+                    updated_at_dt = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
+                    now_dt = datetime.now(timezone.utc)
+                    if updated_at_dt.tzinfo is None:
+                        updated_at_dt = updated_at_dt.replace(tzinfo=timezone.utc)
+                    elapsed = max(0, int((now_dt - updated_at_dt).total_seconds()))
+
+                    turn = live.get("turn", "w")
+                    w_time = live.get("white_time", 300)
+                    b_time = live.get("black_time", 300)
+
+                    if turn == "w":
+                        current_w_time = max(0, w_time - elapsed)
+                        current_b_time = b_time
+                        if current_w_time <= 0:
+                            resultado = "0-1"
+                            estado = "finalizada"
+                            live["game_over"] = {
+                                "over": True,
+                                "result": "0-1",
+                                "reason": "Tiempo agotado (Ganan Negras por Bandera ⏱️)"
+                            }
+                            analisis["live"] = live
+                            await session.execute(text("""
+                                UPDATE torneos_generales.ajedrez_partidas
+                                SET estado = 'finalizada',
+                                    resultado = '0-1',
+                                    analisis_partida = CAST(:analisis AS JSONB),
+                                    actualizado_en = NOW()
+                                WHERE id = :pid
+                            """), {
+                                "pid": str(partida.id),
+                                "analisis": json.dumps(analisis)
+                            })
+                            await session.commit()
+                        live["white_time"] = current_w_time
+                        live["black_time"] = current_b_time
+                    else:
+                        current_w_time = w_time
+                        current_b_time = max(0, b_time - elapsed)
+                        if current_b_time <= 0:
+                            resultado = "1-0"
+                            estado = "finalizada"
+                            live["game_over"] = {
+                                "over": True,
+                                "result": "1-0",
+                                "reason": "Tiempo agotado (Ganan Blancas por Bandera ⏱️)"
+                            }
+                            analisis["live"] = live
+                            await session.execute(text("""
+                                UPDATE torneos_generales.ajedrez_partidas
+                                SET estado = 'finalizada',
+                                    resultado = '1-0',
+                                    analisis_partida = CAST(:analisis AS JSONB),
+                                    actualizado_en = NOW()
+                                WHERE id = :pid
+                            """), {
+                                "pid": str(partida.id),
+                                "analisis": json.dumps(analisis)
+                            })
+                            await session.commit()
+                        live["white_time"] = current_w_time
+                        live["black_time"] = current_b_time
+                except Exception:
+                    pass
+
     return {
         "partida_id": str(partida.id),
         "torneo_id": str(partida.torneo_id),
         "numero_ronda": partida.numero_ronda,
         "tablero_numero": partida.tablero_numero or 1,
-        "estado": partida.estado,
-        "resultado": partida.resultado,
+        "estado": estado,
+        "resultado": resultado,
         "blancas": {
             "id": str(partida.blancas_id) if partida.blancas_id else None,
             "nombre": nom_b,
@@ -2891,7 +2967,7 @@ async def obtener_partida_en_vivo(
         },
         "modalidad_partida": partida.modalidad_partida or "tablero_nativo",
         "url_partida": partida.url_partida,
-        "live": analisis.get("live", None),
+        "live": live,
         "pgn": analisis.get("pgn", None),
         "analisis_partida": analisis,
         "actualizado_en": partida.actualizado_en.isoformat() if partida.actualizado_en else None

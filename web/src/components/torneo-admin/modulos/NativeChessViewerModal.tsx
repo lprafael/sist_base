@@ -275,6 +275,20 @@ export default function NativeChessViewerModal({
     return () => clearInterval(interval);
   }, [isOpen, partidaId, fetchLiveState]);
 
+  // Intervalo de Reloj en Vivo para Espectadores
+  useEffect(() => {
+    if (!isOpen || !isLiveActive || gameOver.over) return;
+    const interval = setInterval(() => {
+      const activeTurn = steps[steps.length - 1]?.turn || 'w';
+      if (activeTurn === 'w') {
+        setWhiteTime((t) => Math.max(0, t - 1));
+      } else {
+        setBlackTime((t) => Math.max(0, t - 1));
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen, isLiveActive, gameOver.over, steps]);
+
   useEffect(() => {
     if (!isAutoPlaying) return;
     const timer = setInterval(() => {
