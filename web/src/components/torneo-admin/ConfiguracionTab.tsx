@@ -1,9 +1,10 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle, Edit3 } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle, Edit3, CreditCard } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 import SitiosView from './modulos/SitiosView';
+import TorneoCanalesCobroModal from '../pagos/TorneoCanalesCobroModal';
 
 const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> });
 
@@ -75,6 +76,7 @@ const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) 
 
 export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect }: { torneo: any, onUpdate: (data: any) => void, onSubSectionSelect: (section: string) => void }) {
   const [showSitiosModal, setShowSitiosModal] = useState(false);
+  const [showCanalesModal, setShowCanalesModal] = useState(false);
   // Local state for basic fields to allow typing before saving (or we can save on blur)
   const [formData, setFormData] = useState({
     nombre: torneo.nombre || '',
@@ -737,6 +739,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
               {[
                 { id: 'categorias', icon: Activity, label: 'Categorías y Divisiones' },
                 { id: 'participantes', icon: Users, label: 'Participantes / Equipos' },
+                { id: 'canales_cobro', icon: CreditCard, label: '💳 Cuentas Bancarias / SIPAP / QR' },
                 { id: 'checkin', icon: Scale, label: 'Check-in (Pesaje)' },
                 { id: 'config_grupos', icon: Activity, label: 'Grupos (Configuración)' },
                 { id: 'grupos', icon: Users, label: 'Grupos (Asignar Equipos/Atletas)' },
@@ -760,6 +763,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                     onClick={() => {
                       if (item.id === 'sitios') {
                         setShowSitiosModal(true);
+                      } else if (item.id === 'canales_cobro') {
+                        setShowCanalesModal(true);
                       } else {
                         onSubSectionSelect(item.id);
                       }
@@ -1486,6 +1491,14 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           torneo={torneo}
           onUpdate={onUpdate}
           onClose={() => setShowSitiosModal(false)}
+        />
+      )}
+
+      {showCanalesModal && (
+        <TorneoCanalesCobroModal
+          isOpen={showCanalesModal}
+          onClose={() => setShowCanalesModal(false)}
+          torneoId={torneo.id}
         />
       )}
     </>

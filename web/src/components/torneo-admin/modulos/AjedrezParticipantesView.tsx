@@ -3,11 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, Search, Edit3, Check, X, AlertCircle,
   User, Clock, FileSpreadsheet, Sparkles, RefreshCw, Filter,
-  ShieldCheck, ShieldAlert, HelpCircle, FileText
+  ShieldCheck, ShieldAlert, HelpCircle, FileText, CreditCard
 } from 'lucide-react';
 import ImportarChessResultsModal from './ImportarChessResultsModal';
 import AjedrezCedulaModal from './AjedrezCedulaModal';
 import AjedrezHelpModal from './AjedrezHelpModal';
+import AdminComprobanteAuditModal, { ComprobanteData } from '../../pagos/AdminComprobanteAuditModal';
+import UploadComprobanteModal from '../../pagos/UploadComprobanteModal';
+import PaymentStatusBadge from '../../pagos/PaymentStatusBadge';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -34,6 +37,14 @@ interface Participante {
   documento_validado?: boolean;
   documento_validado_anio?: number;
   estado: string;
+  pago_confirmado?: boolean;
+  monto_inscripcion?: number;
+  monto_abonado?: number;
+  estado_pago?: string;
+  comprobante_pago_url?: string;
+  comprobante_referencia?: string;
+  motivo_rechazo_pago?: string;
+  fecha_pago?: string;
   rating_fide?: number;
   codigo_fide?: string;
   rating_nacional?: number;
@@ -88,8 +99,11 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategoria, setSelectedCategoria] = useState<string>('Todas');
+  const [selectedPagoFilter, setSelectedPagoFilter] = useState<'todos' | 'en_revision' | 'aprobados' | 'pendientes'>('todos');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [cedulaParticipante, setCedulaParticipante] = useState<Participante | null>(null);
+  const [auditComprobante, setAuditComprobante] = useState<ComprobanteData | null>(null);
+  const [uploadComprobantePart, setUploadComprobantePart] = useState<Participante | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [reclasificando, setReclasificando] = useState(false);
 
@@ -220,8 +234,20 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
       .includes(search.toLowerCase());
     const matchesCat =
       selectedCategoria === 'Todas' || (p.categoria_base || 'Abierta') === selectedCategoria;
-    return matchesSearch && matchesCat;
+    
+    let matchesPago = true;
+    if (selectedPagoFilter === 'en_revision') {
+      matchesPago = p.estado_pago === 'comprobante_subido' || p.estado_pago === 'en_revision';
+    } else if (selectedPagoFilter === 'aprobados') {
+      matchesPago = Boolean(p.pago_confirmado) || p.estado_pago === 'aprobado';
+    } else if (selectedPagoFilter === 'pendientes') {
+      matchesPago = !p.pago_confirmado && p.estado_pago !== 'aprobado' && p.estado_pago !== 'comprobante_subido' && p.estado_pago !== 'en_revision';
+    }
+
+    return matchesSearch && matchesCat && matchesPago;
   });
+
+  const countEnRevision = participantes.filter(p => p.estado_pago === 'comprobante_subido' || p.estado_pago === 'en_revision').length;
 
   return (
     <div>
@@ -298,50 +324,92 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
       </div>
 
       {/* Barra de Filtros & Búsqueda */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-        {/* Chips de Categorías */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-black text-slate-400 mr-1 flex items-center gap-1">
-            <Filter size={13} /> Categoría:
-          </span>
-          {['Todas', 'Sub-7', 'Sub-9', 'Sub-11', 'Sub-13', 'Abierta'].map(cat => {
-            const count =
-              cat === 'Todas'
-                ? participantes.length
-                : participantes.filter(p => (p.categoria_base || 'Abierta') === cat).length;
-            const isSel = selectedCategoria === cat;
+      <div className="bg-white border border-slate-200 rounded-2xl p-3.5 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-sm">
+        {/* Filtros: Categorías & Pagos */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Chips de Categorías */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-black text-slate-400 mr-1 flex items-center gap-1">
+              <Filter size={13} /> Categoría:
+            </span>
+            {['Todas', 'Sub-7', 'Sub-9', 'Sub-11', 'Sub-13', 'Abierta'].map(cat => {
+              const count =
+                cat === 'Todas'
+                  ? participantes.length
+                  : participantes.filter(p => (p.categoria_base || 'Abierta') === cat).length;
+              const isSel = selectedCategoria === cat;
 
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategoria(cat)}
-                className={`px-3 py-1 rounded-xl text-xs font-black transition flex items-center gap-1.5 border ${
-                  isSel
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
-                }`}
-              >
-                <span>{cat}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isSel ? 'bg-amber-400 text-slate-950 font-black' : 'bg-slate-200 text-slate-600'
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategoria(cat)}
+                  className={`px-3 py-1 rounded-xl text-xs font-black transition flex items-center gap-1.5 border ${
+                    isSel
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      isSel ? 'bg-amber-400 text-slate-950 font-black' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+          {/* Chips de Estado de Pago */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-black text-slate-400 mr-1 flex items-center gap-1">
+              <CreditCard size={13} /> Pago:
+            </span>
+            {[
+              { id: 'todos', label: 'Todos', count: participantes.length },
+              { id: 'en_revision', label: 'En Revisión 📸', count: countEnRevision, isAlert: countEnRevision > 0 },
+              { id: 'aprobados', label: 'Pagados', count: participantes.filter(p => p.pago_confirmado || p.estado_pago === 'aprobado').length },
+              { id: 'pendientes', label: 'Sin Pago', count: participantes.filter(p => !p.pago_confirmado && p.estado_pago !== 'aprobado' && p.estado_pago !== 'comprobante_subido' && p.estado_pago !== 'en_revision').length },
+            ].map(pf => {
+              const isSel = selectedPagoFilter === pf.id;
+              return (
+                <button
+                  key={pf.id}
+                  onClick={() => setSelectedPagoFilter(pf.id as any)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-black transition flex items-center gap-1.5 border ${
+                    isSel
+                      ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-sm'
+                      : pf.isAlert
+                      ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+                  <span>{pf.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      isSel ? 'bg-slate-950 text-amber-300 font-black' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {pf.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Buscador */}
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre, club o cédula..."
-            className="pl-9 pr-4 py-1.5 border border-slate-300 rounded-xl text-xs focus:border-amber-400 outline-none w-64 text-slate-800"
+            className="pl-9 pr-4 py-1.5 border border-slate-300 rounded-xl text-xs focus:border-amber-400 outline-none w-full md:w-64 text-slate-800"
           />
         </div>
       </div>
@@ -368,7 +436,7 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-800 text-white text-xs">
-                {['#', 'Jugador', 'Categoría', 'Cédula / Doc.', 'ELO FIDE', 'Cod. FIDE', 'ELO Nac.', 'Lichess', 'Club / Institución', 'Acciones'].map(h => (
+                {['#', 'Jugador', 'Categoría', 'Cédula / Doc.', 'Estado Pago', 'ELO FIDE', 'Cod. FIDE', 'ELO Nac.', 'Lichess', 'Club / Institución', 'Acciones'].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-black whitespace-nowrap">
                     {h}
                   </th>
@@ -429,6 +497,32 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
                           <span>{p.documento || '+ Cédula'}</span>
                         </button>
                       )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <PaymentStatusBadge
+                        estadoPago={p.estado_pago}
+                        pagoConfirmado={p.pago_confirmado}
+                        montoAbonado={p.monto_abonado}
+                        showAmount={true}
+                        onClick={() => {
+                          if (p.comprobante_pago_url) {
+                            setAuditComprobante({
+                              id: p.id,
+                              entidad_tipo: 'torneo_participante',
+                              entidad_id: p.id,
+                              beneficiario_nombre: `${p.nombre} ${p.apellido || ''}`,
+                              pagador_nombre: `${p.nombre} ${p.apellido || ''}`,
+                              monto_declarado: p.monto_abonado || p.monto_inscripcion || 0,
+                              numero_referencia: p.comprobante_referencia,
+                              comprobante_url: p.comprobante_pago_url,
+                              estado: p.estado_pago === 'comprobante_subido' ? 'en_revision' : p.estado_pago || 'en_revision',
+                              motivo_rechazo: p.motivo_rechazo_pago,
+                            });
+                          } else {
+                            setUploadComprobantePart(p);
+                          }
+                        }}
+                      />
                     </td>
                     <td className="px-4 py-3 font-mono text-center font-bold text-slate-700">
                       {p.rating_fide || '—'}
@@ -641,6 +735,36 @@ export default function AjedrezParticipantesView({ torneoId }: { torneoId: strin
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal de Auditoría de Comprobante para Árbitro/Admin */}
+      <AdminComprobanteAuditModal
+        isOpen={Boolean(auditComprobante)}
+        onClose={() => setAuditComprobante(null)}
+        comprobante={auditComprobante}
+        onComprobanteUpdated={() => {
+          setToast({ msg: 'Estado de pago actualizado en el sistema', type: 'ok' });
+          load();
+        }}
+      />
+
+      {/* Modal de Carga Manual de Comprobante */}
+      {uploadComprobantePart && (
+        <UploadComprobanteModal
+          isOpen={Boolean(uploadComprobantePart)}
+          onClose={() => setUploadComprobantePart(null)}
+          entidadTipo="torneo_participante"
+          entidadId={uploadComprobantePart.id}
+          torneoId={torneoId}
+          montoSugerido={uploadComprobantePart.monto_inscripcion || 0}
+          beneficiarioNombre={`${uploadComprobantePart.nombre} ${uploadComprobantePart.apellido || ''}`}
+          concepto="Inscripción de Torneo"
+          onSuccess={() => {
+            setToast({ msg: 'Comprobante cargado exitosamente', type: 'ok' });
+            load();
+            setUploadComprobantePart(null);
+          }}
+        />
       )}
     </div>
   );

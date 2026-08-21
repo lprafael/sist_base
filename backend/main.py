@@ -282,6 +282,9 @@ app.include_router(multimedia_router)
 from routers.ajedrez import router as ajedrez_router
 app.include_router(ajedrez_router)
 
+from routers.pagos_core import router as pagos_core_router
+app.include_router(pagos_core_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================

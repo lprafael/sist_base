@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Users, Trophy, Calendar, ChevronRight, ChevronLeft, Loader2, CheckCircle, Copy, ExternalLink, Tag, User, Phone, Mail, Palette } from 'lucide-react';
+import { ShieldCheck, Users, Trophy, Calendar, ChevronRight, ChevronLeft, Loader2, CheckCircle, Copy, ExternalLink, Tag, User, Phone, Mail, Palette, CreditCard } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
+import PaymentCardInfo, { CanalCobro } from '@/components/pagos/PaymentCardInfo';
+import UploadComprobanteModal from '@/components/pagos/UploadComprobanteModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -48,6 +50,8 @@ type ResultData = {
 export default function InscripcionPage({ params }: { params: { id: string } }) {
   const torneoId = params.id;
   const [torneo, setTorneo] = useState<Torneo | null>(null);
+  const [canalesPago, setCanalesPago] = useState<CanalCobro[]>([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -66,9 +70,17 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
   });
 
   useEffect(() => {
-    fetch(`${API_URL}/cancha/torneos/${torneoId}/info-publica`)
-      .then(r => r.json())
-      .then(data => { setTorneo(data); setLoading(false); })
+    Promise.all([
+      fetch(`${API_URL}/cancha/torneos/${torneoId}/info-publica`).then(r => r.json()),
+      fetch(`${API_URL}/api/pagos-core/canales?torneo_id=${torneoId}`).then(r => r.json()).catch(() => [])
+    ])
+      .then(([tData, cData]) => {
+        setTorneo(tData);
+        if (Array.isArray(cData) && cData.length > 0) {
+          setCanalesPago(cData);
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [torneoId]);
 
@@ -218,10 +230,31 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                   </div>
 
                   {result.estado_inscripcion === 'pendiente' && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                      <p className="text-sm text-amber-800 font-medium">
-                        ⚠️ Tu inscripción está <strong>pendiente de confirmación</strong>. El organizador deberá confirmar tu pago para activarla.
-                      </p>
+                    <div className="space-y-4 pt-2">
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                        <p className="text-sm text-amber-800 font-medium">
+                          ⚠️ Tu inscripción está <strong>pendiente de confirmación de pago</strong>. Realiza la transferencia y adjunta tu comprobante.
+                        </p>
+                      </div>
+
+                      {canalesPago.length > 0 ? (
+                        <PaymentCardInfo
+                          canal={canalesPago[0]}
+                          monto={torneo.costo_inscripcion}
+                          concepto={`Inscripción ${torneo.nombre}`}
+                          onSubirComprobante={() => setShowUploadModal(true)}
+                        />
+                      ) : (
+                        <div className="text-center pt-2">
+                          <button
+                            onClick={() => setShowUploadModal(true)}
+                            className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                          >
+                            <ShieldCheck size={16} />
+                            <span>Adjuntar Comprobante de Pago</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -413,6 +446,23 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
           )}
         </div>
       </div>
+
+      {result && (
+        <UploadComprobanteModal
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          entidadTipo={torneo.competicion_por_atleta ? 'torneo_participante' : 'torneo_equipo'}
+          entidadId={result.equipo_id}
+          torneoId={torneoId}
+          montoSugerido={torneo.costo_inscripcion}
+          beneficiarioNombre={form.nombre_equipo || form.capitan_nombre}
+          concepto={`Inscripción Torneo: ${torneo.nombre}`}
+          onSuccess={() => {
+            setShowUploadModal(false);
+          }}
+        />
+      )}
+
       <Footer />
     </div>
   );
