@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Trophy, Plus, Trash2, Loader2, GitMerge, Shield, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { Trophy, Plus, Trash2, Loader2, GitMerge, Shield, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight, Users, Scale, Zap, Dna } from 'lucide-react';
+import PesajeOficialWKFModal from './PesajeOficialWKFModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -20,6 +21,12 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   }>({ loading: false, done: false });
   const [showWkfDetail, setShowWkfDetail] = useState(false);
 
+  // Sorteo WKF state
+  const [sorteoLoading, setSorteoLoading] = useState(false);
+  const [sorteoSuccess, setSorteoSuccess] = useState<string | null>(null);
+
+  // Pesaje Modal state
+  const [showPesajeModal, setShowPesajeModal] = useState(false);
 
   // Modal create llave
   const [isCreating, setIsCreating] = useState(false);
@@ -38,6 +45,30 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   const getToken = () => {
     const session = JSON.parse(localStorage.getItem('user_session') || '{}');
     return session.access_token || session.token || '';
+  };
+
+  const handleGenerarSorteoWKF = async () => {
+    if (!confirm("¿Generar sorteo oficial WKF con emparejamientos y regla de colores (AKA Rojo / AO Azul)?\n\nEsto creará las llaves oficiales de eliminación directa aplicando sembrado reglamentario y Byes.")) return;
+    setSorteoLoading(true);
+    setSorteoSuccess(null);
+    try {
+      const res = await fetch(`${API_URL}/api/marciales/torneos/${torneoId}/generar-sorteo-llaves-wkf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({ dias_anticipacion: 3, sembrado_aleatorio: true })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Error al generar sorteo');
+      setSorteoSuccess(data.mensaje);
+      fetchLlaves();
+    } catch (e: any) {
+      alert(e.message || 'Error al generar sorteo');
+    } finally {
+      setSorteoLoading(false);
+    }
   };
 
   const handleAgruparWKF = async () => {
@@ -226,19 +257,48 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
         )}
       </div>
 
-      {/* ===== CABECERA LLAVES MANUALES ===== */}
-      <div className="flex justify-between items-center mb-4">
+      {/* ===== CABECERA LLAVES Y ACCIONES OFICIALES WKF ===== */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
           <GitMerge size={20} className="text-blue-500"/>
-          Fases y Llaves (Combates)
+          Fases, Llaves y Emparejamientos WKF
         </h3>
-        <button 
-          onClick={() => setIsCreating(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 transition flex items-center gap-2"
-        >
-          <Plus size={18} /> Programar Combate
-        </button>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botón Pesaje Oficial */}
+          <button 
+            onClick={() => setShowPesajeModal(true)}
+            className="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-2 rounded-xl font-black text-xs transition flex items-center gap-1.5 shadow-sm"
+          >
+            <Scale size={15} /> Pesaje Oficial (±1kg / Walkover)
+          </button>
+
+          {/* Botón Sorteo WKF */}
+          <button 
+            onClick={handleGenerarSorteoWKF}
+            disabled={sorteoLoading}
+            className="bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white px-3.5 py-2 rounded-xl font-black text-xs transition flex items-center gap-1.5 shadow-sm"
+          >
+            {sorteoLoading ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} className="text-yellow-300" />}
+            Sorteo de Llaves WKF (Colores AKA/AO)
+          </button>
+
+          {/* Programar Combate Manual */}
+          <button 
+            onClick={() => setIsCreating(true)}
+            className="bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus size={15} /> Programar Manual
+          </button>
+        </div>
       </div>
+
+      {sorteoSuccess && (
+        <div className="bg-emerald-950/40 border border-emerald-500/50 rounded-2xl p-4 text-emerald-300 text-xs flex items-center gap-3 animate-fadeIn">
+          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+          <span>{sorteoSuccess}</span>
+        </div>
+      )}
 
 
       {Object.keys(llavesPorDivision).length === 0 ? (
@@ -345,6 +405,18 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Pesaje Oficial WKF */}
+      {showPesajeModal && (
+        <PesajeOficialWKFModal
+          torneoId={torneoId}
+          onClose={() => setShowPesajeModal(false)}
+          onUpdated={() => {
+            fetchJugadores();
+            fetchLlaves();
+          }}
+        />
       )}
     </div>
   );

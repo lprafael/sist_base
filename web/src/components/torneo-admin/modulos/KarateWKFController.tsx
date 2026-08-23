@@ -50,6 +50,7 @@ export default function KarateWKFController({
   const [isRunning, setIsRunning] = useState(false);
   const [alertaCombate, setAlertaCombate] = useState<string | null>(null);
   const [hanteiModal, setHanteiModal] = useState<{ visible: boolean; ganador: string | null; motivo: string; status: string } | null>(null);
+  const [showKeyboardModal, setShowKeyboardModal] = useState(false);
 
   const ptAka = estadisticas.local.puntos;
   const ptAo = estadisticas.visitante.puntos;
@@ -80,6 +81,15 @@ export default function KarateWKFController({
     const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
     const s = (totalSeconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  // Ajuste fino de tiempo (retrotraer segundos perdidos a la orden de Yame)
+  const adjustTimer = (seconds: number) => {
+    setTimer(prev => {
+      const next = Math.max(0, prev + seconds);
+      setAlertaCombate(`⏱️ Tiempo ajustado: ${seconds > 0 ? '+' : ''}${seconds}s (Ahora: ${formatTime(next)})`);
+      return next;
+    });
   };
 
   const getToken = () => {
@@ -182,7 +192,7 @@ export default function KarateWKFController({
       n[lado].senshu = !current;
       if (!current) {
         n[rival].senshu = false;
-        setAlertaCombate(`⚡ Senshu asignado manualmente a ${atleta}.`);
+        setAlertaCombate(`⚡ Senshu asignado a ${atleta}.`);
       } else {
         setAlertaCombate(`Senshu retirado de ${atleta}.`);
       }
@@ -210,9 +220,17 @@ export default function KarateWKFController({
 
   // Incrementos de Jogai (Salidas) y Penalizaciones (Chui / Hansoku)
   const updatePenalidades = (lado: 'local' | 'visitante', tipo: 'jogai' | 'penalizaciones', delta: number) => {
+    const atleta = lado === 'local' ? nombreAka : nombreAo;
     setEstadisticas((prev: any) => {
       const n = JSON.parse(JSON.stringify(prev));
-      n[lado][tipo] = Math.max(0, (n[lado][tipo] || 0) + delta);
+      const newVal = Math.max(0, (n[lado][tipo] || 0) + delta);
+      n[lado][tipo] = newVal;
+
+      // REGLA WKF: Si el atleta recibe sanciones graves (penalizaciones >= 2 o Hansoku-Chui), se le anula el Senshu
+      if (tipo === 'penalizaciones' && delta > 0 && n[lado].senshu && newVal >= 2) {
+        n[lado].senshu = false;
+        setAlertaCombate(`⚠️ Senshu anulado para ${atleta} por acumulación de sanciones graves (WKF Art. 1.4).`);
+      }
       return n;
     });
   };
@@ -351,6 +369,152 @@ export default function KarateWKFController({
     setAlertaCombate(`🏆 Ganador Oficial WKF: ${nombreGanador} (${motivo})`);
   };
 
+  // ============================================================
+  // ATRAJOS DE TECLADO FÍSICO Y TECLADO NUMÉRICO (NUMPAD)
+  // ============================================================
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorar si el usuario está escribiendo en un input, textarea o select
+      const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (targetTag === 'input' || targetTag === 'textarea' || targetTag === 'select') {
+        return;
+      }
+
+      const key = e.key;
+      const code = e.code;
+
+      // 1. Cronómetro & Globales
+      if (code === 'Space' || key === ' ' || code === 'Numpad5') {
+        e.preventDefault();
+        setIsRunning(prev => !prev);
+        return;
+      }
+
+      if (key.toLowerCase() === 'r' && e.ctrlKey === false && e.altKey === false) {
+        e.preventDefault();
+        setIsRunning(false);
+        setTimer(duracionCombate);
+        setAlertaCombate("🔄 Cronómetro reiniciado.");
+        return;
+      }
+
+      // Ajustes de tiempo (+1s / -1s / +5s / -5s)
+      if (key === '+' || code === 'NumpadAdd' || (code === 'ArrowRight' && !e.shiftKey)) {
+        e.preventDefault();
+        adjustTimer(1);
+        return;
+      }
+      if (key === '-' || code === 'NumpadSubtract' || (code === 'ArrowLeft' && !e.shiftKey)) {
+        e.preventDefault();
+        adjustTimer(-1);
+        return;
+      }
+      if (code === 'ArrowRight' && e.shiftKey) {
+        e.preventDefault();
+        adjustTimer(5);
+        return;
+      }
+      if (code === 'ArrowLeft' && e.shiftKey) {
+        e.preventDefault();
+        adjustTimer(-5);
+        return;
+      }
+
+      // 2. Lado AKA (Rojo / Local)
+      // Yuko (+1): Tecla '1', 'q' o 'Numpad7'
+      if (key === '1' || key.toLowerCase() === 'q' || code === 'Numpad7') {
+        e.preventDefault();
+        addTechnique('local', 'yuko', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Waza-Ari (+2): Tecla '2', 'w' o 'Numpad8'
+      if (key === '2' || key.toLowerCase() === 'w' || code === 'Numpad8') {
+        e.preventDefault();
+        addTechnique('local', 'waza_ari', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Ippon (+3): Tecla '3', 'e' o 'Numpad9'
+      if (key === '3' || key.toLowerCase() === 'e' || code === 'Numpad9') {
+        e.preventDefault();
+        addTechnique('local', 'ippon', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Jogai / Salida AKA: Tecla 's', 'a' o 'Numpad4'
+      if (key.toLowerCase() === 'a' || (key.toLowerCase() === 's' && !e.ctrlKey) || code === 'Numpad4') {
+        e.preventDefault();
+        updatePenalidades('local', 'jogai', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Penalización / Falta AKA: Tecla 'd' o 'f'
+      if (key.toLowerCase() === 'd' || key.toLowerCase() === 'f') {
+        e.preventDefault();
+        updatePenalidades('local', 'penalizaciones', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Senshu AKA: Tecla 'z' o 'NumpadDivide'
+      if (key.toLowerCase() === 'z' || code === 'NumpadDivide') {
+        e.preventDefault();
+        toggleSenshu('local');
+        return;
+      }
+
+      // 3. Lado AO (Azul / Visitante)
+      // Yuko (+1): Tecla '8', 'u' o 'Numpad1'
+      if (key === '8' || key.toLowerCase() === 'u' || code === 'Numpad1') {
+        e.preventDefault();
+        addTechnique('visitante', 'yuko', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Waza-Ari (+2): Tecla '9', 'i' o 'Numpad2'
+      if (key === '9' || key.toLowerCase() === 'i' || code === 'Numpad2') {
+        e.preventDefault();
+        addTechnique('visitante', 'waza_ari', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Ippon (+3): Tecla '0', 'o' o 'Numpad3'
+      if (key === '0' || key.toLowerCase() === 'o' || code === 'Numpad3') {
+        e.preventDefault();
+        addTechnique('visitante', 'ippon', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Jogai / Salida AO: Tecla 'j', 'k' o 'Numpad0'
+      if (key.toLowerCase() === 'j' || key.toLowerCase() === 'k' || code === 'Numpad0') {
+        e.preventDefault();
+        updatePenalidades('visitante', 'jogai', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Penalización / Falta AO: Tecla 'l'
+      if (key.toLowerCase() === 'l') {
+        e.preventDefault();
+        updatePenalidades('visitante', 'penalizaciones', e.shiftKey || e.altKey ? -1 : 1);
+        return;
+      }
+      // Senshu AO: Tecla 'm' o 'NumpadMultiply'
+      if (key.toLowerCase() === 'm' || code === 'NumpadMultiply') {
+        e.preventDefault();
+        toggleSenshu('visitante');
+        return;
+      }
+
+      // 4. Desempate Hantei: Tecla 'h'
+      if (key.toLowerCase() === 'h' && ptAka === ptAo) {
+        e.preventDefault();
+        evaluarDesempateWKF();
+        return;
+      }
+
+      // 5. Ayuda Atajos: Tecla '?'
+      if (key === '?' || (key === 'h' && e.ctrlKey)) {
+        e.preventDefault();
+        setShowKeyboardModal(prev => !prev);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [duracionCombate, ptAka, ptAo, estadisticas, nombreAka, nombreAo]);
+
   // Autoguardado con debounce
   const [isInitialMount, setIsInitialMount] = useState(true);
   useEffect(() => {
@@ -389,6 +553,13 @@ export default function KarateWKFController({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowKeyboardModal(true)}
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-bold py-1.5 px-3 rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm"
+              title="Ver atajos de teclado estándar y teclado numérico (Numpad)"
+            >
+              <span>⌨️</span> Atajos de Teclado
+            </button>
             <select 
               value={mapEstadoToSelect(estado)} 
               onChange={e => handleStateChange(e.target.value)}
@@ -403,14 +574,14 @@ export default function KarateWKFController({
 
         {/* Banner de alerta / estado de combate */}
         {alertaCombate && (
-          <div className="bg-amber-500 text-slate-950 px-6 py-2 font-black text-center text-xs flex items-center justify-center gap-2 shadow-inner">
-            <AlertTriangle size={16} />
+          <div className="bg-amber-500 text-slate-950 px-6 py-1.5 font-black text-center text-xs flex items-center justify-center gap-2 shadow-inner">
+            <AlertTriangle size={15} />
             <span>{alertaCombate}</span>
           </div>
         )}
 
         {/* Arena Principal de Kumite */}
-        <div className="flex-1 p-5 grid grid-cols-1 md:grid-cols-[1fr_330px_1fr] gap-5 overflow-y-auto bg-slate-950/60">
+        <div className="flex-1 p-5 grid grid-cols-1 md:grid-cols-[1fr_340px_1fr] gap-5 overflow-y-auto bg-slate-950/60">
           
           {/* LADO AKA (ROJO) */}
           <div className="bg-slate-900/90 rounded-2xl border-2 border-red-600 shadow-xl flex flex-col overflow-hidden">
@@ -445,33 +616,36 @@ export default function KarateWKFController({
                 </div>
               </div>
 
-              {/* Botones de Puntuación Técnica WKF */}
+              {/* Botones de Puntuación Técnica WKF con Hotkeys */}
               <div className="grid grid-cols-3 gap-2">
                 {/* YUKO (+1) */}
                 <button
                   onClick={() => addTechnique('local', 'yuko', 1)}
-                  className="py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight"
+                  className="py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight relative group"
                 >
                   <span className="text-base">+1 YUKO</span>
                   <span className="text-[9px] font-medium opacity-80">Tsuki / Puño</span>
+                  <span className="absolute top-1 right-1 text-[9px] bg-black/40 text-amber-300 font-mono px-1 rounded">Q / 7</span>
                 </button>
 
                 {/* WAZA-ARI (+2) */}
                 <button
                   onClick={() => addTechnique('local', 'waza_ari', 1)}
-                  className="py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight"
+                  className="py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight relative group"
                 >
                   <span className="text-base">+2 WAZA-ARI</span>
                   <span className="text-[9px] font-medium opacity-80">Chudan Kick</span>
+                  <span className="absolute top-1 right-1 text-[9px] bg-black/40 text-amber-300 font-mono px-1 rounded">W / 8</span>
                 </button>
 
                 {/* IPPON (+3) */}
                 <button
                   onClick={() => addTechnique('local', 'ippon', 1)}
-                  className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight"
+                  className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight relative group"
                 >
                   <span className="text-base">+3 IPPON</span>
-                  <span className="text-[9px] font-medium opacity-80">Jodan Kick / Caído</span>
+                  <span className="text-[9px] font-medium opacity-80">Jodan / Caído</span>
+                  <span className="absolute top-1 right-1 text-[9px] bg-black/40 text-amber-300 font-mono px-1 rounded">E / 9</span>
                 </button>
               </div>
 
@@ -492,13 +666,14 @@ export default function KarateWKFController({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => toggleSenshu('local')}
-                  className={`py-2 px-3 rounded-xl font-black text-xs transition border flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-3 rounded-xl font-black text-xs transition border flex items-center justify-center gap-1.5 relative ${
                     estadisticas.local.senshu
                       ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20'
                       : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700'
                   }`}
                 >
                   <Award size={14} /> {estadisticas.local.senshu ? 'Senshu Activo' : 'Asignar Senshu'}
+                  <span className="absolute top-1 right-1 text-[8px] opacity-70 font-mono">[Z / /]</span>
                 </button>
                 <button
                   onClick={() => invalidarUltimoPuntoZanshin('local')}
@@ -512,7 +687,8 @@ export default function KarateWKFController({
               {/* Penalizaciones (Chui / Hansoku) y Salidas (Jogai) */}
               <div className="grid grid-cols-2 gap-2">
                 {/* Jogai (Salidas) */}
-                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center relative">
+                  <span className="absolute top-1 right-1 text-[8px] bg-slate-800 text-orange-300 font-mono px-1 rounded">A / 4</span>
                   <div className="text-[10px] font-bold text-slate-400 uppercase">Jogai (Salidas)</div>
                   <div className="text-xl font-black text-orange-400 my-0.5">{estadisticas.local.jogai || 0}</div>
                   <div className="flex gap-1 mt-1">
@@ -526,7 +702,8 @@ export default function KarateWKFController({
                 </div>
 
                 {/* Penalizaciones (Chui) */}
-                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center relative">
+                  <span className="absolute top-1 right-1 text-[8px] bg-slate-800 text-red-300 font-mono px-1 rounded">D / F</span>
                   <div className="text-[10px] font-bold text-slate-400 uppercase">Penalizaciones</div>
                   <div className="text-xl font-black text-red-400 my-0.5">{estadisticas.local.penalizaciones || 0}</div>
                   <div className="flex gap-1 mt-1">
@@ -564,7 +741,7 @@ export default function KarateWKFController({
             </div>
           </div>
 
-          {/* COLUMNA CENTRAL: MARCADOR GLOBAL, CRONÓMETRO Y DESEMPATE WKF */}
+          {/* COLUMNA CENTRAL: MARCADOR GLOBAL, CRONÓMETRO CON RETROCESO Y DESEMPATE WKF */}
           <div className="flex flex-col gap-3 justify-center">
             
             {/* Marcador Central */}
@@ -579,11 +756,11 @@ export default function KarateWKFController({
               </div>
               <div className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Diferencia: <span className={Math.abs(ptAka - ptAo) >= 8 ? 'text-amber-400 font-black' : 'text-slate-300'}>{Math.abs(ptAka - ptAo)} pts</span>
-                {Math.abs(ptAka - ptAo) >= 8 && <span className="ml-1 text-amber-400">(Ventaja $\ge 8$)</span>}
+                {Math.abs(ptAka - ptAo) >= 8 && <span className="ml-1 text-amber-400 font-black">(Superioridad $\ge 8$)</span>}
               </div>
             </div>
 
-            {/* Cronómetro WKF */}
+            {/* Cronómetro WKF con Control Fino de Segundos */}
             <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-sm p-4 text-center">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -600,21 +777,64 @@ export default function KarateWKFController({
                 {formatTime(timer)}
               </div>
 
+              {/* Botones de Control Principal Play/Pause & Reset */}
               <div className="flex justify-center gap-2 mt-2">
                 <button 
                   onClick={() => setIsRunning(!isRunning)}
-                  className={`w-12 h-10 rounded-xl flex items-center justify-center shadow transition ${isRunning ? 'bg-amber-500 text-slate-950 hover:bg-amber-400' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}
+                  className={`px-5 py-2 rounded-xl flex items-center justify-center gap-1.5 shadow transition font-black text-xs uppercase tracking-wider ${
+                    isRunning ? 'bg-amber-500 text-slate-950 hover:bg-amber-400' : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                  }`}
+                  title="Pausar / Iniciar (Espacio o Num 5)"
                 >
-                  {isRunning ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+                  {isRunning ? <><Pause size={18} /> Yame (Pausa)</> : <><Play size={18} /> Hajime (Iniciar)</>}
                 </button>
                 <button 
                   onClick={() => { setIsRunning(false); setTimer(duracionCombate); }}
-                  className="w-12 h-10 rounded-xl flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 transition shadow border border-slate-700"
-                  title="Reiniciar Cronómetro"
+                  className="px-3 py-2 rounded-xl flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 transition shadow border border-slate-700"
+                  title="Reiniciar Cronómetro (R)"
                 >
-                  <RotateCcw size={18} />
+                  <RotateCcw size={16} />
                 </button>
               </div>
+
+              {/* Ajuste fino de segundos (Retrotraer tiempo ordenado por el árbitro central) */}
+              <div className="mt-3 pt-2.5 border-t border-slate-800/80">
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Ajuste de Segundos (Yame):</span>
+                  <span className="text-amber-400 font-mono">[+ / - / Flechas]</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button
+                    onClick={() => adjustTimer(-5)}
+                    className="py-1 px-1 bg-slate-800/80 hover:bg-slate-700 text-rose-300 rounded-lg text-[10px] font-mono font-bold border border-slate-700"
+                    title="Restar 5 segundos (Shift + ←)"
+                  >
+                    -5s
+                  </button>
+                  <button
+                    onClick={() => adjustTimer(-1)}
+                    className="py-1 px-1 bg-slate-800/80 hover:bg-slate-700 text-rose-300 rounded-lg text-[10px] font-mono font-bold border border-slate-700"
+                    title="Restar 1 segundo (- o ←)"
+                  >
+                    -1s
+                  </button>
+                  <button
+                    onClick={() => adjustTimer(1)}
+                    className="py-1 px-1 bg-slate-800/80 hover:bg-slate-700 text-emerald-300 rounded-lg text-[10px] font-mono font-bold border border-slate-700"
+                    title="Sumar 1 segundo (+ o →)"
+                  >
+                    +1s
+                  </button>
+                  <button
+                    onClick={() => adjustTimer(5)}
+                    className="py-1 px-1 bg-slate-800/80 hover:bg-slate-700 text-emerald-300 rounded-lg text-[10px] font-mono font-bold border border-slate-700"
+                    title="Sumar 5 segundos (Shift + →)"
+                  >
+                    +5s
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             {/* Asistente de Desempate WKF */}
@@ -622,8 +842,9 @@ export default function KarateWKFController({
               onClick={evaluarDesempateWKF}
               disabled={ptAka !== ptAo}
               className="w-full py-3 bg-gradient-to-r from-red-600 to-blue-600 hover:from-red-500 hover:to-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+              title="Resolver Desempate (Tecla H)"
             >
-              <Award size={16} /> Resolver Empate Oficial (WKF)
+              <Award size={16} /> Resolver Empate Oficial (WKF) [H]
             </button>
 
             {/* Guía rápida de reglas WKF */}
@@ -670,33 +891,36 @@ export default function KarateWKFController({
                 </div>
               </div>
 
-              {/* Botones de Puntuación Técnica WKF */}
+              {/* Botones de Puntuación Técnica WKF con Hotkeys */}
               <div className="grid grid-cols-3 gap-2">
                 {/* YUKO (+1) */}
                 <button
                   onClick={() => addTechnique('visitante', 'yuko', 1)}
-                  className="py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight"
+                  className="py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight relative group"
                 >
                   <span className="text-base">+1 YUKO</span>
                   <span className="text-[9px] font-medium opacity-80">Tsuki / Puño</span>
+                  <span className="absolute top-1 right-1 text-[9px] bg-black/40 text-amber-300 font-mono px-1 rounded">U / 1</span>
                 </button>
 
                 {/* WAZA-ARI (+2) */}
                 <button
                   onClick={() => addTechnique('visitante', 'waza_ari', 1)}
-                  className="py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight"
+                  className="py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight relative group"
                 >
                   <span className="text-base">+2 WAZA-ARI</span>
                   <span className="text-[9px] font-medium opacity-80">Chudan Kick</span>
+                  <span className="absolute top-1 right-1 text-[9px] bg-black/40 text-amber-300 font-mono px-1 rounded">I / 2</span>
                 </button>
 
                 {/* IPPON (+3) */}
                 <button
                   onClick={() => addTechnique('visitante', 'ippon', 1)}
-                  className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight"
+                  className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-sm shadow-md transition flex flex-col items-center justify-center leading-tight relative group"
                 >
                   <span className="text-base">+3 IPPON</span>
-                  <span className="text-[9px] font-medium opacity-80">Jodan Kick / Caído</span>
+                  <span className="text-[9px] font-medium opacity-80">Jodan / Caído</span>
+                  <span className="absolute top-1 right-1 text-[9px] bg-black/40 text-amber-300 font-mono px-1 rounded">O / 3</span>
                 </button>
               </div>
 
@@ -717,13 +941,14 @@ export default function KarateWKFController({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => toggleSenshu('visitante')}
-                  className={`py-2 px-3 rounded-xl font-black text-xs transition border flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-3 rounded-xl font-black text-xs transition border flex items-center justify-center gap-1.5 relative ${
                     estadisticas.visitante.senshu
                       ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20'
                       : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700'
                   }`}
                 >
                   <Award size={14} /> {estadisticas.visitante.senshu ? 'Senshu Activo' : 'Asignar Senshu'}
+                  <span className="absolute top-1 right-1 text-[8px] opacity-70 font-mono">[M / *]</span>
                 </button>
                 <button
                   onClick={() => invalidarUltimoPuntoZanshin('visitante')}
@@ -737,7 +962,8 @@ export default function KarateWKFController({
               {/* Penalizaciones (Chui / Hansoku) y Salidas (Jogai) */}
               <div className="grid grid-cols-2 gap-2">
                 {/* Jogai (Salidas) */}
-                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center relative">
+                  <span className="absolute top-1 right-1 text-[8px] bg-slate-800 text-orange-300 font-mono px-1 rounded">J / 0</span>
                   <div className="text-[10px] font-bold text-slate-400 uppercase">Jogai (Salidas)</div>
                   <div className="text-xl font-black text-orange-400 my-0.5">{estadisticas.visitante.jogai || 0}</div>
                   <div className="flex gap-1 mt-1">
@@ -751,7 +977,8 @@ export default function KarateWKFController({
                 </div>
 
                 {/* Penalizaciones (Chui) */}
-                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-2 text-center relative">
+                  <span className="absolute top-1 right-1 text-[8px] bg-slate-800 text-red-300 font-mono px-1 rounded">L</span>
                   <div className="text-[10px] font-bold text-slate-400 uppercase">Penalizaciones</div>
                   <div className="text-xl font-black text-red-400 my-0.5">{estadisticas.visitante.penalizaciones || 0}</div>
                   <div className="flex gap-1 mt-1">
@@ -790,6 +1017,76 @@ export default function KarateWKFController({
           </div>
 
         </div>
+
+        {/* Modal Guía Rápida de Atajos de Teclado y Numpad */}
+        {showKeyboardModal && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[170] flex items-center justify-center p-4">
+            <div className="bg-slate-900 rounded-3xl max-w-2xl w-full p-6 text-white shadow-2xl border-2 border-amber-500 animate-fadeIn">
+              <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2 text-amber-400 font-black text-lg">
+                  <span className="text-xl">⌨️</span>
+                  <span>Atajos Rápidos de Teclado (Físico y NumPad)</span>
+                </div>
+                <button onClick={() => setShowKeyboardModal(false)} className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Lado AKA (Rojo) */}
+                <div className="bg-red-950/30 border border-red-800/50 rounded-2xl p-3 space-y-2">
+                  <span className="font-black text-red-400 uppercase tracking-wider block border-b border-red-900/40 pb-1">
+                    Atajos AKA (Rojo)
+                  </span>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+1 Yuko:</span><kbd className="bg-red-900/50 text-white font-mono px-2 py-0.5 rounded border border-red-700">Q / 1 / Num 7</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+2 Waza-Ari:</span><kbd className="bg-red-900/50 text-white font-mono px-2 py-0.5 rounded border border-red-700">W / 2 / Num 8</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+3 Ippon:</span><kbd className="bg-red-900/50 text-white font-mono px-2 py-0.5 rounded border border-red-700">E / 3 / Num 9</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+1 Jogai (Salida):</span><kbd className="bg-red-900/50 text-white font-mono px-2 py-0.5 rounded border border-red-700">A / S / Num 4</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+1 Penalización:</span><kbd className="bg-red-900/50 text-white font-mono px-2 py-0.5 rounded border border-red-700">D / F</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">Senshu:</span><kbd className="bg-red-900/50 text-white font-mono px-2 py-0.5 rounded border border-red-700">Z / Num /</kbd></div>
+                </div>
+
+                {/* Lado AO (Azul) */}
+                <div className="bg-blue-950/30 border border-blue-800/50 rounded-2xl p-3 space-y-2">
+                  <span className="font-black text-blue-400 uppercase tracking-wider block border-b border-blue-900/40 pb-1">
+                    Atajos AO (Azul)
+                  </span>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+1 Yuko:</span><kbd className="bg-blue-900/50 text-white font-mono px-2 py-0.5 rounded border border-blue-700">U / 8 / Num 1</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+2 Waza-Ari:</span><kbd className="bg-blue-900/50 text-white font-mono px-2 py-0.5 rounded border border-blue-700">I / 9 / Num 2</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+3 Ippon:</span><kbd className="bg-blue-900/50 text-white font-mono px-2 py-0.5 rounded border border-blue-700">O / 0 / Num 3</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+1 Jogai (Salida):</span><kbd className="bg-blue-900/50 text-white font-mono px-2 py-0.5 rounded border border-blue-700">J / K / Num 0</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">+1 Penalización:</span><kbd className="bg-blue-900/50 text-white font-mono px-2 py-0.5 rounded border border-blue-700">L</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-300">Senshu:</span><kbd className="bg-blue-900/50 text-white font-mono px-2 py-0.5 rounded border border-blue-700">M / Num *</kbd></div>
+                </div>
+
+                {/* Cronómetro y Control General */}
+                <div className="col-span-1 md:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-3 grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <span className="font-bold text-amber-400 uppercase text-[11px] block">Cronómetro & Arbitraje:</span>
+                    <div className="flex justify-between items-center"><span className="text-slate-400">Pausar / Iniciar (Yame):</span><kbd className="bg-slate-800 text-slate-200 font-mono px-2 py-0.5 rounded">Espacio / Num 5</kbd></div>
+                    <div className="flex justify-between items-center"><span className="text-slate-400">Reiniciar Tiempo:</span><kbd className="bg-slate-800 text-slate-200 font-mono px-2 py-0.5 rounded">R</kbd></div>
+                    <div className="flex justify-between items-center"><span className="text-slate-400">Resolver Desempate:</span><kbd className="bg-slate-800 text-slate-200 font-mono px-2 py-0.5 rounded">H</kbd></div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="font-bold text-amber-400 uppercase text-[11px] block">Ajuste Fino de Segundos:</span>
+                    <div className="flex justify-between items-center"><span className="text-slate-400">Sumar 1 seg:</span><kbd className="bg-slate-800 text-emerald-300 font-mono px-2 py-0.5 rounded">+ / → / Num +</kbd></div>
+                    <div className="flex justify-between items-center"><span className="text-slate-400">Restar 1 seg:</span><kbd className="bg-slate-800 text-rose-300 font-mono px-2 py-0.5 rounded">- / ← / Num -</kbd></div>
+                    <div className="flex justify-between items-center"><span className="text-slate-400">Sumar / Restar 5 seg:</span><kbd className="bg-slate-800 text-slate-200 font-mono px-2 py-0.5 rounded">Shift + → / Shift + ←</kbd></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowKeyboardModal(false)}
+                  className="px-6 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-md"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal de Resolución de Desempate WKF */}
         {hanteiModal && (

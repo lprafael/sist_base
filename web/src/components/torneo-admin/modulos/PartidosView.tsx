@@ -15,6 +15,8 @@ import SelectTeamsModal from './SelectTeamsModal';
 import ArtDuJeuModal from './ArtDuJeuModal';
 import ActaModal from './ActaModal';
 import GenerarPartidosModal from './GenerarPartidosModal';
+import MesaCentralWKFView from './MesaCentralWKFView';
+import ActaCombateWKFModal from './ActaCombateWKFModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -48,6 +50,8 @@ export default function PartidosView({
   const [selectTeamsMatch, setSelectTeamsMatch] = useState<any>(null);
   const [artDuJeuMatch, setArtDuJeuMatch] = useState<any>(null);
   const [actaMatch, setActaMatch] = useState<any>(null);
+  const [actaWkfMatch, setActaWkfMatch] = useState<any>(null);
+  const [showMesaCentral, setShowMesaCentral] = useState(false);
   const [showGenerarModal, setShowGenerarModal] = useState(false);
 
   useEffect(() => {
@@ -177,6 +181,14 @@ export default function PartidosView({
 
       {!faseOculta && (
         <div className="flex flex-col items-center mb-4 gap-2">
+          {/* Botón Mesa Central (Multi-Tatami & Auditoría) */}
+          <button
+            onClick={() => setShowMesaCentral(true)}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-700 to-slate-950 hover:from-red-600 hover:to-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-black shadow-md transition uppercase tracking-wider border border-red-500/30"
+          >
+            <Shield size={16} className="text-red-400" /> MESA CENTRAL (JEFE DE ÁRBITROS)
+          </button>
+          
           <button
             onClick={() => setShowGenerarModal(true)}
             className="w-full flex items-center justify-center gap-2 bg-[#191942] hover:bg-indigo-900 text-white px-4 py-2.5 rounded-xl text-sm font-extrabold shadow-sm transition uppercase tracking-wider"
@@ -552,13 +564,45 @@ export default function PartidosView({
         />
       )}
 
-      {/* Acta Modal */}
+      {/* Acta Modal Genérica */}
       {actaMatch && (
         <ActaModal
           match={actaMatch}
           torneo={torneo}
           onClose={() => setActaMatch(null)}
         />
+      )}
+
+      {/* Acta Oficial WKF Modal */}
+      {actaWkfMatch && (
+        <ActaCombateWKFModal
+          match={actaWkfMatch}
+          torneo={torneo}
+          onClose={() => setActaWkfMatch(null)}
+        />
+      )}
+
+      {/* Mesa Central (Jefe de Árbitros & Multi-Tatami) Modal */}
+      {showMesaCentral && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] flex flex-col p-4 md:p-6 overflow-y-auto animate-fadeIn">
+          <div className="max-w-7xl w-full mx-auto space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={() => { setShowMesaCentral(false); fetchPartidos(true); }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold border border-slate-700 transition"
+              >
+                ✕ Cerrar Mesa Central
+              </button>
+            </div>
+            <MesaCentralWKFView
+              torneoId={torneoId}
+              torneo={torneo}
+              onOpenMatchController={(m) => {
+                setActiveMatch(m);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Match Controllers */}

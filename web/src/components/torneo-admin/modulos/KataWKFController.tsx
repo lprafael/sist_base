@@ -56,6 +56,40 @@ export default function KataWKFController({
     }
   }, [match]);
 
+  // Atajos de teclado para digitador único en Kata
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      const key = e.key.toLowerCase();
+      // Presets rápidos para 5 jueces:
+      if (key === '5' || e.code === 'Numpad5') {
+        // 5-0 AKA
+        setVotosJueces(['aka', 'aka', 'aka', 'aka', 'aka']);
+      } else if (key === '0' || e.code === 'Numpad0') {
+        // 0-5 AO
+        setVotosJueces(['ao', 'ao', 'ao', 'ao', 'ao']);
+      } else if (key === '4' || e.code === 'Numpad4') {
+        // 4-1 AKA
+        setVotosJueces(['aka', 'aka', 'aka', 'aka', 'ao']);
+      } else if (key === '9' || e.code === 'Numpad9') {
+        // 1-4 AO
+        setVotosJueces(['aka', 'ao', 'ao', 'ao', 'ao']);
+      } else if (key === '3' || e.code === 'Numpad3') {
+        // 3-2 AKA
+        setVotosJueces(['aka', 'aka', 'aka', 'ao', 'ao']);
+      } else if (key === '8' || e.code === 'Numpad8') {
+        // 2-3 AO
+        setVotosJueces(['aka', 'aka', 'ao', 'ao', 'ao']);
+      } else if (key === 'enter' && (e.ctrlKey || e.metaKey)) {
+        handleSave();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [votosJueces, modoEvaluacion]);
+
   const handleNumJuecesBanderasChange = (num: 3 | 5 | 7) => {
     setNumJuecesBanderas(num);
     setVotosJueces(prev => {

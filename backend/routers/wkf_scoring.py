@@ -146,7 +146,11 @@ async def registrar_evento_kumite_wkf(match_id: str, action: KumiteAction, sessi
     elif action.accion == 'jogai':
         state[lado]["jogai"] = max(0, state[lado].get("jogai", 0) + action.valor)
     elif action.accion == 'penalizacion':
-        state[lado]["penalizaciones"] = max(0, state[lado].get("penalizaciones", 0) + action.valor)
+        new_pen = max(0, state[lado].get("penalizaciones", 0) + action.valor)
+        state[lado]["penalizaciones"] = new_pen
+        # Regla WKF: Sanción grave o acumulación de faltas anula el Senshu
+        if action.valor > 0 and state[lado].get("senshu", False) and new_pen >= 2:
+            state[lado]["senshu"] = False
     elif action.accion == 'invalidar_punto':
         state[lado]["puntos"] = max(0, state[lado].get("puntos", 0) - action.valor)
     elif action.accion == 'hansoku_directo':

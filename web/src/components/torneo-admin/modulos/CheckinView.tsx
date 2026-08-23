@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, Scale, DollarSign, Loader2 } from 'lucide-react';
+import { Search, CheckCircle, Scale, DollarSign, Loader2, Zap } from 'lucide-react';
+import PesajeOficialWKFModal from './PesajeOficialWKFModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -8,6 +9,7 @@ export default function CheckinView({ torneoId }: { torneoId: string }) {
   const [jugadores, setJugadores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showPesajeWkfModal, setShowPesajeWkfModal] = useState(false);
   
   // Modal states
   const [selectedJugador, setSelectedJugador] = useState<any>(null);
@@ -79,6 +81,13 @@ export default function CheckinView({ torneoId }: { torneoId: string }) {
           <Scale size={20} className="text-blue-500"/>
           Check-in (Pesaje y Pagos)
         </h3>
+
+        <button
+          onClick={() => setShowPesajeWkfModal(true)}
+          className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-sm"
+        >
+          <Scale size={16} /> Báscula Oficial WKF (±1kg / Walkover)
+        </button>
       </div>
 
       <div className="relative">
@@ -187,6 +196,15 @@ export default function CheckinView({ torneoId }: { torneoId: string }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Pesaje Oficial WKF */}
+      {showPesajeWkfModal && (
+        <PesajeOficialWKFModal
+          torneoId={torneoId}
+          onClose={() => setShowPesajeWkfModal(false)}
+          onUpdated={fetchJugadores}
+        />
       )}
     </div>
   );

@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { BarChart2, Save, Loader2, Info } from 'lucide-react';
+import { BarChart2, Save, Loader2, Info, Medal, Building, Printer, Trophy } from 'lucide-react';
 import PartidosView from './PartidosView';
 import AsignacionCategoriasModal from './AsignacionCategoriasModal';
 import AjedrezController from './AjedrezController';
+import MedalleroWKFView from './MedalleroWKFView';
+import ReportesTorneoWKFModal from './ReportesTorneoWKFModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -13,6 +15,8 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
   const [fasesOptions, setFasesOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAsignacionModal, setShowAsignacionModal] = useState(false);
+  const [vistaMarcialTab, setVistaMarcialTab] = useState<'partidos' | 'medallero'>('partidos');
+  const [showReportesModal, setShowReportesModal] = useState(false);
 
   // Configuracion de puntos
   const [showConfig, setShowConfig] = useState(false);
@@ -205,20 +209,69 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     return <AjedrezController torneoId={torneoId} torneo={torneo} />;
   }
 
+  const isMarcialSport = torneo?.deporte === 'Karate' || 
+    (torneo?.deporte || '').toLowerCase().includes('karate') || 
+    (torneo?.deporte || '').toLowerCase().includes('artes marciales');
+
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-200">
         <div>
           <h3 className="text-xl font-bold text-slate-800">{torneo?.nombre || 'Campeonato'}</h3>
-          <p className="text-sm text-slate-500">Gestión de Partidos y Clasificación</p>
+          <p className="text-sm text-slate-500">Gestión de Partidos, Llaves y Clasificación Oficial</p>
         </div>
-        <button 
-          onClick={() => setShowConfig(!showConfig)}
-          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
-        >
-          {showConfig ? 'Ocultar Configuración' : 'Configurar Puntos'}
-        </button>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botón Reportes por Escuela (Senseis) */}
+          {isMarcialSport && (
+            <button
+              onClick={() => setShowReportesModal(true)}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            >
+              <Building size={15} /> Reportes por Escuela
+            </button>
+          )}
+
+          <button 
+            onClick={() => setShowConfig(!showConfig)}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
+          >
+            {showConfig ? 'Ocultar Configuración' : 'Configurar Puntos'}
+          </button>
+        </div>
       </div>
+
+      {/* Selector de Pestañas para Deportes Marciales / WKF */}
+      {isMarcialSport && (
+        <div className="flex gap-2 border-b border-slate-200 pb-2">
+          <button
+            onClick={() => setVistaMarcialTab('partidos')}
+            className={`px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 ${
+              vistaMarcialTab === 'partidos'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <BarChart2 size={16} /> Partidos y Llaves
+          </button>
+
+          <button
+            onClick={() => setVistaMarcialTab('medallero')}
+            className={`px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 ${
+              vistaMarcialTab === 'medallero'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Medal size={16} /> Medallero General WKF (Academias)
+          </button>
+        </div>
+      )}
+
+      {isMarcialSport && vistaMarcialTab === 'medallero' ? (
+        <MedalleroWKFView torneoId={torneoId} torneo={torneo} />
+      ) : (
+        <>
 
       {showConfig && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
@@ -543,6 +596,17 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           ));
         })()}
       </div>
+      </>
+      )}
+
+      {/* Modal Reportes por Escuela para Instructores / Coaches */}
+      {showReportesModal && (
+        <ReportesTorneoWKFModal
+          torneoId={torneoId}
+          torneo={torneo}
+          onClose={() => setShowReportesModal(false)}
+        />
+      )}
     </div>
   );
 }

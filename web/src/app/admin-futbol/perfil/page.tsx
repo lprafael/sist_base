@@ -8,6 +8,7 @@ export default function PerfilOrganizadorPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [perfil, setPerfil] = useState({
     enlace_sitio: "",
@@ -40,6 +41,13 @@ export default function PerfilOrganizadorPage() {
 
   useEffect(() => {
     cargarPerfil();
+    try {
+      const sessionStr = localStorage.getItem('user_session') || '{}';
+      const sessionData = JSON.parse(sessionStr);
+      if (sessionData.role === 'admin' || sessionData.rol === 'admin' || sessionData.user?.rol === 'admin') {
+        setIsAdmin(true);
+      }
+    } catch (e) {}
   }, []);
 
   const API_URL = "https://api.micancha.com.py";
@@ -468,9 +476,10 @@ export default function PerfilOrganizadorPage() {
                     <input 
                       type="text" 
                       value={perfil.enlace_sitio} 
-                      onChange={e => setPerfil({...perfil, enlace_sitio: e.target.value})}
-                      className="flex-1 px-2 py-3 bg-gray-100 focus:outline-none focus:bg-white text-blue-700 font-bold" 
+                      onChange={e => isAdmin ? setPerfil({...perfil, enlace_sitio: e.target.value}) : null}
+                      className={`flex-1 px-2 py-3 bg-gray-100 focus:outline-none text-blue-700 font-bold ${isAdmin ? 'focus:bg-white' : 'cursor-not-allowed opacity-75'}`}
                       placeholder="mi-liga-2027" 
+                      readOnly={!isAdmin}
                     />
                   </div>
                   {perfil.enlace_sitio && (

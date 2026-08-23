@@ -672,6 +672,337 @@ async def pagar_multa(multa_id: str, session: AsyncSession = Depends(get_session
     return {"mensaje": "Multa pagada exitosamente."}
 
 
+# ==========================================
+# PESAJE OFICIAL WKF (TOLERANCIA +-1kg & WALKOVER)
+# ==========================================
+
+class PesajeOficialPayload(BaseModel):
+    participante_id: str
+    peso_registrado: float
+    peso_maximo_categoria: Optional[float] = None
+    tolerancia_kg: float = 1.0  # Tolerancia reglamentaria de +- 1 kg
+    observaciones: Optional[str] = None
+
+@router.post("/torneos/{torneo_id}/pesaje-oficial")
+async def registrar_pesaje_oficial(torneo_id: str, payload: PesajeOficialPayload, session: AsyncSession = Depends(get_session)):
+    """
+    Registra el pesaje oficial del atleta aplicando la tolerancia de +-1 kg.
+    Si excede el límite permitido:
+    1. Se marca al atleta como 'Descalificado_Pesaje'.
+    2. Se otorgan automáticamente Victorias por Walkover (W.O.) a sus oponentes en la llave.
+    """
+    limite = payload.peso_maximo_categoria if payload.peso_maximo_categoria else 999.0
+    limite_efectivo = round(limite + payload.tolerancia_kg, 2)
+    peso_reg = round(payload.peso_registrado, 2)
+    
+    es_aprobado = peso_reg <= limite_efectivo
+    nuevo_estado = "Habilitado" if es_aprobado else "Descalificado_Pesaje"
+    
+    # 1. Actualizar participante en torneos_generales.participantes
+    q_part = text("""
+        UPDATE torneos_generales.participantes
+        SET peso_verificado = :peso, estado = :estado
+        WHERE id = :pid AND torneo_id = :tid
+        RETURNING nombre, apellido
+    """)
+    res_part = await session.execute(q_part, {
+        "peso": peso_reg,
+        "estado": nuevo_estado,
+        "pid": payload.participante_id,
+        "tid": torneo_id
+    })
+    row_part = res_part.fetchone()
+    
+    # También actualizar en futbol.jugadores si existe
+    try:
+        await session.execute(text("""
+            UPDATE futbol.jugadores
+            SET peso_verificado = :peso, estado = :estado
+            WHERE id = :pid
+        """), {"peso": peso_reg, "estado": nuevo_estado, "pid": payload.participante_id})
+    except Exception:
+        pass
+
+    walkovers_count = 0
+    walkovers_detalles = []
+
+    # 2. Si es descalificado, aplicar Walkover (W.O.) inmediato a todos sus combates pendientes
+    if not es_aprobado:
+        # A. En torneos.partidos
+        q_matches = text("""
+            SELECT id, equipo_local_id, equipo_visitante_id, local_nombre, visitante_nombre, estado
+            FROM torneos.partidos
+            WHERE torneo_id = :tid 
+              AND estado != 'finalizado'
+              AND (equipo_local_id = :pid OR equipo_visitante_id = :pid OR jugador_local_id = :pid OR jugador_visitante_id = :pid)
+        """)
+        res_matches = await session.execute(q_matches, {"tid": torneo_id, "pid": payload.participante_id})
+        matches_pendientes = res_matches.fetchall()
+
+        for m in matches_pendientes:
+            es_local = (str(m.equipo_local_id) == str(payload.participante_id))
+            ganador_id = m.equipo_visitante_id if es_local else m.equipo_local_id
+            ganador_nombre = m.visitante_nombre if es_local else m.local_nombre
+            
+            stats_wo = json.dumps({
+                "walkover": True,
+                "motivo": f"Victoria por Walkover (W.O.) por descalificación de rival en pesaje oficial ({peso_reg} kg > {limite_efectivo} kg límite con tolerancia +-1kg)",
+                "descalificado_id": str(payload.participante_id),
+                "ganador_lado": "visitante" if es_local else "local",
+                "metodo_victoria": "Walkover (W.O. - Pesaje)"
+            })
+
+            await session.execute(text("""
+                UPDATE torneos.partidos
+                SET estado = 'finalizado',
+                    ganador_id = :gid,
+                    estadisticas = :stats,
+                    observaciones = 'Combate resuelto por Walkover (W.O.) debido a discrepancia en Pesaje Oficial.'
+                WHERE id = :mid
+            """), {"gid": ganador_id, "stats": stats_wo, "mid": m.id})
+
+            walkovers_count += 1
+            walkovers_detalles.append({
+                "partido_id": str(m.id),
+                "ganador_id": str(ganador_id),
+                "ganador_nombre": ganador_nombre,
+                "motivo": "Walkover (W.O.)"
+            })
+
+        # B. En torneos_generales.encuentros
+        try:
+            q_encuentros = text("""
+                SELECT e.id, e.participante1_id, e.participante2_id
+                FROM torneos_generales.encuentros e
+                JOIN torneos_generales.divisiones d ON e.division_id = d.id
+                WHERE d.torneo_id = :tid 
+                  AND e.estado != 'finalizado'
+                  AND (e.participante1_id = :pid OR e.participante2_id = :pid)
+            """)
+            res_enc = await session.execute(q_encuentros, {"tid": torneo_id, "pid": payload.participante_id})
+            for enc in res_enc.fetchall():
+                es_p1 = (str(enc.participante1_id) == str(payload.participante_id))
+                ganador_p_id = enc.participante2_id if es_p1 else enc.participante1_id
+                await session.execute(text("""
+                    UPDATE torneos_generales.encuentros
+                    SET estado = 'finalizado', ganador_id = :gid
+                    WHERE id = :eid
+                """), {"gid": ganador_p_id, "eid": enc.id})
+        except Exception:
+            pass
+
+    await session.commit()
+
+    nombre_atleta = f"{row_part.nombre} {row_part.apellido}" if row_part else "Atleta"
+
+    if es_aprobado:
+        return {
+            "aprobado": True,
+            "peso_registrado": peso_reg,
+            "limite_categoria": limite,
+            "tolerancia_aplicada": payload.tolerancia_kg,
+            "limite_efectivo": limite_efectivo,
+            "estado": "Habilitado",
+            "mensaje": f"✅ Pesaje Aprobado para {nombre_atleta} ({peso_reg} kg dentro del límite permitido de {limite_efectivo} kg)."
+        }
+    else:
+        return {
+            "aprobado": False,
+            "peso_registrado": peso_reg,
+            "limite_categoria": limite,
+            "tolerancia_aplicada": payload.tolerancia_kg,
+            "limite_efectivo": limite_efectivo,
+            "estado": "Descalificado_Pesaje",
+            "walkovers_aplicados": walkovers_count,
+            "detalles_walkover": walkovers_detalles,
+            "mensaje": f"❌ Pesaje Excedido para {nombre_atleta} ({peso_reg} kg > {limite_efectivo} kg máx con tolerancia). Atleta descalificado. Se otorgaron {walkovers_count} Victorias por Walkover (W.O.) a sus oponentes en la llave."
+        }
+
+
+# ==========================================
+# SORTEO DE LLAVES WKF Y REGLA DE PRIORIDAD DE COLORES
+# ==========================================
+
+def determinar_colores_ronda_wkf(
+    color_previo_p1: Optional[str],
+    orden_combate_p1: int,
+    color_previo_p2: Optional[str],
+    orden_combate_p2: int
+) -> dict:
+    """
+    Regla Oficial WKF para asignación de colores AKA (Rojo) y AO (Azul) en rondas posteriores:
+    - Si ambos atletas compitieron con AKA (Rojo):
+      El atleta que combatió primero (menor orden de combate) mantiene AKA (Rojo) y el segundo pasa a AO (Azul).
+    - Si ambos atletas compitieron con AO (Azul):
+      El atleta que combatió primero mantiene AO (Azul) y el segundo pasa a AKA (Rojo).
+    - Si uno compitió con AKA y el otro con AO:
+      Cada uno conserva su color (AKA mantiene Rojo, AO mantiene Azul).
+    """
+    c1 = (color_previo_p1 or 'AKA').upper()
+    c2 = (color_previo_p2 or 'AO').upper()
+
+    if c1 == 'AKA' and c2 == 'AKA':
+        if orden_combate_p1 <= orden_combate_p2:
+            return {"color_p1": "AKA", "color_p2": "AO", "regla": "Ambos AKA previo: prioridad de Rojo al que compitió antes"}
+        else:
+            return {"color_p1": "AO", "color_p2": "AKA", "regla": "Ambos AKA previo: prioridad de Rojo al que compitió antes"}
+    
+    if c1 == 'AO' and c2 == 'AO':
+        if orden_combate_p1 <= orden_combate_p2:
+            return {"color_p1": "AO", "color_p2": "AKA", "regla": "Ambos AO previo: prioridad de Azul al que compitió antes"}
+        else:
+            return {"color_p1": "AKA", "color_p2": "AO", "regla": "Ambos AO previo: prioridad de Azul al que compitió antes"}
+
+    # Caso mixto: AKA vs AO
+    return {
+        "color_p1": c1,
+        "color_p2": c2,
+        "regla": "Conservación de color previo de cada atleta"
+    }
+
+
+class SorteoWKFRequest(BaseModel):
+    categoria_id: Optional[str] = None
+    dias_anticipacion: int = 3
+    sembrado_aleatorio: bool = True
+
+@router.post("/torneos/{torneo_id}/generar-sorteo-llaves-wkf")
+async def generar_sorteo_llaves_wkf(torneo_id: str, payload: SorteoWKFRequest, session: AsyncSession = Depends(get_session)):
+    """
+    Genera el sorteo oficial y el bracket de eliminación directa WKF 2-3 días antes del torneo.
+    Aplica sembrado reglamentario y asigna colores oficiales AKA (Rojo) y AO (Azul).
+    """
+    # Obtener participantes habilitados
+    q_part = text("""
+        SELECT p.id, p.nombre, p.apellido, p.modalidad, p.genero, p.peso_verificado, p.categoria_edad
+        FROM torneos_generales.participantes p
+        WHERE p.torneo_id = :tid AND p.estado = 'Habilitado'
+        ORDER BY p.creado_en ASC
+    """)
+    res_p = await session.execute(q_part, {"tid": torneo_id})
+    atletas = [dict(r._mapping) for r in res_p.fetchall()]
+
+    if len(atletas) < 2:
+        raise HTTPException(status_code=400, detail="Se requieren al menos 2 atletas habilitados para generar el sorteo de llaves.")
+
+    if payload.sembrado_aleatorio:
+        random.shuffle(atletas)
+
+    # Crear emparejamientos de Ronda 1 con colores iniciales fijos (arriba=AKA, abajo=AO)
+    matches_creados = []
+    num_atletas = len(atletas)
+    import math
+    potencia = 2 ** math.ceil(math.log2(num_atletas))
+    byes = potencia - num_atletas
+
+    orden_combate = 1
+    idx = 0
+
+    # Parejas directas de Ronda 1
+    while idx < (num_atletas - byes):
+        atleta_aka = atletas[idx]
+        atleta_ao = atletas[idx + 1] if idx + 1 < num_atletas else None
+
+        match_id = str(uuid.uuid4())
+        stats_inicial = {
+            "tipo_reglamento": "WKF",
+            "ronda": "Ronda 1 (Eliminatoria)",
+            "orden_combate": orden_combate,
+            "local": {"color": "AKA", "puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False, "penalizaciones": 0, "jogai": 0, "video_review": "ACTIVE"},
+            "visitante": {"color": "AO", "puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False, "penalizaciones": 0, "jogai": 0, "video_review": "ACTIVE"}
+        }
+
+        # Insertar en torneos.partidos
+        q_insert_match = text("""
+            INSERT INTO torneos.partidos 
+            (id, torneo_id, equipo_local_id, equipo_visitante_id, local_nombre, visitante_nombre, 
+             jugador_local_id, jugador_visitante_id, jugador_local_nombre, jugador_visitante_nombre,
+             goles_local, goles_visitante, estado, fase, jornada, estadisticas)
+            VALUES 
+            (:id, :tid, :el_id, :ev_id, :l_nom, :v_nom, :jl_id, :jv_id, :jl_nom, :jv_nom, 0, 0, 'programado', 'Ronda 1', :jornada, :stats)
+        """)
+
+        await session.execute(q_insert_match, {
+            "id": match_id,
+            "tid": torneo_id,
+            "el_id": atleta_aka["id"],
+            "ev_id": atleta_ao["id"] if atleta_ao else None,
+            "l_nom": f"{atleta_aka['nombre']} {atleta_aka['apellido']}",
+            "v_nom": f"{atleta_ao['nombre']} {atleta_ao['apellido']}" if atleta_ao else "BYE (Pasa Directo)",
+            "jl_id": atleta_aka["id"],
+            "jv_id": atleta_ao["id"] if atleta_ao else None,
+            "jl_nom": f"{atleta_aka['nombre']} {atleta_aka['apellido']}",
+            "jv_nom": f"{atleta_ao['nombre']} {atleta_ao['apellido']}" if atleta_ao else "BYE (Pasa Directo)",
+            "jornada": orden_combate,
+            "stats": json.dumps(stats_inicial)
+        })
+
+        matches_creados.append({
+            "match_id": match_id,
+            "orden": orden_combate,
+            "aka": f"{atleta_aka['nombre']} {atleta_aka['apellido']}",
+            "ao": f"{atleta_ao['nombre']} {atleta_ao['apellido']}" if atleta_ao else "BYE",
+            "ronda": "Ronda 1"
+        })
+
+        orden_combate += 1
+        idx += 2
+
+    # Los atletas con BYE pasan directamente a Ronda 2
+    while idx < num_atletas:
+        atleta_bye = atletas[idx]
+        match_id = str(uuid.uuid4())
+        stats_bye = {
+            "tipo_reglamento": "WKF",
+            "ronda": "Ronda 1 (BYE)",
+            "orden_combate": orden_combate,
+            "local": {"color": "AKA", "puntos": 0, "senshu": False},
+            "visitante": {"color": "AO", "puntos": 0, "senshu": False},
+            "bypass": True
+        }
+
+        q_insert_bye = text("""
+            INSERT INTO torneos.partidos 
+            (id, torneo_id, equipo_local_id, local_nombre, jugador_local_id, jugador_local_nombre,
+             goles_local, goles_visitante, estado, fase, jornada, ganador_id, estadisticas, observaciones)
+            VALUES 
+            (:id, :tid, :el_id, :l_nom, :jl_id, :jl_nom, 0, 0, 'finalizado', 'Ronda 1', :jornada, :gid, :stats, 'Avanza automáticamente por BYE reglamentario.')
+        """)
+
+        await session.execute(q_insert_bye, {
+            "id": match_id,
+            "tid": torneo_id,
+            "el_id": atleta_bye["id"],
+            "l_nom": f"{atleta_bye['nombre']} {atleta_bye['apellido']}",
+            "jl_id": atleta_bye["id"],
+            "jl_nom": f"{atleta_bye['nombre']} {atleta_bye['apellido']}",
+            "jornada": orden_combate,
+            "gid": atleta_bye["id"],
+            "stats": json.dumps(stats_bye)
+        })
+
+        matches_creados.append({
+            "match_id": match_id,
+            "orden": orden_combate,
+            "aka": f"{atleta_bye['nombre']} {atleta_bye['apellido']}",
+            "ao": "BYE (Pasa a Ronda 2)",
+            "ronda": "Ronda 1 (BYE)"
+        })
+
+        orden_combate += 1
+        idx += 1
+
+    await session.commit()
+
+    return {
+        "mensaje": f"Sorteo oficial WKF completado {payload.dias_anticipacion} días antes. Se crearon {len(matches_creados)} emparejamientos con colores AKA/AO y Byes reglamentarios.",
+        "total_atletas": num_atletas,
+        "potencia_bracket": potencia,
+        "byes": byes,
+        "emparejamientos": matches_creados
+    }
+
+
 @router.websocket("/torneos/{torneo_id}/ws")
 async def websocket_endpoint(websocket: WebSocket, torneo_id: str):
     await manager.connect(websocket, torneo_id)
@@ -681,3 +1012,4 @@ async def websocket_endpoint(websocket: WebSocket, torneo_id: str):
             # Posible recepción de mensajes desde el cliente (heartbeats, etc.)
     except WebSocketDisconnect:
         manager.disconnect(websocket, torneo_id)
+
