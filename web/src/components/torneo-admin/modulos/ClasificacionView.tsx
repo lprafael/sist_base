@@ -211,7 +211,11 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
 
   const isMarcialSport = torneo?.deporte === 'Karate' || 
     (torneo?.deporte || '').toLowerCase().includes('karate') || 
-    (torneo?.deporte || '').toLowerCase().includes('artes marciales');
+    (torneo?.deporte || '').toLowerCase().includes('artes marciales') ||
+    (torneo?.deporte || '').toLowerCase().includes('asam') ||
+    (torneo?.deporte || '').toLowerCase().includes('wkf') ||
+    (torneo?.deporte || '').toLowerCase().includes('taekwondo') ||
+    (torneo?.deporte || '').toLowerCase().includes('judo');
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -232,12 +236,15 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
             </button>
           )}
 
-          <button 
-            onClick={() => setShowConfig(!showConfig)}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
-          >
-            {showConfig ? 'Ocultar Configuración' : 'Configurar Puntos'}
-          </button>
+          {/* Configurar Puntos solo para deportes de liga (Fútbol, Futsal, etc.) */}
+          {!isMarcialSport && (
+            <button 
+              onClick={() => setShowConfig(!showConfig)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
+            >
+              {showConfig ? 'Ocultar Configuración' : 'Configurar Puntos'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -273,7 +280,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
       ) : (
         <>
 
-      {showConfig && (
+      {showConfig && !isMarcialSport && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3 text-blue-800 text-sm mb-6">
             <Info size={20} className="shrink-0 text-blue-500" />
