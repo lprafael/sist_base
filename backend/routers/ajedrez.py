@@ -2899,6 +2899,13 @@ async def lichess_sync_torneo(
     2. Borra rondas y partidas existentes.
     3. Descarga partidas e inserta rondas.
     """
+    # Asegurar que el torneo exista en torneos_generales.torneos
+    await session.execute(text("""
+        INSERT INTO torneos_generales.torneos (id, nombre, estado)
+        SELECT id, nombre, estado FROM torneos.torneos WHERE id = :tid
+        ON CONFLICT (id) DO NOTHING
+    """), {"tid": torneo_id})
+    await session.commit()
     url_info = f"https://lichess.org/api/swiss/{payload.lichess_id}"
     req_info = urllib.request.Request(url_info, headers={"Accept": "application/json"})
     try:
