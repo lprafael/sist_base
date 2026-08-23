@@ -2696,8 +2696,10 @@ async def crear_desafio_lichess(
     partida_q = await session.execute(text("""
         SELECT p.*, 
                pb.nombre as b_nom, pb.apellido as b_ape,
-               pn.nombre as n_nom, pn.apellido as n_ape
+               pn.nombre as n_nom, pn.apellido as n_ape,
+               r.numero_ronda
         FROM torneos_generales.ajedrez_partidas p
+        JOIN torneos_generales.ajedrez_rondas r ON p.ronda_id = r.id
         LEFT JOIN torneos_generales.participantes pb ON p.blancas_id = pb.id
         LEFT JOIN torneos_generales.participantes pn ON p.negras_id = pn.id
         WHERE p.id = :pid
@@ -2714,8 +2716,8 @@ async def crear_desafio_lichess(
 
     nom_b = f"{partida.b_nom or ''} {partida.b_ape or ''}".strip() or "Blancas"
     nom_n = f"{partida.n_nom or ''} {partida.n_ape or ''}".strip() or "Negras"
-    tablero = partida.tablero_numero or 1
-    ronda = partida.numero_ronda or 1
+    tablero = getattr(partida, 'tablero_numero', 1) or 1
+    ronda = getattr(partida, 'numero_ronda', 1) or 1
 
     nombre_desafio = (
         payload.nombre_desafio
