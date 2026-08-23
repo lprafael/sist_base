@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import random
-from typing import List, Dict
+import uuid
+from typing import List, Dict, Optional
 import json
 from datetime import datetime
 
