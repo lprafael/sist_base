@@ -136,6 +136,11 @@ app.add_middleware(
     max_age=600
 )
 
+import workers.lichess_worker as lichess_worker
+
+@app.on_event("startup")
+async def startup_event():
+    lichess_worker.start_lichess_worker()
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

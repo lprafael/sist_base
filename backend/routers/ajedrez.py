@@ -272,6 +272,7 @@ class ImportarTorneoLichessPayload(BaseModel):
 class SyncTorneoLichessPayload(BaseModel):
     lichess_id: str
     crear_usuarios_faltantes: bool = True
+    auto_sync: bool = False
 
 class LiveMovePayload(BaseModel):
     fen: str
@@ -3026,6 +3027,17 @@ async def lichess_sync_torneo(
     
     # Recalcular ranking 
     await _calcular_posiciones(torneo_id, 1, session)
+
+    if payload.auto_sync:
+        await session.execute(text("""
+            INSERT INTO torneos_generales.ajedrez_lichess_sync (torneo_id, lichess_id, auto_sync, ultima_sincronizacion)
+            VALUES (:tid, :lid, TRUE, NOW())
+            ON CONFLICT (torneo_id) DO UPDATE SET 
+                lichess_id = EXCLUDED.lichess_id,
+                auto_sync = EXCLUDED.auto_sync,
+                ultima_sincronizacion = NOW()
+        """), {"tid": torneo_id, "lid": payload.lichess_id})
+        await session.commit()
 
     return {
         "mensaje": "Sincronización completada",

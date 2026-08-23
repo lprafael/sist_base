@@ -16,6 +16,8 @@ export default function AjedrezLichessSyncModal({ isOpen, onClose, torneoId, onS
   const [previewData, setPreviewData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [autoSync, setAutoSync] = useState(false);
+
   if (!isOpen) return null;
 
   const handlePreview = async () => {
@@ -62,7 +64,8 @@ export default function AjedrezLichessSyncModal({ isOpen, onClose, torneoId, onS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           lichess_id: previewData.lichess_id,
-          crear_usuarios_faltantes: true 
+          crear_usuarios_faltantes: true,
+          auto_sync: autoSync
         })
       });
       if (!res.ok) {
@@ -186,6 +189,26 @@ export default function AjedrezLichessSyncModal({ isOpen, onClose, torneoId, onS
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {previewData && (
+            <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+              <input 
+                type="checkbox" 
+                id="autoSync"
+                checked={autoSync}
+                onChange={(e) => setAutoSync(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
+              />
+              <div>
+                <label htmlFor="autoSync" className="text-sm font-medium text-blue-400 cursor-pointer">
+                  Mantener sincronizado automáticamente en segundo plano
+                </label>
+                <p className="text-xs text-slate-400 mt-1">
+                  MiCancha consultará a Lichess cada 2 minutos y actualizará las rondas y posiciones sin que tengas que intervenir, hasta que el torneo finalice.
+                </p>
               </div>
             </div>
           )}
