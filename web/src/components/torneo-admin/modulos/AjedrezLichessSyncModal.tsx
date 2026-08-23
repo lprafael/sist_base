@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, Search, CheckCircle, AlertCircle, RefreshCw, UploadCloud } from 'lucide-react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+
 interface AjedrezLichessSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,7 +27,7 @@ export default function AjedrezLichessSyncModal({ isOpen, onClose, torneoId, onS
     setLoading(true);
     setPreviewData(null);
     try {
-      const res = await fetch(`/api/ajedrez/torneos/${torneoId}/lichess/preview-torneo`, {
+      const res = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/lichess/preview-torneo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lichess_url: lichessUrl.trim() })
@@ -55,7 +57,7 @@ export default function AjedrezLichessSyncModal({ isOpen, onClose, torneoId, onS
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/ajedrez/torneos/${torneoId}/lichess/sync-torneo`, {
+      const res = await fetch(`${API_URL}/api/ajedrez/torneos/${torneoId}/lichess/sync-torneo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
