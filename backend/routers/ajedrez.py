@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
@@ -809,20 +810,27 @@ async def agregar_etapa(
     """Agrega un torneo existente como etapa del circuito."""
     tabla_val = payload.puntos_tabla if payload.puntos_tabla is not None else {"1":12,"2":11,"3":10,"4":9,"5":8,"6":7,"7":6,"8":5,"9":4,"10":3}
     
-    res = await session.execute(text("""
-        INSERT INTO torneos_generales.ajedrez_circuito_etapas
-            (circuito_id, torneo_id, numero_etapa, puntos_tabla)
-        VALUES (:cid, :tid, :num, CAST(:tabla AS JSONB))
-        RETURNING id
-    """), {
-        "cid": circuito_id,
-        "tid": payload.torneo_id,
-        "num": payload.numero_etapa,
-        "tabla": json.dumps(tabla_val),
-    })
-    new_id = res.scalar()
-    await session.commit()
-    return {"id": str(new_id), "mensaje": "Etapa agregada al circuito"}
+    try:
+        res = await session.execute(text("""
+            INSERT INTO torneos_generales.ajedrez_circuito_etapas
+                (circuito_id, torneo_id, numero_etapa, puntos_tabla)
+            VALUES (:cid, :tid, :num, CAST(:tabla AS JSONB))
+            RETURNING id
+        """), {
+            "cid": circuito_id,
+            "tid": payload.torneo_id,
+            "num": payload.numero_etapa,
+            "tabla": json.dumps(tabla_val),
+        })
+        new_id = res.scalar()
+        await session.commit()
+        return {"id": str(new_id), "mensaje": "Etapa agregada al circuito"}
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ya existe una etapa con el número {payload.numero_etapa} en este circuito."
+        )
 
 
 @router.delete("/circuitos/{circuito_id}/etapas/{etapa_id}", status_code=204)
