@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 import SitiosView from './modulos/SitiosView';
 import TorneoCanalesCobroModal from '../pagos/TorneoCanalesCobroModal';
+import AjedrezLichessSyncModal from './modulos/AjedrezLichessSyncModal';
 
 const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> });
 
@@ -77,6 +78,7 @@ const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) 
 export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect }: { torneo: any, onUpdate: (data: any) => void, onSubSectionSelect: (section: string) => void }) {
   const [showSitiosModal, setShowSitiosModal] = useState(false);
   const [showCanalesModal, setShowCanalesModal] = useState(false);
+  const [isLichessSyncModalOpen, setIsLichessSyncModalOpen] = useState(false);
   // Local state for basic fields to allow typing before saving (or we can save on blur)
   const [formData, setFormData] = useState({
     nombre: torneo.nombre || '',
@@ -751,6 +753,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 { id: 'arbitraje', icon: Shield, label: 'Arbitraje (Mesa Veedores)' },
                 { id: 'sitios', icon: MapPin, label: 'Sitios' },
                 ...((torneo?.deporte === 'Ajedrez' || (torneo?.deporte || '').toLowerCase().includes('ajedrez')) ? [
+                  { id: 'ajedrez_importar', icon: Trophy, label: '♟️ Ajedrez: Importar Torneo Lichess' },
                   { id: 'ajedrez_partidas', icon: Trophy, label: '♟️ Ajedrez: Rondas y Emparejamiento' },
                   { id: 'ajedrez_participantes', icon: Users, label: '♟️ Ajedrez: ELO / Ratings Participantes' },
                   { id: 'ajedrez_circuitos', icon: BarChart2, label: '♟️ Ajedrez: Circuitos y Ranking' },
@@ -767,6 +770,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                         setShowSitiosModal(true);
                       } else if (item.id === 'canales_cobro') {
                         setShowCanalesModal(true);
+                      } else if (item.id === 'ajedrez_importar') {
+                        setIsLichessSyncModalOpen(true);
                       } else {
                         onSubSectionSelect(item.id);
                       }
@@ -1501,6 +1506,18 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           isOpen={showCanalesModal}
           onClose={() => setShowCanalesModal(false)}
           torneoId={torneo.id}
+        />
+      )}
+
+      {isLichessSyncModalOpen && (
+        <AjedrezLichessSyncModal
+          isOpen={isLichessSyncModalOpen}
+          onClose={() => setIsLichessSyncModalOpen(false)}
+          torneoId={torneo.id}
+          onSuccess={() => {
+            // Se puede llamar a algo para refrescar datos si es necesario, 
+            // pero las pestañas de partidas cargan on-mount
+          }}
         />
       )}
     </>
