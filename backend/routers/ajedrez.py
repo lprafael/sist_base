@@ -2925,17 +2925,19 @@ async def lichess_sync_torneo(
                     if not exists_q.fetchone():
                         await session.execute(text("""
                             INSERT INTO torneos_generales.participantes 
-                            (torneo_id, nombre, apellido, usuario_lichess, categoria_base, estado, rating_fide)
-                            VALUES (:tid, :nom, '', :usr, 'Abierta', 'confirmado', :rat)
+                            (torneo_id, nombre, apellido, usuario_lichess, categoria_base, estado, rating_fide, documento, fecha_nacimiento, genero, modalidad, nivel_experiencia)
+                            VALUES (:tid, :nom, '', :usr, 'Abierta', 'confirmado', :rat, :doc, '1900-01-01', 'N/A', 'Ajedrez', 'Aficionado')
                         """), {
                             "tid": torneo_id, 
                             "nom": username, 
                             "usr": username,
-                            "rat": p_data.get("rating", 0)
+                            "rat": p_data.get("rating", 0),
+                            "doc": f"LICHESS-{username}"
                         })
             await session.commit()
-        except Exception:
-            pass 
+        except Exception as e:
+            await session.rollback()
+            print(f"Error creando usuarios faltantes: {e}")
 
     part_q = await session.execute(text("""
         SELECT id, usuario_lichess FROM torneos_generales.participantes WHERE torneo_id = :tid
