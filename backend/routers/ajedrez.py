@@ -807,16 +807,18 @@ async def agregar_etapa(
     current_user: dict = Depends(get_current_user)
 ):
     """Agrega un torneo existente como etapa del circuito."""
+    tabla_val = payload.puntos_tabla if payload.puntos_tabla is not None else {"1":12,"2":11,"3":10,"4":9,"5":8,"6":7,"7":6,"8":5,"9":4,"10":3}
+    
     res = await session.execute(text("""
         INSERT INTO torneos_generales.ajedrez_circuito_etapas
             (circuito_id, torneo_id, numero_etapa, puntos_tabla)
-        VALUES (:cid, :tid, :num, :tabla)
+        VALUES (:cid, :tid, :num, CAST(:tabla AS JSONB))
         RETURNING id
     """), {
         "cid": circuito_id,
         "tid": payload.torneo_id,
         "num": payload.numero_etapa,
-        "tabla": json.dumps(payload.puntos_tabla),
+        "tabla": json.dumps(tabla_val),
     })
     new_id = res.scalar()
     await session.commit()
