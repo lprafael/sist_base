@@ -120,9 +120,31 @@ async def guardar_perfil_organizador(data: PerfilOrganizadorRequest, current_use
     except Exception:
         pass
 
-    # 1. Verificar si el enlace está tomado por otro usuario
-    if data.enlace_sitio:
-        check = await session.execute(text("SELECT usuario_id FROM sistema.perfil_organizador WHERE enlace_sitio = :enlace AND usuario_id != :uid"), {"enlace": data.enlace_sitio, "uid": current_user["user_id"]})
+    # 1. Obtener enlace actual en base de datos si existe
+    res_curr = await session.execute(
+        text("SELECT enlace_sitio FROM sistema.perfil_organizador WHERE usuario_id = :uid"),
+        {"uid": current_user["user_id"]}
+    )
+    row_curr = res_curr.fetchone()
+    current_enlace = row_curr[0] if row_curr else None
+
+    # Si es usuario común y ya tiene un enlace asignado, no permitir cambiarlo (solo admin puede)
+    is_admin_user = current_user.get("role") in ["admin", "super"]
+    final_enlace = data.enlace_sitio
+    if not is_admin_user and current_enlace:
+        final_enlace = current_enlace
+
+    # Si no tiene enlace aún, asignarle uno por defecto
+    if not final_enlace:
+        import secrets
+        final_enlace = f"org-{secrets.token_hex(3)}"
+
+    # Verificar si el enlace está tomado por otro usuario
+    if final_enlace:
+        check = await session.execute(
+            text("SELECT usuario_id FROM sistema.perfil_organizador WHERE enlace_sitio = :enlace AND usuario_id != :uid"),
+            {"enlace": final_enlace, "uid": current_user["user_id"]}
+        )
         if check.fetchone():
             raise HTTPException(status_code=400, detail="El enlace del sitio ya está en uso por otro organizador.")
 

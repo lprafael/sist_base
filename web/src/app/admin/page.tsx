@@ -1938,7 +1938,9 @@ export default function AdminConsole() {
                                       email: data.user.email,
                                       usuario_id: data.user.id,
                                       tipo_torneo: data.user.tipo_torneo || null,
-                                      authorized: true
+                                      authorized: true,
+                                      is_impersonating: true,
+                                      impersonator_role: sessionData.role || 'admin'
                                     };
                                     localStorage.setItem('user_session', JSON.stringify(newSessionData));
                                     

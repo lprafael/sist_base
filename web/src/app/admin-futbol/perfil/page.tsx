@@ -44,9 +44,34 @@ export default function PerfilOrganizadorPage() {
     try {
       const sessionStr = localStorage.getItem('user_session') || '{}';
       const sessionData = JSON.parse(sessionStr);
-      if (sessionData.role === 'admin' || sessionData.rol === 'admin' || sessionData.user?.rol === 'admin') {
-        setIsAdmin(true);
+      const adminBackup = localStorage.getItem('admin_session_backup');
+      
+      let isUserAdmin = (
+        sessionData.role === 'admin' || 
+        sessionData.role === 'super' ||
+        sessionData.rol === 'admin' || 
+        sessionData.rol === 'super' ||
+        sessionData.user?.rol === 'admin' ||
+        sessionData.user?.rol === 'super' ||
+        sessionData.is_impersonating === true ||
+        sessionData.impersonator_role === 'admin'
+      );
+      
+      if (adminBackup) {
+        try {
+          const backupData = JSON.parse(adminBackup);
+          if (
+            backupData.role === 'admin' || 
+            backupData.role === 'super' || 
+            backupData.rol === 'admin' || 
+            backupData.rol === 'super'
+          ) {
+            isUserAdmin = true;
+          }
+        } catch (e) {}
       }
+
+      setIsAdmin(!!isUserAdmin);
     } catch (e) {}
   }, []);
 
@@ -469,16 +494,33 @@ export default function PerfilOrganizadorPage() {
             {/* ENLACES Y PRIVACIDAD */}
             <div className="space-y-6">
               <div>
-                <h3 className="font-bold text-blue-600 mb-2">Enlace de tu Página Pública</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-blue-600">Enlace de tu Página Pública</h3>
+                  {isAdmin ? (
+                    <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1 border border-amber-300 shadow-sm">
+                      🛡️ Administrador: Enlace Editable
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 border border-gray-200">
+                      🔒 Enlace Fijo (Asignado por Administrador)
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="flex flex-1 items-center bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
-                    <span className="text-gray-500 pl-4 py-3 whitespace-nowrap font-mono text-sm bg-gray-200">micancha.com.py/organizador/</span>
+                  <div className={`flex flex-1 items-center rounded-lg overflow-hidden border transition-all ${isAdmin ? 'border-blue-500 bg-white ring-2 ring-blue-100' : 'border-gray-300 bg-gray-100'}`}>
+                    <span className={`pl-4 py-3 whitespace-nowrap font-mono text-sm ${isAdmin ? 'bg-blue-50 text-blue-900 font-semibold' : 'bg-gray-200 text-gray-500'}`}>
+                      micancha.com.py/organizador/
+                    </span>
                     <input 
                       type="text" 
                       value={perfil.enlace_sitio} 
-                      onChange={e => isAdmin ? setPerfil({...perfil, enlace_sitio: e.target.value}) : null}
-                      className={`flex-1 px-2 py-3 bg-gray-100 focus:outline-none text-blue-700 font-bold ${isAdmin ? 'focus:bg-white' : 'cursor-not-allowed opacity-75'}`}
-                      placeholder="mi-liga-2027" 
+                      onChange={e => {
+                        if (!isAdmin) return;
+                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+                        setPerfil({...perfil, enlace_sitio: val});
+                      }}
+                      className={`flex-1 px-3 py-3 font-bold focus:outline-none ${isAdmin ? 'bg-white text-blue-700 focus:bg-white cursor-text' : 'bg-gray-100 text-gray-500 cursor-not-allowed select-none'}`}
+                      placeholder="mi-liga" 
                       readOnly={!isAdmin}
                     />
                   </div>
@@ -506,7 +548,12 @@ export default function PerfilOrganizadorPage() {
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Este es el enlace que compartirás con jugadores y público para que vean tus torneos.</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {isAdmin 
+                    ? "✨ Modo Administrador: Puedes modificar libremente el nombre de la URL de este organizador."
+                    : "Este es el enlace que compartirás con jugadores y público para que vean tus torneos. (Solo modificable por el administrador del sistema)."
+                  }
+                </p>
               </div>
 
               <div>
