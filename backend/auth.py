@@ -806,8 +806,11 @@ async def delete_user_by_email(email: str, session: AsyncSession = Depends(get_s
         if u.username == 'admin' and u.rol == 'admin':
             continue
         try:
+            await session.execute(sql_text("DELETE FROM sistema.perfil_organizador WHERE usuario_id = :uid"), {"uid": u.id})
+            await session.execute(sql_text("DELETE FROM sistema.sitios_organizador WHERE usuario_id = :uid"), {"uid": u.id})
             await session.execute(sql_text("DELETE FROM cancha.organizador_deporte WHERE organizador_id IN (SELECT id FROM cancha.organizadores WHERE usuario_id = :uid)"), {"uid": u.id})
             await session.execute(sql_text("DELETE FROM cancha.organizadores WHERE usuario_id = :uid"), {"uid": u.id})
+            await session.execute(sql_text("DELETE FROM academias.miembros WHERE usuario_id = :uid"), {"uid": u.id})
             await session.delete(u)
             deleted_count += 1
         except Exception:

@@ -752,12 +752,26 @@ async def delete_organizador(organizador_id: int, session: AsyncSession = Depend
         # Eliminar o desactivar permanentemente el usuario del sistema para revocar su acceso
         if usuario_id:
             try:
+                # 1. Limpiar perfil y sitios del organizador si existen
+                await session.execute(
+                    text("DELETE FROM sistema.perfil_organizador WHERE usuario_id = :uid"),
+                    {"uid": usuario_id}
+                )
+                await session.execute(
+                    text("DELETE FROM sistema.sitios_organizador WHERE usuario_id = :uid"),
+                    {"uid": usuario_id}
+                )
+                await session.execute(
+                    text("DELETE FROM academias.miembros WHERE usuario_id = :uid"),
+                    {"uid": usuario_id}
+                )
+                # 2. Borrar usuario
                 await session.execute(
                     text("DELETE FROM sistema.usuarios WHERE id = :uid"),
                     {"uid": usuario_id}
                 )
             except Exception:
-                # Si tiene relaciones con logs u otras tablas, desactivar completamente y quitar rol
+                # Si tiene relaciones con logs u otras tablas históricas, desactivar completamente y quitar rol
                 await session.execute(
                     text("UPDATE sistema.usuarios SET activo = FALSE, rol = 'inactivo' WHERE id = :uid"),
                     {"uid": usuario_id}
