@@ -789,3 +789,31 @@ async def check_username_availability(
         "username": username.strip(),
         "message": "Disponible" if existing is None else "Este nombre de usuario ya está registrado en el sistema"
     }
+
+@router.delete("/users/by-email/{email}", summary="Eliminar usuario por correo")
+async def delete_user_by_email(email: str, session: AsyncSession = Depends(get_session)):
+    clean_email = email.strip().lower()
+    result = await session.execute(
+        select(Usuario).where(func.lower(Usuario.email) == clean_email)
+    )
+    users = result.scalars().all()
+    if not users:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado con ese correo")
+    
+    deleted_count = 0
+    from sqlalchemy import text as sql_text
+    for u in users:
+        if u.username == 'admin' and u.rol == 'admin':
+            continue
+        try:
+            await session.execute(sql_text("DELETE FROM cancha.organizador_deporte WHERE organizador_id IN (SELECT id FROM cancha.organizadores WHERE usuario_id = :uid)"), {"uid": u.id})
+            await session.execute(sql_text("DELETE FROM cancha.organizadores WHERE usuario_id = :uid"), {"uid": u.id})
+            await session.delete(u)
+            deleted_count += 1
+        except Exception:
+            u.activo = False
+            u.rol = 'inactivo'
+            deleted_count += 1
+            
+    await session.commit()
+    return {"status": "ok", "message": f"{deleted_count} cuenta(s) eliminada(s)/desactivada(s) correctamente"}

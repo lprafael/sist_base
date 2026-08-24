@@ -691,11 +691,55 @@ async def get_organizador_por_usuario(usuario_id: int, session: AsyncSession = D
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.patch("/organizadores/{organizador_id}/toggle-status", summary="Suspender o activar organizador y su usuario")
+async def toggle_organizador_status(organizador_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        res = await session.execute(
+            text("SELECT id, usuario_id, habilitado FROM cancha.organizadores WHERE id = :id"),
+            {"id": organizador_id}
+        )
+        row = res.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Organizador no encontrado")
+        
+        nuevo_estado = not (row[2] if row[2] is not None else True)
+        usuario_id = row[1]
+
+        await session.execute(
+            text("UPDATE cancha.organizadores SET habilitado = :hab WHERE id = :id"),
+            {"hab": nuevo_estado, "id": organizador_id}
+        )
+
+        if usuario_id:
+            await session.execute(
+                text("UPDATE sistema.usuarios SET activo = :hab WHERE id = :uid"),
+                {"hab": nuevo_estado, "uid": usuario_id}
+            )
+
+        await session.commit()
+        return {
+            "status": "ok", 
+            "habilitado": nuevo_estado, 
+            "message": f"Organizador {'habilitado' if nuevo_estado else 'suspendido'} exitosamente"
+        }
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.delete("/organizadores/{organizador_id}", summary="Eliminar organizador independiente")
 async def delete_organizador(organizador_id: int, session: AsyncSession = Depends(get_session)):
     try:
-        # Check if it has any associated tournaments
-        # Just try to delete, if foreign key constraints fail it will raise an error
+        # Obtener el usuario_id asociado antes de borrar
+        res_u = await session.execute(
+            text("SELECT usuario_id FROM cancha.organizadores WHERE id = :id"),
+            {"id": organizador_id}
+        )
+        row_u = res_u.fetchone()
+        usuario_id = row_u[0] if row_u else None
+
         await session.execute(
             text("DELETE FROM cancha.organizador_deporte WHERE organizador_id = :id"),
             {"id": organizador_id}
@@ -704,11 +748,26 @@ async def delete_organizador(organizador_id: int, session: AsyncSession = Depend
             text("DELETE FROM cancha.organizadores WHERE id = :id"),
             {"id": organizador_id}
         )
+        
+        # Eliminar o desactivar permanentemente el usuario del sistema para revocar su acceso
+        if usuario_id:
+            try:
+                await session.execute(
+                    text("DELETE FROM sistema.usuarios WHERE id = :uid"),
+                    {"uid": usuario_id}
+                )
+            except Exception:
+                # Si tiene relaciones con logs u otras tablas, desactivar completamente y quitar rol
+                await session.execute(
+                    text("UPDATE sistema.usuarios SET activo = FALSE, rol = 'inactivo' WHERE id = :uid"),
+                    {"uid": usuario_id}
+                )
+
         await session.commit()
-        return {"status": "ok", "message": "Organizador eliminado exitosamente"}
+        return {"status": "ok", "message": "Organizador y credenciales de acceso eliminados exitosamente"}
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=400, detail="No se pudo eliminar el organizador. Asegúrate de que no tenga datos asociados (como torneos).")
+        raise HTTPException(status_code=400, detail=f"No se pudo eliminar el organizador: {str(e)}")
 
 
 

@@ -43,22 +43,83 @@ class EmailService:
             return False
 
     def send_welcome_email(self, to_email: str, username: str, password: str, role: str) -> bool:
-        """Envía email de bienvenida con credenciales"""
-        subject = "Bienvenido al Sistema"
+        """Envía email de bienvenida con credenciales y métodos de conexión"""
+        subject = "🏆 Bienvenido a Mi Cancha - Credenciales de Acceso"
+        frontend_url = os.getenv("FRONTEND_URL", "https://micancha.com.py")
         
         html_body = f"""
         <html>
-        <body>
-            <h2>Bienvenido al Sistema</h2>
-            <p>Hola <strong>{username}</strong>,</p>
-            <p>Tu cuenta ha sido creada exitosamente con los siguientes datos:</p>
-            <ul>
-                <li><strong>Usuario:</strong> {username}</li>
-                <li><strong>Contraseña:</strong> {password}</li>
-                <li><strong>Rol:</strong> {role}</li>
-            </ul>
-            <p>Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.</p>
-            <p>Saludos,<br>Equipo de Desarrollo</p>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; margin: 0;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 22px;">¡Bienvenido a Mi Cancha!</h2>
+                    <p style="color: #64748b; font-size: 14px; margin: 0;">Tu cuenta de usuario ha sido creada exitosamente</p>
+                </div>
+
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">A continuación encontrarás tus credenciales oficiales de acceso a la plataforma:</p>
+                
+                <!-- Tarjeta de Credenciales -->
+                <div style="background-color: #f1f5f9; border-left: 4px solid #16a34a; padding: 20px; border-radius: 8px; margin: 24px 0;">
+                    <p style="margin: 0 0 12px 0; color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Tus Datos de Acceso</p>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px; width: 140px;"><strong>Usuario / Nick:</strong></td>
+                            <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #1e40af;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 4px;">{username}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Correo electrónico:</strong></td>
+                            <td style="padding: 6px 0; font-size: 15px; color: #0f172a; font-weight: 600;">{to_email}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Contraseña:</strong></td>
+                            <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #0f172a;"><span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">{password}</span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Métodos de Conexión Disponibles -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 18px 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0; color: #0f172a; font-size: 14px; font-weight: bold;">
+                        🔑 Modalidades de Conexión Disponibles:
+                    </p>
+                    <p style="margin: 0 0 8px 0; color: #475569; font-size: 13px;">
+                        Puedes iniciar sesión en la plataforma utilizando cualquiera de estas 3 alternativas:
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">👤</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Usuario / Nick:</strong> Ingresando <span style="font-family: monospace; font-weight: 700; color: #1e40af; background: #dbeafe; padding: 1px 6px; border-radius: 4px;">{username}</span> y tu contraseña.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">✉️</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Correo Electrónico:</strong> Ingresando <span style="font-weight: 600; color: #0f172a;">{to_email}</span> y tu contraseña.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">🌐</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Cuenta de Google:</strong> Presionando directamente el botón <em>"Continuar con Google"</em> vinculado a este correo.
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Botón de Acceso -->
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/login" style="display: inline-block; padding: 14px 32px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);">
+                        🚀 Ingresar al Sistema
+                    </a>
+                </div>
+
+                <p style="color: #64748b; font-size: 13px;">Por seguridad, te recomendamos cambiar tu contraseña una vez que hayas ingresado por primera vez.</p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">© Mi Cancha — Sistema de Gestión Deportiva</p>
+            </div>
         </body>
         </html>
         """
@@ -66,7 +127,7 @@ class EmailService:
         return self.send_email(to_email, subject, html_body, is_html=True)
 
     def send_password_reset_email(self, to_email: str, username: str, reset_token: str) -> bool:
-        """Envía email para restablecer contraseña incluyendo el nombre de usuario de forma clara"""
+        """Envía email para restablecer contraseña incluyendo el nombre de usuario y métodos de conexión"""
         subject = "Recuperación de Contraseña y Usuario - Mi Cancha"
         frontend_url = os.getenv("FRONTEND_URL", "https://micancha.com.py")
         html_body = f"""
@@ -79,20 +140,47 @@ class EmailService:
                 </div>
                 
                 <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola,</p>
-                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Has solicitado información para recuperar el acceso a tu cuenta. A continuación encontrarás tu identificador de usuario y el enlace para generar una nueva contraseña:</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Has solicitado información para acceder a tu cuenta. A continuación encontrarás tu identificador de usuario y el enlace para generar una nueva contraseña:</p>
                 
                 <!-- Tarjeta de Usuario -->
                 <div style="background-color: #f1f5f9; border-left: 4px solid #3b82f6; padding: 18px 20px; border-radius: 8px; margin: 24px 0;">
-                    <p style="margin: 0 0 8px 0; color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Tu Usuario Registrado</p>
+                    <p style="margin: 0 0 8px 0; color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Tu Cuenta Registrada</p>
                     <p style="margin: 0 0 6px 0; color: #0f172a; font-size: 16px;">
-                        <strong>Nombre de usuario:</strong> <span style="font-family: monospace; font-size: 17px; font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 3px 10px; border-radius: 6px;">{username}</span>
+                        <strong>Usuario / Nick:</strong> <span style="font-family: monospace; font-size: 17px; font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 3px 10px; border-radius: 6px;">{username}</span>
                     </p>
                     <p style="margin: 0; color: #475569; font-size: 14px;">
                         <strong>Correo asociado:</strong> {to_email}
                     </p>
-                    <p style="margin: 10px 0 0 0; color: #059669; font-size: 12px; font-weight: 600;">
-                        💡 Nota: Al momento del ingreso puedes acceder usando indistintamente tu <strong>nombre de usuario</strong> o tu <strong>correo</strong>.
+                </div>
+
+                <!-- Métodos de Conexión Disponibles -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 18px 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0; color: #0f172a; font-size: 14px; font-weight: bold;">
+                        🔑 Modalidades de Conexión Disponibles:
                     </p>
+                    <p style="margin: 0 0 8px 0; color: #475569; font-size: 13px;">
+                        Recuerda que para ingresar al sistema dispones de las siguientes 3 opciones:
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">👤</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Usuario / Nick:</strong> Ingresando <span style="font-family: monospace; font-weight: 700; color: #1e40af; background: #dbeafe; padding: 1px 6px; border-radius: 4px;">{username}</span> y tu contraseña.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">✉️</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Correo:</strong> Ingresando <span style="font-weight: 600; color: #0f172a;">{to_email}</span> y tu contraseña.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">🌐</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Cuenta de Google:</strong> Presionando directamente <em>"Continuar con Google"</em> con tu cuenta ({to_email}).
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
                 <!-- Botón de Restablecimiento -->
@@ -350,7 +438,7 @@ class EmailService:
                     
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
-                            <td style="padding: 6px 0; color: #475569; font-size: 14px; width: 140px;"><strong>Nombre de usuario:</strong></td>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px; width: 140px;"><strong>Usuario / Nick:</strong></td>
                             <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #1e40af;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 4px;">{username}</span></td>
                         </tr>
                         <tr>
@@ -362,10 +450,36 @@ class EmailService:
                             <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #0f172a;"><span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">{password}</span></td>
                         </tr>
                     </table>
+                </div>
 
-                    <p style="margin: 14px 0 0 0; color: #059669; font-size: 12px; font-weight: 600;">
-                        💡 Puedes ingresar indistintamente con tu <strong>nombre de usuario</strong> o tu <strong>correo electrónico</strong>.
+                <!-- Métodos de Conexión Disponibles -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 18px 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0; color: #0f172a; font-size: 14px; font-weight: bold;">
+                        🔑 Modalidades de Conexión Disponibles:
                     </p>
+                    <p style="margin: 0 0 8px 0; color: #475569; font-size: 13px;">
+                        Para conectarte al sistema puedes utilizar cualquiera de estos 3 métodos:
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">👤</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Usuario / Nick:</strong> Ingresando <span style="font-family: monospace; font-weight: 700; color: #1e40af; background: #dbeafe; padding: 1px 6px; border-radius: 4px;">{username}</span> y tu contraseña asignada.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">✉️</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Correo Electrónico:</strong> Ingresando <span style="font-weight: 600; color: #0f172a;">{to_email}</span> y tu contraseña.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">🌐</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu Cuenta de Google:</strong> Presionando directamente en el botón <em>"Continuar con Google"</em> con tu cuenta de correo ({to_email}).
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
                 <!-- Botón de Acceso -->

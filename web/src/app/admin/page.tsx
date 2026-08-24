@@ -1206,22 +1206,30 @@ export default function AdminConsole() {
     window.location.href = '/academia-panel';
   };
 
-  const handleToggleOrganizador = async (usuario_id: number, currentHabilitado: boolean, nombre: string) => {
-    setOrganizadores(prev => prev.map(o => {
-      if (o.usuario_id === usuario_id) {
-        return { ...o, habilitado: !currentHabilitado };
+  const handleToggleOrganizador = async (orgId: number, currentHabilitado: boolean, nombre: string) => {
+    try {
+      const res = await fetch(`${API_URL}/cancha/torneos/organizadores/${orgId}/toggle-status`, {
+        method: 'PATCH'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const nuevoEstado = data.habilitado;
+        setOrganizadores(prev => prev.map(o => o.id === orgId ? { ...o, habilitado: nuevoEstado } : o));
+        logEvent('auditoria', {
+          accion: nuevoEstado ? 'Habilitar Organizador' : 'Suspender Organizador',
+          detalles: `Se modificó el estado del organizador "${nombre}" a ${nuevoEstado ? 'ACTIVO' : 'SUSPENDIDO'}`
+        });
+        addToast(`${nuevoEstado ? '🔓 Organizador Habilitado' : '🔒 Organizador Suspendido'} con éxito.`);
+      } else {
+        alert('No se pudo cambiar el estado del organizador en el servidor.');
       }
-      return o;
-    }));
-    logEvent('auditoria', {
-      accion: currentHabilitado ? 'Suspender Organizador' : 'Habilitar Organizador',
-      detalles: `Se modificó el estado del organizador "${nombre}" a ${!currentHabilitado ? 'ACTIVO' : 'SUSPENDIDO'}`
-    });
-    addToast(`${!currentHabilitado ? '🔓 Organizador Habilitado' : '🔒 Organizador Suspendido'} con éxito.`);
+    } catch {
+      alert('Error de conexión al intentar cambiar el estado del organizador.');
+    }
   };
 
   const handleDeleteOrganizador = async (id: number, nombre: string) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente al organizador "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente al organizador "${nombre}" y su cuenta de acceso? Esta acción no se puede deshacer.`)) return;
     try {
       const res = await fetch(`${API_URL}/cancha/torneos/organizadores/${id}`, {
         method: 'DELETE'
@@ -1230,9 +1238,9 @@ export default function AdminConsole() {
         setOrganizadores(prev => prev.filter(o => o.id !== id));
         logEvent('auditoria', {
           accion: 'Eliminar Organizador',
-          detalles: `Se eliminó permanentemente el organizador "${nombre}"`
+          detalles: `Se eliminó permanentemente el organizador "${nombre}" y su usuario asociado.`
         });
-        addToast(`🗑️ Organizador eliminado con éxito.`);
+        addToast(`🗑️ Organizador y usuario eliminados con éxito.`);
       } else {
         const err = await res.json();
         alert(`Error: ${err.detail || 'No se pudo eliminar el organizador'}`);
@@ -1992,7 +2000,7 @@ export default function AdminConsole() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleToggleOrganizador(o.usuario_id, o.habilitado, o.nombre);
+                                      handleToggleOrganizador(o.id, o.habilitado, o.nombre);
                                     }}
                                     style={{ background: o.habilitado ? '#ea580c' : '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                                   >
