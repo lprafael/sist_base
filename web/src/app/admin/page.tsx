@@ -7,7 +7,7 @@ import {
   Shield, User, Lock, Settings, FileText, CheckCircle,
   Trash2, LogOut, RefreshCw, Layers, Plus, Power, MapPin,
   Mail, Phone, Clock, AlertTriangle, Search, MessageSquare, X, Send,
-  GraduationCap, ExternalLink, Eye
+  GraduationCap, ExternalLink, Eye, Key
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -1940,35 +1940,65 @@ export default function AdminConsole() {
                                   >
                                     {o.habilitado ? 'Suspender' : 'Activar'}
                                   </button>
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        try {
-                                          const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
-                                          if (res.ok) {
-                                            const deps = await res.json();
-                                            setEditOrganizador({ ...o, deportesHabilitados: deps.map((d: any) => d.id) });
-                                          } else {
-                                            setEditOrganizador({ ...o, deportesHabilitados: [] });
-                                          }
-                                        } catch {
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!o.usuario_email) {
+                                        alert('Este organizador no tiene un correo electrónico asignado.');
+                                        return;
+                                      }
+                                      if (!confirm(`¿Deseas enviar el correo con su usuario y enlace para restablecer contraseña a ${o.usuario_email}?`)) return;
+                                      try {
+                                        const res = await fetch(`${API_URL}/auth/reset-password-request`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ email: o.usuario_email })
+                                        });
+                                        if (res.ok) {
+                                          addToast(`📧 Correo de acceso y usuario enviado a ${o.usuario_email}`);
+                                          alert(`Se ha enviado exitosamente el correo a ${o.usuario_email} con su nombre de usuario (${o.usuario_nombre || 'asignado'}) y el enlace para gestionar su contraseña.`);
+                                        } else {
+                                          alert('Error al intentar reenviar los datos de acceso.');
+                                        }
+                                      } catch {
+                                        alert('Error de conexión al servidor.');
+                                      }
+                                    }}
+                                    style={{ background: '#6366f1', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                    title="Enviar usuario y link para restablecer contraseña"
+                                  >
+                                    <Key size={13} />
+                                    Reenviar Clave
+                                  </button>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
+                                        if (res.ok) {
+                                          const deps = await res.json();
+                                          setEditOrganizador({ ...o, deportesHabilitados: deps.map((d: any) => d.id) });
+                                        } else {
                                           setEditOrganizador({ ...o, deportesHabilitados: [] });
                                         }
-                                      }}
-                                      style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                                    >
-                                      Editar
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteOrganizador(o.id, o.nombre);
-                                      }}
-                                      style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                                    >
-                                      Eliminar
-                                    </button>
-                                  </div>
+                                      } catch {
+                                        setEditOrganizador({ ...o, deportesHabilitados: [] });
+                                      }
+                                    }}
+                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteOrganizador(o.id, o.nombre);
+                                    }}
+                                    style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -2854,7 +2884,7 @@ export default function AdminConsole() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!confirm(`¿Estás seguro de que deseas reenviar la contraseña a ${editOrganizador.usuario_email}?`)) return;
+                    if (!confirm(`¿Estás seguro de que deseas reenviar los datos de acceso (usuario y recuperación de contraseña) a ${editOrganizador.usuario_email}?`)) return;
                     try {
                       const res = await fetch(`${API_URL}/auth/reset-password-request`, {
                         method: 'POST',
@@ -2862,18 +2892,19 @@ export default function AdminConsole() {
                         body: JSON.stringify({ email: editOrganizador.usuario_email })
                       });
                       if (res.ok) {
-                        alert('Correo de restablecimiento de contraseña enviado con éxito.');
+                        addToast(`📧 Correo enviado a ${editOrganizador.usuario_email}`);
+                        alert(`Correo enviado con éxito a ${editOrganizador.usuario_email} con su nombre de usuario y enlace para restablecer su contraseña.`);
                       } else {
-                        alert('Error al intentar reenviar la contraseña.');
+                        alert('Error al intentar reenviar la información.');
                       }
-                    } catch (e) {
-                      alert('Error de conexión al intentar reenviar la contraseña.');
+                    } catch {
+                      alert('Error de conexión al intentar comunicarse con el servidor.');
                     }
                   }}
-                  style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12 }}
-                  title="Reenviar Contraseña"
+                  style={{ background: '#6366f1', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12 }}
+                  title="Reenviar usuario y enlace de restablecimiento de contraseña"
                 >
-                  <RefreshCw size={14} />
+                  <Key size={14} />
                   Reenviar Contraseña
                 </button>
               )}

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 
 from models import Usuario, PasswordReset, LogAcceso
@@ -53,11 +53,12 @@ async def login(
     session: AsyncSession = Depends(get_session)
 ):
     """Inicio de sesión de usuario"""
-    # Buscar usuario
+    # Buscar usuario por nombre de usuario o correo indistintamente
+    clean_username = user_credentials.username.strip() if user_credentials.username else ""
     result = await session.execute(
         select(Usuario).where(
-            (Usuario.username == user_credentials.username) | 
-            (Usuario.email == user_credentials.username)
+            (func.lower(Usuario.username) == clean_username.lower()) | 
+            (func.lower(Usuario.email) == clean_username.lower())
         )
     )
     user = result.scalar_one_or_none()
@@ -257,12 +258,12 @@ async def google_login(
             os.getenv("GOOGLE_CLIENT_ID")
         )
         
-        email = id_info['email']
+        email = id_info['email'].strip().lower()
         full_name = id_info.get('name', '')
         
-        # Buscar usuario por email
+        # Buscar usuario por email (case-insensitive)
         result = await session.execute(
-            select(Usuario).where(Usuario.email == email)
+            select(Usuario).where(func.lower(Usuario.email) == email)
         )
         user = result.scalar_one_or_none()
         
@@ -657,15 +658,19 @@ async def request_password_reset(
     reset_request: PasswordResetRequest,
     session: AsyncSession = Depends(get_session)
 ):
-    """Solicitar restablecimiento de contraseña"""
+    """Solicitar restablecimiento de contraseña buscando por email o nombre de usuario"""
+    search_term = reset_request.email.strip() if reset_request.email else ""
     result = await session.execute(
-        select(Usuario).where(Usuario.email == reset_request.email)
+        select(Usuario).where(
+            (func.lower(Usuario.email) == search_term.lower()) |
+            (func.lower(Usuario.username) == search_term.lower())
+        )
     )
     user = result.scalar_one_or_none()
     
-    if not user:
-        # No revelar si el email existe o no
-        return {"message": "Si el email existe, se enviará un enlace de restablecimiento"}
+    if not user or not user.email:
+        # No revelar si el email/usuario existe o no
+        return {"message": "Si el usuario o correo existe, se enviará un enlace de restablecimiento"}
     
     # Generar token
     token = secrets.token_urlsafe(32)
@@ -673,7 +678,7 @@ async def request_password_reset(
     
     # Guardar token
     reset_record = PasswordReset(
-        email=reset_request.email,
+        email=user.email,
         token=token,
         expira_en=expires
     )
@@ -682,12 +687,12 @@ async def request_password_reset(
     
     # Enviar email
     email_service.send_password_reset_email(
-        reset_request.email, 
+        user.email, 
         user.username, 
         token
     )
     
-    return {"message": "Si el email existe, se enviará un enlace de restablecimiento"}
+    return {"message": "Si el usuario o correo existe, se enviará un enlace de restablecimiento"}
 
 @router.post("/reset-password-confirm")
 async def confirm_password_reset(

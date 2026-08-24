@@ -514,49 +514,63 @@ async def get_organizadores(session: AsyncSession = Depends(get_session)):
 @router.post("/organizadores", summary="Crear o actualizar organizador independiente")
 async def create_organizador(data: OrganizadorCreate, session: AsyncSession = Depends(get_session)):
     try:
+        import string
+        import random
+        from auth import get_password_hash
+        from email_service import email_service
+
+        def _generate_strong_temp_pass(length: int = 10) -> str:
+            chars = string.ascii_letters + string.digits
+            pwd = [
+                random.choice(string.ascii_uppercase),
+                random.choice(string.ascii_lowercase),
+                random.choice(string.digits),
+            ] + random.choices(chars, k=max(length - 3, 5))
+            random.shuffle(pwd)
+            return ''.join(pwd)
+
         uid = data.usuario_id
+        is_brand_new_user = False
+        new_username = None
+        new_temp_pass = None
 
         if not uid and data.usuario_email:
             email_clean = data.usuario_email.strip().lower()
             res_u = await session.execute(
-                text("SELECT id FROM sistema.usuarios WHERE LOWER(email) = :email"),
+                text("SELECT id, username FROM sistema.usuarios WHERE LOWER(email) = :email"),
                 {"email": email_clean}
             )
             u_row = res_u.fetchone()
             if u_row:
                 uid = u_row[0]
             else:
-                import string
-                import random
-                from auth import get_password_hash
-                from email_service import email_service
-                
-                temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-                username = email_clean.split("@")[0] + "_" + str(uuid.uuid4())[:4]
-                pass_hash = get_password_hash(temp_pass)
+                new_temp_pass = _generate_strong_temp_pass(10)
+                base_uname = email_clean.split("@")[0].replace('.', '_').replace('-', '_')
+                new_username = f"{base_uname}_{str(uuid.uuid4())[:4]}"
+                pass_hash = get_password_hash(new_temp_pass)
                 
                 res_ins = await session.execute(text("""
                     INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, rol, activo)
                     VALUES (:uname, :email, :pass, :nombre, 'organizador', TRUE)
                     RETURNING id
                 """), {
-                    "uname": username, "email": email_clean,
+                    "uname": new_username, "email": email_clean,
                     "pass": pass_hash, "nombre": data.nombre
                 })
                 uid = res_ins.scalar()
+                is_brand_new_user = True
                 
                 # Enviar correo con credenciales
                 try:
                     email_service.send_organizador_academia_credentials(
                         to_email=email_clean,
-                        username=username,
-                        password=temp_pass,
+                        username=new_username,
+                        password=new_temp_pass,
                         role="organizador",
                         login_url="https://micancha.com.py/torneos/login"
                     )
                 except Exception as mail_err:
-                    print(f"Error al enviar correo de bienvenida: {mail_err}")
-
+                    print(f"Error al enviar correo de bienvenida al nuevo usuario: {mail_err}")
 
         if not uid:
             raise HTTPException(status_code=400, detail="Debe seleccionar un usuario existente o ingresar un correo electrónico.")
@@ -577,13 +591,45 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
             await session.commit()
             return {"status": "ok", "message": "Organizador actualizado exitosamente", "usuario_id": uid}
         else:
-            # Insertar
+            # Insertar nuevo organizador en cancha.organizadores
             await session.execute(text("""
                 INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos)
                 VALUES (:uid, :nombre, :plan, :max_torneos)
             """), {"uid": uid, "nombre": data.nombre, "plan": data.plan, "max_torneos": data.max_torneos})
+
+            # Si el usuario ya existía previamente (no fue creado justo arriba), aseguramos que esté activo, rol organizador
+            # y le enviamos sus credenciales con contraseña asignada
+            if not is_brand_new_user:
+                res_existing_user = await session.execute(
+                    text("SELECT username, email FROM sistema.usuarios WHERE id = :uid"),
+                    {"uid": uid}
+                )
+                existing_user_row = res_existing_user.fetchone()
+                if existing_user_row and existing_user_row[1]:
+                    assigned_uname = existing_user_row[0]
+                    assigned_email = existing_user_row[1]
+                    temp_pwd = _generate_strong_temp_pass(10)
+                    pwd_hash = get_password_hash(temp_pwd)
+
+                    await session.execute(text("""
+                        UPDATE sistema.usuarios
+                        SET rol = 'organizador', activo = TRUE, hashed_password = :pass
+                        WHERE id = :uid
+                    """), {"uid": uid, "pass": pwd_hash})
+
+                    try:
+                        email_service.send_organizador_academia_credentials(
+                            to_email=assigned_email,
+                            username=assigned_uname,
+                            password=temp_pwd,
+                            role="organizador",
+                            login_url="https://micancha.com.py/torneos/login"
+                        )
+                    except Exception as mail_err:
+                        print(f"Error al enviar correo de credenciales a organizador existente: {mail_err}")
+
             await session.commit()
-            return {"status": "ok", "message": "Organizador independiente creado exitosamente", "usuario_id": uid}
+            return {"status": "ok", "message": "Organizador independiente creado exitosamente y credenciales enviadas por correo", "usuario_id": uid}
     except HTTPException:
         await session.rollback()
         raise

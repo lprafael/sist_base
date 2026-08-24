@@ -232,14 +232,14 @@ export default function ComplejoLoginPage() {
 
             {/* Username */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px' }}>Usuario</label>
+              <label style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px' }}>Usuario o Correo Electrónico</label>
               <div style={{ position: 'relative' }}>
                 <User size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
                 <input
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  placeholder="usuario_complejo"
+                  placeholder="usuario o correo@ejemplo.com"
                   required
                   style={{
                     width: '100%', padding: '13px 14px 13px 42px', borderRadius: 12,

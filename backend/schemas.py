@@ -115,7 +115,7 @@ class PasswordChange(BaseModel):
         return v
 
 class PasswordResetRequest(BaseModel):
-    email: EmailStr
+    email: str
 
 class PasswordResetConfirm(BaseModel):
     token: str

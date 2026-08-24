@@ -66,24 +66,53 @@ class EmailService:
         return self.send_email(to_email, subject, html_body, is_html=True)
 
     def send_password_reset_email(self, to_email: str, username: str, reset_token: str) -> bool:
-        """Envía email para restablecer contraseña"""
-        subject = "Restablecimiento de Contraseña - Sistema"
+        """Envía email para restablecer contraseña incluyendo el nombre de usuario de forma clara"""
+        subject = "Recuperación de Contraseña y Usuario - Mi Cancha"
         frontend_url = os.getenv("FRONTEND_URL", "https://micancha.com.py")
         html_body = f"""
         <html>
-        <body>
-            <h2>Restablecimiento de Contraseña</h2>
-            <p>Hola <strong>{username}</strong>,</p>
-            <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para crear una nueva:</p>
-            <p>
-                <a href="{frontend_url}/reset-password?token={reset_token}" style="display:inline-block;padding:10px 20px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">
-                    Restablecer mi Contraseña
-                </a>
-            </p>
-            <p>O ingresa el siguiente token manualmente: <strong>{reset_token}</strong></p>
-            <p>Este token expira en 1 hora.</p>
-            <p>Si no solicitaste este cambio, ignora este email.</p>
-            <p>Saludos,<br>Equipo de Desarrollo</p>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; margin: 0;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 22px;">Restablecimiento de Contraseña</h2>
+                    <p style="color: #64748b; font-size: 14px; margin: 0;">Plataforma Oficial Mi Cancha</p>
+                </div>
+                
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Has solicitado información para recuperar el acceso a tu cuenta. A continuación encontrarás tu identificador de usuario y el enlace para generar una nueva contraseña:</p>
+                
+                <!-- Tarjeta de Usuario -->
+                <div style="background-color: #f1f5f9; border-left: 4px solid #3b82f6; padding: 18px 20px; border-radius: 8px; margin: 24px 0;">
+                    <p style="margin: 0 0 8px 0; color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Tu Usuario Registrado</p>
+                    <p style="margin: 0 0 6px 0; color: #0f172a; font-size: 16px;">
+                        <strong>Nombre de usuario:</strong> <span style="font-family: monospace; font-size: 17px; font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 3px 10px; border-radius: 6px;">{username}</span>
+                    </p>
+                    <p style="margin: 0; color: #475569; font-size: 14px;">
+                        <strong>Correo asociado:</strong> {to_email}
+                    </p>
+                    <p style="margin: 10px 0 0 0; color: #059669; font-size: 12px; font-weight: 600;">
+                        💡 Nota: Al momento del ingreso puedes acceder usando indistintamente tu <strong>nombre de usuario</strong> o tu <strong>correo</strong>.
+                    </p>
+                </div>
+
+                <!-- Botón de Restablecimiento -->
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/reset-password?token={reset_token}" style="display: inline-block; padding: 14px 28px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);">
+                        🔑 Restablecer mi Contraseña
+                    </a>
+                </div>
+
+                <p style="color: #64748b; font-size: 13px; line-height: 1.4;">
+                    Si el botón anterior no funciona, copia y pega el siguiente enlace en tu navegador:<br>
+                    <a href="{frontend_url}/reset-password?token={reset_token}" style="color: #2563eb; word-break: break-all; font-size: 12px;">{frontend_url}/reset-password?token={reset_token}</a>
+                </p>
+                
+                <p style="color: #64748b; font-size: 13px;">O ingresa el token de seguridad manualmente: <strong style="font-family: monospace; color: #0f172a;">{reset_token}</strong></p>
+                <p style="color: #94a3b8; font-size: 12px;">* Este enlace y token expiran en 1 hora por razones de seguridad. Si no solicitaste este cambio, puedes ignorar este correo.</p>
+                
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">© Mi Cancha — Sistema de Gestión Deportiva</p>
+            </div>
         </body>
         </html>
         """
@@ -300,32 +329,60 @@ class EmailService:
 
     def send_organizador_academia_credentials(self, to_email: str, username: str, password: str, role: str, login_url: str) -> bool:
         """Envía email con credenciales de acceso para organizadores y academias"""
-        subject = "Bienvenido al Sistema - Credenciales de Acceso"
-        
-        role_display = "Organizador de Torneos" if role == "organizador" else "Academia/Escuela"
+        subject = "🏆 Tus Credenciales de Acceso - Mi Cancha"
+        role_display = "Organizador de Torneos" if role == "organizador" else "Academia / Escuela Deportiva"
         
         html_body = f"""
         <html>
-        <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; padding: 20px;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h2 style="color: #1e293b; margin-top: 0;">Bienvenido al Sistema</h2>
-                <p style="color: #334155; font-size: 16px;">Hola,</p>
-                <p style="color: #334155; font-size: 16px;">Tu cuenta de <strong>{role_display}</strong> ha sido creada exitosamente con los siguientes datos:</p>
-                <div style="background-color: #f1f5f9; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <ul style="list-style-type: none; padding: 0; margin: 0;">
-                        <li style="margin-bottom: 10px; color: #334155;"><strong>Usuario:</strong> {username}</li>
-                        <li style="color: #334155;"><strong>Contraseña:</strong> {password}</li>
-                    </ul>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; margin: 0;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 22px;">¡Bienvenido a Mi Cancha!</h2>
+                    <p style="color: #64748b; font-size: 14px; margin: 0;">Tu cuenta de <strong>{role_display}</strong> ha sido habilitada</p>
                 </div>
-                <p style="color: #334155; font-size: 16px;">Puedes ingresar al sistema desde el siguiente enlace:</p>
+
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Te damos la bienvenida al sistema de administración. A continuación te proporcionamos tus credenciales oficiales de acceso:</p>
+                
+                <!-- Tarjeta de Credenciales -->
+                <div style="background-color: #f1f5f9; border-left: 4px solid #16a34a; padding: 20px; border-radius: 8px; margin: 24px 0;">
+                    <p style="margin: 0 0 12px 0; color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Credenciales Asignadas</p>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px; width: 140px;"><strong>Nombre de usuario:</strong></td>
+                            <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #1e40af;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 4px;">{username}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Correo electrónico:</strong></td>
+                            <td style="padding: 6px 0; font-size: 15px; color: #0f172a; font-weight: 600;">{to_email}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Contraseña:</strong></td>
+                            <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #0f172a;"><span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">{password}</span></td>
+                        </tr>
+                    </table>
+
+                    <p style="margin: 14px 0 0 0; color: #059669; font-size: 12px; font-weight: 600;">
+                        💡 Puedes ingresar indistintamente con tu <strong>nombre de usuario</strong> o tu <strong>correo electrónico</strong>.
+                    </p>
+                </div>
+
+                <!-- Botón de Acceso -->
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="{login_url}" style="display: inline-block; padding: 12px 24px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
-                        Ingresar al Sistema
+                    <a href="{login_url}" style="display: inline-block; padding: 14px 32px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);">
+                        🚀 Ingresar al Sistema
                     </a>
                 </div>
-                <p style="color: #334155; font-size: 14px;">Por seguridad, te recomendamos cambiar tu contraseña una vez que hayas ingresado en el panel de configuración.</p>
-                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
-                <p style="color: #64748b; font-size: 12px; margin-bottom: 0;">Saludos,<br>Equipo de Desarrollo de MiCancha</p>
+
+                <p style="color: #64748b; font-size: 13px; line-height: 1.4;">
+                    Enlace de acceso directo:<br>
+                    <a href="{login_url}" style="color: #2563eb; font-size: 12px;">{login_url}</a>
+                </p>
+
+                <p style="color: #475569; font-size: 13px;">Por seguridad, te sugerimos cambiar tu contraseña al ingresar por primera vez.</p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">© Mi Cancha — Sistema de Gestión Deportiva</p>
             </div>
         </body>
         </html>
