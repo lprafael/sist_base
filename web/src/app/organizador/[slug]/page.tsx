@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Phone, Mail, Link as LinkIcon, MessageSquare, X, Send, Image as ImageIcon } from 'lucide-react';
+import { Trophy, CalendarDays, MapPin, Share2, Users, Medal, Phone, Mail, Link as LinkIcon, MessageSquare, X, Send, Image as ImageIcon, QrCode, Download, Copy, ExternalLink } from 'lucide-react';
 import PatrocinadoresCarousel from '@/components/PatrocinadoresCarousel';
 
 const API_URL = "https://api.micancha.com.py";
@@ -52,6 +52,7 @@ export default function PublicOrganizerPage() {
   const [patrocinadores, setPatrocinadores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showQrModal, setShowQrModal] = useState(false);
   
   const [session, setSession] = useState<any>(null);
   const [activeChatTorneo, setActiveChatTorneo] = useState<Torneo | null>(null);
@@ -186,21 +187,8 @@ export default function PublicOrganizerPage() {
 
   const plantilla = perfil.plantilla || "clasica";
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: perfil.nombre_liga || 'Organización Deportiva',
-          text: perfil.descripcion || '¡Únete a nuestra liga!',
-          url: window.location.href,
-        });
-      } catch (err) {
-        console.log('Error al compartir', err);
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Enlace copiado al portapapeles");
-    }
+  const handleShare = () => {
+    setShowQrModal(true);
   };
 
   const renderTorneosGrid = (isDark = false, isMinimal = false) => {
@@ -338,8 +326,14 @@ export default function PublicOrganizerPage() {
                 {/* ACCIONES */}
                 <div className="md:mb-16 z-10 flex gap-2">
                   <button 
+                    onClick={() => setShowQrModal(true)}
+                    className="flex items-center gap-2 bg-white text-gray-900 px-4 py-2 rounded-full font-bold transition shadow-md hover:bg-gray-100 text-sm"
+                  >
+                    <QrCode size={18} /> Código QR
+                  </button>
+                  <button 
                     onClick={handleShare}
-                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full font-bold transition shadow-sm border border-white/30"
+                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full font-bold transition shadow-sm border border-white/30 text-sm"
                   >
                     <Share2 size={18} /> Compartir
                   </button>
@@ -484,11 +478,17 @@ export default function PublicOrganizerPage() {
                   </div>
                 )}
                 <button 
+                  onClick={() => setShowQrModal(true)}
+                  className="px-4 py-2 rounded-xl font-bold text-sm bg-white/10 text-white hover:bg-white/20 border border-white/20 flex items-center gap-2 transition backdrop-blur shadow-md"
+                >
+                  <QrCode size={16} /> QR
+                </button>
+                <button 
                   onClick={handleShare}
                   className="px-5 py-2 rounded-xl font-bold text-sm text-white flex items-center gap-2 transition hover:opacity-90 shadow-lg"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  <Share2 size={16} /> Compartir Liga
+                  <Share2 size={16} /> Compartir
                 </button>
               </div>
             </div>
@@ -584,6 +584,12 @@ export default function PublicOrganizerPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setShowQrModal(true)}
+                    className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-sm hover:bg-stone-100 transition flex items-center gap-2"
+                  >
+                    <QrCode size={16} /> QR
+                  </button>
                   <button 
                     onClick={handleShare}
                     className="px-5 py-2.5 rounded-xl border-2 border-stone-800 text-stone-900 font-bold text-sm hover:bg-stone-900 hover:text-white transition flex items-center gap-2"
@@ -744,6 +750,79 @@ export default function PublicOrganizerPage() {
       {/* BANNER FLOTANTE INFERIOR */}
       {perfil.opcion_publicidad !== 'ninguno' && perfil.posicion_banner === 'inferior_flotante' && (
         <PatrocinadoresCarousel patrocinadores={patrocinadores} posicion="inferior_flotante" />
+      )}
+
+      {/* MODAL CÓDIGO QR Y COMPARTIR */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white text-gray-900 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button 
+              type="button"
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center mb-4">
+              <div className="inline-flex p-3 bg-blue-50 text-blue-600 rounded-2xl mb-2">
+                <QrCode size={30} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Código QR Oficial</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {perfil.nombre_liga || "Organización Deportiva"}
+              </p>
+            </div>
+
+            {/* QR Code Container con fondo blanco puro y marco nítido para máximo contraste */}
+            <div className="flex flex-col items-center justify-center p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4">
+              <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=12&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : 'https://micancha.com.py'}/organizador/${slug}`)}`}
+                  alt="Código QR de la Liga"
+                  className="w-52 h-52 object-contain"
+                />
+              </div>
+              <p className="text-xs font-mono text-blue-600 font-bold mt-2.5 break-all text-center">
+                micancha.com.py/organizador/{slug}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/organizador/${slug}`;
+                  navigator.clipboard.writeText(url);
+                  alert("✅ Enlace copiado al portapapeles: " + url);
+                }}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold text-xs transition"
+              >
+                <Copy size={16} /> Copiar Enlace
+              </button>
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=20&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : 'https://micancha.com.py'}/organizador/${slug}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={`QR_${slug || 'organizador'}.png`}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition border border-blue-200 text-center"
+              >
+                <Download size={16} /> Descargar QR
+              </a>
+            </div>
+
+            <div className="space-y-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`🏆 ¡Visita la página oficial de ${perfil.nombre_liga || 'nuestra liga'}!\n${typeof window !== 'undefined' ? window.location.origin : 'https://micancha.com.py'}/organizador/${slug}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition shadow-sm"
+              >
+                📱 Compartir por WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

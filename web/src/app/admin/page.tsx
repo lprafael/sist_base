@@ -7,7 +7,7 @@ import {
   Shield, User, Lock, Settings, FileText, CheckCircle,
   Trash2, LogOut, RefreshCw, Layers, Plus, Power, MapPin,
   Mail, Phone, Clock, AlertTriangle, Search, MessageSquare, X, Send,
-  GraduationCap, ExternalLink, Eye, Key
+  GraduationCap, ExternalLink, Eye, Key, Bell
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
@@ -187,6 +187,7 @@ export default function AdminConsole() {
   
   // Chat States
   const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
+  const [unreadByOrg, setUnreadByOrg] = useState<{ [key: string]: number }>({});
   const [activeChatOrg, setActiveChatOrg] = useState<any>(null); // { id, nombre }
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatNewMessage, setChatNewMessage] = useState("");
@@ -204,7 +205,8 @@ export default function AdminConsole() {
         const res = await fetch(`${API_URL}/api/chat/admin/unread`);
         if (res.ok) {
           const data = await res.json();
-          setGlobalUnreadCount(data.unread_count);
+          setGlobalUnreadCount(data.unread_count || 0);
+          setUnreadByOrg(data.unread_by_org || {});
         }
       } catch (e) {}
     };
@@ -229,6 +231,11 @@ export default function AdminConsole() {
             if (unread > 0) {
               await fetch(`${API_URL}/api/chat/organizador/${activeChatOrg.id}/leer?reader=admin`, { method: 'PUT' });
               setGlobalUnreadCount(prev => Math.max(0, prev - unread));
+              setUnreadByOrg(prev => {
+                const next = { ...prev };
+                delete next[String(activeChatOrg.id)];
+                return next;
+              });
             }
           }
         } catch (e) {}
@@ -1906,10 +1913,17 @@ export default function AdminConsole() {
                             </td>
                           </tr>
                         ) : (
-                          currentOrganizadores.map(o => (
+                          currentOrganizadores.map(o => {
+                            const unreadForThisOrg = unreadByOrg[String(o.usuario_id)] || unreadByOrg[String(o.id)] || 0;
+                            return (
                             <tr 
                               key={o.id} 
-                              style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14, cursor: 'pointer' }}
+                              style={{ 
+                                borderBottom: '1px solid #f1f5f9', 
+                                fontSize: 14, 
+                                cursor: 'pointer',
+                                background: unreadForThisOrg > 0 ? '#fef2f2' : 'transparent'
+                              }}
                               title="Haz clic en la fila para ingresar como este organizador"
                               onClick={async () => {
                                 let sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
@@ -1960,7 +1974,28 @@ export default function AdminConsole() {
                               className="hover:bg-slate-50 transition-colors"
                             >
                               <td style={{ padding: 16 }}>
-                                <div style={{ fontWeight: 800, color: '#0f172a' }}>{o.nombre}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                  <div style={{ fontWeight: 800, color: '#0f172a' }}>{o.nombre}</div>
+                                  {unreadForThisOrg > 0 && (
+                                    <span 
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        background: '#fee2e2',
+                                        color: '#dc2626',
+                                        border: '1px solid #fca5a5',
+                                        padding: '2px 8px',
+                                        borderRadius: 100,
+                                        fontSize: 11,
+                                        fontWeight: 800
+                                      }}
+                                      title={`Tienes ${unreadForThisOrg} mensaje(s) nuevo(s) de este organizador`}
+                                    >
+                                      <Bell size={12} style={{ color: '#dc2626' }} /> {unreadForThisOrg} {unreadForThisOrg === 1 ? 'mensaje nuevo' : 'mensajes nuevos'}
+                                    </span>
+                                  )}
+                                </div>
                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Creado el {o.creado_en ? new Date(o.creado_en).toLocaleDateString('es-PY') : 'Recientemente'}</div>
                               </td>
                               <td style={{ padding: 16 }}>
@@ -1988,16 +2023,30 @@ export default function AdminConsole() {
                                 </span>
                               </td>
                               <td style={{ padding: 16, textAlign: 'right' }}>
-                                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setActiveChatOrg({ id: o.usuario_id, nombre: o.nombre });
                                     }}
-                                    style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                    style={{ 
+                                      background: unreadForThisOrg > 0 ? '#ef4444' : '#3b82f6', 
+                                      color: '#fff', 
+                                      border: 'none', 
+                                      padding: '6px 12px', 
+                                      borderRadius: 8, 
+                                      fontSize: 12, 
+                                      fontWeight: 700, 
+                                      cursor: 'pointer', 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: 4,
+                                      boxShadow: unreadForThisOrg > 0 ? '0 0 8px rgba(239, 68, 68, 0.4)' : 'none'
+                                    }}
+                                    title={unreadForThisOrg > 0 ? `${unreadForThisOrg} mensaje(s) nuevo(s)` : 'Abrir chat'}
                                   >
-                                    <MessageSquare size={14} />
-                                    Chat
+                                    {unreadForThisOrg > 0 ? <Bell size={14} /> : <MessageSquare size={14} />}
+                                    Chat {unreadForThisOrg > 0 ? `(${unreadForThisOrg})` : ''}
                                   </button>
                                   <button
                                     onClick={(e) => {
@@ -2069,8 +2118,9 @@ export default function AdminConsole() {
                                 </div>
                               </td>
                             </tr>
-                          ))
-                        )}
+                          );
+                        })
+                      )}
                       </tbody>
                     </table>
                   </div>

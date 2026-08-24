@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin, Share2, Globe, Layout, CheckCircle2 } from 'lucide-react';
+import { Save, Image as ImageIcon, Link as LinkIcon, Palette, ArrowLeft, Loader2, ExternalLink, Copy, MapPin, Share2, Globe, Layout, CheckCircle2, QrCode, Download, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PerfilOrganizadorPage() {
@@ -9,6 +9,7 @@ export default function PerfilOrganizadorPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const [perfil, setPerfil] = useState({
     enlace_sitio: "",
@@ -212,31 +213,29 @@ export default function PerfilOrganizadorPage() {
         <form onSubmit={guardarPerfil} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           
           {/* HEADER: ENLACES Y VISIBILIDAD */}
-          <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between">
-            <div className="flex gap-4">
+          <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+            <div className="flex gap-2">
+               <button 
+                 type="button" 
+                 title="Ver y descargar Código QR"
+                 onClick={() => {
+                   if (!perfil.enlace_sitio) return;
+                   setShowQrModal(true);
+                 }}
+                 className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold text-sm transition border border-blue-200 shadow-sm"
+               >
+                 <QrCode size={18}/> Código QR
+               </button>
                <button 
                  type="button" 
                  title="Compartir página"
-                 onClick={async () => {
+                 onClick={() => {
                    if (!perfil.enlace_sitio) return;
-                   const url = `${window.location.origin}/organizador/${perfil.enlace_sitio}`;
-                   if (navigator.share) {
-                     try {
-                       await navigator.share({
-                         title: (perfil as any).nombre_liga || perfil.texto_1 || 'Perfil del Organizador',
-                         url: url,
-                       });
-                     } catch (err) {
-                       console.log('Error al compartir', err);
-                     }
-                   } else {
-                     navigator.clipboard.writeText(url);
-                     alert("Enlace copiado al portapapeles");
-                   }
+                   setShowQrModal(true);
                  }}
-                 className="text-gray-500 hover:text-blue-600 transition"
+                 className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-white rounded-lg border border-gray-200 bg-white transition shadow-sm"
                >
-                 <Share2 size={20}/>
+                 <Share2 size={18}/>
                </button>
                <button 
                  type="button" 
@@ -244,12 +243,12 @@ export default function PerfilOrganizadorPage() {
                  onClick={() => {
                    if(perfil.enlace_sitio) window.open(`/organizador/${perfil.enlace_sitio}`, '_blank');
                  }}
-                 className="text-gray-500 hover:text-blue-600 transition"
+                 className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-white rounded-lg border border-gray-200 bg-white transition shadow-sm"
                >
-                 <Globe size={20}/>
+                 <Globe size={18}/>
                </button>
             </div>
-            <button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
+            <button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2 shadow-sm">
               {saving ? <Loader2 size={18} className="animate-spin"/> : <Save size={18}/>}
               Guardar
             </button>
@@ -540,8 +539,16 @@ export default function PerfilOrganizadorPage() {
                       </button>
                       <button 
                         type="button"
+                        onClick={() => setShowQrModal(true)}
+                        className="px-3.5 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold transition flex items-center justify-center gap-1.5 border border-blue-200"
+                        title="Ver y descargar Código QR"
+                      >
+                        <QrCode size={20} /> QR
+                      </button>
+                      <button 
+                        type="button"
                         onClick={() => window.open(`/organizador/${perfil.enlace_sitio}`, '_blank')}
-                        className="px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-bold transition flex items-center justify-center gap-2"
+                        className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition flex items-center justify-center gap-2 shadow-sm"
                       >
                         <ExternalLink size={20} /> Visitar Página
                       </button>
@@ -719,6 +726,86 @@ export default function PerfilOrganizadorPage() {
           </div>
         </form>
       </div>
+
+      {/* MODAL CÓDIGO QR Y COMPARTIR */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button 
+              type="button"
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center mb-4">
+              <div className="inline-flex p-3 bg-blue-50 text-blue-600 rounded-2xl mb-2">
+                <QrCode size={30} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Código QR del Organizador</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {(perfil as any).nombre_liga || perfil.texto_1 || "Página Pública Oficial"}
+              </p>
+            </div>
+
+            {/* QR Code Container con fondo blanco puro y marco nítido para máximo contraste */}
+            <div className="flex flex-col items-center justify-center p-4 bg-gray-50 border border-gray-200 rounded-xl mb-4">
+              <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=12&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : 'https://micancha.com.py'}/organizador/${perfil.enlace_sitio}`)}`}
+                  alt="Código QR de la Liga"
+                  className="w-52 h-52 object-contain"
+                />
+              </div>
+              <p className="text-xs font-mono text-blue-600 font-bold mt-2.5 break-all text-center">
+                micancha.com.py/organizador/{perfil.enlace_sitio}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/organizador/${perfil.enlace_sitio}`;
+                  navigator.clipboard.writeText(url);
+                  alert("✅ Enlace copiado al portapapeles: " + url);
+                }}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold text-xs transition"
+              >
+                <Copy size={16} /> Copiar Enlace
+              </button>
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=20&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : 'https://micancha.com.py'}/organizador/${perfil.enlace_sitio}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={`QR_${perfil.enlace_sitio || 'organizador'}.png`}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition border border-blue-200 text-center"
+              >
+                <Download size={16} /> Descargar QR
+              </a>
+            </div>
+
+            <div className="space-y-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`🏆 ¡Visita nuestra página oficial de torneos en Mi Cancha!\n${typeof window !== 'undefined' ? window.location.origin : 'https://micancha.com.py'}/organizador/${perfil.enlace_sitio}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition shadow-sm"
+              >
+                📱 Compartir por WhatsApp
+              </a>
+              <button
+                type="button"
+                onClick={() => window.open(`/organizador/${perfil.enlace_sitio}`, '_blank')}
+                className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-semibold text-xs transition"
+              >
+                <ExternalLink size={14} /> Abrir página en el navegador
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1574,7 +1574,22 @@ async def get_unread_messages_admin(session: AsyncSession = Depends(get_session)
     )
     result = await session.execute(query)
     count = result.scalar() or 0
-    return {"unread_count": count}
+
+    # Desglose por organizador_id
+    query_by_org = select(
+        OrganizadorConversacion.organizador_id,
+        func.count(OrganizadorConversacion.id)
+    ).where(
+        OrganizadorConversacion.leido == False,
+        OrganizadorConversacion.sender == 'organizador'
+    ).group_by(OrganizadorConversacion.organizador_id)
+    res_by_org = await session.execute(query_by_org)
+    unread_by_org = {str(row[0]): row[1] for row in res_by_org.fetchall()}
+
+    return {
+        "unread_count": count,
+        "unread_by_org": unread_by_org
+    }
 
 @app.post("/api/chat/organizador", response_model=OrganizadorConversacionResponse)
 async def create_chat_message(payload: OrganizadorConversacionCreate, session: AsyncSession = Depends(get_session)):
