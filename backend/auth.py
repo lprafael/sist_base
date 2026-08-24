@@ -5,7 +5,7 @@ import secrets
 import string
 import os
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -765,3 +765,27 @@ async def get_logs(
     )
     logs = result.scalars().all()
     return [LogAccesoResponse.from_orm(log) for log in logs] 
+
+@router.get("/check-username")
+async def check_username_availability(
+    username: str,
+    exclude_user_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session)
+):
+    """Verifica si un nombre de usuario está disponible o ya existe"""
+    u_clean = username.strip().lower()
+    if not u_clean:
+        return {"available": False, "username": username, "message": "El nombre de usuario no puede estar vacío"}
+    
+    query = select(Usuario.id).where(func.lower(Usuario.username) == u_clean)
+    if exclude_user_id:
+        query = query.where(Usuario.id != exclude_user_id)
+        
+    result = await session.execute(query)
+    existing = result.scalar_one_or_none()
+    
+    return {
+        "available": existing is None,
+        "username": username.strip(),
+        "message": "Disponible" if existing is None else "Este nombre de usuario ya está registrado en el sistema"
+    }

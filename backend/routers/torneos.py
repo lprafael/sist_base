@@ -62,6 +62,7 @@ class EventoCreate(BaseModel):
 class OrganizadorCreate(BaseModel):
     usuario_id: Optional[int] = None
     usuario_email: Optional[str] = None
+    usuario_username: Optional[str] = None
     nombre: str
     plan: Optional[str] = "basico"
     max_torneos: Optional[int] = 3
@@ -499,13 +500,13 @@ async def get_organizadores(session: AsyncSession = Depends(get_session)):
     try:
         result = await session.execute(text("""
             SELECT o.id, o.usuario_id, o.nombre, o.habilitado, o.plan, o.max_torneos, o.creado_en,
-                   u.nombre_completo AS usuario_nombre, u.email AS usuario_email
+                   u.nombre_completo AS usuario_nombre, u.email AS usuario_email, u.username AS usuario_username
             FROM cancha.organizadores o
             JOIN sistema.usuarios u ON u.id = o.usuario_id
             ORDER BY o.nombre
         """))
         rows = result.fetchall()
-        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en", "usuario_nombre", "usuario_email"]
+        cols = ["id", "usuario_id", "nombre", "habilitado", "plan", "max_torneos", "creado_en", "usuario_nombre", "usuario_email", "usuario_username"]
         return [_row_to_dict(cols, r) for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -533,6 +534,7 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
         is_brand_new_user = False
         new_username = None
         new_temp_pass = None
+        desired_username = data.usuario_username.strip() if data.usuario_username and data.usuario_username.strip() else None
 
         if not uid and data.usuario_email:
             email_clean = data.usuario_email.strip().lower()
@@ -544,9 +546,28 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
             if u_row:
                 uid = u_row[0]
             else:
+                # Validar nombre de usuario si se especificó uno
+                if desired_username:
+                    chk_u = await session.execute(
+                        text("SELECT id FROM sistema.usuarios WHERE LOWER(username) = :u"),
+                        {"u": desired_username.lower()}
+                    )
+                    if chk_u.fetchone():
+                        raise HTTPException(status_code=400, detail=f"El nombre de usuario '{desired_username}' ya está registrado en el sistema.")
+                    new_username = desired_username
+                else:
+                    base_uname = email_clean.split("@")[0].replace('.', '_').replace('-', '_')
+                    # Verificar si base_uname está disponible sin sufijo
+                    chk_base = await session.execute(
+                        text("SELECT id FROM sistema.usuarios WHERE LOWER(username) = :u"),
+                        {"u": base_uname.lower()}
+                    )
+                    if not chk_base.fetchone():
+                        new_username = base_uname
+                    else:
+                        new_username = f"{base_uname}_{str(uuid.uuid4())[:4]}"
+
                 new_temp_pass = _generate_strong_temp_pass(10)
-                base_uname = email_clean.split("@")[0].replace('.', '_').replace('-', '_')
-                new_username = f"{base_uname}_{str(uuid.uuid4())[:4]}"
                 pass_hash = get_password_hash(new_temp_pass)
                 
                 res_ins = await session.execute(text("""
@@ -575,6 +596,20 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
         if not uid:
             raise HTTPException(status_code=400, detail="Debe seleccionar un usuario existente o ingresar un correo electrónico.")
 
+        # Si el usuario ya existía y se proporcionó un nuevo nombre de usuario deseado, verificar disponibilidad y actualizar
+        if uid and desired_username and not is_brand_new_user:
+            chk_u = await session.execute(
+                text("SELECT id FROM sistema.usuarios WHERE LOWER(username) = :u AND id != :uid"),
+                {"u": desired_username.lower(), "uid": uid}
+            )
+            if chk_u.fetchone():
+                raise HTTPException(status_code=400, detail=f"El nombre de usuario '{desired_username}' ya está en uso por otra cuenta.")
+            
+            await session.execute(
+                text("UPDATE sistema.usuarios SET username = :uname WHERE id = :uid"),
+                {"uname": desired_username, "uid": uid}
+            )
+
         # Verificar si ya existe un organizador para este usuario
         chk = await session.execute(
             text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid"),
@@ -582,7 +617,7 @@ async def create_organizador(data: OrganizadorCreate, session: AsyncSession = De
         )
         row = chk.fetchone()
         if row:
-            # Actualizar
+            # Actualizar organizador existente
             await session.execute(text("""
                 UPDATE cancha.organizadores
                 SET nombre = :nombre, plan = :plan, max_torneos = :max_torneos

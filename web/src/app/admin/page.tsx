@@ -705,10 +705,48 @@ export default function AdminConsole() {
   // Forms states
   const [editComplejo, setEditComplejo] = useState<any | null>(null);
   const [editOrganizador, setEditOrganizador] = useState<any | null>(null);
+  const [orgUsernameStatus, setOrgUsernameStatus] = useState<{ checking: boolean; available: boolean | null; message: string }>({ checking: false, available: null, message: '' });
   const [editAcademia, setEditAcademia] = useState<any | null>(null);
   const [newSport, setNewSport] = useState('');
   const [newCancha, setNewCancha] = useState<any>({ nombre: '', deporte: 'Fútbol 5', superficie: 'Sintético', precio_hora: 120000, precio_hora_nocturna: 150000 });
   const [toasts, setToasts] = useState<string[]>([]);
+
+  // Verificación en vivo de disponibilidad de nombre de usuario para Organizador
+  useEffect(() => {
+    if (!editOrganizador) {
+      setOrgUsernameStatus({ checking: false, available: null, message: '' });
+      return;
+    }
+
+    const uname = (editOrganizador.usuario_username || '').trim();
+    if (!uname) {
+      setOrgUsernameStatus({ checking: false, available: null, message: '' });
+      return;
+    }
+
+    setOrgUsernameStatus(prev => ({ ...prev, checking: true }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const excludeId = editOrganizador.usuario_id || '';
+        const res = await fetch(`${API_URL}/auth/check-username?username=${encodeURIComponent(uname)}&exclude_user_id=${excludeId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setOrgUsernameStatus({
+            checking: false,
+            available: data.available,
+            message: data.available ? '✓ Nombre de usuario disponible' : '❌ Este nombre de usuario ya está registrado en el sistema. Por favor elija otro.'
+          });
+        } else {
+          setOrgUsernameStatus({ checking: false, available: null, message: '' });
+        }
+      } catch {
+        setOrgUsernameStatus({ checking: false, available: null, message: '' });
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [editOrganizador?.usuario_username, editOrganizador?.usuario_id]);
 
   const addToast = (msg: string) => {
     setToasts(prev => [...prev, msg]);
@@ -996,6 +1034,11 @@ export default function AdminConsole() {
     e.preventDefault();
     if (!editOrganizador) return;
 
+    if (orgUsernameStatus.available === false) {
+      alert("❌ El nombre de usuario ingresado ya está registrado en el sistema. Por favor elija otro antes de guardar.");
+      return;
+    }
+
     let token = '';
     try {
       const sessionStr = localStorage.getItem('user_session');
@@ -1018,6 +1061,9 @@ export default function AdminConsole() {
     }
     if (editOrganizador.usuario_email) {
       payload.usuario_email = editOrganizador.usuario_email.trim();
+    }
+    if (editOrganizador.usuario_username) {
+      payload.usuario_username = editOrganizador.usuario_username.trim();
     }
 
     try {
@@ -1749,7 +1795,19 @@ export default function AdminConsole() {
                       <p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Usuarios habilitados para crear torneos sin un complejo físico.</p>
                     </div>
                     <button
-                      onClick={() => setEditOrganizador({ isNew: true, usuario_id: usuarios[0]?.id || 0, nombre: '', plan: 'basico', max_torneos: 3, deportesHabilitados: [] })}
+                      onClick={() => {
+                        const firstUsr = usuarios[0];
+                        setEditOrganizador({
+                          isNew: true,
+                          usuario_id: firstUsr?.id || 0,
+                          usuario_email: firstUsr?.email || '',
+                          usuario_username: firstUsr?.username || (firstUsr?.email ? firstUsr.email.split('@')[0] : ''),
+                          nombre: '',
+                          plan: 'basico',
+                          max_torneos: 3,
+                          deportesHabilitados: []
+                        });
+                      }}
                       style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                     >
                       <Plus size={16} />
@@ -1977,12 +2035,12 @@ export default function AdminConsole() {
                                         const res = await fetch(`${API_URL}/api/organizadores/${o.id}/deportes`);
                                         if (res.ok) {
                                           const deps = await res.json();
-                                          setEditOrganizador({ ...o, deportesHabilitados: deps.map((d: any) => d.id) });
+                                          setEditOrganizador({ ...o, usuario_username: o.usuario_username || '', deportesHabilitados: deps.map((d: any) => d.id) });
                                         } else {
-                                          setEditOrganizador({ ...o, deportesHabilitados: [] });
+                                          setEditOrganizador({ ...o, usuario_username: o.usuario_username || '', deportesHabilitados: [] });
                                         }
                                       } catch {
-                                        setEditOrganizador({ ...o, deportesHabilitados: [] });
+                                        setEditOrganizador({ ...o, usuario_username: o.usuario_username || '', deportesHabilitados: [] });
                                       }
                                     }}
                                     style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
@@ -2946,7 +3004,16 @@ export default function AdminConsole() {
                   <input
                     type="email"
                     value={editOrganizador.usuario_email || ''}
-                    onChange={e => setEditOrganizador({ ...editOrganizador, usuario_email: e.target.value, usuario_id: undefined })}
+                    onChange={e => {
+                      const emailVal = e.target.value;
+                      const autoUname = emailVal ? emailVal.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '_').toLowerCase() : '';
+                      setEditOrganizador((prev: any) => ({
+                        ...prev,
+                        usuario_email: emailVal,
+                        usuario_username: prev.customUsernameEdited ? prev.usuario_username : autoUname,
+                        usuario_id: undefined
+                      }));
+                    }}
                     placeholder="ejemplo@organizacion.com"
                     style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
                     required
@@ -2957,9 +3024,24 @@ export default function AdminConsole() {
                     onChange={e => {
                       const val = e.target.value;
                       if (val === '__NUEVO__') {
-                        setEditOrganizador({ ...editOrganizador, modoNuevoEmail: true, usuario_id: undefined, usuario_email: '' });
+                        setEditOrganizador((prev: any) => ({
+                          ...prev,
+                          modoNuevoEmail: true,
+                          usuario_id: undefined,
+                          usuario_email: '',
+                          usuario_username: '',
+                          customUsernameEdited: false
+                        }));
                       } else {
-                        setEditOrganizador({ ...editOrganizador, usuario_id: Number(val), usuario_email: undefined });
+                        const numVal = Number(val);
+                        const selectedUsr = usuarios.find((u: any) => u.id === numVal);
+                        setEditOrganizador((prev: any) => ({
+                          ...prev,
+                          usuario_id: numVal,
+                          usuario_email: selectedUsr?.email || undefined,
+                          usuario_username: selectedUsr?.username || (selectedUsr?.email ? selectedUsr.email.split('@')[0] : ''),
+                          customUsernameEdited: false
+                        }));
                       }
                     }}
                     style={{ padding: 10, borderRadius: 8, border: '1px solid #cbd5e1' }}
@@ -2968,7 +3050,7 @@ export default function AdminConsole() {
                     <option value="">-- Seleccionar Usuario --</option>
                     {usuarios.map(u => (
                       <option key={u.id} value={u.id}>
-                        {u.nombre} {u.apellido} ({u.email})
+                        {u.nombre} {u.apellido} ({u.email}) — @{u.username || 'sin_usuario'}
                       </option>
                     ))}
                     <option value="__NUEVO__">✍️ + Ingresar un correo nuevo que no está en la lista...</option>
@@ -2977,7 +3059,7 @@ export default function AdminConsole() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700 }}>Usuario Asignado</label>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Correo Electrónico Asignado</label>
                 <input
                   type="text"
                   value={editOrganizador.usuario_email || ''}
@@ -2986,6 +3068,65 @@ export default function AdminConsole() {
                 />
               </div>
             )}
+
+            {/* Campo editable de Nombre de Usuario con verificación en vivo y aviso en rojo si ya existe */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>
+                  Nombre de Usuario <span style={{ color: '#64748b', fontWeight: 400 }}>(Para ingresar al sistema)</span>
+                </label>
+                {orgUsernameStatus.checking && (
+                  <span style={{ fontSize: 11, color: '#64748b' }}>⏳ Verificando disponibilidad...</span>
+                )}
+              </div>
+              <input
+                type="text"
+                value={editOrganizador.usuario_username || ''}
+                onChange={e => {
+                  const val = e.target.value.replace(/\s+/g, '_');
+                  setEditOrganizador((prev: any) => ({
+                    ...prev,
+                    usuario_username: val,
+                    customUsernameEdited: true
+                  }));
+                }}
+                placeholder="organizador_liga"
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  border: orgUsernameStatus.available === false 
+                    ? '2px solid #ef4444' 
+                    : orgUsernameStatus.available === true 
+                      ? '1.5px solid #22c55e' 
+                      : '1px solid #cbd5e1',
+                  background: orgUsernameStatus.available === false 
+                    ? '#fef2f2' 
+                    : orgUsernameStatus.available === true 
+                      ? '#f0fdf4' 
+                      : '#fff',
+                  color: orgUsernameStatus.available === false ? '#991b1b' : '#0f172a',
+                  fontWeight: 600,
+                  outline: 'none',
+                  transition: 'border 0.2s, background 0.2s'
+                }}
+                required
+              />
+              {orgUsernameStatus.available === false && (
+                <div style={{ fontSize: 12, color: '#dc2626', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <AlertTriangle size={14} />
+                  {orgUsernameStatus.message}
+                </div>
+              )}
+              {orgUsernameStatus.available === true && (
+                <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <CheckCircle size={14} />
+                  {orgUsernameStatus.message}
+                </div>
+              )}
+              <span style={{ fontSize: 11, color: '#64748b' }}>
+                💡 Se asigna automáticamente según el correo, pero puedes cambiarlo a tu gusto.
+              </span>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
