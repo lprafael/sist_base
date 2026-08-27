@@ -52,10 +52,11 @@ export default function TorneosLoginPage() {
 
       if (res.ok) {
         const data = await res.json();
-        const isOrganizador = data.is_organizador || data.user?.is_organizador || ['organizador', 'veedor', 'delegado'].includes(data.user?.rol);
+        const userRole = data.user?.rol;
+        const isOrganizador = data.is_organizador || data.user?.is_organizador || ['organizador', 'veedor', 'delegado', 'arbitro'].includes(userRole);
         const session = {
           access_token: data.access_token,
-          role: data.user.rol,
+          role: userRole,
           name: data.user.nombre_completo,
           email: data.user.email,
           usuario_id: data.user.id,
@@ -66,13 +67,17 @@ export default function TorneosLoginPage() {
         localStorage.setItem('user_session', JSON.stringify(session));
         addAuditLog({ usuario: username, rol: session.role, accion: 'Login Torneos Exitoso', ip: 'Web' });
 
-        if (session.role === 'admin' || session.role === 'super') {
+        if (userRole === 'admin' || userRole === 'super') {
           window.location.href = '/admin';
-        } else if (isOrganizador) {
+        } else if (userRole === 'veedor' || userRole === 'arbitro') {
+          // Veedores y árbitros van a su panel restringido (solo resultados)
+          window.location.href = '/veedor/dashboard';
+        } else if (userRole === 'organizador' || isOrganizador) {
           window.location.href = '/admin-futbol/campeonatos';
         } else {
           setError('Esta cuenta no tiene acceso a la administración de torneos.');
         }
+
       } else {
         const err = await res.json().catch(() => ({}));
         setError(err.detail || 'Usuario o contraseña incorrectos.');
@@ -96,10 +101,11 @@ export default function TorneosLoginPage() {
 
       if (res.ok) {
         const data = await res.json();
-        const isOrganizador = data.is_organizador || data.user?.is_organizador || ['organizador', 'veedor', 'delegado'].includes(data.user?.rol);
+        const userRole = data.user?.rol;
+        const isOrganizador = data.is_organizador || data.user?.is_organizador || ['organizador', 'veedor', 'delegado', 'arbitro'].includes(userRole);
         const session = {
           access_token: data.access_token,
-          role: data.user.rol,
+          role: userRole,
           name: data.user.nombre_completo,
           email: data.user.email,
           usuario_id: data.user.id,
@@ -110,9 +116,11 @@ export default function TorneosLoginPage() {
         localStorage.setItem('user_session', JSON.stringify(session));
         addAuditLog({ usuario: session.email, rol: session.role, accion: 'Login Torneos con Google Exitoso', ip: 'Web' });
 
-        if (session.role === 'admin' || session.role === 'super') {
+        if (userRole === 'admin' || userRole === 'super') {
           window.location.href = '/admin';
-        } else if (isOrganizador) {
+        } else if (userRole === 'veedor' || userRole === 'arbitro') {
+          window.location.href = '/veedor/dashboard';
+        } else if (userRole === 'organizador' || isOrganizador) {
           window.location.href = '/admin-futbol/campeonatos';
         } else {
           alert('Esta cuenta no tiene acceso a la administración de torneos.');

@@ -820,3 +820,147 @@ async def delete_user_by_email(email: str, session: AsyncSession = Depends(get_s
             
     await session.commit()
     return {"status": "ok", "message": f"{deleted_count} cuenta(s) eliminada(s)/desactivada(s) correctamente"}
+
+
+@router.get("/mis-usuarios", response_model=List[UserResponse])
+async def list_mis_usuarios(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Listar los usuarios creados por el organizador actual.
+    Solo devuelve veedores, árbitros y delegados creados por este organizador.
+    """
+    role = current_user.get("role", "")
+    if role not in ["organizador", "admin", "administrador", "superadmin", "dueno", "dueño", "super"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los organizadores pueden ver sus usuarios"
+        )
+
+    result = await session.execute(
+        select(Usuario).where(
+            and_(
+                Usuario.creado_por == current_user["user_id"],
+                Usuario.rol.in_(["veedor", "arbitro", "delegado"]),
+                Usuario.activo == True
+            )
+        ).order_by(Usuario.nombre_completo)
+    )
+    users = result.scalars().all()
+    return [UserResponse.from_orm(u) for u in users]
+
+
+@router.post("/mis-usuarios", response_model=UserResponse)
+async def create_sub_user(
+    user_data: UserCreate,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    El organizador crea un usuario (veedor, árbitro o delegado) bajo su cuenta.
+    El usuario creado solo puede ver resultados/confrontamientos, no configuración.
+    """
+    role = current_user.get("role", "")
+    if role not in ["organizador", "admin", "administrador", "superadmin", "dueno", "dueño", "super"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los organizadores pueden crear sub-usuarios"
+        )
+
+    # Solo se permiten estos roles
+    ALLOWED_SUB_ROLES = ["veedor", "arbitro", "delegado"]
+    if user_data.rol not in ALLOWED_SUB_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Rol no permitido. Use uno de: {', '.join(ALLOWED_SUB_ROLES)}"
+        )
+
+    # Verificar si el usuario ya existe
+    result = await session.execute(
+        select(Usuario).where(
+            (Usuario.username == user_data.username) | (Usuario.email == user_data.email)
+        )
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario o email ya existe"
+        )
+
+    # Generar contraseña aleatoria
+    password = generate_random_password()
+    hashed_password = get_password_hash(password)
+
+    # Crear usuario vinculado al organizador
+    new_user = Usuario(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password,
+        nombre_completo=user_data.nombre_completo,
+        rol=user_data.rol,
+        creado_por=current_user["user_id"],
+        activo=True
+    )
+
+    session.add(new_user)
+    await session.commit()
+    await session.refresh(new_user)
+
+    # Enviar email con credenciales
+    if user_data.email:
+        email_service.send_welcome_email(
+            user_data.email,
+            user_data.username,
+            password,
+            user_data.rol
+        )
+
+    # Registrar log de auditoría
+    await log_audit_action(
+        session=session,
+        username=current_user["sub"],
+        user_id=current_user["user_id"],
+        action="create",
+        table="usuarios",
+        record_id=new_user.id,
+        new_data={
+            "username": new_user.username,
+            "email": new_user.email,
+            "rol": new_user.rol,
+            "creado_por": current_user["user_id"]
+        },
+        details=f"Sub-usuario creado por organizador: {new_user.username} ({new_user.rol})"
+    )
+
+    return UserResponse.from_orm(new_user)
+
+
+@router.delete("/mis-usuarios/{user_id}")
+async def delete_sub_user(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    El organizador desactiva un sub-usuario (veedor/árbitro/delegado) que él creó.
+    """
+    result = await session.execute(
+        select(Usuario).where(
+            and_(
+                Usuario.id == user_id,
+                Usuario.creado_por == current_user["user_id"]
+            )
+        )
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado o no pertenece a tu organización"
+        )
+
+    user.activo = False
+    await session.commit()
+
+    return {"message": f"Usuario {user.username} desactivado exitosamente"}

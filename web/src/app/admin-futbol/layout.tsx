@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Trophy, ListTodo, Users, LayoutTemplate, BookOpen, UserCog, Menu, X, LogOut, MessageSquare, Send, Check, CheckCheck, Bell, Star, MapPin, Lock } from 'lucide-react';
 import SitiosView from '../../components/torneo-admin/modulos/SitiosView';
 
@@ -121,31 +121,54 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 
 export default function AdminFutbolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("Cargando...");
+  const [userRole, setUserRole] = useState<string>("");
   const [showSitiosModal, setShowSitiosModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   React.useEffect(() => {
     const sessionData = JSON.parse(localStorage.getItem('user_session') || '{}');
+
+    // Guard: veedores y árbitros no tienen acceso al panel de organizador
+    const role = sessionData.role || '';
+    if (role === 'veedor' || role === 'arbitro') {
+      router.replace('/veedor/dashboard');
+      return;
+    }
+
+    // Si no hay sesión válida, redirigir al login
+    if (!sessionData.access_token) {
+      router.replace('/torneos/login');
+      return;
+    }
+
+    setUserRole(role);
     if (sessionData.name) {
       setUserName(sessionData.name);
     } else {
       setUserName("Organizador");
     }
-  }, []);
+  }, [router]);
 
-  const navItems = [
-    { name: "Mis campeonatos", href: "/admin-futbol/campeonatos", icon: <Trophy size={22} /> },
-    { name: "Registro de equipos", href: "/admin-futbol/equipos", icon: <ListTodo size={22} /> },
-    { name: "Registro de jugadores", href: "/admin-futbol/jugadores", icon: <Users size={22} /> },
-    { name: "Mis Sitios y Complejos", isModal: true, onClick: () => setShowSitiosModal(true), icon: <MapPin size={22} /> },
-    { name: "Página del organizador", href: "/admin-futbol/perfil", icon: <LayoutTemplate size={22} /> },
-    { name: "Patrocinios y Apoyos", href: "/admin-futbol/patrocinios", icon: <Star size={22} /> },
-    { name: "Planes de suscripción", href: "/admin-futbol/suscripciones", icon: <BookOpen size={22} /> },
-    { name: "Arbitraje", href: "/admin-futbol/arbitraje", icon: <UserCog size={22} /> },
-    { name: "Cambiar contraseña", isModal: true, onClick: () => setShowPasswordModal(true), icon: <Lock size={22} /> },
+  // Items de navegación completos (solo para organizador/admin)
+  const allNavItems = [
+    { name: "Mis campeonatos", href: "/admin-futbol/campeonatos", icon: <Trophy size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super', 'delegado'] },
+    { name: "Registro de equipos", href: "/admin-futbol/equipos", icon: <ListTodo size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Registro de jugadores", href: "/admin-futbol/jugadores", icon: <Users size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Mis Sitios y Complejos", isModal: true, onClick: () => setShowSitiosModal(true), icon: <MapPin size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Página del organizador", href: "/admin-futbol/perfil", icon: <LayoutTemplate size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Patrocinios y Apoyos", href: "/admin-futbol/patrocinios", icon: <Star size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Planes de suscripción", href: "/admin-futbol/suscripciones", icon: <BookOpen size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Arbitraje", href: "/admin-futbol/arbitraje", icon: <UserCog size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super'] },
+    { name: "Cambiar contraseña", isModal: true, onClick: () => setShowPasswordModal(true), icon: <Lock size={22} />, roles: ['organizador', 'admin', 'administrador', 'superadmin', 'dueno', 'dueño', 'super', 'delegado'] },
   ];
+
+  // Filtrar ítems según el rol actual
+  const navItems = allNavItems.filter(item =>
+    !userRole || item.roles.includes(userRole)
+  );
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -404,7 +427,7 @@ export default function AdminFutbolLayout({ children }: { children: React.ReactN
             
             <div className="flex flex-col items-end hidden sm:flex">
               <span className="text-sm font-bold text-gray-800" id="user-name-display">{userName}</span>
-              <span className="text-xs text-gray-500">Organizador</span>
+              <span className="text-xs text-gray-500 capitalize">{userRole || 'Organizador'}</span>
             </div>
             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border-2 border-indigo-200">
               <UserCog size={20} />

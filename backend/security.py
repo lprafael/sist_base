@@ -132,6 +132,10 @@ ROLES = {
         "description": "Carga de resultados de partidos",
         "permissions": ["read", "update_resultados"]
     },
+    "arbitro": {
+        "description": "Árbitro de torneos — carga de resultados y scores",
+        "permissions": ["read", "update_resultados"]
+    },
     "delegado": {
         "description": "Delegado de equipo",
         "permissions": ["read", "write_equipo"]
