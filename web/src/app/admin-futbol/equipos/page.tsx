@@ -104,7 +104,8 @@ export default function RegistroEquipoPage() {
       if(res.ok) {
         fetchEquipos();
       } else {
-        alert("Error al eliminar equipo");
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.detail || "Error al eliminar equipo");
       }
     } catch (e) {
       alert("Error de conexión");

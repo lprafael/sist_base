@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Users, Trophy, Calendar, ChevronRight, ChevronLeft, Loader2, CheckCircle, Copy, ExternalLink, Tag, User, Phone, Mail, Palette, CreditCard } from 'lucide-react';
+import {
+  ShieldCheck, Users, Trophy, Calendar, ChevronRight, ChevronLeft,
+  Loader2, CheckCircle, Copy, ExternalLink, Tag, User, Phone, Mail,
+  Palette, CreditCard, Sparkles
+} from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import PaymentCardInfo, { CanalCobro } from '@/components/pagos/PaymentCardInfo';
@@ -26,6 +30,8 @@ type Torneo = {
   categorias: { id: string; nombre: string; descripcion: string }[];
   equipos_inscritos: number;
   reglas: string[];
+  lichess_id?: string;
+  lichess_url?: string;
 };
 
 type FormData = {
@@ -36,6 +42,7 @@ type FormData = {
   capitan_telefono: string;
   color_principal: string;
   categoria_id: string;
+  usuario_lichess: string;
 };
 
 type ResultData = {
@@ -45,6 +52,7 @@ type ResultData = {
   estado_inscripcion: string;
   enlace_delegado: string;
   enlace_jugadores: string;
+  lichess_url?: string;
 };
 
 export default function InscripcionPage({ params }: { params: { id: string } }) {
@@ -59,6 +67,14 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
   const [result, setResult] = useState<ResultData | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Estados para validación de Lichess
+  const [lichessStatus, setLichessStatus] = useState<{
+    loading: boolean;
+    valid: boolean | null;
+    data?: any;
+    error?: string;
+  }>({ loading: false, valid: null });
+
   const [form, setForm] = useState<FormData>({
     nombre_equipo: '',
     nombre_academia: '',
@@ -67,7 +83,13 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
     capitan_telefono: '',
     color_principal: '#1e3a8a',
     categoria_id: '',
+    usuario_lichess: '',
   });
+
+  const isAjedrez = Boolean(
+    torneo?.deporte?.toLowerCase().includes('ajedrez') ||
+    torneo?.nombre?.toLowerCase().includes('ajedrez')
+  );
 
   useEffect(() => {
     Promise.all([
@@ -84,19 +106,66 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
       .catch(() => setLoading(false));
   }, [torneoId]);
 
+  // Validación debounce de usuario de Lichess
+  useEffect(() => {
+    const rawUser = form.usuario_lichess.trim().replace(/^@+/, '');
+    if (!rawUser) {
+      setLichessStatus({ loading: false, valid: null });
+      return;
+    }
+
+    setLichessStatus({ loading: true, valid: null });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://lichess.org/api/user/${encodeURIComponent(rawUser)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setLichessStatus({ loading: false, valid: true, data });
+        } else {
+          setLichessStatus({ loading: false, valid: false, error: 'Usuario no encontrado en Lichess' });
+        }
+      } catch (err) {
+        // Fallback a API backend
+        try {
+          const bRes = await fetch(`${API_URL}/api/ajedrez/lichess/user/${encodeURIComponent(rawUser)}`);
+          if (bRes.ok) {
+            const bData = await bRes.json();
+            setLichessStatus({ loading: false, valid: true, data: bData });
+          } else {
+            setLichessStatus({ loading: false, valid: false, error: 'No se pudo verificar el usuario en Lichess' });
+          }
+        } catch {
+          setLichessStatus({ loading: false, valid: null });
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [form.usuario_lichess]);
+
   const totalSteps = torneo?.competicion_por_atleta === false && (torneo?.categorias?.length ?? 0) > 1 ? 2 : 1;
 
   const handleSubmit = async () => {
+    if (isAjedrez && !form.usuario_lichess.trim()) {
+      setError('Por favor ingresa tu cuenta de usuario de Lichess para sincronizar tus partidas.');
+      return;
+    }
+    if (isAjedrez && lichessStatus.valid === false) {
+      setError('El usuario de Lichess ingresado no es válido o no existe.');
+      return;
+    }
+
     setSubmitting(true);
     setError('');
     try {
       const payload: any = {
-        nombre_equipo: form.nombre_equipo,
+        nombre_equipo: form.nombre_equipo || form.capitan_nombre,
         nombre_academia: form.nombre_academia || form.nombre_equipo,
         capitan_nombre: form.capitan_nombre,
         capitan_email: form.capitan_email,
         capitan_telefono: form.capitan_telefono,
         color_principal: form.color_principal,
+        usuario_lichess: form.usuario_lichess.trim().replace(/^@+/, ''),
       };
       if (!torneo?.competicion_por_atleta && form.categoria_id) {
         payload.categoria_id = form.categoria_id;
@@ -185,17 +254,40 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                 </div>
                 <h2 className="text-3xl font-black text-slate-900 mb-2">¡Inscripción Exitosa!</h2>
                 <p className="text-slate-500 mb-8">
-                  {form.nombre_equipo} ha sido inscrito correctamente. Guarda los siguientes enlaces — son tu acceso al panel de gestión.
+                  {form.nombre_equipo || form.capitan_nombre} ha sido inscrito correctamente. Guarda los siguientes enlaces — son tu acceso al panel de gestión.
                 </p>
 
                 <div className="space-y-4 text-left max-w-lg mx-auto">
+                  {/* Tarjeta de Lichess si el torneo está vinculado */}
+                  {(result.lichess_url || torneo.lichess_url) && (
+                    <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">♟️</span>
+                        <div>
+                          <p className="font-bold text-amber-900 text-sm">Torneo en Lichess Vinculado</p>
+                          <p className="text-xs text-amber-700">
+                            Hacé clic a continuación para unirte a la sala de juego oficial en Lichess con tu usuario <strong>@{form.usuario_lichess.replace(/^@+/, '')}</strong>.
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={result.lichess_url || torneo.lichess_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl transition text-sm shadow-md"
+                      >
+                        <ExternalLink size={16} /> Abrir y Unirse en Lichess
+                      </a>
+                    </div>
+                  )}
+
                   {/* Enlace Delegado */}
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">D</div>
                       <div>
-                        <p className="font-bold text-blue-900 text-sm">Panel del Delegado</p>
-                        <p className="text-xs text-blue-600">Gestiona tu equipo, agrega jugadores y asigna categorías</p>
+                        <p className="font-bold text-blue-900 text-sm">Panel del Delegado / Jugador</p>
+                        <p className="text-xs text-blue-600">Gestiona tu participación, credenciales y fixture</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 bg-white rounded-xl border border-blue-200 p-3">
@@ -207,27 +299,29 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                     </div>
                     <a href={result.enlace_delegado} target="_blank" rel="noopener noreferrer"
                       className="mt-3 w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                      <ExternalLink size={16} /> Ir al Panel de Delegado
+                      <ExternalLink size={16} /> Ir al Panel de Gestión
                     </a>
                   </div>
 
                   {/* Enlace Jugadores */}
-                  <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">J</div>
-                      <div>
-                        <p className="font-bold text-purple-900 text-sm">Enlace para Jugadores</p>
-                        <p className="text-xs text-purple-600">Comparte este enlace para que tus jugadores completen su registro</p>
+                  {!isAjedrez && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">J</div>
+                        <div>
+                          <p className="font-bold text-purple-900 text-sm">Enlace para Jugadores</p>
+                          <p className="text-xs text-purple-600">Comparte este enlace para que tus jugadores completen su registro</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white rounded-xl border border-purple-200 p-3">
+                        <p className="text-xs text-purple-700 font-mono flex-1 truncate">{result.enlace_jugadores}</p>
+                        <button onClick={() => copyToClipboard(result.enlace_jugadores, 'jugadores')}
+                          className="text-purple-500 hover:text-purple-700 transition flex-shrink-0">
+                          {copied === 'jugadores' ? <CheckCircle size={18} /> : <Copy size={18} />}
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-xl border border-purple-200 p-3">
-                      <p className="text-xs text-purple-700 font-mono flex-1 truncate">{result.enlace_jugadores}</p>
-                      <button onClick={() => copyToClipboard(result.enlace_jugadores, 'jugadores')}
-                        className="text-purple-500 hover:text-purple-700 transition flex-shrink-0">
-                        {copied === 'jugadores' ? <CheckCircle size={18} /> : <Copy size={18} />}
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
                   {result.estado_inscripcion === 'pendiente' && (
                     <div className="space-y-4 pt-2">
@@ -286,7 +380,7 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
               <div className="p-8 md:p-10">
                 <h2 className="text-2xl font-black text-slate-900 mb-1">Formulario de Inscripción</h2>
                 <p className="text-slate-500 mb-8 text-sm">
-                  {step === 1 ? 'Completa los datos de tu equipo o academia.' : 'Elige la categoría en la que competirá tu equipo.'}
+                  {step === 1 ? (isAjedrez ? 'Completa tus datos personales y tu cuenta de Lichess.' : 'Completa los datos de tu equipo o academia.') : 'Elige la categoría en la que competirá tu equipo.'}
                 </p>
 
                 {error && (
@@ -300,31 +394,119 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                          Nombre del Equipo / Club *
+                          {isAjedrez ? 'Nombre del Jugador / Club *' : 'Nombre del Equipo / Club *'}
                         </label>
                         <input
                           required type="text" value={form.nombre_equipo}
                           onChange={e => setForm({ ...form, nombre_equipo: e.target.value })}
-                          placeholder="Ej: Cobras FC"
+                          placeholder={isAjedrez ? 'Ej: Tu Nombre o Club' : 'Ej: Cobras FC'}
                           className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-slate-50"
                         />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                          Nombre de la Academia / Dojo (opcional)
+                          {isAjedrez ? 'Institución / Colegio / Universidad (opcional)' : 'Nombre de la Academia / Dojo (opcional)'}
                         </label>
                         <input
                           type="text" value={form.nombre_academia}
                           onChange={e => setForm({ ...form, nombre_academia: e.target.value })}
-                          placeholder="Ej: Cobra Kai Dojo"
+                          placeholder={isAjedrez ? 'Ej: Colegio San José' : 'Ej: Cobra Kai Dojo'}
                           className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-slate-50"
                         />
                       </div>
                     </div>
 
+                    {/* Campo especial para Ajedrez: Usuario de Lichess */}
+                    {isAjedrez && (
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-400/40">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                            <span>♟️</span> Cuenta de Lichess (@usuario) *
+                          </label>
+                          {lichessStatus.loading && (
+                            <span className="text-xs text-amber-600 flex items-center gap-1 font-medium">
+                              <Loader2 size={12} className="animate-spin" /> Verificando Lichess...
+                            </span>
+                          )}
+                          {!lichessStatus.loading && lichessStatus.valid === true && (
+                            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                              <CheckCircle size={12} /> Cuenta verificada en Lichess
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <input
+                            required
+                            type="text"
+                            value={form.usuario_lichess}
+                            onChange={e => setForm({ ...form, usuario_lichess: e.target.value })}
+                            placeholder="Ej: MagnusCarlsen o tu usuario de lichess.org"
+                            className={`w-full border rounded-xl px-4 py-3 text-sm outline-none font-mono transition-all ${
+                              lichessStatus.valid === true
+                                ? 'border-emerald-400 bg-emerald-50/50 text-emerald-950 focus:ring-1 focus:ring-emerald-500'
+                                : lichessStatus.valid === false
+                                ? 'border-red-400 bg-red-50/50 text-red-950 focus:ring-1 focus:ring-red-500'
+                                : 'border-slate-200 bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500'
+                            }`}
+                          />
+                        </div>
+
+                        {/* Detalles del perfil verificado de Lichess */}
+                        {lichessStatus.valid === true && lichessStatus.data && (
+                          <div className="mt-3 flex items-center gap-3 bg-white p-3 rounded-xl border border-emerald-200 text-xs shadow-sm">
+                            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-800 flex-shrink-0">
+                              ♟️
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-800 truncate">
+                                  {lichessStatus.data.username || form.usuario_lichess}
+                                </span>
+                                {lichessStatus.data.title && (
+                                  <span className="bg-amber-500 text-white font-black px-1.5 py-0.5 rounded text-[10px]">
+                                    {lichessStatus.data.title}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-slate-500 text-[11px] flex gap-2 mt-0.5">
+                                {lichessStatus.data.perfs?.blitz?.rating && (
+                                  <span>⚡ Blitz: <strong>{lichessStatus.data.perfs.blitz.rating}</strong></span>
+                                )}
+                                {lichessStatus.data.perfs?.rapid?.rating && (
+                                  <span>⏱️ Rápido: <strong>{lichessStatus.data.perfs.rapid.rating}</strong></span>
+                                )}
+                                {lichessStatus.data.perfs?.classical?.rating && (
+                                  <span>🏆 Clásico: <strong>{lichessStatus.data.perfs.classical.rating}</strong></span>
+                                )}
+                              </div>
+                            </div>
+                            <a
+                              href={`https://lichess.org/@/${form.usuario_lichess.replace(/^@+/, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline flex items-center gap-1 font-medium flex-shrink-0"
+                            >
+                              Ver perfil <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        )}
+
+                        {lichessStatus.valid === false && (
+                          <p className="text-xs text-red-600 mt-2 font-medium">
+                            ⚠️ {lichessStatus.error || 'No se encontró la cuenta en lichess.org. Verificá que esté bien escrita.'}
+                          </p>
+                        )}
+
+                        <p className="text-[11px] text-slate-500 mt-2">
+                          💡 Tu cuenta de Lichess es necesaria para registrar tus partidas, transmitir tableros en vivo y computar tus puntos en el torneo.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="border-t border-slate-100 pt-5">
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                        <User size={14} /> Datos del Delegado / Capitán
+                        <User size={14} /> {isAjedrez ? 'Datos del Jugador / Delegado' : 'Datos del Delegado / Capitán'}
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
@@ -355,7 +537,7 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">Color del equipo</label>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">Color preferido</label>
                           <div className="flex items-center gap-3 border border-slate-200 rounded-xl px-4 py-3 bg-slate-50">
                             <input
                               type="color" value={form.color_principal}
@@ -396,7 +578,7 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                       </div>
                     )}
 
-                    {torneo.competicion_por_atleta && (
+                    {torneo.competicion_por_atleta && !isAjedrez && (
                       <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
                         <p className="text-sm text-purple-800 font-medium flex items-center gap-2">
                           <Users size={16} />
@@ -416,7 +598,7 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                   )}
                   <button
                     onClick={handleSubmit}
-                    disabled={submitting || !form.nombre_equipo || !form.capitan_nombre || !form.capitan_email || (!torneo.competicion_por_atleta && torneo.categorias.length > 1 && !form.categoria_id)}
+                    disabled={submitting || !form.capitan_nombre || !form.capitan_email || (isAjedrez && (!form.usuario_lichess || lichessStatus.valid === false)) || (!torneo.competicion_por_atleta && torneo.categorias.length > 1 && !form.categoria_id)}
                     className="ml-auto flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-blue-500/30 transition-all text-sm"
                   >
                     {submitting ? <><Loader2 size={18} className="animate-spin" /> Inscribiendo...</> : <>Confirmar Inscripción <ChevronRight size={18} /></>}

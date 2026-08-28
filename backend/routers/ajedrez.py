@@ -20,7 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from pathlib import Path
 import os
@@ -34,6 +34,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 import csv
 import io
+import httpx
 
 from database import get_session
 from security import get_current_user
@@ -206,7 +207,18 @@ _CHESS_DDL_STATEMENTS = [
     """ALTER TABLE torneos_generales.ajedrez_circuito_ranking ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMPTZ DEFAULT NOW()""",
     """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_pos_torneo_ronda_part ON torneos_generales.ajedrez_posiciones(torneo_id, ronda_numero, participante_id)""",
     """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_rondas_torneo_num ON torneos_generales.ajedrez_rondas(torneo_id, numero_ronda)""",
-    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_circuito_ranking_unq ON torneos_generales.ajedrez_circuito_ranking(circuito_id, participante_id)"""
+    """CREATE UNIQUE INDEX IF NOT EXISTS idx_aj_circuito_ranking_unq ON torneos_generales.ajedrez_circuito_ranking(circuito_id, participante_id)""",
+    """CREATE TABLE IF NOT EXISTS torneos_generales.ajedrez_lichess_sync (
+        torneo_id               UUID PRIMARY KEY,
+        lichess_id              VARCHAR(50) NOT NULL,
+        tipo                    VARCHAR(20) DEFAULT 'swiss',
+        auto_sync               BOOLEAN DEFAULT TRUE,
+        ultima_sincronizacion   TIMESTAMPTZ,
+        creado_en               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """ALTER TABLE torneos_generales.ajedrez_lichess_sync ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'swiss'""",
+    """ALTER TABLE torneos_generales.ajedrez_lichess_sync ADD COLUMN IF NOT EXISTS auto_sync BOOLEAN DEFAULT TRUE""",
+    """ALTER TABLE torneos_generales.ajedrez_lichess_sync ADD COLUMN IF NOT EXISTS ultima_sincronizacion TIMESTAMPTZ"""
 ]
 
 _tables_checked = False
@@ -273,6 +285,20 @@ class SyncTorneoLichessPayload(BaseModel):
     lichess_id: str
     crear_usuarios_faltantes: bool = True
     auto_sync: bool = False
+
+class CrearTorneoLichessPayload(BaseModel):
+    tipo: str = "swiss"  # "swiss" | "arena"
+    nombre: Optional[str] = None
+    minutos: int = 5
+    incremento: int = 3
+    rondas: int = 5  # para suizo
+    duracion_minutos: int = 60  # para arena
+    rated: bool = True
+    team_id: Optional[str] = None  # Requerido para torneo Suizo en Lichess
+    lichess_token: Optional[str] = None  # Token con permiso tournament:write
+    minutos_para_inicio: int = 10
+    descripcion: Optional[str] = None
+    auto_sync: bool = True
 
 class LiveMovePayload(BaseModel):
     fen: str
@@ -2818,12 +2844,199 @@ def _evaluar_ritmo_tiempos(tiempos: List[float]) -> Dict[str, Any]:
     }
 
 # ==============================================================================
-# ENDPOINTS — VINCULACIÓN COMPLETA DE TORNEOS LICHESS (SUIZO)
+# ENDPOINTS — VINCULACIÓN Y CREACIÓN DE TORNEOS LICHESS (SUIZO / ARENA)
 # ==============================================================================
 
 def _extraer_lichess_tournament_id(url: str) -> str:
     match = re.search(r'lichess\.org/(?:swiss|tournament)/([a-zA-Z0-9]+)', url)
     return match.group(1) if match else url.strip()
+
+@router.get("/torneos/{torneo_id}/lichess/status")
+async def lichess_get_torneo_status(
+    torneo_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Retorna el estado y configuración de vinculación Lichess del torneo."""
+    await _ensure_chess_tables(session)
+    q = await session.execute(text("""
+        SELECT lichess_id, tipo, auto_sync, ultima_sincronizacion
+        FROM torneos_generales.ajedrez_lichess_sync
+        WHERE torneo_id = CAST(:tid AS UUID)
+        LIMIT 1
+    """), {"tid": torneo_id})
+    row = q.fetchone()
+    if not row:
+        return {"vinculado": False, "lichess_id": None, "lichess_url": None, "auto_sync": False}
+    
+    lid = row.lichess_id
+    tipo = row.tipo or "swiss"
+    lurl = f"https://lichess.org/{'swiss' if tipo == 'swiss' else 'tournament'}/{lid}"
+    return {
+        "vinculado": True,
+        "lichess_id": lid,
+        "lichess_url": lurl,
+        "tipo": tipo,
+        "auto_sync": bool(row.auto_sync),
+        "ultima_sincronizacion": str(row.ultima_sincronizacion) if row.ultima_sincronizacion else None
+    }
+
+@router.post("/torneos/{torneo_id}/lichess/crear-torneo-automatico")
+async def lichess_crear_torneo_automatico(
+    torneo_id: str,
+    payload: CrearTorneoLichessPayload,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Crea automáticamente un torneo en Lichess (formato Suizo o Arena) usando la API oficial de Lichess,
+    guarda el ID en la base de datos y activa la sincronización automática.
+    """
+    token = (payload.lichess_token or "").strip() or os.getenv("LICHESS_API_TOKEN", "").strip()
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail="Se requiere un Token de API de Lichess con permiso 'tournament:write'. Podés crearlo en lichess.org/account/oauth/token."
+        )
+
+    # Buscar nombre del torneo local si no se pasó nombre personalizado
+    t_q = await session.execute(text("""
+        SELECT nombre FROM torneos.torneos WHERE id = CAST(:tid AS UUID)
+        UNION
+        SELECT nombre FROM torneos_generales.torneos WHERE id = CAST(:tid AS UUID)
+        LIMIT 1
+    """), {"tid": torneo_id})
+    t_row = t_q.fetchone()
+    torneo_nombre = payload.nombre or (t_row.nombre if t_row else "Torneo MiCancha")
+
+    # Calcular tiempo de inicio (ms desde epoch)
+    ahora_utc = datetime.now(timezone.utc)
+    delta_min = max(payload.minutos_para_inicio or 5, 2)
+    start_dt = ahora_utc + timedelta(minutes=delta_min)
+    starts_at_ms = int(start_dt.timestamp() * 1000)
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    desc = payload.descripcion or f"Torneo oficial '{torneo_nombre}' organizado en MiCancha (micancha.com.py)."
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        if payload.tipo == "swiss":
+            team_id = (payload.team_id or "").strip() or os.getenv("LICHESS_TEAM_ID", "").strip()
+            if not team_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Lichess requiere un 'ID de Club / Equipo (Team)' para crear torneos Suizos. Ingresá el ID de tu equipo en Lichess o seleccioná formato Arena."
+                )
+
+            url = f"https://lichess.org/api/swiss/new/{team_id}"
+            form_data = {
+                "name": torneo_nombre,
+                "clock.limit": payload.minutos * 60,
+                "clock.increment": payload.incremento,
+                "nbRounds": max(1, min(payload.rondas or 5, 100)),
+                "startsAt": starts_at_ms,
+                "roundInterval": 60,
+                "variant": "standard",
+                "rated": "true" if payload.rated else "false",
+                "description": desc
+            }
+
+            try:
+                resp = await client.post(url, data=form_data, headers=headers)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error de comunicación con Lichess: {e}")
+
+            if resp.status_code not in (200, 201):
+                err_text = resp.text
+                try:
+                    err_json = resp.json()
+                    err_text = err_json.get("error") or err_json.get("message") or resp.text
+                except Exception:
+                    pass
+                raise HTTPException(status_code=400, detail=f"Error de Lichess API ({resp.status_code}): {err_text}")
+
+            res_json = resp.json()
+            lichess_id = res_json.get("id")
+            lichess_url = f"https://lichess.org/swiss/{lichess_id}"
+            lichess_tipo = "swiss"
+
+        else: # Arena
+            url = "https://lichess.org/api/tournament"
+            form_data = {
+                "name": torneo_nombre,
+                "clockTime": payload.minutos,
+                "clockIncrement": payload.incremento,
+                "minutes": payload.duracion_minutos or 60,
+                "startDate": starts_at_ms,
+                "variant": "standard",
+                "rated": "true" if payload.rated else "false",
+                "description": desc
+            }
+            if payload.team_id:
+                form_data["conditions.teamMember.teamId"] = payload.team_id.strip()
+
+            try:
+                resp = await client.post(url, data=form_data, headers=headers)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error de comunicación con Lichess: {e}")
+
+            if resp.status_code not in (200, 201):
+                err_text = resp.text
+                try:
+                    err_json = resp.json()
+                    err_text = err_json.get("error") or err_json.get("message") or resp.text
+                except Exception:
+                    pass
+                raise HTTPException(status_code=400, detail=f"Error de Lichess API ({resp.status_code}): {err_text}")
+
+            res_json = resp.json()
+            lichess_id = res_json.get("id")
+            lichess_url = f"https://lichess.org/tournament/{lichess_id}"
+            lichess_tipo = "arena"
+
+    # Asegurar que la tabla de sincronización exista
+    await _ensure_chess_tables(session)
+
+    # Registrar en base de datos
+    await session.execute(text("""
+        INSERT INTO torneos_generales.ajedrez_lichess_sync (torneo_id, lichess_id, tipo, auto_sync, ultima_sincronizacion)
+        VALUES (CAST(:tid AS UUID), :lid, :tipo, :auto_sync, NOW())
+        ON CONFLICT (torneo_id) DO UPDATE SET
+            lichess_id = EXCLUDED.lichess_id,
+            tipo = EXCLUDED.tipo,
+            auto_sync = EXCLUDED.auto_sync,
+            ultima_sincronizacion = NOW()
+    """), {
+        "tid": torneo_id,
+        "lid": lichess_id,
+        "tipo": lichess_tipo,
+        "auto_sync": payload.auto_sync
+    })
+
+    # Actualizar configuración del torneo en torneos.torneos si existe
+    try:
+        await session.execute(text("""
+            UPDATE torneos.torneos
+            SET configuracion = COALESCE(configuracion, '{}'::jsonb) || jsonb_build_object('lichess_id', :lid, 'lichess_url', :lurl)
+            WHERE id = CAST(:tid AS UUID)
+        """), {"tid": torneo_id, "lid": lichess_id, "lurl": lichess_url})
+    except Exception:
+        pass
+
+    await session.commit()
+
+    return {
+        "success": True,
+        "lichess_id": lichess_id,
+        "lichess_url": lichess_url,
+        "tipo": lichess_tipo,
+        "nombre": torneo_nombre,
+        "auto_sync": payload.auto_sync,
+        "mensaje": f"✅ Torneo {lichess_tipo.upper()} creado exitosamente en Lichess: {lichess_url}"
+    }
 
 @router.post("/torneos/{torneo_id}/lichess/preview-torneo")
 async def lichess_preview_torneo(

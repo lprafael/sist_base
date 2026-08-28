@@ -337,7 +337,7 @@ async def update_equipo(equipo_id: str, data: EquipoUpdate, session: AsyncSessio
     await session.execute(text("""
         UPDATE torneos.equipos
         SET nombre = :n, logo_url = :logo
-        WHERE id = :eid
+        WHERE id = CAST(:eid AS UUID)
     """), {"n": data.nombre, "logo": data.logo_url, "eid": equipo_id})
     await session.commit()
     return {"message": "Equipo actualizado"}
@@ -345,24 +345,117 @@ async def update_equipo(equipo_id: str, data: EquipoUpdate, session: AsyncSessio
 
 @router.delete("/futbol/equipos/{equipo_id}")
 async def delete_equipo(equipo_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
-    res = await session.execute(text("""
-        SELECT e.id FROM torneos.equipos e
-        JOIN torneos.torneos t ON e.torneo_id = t.id
-        WHERE e.id = :eid AND t.organizador_id = :oid
-    """), {"eid": equipo_id, "oid": current_user["id"]})
-    if not res.fetchone():
-        raise HTTPException(status_code=403, detail="No autorizado o equipo no existe")
-        
+    # 1. Validar formato UUID
     try:
-        # Eliminar dependencias primero
-        await session.execute(text("DELETE FROM torneos.tournament_players WHERE torneo_equipo_id = :eid"), {"eid": equipo_id})
-        await session.execute(text("DELETE FROM torneos.equipo_tecnico WHERE equipo_id = :eid"), {"eid": equipo_id})
-        
-        await session.execute(text("DELETE FROM torneos.equipos WHERE id = :eid"), {"eid": equipo_id})
+        uuid.UUID(str(equipo_id))
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="ID de equipo no es un UUID válido")
+
+    user_id = current_user.get("user_id") or current_user.get("id")
+    user_role = str(current_user.get("role") or "").lower()
+    is_admin = user_role in ["admin", "superadmin", "administrador", "dueno", "dueño"]
+
+    # 2. Obtener organizador_id si no es administrador
+    organizador_id = None
+    if not is_admin:
+        q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+        res_org = await session.execute(q_org, {"uid": user_id})
+        row_org = res_org.fetchone()
+        if row_org:
+            organizador_id = row_org[0]
+
+    # 3. Verificar si el equipo existe y permisos de acceso
+    check_query = text("""
+        SELECT e.id, e.torneo_id, e.nombre 
+        FROM torneos.equipos e
+        LEFT JOIN torneos.torneos t ON e.torneo_id = t.id
+        LEFT JOIN cancha.organizadores o ON t.organizador_id = o.id
+        WHERE e.id = CAST(:eid AS UUID)
+          AND (
+            :is_admin = TRUE
+            OR t.organizador_id = :oid
+            OR o.usuario_id = :uid
+            OR t.organizador_id = :uid
+          )
+    """)
+    res = await session.execute(check_query, {
+        "eid": equipo_id, 
+        "oid": organizador_id, 
+        "uid": user_id, 
+        "is_admin": is_admin
+    })
+    equipo = res.fetchone()
+    if not equipo:
+        exist_res = await session.execute(
+            text("SELECT id FROM torneos.equipos WHERE id = CAST(:eid AS UUID)"),
+            {"eid": equipo_id}
+        )
+        if not exist_res.fetchone():
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar este equipo")
+
+    try:
+        # 4. Verificar si tiene partidos jugados o en curso
+        partidos_res = await session.execute(text("""
+            SELECT id FROM torneos.partidos 
+            WHERE (equipo_local_id = CAST(:eid AS UUID) OR equipo_visitante_id = CAST(:eid AS UUID))
+              AND estado IN ('en_curso', 'finalizado')
+            LIMIT 1
+        """), {"eid": equipo_id})
+        if partidos_res.fetchone():
+            raise HTTPException(
+                status_code=400, 
+                detail="No se puede eliminar el equipo porque ya tiene partidos jugados o en curso en el torneo."
+            )
+
+        # 5. Desvincular o eliminar partidos programados / cancelados
+        await session.execute(text("""
+            DELETE FROM torneos.partidos 
+            WHERE (equipo_local_id = CAST(:eid AS UUID) OR equipo_visitante_id = CAST(:eid AS UUID))
+              AND estado NOT IN ('en_curso', 'finalizado')
+        """), {"eid": equipo_id})
+
+        # Limpiar ganador_id en cualquier otro partido si aplicase
+        await session.execute(text("""
+            UPDATE torneos.partidos SET ganador_id = NULL 
+            WHERE ganador_id = CAST(:eid AS UUID)
+        """), {"eid": equipo_id})
+
+        # 6. Eliminar goles y tarjetas
+        await session.execute(text("DELETE FROM torneos.goles WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        await session.execute(text("DELETE FROM torneos.tarjetas WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+
+        # 7. Eliminar sanciones y tabla de posiciones
+        await session.execute(text("DELETE FROM torneos.sanciones WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        await session.execute(text("DELETE FROM torneos.tabla_posiciones WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+
+        # 8. Eliminar cuenta corriente si existe
+        try:
+            await session.execute(text("DELETE FROM cancha.cuenta_corriente_equipos WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        except Exception:
+            pass
+
+        # 9. Eliminar participantes de grupos si existe
+        try:
+            await session.execute(text("DELETE FROM torneos.fase_grupos_equipos WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        except Exception:
+            pass
+
+        # 10. Eliminar jugadores y cuerpo técnico
+        await session.execute(text("DELETE FROM torneos.tournament_players WHERE torneo_equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+        await session.execute(text("DELETE FROM torneos.equipo_tecnico WHERE equipo_id = CAST(:eid AS UUID)"), {"eid": equipo_id})
+
+        # 11. Eliminar el equipo
+        await session.execute(text("DELETE FROM torneos.equipos WHERE id = CAST(:eid AS UUID)"), {"eid": equipo_id})
         await session.commit()
         return {"message": "Equipo eliminado con éxito"}
+    except HTTPException:
+        await session.rollback()
+        raise
     except Exception as e:
         await session.rollback()
+        import traceback
+        traceback.print_exc()
         print(f"Error deleting equipo {equipo_id}: {e}")
         raise HTTPException(status_code=400, detail=f"No se pudo eliminar el equipo: {str(e)}")
 
@@ -482,23 +575,36 @@ async def get_all_jugadores(current_user: dict = Depends(get_current_user), sess
 
 @router.delete("/futbol/jugadores/{jugador_id}")
 async def delete_jugador(jugador_id: str, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
-    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
-    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
-    row_org = res_org.fetchone()
-    if not row_org:
-        raise HTTPException(status_code=403, detail="No autorizado")
-    organizador_id = row_org[0]
+    user_id = current_user.get("user_id") or current_user.get("id")
+    user_role = str(current_user.get("role") or "").lower()
+    is_admin = user_role in ["admin", "superadmin", "administrador", "dueno", "dueño"]
+    
+    organizador_id = None
+    if not is_admin:
+        q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+        res_org = await session.execute(q_org, {"uid": user_id})
+        row_org = res_org.fetchone()
+        if row_org:
+            organizador_id = row_org[0]
 
-    res = await session.execute(text("""
+    check_q = text("""
         SELECT j.id FROM torneos.tournament_players j
         JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
         JOIN torneos.torneos t ON e.torneo_id = t.id
-        WHERE j.id = :jid AND t.organizador_id = :oid
-    """), {"jid": jugador_id, "oid": organizador_id})
+        LEFT JOIN cancha.organizadores o ON t.organizador_id = o.id
+        WHERE j.id = CAST(:jid AS UUID)
+          AND (
+            :is_admin = TRUE
+            OR t.organizador_id = :oid
+            OR o.usuario_id = :uid
+            OR t.organizador_id = :uid
+          )
+    """)
+    res = await session.execute(check_q, {"jid": jugador_id, "oid": organizador_id, "uid": user_id, "is_admin": is_admin})
     if not res.fetchone():
-        raise HTTPException(status_code=403, detail="No autorizado")
+        raise HTTPException(status_code=403, detail="No autorizado o jugador no existe")
         
-    await session.execute(text("DELETE FROM torneos.tournament_players WHERE id = :jid"), {"jid": jugador_id})
+    await session.execute(text("DELETE FROM torneos.tournament_players WHERE id = CAST(:jid AS UUID)"), {"jid": jugador_id})
     await session.commit()
     return {"message": "Jugador eliminado"}
 
@@ -515,20 +621,32 @@ class JugadorUpdate(BaseModel):
 
 @router.put("/futbol/jugadores/{jugador_id}")
 async def update_jugador(jugador_id: str, data: JugadorUpdate, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
-    q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
-    res_org = await session.execute(q_org, {"uid": current_user["user_id"]})
-    row_org = res_org.fetchone()
-    if not row_org:
-        raise HTTPException(status_code=403, detail="No autorizado")
-    organizador_id = row_org[0]
+    user_id = current_user.get("user_id") or current_user.get("id")
+    user_role = str(current_user.get("role") or "").lower()
+    is_admin = user_role in ["admin", "superadmin", "administrador", "dueno", "dueño"]
+    
+    organizador_id = None
+    if not is_admin:
+        q_org = text("SELECT id FROM cancha.organizadores WHERE usuario_id = :uid")
+        res_org = await session.execute(q_org, {"uid": user_id})
+        row_org = res_org.fetchone()
+        if row_org:
+            organizador_id = row_org[0]
 
     # Verificar propiedad
     res = await session.execute(text("""
         SELECT j.id FROM torneos.tournament_players j
         JOIN torneos.equipos e ON j.torneo_equipo_id = e.id
         JOIN torneos.torneos t ON e.torneo_id = t.id
-        WHERE j.id = :jid AND t.organizador_id = :oid
-    """), {"jid": jugador_id, "oid": organizador_id})
+        LEFT JOIN cancha.organizadores o ON t.organizador_id = o.id
+        WHERE j.id = CAST(:jid AS UUID)
+          AND (
+            :is_admin = TRUE
+            OR t.organizador_id = :oid
+            OR o.usuario_id = :uid
+            OR t.organizador_id = :uid
+          )
+    """), {"jid": jugador_id, "oid": organizador_id, "uid": user_id, "is_admin": is_admin})
     if not res.fetchone():
         raise HTTPException(status_code=403, detail="No autorizado o jugador no existe")
         

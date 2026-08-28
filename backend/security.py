@@ -87,6 +87,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     """Obtiene el usuario actual basado en el token"""
     token = credentials.credentials
     payload = verify_token(token)
+    if isinstance(payload, dict):
+        if "user_id" in payload and "id" not in payload:
+            payload["id"] = payload["user_id"]
+        elif "id" in payload and "user_id" not in payload:
+            payload["user_id"] = payload["id"]
     return payload
 
 # Roles y permisos

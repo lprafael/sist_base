@@ -983,6 +983,7 @@ class InscripcionPublicaCreate(BaseModel):
     color_principal: Optional[str] = "#1e3a8a"
     color_secundario: Optional[str] = "#93c5fd"
     categoria_id: Optional[str] = None  # solo cuando competicion_por_atleta=false
+    usuario_lichess: Optional[str] = None  # para torneos de ajedrez
 
 class JugadorAutoRegistroUpdate(BaseModel):
     """Payload para que un jugador complete sus propios datos."""
@@ -1044,6 +1045,24 @@ async def get_torneo_info_publica(torneo_id: str, session: AsyncSession = Depend
             try: reglas = json.loads(reglas)
             except: reglas = []
 
+        # Info de vinculación con Lichess si existe
+        lichess_id = configuracion.get("lichess_id")
+        lichess_url = configuracion.get("lichess_url")
+        try:
+            l_sync_q = await session.execute(text("""
+                SELECT lichess_id, tipo, auto_sync 
+                FROM torneos_generales.ajedrez_lichess_sync 
+                WHERE torneo_id = CAST(:tid AS UUID)
+                LIMIT 1
+            """), {"tid": torneo_id})
+            l_sync_row = l_sync_q.fetchone()
+            if l_sync_row:
+                lichess_id = l_sync_row.lichess_id
+                tipo = l_sync_row.tipo or "swiss"
+                lichess_url = f"https://lichess.org/{'swiss' if tipo == 'swiss' else 'tournament'}/{lichess_id}"
+        except Exception:
+            pass
+
         return {
             "id": str(row.id),
             "nombre": row.nombre,
@@ -1061,6 +1080,8 @@ async def get_torneo_info_publica(torneo_id: str, session: AsyncSession = Depend
             "categorias": categorias,
             "equipos_inscritos": int(equipos_count),
             "reglas": reglas or [],
+            "lichess_id": lichess_id,
+            "lichess_url": lichess_url,
         }
     except HTTPException:
         raise
@@ -1201,6 +1222,61 @@ async def inscripcion_publica_equipo(
             except Exception as mail_err:
                 print("Error al enviar email de enlaces al delegado:", str(mail_err))
 
+        # Registrar participante en torneos_generales.participantes si es torneo de ajedrez o trae usuario_lichess
+        if payload.usuario_lichess:
+            try:
+                clean_lic = payload.usuario_lichess.strip().replace('@', '')
+                p_check = await session.execute(text("""
+                    SELECT id FROM torneos_generales.participantes 
+                    WHERE torneo_id = CAST(:tid AS UUID) AND (LOWER(usuario_lichess) = :ulic OR (email = :email AND email != ''))
+                    LIMIT 1
+                """), {
+                    "tid": torneo_id,
+                    "ulic": clean_lic.lower(),
+                    "email": payload.capitan_email.strip().lower()
+                })
+                p_row = p_check.fetchone()
+                if not p_row:
+                    await session.execute(text("""
+                        INSERT INTO torneos_generales.participantes 
+                        (torneo_id, nombre, apellido, usuario_lichess, categoria_base, estado, documento, email, telefono, modalidad)
+                        VALUES (CAST(:tid AS UUID), :nom, '', :ulic, 'Abierta', 'confirmado', :doc, :email, :tel, 'Ajedrez')
+                    """), {
+                        "tid": torneo_id,
+                        "nom": payload.capitan_nombre or payload.nombre_equipo,
+                        "ulic": clean_lic,
+                        "doc": f"LIC-{clean_lic}",
+                        "email": payload.capitan_email.strip().lower(),
+                        "tel": payload.capitan_telefono or "",
+                    })
+                    await session.commit()
+                else:
+                    await session.execute(text("""
+                        UPDATE torneos_generales.participantes
+                        SET usuario_lichess = :ulic
+                        WHERE id = :pid
+                    """), {"ulic": clean_lic, "pid": p_row.id})
+                    await session.commit()
+            except Exception as pe:
+                print(f"[Warning] Error registrando participante ajedrez con lichess: {pe}")
+
+        # Obtener lichess_url si el torneo está vinculado
+        lichess_url = None
+        try:
+            l_sync_q = await session.execute(text("""
+                SELECT lichess_id, tipo 
+                FROM torneos_generales.ajedrez_lichess_sync 
+                WHERE torneo_id = CAST(:tid AS UUID)
+                LIMIT 1
+            """), {"tid": torneo_id})
+            l_sync_row = l_sync_q.fetchone()
+            if l_sync_row:
+                lid = l_sync_row.lichess_id
+                ltipo = l_sync_row.tipo or "swiss"
+                lichess_url = f"https://lichess.org/{'swiss' if ltipo == 'swiss' else 'tournament'}/{lid}"
+        except Exception:
+            pass
+
         return {
             "equipo_id": equipo_id,
             "token_delegado": token_delegado,
@@ -1208,6 +1284,7 @@ async def inscripcion_publica_equipo(
             "estado_inscripcion": estado_insc,
             "enlace_delegado": enlace_delegado,
             "enlace_jugadores": enlace_jugadores,
+            "lichess_url": lichess_url,
             "mensaje": "Inscripcion realizada con exito. Guarda el enlace de delegado para gestionar tu equipo.",
         }
     except HTTPException:
