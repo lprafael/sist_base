@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional
@@ -146,7 +147,6 @@ async def get_multimedia_organizador(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-from pydantic import BaseModel
 class UpdateEtiquetaReq(BaseModel):
     etiquetas: str
 
