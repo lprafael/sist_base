@@ -66,6 +66,47 @@ async def upload_media(
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+class LinkMediaReq(BaseModel):
+    url: str
+    torneo_id: Optional[str] = None
+    tipo_medio: str = "youtube"
+    etiquetas: Optional[str] = None
+
+@router.post("/link")
+async def add_link_media(
+    req: LinkMediaReq,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="No autenticado")
+        
+    try:
+        t_id = f"'{req.torneo_id}'" if req.torneo_id and req.torneo_id != 'undefined' and str(req.torneo_id).strip() != '' else "NULL"
+        query = text(f"""
+            INSERT INTO cancha.multimedia (organizador_id, torneo_id, tipo_medio, url, etiquetas)
+            VALUES (:org_id, {t_id}, :tipo, :url, :etiquetas)
+            RETURNING id, url, creado_en, etiquetas
+        """)
+        res = await session.execute(query, {
+            "org_id": current_user["user_id"],
+            "tipo": req.tipo_medio,
+            "url": req.url.strip(),
+            "etiquetas": req.etiquetas or ""
+        })
+        await session.commit()
+        row = res.fetchone()
+        return {
+            "id": row[0],
+            "url": row[1],
+            "creado_en": row[2],
+            "etiquetas": row[3],
+            "tipo_medio": req.tipo_medio
+        }
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/torneo/{torneo_id}")
 async def get_multimedia_torneo(
     torneo_id: str,

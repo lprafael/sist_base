@@ -9,6 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 import SidebarTorneo from '@/components/torneo-admin/SidebarTorneo';
 import PublicTournamentView from '@/components/torneo-admin/PublicTournamentView';
 import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
+import StreamingView from '@/components/torneo-admin/modulos/StreamingView';
 
 import AjedrezController from '@/components/torneo-admin/modulos/AjedrezController';
 import ClasificacionView from '@/components/torneo-admin/modulos/ClasificacionView';
@@ -85,6 +86,12 @@ export default function TournamentDetailPage() {
                 <ClasificacionView torneoId={id as string} torneo={tournament} />
               )}
             </div>
+          </main>
+        );
+      case 'streaming':
+        return (
+          <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
+            <StreamingView torneoId={id as string} torneo={tournament} isPublicView={true} />
           </main>
         );
       case 'rankings':

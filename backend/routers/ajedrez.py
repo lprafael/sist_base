@@ -300,6 +300,12 @@ class CrearTorneoLichessPayload(BaseModel):
     descripcion: Optional[str] = None
     auto_sync: bool = True
 
+class LichessOAuthExchangePayload(BaseModel):
+    code: str
+    code_verifier: str
+    redirect_uri: str
+    client_id: Optional[str] = "micancha"
+
 class LiveMovePayload(BaseModel):
     fen: str
     last_move: Optional[Dict[str, Any]] = None
@@ -2378,6 +2384,67 @@ async def consultar_usuario_lichess(username: str):
         raise HTTPException(status_code=502, detail=f"Error en servicio de Lichess (código {e.code})")
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"No se pudo conectar con Lichess: {str(e)}")
+
+
+@router.post("/lichess/oauth/exchange")
+async def lichess_oauth_exchange(payload: LichessOAuthExchangePayload):
+    """
+    Intercambia un código de autorización PKCE de Lichess por un token de acceso
+    y devuelve los datos del perfil del usuario (username, ratings, etc.).
+    """
+    token_url = "https://lichess.org/api/token"
+    data = {
+        "grant_type": "authorization_code",
+        "code": payload.code,
+        "code_verifier": payload.code_verifier,
+        "redirect_uri": payload.redirect_uri,
+        "client_id": payload.client_id or "micancha"
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            token_resp = await client.post(token_url, data=data, headers={"Accept": "application/json"})
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error conectando con Lichess token endpoint: {e}")
+
+        if token_resp.status_code != 200:
+            err_msg = token_resp.text
+            try:
+                err_json = token_resp.json()
+                err_msg = err_json.get("error_description") or err_json.get("error") or err_msg
+            except Exception:
+                pass
+            raise HTTPException(status_code=400, detail=f"Error al autenticar con Lichess: {err_msg}")
+
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Lichess no retornó access_token válido.")
+
+        # Obtener información del usuario autenticado
+        user_resp = await client.get(
+            "https://lichess.org/api/account",
+            headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+        )
+        if user_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="No se pudo obtener el perfil de usuario desde Lichess.")
+
+        user_data = user_resp.json()
+        perfs = user_data.get("perfs", {})
+
+        return {
+            "access_token": access_token,
+            "id": user_data.get("id"),
+            "username": user_data.get("username"),
+            "title": user_data.get("title"),
+            "profile": user_data.get("profile", {}),
+            "perfs": perfs,
+            "rating_blitz": perfs.get("blitz", {}).get("rating"),
+            "rating_rapid": perfs.get("rapid", {}).get("rating"),
+            "rating_classical": perfs.get("classical", {}).get("rating"),
+            "online": user_data.get("online", False),
+            "profile_url": f"https://lichess.org/@/{user_data.get('username')}"
+        }
 
 
 def _evaluar_antitrampa(

@@ -16,6 +16,7 @@ import FasesSettings from '@/components/torneo-admin/modulos/FasesSettings';
 import GruposSettings from '@/components/torneo-admin/modulos/GruposSettings';
 import CriteriosSettings from '@/components/torneo-admin/modulos/CriteriosSettings';
 import MultimediaView from '@/components/torneo-admin/modulos/MultimediaView';
+import StreamingView from '@/components/torneo-admin/modulos/StreamingView';
 import AjedrezController from '@/components/torneo-admin/modulos/AjedrezController';
 import AjedrezParticipantesView from '@/components/torneo-admin/modulos/AjedrezParticipantesView';
 import AjedrezCircuitosView from '@/components/torneo-admin/modulos/AjedrezCircuitosView';
@@ -148,6 +149,12 @@ export default function TorneoAdminPage() {
         return (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
             <ClasificacionView torneoId={id as string} torneo={torneo} />
+          </div>
+        );
+      case 'streaming':
+        return (
+          <div className="p-2 min-h-[60vh]">
+            <StreamingView torneoId={id as string} torneo={torneo} isPublicView={false} />
           </div>
         );
       case 'rankings':

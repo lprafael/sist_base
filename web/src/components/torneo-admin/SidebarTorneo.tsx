@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { Home, Trophy, BarChart2, Image as ImageIcon, Settings, LogOut, ArrowLeft, Users } from 'lucide-react';
+import { Home, Trophy, BarChart2, Image as ImageIcon, Settings, LogOut, ArrowLeft, Users, Tv } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function SidebarTorneo({ torneo, activeTab, setActiveTab, isOrganizer = false, isPublicView = false }: { torneo: any, activeTab: string, setActiveTab: (tab: string) => void, isOrganizer?: boolean, isPublicView?: boolean }) {
@@ -10,6 +10,7 @@ export default function SidebarTorneo({ torneo, activeTab, setActiveTab, isOrgan
   const menu = [
     { id: 'inicio', label: 'Inicio', icon: Trophy },
     { id: 'clasificacion', label: 'Partidos y Clasificación', icon: BarChart2 },
+    { id: 'streaming', label: 'Transmisión / Videos', icon: Tv },
     { id: 'rankings', label: 'Rankings y encuestas', icon: Users },
     { id: 'multimedia', label: 'Fotos, videos y noticias', icon: ImageIcon }
   ];

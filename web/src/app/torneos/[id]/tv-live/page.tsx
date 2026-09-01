@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import YouTubeEmbed, { StreamChannel } from '@/components/YouTubeEmbed';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
 
@@ -40,6 +41,7 @@ interface TournamentData {
   nombre: string;
   deporte: string;
   estado: string;
+  configuracion?: any;
 }
 
 /* ─── Helpers ─────────────────────────────────────────────────────── */
@@ -799,8 +801,36 @@ export default function TVLivePage() {
   const [ajedrezPosiciones, setAjedrezPosiciones] = useState<any[]>([]);
   const [sidebarTab, setSidebarTab] = useState<'historico' | 'posiciones'>('posiciones');
   const [loading, setLoading] = useState(true);
+  const [showStreamOverlay, setShowStreamOverlay] = useState(false);
   const [now, setNow] = useState(new Date());
   const tickRef = useRef<NodeJS.Timeout | null>(null);
+
+  const streamingConfig = (tournament as any)?.configuracion?.streaming;
+  const streamChannels: StreamChannel[] = React.useMemo(() => {
+    if (!streamingConfig || streamingConfig.activo === false) return [];
+    const list: StreamChannel[] = [];
+    if (streamingConfig.url_principal) {
+      list.push({
+        id: 'principal',
+        nombre: streamingConfig.titulo_principal || 'Señal Principal',
+        url: streamingConfig.url_principal,
+        estado: streamingConfig.estado_principal || 'en_vivo'
+      });
+    }
+    if (Array.isArray(streamingConfig.canales)) {
+      streamingConfig.canales.forEach((ch: any, idx: number) => {
+        if (ch.url) {
+          list.push({
+            id: ch.id || `ch-${idx}`,
+            nombre: ch.nombre || `Tatami / Cancha ${idx + 1}`,
+            url: ch.url,
+            estado: ch.estado || 'en_vivo'
+          });
+        }
+      });
+    }
+    return list;
+  }, [streamingConfig]);
 
   useEffect(() => {
     setMounted(true);
@@ -1264,6 +1294,25 @@ export default function TVLivePage() {
             }}>
               {mounted ? now.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
             </div>
+            {streamChannels.length > 0 && (
+              <button
+                onClick={() => setShowStreamOverlay(!showStreamOverlay)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: showStreamOverlay ? '#dc2626' : 'rgba(220,38,38,0.15)',
+                  color: showStreamOverlay ? '#fff' : '#f87171',
+                  border: '1px solid rgba(239,68,68,0.5)',
+                  padding: '6px 14px', borderRadius: 12,
+                  fontWeight: 800, fontSize: 12, cursor: 'pointer',
+                  boxShadow: '0 0 12px rgba(239,68,68,0.3)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'pulse-dot 1s infinite' }} />
+                {showStreamOverlay ? 'Ocultar Video' : '🎥 Ver Transmisión'}
+              </button>
+            )}
+
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <div style={{
                 position: 'absolute', width: 36, height: 36, borderRadius: '50%',
@@ -1284,6 +1333,23 @@ export default function TVLivePage() {
             </div>
           </div>
         </div>
+
+        {/* ── LIVE STREAM OVERLAY DRAWER ── */}
+        {showStreamOverlay && streamChannels.length > 0 && (
+          <div style={{
+            background: 'rgba(6,6,16,0.95)',
+            borderBottom: '2px solid rgba(239,68,68,0.4)',
+            padding: '16px 20px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
+            zIndex: 20,
+            maxHeight: '48vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ maxWidth: 850, margin: '0 auto' }}>
+              <YouTubeEmbed channels={streamChannels} titulo="Señal en Directo TV" />
+            </div>
+          </div>
+        )}
 
         {/* ── BODY ── */}
         <div style={{

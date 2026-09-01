@@ -8,6 +8,7 @@ import {
 import Link from "next/link";
 import dynamic from 'next/dynamic';
 import PatrocinadoresCarousel from '@/components/PatrocinadoresCarousel';
+import YouTubeEmbed, { StreamChannel } from '@/components/YouTubeEmbed';
 
 const LocationPickerMap = dynamic(() => 
   import('@/components/LocationPickerMap'), 
@@ -58,6 +59,40 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
   const contacto = tournament?.configuracion?.contacto || {};
   const reglas = tournament?.reglas || [];
   const premios = tournament?.premios || [];
+
+  const streamingConfig = tournament?.configuracion?.streaming;
+  const hasStreaming = streamingConfig?.activo !== false && (
+    Boolean(streamingConfig?.url_principal) || 
+    (Array.isArray(streamingConfig?.canales) && streamingConfig.canales.some((c: any) => c.url))
+  );
+
+  const streamChannels: StreamChannel[] = React.useMemo(() => {
+    if (!hasStreaming) return [];
+    const list: StreamChannel[] = [];
+    if (streamingConfig?.url_principal) {
+      list.push({
+        id: 'principal',
+        nombre: streamingConfig.titulo_principal || 'Transmisión Oficial',
+        url: streamingConfig.url_principal,
+        estado: streamingConfig.estado_principal || 'en_vivo',
+        descripcion: streamingConfig.descripcion_principal || ''
+      });
+    }
+    if (Array.isArray(streamingConfig?.canales)) {
+      streamingConfig.canales.forEach((ch: any, idx: number) => {
+        if (ch.url) {
+          list.push({
+            id: ch.id || `ch-${idx}`,
+            nombre: ch.nombre || `Tatami / Cancha ${idx + 1}`,
+            url: ch.url,
+            estado: ch.estado || 'en_vivo',
+            descripcion: ch.descripcion || ''
+          });
+        }
+      });
+    }
+    return list;
+  }, [streamingConfig, hasStreaming]);
 
   const sendMessage = () => {
     if (!chatMessage.trim()) return;
@@ -143,6 +178,18 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
             <FileText size={18} /> REGLAS DEL TORNEO
           </button>
         </div>
+
+        {/* Transmisión en Vivo y Videos (Si está configurada) */}
+        {hasStreaming && streamChannels.length > 0 && (
+          <div className="px-8 pt-8 max-w-[1400px] w-full">
+            <YouTubeEmbed
+              channels={streamChannels}
+              titulo={tournament?.nombre}
+              subtitulo="Transmisión oficial del campeonato"
+              className="shadow-2xl"
+            />
+          </div>
+        )}
 
         {/* Content Grids */}
         <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-[1400px] w-full pb-32">

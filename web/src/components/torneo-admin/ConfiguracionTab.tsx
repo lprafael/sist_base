@@ -1,11 +1,12 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle, Edit3, CreditCard } from 'lucide-react';
+import { Calendar, Image as ImageIcon, MapPin, Users, Activity, Trophy, Scale, Shield, BarChart2, CheckSquare, Eye, Printer, FileText, Loader2, GitMerge, ArrowLeft, Plus, MinusCircle, User, List, Layers, HelpCircle, Edit3, CreditCard, Tv } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ImageCropperModal from '../ui/ImageCropperModal';
 import SitiosView from './modulos/SitiosView';
 import TorneoCanalesCobroModal from '../pagos/TorneoCanalesCobroModal';
 import AjedrezLichessSyncModal from './modulos/AjedrezLichessSyncModal';
+import StreamingSettingsModal from './modulos/StreamingSettingsModal';
 
 const LocationPickerMap = dynamic(() => import('../LocationPickerMap'), { ssr: false, loading: () => <div className="h-64 w-full bg-slate-100 flex items-center justify-center text-slate-400">Cargando mapa...</div> });
 
@@ -78,6 +79,7 @@ const MiniEditor = ({ value, onChange }: { value: string, onChange: (v: string) 
 export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect }: { torneo: any, onUpdate: (data: any) => void, onSubSectionSelect: (section: string) => void }) {
   const [showSitiosModal, setShowSitiosModal] = useState(false);
   const [showCanalesModal, setShowCanalesModal] = useState(false);
+  const [showStreamingModal, setShowStreamingModal] = useState(false);
   const [isLichessSyncModalOpen, setIsLichessSyncModalOpen] = useState(false);
   // Local state for basic fields to allow typing before saving (or we can save on blur)
   const [formData, setFormData] = useState({
@@ -752,6 +754,7 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                 ]),
                 { id: 'arbitraje', icon: Shield, label: 'Arbitraje (Mesa Veedores)' },
                 { id: 'sitios', icon: MapPin, label: 'Sitios' },
+                { id: 'transmision_live', icon: Tv, label: '🎥 Transmisión en Vivo y Videos (YouTube)' },
                 ...((torneo?.deporte === 'Ajedrez' || (torneo?.deporte || '').toLowerCase().includes('ajedrez')) ? [
                   { id: 'ajedrez_importar', icon: Trophy, label: '♟️ Ajedrez: Importar Torneo Lichess' },
                   { id: 'ajedrez_partidas', icon: Trophy, label: '♟️ Ajedrez: Rondas y Emparejamiento' },
@@ -770,6 +773,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                         setShowSitiosModal(true);
                       } else if (item.id === 'canales_cobro') {
                         setShowCanalesModal(true);
+                      } else if (item.id === 'transmision_live') {
+                        setShowStreamingModal(true);
                       } else if (item.id === 'ajedrez_importar') {
                         setIsLichessSyncModalOpen(true);
                       } else {
@@ -1506,6 +1511,21 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           isOpen={showCanalesModal}
           onClose={() => setShowCanalesModal(false)}
           torneoId={torneo.id}
+        />
+      )}
+
+      {showStreamingModal && (
+        <StreamingSettingsModal
+          isOpen={showStreamingModal}
+          onClose={() => setShowStreamingModal(false)}
+          torneo={torneo}
+          onSave={(streamingData) => {
+            const updatedConfig = {
+              ...(torneo.configuracion || {}),
+              streaming: streamingData
+            };
+            onUpdate({ configuracion: updatedConfig });
+          }}
         />
       )}
 

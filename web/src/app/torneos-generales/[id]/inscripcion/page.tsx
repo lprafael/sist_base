@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import {
   ShieldCheck, Users, Trophy, Calendar, ChevronRight, ChevronLeft,
   Loader2, CheckCircle, Copy, ExternalLink, Tag, User, Phone, Mail,
-  Palette, CreditCard, Sparkles
+  Palette, CreditCard, Sparkles, Zap, LogOut
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import PaymentCardInfo, { CanalCobro } from '@/components/pagos/PaymentCardInfo';
 import UploadComprobanteModal from '@/components/pagos/UploadComprobanteModal';
+import { createLichessAuthUrl } from '@/lib/lichessAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -67,7 +68,9 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
   const [result, setResult] = useState<ResultData | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Estados para validación de Lichess
+  // Estados para validación y OAuth de Lichess
+  const [lichessOAuthLoading, setLichessOAuthLoading] = useState(false);
+  const [lichessConnectedViaOAuth, setLichessConnectedViaOAuth] = useState(false);
   const [lichessStatus, setLichessStatus] = useState<{
     loading: boolean;
     valid: boolean | null;
@@ -106,11 +109,56 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
       .catch(() => setLoading(false));
   }, [torneoId]);
 
-  // Validación debounce de usuario de Lichess
+  // Listener para capturar autenticación OAuth de Lichess en ventana emergente o sesión
+  useEffect(() => {
+    const handleAuthData = (u: any) => {
+      if (!u || !u.username) return;
+      setForm(prev => ({
+        ...prev,
+        usuario_lichess: u.username,
+        nombre_equipo: prev.nombre_equipo || u.username,
+        capitan_nombre: prev.capitan_nombre || u.profile?.realName || u.username,
+      }));
+      setLichessStatus({
+        loading: false,
+        valid: true,
+        data: u,
+      });
+      setLichessConnectedViaOAuth(true);
+    };
+
+    // 1. Mensaje desde popup
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'LICHESS_OAUTH_SUCCESS' && event.data.user) {
+        handleAuthData(event.data.user);
+      }
+    };
+    window.addEventListener('message', onMessage);
+
+    // 2. Comprobar si volvió por redirección normal
+    const storedUser = sessionStorage.getItem('lichess_connected_user');
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        handleAuthData(parsed);
+        sessionStorage.removeItem('lichess_connected_user');
+      } catch {}
+    }
+
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  // Validación debounce manual de usuario de Lichess
   useEffect(() => {
     const rawUser = form.usuario_lichess.trim().replace(/^@+/, '');
     if (!rawUser) {
-      setLichessStatus({ loading: false, valid: null });
+      if (!lichessConnectedViaOAuth) {
+        setLichessStatus({ loading: false, valid: null });
+      }
+      return;
+    }
+
+    if (lichessConnectedViaOAuth && lichessStatus.data?.username?.toLowerCase() === rawUser.toLowerCase()) {
       return;
     }
 
@@ -125,7 +173,6 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
           setLichessStatus({ loading: false, valid: false, error: 'Usuario no encontrado en Lichess' });
         }
       } catch (err) {
-        // Fallback a API backend
         try {
           const bRes = await fetch(`${API_URL}/api/ajedrez/lichess/user/${encodeURIComponent(rawUser)}`);
           if (bRes.ok) {
@@ -141,13 +188,39 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [form.usuario_lichess]);
+  }, [form.usuario_lichess, lichessConnectedViaOAuth]);
+
+  const handleConectarLichess = async () => {
+    setLichessOAuthLoading(true);
+    setError('');
+    try {
+      const redirectUri = `${window.location.origin}/auth/lichess/callback`;
+      sessionStorage.setItem('lichess_oauth_return_url', window.location.href);
+      const { authUrl } = await createLichessAuthUrl(redirectUri, 'micancha');
+
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      window.open(authUrl, 'lichess_oauth', `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`);
+    } catch (err: any) {
+      setError('No se pudo iniciar la conexión con Lichess: ' + err.message);
+    } finally {
+      setLichessOAuthLoading(false);
+    }
+  };
+
+  const handleDesconectarLichess = () => {
+    setLichessConnectedViaOAuth(false);
+    setForm(prev => ({ ...prev, usuario_lichess: '' }));
+    setLichessStatus({ loading: false, valid: null });
+  };
 
   const totalSteps = torneo?.competicion_por_atleta === false && (torneo?.categorias?.length ?? 0) > 1 ? 2 : 1;
 
   const handleSubmit = async () => {
     if (isAjedrez && !form.usuario_lichess.trim()) {
-      setError('Por favor ingresa tu cuenta de usuario de Lichess para sincronizar tus partidas.');
+      setError('Por favor ingresa o conecta tu cuenta de usuario de Lichess para sincronizar tus partidas.');
       return;
     }
     if (isAjedrez && lichessStatus.valid === false) {
@@ -380,7 +453,7 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
               <div className="p-8 md:p-10">
                 <h2 className="text-2xl font-black text-slate-900 mb-1">Formulario de Inscripción</h2>
                 <p className="text-slate-500 mb-8 text-sm">
-                  {step === 1 ? (isAjedrez ? 'Completa tus datos personales y tu cuenta de Lichess.' : 'Completa los datos de tu equipo o academia.') : 'Elige la categoría en la que competirá tu equipo.'}
+                  {step === 1 ? (isAjedrez ? 'Completa tus datos personales y vincula tu cuenta de Lichess.' : 'Completa los datos de tu equipo o academia.') : 'Elige la categoría en la que competirá tu equipo.'}
                 </p>
 
                 {error && (
@@ -416,26 +489,89 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                       </div>
                     </div>
 
-                    {/* Campo especial para Ajedrez: Usuario de Lichess */}
+                    {/* Campo especial para Ajedrez: Usuario de Lichess & OAuth2 */}
                     {isAjedrez && (
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-400/40">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-400/40 space-y-4">
+                        <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
                             <span>♟️</span> Cuenta de Lichess (@usuario) *
                           </label>
-                          {lichessStatus.loading && (
-                            <span className="text-xs text-amber-600 flex items-center gap-1 font-medium">
-                              <Loader2 size={12} className="animate-spin" /> Verificando Lichess...
-                            </span>
-                          )}
-                          {!lichessStatus.loading && lichessStatus.valid === true && (
-                            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                              <CheckCircle size={12} /> Cuenta verificada en Lichess
-                            </span>
-                          )}
+                          <a
+                            href="https://lichess.org/signup"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-blue-600 hover:underline font-bold flex items-center gap-1"
+                          >
+                            ¿No tenés cuenta? Creala gratis en Lichess <ExternalLink size={10} />
+                          </a>
                         </div>
 
-                        <div className="relative">
+                        {/* Botón de Conexión Rápida con Lichess OAuth2 */}
+                        {!lichessConnectedViaOAuth ? (
+                          <div className="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+                            <div className="text-left">
+                              <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <Zap size={14} className="text-amber-400" /> Autenticación Rápida
+                              </p>
+                              <p className="text-[11px] text-slate-400">
+                                Inicia sesión con Lichess para autocompletar tu usuario y rating oficial en 1 clic.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleConectarLichess}
+                              disabled={lichessOAuthLoading}
+                              className="w-full sm:w-auto px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+                            >
+                              {lichessOAuthLoading ? (
+                                <>
+                                  <Loader2 size={14} className="animate-spin" /> Conectando...
+                                </>
+                              ) : (
+                                <>
+                                  <span>♟️</span> Conectar con Lichess
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          /* Estado Conectado Vía OAuth */
+                          <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs">
+                              <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+                              <div>
+                                <span className="font-bold text-emerald-950">Conectado con cuenta Lichess: </span>
+                                <span className="font-mono text-emerald-800 font-bold">@{form.usuario_lichess}</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleDesconectarLichess}
+                              className="text-[11px] text-red-600 hover:text-red-700 font-bold flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-red-200"
+                            >
+                              <LogOut size={12} /> Desconectar
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Input manual alternativo */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[11px] text-slate-600 font-medium">
+                              O ingresa tu usuario manualmente:
+                            </span>
+                            {lichessStatus.loading && (
+                              <span className="text-xs text-amber-600 flex items-center gap-1 font-medium">
+                                <Loader2 size={12} className="animate-spin" /> Verificando...
+                              </span>
+                            )}
+                            {!lichessStatus.loading && lichessStatus.valid === true && (
+                              <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                <CheckCircle size={12} /> Verificado
+                              </span>
+                            )}
+                          </div>
+
                           <input
                             required
                             type="text"
@@ -454,7 +590,7 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
 
                         {/* Detalles del perfil verificado de Lichess */}
                         {lichessStatus.valid === true && lichessStatus.data && (
-                          <div className="mt-3 flex items-center gap-3 bg-white p-3 rounded-xl border border-emerald-200 text-xs shadow-sm">
+                          <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-emerald-200 text-xs shadow-sm">
                             <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-800 flex-shrink-0">
                               ♟️
                             </div>
@@ -493,14 +629,10 @@ export default function InscripcionPage({ params }: { params: { id: string } }) 
                         )}
 
                         {lichessStatus.valid === false && (
-                          <p className="text-xs text-red-600 mt-2 font-medium">
+                          <p className="text-xs text-red-600 font-medium">
                             ⚠️ {lichessStatus.error || 'No se encontró la cuenta en lichess.org. Verificá que esté bien escrita.'}
                           </p>
                         )}
-
-                        <p className="text-[11px] text-slate-500 mt-2">
-                          💡 Tu cuenta de Lichess es necesaria para registrar tus partidas, transmitir tableros en vivo y computar tus puntos en el torneo.
-                        </p>
                       </div>
                     )}
 

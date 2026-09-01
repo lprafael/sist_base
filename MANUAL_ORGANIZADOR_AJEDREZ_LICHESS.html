@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guía del Organizador — Torneos de Ajedrez & Sincronización Lichess | MiCancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f293d;
+      --amber: #f59e0b;
+      --amber-light: #fef3c7;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.15);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --purple: #8b5cf6;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-faint: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Hero Header */
+    header {
+      background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #090d16 80%);
+      padding: 60px 0 40px;
+      border-bottom: 1px solid var(--card-border);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--amber), var(--blue), transparent);
+    }
+
+    .badge-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #ffffff;
+      margin-bottom: 12px;
+      line-height: 1.15;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* Quick TOC */
+    .toc {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 24px;
+      margin: 36px 0;
+    }
+
+    .toc-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--amber);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .toc-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      transition: all 0.2s ease;
+    }
+
+    .toc-item:hover {
+      background: rgba(245, 158, 11, 0.08);
+      color: #fff;
+      transform: translateX(4px);
+    }
+
+    .toc-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--card-border);
+      color: var(--amber);
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Section Cards */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--blue);
+    }
+
+    .section-card.amber::before { background: var(--amber); }
+    .section-card.emerald::before { background: var(--emerald); }
+    .section-card.purple::before { background: var(--purple); }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .section-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .step-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--amber);
+      color: #000;
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-content h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    /* Checklist Box */
+    .checklist-box {
+      background: rgba(16, 185, 129, 0.06);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 14px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .checklist-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--emerald);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .check-box-icon {
+      color: var(--emerald);
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #fbbf24;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .alert-info {
+      background: var(--blue-glow);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+    }
+
+    .alert-warning {
+      background: var(--amber-glow);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fde68a;
+    }
+
+    /* Preset Badges */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .preset-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .preset-card .title {
+      font-weight: 700;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .preset-card .desc {
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    /* FAQ */
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .faq-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+
+    .faq-q {
+      font-weight: 700;
+      color: #fff;
+      font-size: 14.5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .faq-a {
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+
+    /* Print & Responsive */
+    @media print {
+      body { background: #fff; color: #111; }
+      .section-card { background: #fff; border: 1px solid #ddd; color: #111; page-break-inside: avoid; }
+      .step-item, .toc, .checklist-box, .faq-item { background: #f9f9f9; color: #111; border-color: #ddd; }
+      header { background: #fff; color: #111; border-bottom: 2px solid #ddd; }
+      h1, h2, h3, .step-content h3, .faq-q { color: #111 !important; }
+      code { background: #eee; color: #111; border-color: #ccc; }
+      .badge-hero { border: 1px solid #111; color: #111; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <div class="badge-hero">♟️ Manual Oficial de Operaciones</div>
+      <h1>Torneos de Ajedrez & <span>Sincronización Lichess</span></h1>
+      <p class="subtitle">Guía integral paso a paso para organizadores: creación automática de torneos, validación de cuentas de jugadores y seguimiento en tiempo real en MiCancha.</p>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Tabla de Contenido -->
+    <nav class="toc">
+      <div class="toc-title">📌 Contenido de la Guía</div>
+      <div class="toc-grid">
+        <a href="#fase-1" class="toc-item"><span class="toc-num">1</span> Preparación en Lichess (Club y Token)</a>
+        <a href="#fase-2" class="toc-item"><span class="toc-num">2</span> Crear el Torneo en MiCancha</a>
+        <a href="#fase-3" class="toc-item"><span class="toc-num">3</span> Crear Torneo Automático en Lichess</a>
+        <a href="#fase-4" class="toc-item"><span class="toc-num">4</span> Inscripción y Validación de Jugadores</a>
+        <a href="#fase-5" class="toc-item"><span class="toc-num">5</span> Desarrollo y Sincronización en Vivo</a>
+        <a href="#fase-6" class="toc-item"><span class="toc-num">6</span> Cierre, Desempates y Premiación</a>
+        <a href="#faq" class="toc-item"><span class="toc-num">7</span> Preguntas Frecuentes & Consejos</a>
+      </div>
+    </nav>
+
+    <!-- FASE 1 -->
+    <section id="fase-1" class="section-card amber">
+      <div class="section-header">
+        <div class="section-icon">🔑</div>
+        <div>
+          <h2>Fase 1: Preparación Inicial en Lichess (Solo 1 vez)</h2>
+          <p class="subtitle" style="font-size: 13px;">Configuración previa de tu cuenta de organizador en Lichess.org.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Crear tu Club/Equipo en Lichess (Para Torneos Suizos)</h3>
+            <p>Lichess exige que los torneos formato Suizo pertenezcan a un Club o Equipo para garantizar partidas oficiales y evitar spam.</p>
+            <p style="margin-top: 6px;">1. Ingresá a tu cuenta en Lichess y andá a <strong>Comunidad ➔ Equipos ➔ Nuevo Equipo</strong>.</p>
+            <p>2. Completá el nombre (ej: <code>Club de Ajedrez Asunción</code>) y crealo.</p>
+            <p>3. <strong>Guardá tu Team ID:</strong> Es la última parte del enlace de tu equipo (ej: en <code>https://lichess.org/team/club-ajedrez-asuncion</code>, el ID es <code>club-ajedrez-asuncion</code>).</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Generar el Token de API de Lichess</h3>
+            <p>Ingresá a <a href="https://lichess.org/account/oauth/token" target="_blank" style="color: var(--amber); text-decoration: underline;">lichess.org/account/oauth/token</a> para generar tu llave de acceso para MiCancha.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="checklist-box">
+        <div class="checklist-title">✓ Permisos Exactos que debés marcar al crear el Token:</div>
+        <div class="check-grid">
+          <div class="check-item"><span class="check-box-icon">☑</span> <strong>PLAY GAMES:</strong> <code>tournament:write</code> (Crear torneos)</div>
+          <div class="check-item"><span class="check-box-icon">☑</span> <strong>PLAY GAMES:</strong> <code>challenge:write</code> (Desafíos 1 a 1)</div>
+          <div class="check-item"><span class="check-box-icon">☑</span> <strong>PLAY GAMES:</strong> <code>challenge:bulk</code> (Desafíos masivos)</div>
+          <div class="check-item"><span class="check-box-icon">☑</span> <strong>TEAMS:</strong> <code>team:lead</code> (Administrar torneos de club)</div>
+          <div class="check-item"><span class="check-box-icon">☑</span> <strong>TEAMS:</strong> <code>team:read</code> (Consultar datos del equipo)</div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning">
+        <span>⚠️</span>
+        <div>
+          <strong>Atención:</strong> Dejá desmarcadas las opciones de <em>EXTERNAL PLAY</em> (como <code>bot:play</code>). Al presionar <strong>CREAR</strong>, copiá inmediatamente el código generado (que empieza con <code>lip_...</code>), ya que Lichess solo te lo mostrará una vez.
+        </div>
+      </div>
+    </section>
+
+    <!-- FASE 2 -->
+    <section id="fase-2" class="section-card blue">
+      <div class="section-header">
+        <div class="section-icon">🏆</div>
+        <div>
+          <h2>Fase 2: Crear el Torneo en MiCancha</h2>
+          <p class="subtitle" style="font-size: 13px;">Definición del torneo, reglamento y pasarela de cobro.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Registrar Nuevo Torneo</h3>
+            <p>Ingresá al panel de administración de MiCancha (<code>/admin-torneo</code>) y hacé clic en <strong>"Nuevo Torneo"</strong>.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Seleccionar Deporte y Modalidad</h3>
+            <p>Elegí el deporte <strong>Ajedrez</strong>. Esto activará de inmediato las reglas de desempate Suizo (Buchholz, Sonneborn-Berger) y la validación de cuentas de Lichess.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Establecer Cobros e Inscripciones</h3>
+            <p>Configurá el costo de inscripción (o gratuito) y los medios de pago (Transferencia Bancaria, Billetera Tigo, QR o Efectivo).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FASE 3 -->
+    <section id="fase-3" class="section-card emerald">
+      <div class="section-header">
+        <div class="section-icon">⚡</div>
+        <div>
+          <h2>Fase 3: Creación Automática del Torneo en Lichess</h2>
+          <p class="subtitle" style="font-size: 13px;">Generación de la sala de juego en 1 clic desde MiCancha.</p>
+        </div>
+      </div>
+
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        En el panel del torneo en MiCancha, hacé clic en <strong>"♟️ Ajedrez: Importar / Crear Torneo Lichess"</strong> y seleccioná la pestaña <strong>"⚡ Crear Automático en Lichess"</strong>:
+      </p>
+
+      <div class="preset-grid">
+        <div class="preset-card"><div class="title">⚡ Bullet 1+0</div><div class="desc">1 min sin inc.</div></div>
+        <div class="preset-card"><div class="title">🔥 Blitz 3+2</div><div class="desc">3 min + 2s inc.</div></div>
+        <div class="preset-card" style="border-color: var(--amber);"><div class="title" style="color: var(--amber);">⏱️ Blitz 5+3</div><div class="desc">5 min + 3s (Recomendado)</div></div>
+        <div class="preset-card"><div class="title">⏳ Rápido 10+0</div><div class="desc">10 min sin inc.</div></div>
+        <div class="preset-card"><div class="title">🏆 Clásico FIDE</div><div class="desc">15 min + 10s inc.</div></div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Elegir Formato</h3>
+            <p><strong>Torneo Suizo (Swiss):</strong> Ideal para competencia formal. Elegís la cantidad de rondas (ej: 5 o 7 rondas).</p>
+            <p><strong>Torneo Arena:</strong> Ideal para festivales rápidos. Las partidas se juegan continuamente durante un tiempo límite (ej: 60 min).</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Pegar Credenciales</h3>
+            <p>Pegá tu <strong>Token de Lichess</strong> (<code>lip_...</code>) y el <strong>Team ID</strong> de tu club.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Presionar "Crear Torneo en Lichess y Vincular"</h3>
+            <p>MiCancha se comunicará con la API de Lichess, creará la sala de juego oficial, vinculará el ID y activará el <strong>Auto-Sync</strong> en tiempo real.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FASE 4 -->
+    <section id="fase-4" class="section-card purple">
+      <div class="section-header">
+        <div class="section-icon">👥</div>
+        <div>
+          <h2>Fase 4: Inscripción y Validación de Jugadores</h2>
+          <p class="subtitle" style="font-size: 13px;">Captura de datos y comprobación automática de cuentas de Lichess.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Compartir Enlace Público</h3>
+            <p>Enviá a los participantes el enlace de inscripción: <code>/torneos-generales/[id]/inscripcion</code>.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Validación en Tiempo Real de la Cuenta</h3>
+            <p>El jugador ingresa su <strong>Cuenta de Lichess (@usuario)</strong>. MiCancha consulta instantáneamente a Lichess:</p>
+            <p style="margin-top: 4px;">• <strong>Si existe:</strong> Muestra un badge verde con su <strong>Rating Blitz, Rápido y Clásico</strong> y título oficial (GM, IM, FM, CM).</p>
+            <p>• <strong>Si está mal escrito:</strong> Muestra una alerta roja impidiendo el registro erróneo.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Acceso Inmediato a la Sala de Juego</h3>
+            <p>Al confirmar el pago y la inscripción, la pantalla de éxito le muestra el botón destacado <strong>"♟️ Abrir y Unirse en Lichess"</strong> para sumarse al torneo con 1 solo clic.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FASE 5 -->
+    <section id="fase-5" class="section-card amber">
+      <div class="section-header">
+        <div class="section-icon">📡</div>
+        <div>
+          <h2>Fase 5: Desarrollo y Sincronización en Vivo</h2>
+          <p class="subtitle" style="font-size: 13px;">Sin carga manual de resultados ni planillas físicas.</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Los Jugadores Juegan en Lichess</h3>
+            <p>Cada jugador mueve sus piezas desde su computadora, tablet o celular en la plataforma de Lichess.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Worker Automático en Segundo Plano</h3>
+            <p>El worker de MiCancha sondea Lichess cada 2 minutos. Al concluir cada partida, descarga el resultado (<code>1-0</code>, <code>0-1</code>, <code>½-½</code>) y el historial de jugadas en PGN.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Visor en Vivo y Auditoría Antitrampa</h3>
+            <p>Desde el panel de MiCancha podés ver los tableros en vivo, reproducir las jugadas y auditar desviaciones estadísticas de tiempos para prevenir uso de módulos ilegales.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FASE 6 -->
+    <section id="fase-6" class="section-card emerald">
+      <div class="section-header">
+        <div class="section-icon">🥇</div>
+        <div>
+          <h2>Fase 6: Cierre, Desempates y Premiación</h2>
+          <p class="subtitle" style="font-size: 13px;">Cálculo oficial de posiciones y podio final.</p>
+        </div>
+      </div>
+
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        Al finalizar la última ronda, MiCancha procesa el cierre automático:
+      </p>
+
+      <div class="checklist-box">
+        <div class="checklist-title">📊 Sistemas de Desempate Computados Automáticamente:</div>
+        <div class="check-grid">
+          <div class="check-item"><span class="check-box-icon">✓</span> <strong>Buchholz Cut-1:</strong> Suma de rivales descartando el peor.</div>
+          <div class="check-item"><span class="check-box-icon">✓</span> <strong>Buchholz Total:</strong> Suma total de puntuación de rivales.</div>
+          <div class="check-item"><span class="check-box-icon">✓</span> <strong>Sonneborn-Berger:</strong> Puntos sumados según rivales vencidos o empatados.</div>
+          <div class="check-item"><span class="check-box-icon">✓</span> <strong>Cantidad de Victorias:</strong> Mayor número de partidas ganadas.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="section-card">
+      <div class="section-header">
+        <div class="section-icon">❓</div>
+        <div>
+          <h2>Preguntas Frecuentes (FAQ)</h2>
+          <p class="subtitle" style="font-size: 13px;">Dudas habituales y buenas prácticas.</p>
+        </div>
+      </div>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <div class="faq-q"><span>💬</span> ¿Los participantes tienen que pagar por su cuenta de Lichess?</div>
+          <div class="faq-a">No. Lichess es un proyecto libre y 100% gratuito. Los jugadores solo necesitan tener un usuario registrado para mover sus piezas.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q"><span>💬</span> ¿Qué ocurre si un jugador no tiene cuenta de Lichess al inscribirse?</div>
+          <div class="faq-a">Puede crearla en menos de 1 minuto en <code>lichess.org/signup</code> y luego ingresar su usuario en el formulario de MiCancha.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q"><span>💬</span> ¿Puedo sincronizar un torneo creado directamente en Lichess?</div>
+          <div class="faq-a">Sí. En el modal de MiCancha, seleccioná la pestaña <strong>"📥 Vincular Torneo Existente"</strong>, pegá el enlace del torneo y presioná <em>Analizar ➔ Iniciar Importación</em>.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q"><span>💬</span> ¿Puedo generar partidas individuales 1 a 1 fuera de un torneo suizo?</div>
+          <div class="faq-a">Sí. En cualquier tablero de MiCancha tenés el botón <strong>"Crear Lichess"</strong> para generar un enlace directo de partida con 1 clic.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>
