@@ -108,7 +108,8 @@ function FighterRow({
   const hasYuko = (stats?.yuko ?? 0) > 0;
   const hasWazaAri = (stats?.waza_ari ?? 0) > 0;
   const hasIppon = (stats?.ippon ?? 0) > 0;
-  const isWkf = stats?.yuko !== undefined || stats?.waza_ari !== undefined || stats?.ippon !== undefined || stats?.tipo_reglamento === 'WKF';
+  const isBasketball = stats?.tipo_deporte === 'Baloncesto' || stats?.reglamento === 'FIBA' || stats?.reglamento === 'NBA' || stats?.reglamento === '3x3' || stats?.dobles !== undefined || stats?.triples !== undefined;
+  const isWkf = !isBasketball && (stats?.yuko !== undefined || stats?.waza_ari !== undefined || stats?.ippon !== undefined || stats?.tipo_reglamento === 'WKF');
 
   return (
     <div style={{
@@ -148,13 +149,31 @@ function FighterRow({
                 SENSHU
               </span>
             )}
+            {isBasketball && stats?.en_bonus && (
+              <span style={{
+                fontSize: 9, fontWeight: 900, background: 'rgba(239,68,68,0.3)',
+                color: '#f87171', border: '1px solid rgba(239,68,68,0.7)',
+                borderRadius: 6, padding: '1px 5px', textTransform: 'uppercase'
+              }}>
+                BONUS
+              </span>
+            )}
           </div>
           {isWinner && (
             <div style={{ fontSize: 10, color: accentColor, fontWeight: 700, marginTop: 2, letterSpacing: '0.08em' }}>
               ★ GANADOR
             </div>
           )}
-          {isWkf ? (
+          {isBasketball ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}>
+              <span style={{ color: '#06b6d4' }}>3P:{stats.triples ?? 0}</span>
+              <span style={{ color: '#f59e0b' }}>2P:{stats.dobles ?? 0}</span>
+              <span style={{ color: '#10b981' }}>TL:{stats.tiros_libres ?? 0}</span>
+              <span style={{ color: stats.faltas_periodo >= 5 ? '#f43f5e' : '#94a3b8' }}>
+                Faltas:{stats.faltas_periodo ?? stats.faltas_totales ?? 0}
+              </span>
+            </div>
+          ) : isWkf ? (
             <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}>
               {hasYuko && <span style={{ color: '#ef4444' }}>Y:{stats.yuko}</span>}
               {hasWazaAri && <span style={{ color: '#f59e0b' }}>W:{stats.waza_ari}</span>}

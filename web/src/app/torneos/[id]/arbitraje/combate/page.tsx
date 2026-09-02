@@ -173,6 +173,12 @@ export default function ArbitrajeCombate({ params }: { params: { id: string } })
             >
               Reglamento ASAM (MMA)
             </button>
+            <button
+              onClick={() => router.push(`/torneos/${params.id}/arbitraje/baloncesto`)}
+              className="px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider transition bg-slate-800 text-amber-400 hover:bg-slate-700 border border-amber-500/30 flex items-center gap-1"
+            >
+              <span>🏀</span> Baloncesto (FIBA/NBA)
+            </button>
           </div>
 
           <div className="text-5xl font-black font-mono tracking-widest text-slate-100 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">

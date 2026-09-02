@@ -3,6 +3,7 @@ import FootballController from './FootballController';
 import MMAController from './MMAController';
 import KarateWKFController from './KarateWKFController';
 import KataWKFController from './KataWKFController';
+import BasketballController from './BasketballController';
 
 export default function MatchController({
   match,
@@ -27,6 +28,14 @@ export default function MatchController({
       return <KataWKFController match={match} onClose={onClose} onSaved={onSaved || (() => {})} />;
     }
     return <KarateWKFController match={match} onClose={onClose} onSaved={onSaved} />;
+  }
+
+  const isBasketball = deporte === 'Baloncesto' || deporte === 'Básquetbol' || deporte === 'Básquet' || deporte === 'Basketball' ||
+    (match.fase || '').toLowerCase().includes('baloncesto') || (match.fase || '').toLowerCase().includes('basket') ||
+    (match.deporte || '').toLowerCase().includes('baloncesto') || (match.deporte || '').toLowerCase().includes('basket');
+
+  if (isBasketball) {
+    return <BasketballController match={match} onClose={onClose} onSaved={onSaved} />;
   }
 
   if (deporte === 'Artes Marciales Mixtas' || deporte === 'MMA') {

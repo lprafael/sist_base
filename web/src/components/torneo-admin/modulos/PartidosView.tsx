@@ -17,6 +17,8 @@ import ActaModal from './ActaModal';
 import GenerarPartidosModal from './GenerarPartidosModal';
 import MesaCentralWKFView from './MesaCentralWKFView';
 import ActaCombateWKFModal from './ActaCombateWKFModal';
+import BasketballController from './BasketballController';
+import ActaBaloncestoModal from './ActaBaloncestoModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -51,6 +53,7 @@ export default function PartidosView({
   const [artDuJeuMatch, setArtDuJeuMatch] = useState<any>(null);
   const [actaMatch, setActaMatch] = useState<any>(null);
   const [actaWkfMatch, setActaWkfMatch] = useState<any>(null);
+  const [actaBasketMatch, setActaBasketMatch] = useState<any>(null);
   const [showMesaCentral, setShowMesaCentral] = useState(false);
   const [showGenerarModal, setShowGenerarModal] = useState(false);
 
@@ -471,7 +474,19 @@ export default function PartidosView({
                             <ImageIcon size={14} className="text-indigo-400" /> Arte de juego
                           </button>
                           <button
-                            onClick={() => { setActaMatch(p); setMenuOpenId(null); setShareSubmenuId(null); }}
+                            onClick={() => {
+                              const isKarate = deporte === 'Karate' || torneo?.deporte === 'Karate' || (p.fase || '').toLowerCase().includes('karate');
+                              const isBasket = deporte === 'Baloncesto' || torneo?.deporte === 'Baloncesto' || (deporte || '').toLowerCase().includes('basket') || (torneo?.deporte || '').toLowerCase().includes('basket') || (p.fase || '').toLowerCase().includes('basket') || (p.fase || '').toLowerCase().includes('baloncesto');
+                              if (isKarate) {
+                                setActaWkfMatch(p);
+                              } else if (isBasket) {
+                                setActaBasketMatch(p);
+                              } else {
+                                setActaMatch(p);
+                              }
+                              setMenuOpenId(null);
+                              setShareSubmenuId(null);
+                            }}
                             className="w-full text-left py-2.5 px-3 flex items-center gap-2.5 hover:bg-indigo-900/80 text-white transition"
                           >
                             <FileText size={14} className="text-indigo-400" /> Acta
@@ -582,6 +597,15 @@ export default function PartidosView({
         />
       )}
 
+      {/* Acta Oficial Baloncesto Modal */}
+      {actaBasketMatch && (
+        <ActaBaloncestoModal
+          match={actaBasketMatch}
+          torneo={torneo}
+          onClose={() => setActaBasketMatch(null)}
+        />
+      )}
+
       {/* Mesa Central (Jefe de Árbitros & Multi-Tatami) Modal */}
       {showMesaCentral && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] flex flex-col p-4 md:p-6 overflow-y-auto animate-fadeIn">
@@ -628,6 +652,25 @@ export default function PartidosView({
           }
           return (
             <KarateWKFController
+              match={activeMatch}
+              onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+              onUpdate={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}
+            />
+          );
+        }
+
+        const isBasketballSport = deporte === 'Baloncesto' || torneo?.deporte === 'Baloncesto' ||
+          deporte === 'Básquetbol' || torneo?.deporte === 'Básquetbol' ||
+          deporte === 'Básquet' || torneo?.deporte === 'Básquet' ||
+          deporte === 'Basketball' || torneo?.deporte === 'Basketball' ||
+          (deporte || '').toLowerCase().includes('baloncesto') || (torneo?.deporte || '').toLowerCase().includes('baloncesto') ||
+          (deporte || '').toLowerCase().includes('basket') || (torneo?.deporte || '').toLowerCase().includes('basket') ||
+          (activeMatch.fase || '').toLowerCase().includes('baloncesto') || (activeMatch.fase || '').toLowerCase().includes('basket');
+
+        if (isBasketballSport) {
+          return (
+            <BasketballController
               match={activeMatch}
               onClose={() => { setActiveMatch(null); if (onRefresh) onRefresh(); else fetchPartidos(true); }}
               onSaved={() => { if (onRefresh) onRefresh(); else fetchPartidos(true); }}

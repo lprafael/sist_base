@@ -232,6 +232,9 @@ app.include_router(pkf_scoring_router)
 from routers.wkf_scoring import router as wkf_scoring_router
 app.include_router(wkf_scoring_router)
 
+from routers.basketball_scoring import router as basketball_scoring_router
+app.include_router(basketball_scoring_router)
+
 from routers.sorteos import router as sorteos_router
 app.include_router(sorteos_router)
 
