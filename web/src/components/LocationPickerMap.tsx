@@ -18,6 +18,7 @@ interface LocationPickerProps {
   defaultLocation?: { lat: number; lng: number };
   onLocationSelect?: (loc: { lat: number; lng: number }, addressName?: string) => void;
   readOnly?: boolean;
+  hideSearchOverlay?: boolean;
 }
 
 function LocationMarker({ onSelect, currentLoc, readOnly }: { onSelect?: (l: any) => void, currentLoc?: {lat: number, lng: number}, readOnly?: boolean }) {
@@ -51,7 +52,7 @@ function MapController({ center }: { center: {lat: number, lng: number} | null }
   return null;
 }
 
-export default function LocationPickerMap({ defaultLocation, onLocationSelect, readOnly = false }: LocationPickerProps) {
+export default function LocationPickerMap({ defaultLocation, onLocationSelect, readOnly = false, hideSearchOverlay = false }: LocationPickerProps) {
   const [isClient, setIsClient] = useState(false);
   const initialPos: [number, number] = defaultLocation ? [defaultLocation.lat, defaultLocation.lng] : [-25.2867, -57.6470]; // Asunción
   
@@ -96,7 +97,7 @@ export default function LocationPickerMap({ defaultLocation, onLocationSelect, r
   return (
     <div style={{ position: 'relative', height: '100%', width: '100%' }}>
       {/* Search overlay */}
-      {!readOnly && (
+      {!readOnly && !hideSearchOverlay && (
         <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, width: '90%', maxWidth: 400 }}>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, background: 'white', padding: '6px', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
             <input 
@@ -145,8 +146,8 @@ export default function LocationPickerMap({ defaultLocation, onLocationSelect, r
         <LayersControl position="topright">
           <LayersControl.BaseLayer checked name="Mapa (Plano)">
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="Satélite">

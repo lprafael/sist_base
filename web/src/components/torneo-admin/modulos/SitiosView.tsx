@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Save, Loader2, Check, X, ArrowLeft, Plus, Minus, Trophy, User, PlusCircle, MinusCircle, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapPin, Save, Loader2, Check, X, ArrowLeft, Plus, Minus, Trophy, User, PlusCircle, MinusCircle, Trash2, Search, Navigation } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const LocationPickerMap = dynamic(() => import('../../LocationPickerMap'), { ssr: false, loading: () => <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center text-slate-400"><Loader2 className="animate-spin mb-2" /><p className="text-sm">Cargando mapa interactivo...</p></div> });
@@ -39,6 +39,12 @@ export default function SitiosView({
   // New site form state
   const [nuevoSitio, setNuevoSitio] = useState<Partial<Sitio>>({ nombre: '', ciudad: '', ubicacionGmaps: '' });
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
+
+  // Autocompletado de lugares estilo Google Maps
+  const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isTournamentMode = Boolean(torneo && onUpdate);
 
@@ -137,6 +143,104 @@ export default function SitiosView({
     }
   };
 
+  const handleNombreChange = (val: string) => {
+    setNuevoSitio(prev => ({ ...prev, nombre: val }));
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!val || val.trim().length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      setIsSearchingPlaces(false);
+      return;
+    }
+
+    setIsSearchingPlaces(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const query = val.trim();
+        const results: any[] = [];
+
+        // 1. Coincidencias locales de la cuenta / campeonato
+        const localMatches = [...sitiosCuenta, ...sitiosCampeonato].filter(s => 
+          s.nombre.toLowerCase().includes(query.toLowerCase()) ||
+          (s.ciudad && s.ciudad.toLowerCase().includes(query.toLowerCase()))
+        );
+
+        localMatches.slice(0, 3).forEach(s => {
+          results.push({
+            title: s.nombre,
+            subtitle: s.ciudad ? `${s.ciudad} · Registrado en tu cuenta` : 'Local registrado',
+            city: s.ciudad || '',
+            lat: s.latitud,
+            lng: s.longitud,
+            isLocal: true
+          });
+        });
+
+        // 2. Búsqueda con geocodificación OSM Nominatim en Paraguay
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=py&limit=5&q=${encodeURIComponent(query)}`,
+          {
+            headers: {
+              'Accept-Language': 'es',
+            }
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          data.forEach((d: any) => {
+            const addr = d.address || {};
+            const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+            const road = addr.road || addr.suburb || addr.neighbourhood || '';
+            const parts = [road, city].filter(Boolean);
+            const subtitle = parts.length > 0 ? parts.join(', ') : d.display_name;
+
+            // Extraer título conciso
+            const cleanTitle = d.name || d.display_name.split(',')[0];
+
+            if (!results.some(r => r.title.toLowerCase() === cleanTitle.toLowerCase())) {
+              results.push({
+                title: cleanTitle,
+                subtitle: subtitle,
+                city: city,
+                lat: parseFloat(d.lat),
+                lng: parseFloat(d.lon),
+                isLocal: false
+              });
+            }
+          });
+        }
+
+        setSearchSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch (err) {
+        console.error("Error buscando sugerencias de lugares:", err);
+      } finally {
+        setIsSearchingPlaces(false);
+      }
+    }, 350);
+  };
+
+  const handleSelectSuggestion = (item: any) => {
+    setNuevoSitio(prev => ({
+      ...prev,
+      nombre: item.title,
+      ciudad: item.city || prev.ciudad,
+      ubicacionGmaps: (item.lat && item.lng) ? `https://www.google.com/maps?q=${item.lat},${item.lng}` : prev.ubicacionGmaps
+    }));
+
+    if (item.lat && item.lng) {
+      setLocationCoords({ lat: item.lat, lng: item.lng });
+    }
+
+    setShowSuggestions(false);
+    setSearchSuggestions([]);
+  };
+
   const handleCreateSite = () => {
     if (!nuevoSitio.nombre) return alert('El nombre del complejo es requerido');
     
@@ -155,6 +259,8 @@ export default function SitiosView({
     // Reset form
     setNuevoSitio({ nombre: '', ciudad: '', ubicacionGmaps: '' });
     setLocationCoords(null);
+    setSearchSuggestions([]);
+    setShowSuggestions(false);
     setShowCreateModal(false);
   };
 
@@ -362,15 +468,71 @@ export default function SitiosView({
                     <strong>Ubica tu local en el mapa:</strong> Si no lo encuentras por su nombre, puedes mover el mapa y colocar el marcador exactamente donde se encuentra.
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre del Complejo o Dirección *</label>
-                    <input 
-                      type="text" 
-                      value={nuevoSitio.nombre}
-                      onChange={e => setNuevoSitio({...nuevoSitio, nombre: e.target.value})}
-                      className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
-                      placeholder="Ej. Complejo Los Arrayanes"
-                    />
+                  <div className="relative">
+                    <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Nombre del Complejo o Dirección *</span>
+                      {isSearchingPlaces && (
+                        <span className="flex items-center gap-1 text-xs text-blue-600 font-normal">
+                          <Loader2 size={12} className="animate-spin" /> Buscando lugares...
+                        </span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={nuevoSitio.nombre}
+                        onChange={e => handleNombreChange(e.target.value)}
+                        onFocus={() => { if (searchSuggestions.length > 0) setShowSuggestions(true); }}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        className="w-full border border-slate-300 rounded-lg p-3 pl-10 pr-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                        placeholder="Ej. Complejo Los Arrayanes, Club Olimpia..."
+                      />
+                      <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      {nuevoSitio.nombre && (
+                        <button 
+                          type="button" 
+                          onClick={() => { 
+                            setNuevoSitio(prev => ({ ...prev, nombre: '' })); 
+                            setSearchSuggestions([]); 
+                            setShowSuggestions(false); 
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full transition"
+                          title="Limpiar"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Menú flotante de sugerencias estilo Google Maps */}
+                    {showSuggestions && searchSuggestions.length > 0 && (
+                      <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100">
+                        {searchSuggestions.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onMouseDown={() => handleSelectSuggestion(item)}
+                            className="p-3 hover:bg-blue-50/80 cursor-pointer flex items-start gap-3 transition text-left"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <MapPin size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-bold text-slate-800 flex items-center justify-between">
+                                <span className="truncate">{item.title}</span>
+                                {item.isLocal && (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold uppercase ml-2 flex-shrink-0">
+                                    Guardado
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500 truncate mt-0.5">
+                                {item.subtitle}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Ciudad</label>
@@ -407,6 +569,7 @@ export default function SitiosView({
                     defaultLocation={locationCoords || undefined}
                     onLocationSelect={(loc) => setLocationCoords(loc)}
                     readOnly={false}
+                    hideSearchOverlay={true}
                   />
                 </div>
 
