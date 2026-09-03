@@ -271,28 +271,23 @@ export default function HomePage() {
               ))}
             </div>
             {totalPages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '40px', flexWrap: 'wrap' }}>
+              <div className="pagination-container">
                 <button 
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className={`btn btn-sm ${currentPage === 1 ? 'btn-outline' : 'btn-primary'}`}
+                  className={`btn btn-sm pagination-btn-extreme ${currentPage === 1 ? 'btn-outline' : 'btn-primary'}`}
                 >
                   Primero
                 </button>
                 <button 
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className={`btn btn-sm ${currentPage === 1 ? 'btn-outline' : 'btn-primary'}`}
+                  className={`btn btn-sm pagination-btn-nav ${currentPage === 1 ? 'btn-outline' : 'btn-primary'}`}
                 >
                   Anterior
                 </button>
-                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                   {[...Array(Math.min(3, totalPages))].map((_, i) => {
-                    // Logic to show 1, 2, 3, or the current page window
-                    // To keep it simple and match the request: 1 2 3 ... N
-                    // But if currentPage is > 3, we probably want to show it.
-                    // Let's implement a smarter pagination array:
-                    // Always show 1, 2, 3, and current page if it's not in 1,2,3
                     return null;
                   })}
                   {(() => {
@@ -340,14 +335,14 @@ export default function HomePage() {
                 <button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className={`btn btn-sm ${currentPage === totalPages ? 'btn-outline' : 'btn-primary'}`}
+                  className={`btn btn-sm pagination-btn-nav ${currentPage === totalPages ? 'btn-outline' : 'btn-primary'}`}
                 >
                   Siguiente
                 </button>
                 <button 
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className={`btn btn-sm ${currentPage === totalPages ? 'btn-outline' : 'btn-primary'}`}
+                  className={`btn btn-sm pagination-btn-extreme ${currentPage === totalPages ? 'btn-outline' : 'btn-primary'}`}
                 >
                   Último
                 </button>
@@ -402,21 +397,21 @@ export default function HomePage() {
                   <span style={{ fontSize: '12px', background: 'rgba(22,163,74,0.2)', color: '#4ade80', padding: '3px 8px', borderRadius: '100px' }}>En Línea</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #16a34a', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #16a34a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <div>
                       <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Cancha 1 (Fútbol 5)</div>
                       <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>Reserva confirmada · 19:00 - 20:00</div>
                     </div>
                     <span style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '13px' }}>120.000 Gs</span>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #ea580c', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #ea580c', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <div>
                       <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Cancha Pádel Cristal</div>
                       <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>Reserva confirmada · 20:00 - 21:30</div>
                     </div>
                     <span style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '13px' }}>180.000 Gs</span>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>Cancha Tenis Arcilla · Libre 21:00</span>
                     <button style={{ background: '#16a34a', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '6px 12px', borderRadius: '6px' }}>Asignar Turno</button>
                   </div>

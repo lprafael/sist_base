@@ -30,10 +30,9 @@ export default function TournamentsSection() {
 
   return (
     <section 
-      className="section" 
+      className="section tournaments-responsive-section" 
       id="torneos" 
       style={{ 
-        padding: '100px 0', 
         position: 'relative',
         background: 'linear-gradient(rgba(6, 9, 19, 0.4), rgba(6, 9, 19, 0.8)), url("/torneo_bg.png") center/cover no-repeat',
         borderTop: '1px solid rgba(255,255,255,0.05)',
@@ -47,7 +46,7 @@ export default function TournamentsSection() {
         </div>
       </div>
 
-      <div className="courts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '30px' }}>
+      <div className="courts-grid">
         {torneos.map(t => (
           <div key={t.id} style={{ 
             background: 'rgba(255,255,255,0.03)', 
