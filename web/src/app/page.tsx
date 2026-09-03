@@ -167,6 +167,17 @@ export default function HomePage() {
           </div>
 
           <div className="action-card">
+            <div className="action-card-icon">🎓</div>
+            <h3 className="action-card-title">Gestión de Academias Deportivas</h3>
+            <p className="action-card-desc">
+              Inscribí alumnos, controlá mensualidades y asistencias, gestioná profesores y organizá las clases y sucursales de tu escuela o academia deportiva.
+            </p>
+            <a href="/academias" className="btn btn-primary btn-sm" style={{ marginTop: 'auto' }}>
+              Explorar Academias
+            </a>
+          </div>
+
+          <div className="action-card">
             <div className="action-card-icon">📱</div>
             <h3 className="action-card-title">¡Probá la App de Jugadores!</h3>
             <p className="action-card-desc">

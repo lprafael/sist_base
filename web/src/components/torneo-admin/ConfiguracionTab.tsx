@@ -98,8 +98,20 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
   const [uploadingImage, setUploadingImage] = useState<'portada' | 'banner' | null>(null);
   const [cropImageState, setCropImageState] = useState<{ src: string, type: 'portada' | 'banner' } | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [targetImageType, setTargetImageType] = useState<'portada' | 'banner' | null>(null);
-  const [activeDeporteTab, setActiveDeporteTab] = useState<string>('playa');
+  const getInitialSportTab = () => {
+    const dep = (torneo.deporte || '').toLowerCase();
+    if (dep.includes('sala') || dep.includes('futsal')) return 'futbol_sala';
+    if (dep.includes('futbol') || dep.includes('fútbol')) return 'futbol';
+    if (dep.includes('basket') || dep.includes('baloncesto')) return 'baloncesto';
+    if (dep.includes('voley') || dep.includes('voleibol')) return 'voleibol';
+    if (dep.includes('playa')) return 'playa';
+    if (dep.includes('marcial') || dep.includes('karate') || dep.includes('mma')) return 'artes_marciales';
+    if (dep.includes('padel') || dep.includes('pádel')) return 'padel';
+    if (dep.includes('tenis')) return 'tenis';
+    if (dep.includes('ajedrez')) return 'ajedrez';
+    return 'futbol';
+  };
+  const [activeDeporteTab, setActiveDeporteTab] = useState<string>(getInitialSportTab);
 
   // Patrocinios state (mocked for now)
   const [sponsorsCampeonato, setSponsorsCampeonato] = useState([{ id: 1, nombre: 'Patrocinio 1' }]);
@@ -151,13 +163,44 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
   const [carnetEquiposSeleccionados, setCarnetEquiposSeleccionados] = useState<string[]>([]);
   const [equiposDisponibles, setEquiposDisponibles] = useState<any[]>([]);
 
-  // Hardcoded predefined images for the demo
+  // Predefined sports images (6 high resolution images per sport)
   const PREDEFINED_IMAGES: Record<string, string[]> = {
-    playa: ['/images/deportes/playa/1.jpg', '/images/deportes/playa/2.jpg', '/images/deportes/playa/3.jpg'],
-    futbol: ['/images/deportes/futbol/1.jpg', '/images/deportes/futbol/2.jpg', '/images/deportes/futbol/3.jpg'],
-    futbol_sala: ['/images/deportes/futbol_sala/1.jpg', '/images/deportes/futbol_sala/2.jpg', '/images/deportes/futbol_sala/3.jpg'],
-    baloncesto: ['/images/deportes/baloncesto/1.jpg', '/images/deportes/baloncesto/2.jpg', '/images/deportes/baloncesto/3.jpg'],
-    voleibol: ['/images/deportes/voleibol/1.jpg', '/images/deportes/voleibol/2.jpg', '/images/deportes/voleibol/3.jpg'],
+    futbol: [
+      '/images/deportes/futbol/1.jpg', '/images/deportes/futbol/2.jpg', '/images/deportes/futbol/3.jpg',
+      '/images/deportes/futbol/4.jpg', '/images/deportes/futbol/5.jpg', '/images/deportes/futbol/6.jpg'
+    ],
+    futbol_sala: [
+      '/images/deportes/futbol_sala/1.jpg', '/images/deportes/futbol_sala/2.jpg', '/images/deportes/futbol_sala/3.jpg',
+      '/images/deportes/futbol_sala/4.jpg', '/images/deportes/futbol_sala/5.jpg', '/images/deportes/futbol_sala/6.jpg'
+    ],
+    baloncesto: [
+      '/images/deportes/baloncesto/1.jpg', '/images/deportes/baloncesto/2.jpg', '/images/deportes/baloncesto/3.jpg',
+      '/images/deportes/baloncesto/4.jpg', '/images/deportes/baloncesto/5.jpg', '/images/deportes/baloncesto/6.jpg'
+    ],
+    voleibol: [
+      '/images/deportes/voleibol/1.jpg', '/images/deportes/voleibol/2.jpg', '/images/deportes/voleibol/3.jpg',
+      '/images/deportes/voleibol/4.jpg', '/images/deportes/voleibol/5.jpg', '/images/deportes/voleibol/6.jpg'
+    ],
+    playa: [
+      '/images/deportes/playa/1.jpg', '/images/deportes/playa/2.jpg', '/images/deportes/playa/3.jpg',
+      '/images/deportes/playa/4.jpg', '/images/deportes/playa/5.jpg', '/images/deportes/playa/6.jpg'
+    ],
+    artes_marciales: [
+      '/images/deportes/artes_marciales/1.jpg', '/images/deportes/artes_marciales/2.jpg', '/images/deportes/artes_marciales/3.jpg',
+      '/images/deportes/artes_marciales/4.jpg', '/images/deportes/artes_marciales/5.jpg', '/images/deportes/artes_marciales/6.jpg'
+    ],
+    padel: [
+      '/images/deportes/padel/1.jpg', '/images/deportes/padel/2.jpg', '/images/deportes/padel/3.jpg',
+      '/images/deportes/padel/4.jpg', '/images/deportes/padel/5.jpg', '/images/deportes/padel/6.jpg'
+    ],
+    tenis: [
+      '/images/deportes/tenis/1.jpg', '/images/deportes/tenis/2.jpg', '/images/deportes/tenis/3.jpg',
+      '/images/deportes/tenis/4.jpg', '/images/deportes/tenis/5.jpg', '/images/deportes/tenis/6.jpg'
+    ],
+    ajedrez: [
+      '/images/deportes/ajedrez/1.jpg', '/images/deportes/ajedrez/2.jpg', '/images/deportes/ajedrez/3.jpg',
+      '/images/deportes/ajedrez/4.jpg', '/images/deportes/ajedrez/5.jpg', '/images/deportes/ajedrez/6.jpg'
+    ],
   };
 
   // States for modals
@@ -1065,30 +1108,38 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
           <div className="bg-white rounded-xl w-[900px] max-w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <ImageIcon size={20} className="text-slate-500" />
-                Seleccionar imagen
+                <ImageIcon size={20} className="text-blue-600" />
+                <span>Galería de Imágenes Predefinidas</span>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-bold">
+                  {targetImageType === 'portada' ? 'Logo / Portada (1:1)' : 'Banner / Fondo (16:9)'}
+                </span>
               </h3>
               <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-700 transition">✕</button>
             </div>
 
             <div className="p-4 border-b border-slate-200 flex gap-2 overflow-x-auto no-scrollbar bg-white">
               {[
-                { id: 'playa', label: 'Playa' },
-                { id: 'futbol', label: 'Fútbol' },
-                { id: 'futbol_sala', label: 'Fútbol Sala' },
-                { id: 'baloncesto', label: 'Baloncesto' },
-                { id: 'voleibol', label: 'Voleibol' },
-                { id: 'artes_marciales', label: 'Artes Marciales' }
+                { id: 'futbol', label: 'Fútbol', icon: '⚽' },
+                { id: 'futbol_sala', label: 'Fútbol Sala', icon: '👟' },
+                { id: 'baloncesto', label: 'Baloncesto', icon: '🏀' },
+                { id: 'voleibol', label: 'Voleibol', icon: '🏐' },
+                { id: 'playa', label: 'Playa', icon: '🏖️' },
+                { id: 'artes_marciales', label: 'Artes Marciales', icon: '🥋' },
+                { id: 'padel', label: 'Pádel', icon: '🎾' },
+                { id: 'tenis', label: 'Tenis', icon: '🎾' },
+                { id: 'ajedrez', label: 'Ajedrez', icon: '♟️' }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveDeporteTab(tab.id)}
-                  className={`px-5 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap border ${activeDeporteTab === tab.id
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                    }`}
+                  className={`px-4 py-2 rounded-xl font-bold text-xs transition whitespace-nowrap flex items-center gap-1.5 border ${
+                    activeDeporteTab === tab.id
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
                 >
-                  {tab.label}
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -1111,21 +1162,22 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                       : 'border-transparent hover:border-slate-300'
                       }`}
                   >
-                    <div className="aspect-video bg-slate-200 flex items-center justify-center text-slate-400 relative">
-                      {/* In a real app the src would just be imgUrl, for demo we handle missing images gracefully */}
+                    <div className="aspect-video bg-slate-200 flex items-center justify-center text-slate-400 relative overflow-hidden">
                       <img
                         src={imgUrl}
-                        alt="Predefinida"
-                        className="w-full h-full object-cover"
+                        alt={`Predefinida ${activeDeporteTab} ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          // Fallback placeholder if image doesn't exist yet
-                          e.currentTarget.src = `https://placehold.co/600x400/e2e8f0/64748b?text=${tab.label || activeDeporteTab}+${idx + 1}`;
+                          e.currentTarget.src = `https://placehold.co/600x400/1e293b/94a3b8?text=${encodeURIComponent(activeDeporteTab + ' ' + (idx + 1))}`;
                         }}
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-slate-800 text-sm font-bold px-4 py-2 rounded-lg shadow-sm backdrop-blur-sm transition-all transform scale-95 group-hover:scale-100">
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 bg-white/95 text-slate-800 text-xs font-black px-4 py-2 rounded-xl shadow-md backdrop-blur-sm transition-all transform scale-95 group-hover:scale-100">
                           Usar esta imagen
                         </span>
+                      </div>
+                      <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        Opción #{idx + 1}
                       </div>
                     </div>
                   </div>
