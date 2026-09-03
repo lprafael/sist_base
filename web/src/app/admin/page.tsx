@@ -1213,6 +1213,78 @@ export default function AdminConsole() {
     window.location.href = '/academia-panel';
   };
 
+  const handleAccessComplejoPanel = async (c: any) => {
+    if (typeof window === 'undefined') return;
+    
+    // 1. Respaldar sesión del superadministrador para retornar luego
+    const currentSessionStr = localStorage.getItem('user_session');
+    let sessionData = JSON.parse(currentSessionStr || '{}');
+    const adminBackup = localStorage.getItem('admin_session_backup');
+    if (adminBackup) {
+      sessionData = JSON.parse(adminBackup);
+      localStorage.setItem('user_session', adminBackup);
+    } else if (currentSessionStr) {
+      localStorage.setItem('admin_session_backup', currentSessionStr);
+    }
+
+    const currentToken = sessionData.access_token || sessionData.token || '';
+
+    // 2. Si el complejo tiene usuario asignado registrado, intentar impersonar token oficial
+    const assignedEmail = (c.usuario_asignado || c.email || '').toLowerCase().trim();
+    const matchedUser = usuarios.find((u: any) => 
+      u.email?.toLowerCase().trim() === assignedEmail ||
+      (u.username && u.username.toLowerCase().trim() === assignedEmail.split('@')[0])
+    );
+
+    let tokenToUse = currentToken;
+    let userIdToUse = sessionData.usuario_id || sessionData.id;
+
+    if (matchedUser && matchedUser.id && currentToken) {
+      try {
+        const res = await fetch(`${API_URL}/auth/impersonate/${matchedUser.id}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          tokenToUse = data.access_token;
+          userIdToUse = data.user.id;
+        }
+      } catch (err) {
+        console.warn("Fallo de impersonate de usuario asignado, continuando con sesión delegada:", err);
+      }
+    }
+
+    // 3. Crear sesión delegada para el panel del complejo
+    const complejoSession = {
+      ...sessionData,
+      role: 'tenant',
+      complejo_id: c.id,
+      assignedComplejoId: c.id,
+      nombre: c.nombre,
+      complejo_nombre: c.nombre,
+      email: c.email || c.usuario_asignado || sessionData.email,
+      telefono: c.telefono || '',
+      direccion: c.direccion || '',
+      ciudad: c.ciudad || '',
+      usuario_id: userIdToUse,
+      access_token: tokenToUse,
+      token: tokenToUse,
+      is_impersonating: true,
+      impersonator_role: sessionData.role || 'admin',
+      authorized: true
+    };
+    localStorage.setItem('user_session', JSON.stringify(complejoSession));
+
+    logEvent('auditoria', {
+      accion: 'Acceso a Panel Complejo',
+      detalles: `El administrador ingresó al panel de administración del complejo "${c.nombre}" (ID: ${c.id})`
+    });
+
+    // 4. Redirigir al panel del complejo con el parámetro correspondiente
+    window.location.href = `/complejo-panel?complejo_id=${encodeURIComponent(c.id)}`;
+  };
+
   const handleToggleOrganizador = async (orgId: number, currentHabilitado: boolean, nombre: string) => {
     try {
       const res = await fetch(`${API_URL}/cancha/torneos/organizadores/${orgId}/toggle-status`, {
@@ -1729,10 +1801,28 @@ export default function AdminConsole() {
                     </thead>
                     <tbody>
                       {currentComplejos.map(c => (
-                        <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
+                        <tr 
+                          key={c.id} 
+                          onClick={() => handleAccessComplejoPanel(c)}
+                          style={{ 
+                            borderBottom: '1px solid #f1f5f9', 
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          className="hover:bg-emerald-50/30"
+                          title="Haz clic para entrar y ver el panel de administración de este complejo"
+                        >
                           <td style={{ padding: 16 }}>
-                            <div style={{ fontWeight: 800, color: '#0f172a' }}>{c.nombre}</div>
-                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>📍 {c.direccion} · {c.ciudad}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                                🏟️
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#0f172a' }}>{c.nombre}</div>
+                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>📍 {c.direccion} · {c.ciudad}</div>
+                              </div>
+                            </div>
                           </td>
                           <td style={{ padding: 16 }}>
                             <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: 8, fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: '#475569' }}>
@@ -1756,27 +1846,63 @@ export default function AdminConsole() {
                             </span>
                           </td>
                           <td style={{ padding: 16, textAlign: 'right' }}>
-                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
                               <button
-                                onClick={() => handleToggleLock(c.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAccessComplejoPanel(c);
+                                }}
+                                style={{ 
+                                  background: '#16a34a', 
+                                  color: '#fff', 
+                                  border: 'none', 
+                                  padding: '6px 12px', 
+                                  borderRadius: 8, 
+                                  fontSize: 12, 
+                                  fontWeight: 700, 
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  boxShadow: '0 2px 4px rgba(22, 163, 74, 0.2)'
+                                }}
+                                title="Entrar al panel de administración de este complejo"
+                              >
+                                <Eye size={13} />
+                                Ver Panel
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleLock(c.id);
+                                }}
                                 style={{ background: c.activo ? '#ea580c' : '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                               >
                                 {c.activo ? 'Bloquear' : 'Habilitar'}
                               </button>
                               <button
-                                onClick={() => handlePasswordReset(c.nombre, c.usuario_asignado)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePasswordReset(c.nombre, c.usuario_asignado);
+                                }}
                                 style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                               >
                                 Reset Pass
                               </button>
                               <button
-                                onClick={() => setEditComplejo(c)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditComplejo(c);
+                                }}
                                 style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                               >
                                 Editar
                               </button>
                               <button
-                                onClick={() => handleDeleteComplejo(c.id, c.nombre)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteComplejo(c.id, c.nombre);
+                                }}
                                 style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                               >
                                 Eliminar

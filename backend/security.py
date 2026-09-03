@@ -6,7 +6,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from typing import Optional
 from passlib.context import CryptContext
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -83,7 +83,10 @@ def verify_token(token: str):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def get_current_user(
+    request: Request = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
     """Obtiene el usuario actual basado en el token"""
     token = credentials.credentials
     payload = verify_token(token)
@@ -92,6 +95,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             payload["id"] = payload["user_id"]
         elif "id" in payload and "user_id" not in payload:
             payload["user_id"] = payload["id"]
+            
+        if request is not None:
+            try:
+                cid = request.headers.get("x-complejo-id") or request.query_params.get("complejo_id")
+                if cid:
+                    payload["impersonate_complejo_id"] = cid
+            except Exception:
+                pass
     return payload
 
 # Roles y permisos

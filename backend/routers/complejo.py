@@ -28,6 +28,20 @@ async def get_complejo_context(current_user: dict, session: AsyncSession) -> dic
     role = current_user.get("role", "")
     username = current_user.get("username", "")
 
+    # 0. Si se especificó un complejo (ej. Superadmin gestionando o impersonando un complejo)
+    target_cid = current_user.get("impersonate_complejo_id")
+    if target_cid and (role in ("admin", "superadmin", "super", "tenant", "administrador") or current_user.get("is_admin")):
+        try:
+            res0 = await session.execute(
+                text("SELECT id FROM cancha.complejos WHERE id = :cid OR CAST(id AS text) = :cid LIMIT 1"),
+                {"cid": str(target_cid)}
+            )
+            row0 = res0.fetchone()
+            if row0:
+                return {"complejo_id": str(row0[0]), "rol": "dueno"}
+        except Exception:
+            pass
+
     # 1. Buscar en cancha.admins_complejo
     res = await session.execute(
         text("SELECT complejo_id, rol FROM cancha.admins_complejo WHERE usuario_id = :uid AND activo = TRUE LIMIT 1"),

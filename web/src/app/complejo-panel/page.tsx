@@ -93,7 +93,17 @@ export default function ComplejoPanel() {
     }
   }, []);
 
-  const headers = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
+  const headers = () => {
+    const h: Record<string, string> = { 
+      Authorization: `Bearer ${token}`, 
+      'Content-Type': 'application/json' 
+    };
+    const activeCid = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('complejo_id') : null) || session?.complejo_id || session?.assignedComplejoId;
+    if (activeCid) {
+      h['X-Complejo-Id'] = String(activeCid);
+    }
+    return h;
+  };
 
   const apiFetch = async (url: string, opts: RequestInit = {}) => {
     const res = await fetch(`${API_URL}${url}`, { headers: headers(), ...opts });
@@ -104,17 +114,44 @@ export default function ComplejoPanel() {
 
   const fetchAll = async () => {
     try {
+      const activeCid = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('complejo_id') : null) || session?.complejo_id || session?.assignedComplejoId;
+      const queryParam = activeCid ? `?complejo_id=${encodeURIComponent(activeCid)}` : '';
+
       const [p, c, r] = await Promise.allSettled([
-        apiFetch('/api/complejo/perfil'),
-        apiFetch('/api/complejo/canchas'),
-        apiFetch(`/api/complejo/reservas?fecha=${fechaFiltro}`),
+        apiFetch(`/api/complejo/perfil${queryParam}`),
+        apiFetch(`/api/complejo/canchas${queryParam}`),
+        apiFetch(`/api/complejo/reservas?fecha=${fechaFiltro}${activeCid ? `&complejo_id=${encodeURIComponent(activeCid)}` : ''}`),
       ]);
-      if (p.status === 'fulfilled') {
+      if (p.status === 'fulfilled' && p.value && p.value.nombre) {
         setPerfil(p.value);
         setEditPerfil(p.value);
+      } else {
+        // Fallback si no está aún persistido en la BD
+        const fallbackPerfil = {
+          id: activeCid || 'complejo-1',
+          nombre: session?.complejo_nombre || session?.nombre || 'Complejo Deportivo',
+          email: session?.email || '',
+          telefono: session?.telefono || '0981-123-456',
+          direccion: session?.direccion || 'Asunción, Paraguay',
+          ciudad: session?.ciudad || 'Asunción',
+          departamento: 'Central',
+          horario_apertura: '07:00',
+          horario_cierre: '23:00',
+          es_publico: true,
+          slug: `complejo-${String(activeCid || '1').substring(0, 8)}`,
+          color_primario: '#10B981',
+          anuncios_altavoz: true,
+          activo: true
+        };
+        setPerfil(fallbackPerfil);
+        setEditPerfil(fallbackPerfil);
       }
-      if (c.status === 'fulfilled') setCanchas(c.value);
-      if (r.status === 'fulfilled') setReservas(r.value);
+      if (c.status === 'fulfilled' && Array.isArray(c.value)) {
+        setCanchas(c.value);
+      }
+      if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+        setReservas(r.value);
+      }
     } catch (e: any) {
       console.error(e);
     }
@@ -295,6 +332,48 @@ export default function ComplejoPanel() {
     <div style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', paddingTop: '74px' }}>
       <Nav />
 
+      {/* Super Admin Impersonation Alert Banner */}
+      {Boolean(session?.is_impersonating || (typeof window !== 'undefined' && localStorage.getItem('admin_session_backup'))) && (
+        <div style={{ background: 'linear-gradient(90deg, #1d4ed8 0%, #1e40af 100%)', color: '#fff', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: 'rgba(255,255,255,0.15)', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShieldCheck style={{ width: 22, height: 22, color: '#93c5fd' }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 14 }}>Modo Super Administrador Activo</div>
+              <div style={{ fontSize: 12, opacity: 0.9 }}>
+                Estás visualizando y administrando las canchas, reservas y configuración de: <strong>{perfil?.nombre || session?.nombre || session?.complejo_nombre || 'este complejo'}</strong>.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const backup = localStorage.getItem('admin_session_backup');
+              if (backup) {
+                localStorage.setItem('user_session', backup);
+                localStorage.removeItem('admin_session_backup');
+              }
+              window.location.href = '/admin';
+            }}
+            style={{
+              background: '#ffffff',
+              color: '#1e3a8a',
+              border: 'none',
+              padding: '8px 18px',
+              borderRadius: 10,
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+            }}
+          >
+            ← Volver al Panel Super Admin
+          </button>
+        </div>
+      )}
 
       {/* Header Banner */}
       <div style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)', borderBottom: `1px solid ${C.border}`, padding: '32px 24px' }}>
