@@ -1,18 +1,47 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, useMapEvents, LayersControl, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, LayersControl, useMap, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useState } from "react";
 import { Search, Loader2 } from "lucide-react";
 
-// Fix missing default icon in Leaflet when using Webpack/Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
+// Modern custom SVG/HTML pin icon that renders reliably without external CDN dependencies
+const customMarkerIcon = typeof window !== "undefined" ? L.divIcon({
+  className: "custom-location-pin",
+  html: `<div style="
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translate(-50%, -100%);
+    cursor: pointer;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.35));
+  ">
+    <div style="
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      width: 36px;
+      height: 36px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2.5px solid #ffffff;
+    ">
+      <div style="transform: rotate(45deg); font-size: 16px;">📍</div>
+    </div>
+    <div style="
+      width: 12px;
+      height: 4px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 50%;
+      margin-top: 2px;
+    "></div>
+  </div>`,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0],
+  popupAnchor: [0, -36]
+}) : undefined;
 
 interface LocationPickerProps {
   defaultLocation?: { lat: number; lng: number };
@@ -21,7 +50,7 @@ interface LocationPickerProps {
   hideSearchOverlay?: boolean;
 }
 
-function LocationMarker({ onSelect, currentLoc, readOnly }: { onSelect?: (l: any) => void, currentLoc?: {lat: number, lng: number}, readOnly?: boolean }) {
+function LocationMarker({ onSelect, currentLoc, readOnly }: { onSelect?: (l: any) => void, currentLoc?: {lat: number, lng: number} | null, readOnly?: boolean }) {
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(currentLoc || null);
   const map = useMapEvents({
     click(e) {
@@ -32,29 +61,54 @@ function LocationMarker({ onSelect, currentLoc, readOnly }: { onSelect?: (l: any
   });
 
   useEffect(() => {
-    if (currentLoc) {
-      setPosition(currentLoc);
+    if (currentLoc && typeof currentLoc.lat === 'number' && typeof currentLoc.lng === 'number' && !isNaN(currentLoc.lat) && !isNaN(currentLoc.lng)) {
+      setPosition({ lat: currentLoc.lat, lng: currentLoc.lng });
     }
-  }, [currentLoc]);
+  }, [currentLoc?.lat, currentLoc?.lng]);
 
-  return position === null ? null : (
-    <Marker position={position}></Marker>
+  if (!position) return null;
+
+  return (
+    <Marker 
+      position={position}
+      icon={customMarkerIcon}
+      draggable={!readOnly}
+      eventHandlers={{
+        dragend(e) {
+          const marker = e.target;
+          if (marker) {
+            const newPos = marker.getLatLng();
+            setPosition(newPos);
+            if (onSelect) onSelect(newPos);
+          }
+        }
+      }}
+    >
+      <Popup offset={[0, -36]}>
+        <div style={{ textAlign: 'center', padding: '2px 4px', fontSize: '12px' }}>
+          <strong style={{ color: '#0f172a', display: 'block' }}>Ubicación Seleccionada</strong>
+          {!readOnly && <span style={{ color: '#64748b', fontSize: '11px' }}>Puedes arrastrar este marcador</span>}
+        </div>
+      </Popup>
+    </Marker>
   );
 }
 
 function MapController({ center }: { center: {lat: number, lng: number} | null }) {
   const map = useMap();
   useEffect(() => {
-    if (center) {
-      map.flyTo(center, 15);
+    if (center && typeof center.lat === 'number' && typeof center.lng === 'number' && !isNaN(center.lat) && !isNaN(center.lng)) {
+      map.flyTo([center.lat, center.lng], 16, { animate: true, duration: 1.2 });
     }
-  }, [center, map]);
+  }, [center?.lat, center?.lng, map]);
   return null;
 }
 
 export default function LocationPickerMap({ defaultLocation, onLocationSelect, readOnly = false, hideSearchOverlay = false }: LocationPickerProps) {
   const [isClient, setIsClient] = useState(false);
-  const initialPos: [number, number] = defaultLocation ? [defaultLocation.lat, defaultLocation.lng] : [-25.2867, -57.6470]; // Asunción
+  const initialPos: [number, number] = defaultLocation && typeof defaultLocation.lat === 'number' && !isNaN(defaultLocation.lat) 
+    ? [defaultLocation.lat, defaultLocation.lng] 
+    : [-25.2867, -57.6470]; // Asunción
   
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -64,6 +118,13 @@ export default function LocationPickerMap({ defaultLocation, onLocationSelect, r
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Sync external defaultLocation updates (e.g. from places autocomplete) to flyTo and update marker
+  useEffect(() => {
+    if (defaultLocation && typeof defaultLocation.lat === 'number' && typeof defaultLocation.lng === 'number' && !isNaN(defaultLocation.lat) && !isNaN(defaultLocation.lng)) {
+      setMapCenter({ lat: defaultLocation.lat, lng: defaultLocation.lng });
+    }
+  }, [defaultLocation?.lat, defaultLocation?.lng]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();

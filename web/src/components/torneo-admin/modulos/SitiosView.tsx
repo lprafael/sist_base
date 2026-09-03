@@ -226,15 +226,38 @@ export default function SitiosView({
   };
 
   const handleSelectSuggestion = (item: any) => {
+    const lat = typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat;
+    const lng = typeof item.lng === 'string' ? parseFloat(item.lng) : item.lng;
+
     setNuevoSitio(prev => ({
       ...prev,
       nombre: item.title,
       ciudad: item.city || prev.ciudad,
-      ubicacionGmaps: (item.lat && item.lng) ? `https://www.google.com/maps?q=${item.lat},${item.lng}` : prev.ubicacionGmaps
+      ubicacionGmaps: (typeof lat === 'number' && !isNaN(lat) && typeof lng === 'number' && !isNaN(lng)) 
+        ? `https://www.google.com/maps?q=${lat},${lng}` 
+        : prev.ubicacionGmaps
     }));
 
-    if (item.lat && item.lng) {
-      setLocationCoords({ lat: item.lat, lng: item.lng });
+    if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+      setLocationCoords({ lat, lng });
+    } else if (item.title) {
+      // Si el sitio local no tenía coordenadas guardadas, geocodificar en segundo plano
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=py&limit=1&q=${encodeURIComponent(item.title + (item.city ? ', ' + item.city : ''))}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data[0]) {
+            const gLat = parseFloat(data[0].lat);
+            const gLng = parseFloat(data[0].lon);
+            if (!isNaN(gLat) && !isNaN(gLng)) {
+              setLocationCoords({ lat: gLat, lng: gLng });
+              setNuevoSitio(prev => ({
+                ...prev,
+                ubicacionGmaps: prev.ubicacionGmaps || `https://www.google.com/maps?q=${gLat},${gLng}`
+              }));
+            }
+          }
+        })
+        .catch(() => {});
     }
 
     setShowSuggestions(false);
@@ -510,7 +533,10 @@ export default function SitiosView({
                         {searchSuggestions.map((item, idx) => (
                           <div
                             key={idx}
-                            onMouseDown={() => handleSelectSuggestion(item)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectSuggestion(item);
+                            }}
                             className="p-3 hover:bg-blue-50/80 cursor-pointer flex items-start gap-3 transition text-left"
                           >
                             <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -567,7 +593,13 @@ export default function SitiosView({
                   </div>
                   <LocationPickerMap
                     defaultLocation={locationCoords || undefined}
-                    onLocationSelect={(loc) => setLocationCoords(loc)}
+                    onLocationSelect={(loc) => {
+                      setLocationCoords(loc);
+                      setNuevoSitio(prev => ({
+                        ...prev,
+                        ubicacionGmaps: `https://www.google.com/maps?q=${loc.lat.toFixed(6)},${loc.lng.toFixed(6)}`
+                      }));
+                    }}
                     readOnly={false}
                     hideSearchOverlay={true}
                   />
