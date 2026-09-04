@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
+import SuscripcionesTab from '@/components/SuscripcionesTab';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -453,7 +454,19 @@ export default function AdminConsole() {
   }, [dbRoles, catalogFilters.roles_nombre, catalogFilters.roles_descripcion, catalogSortField, catalogSortAsc]);
 
   // Tabs states
-  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit'>('complejos');
+  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit' | 'suscripciones'>('complejos');
+
+  // ── Suscripciones state ──
+  const [susStats, setSusStats] = useState<any>(null);
+  const [susUsuarios, setSusUsuarios] = useState<any[]>([]);
+  const [susTotal, setSusTotal] = useState(0);
+  const [susSearch, setSusSearch] = useState('');
+  const [susPlanFilter, setSusPlanFilter] = useState('');
+  const [susRolFilter, setSusRolFilter] = useState('');
+  const [susPage, setSusPage] = useState(1);
+  const [susPerPage, setSusPerPage] = useState(25);
+  const [susLoading, setSusLoading] = useState(false);
+  const [susChangingPlan, setSusChangingPlan] = useState<number | null>(null);
 
   // Pagination & Filter for Complejos
   const [complejosFilter, setComplejosFilter] = useState('');
@@ -1670,6 +1683,7 @@ export default function AdminConsole() {
                 { id: 'academias', label: '🎓 Academias', count: academias.length },
                 { id: 'requests', label: '📥 Solicitudes', count: pendingRequests.filter(r => r.estado === 'pendiente').length },
                 { id: 'sports', label: '🏆 Deportes y Catálogos', count: dbDeportes.length },
+                { id: 'suscripciones', label: '💳 Suscripciones', count: susStats?.total_activos || 0 },
                 { id: 'audit', label: '📜 Auditoría y Logs', count: accessLogs.length + auditLogs.length }
               ].map(tab => (
                 <button
@@ -2960,6 +2974,32 @@ export default function AdminConsole() {
                 </div>
 
               </div>
+            )}
+
+            {/* TAB: SUSCRIPCIONES */}
+            {activeSuperTab === 'suscripciones' && (
+              <SuscripcionesTab
+                susStats={susStats}
+                setSusStats={setSusStats}
+                susUsuarios={susUsuarios}
+                setSusUsuarios={setSusUsuarios}
+                susTotal={susTotal}
+                setSusTotal={setSusTotal}
+                susSearch={susSearch}
+                setSusSearch={setSusSearch}
+                susPlanFilter={susPlanFilter}
+                setSusPlanFilter={setSusPlanFilter}
+                susRolFilter={susRolFilter}
+                setSusRolFilter={setSusRolFilter}
+                susPage={susPage}
+                setSusPage={setSusPage}
+                susPerPage={susPerPage}
+                setSusPerPage={setSusPerPage}
+                susLoading={susLoading}
+                setSusLoading={setSusLoading}
+                susChangingPlan={susChangingPlan}
+                setSusChangingPlan={setSusChangingPlan}
+              />
             )}
           </div>
         )}
