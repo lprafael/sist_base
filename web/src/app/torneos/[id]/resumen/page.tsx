@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Trophy, Calendar, Users, BarChart3, Target, Shield,
   Award, TrendingUp, ChevronRight, ChevronLeft,
-  Swords, BookOpen, Clock, Activity, AlertCircle, RefreshCw
+  Swords, BookOpen, Clock, Activity, AlertCircle, RefreshCw, Video
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -54,6 +54,7 @@ const TABS = [
   { id: "equipos",    label: "Equipos",    icon: Shield },
   { id: "goleadores", label: "Goleadores", icon: Target },
   { id: "resumen",    label: "Resumen",    icon: Activity },
+  { id: "video_reviews", label: "Video Reviews", icon: Video },
 ];
 
 /* ================================================================
@@ -72,8 +73,13 @@ export default function TorneoResumenPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jornadaActiva, setJornadaActiva] = useState(1);
-
   const [isDemo, setIsDemo] = useState(false);
+
+  // Video Reviews historial
+  const [vrHistorial, setVrHistorial] = useState<any[]>([]);
+  const [vrLoading, setVrLoading]     = useState(false);
+  const [vrMatchId, setVrMatchId]     = useState("");
+  const [vrInput, setVrInput]         = useState("");
 
   const loadMockData = useCallback(() => {
     setIsDemo(true);
@@ -209,6 +215,32 @@ export default function TorneoResumenPage() {
   }, [id, loadMockData]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Cargar historial de VR para un combate
+  const loadVRHistorial = async (matchId: string) => {
+    if (!matchId.trim()) return;
+    setVrLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/vr/combates/${matchId.trim()}/historial`);
+      if (res.ok) {
+        const data = await res.json();
+        setVrHistorial(Array.isArray(data) ? data : data.reviews || []);
+      } else {
+        setVrHistorial([]);
+      }
+    } catch {
+      setVrHistorial([]);
+    } finally {
+      setVrLoading(false);
+    }
+  };
+
+  // Auto-cargar si hay partidos y se cambia al tab VR
+  useEffect(() => {
+    if (tab === "video_reviews" && vrMatchId) {
+      loadVRHistorial(vrMatchId);
+    }
+  }, [tab]);
 
   const jornadas = Array.from(new Set(partidos.map(p => Number(p.jornada)).filter(Boolean))).sort((a, b) => a - b);
   const maxJornada = Math.max(...jornadas, 1);
@@ -505,6 +537,168 @@ export default function TorneoResumenPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* VIDEO REVIEWS */}
+          {tab === "video_reviews" && (
+            <div className="fade-in">
+              <SectionTitle icon={Video} title="Historial de Video Reviews" />
+
+              {/* Selector de match */}
+              <div style={{
+                background: "#090f1e", border: "1px solid #1a2a45",
+                borderRadius: 16, padding: "1.25rem 1.5rem", marginBottom: "1.5rem"
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 10 }}>
+                  Ingresar ID del combate para cargar el historial de apelaciones:
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <input
+                    type="text"
+                    placeholder="Ej: 123"
+                    value={vrInput}
+                    onChange={e => setVrInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { setVrMatchId(vrInput); loadVRHistorial(vrInput); } }}
+                    style={{
+                      flex: 1,
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid #1e293b",
+                      borderRadius: 10,
+                      padding: "10px 16px",
+                      color: "#e2e8f0",
+                      fontSize: 15,
+                      fontFamily: "monospace",
+                      fontWeight: 700,
+                      outline: "none",
+                    }}
+                  />
+                  <button
+                    onClick={() => { setVrMatchId(vrInput); loadVRHistorial(vrInput); }}
+                    disabled={vrLoading}
+                    style={{
+                      padding: "10px 24px",
+                      background: "linear-gradient(135deg,#3b82f6,#1d4ed8)",
+                      border: "none", borderRadius: 10,
+                      color: "#fff", fontWeight: 800, fontSize: 14,
+                      cursor: vrLoading ? "wait" : "pointer",
+                      opacity: vrLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {vrLoading ? "Cargando..." : "Buscar"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de VR */}
+              {vrHistorial.length === 0 ? (
+                <div style={{
+                  textAlign: "center", padding: "3rem",
+                  background: "#090f1e", border: "1px solid #1a2a45", borderRadius: 20,
+                  color: "#334155", fontSize: 14, fontWeight: 700,
+                }}>
+                  {vrMatchId
+                    ? "No se encontraron Video Reviews para este combate."
+                    : "Ingresá un ID de combate para ver el historial de apelaciones."}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {/* Resumen stats */}
+                  <div style={{
+                    display: "flex", gap: "1rem", marginBottom: "0.5rem", flexWrap: "wrap"
+                  }}>
+                    {[
+                      { label: "Total VR",    val: vrHistorial.length,                                                         color: "#64748b" },
+                      { label: "Aceptados",   val: vrHistorial.filter(v => v.resultado === "ACEPTADO").length,   color: "#10b981" },
+                      { label: "Rechazados",  val: vrHistorial.filter(v => v.resultado === "RECHAZADO").length,  color: "#ef4444" },
+                      { label: "Mienai",      val: vrHistorial.filter(v => v.resultado === "MIENAI").length,     color: "#fbbf24" },
+                      { label: "Pendientes",  val: vrHistorial.filter(v => !v.resuelto).length,                  color: "#f59e0b" },
+                    ].map(s => (
+                      <div key={s.label} style={{
+                        flex: 1, minWidth: 100, textAlign: "center",
+                        background: `${s.color}11`, border: `1px solid ${s.color}33`,
+                        borderRadius: 14, padding: "10px 16px"
+                      }}>
+                        <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.val}</div>
+                        <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tarjetas individuales */}
+                  {vrHistorial.map((vr, idx) => {
+                    const resColor = vr.resultado === "ACEPTADO" ? "#10b981"
+                      : vr.resultado === "RECHAZADO" ? "#ef4444"
+                      : vr.resultado === "MIENAI" ? "#fbbf24"
+                      : "#64748b";
+                    const colorLabel = vr.competidor_color === "Aka" ? "AKA (Rojo)" : vr.competidor_color === "Ao" ? "AO (Azul)" : vr.competidor_color;
+                    const colorAccent = vr.competidor_color === "Aka" || vr.competidor_color === "Rojo" ? "#ef4444" : "#3b82f6";
+                    return (
+                      <div key={vr.id || idx} style={{
+                        background: "#090f1e",
+                        border: `1px solid ${resColor}33`,
+                        borderLeft: `4px solid ${resColor}`,
+                        borderRadius: 16, padding: "1rem 1.25rem",
+                        display: "flex", alignItems: "center", gap: "1.25rem",
+                        flexWrap: "wrap",
+                      }}>
+                        {/* # */}
+                        <div style={{ fontSize: 18, fontWeight: 900, color: "#334155", minWidth: 28, textAlign: "center" }}>#{idx + 1}</div>
+
+                        {/* Icon & estado */}
+                        <div style={{ textAlign: "center", minWidth: 60 }}>
+                          <div style={{ fontSize: 24 }}>🎥</div>
+                          <div style={{
+                            fontSize: 10, fontWeight: 900, letterSpacing: "0.08em",
+                            color: resColor, marginTop: 2, textTransform: "uppercase",
+                          }}>
+                            {vr.resultado || (vr.resuelto ? "RESUELTO" : "PENDIENTE")}
+                          </div>
+                        </div>
+
+                        {/* Detalle */}
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
+                            <span style={{ fontWeight: 900, fontSize: 14, color: colorAccent }}>{colorLabel}</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>
+                              {vr.tipo_solicitud?.replace("_", "-")}
+                            </span>
+                            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>⏱ {vr.tiempo_cronometro}</span>
+                            <span style={{ fontSize: 11, color: vr.reglamento === "WKF" ? "#ef4444" : "#f59e0b", fontWeight: 800 }}>{vr.reglamento}</span>
+                          </div>
+                          {vr.resultado === "ACEPTADO" && vr.puntos_otorgados > 0 && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#10b981" }}>
+                              +{vr.puntos_otorgados} {vr.puntos_otorgados === 1 ? "Yuko" : vr.puntos_otorgados === 2 ? "Waza-Ari" : "Ippon"} otorgados
+                            </div>
+                          )}
+                          {vr.resultado === "RECHAZADO" && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#ef4444" }}>
+                              Coach {colorLabel} pierde tarjeta VR
+                            </div>
+                          )}
+                          {vr.resultado === "MIENAI" && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24" }}>
+                              👁 No visible — Coach conserva tarjeta
+                            </div>
+                          )}
+                          {!vr.resuelto && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b" }}>
+                              ⚠️ Pendiente de veredicto
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Timestamp */}
+                        {vr.created_at && (
+                          <div style={{ fontSize: 11, color: "#475569", fontWeight: 600, textAlign: "right", minWidth: 80, flexShrink: 0 }}>
+                            {new Date(vr.created_at).toLocaleTimeString("es-PY", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

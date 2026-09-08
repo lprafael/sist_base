@@ -204,13 +204,16 @@ function FighterRow({
 }
 
 /* ─── Match Card (Combate 1v1) ────────────────────────────────────── */
-function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number }) {
+function MatchCard({ partido, areaIndex, torneoId }: { partido: Partido; areaIndex: number; torneoId?: string }) {
   const palette = AREA_COLORS[areaIndex % AREA_COLORS.length];
   const isLive = partido.estado === 'en_curso';
   const isFin  = partido.estado === 'finalizado';
 
   const localWins = (partido.goles_local ?? 0) > (partido.goles_visitante ?? 0);
   const visitWins = (partido.goles_visitante ?? 0) > (partido.goles_local ?? 0);
+
+  // Número de área para el link de tatami
+  const areaNum = partido.area || (areaIndex + 1);
 
   return (
     <div style={{
@@ -279,6 +282,29 @@ function MatchCard({ partido, areaIndex }: { partido: Partido; areaIndex: number
           side="visitante"
         />
       </div>
+
+      {/* ── Link Pantalla Tatami ────────────────────────────────── */}
+      {torneoId && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2, flexShrink: 0 }}>
+          <Link
+            href={`/torneos/${torneoId}/tatami/${areaNum}`}
+            target="_blank"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+              color: palette.accent,
+              background: `${palette.border}18`,
+              border: `1px solid ${palette.border}44`,
+              borderRadius: 8, padding: '4px 10px',
+              textDecoration: 'none',
+              opacity: 0.85,
+              transition: 'opacity 0.2s',
+            }}
+          >
+            📺 TATAMI {areaNum}
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -1519,6 +1545,7 @@ export default function TVLivePage() {
                       key={item.id}
                       partido={item.partido}
                       areaIndex={startIndex + i}
+                      torneoId={id}
                     />
                   );
                 })}

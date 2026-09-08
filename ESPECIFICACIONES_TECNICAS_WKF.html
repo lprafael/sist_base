@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Especificaciones Técnicas — Sistema WKF MiCancha</title>
+  <style>
+    /* ── Google Fonts ─────────────────────────────── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;600;700&display=swap');
+
+    /* ── Variables ────────────────────────────────── */
+    :root {
+      --red:    #c0392b;
+      --navy:   #0a1628;
+      --navy2:  #0d2044;
+      --slate:  #334155;
+      --steel:  #64748b;
+      --muted:  #94a3b8;
+      --light:  #e2e8f0;
+      --white:  #ffffff;
+      --green:  #10b981;
+      --amber:  #f59e0b;
+      --blue:   #3b82f6;
+      --border: #cbd5e1;
+      --bg:     #f8fafc;
+      --code:   #1e293b;
+    }
+
+    /* ── Reset & Base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.6;
+      color: #1e293b;
+      background: var(--bg);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── Print setup ──────────────────────────────── */
+    @page {
+      size: A4;
+      margin: 18mm 20mm 20mm 20mm;
+    }
+    @media print {
+      body { background: white; font-size: 9pt; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+      .avoid-break { page-break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+
+    /* ── Screen wrapper ───────────────────────────── */
+    @media screen {
+      body { padding: 24px; }
+      .doc { max-width: 794px; margin: 0 auto; background: white;
+             box-shadow: 0 4px 40px rgba(0,0,0,0.12); }
+      .print-btn {
+        position: fixed; top: 20px; right: 20px;
+        background: var(--red); color: white; border: none;
+        padding: 12px 24px; border-radius: 10px; font-weight: 800;
+        font-size: 13px; cursor: pointer; letter-spacing: 0.06em;
+        box-shadow: 0 4px 16px rgba(192,57,43,0.4);
+        z-index: 999; font-family: 'Inter', sans-serif;
+      }
+      .print-btn:hover { background: #a93226; }
+    }
+
+    .doc { padding: 0; }
+
+    /* ── Cover page ───────────────────────────────── */
+    .cover {
+      background: linear-gradient(160deg, var(--navy) 0%, var(--navy2) 55%, #071a36 100%);
+      color: white;
+      padding: 54px 54px 50px;
+      position: relative;
+      overflow: hidden;
+      min-height: 290px;
+    }
+    .cover::before {
+      content: '';
+      position: absolute; top: -80px; right: -80px;
+      width: 360px; height: 360px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(192,57,43,0.15) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .cover::after {
+      content: '';
+      position: absolute; bottom: -100px; left: 60px;
+      width: 280px; height: 280px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .cover-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(192,57,43,0.25); border: 1px solid rgba(192,57,43,0.5);
+      border-radius: 20px; padding: 5px 16px;
+      font-size: 9pt; font-weight: 700; color: #fca5a5;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .cover-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+    .cover h1 {
+      font-size: 26pt; font-weight: 900; line-height: 1.1;
+      letter-spacing: -0.03em; margin-bottom: 6px;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .cover-sub {
+      font-size: 13pt; color: rgba(203,213,225,0.85); font-weight: 500;
+      margin-bottom: 28px; max-width: 520px; line-height: 1.4;
+    }
+    .cover-meta {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      padding-top: 20px; margin-top: 8px;
+    }
+    .cover-meta-item { font-size: 8pt; color: rgba(148,163,184,0.9); }
+    .cover-meta-item strong { display: block; font-size: 9pt; color: rgba(255,255,255,0.9); font-weight: 700; margin-bottom: 2px; }
+    .cover-logo {
+      position: absolute; top: 48px; right: 54px;
+      width: 60px; height: 60px; border-radius: 16px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+
+    /* ── TOC ──────────────────────────────────────── */
+    .toc {
+      padding: 36px 54px;
+      border-bottom: 1px solid var(--border);
+      background: #f8fafc;
+    }
+    .toc h2 { font-size: 11pt; font-weight: 800; color: var(--navy); margin-bottom: 16px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; }
+    .toc-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 0; border-bottom: 1px dotted #e2e8f0; font-size: 9pt;
+    }
+    .toc-item a { color: var(--navy); text-decoration: none; font-weight: 500; }
+    .toc-item span { color: var(--steel); font-size: 8pt; font-weight: 700; }
+
+    /* ── Body content ─────────────────────────────── */
+    .content { padding: 36px 54px; }
+
+    /* ── Section heading ──────────────────────────── */
+    .section-title {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px; margin-top: 36px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--navy);
+    }
+    .section-title:first-child { margin-top: 0; }
+    .section-num {
+      background: var(--red); color: white;
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9pt; font-weight: 900; flex-shrink: 0;
+    }
+    .section-title h2 { font-size: 13pt; font-weight: 900; color: var(--navy); letter-spacing: -0.01em; }
+
+    /* ── Sub-heading ──────────────────────────────── */
+    h3 {
+      font-size: 10.5pt; font-weight: 800; color: var(--navy);
+      margin: 20px 0 10px; padding-left: 10px;
+      border-left: 3px solid var(--red);
+    }
+    h4 {
+      font-size: 9.5pt; font-weight: 700; color: var(--slate);
+      margin: 14px 0 6px;
+    }
+
+    p { margin-bottom: 10px; color: #334155; }
+
+    /* ── Tables ───────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: 12px 0 20px; border-radius: 10px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    thead tr { background: var(--navy); color: white; }
+    thead th {
+      padding: 9px 12px; text-align: left;
+      font-weight: 700; letter-spacing: 0.04em;
+      font-size: 7.5pt; text-transform: uppercase;
+    }
+    tbody tr { border-bottom: 1px solid #e2e8f0; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 8px 12px; vertical-align: top; }
+    .td-code { font-family: 'Roboto Mono', monospace; font-size: 8pt; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+
+    /* ── Code blocks ──────────────────────────────── */
+    pre {
+      background: var(--code); color: #e2e8f0;
+      border-radius: 10px; padding: 16px 18px;
+      font-family: 'Roboto Mono', monospace; font-size: 8pt;
+      line-height: 1.7; overflow-x: auto;
+      margin: 12px 0 20px;
+      border-left: 3px solid var(--red);
+    }
+    code {
+      font-family: 'Roboto Mono', monospace; font-size: 8pt;
+      background: #f1f5f9; color: var(--code);
+      padding: 1px 5px; border-radius: 4px;
+    }
+    pre code { background: transparent; color: inherit; padding: 0; }
+
+    /* Syntax highlights */
+    .kw  { color: #f472b6; }  /* keywords */
+    .str { color: #86efac; }  /* strings */
+    .cmt { color: #64748b; }  /* comments */
+    .fn  { color: #93c5fd; }  /* functions */
+    .num { color: #fbbf24; }  /* numbers */
+    .url { color: #6ee7b7; }  /* urls/paths */
+
+    /* ── Info boxes ───────────────────────────────── */
+    .info-box {
+      border-radius: 10px; padding: 14px 16px; margin: 14px 0 20px;
+      border-left: 4px solid; font-size: 9pt; line-height: 1.5;
+    }
+    .info-box.important { background: #fef3c7; border-color: #f59e0b; color: #78350f; }
+    .info-box.warning   { background: #fef2f2; border-color: #ef4444; color: #7f1d1d; }
+    .info-box.note      { background: #eff6ff; border-color: #3b82f6; color: #1e3a5f; }
+    .info-box.success   { background: #f0fdf4; border-color: #10b981; color: #14532d; }
+    .info-box strong    { display: block; font-weight: 800; margin-bottom: 4px; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── Badges / tags ────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 12px; font-size: 7.5pt; font-weight: 700;
+    }
+    .badge-red    { background: rgba(239,68,68,0.12);  color: #991b1b; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-green  { background: rgba(16,185,129,0.1);  color: #065f46; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-amber  { background: rgba(245,158,11,0.12); color: #78350f; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-blue   { background: rgba(59,130,246,0.1);  color: #1e3a5f; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-gray   { background: rgba(100,116,139,0.1); color: #334155; border: 1px solid rgba(100,116,139,0.3); }
+
+    /* ── Stat row ─────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+    .stat-card {
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 12px; text-align: center; background: white;
+    }
+    .stat-card .val { font-size: 20pt; font-weight: 900; color: var(--navy); line-height: 1; }
+    .stat-card .lbl { font-size: 7.5pt; color: var(--steel); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+
+    /* ── Flow diagram ─────────────────────────────── */
+    .flow {
+      display: flex; flex-direction: column; gap: 0;
+      margin: 16px 0 24px; border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .flow-step {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 12px 16px; border-bottom: 1px solid #e2e8f0;
+      font-size: 9pt;
+    }
+    .flow-step:last-child { border-bottom: none; }
+    .flow-step:nth-child(even) { background: #f8fafc; }
+    .flow-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--red); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8pt; font-weight: 900; flex-shrink: 0; margin-top: 1px;
+    }
+    .flow-body { flex: 1; }
+    .flow-title { font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+    .flow-desc  { color: var(--steel); font-size: 8.5pt; }
+    .flow-arrow { text-align: center; color: #cbd5e1; font-size: 14pt; }
+
+    /* ── Architecture box ─────────────────────────── */
+    .arch-box {
+      background: var(--code); color: #e2e8f0;
+      border-radius: 10px; padding: 18px 20px; margin: 12px 0 20px;
+      font-family: 'Roboto Mono', monospace; font-size: 8pt;
+      line-height: 1.8; border-left: 3px solid var(--blue);
+    }
+
+    /* ── Hardware grid ────────────────────────────── */
+    .hw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+    .hw-card {
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; background: white;
+    }
+    .hw-card .hw-icon { font-size: 20px; margin-bottom: 6px; }
+    .hw-card h4 { font-size: 9pt; font-weight: 800; color: var(--navy); margin: 0 0 6px; padding: 0; border: none; }
+    .hw-card ul { list-style: none; padding: 0; }
+    .hw-card li { font-size: 8.5pt; color: var(--slate); padding: 2px 0; }
+    .hw-card li::before { content: '→ '; color: var(--red); font-weight: 700; }
+
+    /* ── Compliance table ─────────────────────────── */
+    .check { color: var(--green); font-weight: 900; }
+    .cross { color: var(--red); }
+    .pending { color: var(--amber); }
+
+    /* ── Footer ───────────────────────────────────── */
+    .footer {
+      background: var(--navy); color: rgba(148,163,184,0.8);
+      padding: 18px 54px; font-size: 8pt;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer strong { color: rgba(255,255,255,0.8); }
+
+    /* ── Divider ──────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── Intro lead ───────────────────────────────── */
+    .lead {
+      font-size: 10.5pt; color: var(--slate); line-height: 1.7;
+      padding: 18px 20px; border-radius: 10px;
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border: 1px solid #bae6fd; margin-bottom: 20px;
+    }
+
+    ul.checklist { list-style: none; padding: 0; margin: 8px 0 16px; }
+    ul.checklist li { padding: 3px 0 3px 20px; position: relative; font-size: 9pt; color: var(--slate); }
+    ul.checklist li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 900; }
+    ul.checklist li.warn::before { content: '⚠'; color: var(--amber); }
+
+    ul.bullets { padding-left: 18px; margin: 8px 0 16px; }
+    ul.bullets li { font-size: 9pt; color: var(--slate); margin-bottom: 4px; }
+    ul.bullets li::marker { color: var(--red); }
+
+    /* ── Endpoint block ───────────────────────────── */
+    .endpoint {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px; border-radius: 8px; margin-bottom: 8px;
+      border: 1px solid var(--border); background: #fafafa;
+    }
+    .method {
+      font-family: 'Roboto Mono', monospace; font-size: 8pt; font-weight: 900;
+      padding: 2px 8px; border-radius: 4px; flex-shrink: 0; margin-top: 1px;
+    }
+    .method.post { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+    .method.get  { background: rgba(16,185,129,0.12); color: #065f46; }
+    .method.ws   { background: rgba(139,92,246,0.12); color: #6d28d9; }
+    .method.patch{ background: rgba(245,158,11,0.12); color: #78350f; }
+    .endpoint-detail { flex: 1; }
+    .endpoint-path { font-family: 'Roboto Mono', monospace; font-size: 8.5pt; font-weight: 700; color: var(--navy); }
+    .endpoint-desc { font-size: 8pt; color: var(--steel); margin-top: 3px; }
+    .endpoint-params { font-size: 7.5pt; color: var(--muted); margin-top: 3px; font-family: 'Roboto Mono', monospace; }
+
+    /* ── Screen card ──────────────────────────────── */
+    .screen-card {
+      border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; margin-bottom: 16px;
+    }
+    .screen-header {
+      background: var(--navy); color: white;
+      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+    }
+    .screen-header .screen-icon { font-size: 16px; }
+    .screen-header h4 { font-size: 9pt; font-weight: 800; margin: 0; }
+    .screen-header .screen-url { font-size: 8pt; color: #64748b; font-family: 'Roboto Mono', monospace; margin-top: 2px; }
+    .screen-body { padding: 14px 16px; background: white; }
+    .screen-body ul { list-style: none; padding: 0; margin: 0; }
+    .screen-body li { font-size: 8.5pt; color: var(--slate); padding: 3px 0 3px 16px; position: relative; }
+    .screen-body li::before { content: '▸'; position: absolute; left: 0; color: var(--red); font-weight: 900; }
+    .screen-body li strong { color: var(--navy); }
+  </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / PDF</button>
+
+<div class="doc">
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PORTADA                                                   -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="cover">
+    <div class="cover-logo">⛩️</div>
+    <div class="cover-badge"><div class="cover-dot"></div> Versión 1.1 — Septiembre 2026</div>
+    <h1>Sistema de Arbitraje<br>Digital WKF</h1>
+    <p class="cover-sub">Especificaciones Técnicas Completas — Módulo de Puntuación, Video Review, Captura Nativa Web y Visualización para Competencias de Karate</p>
+    <div class="cover-meta">
+      <div class="cover-meta-item"><strong>Documento</strong>SPEC-MICANCHA-WKF-2026</div>
+      <div class="cover-meta-item"><strong>Plataforma</strong>MiCancha</div>
+      <div class="cover-meta-item"><strong>Reglamento</strong>WKF 2024 · ASAM</div>
+      <div class="cover-meta-item"><strong>Confidencialidad</strong>Propuesta Federativa</div>
+      <div class="cover-meta-item"><strong>Fecha</strong>Septiembre 2026</div>
+      <div class="cover-meta-item"><strong>Estado</strong>Producción Activa</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  TABLA DE CONTENIDOS                                       -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="toc">
+    <h2>Tabla de Contenidos</h2>
+    <div class="toc-grid">
+      <div class="toc-item"><a href="#s1">1. Introducción y Alcance</a><span>§1</span></div>
+      <div class="toc-item"><a href="#s6">6. Ingesta de Video: Cámara Nativa &amp; OBS</a><span>§6</span></div>
+      <div class="toc-item"><a href="#s2">2. Arquitectura del Sistema</a><span>§2</span></div>
+      <div class="toc-item"><a href="#s7">7. API Reference</a><span>§7</span></div>
+      <div class="toc-item"><a href="#s3">3. Módulo de Puntuación WKF</a><span>§3</span></div>
+      <div class="toc-item"><a href="#s8">8. Base de Datos</a><span>§8</span></div>
+      <div class="toc-item"><a href="#s4">4. Módulo de Video Review</a><span>§4</span></div>
+      <div class="toc-item"><a href="#s9">9. Requisitos de Hardware</a><span>§9</span></div>
+      <div class="toc-item"><a href="#s5">5. Pantallas del Sistema</a><span>§5</span></div>
+      <div class="toc-item"><a href="#s10">10. Seguridad y Continuidad</a><span>§10</span></div>
+      <div class="toc-item"><a href="#s11">11. Cumplimiento Reglamento WKF</a><span>§11</span></div>
+      <div class="toc-item"><a href="#s12">12. Instalación y Despliegue</a><span>§12</span></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  CONTENIDO                                                 -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="content">
+
+    <!-- ─── §1 Introducción ─────────────────────────────────── -->
+    <div id="s1" class="section-title avoid-break">
+      <div class="section-num">1</div>
+      <h2>Introducción y Alcance</h2>
+    </div>
+
+    <p class="lead">
+      El sistema <strong>MiCancha — Módulo de Arbitraje</strong> es una solución digital integral diseñada para la gestión automatizada de competencias de Karate bajo los reglamentos de la <strong>World Karate Federation (WKF)</strong> y el sistema federativo nacional <strong>ASAM</strong>. Cubre el ciclo completo de competencia: inscripción de atletas, armado de cuadros, arbitraje en tiempo real con pantalla pública por tatami, y revisión de jugadas por video (Video Review / VR Judge) con arquitectura dual de captura (Cámara Nativa Web Zero-Install y OBS Studio Pro).
+    </p>
+
+    <h3>1.1 Modalidades Cubiertas</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Modalidad</th><th>Reglamento</th><th>Estado</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Kumite Individual</strong></td><td>WKF 2024</td><td><span class="badge badge-green">✓ Activo</span></td><td>Combate por puntos 1 vs 1 con puntuación Yuko/Waza-Ari/Ippon</td></tr>
+          <tr><td><strong>Kumite por Equipos</strong></td><td>WKF 2024</td><td><span class="badge badge-green">✓ Activo</span></td><td>Encuentros por equipo con gestión de orden de combate</td></tr>
+          <tr><td><strong>Kata / Formas Individual</strong></td><td>ASAM</td><td><span class="badge badge-green">✓ Activo</span></td><td>Puntuación decimal, clasificación y podio automático</td></tr>
+          <tr><td><strong>Kata por Equipos</strong></td><td>ASAM</td><td><span class="badge badge-amber">🔧 Beta</span></td><td>Puntuación sincronizada de 3 atletas</td></tr>
+          <tr><td><strong>Video Review / VR</strong></td><td>WKF 2024 + ASAM</td><td><span class="badge badge-green">✓ Activo</span></td><td>Sistema de apelación con replay en &lt; 1s (Cámara Web / OBS)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>1.2 Estadísticas del Sistema</h3>
+    <div class="stat-grid avoid-break">
+      <div class="stat-card"><div class="val">5</div><div class="lbl">Pantallas por tatami</div></div>
+      <div class="stat-card"><div class="val">2</div><div class="lbl">Modos de Ingesta (Web / OBS)</div></div>
+      <div class="stat-card"><div class="val">45s</div><div class="lbl">Búfer Circular en RAM</div></div>
+      <div class="stat-card"><div class="val">&lt; 1s</div><div class="lbl">Entrega Replay a Juez VR</div></div>
+    </div>
+
+    <!-- ─── §2 Arquitectura ──────────────────────────────────── -->
+    <div id="s2" class="section-title avoid-break page-break">
+      <div class="section-num">2</div>
+      <h2>Arquitectura del Sistema</h2>
+    </div>
+
+    <h3>2.1 Diagrama General</h3>
+    <div class="arch-box avoid-break">
+<span class="cmt">┌─────────────────────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="cmt">│                                    CAPA DE PRESENTACIÓN                                     │</span>
+<span class="cmt">├───────────────────┬───────────────────────┬─────────────────────────┬───────────────────────┤</span>
+│  <span class="fn">Mesa Árbitro</span>      │  <span class="fn">Pantalla Tatami</span>       │  <span class="fn">Panel Juez VR</span>          │  <span class="fn">Cámara Web/Móvil</span>     │
+│  PC · Chrome      │  Smart TV / HDMI      │  iPad / Tablet          │  Smartphone / Webcam  │
+│  /arbitraje/      │  /tatami/{area}        │  /vr-station/           │  /tatami/{area}/camara│
+│  combate          │  Fullscreen 4K         │  Interfaz táctil 30s    │  Búfer RAM 45s        │
+<span class="cmt">└────────┬──────────┴──────────┬────────────┴────────────┬────────────┴───────────┬───────────┘</span>
+         │                     │                         │                        │
+         │                     │    WebSocket + REST     │                        │ HTTP Multipart
+         │                     │                         │                        │ POST /subir-clip
+<span class="cmt">┌────────▼─────────────────────▼─────────────────────────▼────────────────────────▼───────────┐</span>
+<span class="cmt">│                                      CAPA DE BACKEND                                        │</span>
+│  FastAPI · Python 3.14 · Uvicorn · PostgreSQL 15 · asyncpg · Servidor HTTP /clips/           │
+<span class="cmt">├───────────────────────────────────────────────────────┬─────────────────────────────────────┤</span>
+│  routers/<span class="fn">video_review.py</span>                              │  workers/<span class="fn">vr_broadcaster.py</span>          │
+│  POST  /solicitar          (pausa crono + banner)     │  VRConnectionManager                │
+│  POST  /subir-clip         (ingesta nativa multipart) │  broadcast por match_id             │
+│  POST  /resolver           (veredicto + puntos)       │  CLIP_DISPONIBLE, VR_SOLICITADO     │
+│  PATCH /clip/{id}          (notificación OBS)         │  Previene cross-tatami bleed        │
+│  WS    /ws/{match_id}      (tiempo real bidireccional)│                                     │
+<span class="cmt">├───────────────────────────────────────────────────────┴─────────────────────────────────────┤</span>
+│  Almacenamiento Local de Repeticiones: <span class="url">/clips/{filename}</span> (FastAPI StaticFiles)             │
+<span class="cmt">└──────────────────────────────────────────────▲──────────────────────────────────────────────┘</span>
+                                               │
+<span class="cmt">┌──────────────────────────────────────────────┴──────────────────────────────────────────────┐</span>
+<span class="cmt">│                        INGESTA DE VIDEO DUAL (A ELECCIÓN POR TATAMI)                        │</span>
+<span class="cmt">├───────────────────────────────────────────────────────┬─────────────────────────────────────┤</span>
+│  <span class="str">MODO 1: CÁMARA NATIVA WEB (ZERO-INSTALL)</span>             │  <span class="str">MODO 2: OBS STUDIO PRO (BROADCAST)</span>│
+│  · Búfer circular FIFO en RAM navegador (45 seg)      │  · Replay Buffer de 30–60 seg       │
+│  · MediaRecorder API @ 1080p / 4 Mbps                 │  · obs-websocket + <span class="fn">obs_bridge.py</span>    │
+│  · Disparo automático al recibir VR_SOLICITADO        │  · Cámaras SDI/HDMI, 120fps         │
+│  · Sube directamente a /api/vr/.../subir-clip         │  · Notifica PATCH /clip/{id}        │
+<span class="cmt">└───────────────────────────────────────────────────────┴─────────────────────────────────────┘</span>
+    </div>
+
+    <h3>2.2 Stack Tecnológico</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Capa</th><th>Tecnología</th><th>Versión</th><th>Rol</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td>Next.js (React 18)</td><td>14.0+</td><td>UI de árbitro, tatami, VR station, cámara nativa, resumen</td></tr>
+          <tr><td>Backend API</td><td>FastAPI + Uvicorn</td><td>0.115+</td><td>REST + WebSocket, endpoints de video review y scoring</td></tr>
+          <tr><td>Base de Datos</td><td>PostgreSQL</td><td>15+</td><td>Persistencia de combates, puntos, veredictos VR y clips</td></tr>
+          <tr><td>ORM Async</td><td>SQLAlchemy + asyncpg</td><td>2.0+</td><td>Acceso transaccional asíncrono a DB</td></tr>
+          <tr><td>Tiempo Real</td><td>WebSocket (Starlette)</td><td>—</td><td>Broadcast instantáneo de eventos por tatami (< 100ms)</td></tr>
+          <tr><td>Captura Nativa</td><td>MediaRecorder API</td><td>Web Native</td><td>Búfer rodante de 45s en RAM, corte y subida sin software externo</td></tr>
+          <tr><td>Video Replay Pro</td><td>OBS Studio + obs-websocket</td><td>OBS 30.x</td><td>Captura alternativa profesional con Replay Buffer</td></tr>
+          <tr><td>Bridge OBS</td><td>Python + obsws-python</td><td>1.x</td><td>Conector opcional para tatamis con equipamiento OBS</td></tr>
+          <tr><td>Servicio de Clips</td><td>FastAPI StaticFiles</td><td>—</td><td>Streaming local de clips WebM/MP4 montados en <code>/clips</code></td></tr>
+          <tr><td>Red</td><td>LAN / Wi-Fi local</td><td>Gigabit / 5GHz</td><td>Comunicación de alta velocidad en el recinto deportivo</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>2.3 Principio de Aislamiento por Tatami</h3>
+    <p>Cada tatami tiene su propia sala WebSocket identificada por <code>match_id</code>. El componente <code>VRConnectionManager</code> garantiza que los eventos (puntos, VR, estado del cronómetro, clips de video) de un tatami <strong>nunca contaminen</strong> la visualización ni los veredictos de otro tatami.</p>
+
+    <!-- ─── §3 Puntuación WKF ─────────────────────────────────── -->
+    <div id="s3" class="section-title avoid-break page-break">
+      <div class="section-num">3</div>
+      <h2>Módulo de Puntuación WKF</h2>
+    </div>
+
+    <h3>3.1 Escala de Puntos — Kumite WKF 2024</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Término</th><th>Kanji</th><th>Puntos</th><th>Criterio de Concesión (Art. 8, WKF Rules 2024)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Yuko</strong></td><td>有効</td><td style="text-align:center;font-weight:900;color:#1d4ed8;">1 pt</td><td>Puñetazo a zona permitida del tronco (Jodan/Chudan) sin penetración profunda. Golpe limpio con Zanshin.</td></tr>
+          <tr><td><strong>Waza-Ari</strong></td><td>技あり</td><td style="text-align:center;font-weight:900;color:#1d4ed8;">2 pts</td><td>Patada al tronco con penetración o control demostrable; derribo controlado o barrido sin técnica de suelo.</td></tr>
+          <tr><td><strong>Ippon</strong></td><td>一本</td><td style="text-align:center;font-weight:900;color:#1d4ed8;">3 pts</td><td>Patada a la cabeza (Jodan); derribo + técnica de remate al suelo; golpe poderoso a la espalda. Técnica con máximo control.</td></tr>
+          <tr><td><strong>Senshu</strong></td><td>先取</td><td style="text-align:center;font-weight:700;color:#78350f;">Ventaja</td><td>Primer punto marcado en combate. Actúa como desempate cuando el marcador está igualado al vencimiento del tiempo.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.2 Sistema de Penalizaciones (Hansoku)</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Infracción</th><th>Nivel</th><th>Consecuencia Directa</th><th>Acumulación</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Jogai</strong> (場外)</td><td><span class="badge badge-amber">C1</span></td><td>Advertencia por salida del área de combate</td><td>3 Jogai = Keikoku automático</td></tr>
+          <tr><td><strong>Chukoku</strong> (注告)</td><td><span class="badge badge-amber">C1</span></td><td>Primera advertencia formal por contacto excesivo</td><td>2 Chukoku = Keikoku</td></tr>
+          <tr><td><strong>Keikoku</strong> (警告)</td><td><span class="badge badge-amber">C1</span></td><td>Penalización: +2 puntos al rival</td><td>2 Keikoku = Hansoku</td></tr>
+          <tr><td><strong>Hansoku</strong> (反則)</td><td><span class="badge badge-red">C2</span></td><td>Descalificación del combate; victoria al rival</td><td>Inmediato</td></tr>
+          <tr><td><strong>Hansoku Directo</strong></td><td><span class="badge badge-red">C2</span></td><td>Descalificación sin advertencia previa (contacto grave)</td><td>Inmediato</td></tr>
+          <tr><td><strong>Shikkaku</strong> (失格)</td><td><span class="badge badge-red">C3</span></td><td>Expulsión del torneo completo</td><td>Inmediato</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.3 Reglas de Victoria y Resolución</h3>
+    <div class="flow avoid-break">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <div class="flow-title">Victoria por Ippon Directo</div>
+          <div class="flow-desc">Se ejecuta una técnica de Ippon (3 pts) o se alcanza una diferencia de 8 puntos en cualquier momento del combate. El árbitro detiene el combate: <strong>Yame → Shobu Ippon</strong>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <div class="flow-title">Victoria por Puntuación al Vencimiento del Tiempo</div>
+          <div class="flow-desc">Al sonar la señal de fin, gana el competidor con <strong>mayor puntuación acumulada</strong> (Yuko + Waza-Ari + Ippon ponderados).</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <div class="flow-title">Empate → Desempate por Senshu</div>
+          <div class="flow-desc">Si el marcador es igual al vencimiento del tiempo, gana quien tiene el <strong>Senshu</strong> (primer punto marcado en el combate). El sistema lo asigna automáticamente al registrar el primer evento de puntuación.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-body">
+          <div class="flow-title">Empate sin Senshu → Prórroga Enchosen</div>
+          <div class="flow-desc">Prórroga de <strong>1 minuto</strong> con regla de <strong>muerte súbita</strong>: el primer punto otorgado o la primera penalización define al vencedor. El sistema activa el modo alargue automáticamente.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-body">
+          <div class="flow-title">Victoria por Penalización</div>
+          <div class="flow-desc">Un Hansoku directo o la acumulación de infracciones hasta nivel Hansoku otorga la victoria inmediata al rival. El sistema registra la descalificación y actualiza todos los marcadores.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>3.4 Duración por Categoría (Configuración Estándar WKF)</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Categoría</th><th>Duración</th><th>Prórroga</th><th>Diferencia automática</th></tr></thead>
+        <tbody>
+          <tr><td>Senior Masculino / Femenino</td><td>3 minutos</td><td>1 min (muerte súbita)</td><td>8 puntos</td></tr>
+          <tr><td>Junior (15–17 años)</td><td>2 minutos</td><td>1 min</td><td>8 puntos</td></tr>
+          <tr><td>Cadete (14–15 años)</td><td>1.5 minutos</td><td>1 min</td><td>8 puntos</td></tr>
+          <tr><td>Sub-14 / Menores</td><td>1 minuto</td><td>1 min</td><td>8 puntos</td></tr>
+          <tr><td>Kumite por Equipos (cada combate)</td><td>3 minutos</td><td>1 min</td><td>8 puntos</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-box note avoid-break">
+      <strong>Configuración flexible</strong>
+      Los tiempos de combate son completamente configurables en el sistema desde el panel de administración del torneo, permitiendo adaptar a reglas locales o categorías especiales.
+    </div>
+
+    <!-- ─── §4 Video Review ──────────────────────────────────── -->
+    <div id="s4" class="section-title avoid-break page-break">
+      <div class="section-num">4</div>
+      <h2>Módulo de Video Review (VR)</h2>
+    </div>
+
+    <p class="lead">
+      El módulo de Video Review implementa el <strong>Artículo 9 del Reglamento WKF 2024</strong> de forma digital, permitiendo al Coach de cada esquina apelar una decisión de puntuación mediante un sistema de video replay en tiempo real, gestionado por un Juez VR independiente.
+    </p>
+
+    <h3>4.1 Marco Reglamentario — Artículo 9 WKF</h3>
+    <div class="info-box note avoid-break">
+      <strong>Extracto Reglamento WKF 2024 — Art. 9 (Video Control)</strong>
+      <em>"Each contestant's coach may appeal to the Video Review Judge once per match. If the appeal is granted, the coach retains the right for a subsequent appeal. If the appeal is denied, the coach loses the right to appeal for the remainder of the contest. If no score is visible on the video, the result shall be 'Mienai' (not visible) and the coach retains the right to appeal."</em>
+    </div>
+
+    <h3>4.2 Tipos de Apelación Implementados</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Puntos Reclamados</th><th>Reglamento</th></tr></thead>
+        <tbody>
+          <tr><td><span class="td-code">YUKO</span></td><td>El Coach reclama que se debió otorgar 1 punto (Yuko)</td><td>+1 si se acepta</td><td>WKF</td></tr>
+          <tr><td><span class="td-code">WAZA_ARI</span></td><td>El Coach reclama que se debió otorgar 2 puntos (Waza-Ari)</td><td>+2 si se acepta</td><td>WKF</td></tr>
+          <tr><td><span class="td-code">IPPON</span></td><td>El Coach reclama que se debió otorgar 3 puntos (Ippon), incluyendo derribo con técnica</td><td>+3 si se acepta</td><td>WKF</td></tr>
+          <tr><td><span class="td-code">SENSHU</span></td><td>El Coach reclama la asignación o revocación del Senshu (ventaja táctica)</td><td>Cambio de Senshu</td><td>WKF</td></tr>
+          <tr><td><span class="td-code">OTRO</span></td><td>Reclamo de punto o jugada no categorizada en WKF estándar</td><td>+1 si se acepta</td><td>ASAM</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>4.3 Tabla de Resultados y Consecuencias</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Resultado VR</th><th>Descripción</th><th>Tarjeta del Coach</th><th>Efecto en Marcador</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-green">✓ ACEPTADO</span></td>
+            <td>La jugada fue válida. El Juez VR confirma el punto reclamado.</td>
+            <td>✅ <strong>Conserva</strong> — puede volver a apelar</td>
+            <td>Se suman los puntos correspondientes al marcador automáticamente</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">✗ RECHAZADO</span></td>
+            <td>La jugada no fue suficiente para otorgar el punto reclamado.</td>
+            <td>❌ <strong>Pierde</strong> — sin más apelaciones en el combate</td>
+            <td>Marcador sin cambios</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-amber">👁 MIENAI</span></td>
+            <td>"No visible". El ángulo de cámara impide ver la jugada con claridad.</td>
+            <td>✅ <strong>Conserva</strong> — puede volver a apelar</td>
+            <td>Marcador sin cambios</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>4.4 Flujo Operativo Completo del Video Review</h3>
+    <div class="flow avoid-break">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <div class="flow-title">Detención del Combate</div>
+          <div class="flow-desc">El Árbitro Central detiene el combate (<em>Yame</em>). El Coach de la esquina afectada solicita Video Review.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <div class="flow-title">Solicitud por Panel Digital</div>
+          <div class="flow-desc">El árbitro de mesa (o el coach vía panel) selecciona el tipo de reclamo (YUKO / WAZA_ARI / IPPON / SENSHU) y confirma. El sistema <strong>pausa el cronómetro automáticamente</strong>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <div class="flow-title">Broadcast Instantáneo vía WebSocket</div>
+          <div class="flow-desc">Se emite el evento <code>VR_SOLICITADO</code> a todos los dispositivos del tatami: la pantalla pública muestra el banner <strong>"🎥 VIDEO REVIEW — RECLAMO AKA"</strong>, el panel del Juez VR recibe la alerta e inicia el timer de 30 segundos.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-body">
+          <div class="flow-title">Generación y Envío Automático del Clip (Arquitectura Dual)</div>
+          <div class="flow-desc">
+            <strong>• Modo Cámara Nativa Web (Zero-Install):</strong> La estación de cámara (smartphone en trípode o webcam USB) recibe el evento <code>VR_SOLICITADO</code> vía WebSocket. Al instante, corta los últimos 45 segundos de su búfer circular en memoria RAM, ensambla el Blob y lo transfiere vía HTTP POST a <code>/api/vr/combates/{id}/subir-clip</code>. El backend lo aloja en <code>/clips</code> y emite <code>CLIP_DISPONIBLE</code>. El clip carga en la tablet del Juez VR en <strong>menos de 1 segundo</strong>.<br>
+            <strong>• Modo OBS Studio Pro:</strong> OBS Studio descarga su Replay Buffer al disco SSD. El script <code>obs_bridge.py</code> detecta el archivo guardado y lo notifica al backend vía PATCH, activando la reproducción en la tablet.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-body">
+          <div class="flow-title">Revisión del Clip por el Juez VR</div>
+          <div class="flow-desc">El Juez VR reproduce el clip en su tablet con controles avanzados: velocidad 0.25×/0.5×/1×, paso a paso frame a frame (1/30 seg), salto a −6 segundos (inicio del intercambio). Tiempo de deliberación: <strong>30 segundos reglamentarios</strong>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-body">
+          <div class="flow-title">Emisión del Veredicto</div>
+          <div class="flow-desc">El Juez VR selecciona: <strong>ACEPTADO</strong> (con tipo de punto), <strong>RECHAZADO</strong>, o <strong>MIENAI</strong>. El sistema registra el veredicto en base de datos y emite el evento <code>VR_RESUELTO</code> + <code>SCORE_UPDATE</code>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">7</div>
+        <div class="flow-body">
+          <div class="flow-title">Actualización Automática de Todos los Dispositivos</div>
+          <div class="flow-desc">La pantalla de tatami retira el banner de VR. El marcador actualiza los puntos si fue ACEPTADO. La tarjeta VR del coach se bloquea si fue RECHAZADO. El árbitro reanuda el combate.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>4.5 Timer de Deliberación</h3>
+    <p>El sistema implementa un <strong>timer visual de 30 segundos</strong> en el panel del Juez VR:</p>
+    <ul class="bullets">
+      <li>De 30 a 11 segundos: indicador verde, estado normal.</li>
+      <li>De 10 a 6 segundos: indicador ámbar, alerta visual.</li>
+      <li>De 5 a 0 segundos: indicador rojo parpadeante, urgencia máxima.</li>
+    </ul>
+
+    <!-- ─── §5 Pantallas ─────────────────────────────────────── -->
+    <div id="s5" class="section-title avoid-break page-break">
+      <div class="section-num">5</div>
+      <h2>Pantallas del Sistema</h2>
+    </div>
+
+    <div class="screen-card avoid-break">
+      <div class="screen-header">
+        <div class="screen-icon">🖥️</div>
+        <div>
+          <h4>Panel de Árbitro de Mesa</h4>
+          <div class="screen-url">/torneos/{id}/arbitraje/combate</div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <ul>
+          <li><strong>Puntuación WKF:</strong> Botones Yuko (+1), Waza-Ari (+2), Ippon (+3), Senshu por esquina (AKA / AO)</li>
+          <li><strong>Puntuación ASAM:</strong> Punto (+1), Salida, Falta por competidor</li>
+          <li><strong>Penalizaciones:</strong> Chukoku, Keikoku, Hansoku Directo; contador de Jogai</li>
+          <li><strong>Cronómetro:</strong> Inicio/pausa/reset con configuración de tiempo por categoría</li>
+          <li><strong>Modal de Video Review:</strong> Botón VR Card por esquina abre modal interactivo con selección de técnica (YUKO, WAZA_ARI, IPPON, SENSHU, PUNTO ASAM)</li>
+          <li><strong>Accesos directos de cabecera:</strong> Enlaces directos "📹 Cámara Tatami" y "⚖️ Juez VR" para abrir las estaciones en pestañas o monitores independientes</li>
+          <li><strong>Banner flotante de VR activo:</strong> Aviso parpadeante superior mientras el Juez VR delibera sobre la jugada</li>
+          <li><strong>Indicador WebSocket:</strong> Monitoreo de conectividad en tiempo real (verde = conectado, rojo = desconectado)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card avoid-break">
+      <div class="screen-header">
+        <div class="screen-icon">📺</div>
+        <div>
+          <h4>Pantalla de Tatami — TV Display</h4>
+          <div class="screen-url">/torneos/{id}/tatami/{area}</div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <ul>
+          <li><strong>Diseño fullscreen:</strong> Optimizado para TV Full HD / 4K. Sin controles de interfaz visibles.</li>
+          <li><strong>Marcador gigante:</strong> Puntaje AKA (rojo) y AO (azul) en fuente de 80–180px según pantalla</li>
+          <li><strong>Cronómetro central:</strong> Con alertas de color (blanco → ámbar &lt; 30s → rojo &lt; 10s)</li>
+          <li><strong>Desglose WKF:</strong> Badges individuales Yuko / Waza-Ari / Ippon por esquina</li>
+          <li><strong>Badge SENSHU:</strong> Animación de pulso ★ SENSHU cuando está activo</li>
+          <li><strong>Estado VR Card:</strong> "✓ DISPONIBLE" / "✗ BLOQUEADO" por esquina</li>
+          <li><strong>Banner VIDEO REVIEW:</strong> Superposición con efecto glassmorphism y pulso al activarse VR</li>
+          <li><strong>Reconexión automática:</strong> WebSocket se reconecta cada 3 segundos si se pierde la conexión</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card avoid-break">
+      <div class="screen-header" style="background: linear-gradient(135deg, #1e293b, #7f1d1d);">
+        <div class="screen-icon">📹</div>
+        <div>
+          <h4>Estación de Cámara Web Nativa — Smartphone &amp; Webcam</h4>
+          <div class="screen-url">/torneos/{id}/tatami/{area}/camara?matchId={id}</div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <ul>
+          <li><strong>Zero-Install / 100% Web:</strong> Funciona directamente en Google Chrome / Edge en cualquier celular (Android / iOS) o laptop con webcam, sin instalar OBS ni software adicional.</li>
+          <li><strong>Búfer Circular en RAM:</strong> Mantiene los últimos 45 segundos de video en memoria viva mediante la <code>MediaRecorder API</code> (1080p @ 30/60fps, 4 Mbps) sin tocar el almacenamiento local.</li>
+          <li><strong>Disparo Automático por WebSocket:</strong> Al recibir <code>VR_SOLICITADO</code> del árbitro, ensambla el Blob y lo transfiere vía HTTP POST multipart a <code>/api/vr/combates/{id}/subir-clip</code>.</li>
+          <li><strong>Disparo Manual ("⚡ Disparar Replay Ahora"):</strong> Botón de prueba instantánea para verificar la ingesta y transmisión del clip antes del combate.</li>
+          <li><strong>Telemetría de Memoria en Vivo:</strong> Indicador en tiempo real de segundos acumulados en el búfer y memoria RAM consumida (MB).</li>
+          <li><strong>Selector de Dispositivos y Alternancia Móvil:</strong> Selector desplegable para webcams USB y botón "Girar" táctil para alternar cámara frontal / trasera en smartphones.</li>
+          <li><strong>Overlay de Encuadre Marcial:</strong> Marcador central de mira con punto parpadeante para alinear el ángulo del tatami y modo Pantalla Completa.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card avoid-break">
+      <div class="screen-header">
+        <div class="screen-icon">⚖️</div>
+        <div>
+          <h4>Panel del Juez VR — Tablet</h4>
+          <div class="screen-url">/torneos/{id}/vr-station</div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <ul>
+          <li><strong>Alerta en tiempo real:</strong> Recibe la solicitud de VR vía WebSocket con tipo de reclamo y tiempo exacto del cronómetro</li>
+          <li><strong>Timer de deliberación oficial:</strong> 30 segundos visibles con transición de color (verde &gt; ámbar &gt; rojo parpadeante)</li>
+          <li><strong>Reproductor universal de repeticiones:</strong> Carga automática e inmediata de clips WebM (Cámara Nativa) o MP4 (OBS Studio)</li>
+          <li><strong>Control frame a frame:</strong> Avance y retroceso paso a paso (1/30 de segundo) para inspección milimétrica de contacto</li>
+          <li><strong>Velocidades ajustables:</strong> Reproducción a 0.25×, 0.5× y 1.0×</li>
+          <li><strong>Salto directo −6 segundos:</strong> Botón <code>⏮ −6s</code> para ir directo al inicio de la acción del intercambio reclamado</li>
+          <li><strong>Veredicto reglamentario táctil:</strong> Botones táctiles de gran tamaño para ACEPTADO (con selector +1/+2/+3/Senshu), RECHAZADO y MIENAI</li>
+          <li><strong>Telemetría de tarjetas:</strong> Visualización del estado de VR Cards de ambas esquinas en tiempo real</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card avoid-break">
+      <div class="screen-header">
+        <div class="screen-icon">🏆</div>
+        <div>
+          <h4>Vista General Multi-Tatami (TV Central)</h4>
+          <div class="screen-url">/torneos/{id}/tv-live</div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <ul>
+          <li><strong>Grilla configurable:</strong> 1×1, 1×2, 2×2, 2×3 tatamis visibles simultáneamente con actualización en vivo</li>
+          <li><strong>Rotación automática:</strong> Configurable en 5, 10, 15, 20 o 30 segundos entre áreas</li>
+          <li><strong>Enlace directo a tatami:</strong> Botón "📺 TATAMI N" en cada tarjeta activa abre la pantalla de tatami en nueva pestaña</li>
+          <li><strong>Filtros operativos:</strong> En Vivo / Programados / Finalizados / Solo combates de hoy</li>
+          <li><strong>Sidebar histórico:</strong> Resultados recientes acumulados y medallero en vivo</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-card avoid-break">
+      <div class="screen-header" style="background: linear-gradient(135deg, #0f172a, #1e3a8a);">
+        <div class="screen-icon">📊</div>
+        <div>
+          <h4>Auditoría de Video Reviews — Resumen del Torneo</h4>
+          <div class="screen-url">/torneos/{id}/resumen (Pestaña "Video Reviews")</div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <ul>
+          <li><strong>Buscador por Match ID:</strong> Consulta de historial completo de apelaciones para cualquier combate del evento</li>
+          <li><strong>Métricas agregadas:</strong> Contadores en tiempo real de Total VR, Aceptados, Rechazados, Mienai y Pendientes</li>
+          <li><strong>Tarjetas de trazabilidad:</strong> Detalle por cada apelación con técnica reclamada, color de esquina, tiempo de combate, reglamento (WKF/ASAM), resultado final y timestamp de resolución</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─── §6 Ingesta de Video ─────────────────────────────────── -->
+    <div id="s6" class="section-title avoid-break page-break">
+      <div class="section-num">6</div>
+      <h2>Ingesta de Video y Replay: Cámara Nativa &amp; OBS Studio</h2>
+    </div>
+
+    <p class="lead">
+      El sistema MiCancha implementa una <strong>arquitectura dual y desacoplada de captura de repeticiones</strong>. Permite operar tanto en modo <strong>Zero-Install / Cámara Nativa Web</strong> (mediante cualquier smartphone o webcam USB conectada al navegador sin software adicional), como en modo <strong>OBS Studio Pro</strong> (para transmisiones televisivas avanzadas con cámaras broadcast a 120fps).
+    </p>
+
+    <!-- ─── 6.1 Cámara Nativa Web ────────────────────────── -->
+    <h3>6.1 Modo Nativo Web (Zero-Install / Búfer Circular en RAM)</h3>
+    <p>
+      La estación de cámara nativa (<code>/torneos/{id}/tatami/{area}/camara</code>) revoluciona la cobertura de torneos al eliminar la necesidad de PCs dedicadas de streaming, licencias de software y tarjetas capturadoras costosas. Cualquier smartphone Android, iPhone, tablet o notebook con Google Chrome o Edge puede posicionarse sobre un trípode apuntando al tatami y actuar como cámara oficial de repetición inmediata.
+    </p>
+
+    <h4>Arquitectura del Búfer Circular en RAM (MediaRecorder API)</h4>
+    <p>
+      Para evitar el desgaste del almacenamiento flash (SSD/eMMC) y garantizar una velocidad de corte instantánea, el sistema implementa un <strong>búfer rodante FIFO (First-In, First-Out)</strong> directamente en la memoria RAM del dispositivo:
+    </p>
+    <ul class="bullets">
+      <li><strong>Captura de Flujo Continuo:</strong> Acceso a hardware mediante <code>navigator.mediaDevices.getUserMedia</code> configurado en 1080p (ideal 1920×1080, min 1280×720) a 30 o 60 fps.</li>
+      <li><strong>Fragmentación por Segundo:</strong> El objeto <code>MediaRecorder</code> se inicializa con un <code>timeslice</code> de 1000 ms, generando un bloque (chunk) independiente cada segundo a una tasa de bits de <strong>4 Mbps</strong> (WebM/VP9 o MP4 nativo).</li>
+      <li><strong>Poda Temporal Estricta (45 Segundos):</strong> Cada vez que ingresa un nuevo chunk, se calcula el corte temporal: <code>cutoff = Date.now() - 45000</code>. Todos los fragmentos con timestamp anterior a 45 segundos se descartan de la memoria RAM, manteniendo un consumo constante de entre <strong>18 MB y 24 MB</strong>.</li>
+      <li><strong>Disparo Automático vía WebSocket:</strong> Al recibir el evento <code>VR_SOLICITADO</code> emitido por la mesa arbitral, la cámara une los fragmentos del búfer en un único <code>Blob</code> binario, genera el archivo y lo sube inmediatamente mediante <code>POST /api/vr/combates/{match_id}/subir-clip</code>.</li>
+      <li><strong>Latencia de Entrega al Juez VR:</strong> El proceso completo (corte en cliente + subida HTTP local + notificación WebSocket <code>CLIP_DISPONIBLE</code>) toma <strong>menos de 1 segundo</strong>.</li>
+    </ul>
+
+    <pre><span class="cmt">// Fragmento de código operativo — Búfer circular en TatamiCameraStation</span>
+<span class="kw">const</span> BUFFER_MAX_SECONDS = <span class="num">45</span>;
+<span class="kw">const</span> recorder = <span class="kw">new</span> <span class="fn">MediaRecorder</span>(mediaStream, {
+  mimeType: <span class="str">'video/webm;codecs=vp9,opus'</span>,
+  videoBitsPerSecond: <span class="num">4_000_000</span> <span class="cmt">// 4 Mbps para alta nitidez marcial</span>
+});
+
+recorder.<span class="fn">ondataavailable</span> = (event) => {
+  <span class="kw">if</span> (event.data && event.data.size > <span class="num">0</span>) {
+    <span class="kw">const</span> now = Date.<span class="fn">now</span>();
+    chunksRef.current.<span class="fn">push</span>({ blob: event.data, timestamp: now });
+
+    <span class="cmt">// Poda FIFO: retener solo los últimos 45 segundos</span>
+    <span class="kw">const</span> cutoff = now - BUFFER_MAX_SECONDS * <span class="num">1000</span>;
+    chunksRef.current = chunksRef.current.<span class="fn">filter</span>(c => c.timestamp >= cutoff);
+  }
+};
+recorder.<span class="fn">start</span>(<span class="num">1000</span>); <span class="cmt">// Chunks de 1 segundo</span></pre>
+
+    <!-- ─── 6.2 Modo OBS Studio Pro ──────────────────────── -->
+    <h3>6.2 Modo OBS Studio Pro (Transmisión y Alta Velocidad)</h3>
+    <p>
+      Para torneos de nivel internacional o finales televisadas donde se utilicen cámaras reflex, videocámaras broadcast SDI o cámaras de alta velocidad (120 fps) conectadas a tarjetas capturadoras HDMI/PCIe, el sistema mantiene plena integración con <strong>OBS Studio 30+</strong> a través de <code>obs_bridge.py</code>.
+    </p>
+    <ul class="bullets">
+      <li><strong>Replay Buffer de OBS:</strong> Mantiene en RAM entre 30 y 60 segundos de grabación continua codificada por hardware (NVENC o AMD AMF).</li>
+      <li><strong>Bridge Daemon:</strong> El script Python escucha eventos de <code>obs-websocket</code> en el puerto 4455. Al presionar el atajo o gatillarse la acción, OBS guarda el archivo en disco (<code>C:\Users\Public\Videos\OBS_Replays</code>).</li>
+      <li><strong>Notificación al Backend:</strong> El bridge intercepta <code>ReplayBufferSaved</code> y envía un <code>PATCH /api/vr/combates/{id}/clip/{review_id}</code> al servidor.</li>
+    </ul>
+
+    <pre><span class="cmt"># Iniciar el daemon de sincronización OBS (por tatami)</span>
+python obs_bridge.py --match-id <span class="num">123</span> --tatami <span class="num">1</span></pre>
+
+    <!-- ─── 6.3 Comparativa Técnica ──────────────────────── -->
+    <h3>6.3 Comparativa: Cámara Nativa Web vs. OBS Studio Pro</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead>
+          <tr>
+            <th>Criterio</th>
+            <th>Modo Cámara Nativa Web</th>
+            <th>Modo OBS Studio Pro</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Instalación / Software</strong></td>
+            <td><span class="badge badge-green">✓ Cero instalación</span> — Solo abrir una URL en Chrome</td>
+            <td><span class="badge badge-amber">Requiere software</span> — OBS 30+ y Python daemon</td>
+          </tr>
+          <tr>
+            <td><strong>Hardware requerido</strong></td>
+            <td>Cualquier celular Android/iPhone, tablet o laptop</td>
+            <td>PC dedicada con procesador potente y GPU dedicada</td>
+          </tr>
+          <tr>
+            <td><strong>Inversión por tatami</strong></td>
+            <td><strong>$0 adicionales</strong> (utiliza smartphones del staff)</td>
+            <td>$800 – $1,500 USD (PC gamer + capturadora + cables)</td>
+          </tr>
+          <tr>
+            <td><strong>Tiempo de despliegue</strong></td>
+            <td><strong>15 segundos</strong> (montar celular en trípode y abrir link)</td>
+            <td>15–30 minutos (cableado HDMI, configuración de escenas)</td>
+          </tr>
+          <tr>
+            <td><strong>Latencia de entrega</strong></td>
+            <td><strong>&lt; 1 segundo</strong> (subida directa a memoria/disco del servidor)</td>
+            <td>2 a 4 segundos (flushing a disco local + bridge)</td>
+          </tr>
+          <tr>
+            <td><strong>Formato de archivo</strong></td>
+            <td>WebM (VP9/VP8) o MP4 nativo del navegador</td>
+            <td>MP4 / MKV estándar</td>
+          </tr>
+          <tr>
+            <td><strong>Frame Rate</strong></td>
+            <td>30 / 60 fps (según sensor de la cámara web/celular)</td>
+            <td>60 / 120 fps (según cámara y tarjeta capturadora)</td>
+          </tr>
+          <tr>
+            <td><strong>Resiliencia ante fallos</strong></td>
+            <td>Si el celular falla, otro celular abre el link en 10s</td>
+            <td>Falla de la PC detiene la grabación del tatami</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── 6.4 Guía Rápida de Puesta en Marcha ─────────── -->
+    <h3>6.4 Guía de Puesta en Marcha — Cámara Nativa (3 Pasos)</h3>
+    <div class="flow avoid-break">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <div class="flow-title">Posicionamiento en Tatami</div>
+          <div class="flow-desc">Colocar un smartphone o tablet en un trípode de 1.5 a 1.8 metros de altura en un lateral del tatami que proporcione un ángulo panorámico completo del área de combate.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <div class="flow-title">Apertura de la Estación en el Navegador</div>
+          <div class="flow-desc">Conectar el dispositivo a la red Wi-Fi local del evento y abrir en Chrome la URL: <code>http://[IP_SERVIDOR]:3000/torneos/[ID]/tatami/[AREA]/camara</code>. Otorgar permisos de cámara.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <div class="flow-title">Encuadre y Verificación</div>
+          <div class="flow-desc">Utilizar el botón "Girar" para seleccionar la cámara trasera de mayor resolución. Usar el overlay central de mira para centrar el tatami. Pulsar "⚡ Disparar Replay Ahora" para comprobar que el clip llega a la tablet del Juez VR en menos de un segundo.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── §7 API ─────────────────────────────────────────────── -->
+    <div id="s7" class="section-title avoid-break page-break">
+      <div class="section-num">7</div>
+      <h2>API Reference — Video Review</h2>
+    </div>
+
+    <h3>7.1 Endpoints REST</h3>
+
+    <div class="endpoint avoid-break">
+      <div class="method ws">WS</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/ws/{match_id}</div>
+        <div class="endpoint-desc">Canal WebSocket de tiempo real. Todos los dispositivos del tatami se conectan aquí. Emite los eventos: <code>VR_SOLICITADO</code>, <code>VR_RESUELTO</code>, <code>SCORE_UPDATE</code>, <code>CLIP_DISPONIBLE</code>, <code>TIMER_PAUSE</code>, <code>TIMER_RESUME</code>.</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method post">POST</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/combates/{match_id}/solicitar</div>
+        <div class="endpoint-desc">El árbitro de mesa (o sistema automático) solicita un Video Review.</div>
+        <div class="endpoint-params">Body: { competidor_color, tipo_solicitud, tiempo_cronometro, reglamento } → Returns: { ok, review_id, estado_tarjeta }</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method post">POST</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/combates/{match_id}/resolver</div>
+        <div class="endpoint-desc">El Juez VR emite el veredicto. Actualiza DB, ajusta tarjeta del coach, suma puntos si ACEPTADO, y broadcastea a todos los dispositivos.</div>
+        <div class="endpoint-params">Body: { review_id, resultado, puntos_otorgados, clip_url } → Returns: { ok, puntos_totales_color }</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method get">GET</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/combates/{match_id}/estado</div>
+        <div class="endpoint-desc">Consulta si hay un Video Review activo (pendiente de veredicto). Usado por el OBS Bridge al detectar un clip guardado.</div>
+        <div class="endpoint-params">Returns: { activo: bool, review?: { id, competidor_color, tipo_solicitud } }</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method get">GET</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/combates/{match_id}/historial</div>
+        <div class="endpoint-desc">Devuelve el historial completo de solicitudes de Video Review para un combate. Disponible en el tab "Video Reviews" de la página de resumen del torneo.</div>
+        <div class="endpoint-params">Returns: [ VideoReview[], ... ]</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method patch">PATCH</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/combates/{match_id}/clip/{review_id}</div>
+        <div class="endpoint-desc">El OBS Bridge notifica al backend la URL del clip guardado. El backend broadcastea el evento <code>CLIP_DISPONIBLE</code> con la URL al panel del Juez VR.</div>
+        <div class="endpoint-params">Query: ?clip_url=file:///path/to/replay.mp4 → Returns: { ok }</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method post">POST</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/api/vr/combates/{match_id}/subir-clip</div>
+        <div class="endpoint-desc">Recepción de video desde la Estación de Cámara Web Nativa (Zero-Install). Guarda el archivo en disco, vincula el <code>review_id</code> y broadcastea de inmediato el evento <code>CLIP_DISPONIBLE</code> hacia la tablet del Juez VR.</div>
+        <div class="endpoint-params">Multipart: file (Blob/File WebM o MP4), Query: ?review_id=int (opcional) → Returns: { ok: true, clip_url: str, filename: str, review_id: int }</div>
+      </div>
+    </div>
+
+    <div class="endpoint avoid-break">
+      <div class="method get">GET</div>
+      <div class="endpoint-detail">
+        <div class="endpoint-path">/clips/{filename}</div>
+        <div class="endpoint-desc">Servicio de archivos estáticos (FastAPI StaticFiles). Entrega los clips de repetición con soporte de streaming HTML5 y peticiones Range para inspección cuadro a cuadro en las tablets de los jueces.</div>
+        <div class="endpoint-params">URL Path: filename (e.g. replay_123_1_1725753600.webm) → Returns: video/webm o video/mp4</div>
+      </div>
+    </div>
+
+    <!-- ─── §8 Base de Datos ──────────────────────────────────── -->
+    <div id="s8" class="section-title avoid-break">
+      <div class="section-num">8</div>
+      <h2>Base de Datos</h2>
+    </div>
+
+    <h3>8.1 Tabla <code>torneos.video_reviews</code></h3>
+    <pre><span class="kw">CREATE TABLE</span> torneos.video_reviews (
+    id               <span class="fn">SERIAL PRIMARY KEY</span>,
+    partido_id       <span class="fn">INTEGER NOT NULL</span>,                 <span class="cmt">-- FK al partido/combate</span>
+    competidor_color <span class="fn">VARCHAR(10) NOT NULL</span>
+        <span class="kw">CHECK</span> (competidor_color <span class="kw">IN</span> (<span class="str">'Aka'</span>, <span class="str">'Ao'</span>, <span class="str">'Blanco'</span>, <span class="str">'Rojo'</span>)),
+    tiempo_cronometro <span class="fn">VARCHAR(10) NOT NULL</span>,             <span class="cmt">-- e.g. "1:23"</span>
+    tipo_solicitud   <span class="fn">VARCHAR(20) NOT NULL</span>
+        <span class="kw">CHECK</span> (tipo_solicitud <span class="kw">IN</span> (<span class="str">'YUKO'</span>, <span class="str">'WAZA_ARI'</span>, <span class="str">'IPPON'</span>, <span class="str">'SENSHU'</span>, <span class="str">'OTRO'</span>)),
+    resultado        <span class="fn">VARCHAR(20)</span>
+        <span class="kw">CHECK</span> (resultado <span class="kw">IN</span> (<span class="str">'ACEPTADO'</span>, <span class="str">'RECHAZADO'</span>, <span class="str">'MIENAI'</span>)),
+    puntos_otorgados <span class="fn">INTEGER DEFAULT</span> <span class="num">0</span>,
+    clip_url         <span class="fn">VARCHAR(255)</span>,                        <span class="cmt">-- URL accesible (Cámara Nativa o OBS)</span>
+    reglamento       <span class="fn">VARCHAR(10) DEFAULT</span> <span class="str">'WKF'</span>,
+    resuelto         <span class="fn">BOOLEAN DEFAULT FALSE</span>,
+    created_at       <span class="fn">TIMESTAMP DEFAULT NOW()</span>,
+    resuelto_at      <span class="fn">TIMESTAMP</span>
+);
+
+<span class="cmt">-- Índices de performance</span>
+<span class="kw">CREATE INDEX</span> idx_video_reviews_partido  <span class="kw">ON</span> torneos.video_reviews(partido_id);
+<span class="kw">CREATE INDEX</span> idx_video_reviews_resuelto <span class="kw">ON</span> torneos.video_reviews(resuelto);</pre>
+
+    <!-- ─── §9 Hardware ──────────────────────────────────────── -->
+    <div id="s9" class="section-title avoid-break page-break">
+      <div class="section-num">9</div>
+      <h2>Requisitos de Hardware y Perfiles de Despliegue</h2>
+    </div>
+
+    <p>El sistema ofrece dos configuraciones de hardware según la envergadura y presupuesto del torneo:</p>
+
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead>
+          <tr>
+            <th>Rol / Puesto</th>
+            <th>Kit Ágil / Low-Cost (Recomendado)</th>
+            <th>Kit Broadcast Pro (Élite / TV)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Cámara de Tatami</strong></td>
+            <td><strong>Smartphone Android / iPhone</strong> en trípode (1080p, Chrome)</td>
+            <td>Cámara 120fps SDI/HDMI + Capturadora PCIe/USB</td>
+          </tr>
+          <tr>
+            <td><strong>Mesa de Árbitro</strong></td>
+            <td>Laptop Core i5 / 8GB RAM (ejecuta interfaz y servidor)</td>
+            <td>PC de escritorio Core i5 / 8GB RAM</td>
+          </tr>
+          <tr>
+            <td><strong>Panel Juez VR</strong></td>
+            <td>iPad 10" o Tablet Android equivalente</td>
+            <td>iPad Pro / Monitor táctil 15" dedicado</td>
+          </tr>
+          <tr>
+            <td><strong>Pantalla Pública</strong></td>
+            <td>Smart TV 43"–55" 4K por HDMI o navegador web</td>
+            <td>Smart TV 55"–65" 4K con distribución HDMI activa</td>
+          </tr>
+          <tr>
+            <td><strong>Procesamiento Video</strong></td>
+            <td><strong>Cero PC adicional</strong> (Búfer en RAM del celular)</td>
+            <td>PC dedicada Core i7 + GPU GTX/RTX para OBS</td>
+          </tr>
+          <tr>
+            <td><strong>Ahorro Estimado</strong></td>
+            <td><span class="badge badge-green">~ 65% reducción de costos de hardware</span></td>
+            <td>Máxima fidelidad para transmisiones televisivas</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="hw-grid avoid-break">
+      <div class="hw-card">
+        <div class="hw-icon">📱</div>
+        <h4>Cámara Tatami (Kit Ágil)</h4>
+        <ul>
+          <li>Smartphone Android 10+ o iPhone iOS 15+</li>
+          <li>Cámara principal con soporte 1080p @ 30/60fps</li>
+          <li>Navegador Google Chrome o Safari</li>
+          <li>Trípode articulado de 1.5m a 1.8m de altura</li>
+          <li>Cargador continuo USB-C o Lightning</li>
+        </ul>
+      </div>
+      <div class="hw-card">
+        <div class="hw-icon">💻</div>
+        <h4>PC de Mesa (Árbitro)</h4>
+        <ul>
+          <li>Intel Core i5 / AMD Ryzen 5 o superior</li>
+          <li>8 GB RAM mínimo</li>
+          <li>Windows 10 / 11 o macOS</li>
+          <li>Navegador Chrome / Edge actualizado</li>
+          <li>Conexión LAN o Wi-Fi 5GHz estable</li>
+        </ul>
+      </div>
+      <div class="hw-card">
+        <div class="hw-icon">📺</div>
+        <h4>TV Display (Público)</h4>
+        <ul>
+          <li>Smart TV Full HD / 4K UHD</li>
+          <li>Tamaño: 43" – 65" según distancia del tatami</li>
+          <li>HDMI directo o Wi-Fi con navegador integrado</li>
+          <li>Orientación horizontal, a ≥ 2m de altura</li>
+        </ul>
+      </div>
+      <div class="hw-card">
+        <div class="hw-icon">⚖️</div>
+        <h4>Tablet — Juez VR</h4>
+        <ul>
+          <li>iPad 10" (Air / Pro) o Android equivalente</li>
+          <li>Pantalla táctil de alta respuesta</li>
+          <li>Conexión Wi-Fi 5GHz en la misma subred</li>
+          <li>1 unidad por evento o por tatami según jueces</li>
+          <li>Soporte de mesa regulable</li>
+        </ul>
+      </div>
+      <div class="hw-card">
+        <div class="hw-icon">🌐</div>
+        <h4>Red Local del Recinto</h4>
+        <ul>
+          <li>Router / Access Point Wi-Fi 5 (802.11ac) o Wi-Fi 6</li>
+          <li>SSID dedicado exclusivo para el arbitraje</li>
+          <li>Switch Gigabit de 8 a 16 puertos</li>
+          <li>No requiere conexión a Internet durante el evento</li>
+        </ul>
+      </div>
+      <div class="hw-card">
+        <div class="hw-icon">🖥️</div>
+        <h4>Servidor Backend</h4>
+        <ul>
+          <li>Laptop o PC Core i5 / 16 GB RAM</li>
+          <li>PostgreSQL 15 + Python 3.11+ con FastAPI</li>
+          <li>Puede ser la misma PC de mesa arbitral en torneos de 1 a 2 tatamis</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─── §10 Seguridad ────────────────────────────────────── -->
+    <div id="s10" class="section-title avoid-break">
+      <div class="section-num">10</div>
+      <h2>Seguridad y Continuidad Operativa</h2>
+    </div>
+
+    <h3>10.1 Operación 100% Offline / LAN</h3>
+    <p>El sistema opera completamente en <strong>red local (LAN/Wi-Fi)</strong>. No requiere conexión a Internet durante la competencia. Toda la ingesta de video, sincronización WebSocket y almacenamiento de actas transcurre localmente en el recinto.</p>
+
+    <h3>10.2 Recuperación ante Fallos y Alta Resiliencia</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Escenario de Falla</th><th>Comportamiento del Sistema</th><th>Impacto</th></tr></thead>
+        <tbody>
+          <tr><td>Falla de cámara nativa (celular/webcam)</td><td>Cualquier otro smartphone del staff abre la URL en 10 segundos y retoma el búfer</td><td>Insignificante (< 15s)</td></tr>
+          <tr><td>Pérdida de conexión WebSocket</td><td>Reconexión automática cada 3 segundos en todos los clientes</td><td>Mínimo (< 3s)</td></tr>
+          <tr><td>Backend no disponible</td><td>Panel de árbitro puede operar en modo local (marcador local sin DB)</td><td>Sin persistencia temporal</td></tr>
+          <tr><td>OBS desconectado (Modo Pro)</td><td>Conmutación inmediata a Modo Cámara Nativa abriendo la URL en celular</td><td>Cero bloqueo operativo</td></tr>
+          <tr><td>Pérdida de energía eléctrica</td><td>Todos los marcadores registrados en PostgreSQL; recuperables al reiniciar</td><td>Cero pérdida de datos</td></tr>
+          <tr><td>TV Display sin señal</td><td>El combate continúa; árbitro tiene su propio panel; público sin visualización</td><td>Visual únicamente</td></tr>
+          <tr><td>Tablet VR sin conexión</td><td>El árbitro puede resolver el VR manualmente; se registra en DB igual</td><td>Resolución manual</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>10.3 Trazabilidad Total</h3>
+    <p>Todos los eventos del sistema quedan registrados en PostgreSQL con timestamp preciso:</p>
+    <ul class="checklist avoid-break">
+      <li>Cada punto registrado: quién, cuándo, en qué tiempo del combate</li>
+      <li>Cada penalización: tipo, esquina, árbitro</li>
+      <li>Cada solicitud de VR: esquina, tipo de reclamo, tiempo del cronómetro</li>
+      <li>Cada veredicto de VR: resultado, puntos otorgados, timestamp</li>
+      <li>Cada clip de video: URL del archivo en <code>/clips</code>, review_id asociado</li>
+    </ul>
+
+    <!-- ─── §11 Cumplimiento WKF ──────────────────────────────── -->
+    <div id="s11" class="section-title avoid-break page-break">
+      <div class="section-num">11</div>
+      <h2>Cumplimiento con Reglamento WKF 2024</h2>
+    </div>
+
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Artículo WKF 2024</th><th>Contenido</th><th>Implementación</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Art. 9 — Video Review</strong></td>
+            <td>Sistema de apelación del coach con tarjeta única por combate</td>
+            <td>Módulo VR completo: tarjeta por esquina, veredictos ACEPTADO/RECHAZADO/MIENAI, timer 30s, clip automático vía Cámara Web o OBS</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 8.1–8.4 — Puntuación</strong></td>
+            <td>Yuko (1), Waza-Ari (2), Ippon (3); criterios de otorgamiento</td>
+            <td>Botones independientes por técnica y esquina con validación automática de puntos</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 8.6 — Senshu</strong></td>
+            <td>Ventaja táctica para el primer punto marcado</td>
+            <td>Badge visual animado ★ SENSHU; lógica de desempate al vencimiento</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 8.7 — Jogai</strong></td>
+            <td>Salida del área; 3 acumuladas = penalización</td>
+            <td>Contador de Jogai con umbral configurable; conversión automática a Keikoku</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 8.8 — Penalizaciones</strong></td>
+            <td>Chukoku, Keikoku (+2 pts rival), Hansoku (descalif.)</td>
+            <td>Escalada de penalizaciones con registro en DB y aviso visual</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 10 — Control del Tiempo</strong></td>
+            <td>Timer del combate, pausa en VR, prórroga Enchosen</td>
+            <td>Cronómetro configurable; pausa automática en VR; modo alargue con muerte súbita</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 6.1 — Árbitros</strong></td>
+            <td>Separación de roles: Árbitro Central, Jueces de esquina, VR Judge</td>
+            <td>Pantallas independientes por rol; panel de árbitro separado de panel VR</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+          <tr>
+            <td><strong>Art. 4 — Área de Combate</strong></td>
+            <td>Identificación del tatami/área donde ocurre el combate</td>
+            <td>Multi-tatami con aislamiento por match_id; link directo por área</td>
+            <td><span class="check">✓ Completo</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── §12 Instalación ──────────────────────────────────── -->
+    <div id="s12" class="section-title avoid-break">
+      <div class="section-num">12</div>
+      <h2>Instalación y Despliegue Rápido</h2>
+    </div>
+
+    <h3>12.1 Servidor Backend (una vez por evento)</h3>
+    <pre><span class="cmt"># 1. Levantar el backend en la PC servidor</span>
+<span class="kw">cd</span> backend
+python -m uvicorn main:app <span class="fn">--host</span> <span class="num">0.0.0.0</span> <span class="fn">--port</span> <span class="num">8002</span>
+
+<span class="cmt"># 2. Ejecutar migración de Video Review (solo la primera vez)</span>
+python migrations/<span class="url">049_video_review.py</span></pre>
+
+    <h3>12.2 Frontend (una vez por evento)</h3>
+    <pre><span class="kw">cd</span> web
+npm run dev     <span class="cmt"># desarrollo local</span>
+<span class="cmt"># o en producción:</span>
+npm run build
+npm start       <span class="cmt"># Puerto 3000 por defecto</span></pre>
+
+    <h3>12.3 Despliegue por Tatami (Kit Ágil — Recomendado)</h3>
+    <p>Para poner en marcha un tatami en <strong>menos de 2 minutos</strong> con el Kit Ágil:</p>
+    <ul class="bullets">
+      <li><strong>Mesa Árbitro:</strong> Abrir en Chrome: <code>http://servidor:3000/torneos/{ID}/arbitraje/combate</code></li>
+      <li><strong>TV Tatami:</strong> Abrir en la TV: <code>http://servidor:3000/torneos/{ID}/tatami/{N}</code> (F11 para pantalla completa)</li>
+      <li><strong>Cámara Tatami:</strong> En el celular en trípode, abrir en Chrome: <code>http://servidor:3000/torneos/{ID}/tatami/{N}/camara?matchId={ID_COMBATE}</code></li>
+      <li><strong>Juez VR:</strong> En la tablet, abrir: <code>http://servidor:3000/torneos/{ID}/vr-station</code></li>
+    </ul>
+
+    <h3>12.4 Despliegue con OBS Studio Pro (Opcional)</h3>
+    <pre><span class="cmt"># Solo si se utiliza OBS Studio con cámaras profesionales:</span>
+python backend/obs_bridge.py --match-id <span class="num">{ID_COMBATE}</span> --tatami <span class="num">{N}</span></pre>
+
+    <h3>12.5 Roadmap Técnico 2026–2027</h3>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Feature</th><th>Descripción</th><th>Prioridad</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td>Cámara Web Nativa (Zero-Install)</td><td>Captura en RAM (45s) y subida multipart automática desde celulares</td><td><span class="badge badge-green">Completado</span></td><td class="check">✓ Activo en Producción</td></tr>
+          <tr><td>Soporte Multicámara Nativa</td><td>2 ángulos por tatami sincronizados en memoria (esquina Aka y Ao)</td><td><span class="badge badge-amber">Media</span></td><td class="pending">📋 Planificado</td></tr>
+          <tr><td>App móvil para coaches</td><td>Solicitud de VR directamente desde el smartphone del coach en la silla</td><td><span class="badge badge-red">Alta</span></td><td class="pending">📋 Planificado</td></tr>
+          <tr><td>Integración WKF Connect</td><td>Importación directa de rankings y categorías oficiales WKF</td><td><span class="badge badge-red">Alta</span></td><td class="pending">📋 Planificado</td></tr>
+          <tr><td>Exportación planillas federativas</td><td>PDF/Excel con resultados en formato de acta oficial federativa</td><td><span class="badge badge-amber">Media</span></td><td class="pending">📋 Planificado</td></tr>
+          <tr><td>Cámara alta velocidad 120fps</td><td>Soporte especializado para detección milimétrica de contacto en patadas Jodan</td><td><span class="badge badge-amber">Media</span></td><td class="pending">📋 Planificado</td></tr>
+          <tr><td>Dashboard post-evento</td><td>Estadísticas: tasa de éxito VR por técnica, distribución de penalizaciones, etc.</td><td><span class="badge badge-amber">Media</span></td><td class="pending">📋 Planificado</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!--  PIE DE PÁGINA                                             -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="footer">
+    <div>
+      <strong>MiCancha — Sistema de Arbitraje Digital</strong><br>
+      Documento SPEC-MICANCHA-WKF-2026 · Versión 1.1
+    </div>
+    <div style="text-align:right">
+      Septiembre 2026<br>
+      <span style="color:rgba(239,68,68,0.8);font-weight:700">Propuesta Federativa Confidencial</span>
+    </div>
+  </div>
+
+</div><!-- /doc -->
+
+</body>
+</html>

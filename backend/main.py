@@ -96,6 +96,11 @@ else:
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Montar clips de OBS Replay para Video Review
+clips_dir = os.getenv("OBS_CLIPS_DIR", "C:/Users/Public/Videos/OBS_Replays" if os.name == "nt" else "/app/clips")
+os.makedirs(clips_dir, exist_ok=True)
+app.mount("/clips", StaticFiles(directory=clips_dir), name="clips")
+
 # Configuración de CORS - Debe estar antes de cualquier ruta
 app.add_middleware(
     CORSMiddleware,
@@ -295,6 +300,9 @@ app.include_router(pagos_core_router)
 
 from routers.suscripciones import router as suscripciones_router
 app.include_router(suscripciones_router)
+
+from routers.video_review import router as video_review_router
+app.include_router(video_review_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
