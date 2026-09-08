@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guía Oficial — Transmisión en Vivo (Streaming) Embebido en Mi Cancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070a13;
+      --card-bg: #0f172a;
+      --card-border: #1e293b;
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.15);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.15);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --primary: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 90px;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ─── Hero Header ─── */
+    header {
+      background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #070a13 85%);
+      padding: 60px 0 45px;
+      border-bottom: 1px solid var(--card-border);
+      text-align: center;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--red), var(--amber), var(--blue), transparent);
+    }
+
+    .badge-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 18px;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-size: clamp(28px, 4.5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #ffffff;
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    h1 span.hl-red {
+      background: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #b91c1c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    h1 span.hl-blue {
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #1d4ed8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: clamp(15px, 2vw, 17px);
+      color: var(--text-muted);
+      max-width: 760px;
+      margin: 0 auto;
+      font-weight: 400;
+    }
+
+    /* ─── Navigation Pills ─── */
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .quick-nav a {
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .quick-nav a:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+      border-color: var(--text-faint);
+    }
+
+    /* ─── Flow Diagram ─── */
+    .architecture-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 28px;
+      margin: 40px 0 50px;
+      position: relative;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+    }
+
+    .architecture-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .pipeline-step {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 18px;
+      position: relative;
+    }
+
+    .pipeline-step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .pipeline-step h4 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .pipeline-step p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ─── Main Section ─── */
+    .section-block {
+      margin-bottom: 50px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .section-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .icon-red { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+    .icon-blue { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; }
+    .icon-amber { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; }
+    .icon-emerald { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
+
+    .section-head h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .section-head p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ─── Cards ─── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .card-highlight {
+      border-color: rgba(59, 130, 246, 0.4);
+      box-shadow: 0 0 25px -5px var(--blue-glow);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .badge-subtle {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-red { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-blue { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-emerald { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+
+    /* ─── Step List ─── */
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-top: 16px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .step-content h5 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+
+    .step-content p, .step-content li {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .step-content ul {
+      margin-left: 20px;
+      margin-top: 6px;
+    }
+
+    /* ─── Callout Boxes ─── */
+    .callout {
+      border-radius: 14px;
+      padding: 18px 22px;
+      margin: 18px 0;
+      font-size: 13px;
+      line-height: 1.6;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .callout-warning {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      color: #fde68a;
+    }
+
+    .callout-info {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      color: #bfdbfe;
+    }
+
+    .callout-success {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #a7f3d0;
+    }
+
+    .callout-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Code Snippets ─── */
+    .code-box {
+      background: #030712;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin: 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .code-box span.url-text {
+      word-break: break-all;
+    }
+
+    .code-tag {
+      color: #f472b6;
+      font-size: 11px;
+      background: rgba(244, 114, 182, 0.12);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(244, 114, 182, 0.2);
+    }
+
+    /* ─── Table Comparison ─── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      margin: 20px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      background: #111827;
+      padding: 14px 18px;
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: #cbd5e1;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+      color: var(--text-faint);
+      font-size: 13px;
+    }
+
+    footer a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 768px) {
+      .step-item {
+        flex-direction: column;
+      }
+      .card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── HEADER ─── -->
+  <header>
+    <div class="container">
+      <div class="badge-hero">
+        <span class="badge-dot"></span>
+        Transmisión Oficial — Mi Cancha
+      </div>
+      <h1>Cómo Transmitir en Vivo y Ver los Videos<br><span class="hl-red">Dentro de la Plataforma</span> de <span class="hl-blue">Mi Cancha</span></h1>
+      <p class="subtitle">
+        Guía integral paso a paso para organizadores: configura cámaras por tatami, emite con OBS Studio hacia YouTube Live y ofrece una experiencia televisiva completa integrada en el portal del torneo.
+      </p>
+
+      <div class="quick-nav">
+        <a href="#como-funciona">1. Cómo Funciona</a>
+        <a href="#config-micancha">2. Activar en Mi Cancha</a>
+        <a href="#config-youtube">3. Configurar YouTube Live</a>
+        <a href="#config-obs">4. Transmitir con OBS Studio</a>
+        <a href="#vista-publico">5. Experiencia del Público</a>
+        <a href="#coexistencia-vr">6. Streaming + Video Review</a>
+        <a href="#solucion-problemas">7. Solución de Problemas</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ─── ARQUITECTURA GENERAL ─── -->
+    <section id="como-funciona" class="architecture-box">
+      <div class="architecture-title">
+        <span>⚡</span> Arquitectura de Transmisión Embebida
+      </div>
+      <div class="pipeline-grid">
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">1</div>
+          <h4>Cámara en el Tatami</h4>
+          <p>Tu webcam o cámara profesional captura la acción de los atletas en el área de combate.</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">2</div>
+          <h4>OBS Studio</h4>
+          <p>Software gratuito que combina el video de la cámara con el marcador digital oficial en pantalla.</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">3</div>
+          <h4>YouTube Live CDN</h4>
+          <p>Distribuye el streaming masivo a miles de espectadores con ancho de banda y servidores ilimitados.</p>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-step-num">4</div>
+          <h4>Plataforma Mi Cancha</h4>
+          <p>El reproductor HD se inserta automáticamente en la web con selector táctil de tatamis y clasificaciones.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PASO 1: HABILITAR EN MI CANCHA ─── -->
+    <section id="config-micancha" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-red">1</div>
+        <div>
+          <h2>Activar el Módulo de Streaming en Mi Cancha</h2>
+          <p>Configuración desde tu panel de organizador</p>
+        </div>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title">
+          <span>Configuración del Campeonato</span>
+          <span class="badge-subtle badge-red">Paso del Organizador</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 16px;">
+          Ingresa al panel administrativo de tu torneo en la siguiente dirección:
+        </p>
+
+        <div class="code-box">
+          <span class="url-text">https://micancha.com.py/admin-torneo/2ed2f229-6e67-400b-adc4-b6a7371ebcf3</span>
+          <span class="code-tag">Panel Admin</span>
+        </div>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">A</div>
+            <div class="step-content">
+              <h5>Accede a la pestaña "Configuración"</h5>
+              <p>En el menú lateral izquierdo de tu torneo, haz clic en <strong>Configuración</strong> (ícono de engranaje).</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">B</div>
+            <div class="step-content">
+              <h5>Busca la sección "Streaming y Transmisión en Vivo"</h5>
+              <p>Desplázate hacia abajo hasta encontrar el bloque de transmisión y haz clic en el botón:</p>
+              <p style="margin-top: 6px;"><strong style="color: #60a5fa;">"Configurar Streaming y Canales en Vivo"</strong></p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">C</div>
+            <div class="step-content">
+              <h5>Configurar los Canales del Torneo en la Ventana Emergente</h5>
+              <ul>
+                <li><strong>Habilitar Transmisión en Vivo:</strong> Asegúrate de que el interruptor esté en verde (Activado ✅).</li>
+                <li><strong>Título Principal:</strong> Ejemplo: <em>"Transmisión Oficial — Torneo Nacional de Karate WKF"</em>.</li>
+                <li><strong>URL Principal:</strong> Pega aquí el enlace de tu transmisión de YouTube (ej: <code>https://www.youtube.com/watch?v=...</code>).</li>
+                <li><strong>Canales por Tatami / Cancha:</strong> Si tienes varias áreas de combate transmitiendo al mismo tiempo, presiona el botón <strong style="color: #34d399;">"+ Agregar Canal"</strong> para dar de alta:
+                  <ul style="margin-top: 4px;">
+                    <li><strong>Tatami 1:</strong> Enlace de YouTube de la cámara 1</li>
+                    <li><strong>Tatami 2:</strong> Enlace de YouTube de la cámara 2</li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">D</div>
+            <div class="step-content">
+              <h5>Guardar Configuración</h5>
+              <p>Haz clic en <strong>"Guardar Configuración"</strong>. A partir de este momento, el módulo de streaming queda activo para todos los usuarios que visiten tu evento.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PASO 2: YOUTUBE STUDIO ─── -->
+    <section id="config-youtube" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-amber">2</div>
+        <div>
+          <h2>Crear la Emisión en YouTube Studio</h2>
+          <p>Cómo obtener el enlace y la clave de transmisión gratuita</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Configuración en YouTube Live</span>
+          <span class="badge-subtle badge-amber">100% Gratuito</span>
+        </div>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">1</div>
+            <div class="step-content">
+              <h5>Entrar a YouTube Studio</h5>
+              <p>Abre <a href="https://studio.youtube.com" target="_blank" style="color: #60a5fa; text-decoration: underline;">https://studio.youtube.com</a> con tu cuenta de Google del club o academia.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">2</div>
+            <div class="step-content">
+              <h5>Crear una nueva emisión</h5>
+              <p>En la esquina superior derecha, haz clic en el botón <strong>Crear</strong> (ícono de cámara con signo +) y selecciona <strong>"Emitir en directo"</strong> (<em>Go Live</em>).</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">3</div>
+            <div class="step-content">
+              <h5>Copiar la Clave de Emisión y el Enlace Compartible</h5>
+              <p>En el panel de control de la transmisión verás dos datos vitales:</p>
+              <ul>
+                <li><strong>Clave de emisión (Stream Key):</strong> Es una clave secreta (ej: <code>xxxx-xxxx-xxxx-xxxx</code>). La usarás en OBS Studio.</li>
+                <li><strong>Enlace del video:</strong> Haz clic en el ícono de compartir de YouTube y copia el enlace (ej: <code>https://www.youtube.com/watch?v=AbCdEf123</code>). Este es el que pegas en Mi Cancha.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div>
+            <strong>¡Ajuste Crítico para que se vea dentro de Mi Cancha!</strong><br>
+            En la configuración de la transmisión en YouTube Studio, en <em>Opciones avanzadas / Distribución</em>, asegúrate de que la casilla <strong>"Permitir inserción"</strong> (<em>Allow embedding</em>) esté marcada con un visto bueno. Si esta casilla está desmarcada, YouTube bloqueará el reproductor dentro de la web de Mi Cancha.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PASO 3: OBS STUDIO ─── -->
+    <section id="config-obs" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-blue">3</div>
+        <div>
+          <h2>Transmitir desde el Gimnasio con OBS Studio</h2>
+          <p>Montaje de la señal en vivo con cámara y marcador oficial</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Configuración del Programa OBS Studio</span>
+          <span class="badge-subtle badge-blue">Software Libre</span>
+        </div>
+
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 16px;">
+          Descarga el software gratuito oficial en <a href="https://obsproject.com" target="_blank" style="color: #60a5fa;">obsproject.com</a> e instálalo en la computadora que tenga conectada la webcam o capturadora HDMI.
+        </p>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">1</div>
+            <div class="step-content">
+              <h5>Vincular OBS con YouTube</h5>
+              <p>En OBS Studio, ve a <strong>Ajustes ➔ Emisión</strong>:</p>
+              <ul>
+                <li><strong>Servicio:</strong> Selecciona <code>YouTube - RTMPS</code>.</li>
+                <li><strong>Clave de retransmisión:</strong> Pega la clave que copiaste de YouTube Studio.</li>
+                <li>Haz clic en <strong>Aplicar</strong> y <strong>Aceptar</strong>.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">2</div>
+            <div class="step-content">
+              <h5>Agregar tu Cámara / Webcam</h5>
+              <p>En el panel inferior izquierdo de <strong>"Fuentes"</strong> (<em>Sources</em>), haz clic en el botón <strong>+</strong>:</p>
+              <ul>
+                <li>Selecciona <strong>Dispositivo de captura de video</strong>.</li>
+                <li>Elige tu cámara web (USB o integrada).</li>
+                <li>Ajusta la resolución a <code>1920x1080</code> (o <code>1280x720</code>).</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">3</div>
+            <div class="step-content">
+              <h5>(Opcional de Calidad Televisiva) Agregar el Marcador en Pantalla</h5>
+              <p>Para que los espectadores vean el cronómetro y los puntos de AKA y AO superpuestos como en una transmisión deportiva profesional:</p>
+              <ul>
+                <li>En Fuentes presiona <strong>+ ➔ Navegador</strong> (<em>Browser</em>).</li>
+                <li>Pega la URL de la pantalla de tatami de tu torneo:
+                  <div class="code-box" style="margin: 6px 0;">
+                    <span class="url-text">https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tatami/1</span>
+                  </div>
+                </li>
+                <li>Dimensiones: <code>1920</code> de ancho y <code>1080</code> de alto.</li>
+                <li>¡Listo! El marcador oficial se sincronizará en vivo sobre la imagen del combate.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">4</div>
+            <div class="step-content">
+              <h5>Iniciar la Emisión</h5>
+              <p>Haz clic en el botón inferior derecho <strong>"Iniciar transmisión"</strong> en OBS Studio. En 3 segundos tu señal estará subiendo a YouTube y visible en Mi Cancha.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PASO 4: EXPERIENCIA DEL PÚBLICO ─── -->
+    <section id="vista-publico" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-emerald">4</div>
+        <div>
+          <h2>Dónde y Cómo lo Ve el Público en Mi Cancha</h2>
+          <p>Accesos directos para atletas, entrenadores y familias</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px;">
+          Los visitantes no necesitan instalar nada ni tener cuenta de YouTube. Solo entran al enlace de tu torneo desde cualquier celular, computadora o Smart TV:
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Vista / Pantalla</th>
+                <th>Enlace Directo</th>
+                <th>¿Qué ve el usuario?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>📺 Centro de Streaming Oficial</strong></td>
+                <td>
+                  <a href="https://micancha.com.py/admin-torneo/2ed2f229-6e67-400b-adc4-b6a7371ebcf3" target="_blank" style="color: #60a5fa; text-decoration: underline;">
+                    /admin-torneo/... (Pestaña Transmisión)
+                  </a>
+                </td>
+                <td>Reproductor HD principal con botones interactivos para alternar entre <strong>Tatami 1</strong>, <strong>Tatami 2</strong>, etc.</td>
+              </tr>
+              <tr>
+                <td><strong>🏆 Portal Público del Torneo</strong></td>
+                <td>
+                  <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3" target="_blank" style="color: #60a5fa; text-decoration: underline;">
+                    /torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3
+                  </a>
+                </td>
+                <td>Página principal del torneo con el banner "EN VIVO", fixture de combates y medallero en tiempo real al costado del video.</td>
+              </tr>
+              <tr>
+                <td><strong>🥋 TV Live Multi-Tatami</strong></td>
+                <td>
+                  <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tv-live" target="_blank" style="color: #60a5fa; text-decoration: underline;">
+                    /torneos/.../tv-live
+                  </a>
+                </td>
+                <td>Mural interactivo para proyectar en pantallas gigantes del estadio con rotación automática entre tatamis.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">✨</div>
+          <div>
+            <strong>Ventaja Competitiva de Mi Cancha:</strong><br>
+            A diferencia de compartir un simple link de YouTube por WhatsApp, en Mi Cancha el público ve el combate <strong>junto con los nombres oficiales de los competidores, sus clubes, las advertencias (Chukoku/Keikoku) y el reloj oficial</strong>, brindando una experiencia 100% profesional.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PASO 5: STREAMING + VIDEO REVIEW ─── -->
+    <section id="coexistencia-vr" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-blue">5</div>
+        <div>
+          <h2>Cómo Usar Streaming en Vivo + Video Review a la Vez</h2>
+          <p>Estrategias operativas para el día del evento</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Dos Funciones Esenciales: Emisión Pública vs Arbitraje Técnico</span>
+        </div>
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 16px;">
+          Es importante comprender la diferencia entre ambos módulos para organizar tus cámaras en el tatami:
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Característica</th>
+                <th>Transmisión en Vivo (Streaming)</th>
+                <th>Video Review (Arbitraje VR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Destinatario</strong></td>
+                <td>Público general, familias y redes sociales.</td>
+                <td>Juez de Video Review y Árbitro Central.</td>
+              </tr>
+              <tr>
+                <td><strong>Retardo (Delay)</strong></td>
+                <td>Normal de internet (5 a 15 segundos).</td>
+                <td><strong>Instantáneo (&lt; 1 segundo)</strong> mediante búfer en RAM.</td>
+              </tr>
+              <tr>
+                <td><strong>Software</strong></td>
+                <td>OBS Studio + YouTube Live.</td>
+                <td><strong>100% Web Nativo</strong> (sin instalar nada).</td>
+              </tr>
+              <tr>
+                <td><strong>Pantalla del Juez</strong></td>
+                <td>No tiene controles milimétricos.</td>
+                <td>Controles a 30fps, slow-motion 0.25x y salto a -6s.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="step-item" style="margin-top: 14px;">
+          <div class="step-badge">💡</div>
+          <div class="step-content">
+            <h5>Recomendación para el Día del Torneo</h5>
+            <p>
+              <strong>Configuración con 2 Cámaras (La ideal):</strong><br>
+              • <strong>Cámara 1 (Celular o Webcam USB en trípode):</strong> Abierta en la pantalla de <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tatami/1/camara?matchId=123" target="_blank" style="color: #60a5fa;">Cámara Tatami</a> exclusiva para las repeticiones del Juez VR.<br>
+              • <strong>Cámara 2 (PC con OBS Studio):</strong> Transmitiendo el plano general del tatami hacia YouTube para que lo vea el público en Mi Cancha.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PASO 6: RESOLUCIÓN DE DUDAS ─── -->
+    <section id="solucion-problemas" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-amber">6</div>
+        <div>
+          <h2>Preguntas Frecuentes y Solución de Problemas</h2>
+          <p>Respuestas rápidas para el equipo de producción</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">?</div>
+            <div class="step-content">
+              <h5>El reproductor dice: "El propietario inhabilitó la reproducción en otros sitios web"</h5>
+              <p><strong>Causa:</strong> En YouTube Studio está desactivada la opción de inserción.<br>
+              <strong>Solución:</strong> Edita la emisión en YouTube Studio ➔ Opciones Avanzadas ➔ Marca la casilla <strong>"Permitir inserción"</strong> (<em>Allow embedding</em>) y guarda los cambios.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">?</div>
+            <div class="step-content">
+              <h5>¿Puedo transmitir en privado para que solo lo vean en Mi Cancha?</h5>
+              <p><strong>¡Sí!</strong> En YouTube Studio pon la visibilidad en <strong>"Oculto"</strong> (<em>Unlisted</em>). Nadie podrá encontrar el video buscando en YouTube, pero cualquier persona que entre a tu torneo en Mi Cancha lo podrá ver perfectamente.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">?</div>
+            <div class="step-content">
+              <h5>¿Qué velocidad de internet necesita el recinto deportivo?</h5>
+              <p>Recomendamos una conexión con al menos <strong>5 Mbps de velocidad de subida (Upload)</strong> por cada tatami o cámara que quieras transmitir en resolución 1080p (o 3 Mbps para 720p).</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">?</div>
+            <div class="step-content">
+              <h5>¿Qué pasa cuando termina la jornada?</h5>
+              <p>YouTube guarda automáticamente la grabación completa en tu canal. En el panel de Mi Cancha puedes cambiar el estado del canal de <strong>"En Vivo"</strong> a <strong>"Repetición"</strong> para que las familias revivan las finales en cualquier momento.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FOOTER ─── -->
+    <footer>
+      <p>Sistema de Gestión de Torneos Deportivos & Módulo de Video Arbitraje — <strong>Mi Cancha</strong></p>
+      <p style="margin-top: 6px;">Documento técnico oficial para organizadores y directores de tatami.</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
