@@ -3,7 +3,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Trophy, AlertCircle, ShieldAlert, Timer, ArrowLeft, Zap, Award, Video, RotateCcw, Wifi, WifiOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+const getApiUrl = () => {
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://api.micancha.com.py";
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+};
+const API_URL = getApiUrl();
 const WS_URL  = API_URL.replace(/^http/, 'ws');
 
 export default function ArbitrajeCombate({ params }: { params: { id: string } }) {

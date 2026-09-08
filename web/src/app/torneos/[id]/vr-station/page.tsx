@@ -13,7 +13,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+const getApiUrl = () => {
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://api.micancha.com.py";
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+};
+const API_URL = getApiUrl();
 const WS_URL  = API_URL.replace(/^http/, "ws");
 
 /* ─── Types ─────────────────────────────────────────────────────── */
@@ -36,8 +42,8 @@ export default function VRStation() {
   const params = useParams();
   const torneoId = params.id as string;
 
-  const [matchId, setMatchId] = useState<string>("");
-  const [matchInput, setMatchInput] = useState<string>("");
+  const [matchId, setMatchId] = useState<string>("123");
+  const [matchInput, setMatchInput] = useState<string>("123");
   const [connected, setConnected] = useState(false);
 
   const [request, setRequest]   = useState<VRRequest | null>(null);
@@ -113,11 +119,18 @@ export default function VRStation() {
         break;
       case "CLIP_DISPONIBLE":
         setClipUrl(msg.clip_url);
-        setRequest(prev => prev ? { ...prev, clipUrl: msg.clip_url } : prev);
+        setRequest(prev => prev ? { ...prev, clipUrl: msg.clip_url } : {
+          reviewId: msg.review_id || 0,
+          color: "Aka",
+          tipo: "REPLAY DISPARADO",
+          tiempo: "--:--",
+          reglamento: "WKF",
+          clipUrl: msg.clip_url,
+        });
         if (videoRef.current) {
           videoRef.current.src = msg.clip_url;
           videoRef.current.currentTime = 0;
-          videoRef.current.play().catch(() => {});
+          videoRef.current.play().catch((err) => console.warn("Autoplay bloqueado:", err));
         }
         break;
       case "SCORE_UPDATE":
@@ -137,6 +150,18 @@ export default function VRStation() {
         break;
     }
   }, []);
+
+  // Auto-conectar al montar el componente
+  useEffect(() => {
+    const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const initialId = urlParams?.get("matchId") || "123";
+    setMatchId(initialId);
+    setMatchInput(initialId);
+    connectWS(initialId);
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [connectWS]);
 
   const handleConnect = () => {
     const id = matchInput.trim();
@@ -440,15 +465,26 @@ export default function VRStation() {
 
                 {/* Play / Pause */}
                 <button
-                  onClick={() => videoRef.current?.paused ? videoRef.current.play() : videoRef.current?.pause()}
+                  onClick={() => {
+                    if (!clipUrl || !videoRef.current) return;
+                    if (videoRef.current.paused) {
+                      videoRef.current.play().catch((err) => console.warn("Error reproduciendo:", err));
+                    } else {
+                      videoRef.current.pause();
+                    }
+                  }}
+                  disabled={!clipUrl}
+                  title={!clipUrl ? "Aún no hay repetición disponible. Dispara el replay desde la cámara." : "Reproducir / Pausar"}
                   style={{
                     padding: "10px",
-                    background: "rgba(59,130,246,0.15)",
-                    border: "1px solid rgba(59,130,246,0.3)",
+                    background: clipUrl ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${clipUrl ? "rgba(59,130,246,0.3)" : "rgba(255,255,255,0.06)"}`,
                     borderRadius: 10,
-                    color: "#93c5fd",
+                    color: clipUrl ? "#93c5fd" : "#475569",
                     fontWeight: 900,
                     fontSize: 16,
+                    cursor: clipUrl ? "pointer" : "not-allowed",
+                    opacity: clipUrl ? 1 : 0.6,
                   }}
                 >
                   ▶/⏸

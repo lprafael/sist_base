@@ -32,7 +32,13 @@ import {
   ShieldCheck
 } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+const getApiUrl = () => {
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://api.micancha.com.py";
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+};
+const API_URL = getApiUrl();
 const WS_URL  = API_URL.replace(/^http/, "ws");
 
 const BUFFER_MAX_SECONDS = 45; // Duración máxima en memoria del búfer rodante
