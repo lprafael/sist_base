@@ -22,6 +22,23 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 const WS_URL  = API_URL.replace(/^http/, "ws");
 
+function sanitizeClipUrl(rawUrl: string | null): string | null {
+  if (!rawUrl) return null;
+  try {
+    if (rawUrl.includes("/clips/")) {
+      const path = rawUrl.substring(rawUrl.indexOf("/clips/"));
+      if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        return `https://api.micancha.com.py${path}`;
+      } else {
+        return `http://localhost:8001${path}`;
+      }
+    }
+  } catch (e) {
+    console.warn("Error sanitizing clip URL:", e);
+  }
+  return rawUrl;
+}
+
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface VRRequest {
   reviewId: number;
@@ -118,20 +135,17 @@ export default function VRStation() {
         setTimerActive(true);
         break;
       case "CLIP_DISPONIBLE":
-        setClipUrl(msg.clip_url);
-        setRequest(prev => prev ? { ...prev, clipUrl: msg.clip_url } : {
+        const cleanUrl = sanitizeClipUrl(msg.clip_url);
+        console.log("[VR Station] Clip recibido:", msg.clip_url, "-> Limpio:", cleanUrl);
+        setClipUrl(cleanUrl);
+        setRequest(prev => prev ? { ...prev, clipUrl: cleanUrl } : {
           reviewId: msg.review_id || 0,
           color: "Aka",
           tipo: "REPLAY DISPARADO",
           tiempo: "--:--",
           reglamento: "WKF",
-          clipUrl: msg.clip_url,
+          clipUrl: cleanUrl,
         });
-        if (videoRef.current) {
-          videoRef.current.src = msg.clip_url;
-          videoRef.current.currentTime = 0;
-          videoRef.current.play().catch((err) => console.warn("Autoplay bloqueado:", err));
-        }
         break;
       case "SCORE_UPDATE":
         setVrCards({
@@ -393,10 +407,20 @@ export default function VRStation() {
             <div style={{ background: "#000", aspectRatio: "16/9", position: "relative" }}>
               <video
                 ref={videoRef}
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", display: clipUrl ? "block" : "none" }}
                 controls={false}
                 src={clipUrl || undefined}
                 playsInline
+                onLoadedData={() => {
+                  console.log("[VR Station] Video cargado con éxito:", clipUrl);
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(e => console.warn("Autoplay bloqueado (presione ▶ para reproducir):", e));
+                  }
+                }}
+                onError={() => {
+                  console.warn("[VR Station] Error cargando fuente de video:", clipUrl);
+                }}
               />
               {!clipUrl && (
                 <div style={{

@@ -483,11 +483,18 @@ async def subir_clip_web(
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    req_base = str(request.base_url).rstrip("/")
-    proto = request.headers.get("x-forwarded-proto")
-    if proto and req_base.startswith("http://"):
-        req_base = req_base.replace("http://", f"{proto}://", 1)
-    backend_url = os.getenv("NEXT_PUBLIC_API_URL") or req_base
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    proto = request.headers.get("x-forwarded-proto") or "https"
+    if "micancha.com.py" in host:
+        backend_url = "https://api.micancha.com.py"
+    elif host and "backend" not in host:
+        backend_url = f"{proto}://{host}"
+    elif os.getenv("NEXT_PUBLIC_API_URL"):
+        backend_url = os.getenv("NEXT_PUBLIC_API_URL")
+    elif os.name != "nt":
+        backend_url = "https://api.micancha.com.py"
+    else:
+        backend_url = "http://localhost:8001"
     clip_url = f"{backend_url}/clips/{filename}"
 
     if review_id:
