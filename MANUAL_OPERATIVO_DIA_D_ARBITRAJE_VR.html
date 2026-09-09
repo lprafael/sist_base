@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual Operativo del Día D — Arbitraje Digital, Mesa Central y Video Review | Mi Cancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060911;
+      --card-bg: #0f172a;
+      --card-border: #1e293b;
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.15);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.15);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --purple: #8b5cf6;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 90px;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ─── Hero Header ─── */
+    header {
+      background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #060911 85%);
+      padding: 60px 0 45px;
+      border-bottom: 1px solid var(--card-border);
+      text-align: center;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--red), var(--amber), var(--emerald), transparent);
+    }
+
+    .badge-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 18px;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-size: clamp(28px, 4.5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #ffffff;
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    h1 span.hl-red {
+      background: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #b91c1c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    h1 span.hl-amber {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: clamp(15px, 2vw, 17px);
+      color: var(--text-muted);
+      max-width: 800px;
+      margin: 0 auto;
+      font-weight: 400;
+    }
+
+    /* ─── Navigation Pills ─── */
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .quick-nav a {
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .quick-nav a:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+      border-color: var(--text-faint);
+    }
+
+    /* ─── Sections ─── */
+    .section-block {
+      margin-top: 50px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .section-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .icon-red { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+    .icon-blue { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; }
+    .icon-amber { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; }
+    .icon-emerald { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
+    .icon-purple { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); color: #a78bfa; }
+
+    .section-head h2 { font-size: 22px; font-weight: 800; color: #fff; }
+    .section-head p { font-size: 13px; color: var(--text-muted); }
+
+    /* ─── Cards ─── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .badge-subtle {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-red { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-blue { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-amber { background: rgba(245,158,11,0.2); color: #fde68a; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-emerald { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+
+    /* ─── Grid ─── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    /* ─── Steps ─── */
+    .step-item {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+    }
+
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .step-content h5 { font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+    .step-content p, .step-content li { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+    .step-content ul { margin-left: 20px; margin-top: 6px; }
+
+    /* ─── Tables ─── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      margin: 16px 0;
+    }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { background: #111827; padding: 14px 18px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--card-border); }
+    td { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #cbd5e1; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ─── Callouts ─── */
+    .callout {
+      border-radius: 14px;
+      padding: 18px 22px;
+      margin: 18px 0;
+      font-size: 13px;
+      line-height: 1.6;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .callout-warning { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); color: #fde68a; }
+    .callout-info { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); color: #bfdbfe; }
+    .callout-success { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); color: #a7f3d0; }
+    .callout-icon { font-size: 20px; flex-shrink: 0; }
+
+    /* ─── Code Snippets ─── */
+    .code-box {
+      background: #030712;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin: 10px 0;
+      word-break: break-all;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+      color: var(--text-faint);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <div class="badge-hero">
+        <span class="badge-dot"></span>
+        Protocolo Oficial del Torneo
+      </div>
+      <h1>Manual Operativo para el <span class="hl-red">Día D</span><br>Arbitraje Digital, Mesa Central y <span class="hl-amber">Video Review</span></h1>
+      <p class="subtitle">
+        Procedimientos paso a paso, especificaciones técnicas de hardware y red, perfiles de acceso y marco reglamentario oficial WKF (Kumite/Kata) y ASAM para competencias en vivo en Mi Cancha.
+      </p>
+
+      <div class="quick-nav">
+        <a href="#estado-sistema">1. Estado del Sistema</a>
+        <a href="#equipamiento">2. Hardware & Red</a>
+        <a href="#fase-previa">3. Setup Previo (-2h)</a>
+        <a href="#procedimiento-roles">4. Procedimiento por Rol</a>
+        <a href="#reglamento-wkf">5. Reglamento Art. 9 WKF</a>
+        <a href="#contingencias">6. Protocolos de Contingencia</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ─── SECCIÓN 1: ESTADO DEL SISTEMA ─── -->
+    <section id="estado-sistema" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-emerald">✓</div>
+        <div>
+          <h2>1. Estado de Implementación del Sistema</h2>
+          <p>Módulos desarrollados, verificados y listos en producción</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+          Todos los componentes necesarios para la jornada oficial están <strong>100% construidos, compilados y verificados</strong> en el servidor <code style="color: #60a5fa;">https://micancha.com.py</code>:
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Módulo</th>
+                <th>Estado</th>
+                <th>Ruta en Producción</th>
+                <th>Función Operativa</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Mesa Central WKF</strong></td>
+                <td><span class="badge-subtle badge-emerald">Listo</span></td>
+                <td><code>/torneos/[id]/mesa-central</code></td>
+                <td>Supervisión multi-tatami, bloqueo de mesas, validación de combates e impresión de actas.</td>
+              </tr>
+              <tr>
+                <td><strong>Mesa de Control / Árbitro</strong></td>
+                <td><span class="badge-subtle badge-emerald">Listo</span></td>
+                <td><code>/torneos/[id]/arbitraje/combate</code></td>
+                <td>Cronómetro oficial, botones Yuko/Waza-Ari/Ippon, Senshu, faltas y solicitud de VR.</td>
+              </tr>
+              <tr>
+                <td><strong>Juez de Video Review (VR)</strong></td>
+                <td><span class="badge-subtle badge-emerald">Listo</span></td>
+                <td><code>/torneos/[id]/vr-station</code></td>
+                <td>Repetición instantánea, control a 30fps, cámara lenta 0.25x, timer de 30s y veredictos.</td>
+              </tr>
+              <tr>
+                <td><strong>Estación de Cámara Web</strong></td>
+                <td><span class="badge-subtle badge-emerald">Listo</span></td>
+                <td><code>/torneos/[id]/tatami/1/camara</code></td>
+                <td>Búfer rodante continuo de 45s en RAM, corte automático y subida multipart a la API.</td>
+              </tr>
+              <tr>
+                <td><strong>Pantalla Pública de Tatami</strong></td>
+                <td><span class="badge-subtle badge-emerald">Listo</span></td>
+                <td><code>/torneos/[id]/tatami/1</code></td>
+                <td>Marcador gigante a pantalla completa con banner animado "VIDEO REVIEW".</td>
+              </tr>
+              <tr>
+                <td><strong>Centro de Transmisión</strong></td>
+                <td><span class="badge-subtle badge-emerald">Listo</span></td>
+                <td><code>/admin-torneo/[id]</code> (Transmisión)</td>
+                <td>Emisión en directo embebida en YouTube Live con selector de canales por Tatami.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECCIÓN 2: HARDWARE Y RED ─── -->
+    <section id="equipamiento" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-blue">⚙️</div>
+        <div>
+          <h2>2. Especificaciones Técnicas de Hardware y Red</h2>
+          <p>Requisitos de equipamiento físico por cada área de combate</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span>Dispositivos por Tatami (Estación Física)</span>
+            <span class="badge-subtle badge-blue">Por Tatami</span>
+          </div>
+          <ul style="font-size: 13px; color: var(--text-muted); margin-left: 20px; line-height: 1.7;">
+            <li><strong>1 Laptop para Mesa de Control:</strong> Windows/Mac/Linux con Google Chrome o Microsoft Edge. Controla tiempo y puntos.</li>
+            <li><strong>1 Tablet para el Juez VR:</strong> Pantalla táctil de 10" o superior (Android o iPad) ubicada al costado de la mesa arbitral.</li>
+            <li><strong>1 Cámara de Video / Smartphone:</strong> Celular con trípode o webcam USB 1080p colocado a 45° del tatami a 1.20m de altura.</li>
+            <li><strong>1 Televisor / Proyector HDMI:</strong> Pantalla de 43" a 65" para el marcador oficial público del Tatami.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>Dispositivos de Coordinación General</span>
+            <span class="badge-subtle badge-amber">Mesa Central</span>
+          </div>
+          <ul style="font-size: 13px; color: var(--text-muted); margin-left: 20px; line-height: 1.7;">
+            <li><strong>1 Laptop para el Jefe de Árbitros:</strong> Monitor de 15" o superior con la <em>Mesa Central</em> abierta para supervisión general.</li>
+            <li><strong>1 Impresora USB / Wi-Fi:</strong> Para impresión inmediata de las <em>Actas Oficiales de Combate</em> generadas por el sistema.</li>
+            <li><strong>1 Router Wi-Fi Doble Banda (5 GHz):</strong> Red exclusiva para los dispositivos de mesa (separada del público).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Requisitos de Conectividad y Red</span>
+          <span class="badge-subtle badge-emerald">Red</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Parámetro</th>
+                <th>Requisito Mínimo</th>
+                <th>Requisito Recomendado</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Velocidad de Bajada (Download)</td>
+                <td>15 Mbps</td>
+                <td>50+ Mbps</td>
+                <td>Para carga fluida de marcadores y WebSocket en tiempo real.</td>
+              </tr>
+              <tr>
+                <td>Velocidad de Subida (Upload)</td>
+                <td>5 Mbps</td>
+                <td>10 Mbps por tatami</td>
+                <td>Indispensable si además se realiza streaming a YouTube Live.</td>
+              </tr>
+              <tr>
+                <td>Latencia (Ping a servidor)</td>
+                <td>&lt; 60 ms</td>
+                <td>&lt; 25 ms</td>
+                <td>Garantiza que el banner de VR aparezca en &lt; 200 milisegundos.</td>
+              </tr>
+              <tr>
+                <td>Nombre de Red (SSID)</td>
+                <td colspan="2">Exclusiva con contraseña (ej: <code>MiCancha_Arbitraje</code>)</td>
+                <td>Nunca conectar los dispositivos de mesa al Wi-Fi libre del público.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECCIÓN 3: SETUP PREVIO ─── -->
+    <section id="fase-previa" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-amber">⏱️</div>
+        <div>
+          <h2>3. Protocolo de Preparación (Día D - 2 Horas Antes)</h2>
+          <p>Puesta a punto y verificación previa antes del inicio de los combates</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">1</div>
+            <div class="step-content">
+              <h5>Alta Oficial del Cuerpo Arbitral</h5>
+              <p>El Director de Torneo entra a <code>/admin-torneo/[id]</code> ➔ <strong>Configuración ➔ Arbitraje</strong> y verifica que todos los árbitros estén cargados con su Nombre, DNI y Rol (*Árbitro Central*, *Juez de Tatami*, *Juez VR*, *Veedor*).</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">2</div>
+            <div class="step-content">
+              <h5>Montaje y Bloqueo de Posición de la Cámara del Tatami</h5>
+              <p>Colocar el trípode con el smartphone o webcam a <strong>45 grados</strong> de la esquina de los competidores, con encuadre que cubra la totalidad del área de 8×8 metros. Abrir la URL de cámara en Chrome y presionar <strong>"Permitir cámara"</strong>.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">3</div>
+            <div class="step-content">
+              <h5>Apertura de Estaciones en Cada Mesa</h5>
+              <p>En la laptop de cada tatami, abrir en Chrome con modo pantalla completa (<strong>F11</strong>):</p>
+              <ul>
+                <li>Pantalla pública de televisión: <code>https://micancha.com.py/torneos/[id]/tatami/1</code></li>
+                <li>Pantalla de control del anotador: <code>https://micancha.com.py/torneos/[id]/arbitraje/combate</code></li>
+                <li>Tablet del Juez VR: <code>https://micancha.com.py/torneos/[id]/vr-station</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">4</div>
+            <div class="step-content">
+              <h5>Prueba de Fuego del Video Review (Checklist de 1 Minuto)</h5>
+              <p>Hacer un movimiento frente a la cámara del Tatami 1 y presionar <strong>"⚡ Disparar Replay Ahora"</strong>. Confirmar que el video aparezca reproduciéndose en la tablet del Juez VR en menos de 1 segundo.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECCIÓN 4: PROCEDIMIENTO POR ROL ─── -->
+    <section id="procedimiento-roles" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-red">🥋</div>
+        <div>
+          <h2>4. Procedimiento Operativo por Rol durante el Combate</h2>
+          <p>Instrucciones de actuación paso a paso para cada funcionario de mesa</p>
+        </div>
+      </div>
+
+      <!-- Rol 1: Anotador / Mesa de Control -->
+      <div class="card">
+        <div class="card-title">
+          <span>Árbitro de Mesa / Anotador de Tatami</span>
+          <span class="badge-subtle badge-red">Mesa de Control</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Opera la laptop con la interfaz oficial de Kumite/Combate. Sus responsabilidades son:
+        </p>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">A</div>
+            <div class="step-content">
+              <h5>Inicio y Control del Cronómetro Oficial</h5>
+              <p>Al escuchar la voz de <em>"Hajime"</em> del Árbitro Central, presionar el botón verde <strong>"Iniciar"</strong> (o tecla espacio). Al escuchar <em>"Yame"</em>, presionar <strong>"Pausar"</strong>.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">B</div>
+            <div class="step-content">
+              <h5>Registro Instantáneo de Puntuación</h5>
+              <p>Pulsar los botones táctiles grandes correspondientes a la decisión arbitral:</p>
+              <ul>
+                <li><strong>YUKO (+1 punto):</strong> Puño al tronco o cara con buena forma.</li>
+                <li><strong>WAZA-ARI (+2 puntos):</strong> Patada Chudan (al cuerpo).</li>
+                <li><strong>IPPON (+3 puntos):</strong> Patada Jodan (a la cabeza) o barrido con técnica de seguimiento.</li>
+                <li><strong>SENSHU:</strong> Primer punto sin oposición. El sistema lo asigna o revoca con un solo clic.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">C</div>
+            <div class="step-content">
+              <h5>Registro de Faltas y Penalizaciones</h5>
+              <p>Registrar advertencias en tiempo real (C1, C2, C3, Hansoku) y contador de salidas (<em>Jogai</em>). El software bloquea automáticamente al competidor descalificado por acumulación.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">D</div>
+            <div class="step-content">
+              <h5>Atención a la Solicitud de Video Review del Coach</h5>
+              <p>Cuando el Coach de una esquina levanta su tarjeta de apelación:</p>
+              <ol style="margin-left: 20px; font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                <li>Hacer clic en el botón <strong>"📹 Solicitud de Video Review"</strong> (o sobre la tarjeta VR de AKA / AO).</li>
+                <li>Seleccionar la técnica reclamada (ej: <em>YUKO</em>, <em>WAZA-ARI</em> o <em>IPPON</em>).</li>
+                <li>Presionar <strong>"Confirmar Solicitud VR"</strong>.</li>
+              </ol>
+              <p style="margin-top: 6px; font-weight: 700; color: #f87171;">
+                El sistema detendrá el cronómetro automáticamente y emitirá la alerta a la cámara y al Juez VR sin ninguna otra acción requerida.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rol 2: Juez de Video Review -->
+      <div class="card">
+        <div class="card-title">
+          <span>Juez de Video Review (Juez VR)</span>
+          <span class="badge-subtle badge-amber">Tablet Técnica</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Opera la tablet táctil independiente. Aplica el <strong>Artículo 9 del Reglamento WKF 2024</strong>:
+        </p>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">1</div>
+            <div class="step-content">
+              <h5>Recepción del Clip y Activación del Temporizador de 30 Segundos</h5>
+              <p>Al solicitarse el VR, la repetición carga automáticamente y arranca la cuenta atrás reglamentaria de <strong>30 segundos de deliberación</strong> (indicador verde ➔ ámbar a los 10s ➔ rojo a los 5s).</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">2</div>
+            <div class="step-content">
+              <h5>Análisis Técnico de la Jugada</h5>
+              <p>Utilizar los controles de alta precisión:</p>
+              <ul>
+                <li><strong>Botón <code>⏮ −6s</code>:</strong> Salta exactamente al momento en que se produjo el intercambio técnico.</li>
+                <li><strong>Botón <code>0.25×</code>:</strong> Reproduce a cámara superlenta para observar el contacto milimétrico y la trayectoria.</li>
+                <li><strong>Botones <code>◀ Frame</code> / <code>Frame ▶</code>:</strong> Inspección cuadro por cuadro a 30 fotogramas por segundo para verificar si la técnica llegó a tiempo antes de la voz de <em>Yame</em> y si existió <em>Zanshin</em> (atención sostenida).</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">3</div>
+            <div class="step-content">
+              <h5>Emisión del Veredicto Oficial</h5>
+              <p>Pulsar el botón táctil definitivo en el lateral derecho de la tablet:</p>
+              <ul>
+                <li><strong style="color: #34d399;">✅ ACEPTADO (+ Puntos):</strong> La técnica fue limpia y válida. Se suman los puntos reclamados al marcador y el Coach <strong>conserva</strong> su tarjeta de apelación.</li>
+                <li><strong style="color: #f87171;">❌ RECHAZADO:</strong> La técnica no cumplió los 6 criterios de puntuación WKF o no hubo contacto. El marcador no cambia y el Coach <strong>pierde</strong> su tarjeta para el resto del combate.</li>
+                <li><strong style="color: #fbbf24;">👁 MIENAI (No Visible):</strong> Los cuerpos o el ángulo impidieron observar con certeza el punto. El marcador se mantiene y el Coach <strong>conserva</strong> su tarjeta.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rol 3: Jefe de Árbitros / Mesa Central -->
+      <div class="card">
+        <div class="card-title">
+          <span>Jefe de Árbitros / Supervisor General</span>
+          <span class="badge-subtle badge-purple">Mesa Central</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Supervisa el pabellón completo desde la pantalla <code>/torneos/[id]/mesa-central</code>:
+        </p>
+
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">✦</div>
+            <div class="step-content">
+              <h5>Monitoreo Simultáneo Multi-Tatami</h5>
+              <p>Observa el estado de todos los tatamis activos (puntos, faltas, cronómetro y estado de apelaciones) en una sola vista panorámica.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">✦</div>
+            <div class="step-content">
+              <h5>Bloqueo y Seguridad de Mesas</h5>
+              <p>Puede pulsar <strong>"🔒 Bloquear Mesa"</strong> en cualquier tatami para congelar los botones y evitar manipulaciones accidentales durante descansos o cambios de categoría.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">✦</div>
+            <div class="step-content">
+              <h5>Validación Oficial y Acta de Combate</h5>
+              <p>Al terminar cada combate, presiona <strong>"Validar Resultado"</strong> para asentar el triunfo en las llaves del torneo y presiona <strong>"Imprimir Acta"</strong> para obtener la hoja oficial con el desglose de Yuko, Waza-ari, Ippon y firmas de los jueces.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECCIÓN 5: REGLAMENTO WKF ART. 9 ─── -->
+    <section id="reglamento-wkf" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-amber">📜</div>
+        <div>
+          <h2>5. Marco Reglamentario WKF — Artículo 9 (Video Review)</h2>
+          <p>Especificaciones reglamentarias de apelación y consecuencias</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="callout callout-info">
+          <div class="callout-icon">⚖️</div>
+          <div>
+            <strong>Reglamento Oficial WKF 2024 — Art. 9:</strong><br>
+            <em>"Cada entrenador (coach) tiene derecho a 1 tarjeta de apelación de video por combate. Si la apelación es concedida por el Juez VR, el coach retiene el derecho a apelar nuevamente. Si la apelación es denegada, el coach pierde el derecho a apelar durante el resto del encuentro. Si la técnica no es visible en el video ('Mienai'), el coach conserva su derecho."</em>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Veredicto Emitido</th>
+                <th>Acción sobre el Marcador</th>
+                <th>Estado Tarjeta Coach (VR Card)</th>
+                <th>Reanudación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong style="color: #34d399;">ACEPTADO</strong></td>
+                <td>Se suman los puntos (+1 Yuko, +2 Waza-Ari, +3 Ippon).</td>
+                <td><span class="badge-subtle badge-emerald">CONSERVA TARJETA</span> (Activa)</td>
+                <td>Árbitro Central anuncia puntos y reanuda con <em>Tsuzukete Hajime</em>.</td>
+              </tr>
+              <tr>
+                <td><strong style="color: #f87171;">RECHAZADO</strong></td>
+                <td>Puntaje intacto (sin modificaciones).</td>
+                <td><span class="badge-subtle badge-red">PIERDE TARJETA</span> (Bloqueada)</td>
+                <td>Árbitro Central cruza brazos hacia abajo (<em>Torimasen</em>) y reanuda.</td>
+              </tr>
+              <tr>
+                <td><strong style="color: #fbbf24;">MIENAI</strong></td>
+                <td>Puntaje intacto (sin modificaciones).</td>
+                <td><span class="badge-subtle badge-amber">CONSERVA TARJETA</span> (Activa)</td>
+                <td>Árbitro Central se toca los ojos (<em>Mienai</em>) y reanuda.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECCIÓN 6: CONTINGENCIAS ─── -->
+    <section id="contingencias" class="section-block">
+      <div class="section-head">
+        <div class="section-icon icon-red">🚨</div>
+        <div>
+          <h2>6. Protocolos de Contingencia y Emergencias</h2>
+          <p>Procedimientos ante fallas de hardware, corte de red o discrepancias</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-badge">!</div>
+            <div class="step-content">
+              <h5>Pérdida de Conexión Wi-Fi en un Tatami</h5>
+              <p><strong>Comportamiento del sistema:</strong> La pantalla del Tatami y la Mesa intentan reconectar automáticamente cada 3 segundos. La cámara sigue grabando en memoria RAM.<br>
+              <strong>Acción:</strong> Verificar el router de la mesa. En cuanto regrese la señal, las pantallas se re-sincronizan solas sin perder el puntaje actual ni el tiempo transcurrido.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">!</div>
+            <div class="step-content">
+              <h5>Coach que Intenta Apelar Habiendo Perdido su Tarjeta</h5>
+              <p><strong>Comportamiento del sistema:</strong> El software bloquea visualmente el botón de apelación para esa esquina mostrando <code>BLOQUEADO</code>. El árbitro de mesa simplemente le indicará al coach que el sistema digital ya no permite registrar solicitudes para su esquina.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">!</div>
+            <div class="step-content">
+              <h5>Discrepancia o Error Involuntario del Anotador al Sumar Puntos</h5>
+              <p><strong>Acción:</strong> En la mesa de combate, el anotador puede corregir manualmente el puntaje, o el <strong>Jefe de Árbitros</strong> puede intervenir desde la Mesa Central y realizar el ajuste técnico correspondiente antes de dar por cerrado el encuentro.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>Manual Operativo Oficial para Torneos WKF / ASAM — <strong>Mi Cancha Platform</strong></p>
+      <p style="margin-top: 6px;">Documento técnico y reglamentario para directores de tatami, árbitros y jueces de video.</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
