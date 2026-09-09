@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Shield, Plus, Trash2, Loader2, User } from 'lucide-react';
+import { Shield, Plus, Trash2, Loader2, User, QrCode } from 'lucide-react';
+import QRTatamisModal from './QRTatamisModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -11,6 +12,7 @@ export default function ArbitrajeView({ torneoId }: { torneoId: string }) {
   // Modal
   const [isCreating, setIsCreating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     dni: '',
@@ -75,12 +77,20 @@ export default function ArbitrajeView({ torneoId }: { torneoId: string }) {
           <Shield size={20} className="text-blue-500"/>
           Equipo Arbitral (Jueces / Veedores)
         </h3>
-        <button 
-          onClick={() => setIsCreating(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 transition flex items-center gap-2"
-        >
-          <Plus size={18} /> Registrar Juez/Árbitro
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowQRModal(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm"
+          >
+            <QrCode size={18} /> Fichas QR Estaciones
+          </button>
+          <button 
+            onClick={() => setIsCreating(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
+          >
+            <Plus size={18} /> Registrar Juez/Árbitro
+          </button>
+        </div>
       </div>
 
       {arbitros.length === 0 ? (
@@ -164,6 +174,13 @@ export default function ArbitrajeView({ torneoId }: { torneoId: string }) {
           </div>
         </div>
       )}
+
+      {/* Modal QR Estaciones */}
+      <QRTatamisModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        torneoId={torneoId}
+      />
     </div>
   );
 }

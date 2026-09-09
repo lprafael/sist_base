@@ -20,11 +20,13 @@ import {
   Video,
   ChevronRight,
   Settings2,
-  AlertCircle
+  AlertCircle,
+  QrCode
 } from 'lucide-react';
 import KarateWKFController from './KarateWKFController';
 import KataWKFController from './KataWKFController';
 import ActaCombateWKFModal from './ActaCombateWKFModal';
+import QRTatamisModal from './QRTatamisModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -64,6 +66,7 @@ export default function MesaCentralWKFView({
   const [actaMatch, setActaMatch] = useState<any | null>(null);
   const [activeControllerMatch, setActiveControllerMatch] = useState<any | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Cargar configuración de tatamis guardada en LocalStorage
   useEffect(() => {
@@ -206,6 +209,15 @@ export default function MesaCentralWKFView({
               <Settings2 size={16} />
             </button>
           </div>
+
+          <button
+            onClick={() => setShowQRModal(true)}
+            className="px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-950/40"
+            title="Generar e imprimir códigos QR para cada Tatami"
+          >
+            <QrCode size={16} />
+            Fichas QR Tatamis
+          </button>
 
           <button
             onClick={() => fetchPartidos()}
@@ -465,6 +477,15 @@ export default function MesaCentralWKFView({
         />
       )}
 
+      {/* MODAL DE CÓDIGOS QR IMPRIMIBLES */}
+      <QRTatamisModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        torneoId={torneoId}
+        torneoNombre={torneo?.nombre || 'Torneo WKF'}
+        totalTatamis={tatamisConfig.length}
+      />
+
       {/* MODAL DE CONTROLADOR WKF (KUMITE O KATA) */}
       {activeControllerMatch && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[170] flex items-center justify-center p-2 md:p-6 animate-fadeIn">
@@ -472,8 +493,11 @@ export default function MesaCentralWKFView({
             {activeControllerMatch?.estadisticas?.modalidad_kata !== undefined ? (
               <KataWKFController
                 match={activeControllerMatch}
-                torneoId={torneoId}
                 onClose={() => {
+                  setActiveControllerMatch(null);
+                  fetchPartidos();
+                }}
+                onSaved={() => {
                   setActiveControllerMatch(null);
                   fetchPartidos();
                 }}
@@ -481,8 +505,11 @@ export default function MesaCentralWKFView({
             ) : (
               <KarateWKFController
                 match={activeControllerMatch}
-                torneoId={torneoId}
                 onClose={() => {
+                  setActiveControllerMatch(null);
+                  fetchPartidos();
+                }}
+                onSaved={() => {
                   setActiveControllerMatch(null);
                   fetchPartidos();
                 }}
