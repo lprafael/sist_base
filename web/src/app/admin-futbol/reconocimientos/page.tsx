@@ -1772,124 +1772,76 @@ function ChromeBolt({ corner }: { corner: "top-left" | "top-right" | "bottom-lef
   );
 }
 
-// Logo Oficial de Mi Cancha para plantillas
+// Logo Oficial de MiCancha.com.py para plantillas
 function MiCanchaBadge({ theme }: { theme: 'bronce' | 'cristal' | 'acero' | 'diploma' | 'gala' | 'moderno' }) {
   if (theme === 'bronce') {
     return (
-      <div className="flex items-center gap-1.5 select-none opacity-90">
-        <svg width="24" height="24" viewBox="0 0 26 26" fill="none" className="drop-shadow-[0_1px_0_rgba(255,255,255,0.4)]">
-          <circle cx="13" cy="13" r="12" stroke="#2a1e08" strokeWidth="1.8" fill="rgba(60,40,10,0.08)"/>
-          <path d="M6 13C6 9.134 9.134 6 13 6s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="#2a1e08" strokeWidth="1.5"/>
-          <path d="M9 13h8M13 9v8" stroke="#2a1e08" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-        <div className="text-left leading-none">
-          <span className="text-xs sm:text-sm font-black tracking-tight" style={{ color: '#1a1306', textShadow: '0 1px 0 rgba(255,255,255,0.4)' }}>
-            Mi<span style={{ color: '#3d280a' }}>Cancha</span>
-          </span>
-          <span className="block text-[8px] font-bold tracking-widest uppercase opacity-75" style={{ color: '#2a1e08' }}>
-            Oficial
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (theme === 'cristal') {
-    return (
-      <div className="flex items-center gap-1.5 select-none opacity-90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-        <svg width="24" height="24" viewBox="0 0 26 26" fill="none">
-          <circle cx="13" cy="13" r="12" stroke="#e2e8f0" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
-          <path d="M6 13C6 9.134 9.134 6 13 6s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="#e2e8f0" strokeWidth="1.5"/>
-          <path d="M9 13h8M13 9v8" stroke="#e2e8f0" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-        <div className="text-left leading-none">
-          <span className="text-xs sm:text-sm font-black tracking-tight text-white drop-shadow">
-            Mi<span className="text-cyan-200">Cancha</span>
-          </span>
-          <span className="block text-[8px] font-bold tracking-widest uppercase text-slate-300">
-            Certified
-          </span>
-        </div>
+      <div className="flex items-center select-none" title="MiCancha.com.py - Plataforma Oficial">
+        <img 
+          src="/logo-micancha.jpg" 
+          alt="MiCancha.com.py" 
+          className="h-9 sm:h-12 md:h-14 max-w-[130px] object-contain mix-blend-multiply drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)]" 
+        />
       </div>
     );
   }
 
   if (theme === 'acero') {
     return (
-      <div className="flex items-center gap-1.5 select-none opacity-90">
-        <svg width="24" height="24" viewBox="0 0 26 26" fill="none">
-          <circle cx="13" cy="13" r="12" stroke="#0f172a" strokeWidth="1.8" fill="rgba(15,23,42,0.05)"/>
-          <path d="M6 13C6 9.134 9.134 6 13 6s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="#0f172a" strokeWidth="1.5"/>
-          <path d="M9 13h8M13 9v8" stroke="#0f172a" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-        <div className="text-left leading-none">
-          <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900" style={{ textShadow: '0 1px 0 rgba(255,255,255,0.6)' }}>
-            Mi<span className="text-slate-700">Cancha</span>
-          </span>
-          <span className="block text-[8px] font-bold tracking-widest uppercase text-slate-600">
-            Oficial
-          </span>
-        </div>
+      <div className="flex items-center select-none" title="MiCancha.com.py - Plataforma Oficial">
+        <img 
+          src="/logo-micancha.jpg" 
+          alt="MiCancha.com.py" 
+          className="h-9 sm:h-12 md:h-14 max-w-[130px] object-contain mix-blend-multiply drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]" 
+        />
+      </div>
+    );
+  }
+
+  if (theme === 'cristal') {
+    return (
+      <div className="flex items-center bg-white/95 px-2 py-1 rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.6)] border border-white/50 backdrop-blur-sm select-none" title="MiCancha.com.py - Certificación Oficial">
+        <img 
+          src="/logo-micancha.jpg" 
+          alt="MiCancha.com.py" 
+          className="h-8 sm:h-10 md:h-11 max-w-[120px] object-contain" 
+        />
       </div>
     );
   }
 
   if (theme === 'diploma') {
     return (
-      <div className="flex items-center gap-1.5 select-none bg-[#f5efe2] px-2.5 py-1 rounded-md border border-[#d8c7a2]">
-        <svg width="22" height="22" viewBox="0 0 26 26" fill="none">
-          <circle cx="13" cy="13" r="12" stroke="#947632" strokeWidth="1.6" fill="rgba(184,151,88,0.15)"/>
-          <path d="M6 13C6 9.134 9.134 6 13 6s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="#947632" strokeWidth="1.5"/>
-          <path d="M9 13h8M13 9v8" stroke="#947632" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-        <div className="text-left leading-none">
-          <span className="text-xs font-black tracking-tight text-slate-900 font-sans">
-            Mi<span className="text-[#947632]">Cancha</span>
-          </span>
-          <span className="block text-[8px] font-bold tracking-wider uppercase text-amber-900">
-            Certificación
-          </span>
-        </div>
+      <div className="flex items-center select-none" title="MiCancha.com.py - Certificación de Torneo">
+        <img 
+          src="/logo-micancha.jpg" 
+          alt="MiCancha.com.py" 
+          className="h-10 sm:h-12 md:h-14 max-w-[130px] object-contain mix-blend-multiply" 
+        />
       </div>
     );
   }
 
   if (theme === 'gala') {
     return (
-      <div className="flex items-center gap-1.5 select-none px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30">
-        <svg width="22" height="22" viewBox="0 0 26 26" fill="none">
-          <circle cx="13" cy="13" r="12" stroke="#facc15" strokeWidth="1.6" fill="rgba(250,204,21,0.15)"/>
-          <path d="M6 13C6 9.134 9.134 6 13 6s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="#facc15" strokeWidth="1.5"/>
-          <path d="M9 13h8M13 9v8" stroke="#facc15" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-        <div className="text-left leading-none">
-          <span className="text-xs font-black tracking-tight text-amber-300 font-sans">
-            Mi<span className="text-yellow-400">Cancha</span>
-          </span>
-          <span className="block text-[8px] font-bold tracking-wider uppercase text-amber-400/80">
-            Gala Oficial
-          </span>
-        </div>
+      <div className="flex items-center bg-white/95 px-2.5 py-1 rounded-xl shadow-[0_4px_16px_rgba(212,175,55,0.3)] border border-amber-400/40 select-none" title="MiCancha.com.py - Gala Oficial">
+        <img 
+          src="/logo-micancha.jpg" 
+          alt="MiCancha.com.py" 
+          className="h-8 sm:h-10 md:h-11 max-w-[120px] object-contain" 
+        />
       </div>
     );
   }
 
   // Moderno
   return (
-    <div className="flex items-center gap-1.5 select-none bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-      <svg width="22" height="22" viewBox="0 0 26 26" fill="none">
-        <circle cx="13" cy="13" r="12" fill="#16a34a" opacity="0.15"/>
-        <path d="M6 13C6 9.134 9.134 6 13 6s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="#16a34a" strokeWidth="1.5"/>
-        <path d="M9 13h8M13 9v8" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round"/>
-      </svg>
-      <div className="text-left leading-none">
-        <span className="text-xs font-black tracking-tight text-slate-900 font-sans">
-          Mi<span className="text-emerald-600">Cancha</span>
-        </span>
-        <span className="block text-[8px] font-bold tracking-wider uppercase text-slate-500">
-          Torneos
-        </span>
-      </div>
+    <div className="flex items-center select-none" title="MiCancha.com.py - Competición Oficial">
+      <img 
+        src="/logo-micancha.jpg" 
+        alt="MiCancha.com.py" 
+        className="h-9 sm:h-11 md:h-13 max-w-[130px] object-contain" 
+      />
     </div>
   );
 }
