@@ -1,423 +1,272 @@
-﻿# Guia Tecnica: Instalacion, Despliegue y Mantenimiento
-# Sistema Mi Cancha -- Gestion de Torneos y Academias Deportivas
+# Especificación Técnica y Funcional del Sistema Mi Cancha
+## Plataforma Integral para Gestión de Torneos Multideporte, Academias, Arbitraje Digital y Complejos Deportivos
 
-Ultima actualizacion: 2026-07-20 -- Modulo SAD-M: Academias Deportivas + PKF Karate
-
----
-
-## Indice
-
-1. Requisitos Previos
-2. Instalacion Inicial (PC Cliente o Servidor)
-3. Configuracion del Entorno (.env)
-4. Despliegue de Actualizaciones (Mantenimiento)
-5. Migraciones de Base de Datos
-6. Arquitectura, Schemas y Puertos
-7. Endpoints del Sistema -- Referencia por Modulo
-8. Instrucciones para Agente IA (Prompt de Despliegue)
-9. Solucion de Problemas (Troubleshooting)
+**Versión:** 2.5 — Ecosistema Unificado  
+**Fecha de actualización:** Septiembre 2026  
+**Público objetivo:** Organizadores de torneos, federaciones deportivas, directores de academias y administradores de complejos deportivos.
 
 ---
 
-## 1. Requisitos Previos
+## 1. Resumen Ejecutivo y Propuesta de Valor
 
-- Docker Desktop (Windows/Mac) o Docker Engine + Compose (Linux)
-- Git (Opcional, recomendado)
-- Conexion a Internet (primera vez)
+**Mi Cancha** es una plataforma tecnológica integral diseñada para resolver de punta a punta las necesidades operativas, reglamentarias, financieras y de difusión de organizaciones deportivas. 
 
-> No es necesario instalar Node.js, Python ni PostgreSQL directamente.
+A diferencia de planillas manuales o herramientas fragmentadas, Mi Cancha centraliza en un único entorno:
+- La creación y administración de **competencias deportivas multidisciplinarias** (fútbol, artes marciales, ajedrez, básquetbol).
+- El **arbitraje digital en tiempo real** con pantallas gigantes para el público y estaciones de repetición instantánea (**Video Review**).
+- La gestión formativa y administrativa de **academias y escuelas de entrenamiento** (SAD-M).
+- El **control financiero integral**: pasarelas de pago online, cuentas corrientes, cajas de sede y facturación electrónica.
+- La **seguridad e integridad deportiva** mediante reconocimiento biométrico facial para eliminar la suplantación de identidad.
+- La **difusión automatizada**: redacción de noticias con Inteligencia Artificial y portales web personalizados con marca propia para cada organizador.
 
----
+### Modalidades de Despliegue
 
-## 2. Instalacion Inicial
-
-### Paso 1: Obtener el Codigo
-```bash
-git clone <URL_DEL_REPOSITORIO> mi_cancha
-cd mi_cancha
-```
-
-### Paso 2: Configurar Variables de Entorno (Web)
-Archivo: `web/.env.local`
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8002
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=tu-google-client-id
-```
-
-### Paso 3: Configurar Variables de Entorno (Backend)
-Archivo: `backend/.env`
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:admin@host.docker.internal:5432/BBDD_micancha
-SECRET_KEY=cambiar_esta_clave_por_una_segura_en_produccion
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=480
-GOOGLE_CLIENT_ID=tu-google-client-id
-GEMINI_API_KEY=tu-gemini-api-key
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USERNAME=tu@gmail.com
-EMAIL_PASSWORD=app-password
-EMAIL_FROM=tu@gmail.com
-```
-
-### Paso 4: Construir y Levantar
-```bash
-docker-compose build
-docker-compose up -d
-```
-
-Verificar instalacion:
-- Backend (Health): http://localhost:8002/health
-- Web (Next.js): http://localhost:3000
-
----
-
-## 3. Configuracion del Entorno (.env)
-
-### Backend (`backend/.env`)
-
-| Variable | Descripcion | Ejemplo |
+| Modalidad | Descripción | Escenario de Uso |
 |---|---|---|
-| DATABASE_URL | String de conexion a PostgreSQL | postgresql+asyncpg://u:p@host:5432/db |
-| SECRET_KEY | Clave JWT | super_secret_key_123 |
-| ACCESS_TOKEN_EXPIRE_MINUTES | Duracion token (default 480 = 8h) | 480 |
-| GOOGLE_CLIENT_ID | Client ID de Google OAuth | 584709...apps.googleusercontent.com |
-| GEMINI_API_KEY | API Key de Google Gemini (noticias IA) | AIzaSy... |
-| EMAIL_HOST | Servidor SMTP | smtp.gmail.com |
+| **Nube (Cloud SaaS)** | Acceso instantáneo desde cualquier navegador web moderno (`https://micancha.com.py`) sin instalaciones locales. Alta disponibilidad y copias de seguridad continuas. | Gestión diaria de ligas, academias, inscripciones online y portales públicos. |
+| **Servidor Local (On-Premise / LAN)** | Operación autónoma en una laptop servidora conectada a un router Wi-Fi local en el recinto deportivo, **sin requerir conexión a Internet**. | Jornadas de torneos en estadios, polideportivos cerrados o zonas con conectividad deficiente. |
 
 ---
 
-## 4. Despliegue de Actualizaciones
+## 2. Catálogo de Módulos y Capacidades del Sistema
 
-```bash
-git pull origin main
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-docker exec micancha-backend py run_migrations.py
+```
+                                 SISTEMA MI CANCHA
+  ┌──────────────────────────────────────┬──────────────────────────────────────┐
+  │         COMPETICIONES & TORNEOS      │         ADMINISTRACIÓN & GESTIÓN     │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ 1. Torneos Multideporte & Fixture    │ 4. SAD-M: Academias Deportivas       │
+  │ 2. Arbitraje Digital & Video Review  │ 5. Control Financiero & Facturación  │
+  │ 3. Ajedrez Suizo & Lichess Sync      │ 6. Reconocimiento Facial Biométrico  │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │         DIFUSIÓN & COMUNICACIÓN      │         EXPERIENCIA DIGITAL          │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ 7. Noticias Deportivas con IA        │ 9. Portales Web con Marca Propia     │
+  │ 8. Mensajería WhatsApp Automatizada  │ 10. Streaming & Transmisión en Vivo  │
+  └──────────────────────────────────────┴──────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Migraciones de Base de Datos
+### Módulo 1: Motor de Torneos y Competencias Multideporte
 
-### Ejecutar todas las migraciones (UP)
-```bash
-docker exec micancha-backend py run_migrations.py
-```
+Gestión integral de ligas y campeonatos de fútbol (campo, 7, futsal), básquetbol, pádel y deportes colectivos.
 
-### Ejecutar una migracion especifica
-```bash
-docker exec micancha-backend py migrations/038_academias_schema.py up
-```
+- **Generación Automatizada de Fixtures:**
+  - **Formato Liga (Todos contra Todos):** Algoritmo circular de Berger con jornadas de ida y vuelta equilibradas y gestión automática de fechas libres para equipos impares.
+  - **Eliminación Directa (Playoffs):** Cuadros de llaves cruzadas (Octavos, Cuartos, Semifinales y Finales) con avance automático de ganadores.
+  - **Formato Mixto (Fase de Grupos + Eliminatorias):** Asignación por zonas y clasificación automática cruzada (ej. 1º del Grupo A vs 2º del Grupo B).
+  - **Playoff Regional Interciudades:** Convocatoria de los mejores equipos de campeonatos locales para una gran final de campeones, clonando automáticamente equipos, planteles e identidades sin recarga manual.
+- **Control de Listas de Buena Fe y Delegados:**
+  - Portal de autogestión para delegados: carga de jugadores, fotos de perfil, números de camiseta y documentación oficial.
+  - Validación algorítmica de reglas: camisetas únicas por equipo, DNI único (prohibición de doble fichaje simultáneo), cupo máximo de refuerzos externos y rangos de edad según categoría.
+- **Mesa de Control y Actas Digitales en Tiempo Real:**
+  - Registro minuto a minuto de todos los incidentes: goles, autogoles, penales, amonestaciones, expulsiones, lesiones y sustituciones.
+  - Registro de cambios con identificación biométrica del jugador entrante y saliente.
+  - Control de asistencia de jugadores por encuentro.
+- **Tablas Estadísticas de Actualización Inmediata:**
+  - Tabla General de Posiciones con criterios oficiales de desempate (Puntos, DG, GF, Resultado directo).
+  - Tabla de Goleadores del Torneo.
+  - Valla Menos Vencida (Arqueros destacados).
+  - Tabla de Fair Play (Juego Limpio ponderado por tarjetas recibidas).
+- **Herramientas de Productividad para Organizadores:**
+  - **Clonación de Torneos:** Duplicación en 1 clic de estructuras completas para nuevas temporadas.
+  - **Exportación Oficial a Excel (.xlsx):** Descarga inmediata con hojas temáticas (Equipos, Planteles, Fixture, Posiciones y Fair Play).
 
-### Revertir una migracion (DOWN)
-```bash
-docker exec micancha-backend py migrations/038_academias_schema.py down
-```
+---
 
-### Historial de Migraciones
+### Módulo 2: Arbitraje Digital y Video Review (VR) para Artes Marciales
 
-| N | Archivo | Descripcion |
+Solución especializada para competencias de combate (Karate WKF y ASAM) con soporte oficial para **Kumite** (combate por puntos) y **Kata** (formas con calificación decimal).
+
+- **Puntuación Reglamentaria WKF 2024:**
+  - Puntuación táctil instantánea: **Yuko** (1 punto), **Waza-Ari** (2 puntos), **Ippon** (3 puntos).
+  - Asignación y desempate automático por **Senshu** (primer punto no disputado).
+  - Control de advertencias y penalizaciones en tiempo real (C1, C2, C3, Hansoku) y contador de salidas del área (**Jogai**) con descalificación reglamentaria automática.
+  - Control de tiempo con cronómetro oficial y modo prórroga (**Enchosen**) con muerte súbita.
+- **Sistema de Video Review Digital (Artículo 9 WKF):**
+  - Gestión de **Tarjeta de Apelación (VR Card)** por esquina (Aka / Ao).
+  - **Replay Instantáneo en menos de 1 segundo:** Al solicitarse una apelación, el video se envía de forma inmediata a la tablet del Juez VR y el cronómetro se detiene automáticamente.
+  - **Controles de Alta Precisión:** Reproducción a cámara superlenta (0.25×, 0.5×), avance y retroceso cuadro por cuadro (30 fps) y botón de salto instantáneo al intercambio (`⏮ −6s`).
+  - **Timer Reglamentario de Deliberación:** Cuenta regresiva oficial de 30 segundos con alertas visuales verde/ámbar/rojo.
+  - **Veredictos Oficiales:**
+    - *Aceptado:* Suma puntos al marcador y el entrenador **conserva** su tarjeta de apelación.
+    - *Rechazado:* Marcador intacto y el entrenador **pierde** su tarjeta para el resto del combate.
+    - *Mienai (No Visible):* Marcador intacto y el entrenador **conserva** su tarjeta.
+- **Arquitectura Dual de Captura de Video:**
+  - **Modo Cámara Nativa Web (Zero-Install / Bajo Costo):** Permite usar cualquier smartphone (Android o iPhone) o webcam USB montada en trípode. Graba en un búfer continuo en memoria RAM y transfiere el clip automáticamente sin necesidad de instalar programas adicionales ni gastar en PCs de streaming.
+  - **Modo Broadcast Pro (OBS Studio):** Compatibilidad con cámaras profesionales broadcast a 60/120 fps y tarjetas capturadoras HDMI/SDI para finales televisadas.
+- **Pantalla Gigante de Tatami (TV Display):**
+  - Marcador a pantalla completa optimizado para Smart TVs de 43" a 65" sin barras de navegador.
+  - Banner animado gigante *"VIDEO REVIEW"* durante las deliberaciones.
+- **Mesa Central del Jefe de Árbitros:**
+  - Supervisión panorámica simultánea de todos los tatamis del recinto.
+  - Bloqueo de seguridad de mesas durante recesos.
+  - Validación final de resultados e **impresión inmediata de Actas Oficiales de Combate**.
+  - **Generador de Fichas QR:** Tarjetas listas para recortar y colocar en cada mesa para abrir las estaciones en 10 segundos escaneando con la cámara.
+
+---
+
+### Módulo 3: Plataforma de Ajedrez y Deportes Mentales
+
+Motor avanzado de gestión de torneos de ajedrez para clubes, colegios, academias y federaciones.
+
+- **Sistemas de Competencia Oficiales:**
+  - **Sistema Suizo:** Algoritmo matemático de emparejamiento que empareja jugadores con puntajes similares, garantizando que nunca se repita un enfrentamiento y alternando colores (blancas y negras).
+  - **Round Robin (Todos contra Todos):** Tablas cruzadas con cuadros Berger.
+- **Integración y Sincronización con Lichess:**
+  - Importación automática de torneos y participantes desde la plataforma global Lichess.
+  - Sincronización en vivo de resultados y movimientos de partidas online.
+- **Gestión de Partidas y Notación PGN:**
+  - Registro de jugadas y visor interactivo de tablero con exportación de archivos PGN estándar.
+- **Cálculo de Rendimiento y ELO FIDE:**
+  - Variación de puntaje ELO calculada automáticamente al registrar cada victoria, empate o derrota.
+
+---
+
+### Módulo 4: SAD-M — Sistema de Administración de Academias Deportivas
+
+Ecosistema de gestión administrativa, deportiva y formativa para escuelas de fútbol, artes marciales, básquetbol, natación y clubes deportivos.
+
+- **Ficha Médica y Deportiva del Alumno:**
+  - Registro de datos personales, historial médico, categorías, niveles, cinturones o grados.
+  - Vinculación con tutores o responsables legales (padre/madre/encargado) para autorizaciones y pagos.
+- **Control Móvil de Asistencias:**
+  - Registro rápido de asistencia desde el celular del profesor al inicio de cada sesión de entrenamiento.
+  - Reportes estadísticos de presentismo, ausencias y alertas de inasistencias prolongadas.
+- **Estructura Multi-Sucursal y Horarios:**
+  - Configuración de múltiples sedes, canchas, salas y turnos por edad y nivel.
+- **Roles y Permisos de Personal (RBAC):**
+  - Perfiles independientes: *Dueño*, *Administrador*, *Tesorero* y *Profesor*.
+
+---
+
+### Módulo 5: Ecosistema Financiero, Tesorería y Facturación
+
+Control total de los ingresos, saldos pendientes y obligaciones impositivas de organizadores y complejos.
+
+- **Cuenta Corriente de Equipos y Alumnos:**
+  - Historial pormenorizado de cargos generados (arancel de inscripción, cuotas mensuales, uniformes, exámenes de grado) y pagos acreditados.
+  - Cálculo instantáneo del saldo adeudado.
+- **Multas y Sanciones Disciplinarias Automáticas:**
+  - Generación automática de cargos en cuenta corriente al emitirse tarjetas amarillas, rojas o incomparecencias (W.O.).
+  - Opción de rehabilitación automática: la suspensión del jugador se levanta automáticamente en el sistema una vez saldada la multa correspondiente.
+- **Pasarelas de Pago Digital E2E:**
+  - Cobro mediante **MercadoPago** y **Stripe** con links de pago directos enviados al celular del delegado o tutor.
+  - Acreditación automática y actualización de estado en tiempo real.
+- **Control de Cajas de Sede y Pagos Manuales:**
+  - Registro de cobros en efectivo, transferencias bancarias o cheques en la administración del complejo con emisión de comprobantes de pago.
+- **Facturación Electrónica Oficial:**
+  - Módulo integrado para emisión de comprobantes fiscales, timbrados y reportes impositivos conforme a normativas tributarias oficiales.
+
+---
+
+### Módulo 6: Seguridad y Reconocimiento Facial Biométrico
+
+Tecnología de Inteligencia Artificial para garantizar la transparencia deportiva en el campo de juego.
+
+- **Validación de Identidad en Mesa de Control:**
+  - Antes de cada cotejo, el veedor o anotador enfoca la cámara del celular o laptop hacia el competidor.
+  - El sistema extrae los rasgos biométricos faciales y los compara contra la fotografía registrada en la Lista de Buena Fe oficial.
+- **Diagnóstico y Habilitación Instantánea:**
+  - Verificación del umbral de coincidencia (>85% de similitud).
+  - Chequeo simultáneo de sanciones disciplinarias o deudas pendientes.
+  - Habilitación visual (indicador verde) para la firma digital de la planilla de juego.
+  - **Eliminación absoluta de la suplantación de identidad** o alineación indebida de jugadores inhabilitados.
+
+---
+
+### Módulo 7: Inteligencia Artificial Deportiva (Google Gemini)
+
+Automatización de contenidos periodísticos para potenciar la visibilidad del campeonato.
+
+- **Redacción Automática de Crónicas:**
+  - Con solo ingresar los datos del encuentro o una breve frase ("El clásico terminó 3 a 2 con gol en el último minuto"), el modelo de IA redacta artículos periodísticos completos, dinámicos y profesionales.
+- **Contenido Optimizado para Redes Sociales:**
+  - Textos listos para publicar en Instagram, Facebook, estados de WhatsApp o gacetillas de prensa.
+- **Mediateca y Archivo:**
+  - Historial de publicaciones archivado en el portal del torneo para consulta de delegados y prensa.
+
+---
+
+### Módulo 8: Centro de Transmisión y Streaming en Vivo
+
+Lleva las competencias a la audiencia global sin costos de producción televisiva compleja.
+
+- **Integración Embebida con YouTube Live:**
+  - Asignación de canales de transmisión independientes por cada tatami o cancha.
+  - Reproductor integrado en la página pública del torneo con selector dinámico de área deportiva.
+- **Marcadores Interactivos Sobrepuestos:**
+  - El tanteador oficial del partido/combate se muestra sincronizado junto a la transmisión en directo para disfrute de las familias y seguidores.
+
+---
+
+### Módulo 9: Comunicación Automatizada por WhatsApp
+
+Canal directo y automatizado para mantener informada a toda la comunidad deportiva.
+
+- **Notificaciones Automáticas del Torneo:**
+  - Envío de programación de partidos, cambios de cancha y recordatorios de horarios a delegados.
+  - Notificación instantánea de resultados y tablas de posiciones tras finalizar la jornada.
+- **Alertas de Cobranza y Cuotas:**
+  - Mensajes de vencimiento de cuotas en academias y recordatorios de saldo pendiente en cuentas corrientes de equipos.
+
+---
+
+### Módulo 10: Portales Web Públicos con Marca Propia (White Label)
+
+Cada cliente dispone de su propia vitrina digital profesional para proyectar su marca y comercializar espacios publicitarios.
+
+- **Página Web Propia del Organizador o Academia:**
+  - Dirección web personalizada y fácil de recordar (ej. `micancha.com.py/organizador/miliga2026`).
+  - Personalización visual: logotipo, escudo, colores institucionales, fotos de portada y textos de bienvenida.
+- **Monetización con Patrocinadores:**
+  - Espacios publicitarios dedicados para banners y logos de sponsors oficiales con enlaces a sus marcas.
+- **Información Pública en Tiempo Real:**
+  - Fixtures interactivos, resultados de partidos, llaves de playoffs, tablas de goleadores, transmisiones en vivo y enlaces a redes sociales accesibles desde cualquier teléfono sin necesidad de descargar apps.
+
+---
+
+## 3. Especificaciones de Equipamiento Físico (Hardware Recomendado)
+
+Mi Cancha está diseñado con un principio de **máxima optimización de hardware**, permitiendo operar con equipamiento accesible que el organizador o el personal ya posee:
+
+| Puesto / Rol | Dispositivo Recomendado | Función Principal |
 |---|---|---|
-| 001 | add_payments_and_tournaments | Pagos y torneos base |
-| 002 | torneo_completo | Schema completo de torneo |
-| 003 | reva_features | Features de REVA |
-| 004 | torneo_reglas_premios | Reglas y premios |
-| 005 | add_rules_fields | Campos adicionales de reglas |
-| 006 | eventos_categorias | Eventos y categorias |
-| 007 | multitenancy_catalogos | Multitenancy + catalogos modalidades/categorias |
-| 008 | gaps_logica_negocio | tipos_evento, player_out_id, creado_por |
-| 009 | organizadores_independientes | Tabla cancha.organizadores |
-| 010 | documentacion_delegados | URLs de documentos de jugadores |
-| 011 | email_jugadores | Email de bienvenida a jugadores |
-| 012 | cuenta_corriente_equipos | Modulo financiero equipos |
-| 013 | noticias_torneo | Tabla de noticias/cronicas del torneo |
-| 014 | jugador_activos | Campo estado activo en jugadores |
-| 015 | torneos_generales | Schema torneos_generales para deportes individuales |
-| 016 | schema_torneos | Migracion de tablas al schema torneos |
-| 017 | organizador_tipo_torneo | Campo tipo_torneo en cancha.organizadores |
-| 018 | catalogos | Catalogos de deportes y modalidades |
-| 019 | torneos_futbol_catalogos | Catalogos especificos de futbol |
-| 020 | normalizar_tipos_deporte | Normalizacion de tipos de deporte |
-| 021 | descripciones_tipos_deporte | Descripciones en catalogos de deporte |
-| 022 | mover_eventos_partido | Movimiento de eventos_partido al schema torneos |
-| 023 | roles | Tabla de roles en sistema |
-| 024 | mover_formatos_torneo | Migracion de formatos de torneo |
-| 025 | schema_torneos_futbol | Schema torneos futbol completo |
-| 026 | fix_schema_torneos_futbol | Correcciones al schema torneos futbol |
-| 027 | organizador_deporte | Relacion organizador-deporte |
-| 028 | torneos_ubicacion | Campos de ubicacion en torneos |
-| 029 | asistencia_torneo | Control de asistencia en torneos |
-| 030 | asam_y_multas | Sistema ASAM (karate) + multas en payments |
-| 031 | futbol_ecosistema | sistema.perfil_organizador, categorias, divisiones, cuerpo tecnico, biometria |
-| 032 | jerarquia_regional | torneos.regiones, torneos.ciudades, jerarquia interciudades |
-| 033 | campos_torneo_config | Campos de configuracion adicionales en torneos |
-| 034 | marciales_fields | Campos adicionales para artes marciales |
-| 035 | partidos_individuales | Soporte de partidos individuales (marciales) |
-| 036 | arbitraje_clasificacion | torneos.arbitros, campos de clasificacion en categorias |
-| 037 | imagen_banner_torneos | Campo banner_url en torneos |
-| 038 | academias_schema | Schema academias completo (SAD-M) -- 11 tablas |
-| 039 | karate_pkf | Sistema PKF Kumite (pkf_combates) y Kata (pkf_formas_enfrentamientos) |
+| **Mesa de Control (Anotador)** | Laptop (Windows, Mac o Linux) con Google Chrome o Edge | Manejo de puntos, cronómetro, actas digitales y solicitudes de Video Review. |
+| **Juez de Video Review (VR)** | Tablet de 10" o superior (Android o iPad) | Inspección táctil del clip de video a cámara lenta y emisión del veredicto oficial. |
+| **Cámara de Tatami / Cancha** | Smartphone moderno con trípode (1.5m a 1.8m) o Webcam USB Full HD | Captura continua del área deportiva con búfer rodante en RAM y subida automática. |
+| **Pantalla Pública (Público y Atletas)** | Smart TV de 43" a 65" Full HD / 4K conectada por HDMI o Wi-Fi | Marcador gigante en tiempo real y avisos de Video Review o faltas. |
+| **Mesa Central (Jefe de Árbitros)** | Laptop con pantalla de 15" + Impresora Wi-Fi/USB | Supervisión global de todas las áreas, validación de actas e impresión oficial. |
 
-> NOTA: El runner run_migrations.py ejecuta hasta migracion 030. Las migraciones 031-039 tienen runner interno propio y se ejecutan individualmente con: py migrations/03X_nombre.py up
+### Requisitos de Conectividad y Red
+
+- **Red Wi-Fi Exclusiva:** Se recomienda un router Wi-Fi doble banda (5 GHz) con contraseña dedicada exclusivamente para los dispositivos de mesa y arbitraje (separada de la red abierta del público).
+- **Velocidad de Conexión:**
+  - *Operación estándar (sin streaming):* 10 a 15 Mbps de bajada garantizan sincronización en menos de 100 milisegundos.
+  - *Con streaming de video en vivo (YouTube Live):* 5 a 10 Mbps de subida (upload) por cada canal de transmisión activo.
+  - *Modo Offline / Intranet:* 0 Mbps de internet requeridos (comunicación directa dentro del gimnasio).
 
 ---
 
-## 6. Arquitectura, Schemas y Puertos
+## 4. Seguridad, Integridad y Roles de Usuario (RBAC)
 
-### Contenedores Docker
+La plataforma aplica un modelo estricto de seguridad para proteger los datos institucionales, las finanzas y la confidencialidad de los atletas:
 
-| Servicio | Nombre Contenedor | Puerto Interno | Puerto Externo | Descripcion |
-|---|---|---|---|---|
-| Backend | micancha-backend | 8001 | 8002 | API FastAPI + Python |
-| Frontend Admin | micancha-admin | 80 | 3001 | Panel de Administracion React |
-| Web Publico | micancha-web | 3000 | 3000 | Next.js (web publica + paginas organizador/academia) |
-| Frontend Publico | micancha-public | 80 | 3002 | Landing publica de torneos React |
-
-Red Docker: micancha-network (Bridge)
-Proxy Inverso: Nginx redirige peticiones /api hacia el backend (http://backend:8001)
-
-### Schemas de PostgreSQL
-
-| Schema | Descripcion |
-|---|---|
-| sistema | Usuarios, roles, permisos, auditoria, perfil_organizador |
-| cancha | Complejos deportivos, canchas, reservas, organizadores |
-| torneos | Torneos futbol por equipos (LIGA, PLAYOFF, MIXTO) |
-| torneos_generales | Torneos individuales (artes marciales: ASAM, PKF) |
-| academias | Sistema de Gestion de Academias Deportivas (SAD-M) |
+1. **Jerarquía de Roles de Acceso:**
+   - **Administrador General / Organizador:** Control total del campeonato, configuración de reglas, aranceles, patrocinadores y cierre de torneos.
+   - **Delegado de Equipo / Club:** Carga de lista de buena fe, pago de aranceles y consulta de cuenta corriente de su institución.
+   - **Árbitro / Mesa de Control:** Registro de actas de partido, cronómetro y solicitudes de revisión.
+   - **Juez de Video Review:** Acceso exclusivo a la estación de repetición y emisión de veredictos reglamentarios.
+   - **Director de Academia / Staff formativo:** Fichas de alumnos, asistencias y cuotas de su propia sede.
+   - **Público General:** Consulta libre de tablas, marcadores y streaming sin privilegios de edición.
+2. **Aislamiento Multi-Tenant:**
+   - La información de cada complejo, academia o liga deportiva se encuentra lógicamente aislada, impidiendo que un organizador acceda a los datos o finanzas de otra entidad.
+3. **Auditoría y Trazabilidad Permanente:**
+   - Cada punto otorgado, tarjeta emitida, pago registrado y veredicto de Video Review queda registrado con fecha, hora exacta, usuario responsable y dispositivo origen.
+4. **Protección de Datos Biométricos:**
+   - Los vectores de reconocimiento facial se almacenan de forma segura y se utilizan exclusivamente para la validación de identidad en el marco de la competencia deportiva.
 
 ---
 
-## 7. Endpoints del Sistema -- Referencia por Modulo
-
-### Modulo A -- Torneos Futbol (Core)
-
-**Clonacion de Torneos**
-- POST /cancha/torneos/{torneo_id}/clonar
-- Payload: { "nuevo_nombre": "string (opcional)", "incluir_equipos": true/false }
-- Respuesta: { "status": "ok", "torneo_id": "uuid", "nombre": "...", "equipos_copiados": 0 }
-
-**Exportacion Excel (.xlsx)**
-- GET /cancha/torneos/{torneo_id}/exportar/xlsx
-- Hojas: Equipos, Planteles, Fixture, Posiciones, Fair Play
-
----
-
-### Modulo B -- Cuenta Corriente de Equipos
-
-- GET  /cancha/torneos/equipos/{equipo_id}/cuenta_corriente
-- POST /cancha/torneos/equipos/{equipo_id}/cuenta_corriente/cargos
-- POST /cancha/torneos/equipos/{equipo_id}/cuenta_corriente/{cargo_id}/pagar
-- POST /cancha/torneos/sanciones/{sancion_id}/levantar-por-multa
-
----
-
-### Modulo C -- Dashboard KPIs
-
-- GET /api/analytics/dashboard
-- Respuesta: torneos_activos, partidos_hoy, equipos_pendientes_validacion, equipos_con_deuda, proximos_partidos
-
----
-
-### Modulo D -- Noticias IA (Gemini)
-
-- POST /api/noticias/generar-ia          -- Generar noticia con IA
-- POST /api/noticias                     -- Crear noticia
-- GET  /api/noticias/torneo/{torneo_id}  -- Listar noticias del torneo
-
----
-
-### Modulo E -- Jerarquia Regional Interciudades
-
-- POST /cancha/torneos/eventos/{evento_id}/regiones
-- GET  /cancha/torneos/eventos/{evento_id}/regiones
-- POST /cancha/torneos/regiones/{region_id}/ciudades
-- GET  /cancha/torneos/regiones/{region_id}/ciudades
-- POST /cancha/torneos/regiones/{region_id}/generar-playoff-regional
-  Payload: { "cupos_por_ciudad": 2 }
-
----
-
-### Modulo F -- Paginas Web Publicas (Organizador + Academia)
-
-#### Organizador -- Perfil Publico
-Tabla: sistema.perfil_organizador
-Campo clave: enlace_sitio (slug unico, ej: miliga2026)
-
-| Endpoint | Metodo | Descripcion |
-|---|---|---|
-| /organizador/perfil | GET | Obtener configuracion del perfil (autenticado) |
-| /organizador/perfil | POST | Guardar/actualizar configuracion |
-| /organizador/perfil/logo | POST | Subir logo |
-| /organizador/perfil/banner | POST | Subir banner |
-| /api/organizadores | GET | Listado publico de organizadores |
-| /organizador/{slug} | GET | PAGINA PUBLICA del organizador (sin autenticacion) |
-
-Campos configurables: logo, banner, color institucional, titulo, descripcion, ubicacion, redes sociales, chat, publicidad.
-
-#### Academia -- Perfil Publico
-Tabla: academias.academias
-Campo clave: enlace_sitio (slug unico, ej: academiafc)
-
-| Endpoint | Metodo | Descripcion |
-|---|---|---|
-| /academia/perfil | GET | Obtener configuracion del perfil (autenticado) |
-| /academia/perfil | POST | Guardar/actualizar configuracion |
-| /academia/perfil/logo | POST | Subir logo de la academia |
-| /academia/perfil/banner | POST | Subir banner de la academia |
-| /academia/{slug} | GET | PAGINA PUBLICA de la academia (sin autenticacion) |
-
-Campos configurables: nombre, descripcion, logo, banner, color primario, enlace_sitio, redes sociales, email, telefono, ciudad, acerca_de.
-
----
-
-### Modulo G -- Artes Marciales
-
-#### Sistema ASAM (Karate Combat)
-
-- GET  /torneos-generales/{torneo_id}/categorias-marciales
-- POST /torneos-generales/{torneo_id}/categorias-marciales
-- GET  /torneos-generales/asam/combates/{encuentro_id}
-- POST /torneos-generales/asam/combates/{encuentro_id}/puntos
-- POST /torneos-generales/asam/formas/{categoria_id}/{participante_id}
-- GET  /torneos-generales/asam/resultados/{categoria_id}
-
-#### Sistema PKF (WKF Olimpico)
-
-- GET  /torneos-generales/pkf/combates/{encuentro_id}
-- POST /torneos-generales/pkf/combates/{encuentro_id}/puntos
-- POST /torneos-generales/pkf/combates/{encuentro_id}/senshu
-- POST /torneos-generales/pkf/combates/{encuentro_id}/jogai
-- POST /torneos-generales/pkf/formas/{encuentro_id}/voto
-- GET  /torneos-generales/pkf/formas/{encuentro_id}
-
----
-
-### Modulo H -- Sistema de Academias Deportivas (SAD-M)
-
-RBAC con 4 roles internos: dueno, administrador, tesorero, profesor.
-Resolucion de rol: dueno via academias.academias.usuario_id, staff via academias.miembros.
-
-#### Perfil y Configuracion
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/perfil | GET | todos | Obtener perfil de la academia |
-| /academia/perfil | POST | dueno, administrador | Actualizar perfil / configurar pagina publica |
-| /academia/config-cuotas | GET | dueno, administrador, tesorero | Configuracion financiera |
-| /academia/config-cuotas | POST | dueno, administrador | Guardar configuracion de cuotas |
-
-#### Sucursales
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/sucursales | GET | todos | Listar sucursales |
-| /academia/sucursales | POST | dueno, administrador | Crear sucursal |
-| /academia/sucursales/{id} | PUT | dueno, administrador | Actualizar sucursal |
-| /academia/sucursales/{id} | DELETE | dueno | Eliminar sucursal |
-
-#### Miembros (Staff)
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/miembros | GET | dueno, administrador | Listar staff |
-| /academia/miembros | POST | dueno | Invitar nuevo miembro |
-| /academia/miembros/{id} | PUT | dueno | Actualizar rol de miembro |
-| /academia/miembros/{id} | DELETE | dueno | Revocar acceso |
-
-#### Alumnos
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/alumnos | GET | todos | Listar alumnos |
-| /academia/alumnos | POST | dueno, administrador | Crear alumno |
-| /academia/alumnos/{id} | GET | todos | Ver ficha |
-| /academia/alumnos/{id} | PUT | dueno, administrador | Actualizar ficha |
-| /academia/alumnos/{id}/tutores | GET/POST | todos | Ver/agregar tutores |
-
-#### Categorias
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/categorias | GET | todos | Listar categorias |
-| /academia/categorias | POST | dueno, administrador | Crear categoria |
-| /academia/categorias/{id} | PUT | dueno, administrador | Actualizar categoria |
-
-#### Inscripciones
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/inscripciones | GET | todos | Listar inscripciones |
-| /academia/inscripciones | POST | dueno, administrador | Crear inscripcion |
-| /academia/inscripciones/{id} | PUT | dueno, administrador | Actualizar inscripcion |
-| /academia/inscripciones/{id}/suspender | POST | dueno, administrador | Suspender inscripcion |
-
-#### Cuotas y Pagos
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/cuotas | GET | dueno, administrador, tesorero | Listar cuotas con filtros |
-| /academia/cuotas/generar | POST | dueno, administrador, tesorero | Generar cuotas del periodo |
-| /academia/cuotas/{id}/pagar | POST | dueno, administrador, tesorero | Registrar pago |
-| /academia/cuotas/{id}/anular | POST | dueno, administrador | Anular cuota |
-| /academia/dashboard | GET | dueno, administrador, tesorero | KPIs financieros y de alumnos |
-
-#### Asistencias
-
-| Endpoint | Metodo | Roles | Descripcion |
-|---|---|---|---|
-| /academia/asistencias | GET | todos | Consultar asistencias |
-| /academia/asistencias | POST | todos (solo su sucursal) | Registrar asistencia de sesion |
-| /academia/asistencias/reporte | GET | dueno, administrador | Reporte por periodo |
-
----
-
-## 8. Instrucciones para Agente IA (Prompt de Despliegue)
-
-```text
-Actua como un ingeniero DevOps experto en Docker y FastAPI. Necesito desplegar una actualizacion de este sistema.
-
-Contexto:
-- Backend: FastAPI (Python) en contenedor `micancha-backend`, puerto 8002
-- Frontend: Next.js en contenedor `micancha-web`, puerto 3000
-- Base de datos: PostgreSQL en el HOST, accesible via host.docker.internal
-- Rama principal: main
-
-Tu Tarea:
-1. Verifica que estemos en la raiz del proyecto (debe existir docker-compose.yml)
-2. Ejecuta: git pull origin main
-3. Verifica que exista backend/.env. Si no, crear con los valores del .env.example
-4. Ejecuta la secuencia de reinicio:
-   docker-compose down
-   docker-compose build --no-cache
-   docker-compose up -d
-5. Verifica que los contenedores micancha-backend y micancha-web esten corriendo: docker ps
-6. Si hay migraciones nuevas, ejecuta: docker exec micancha-backend py run_migrations.py
-7. Reporta cualquier error y sugiere solucion.
-```
-
----
-
-## 9. Solucion de Problemas (Troubleshooting)
-
-### Error: "Network Error" o "Connection Refused"
-- Verifica `web/.env.local` -> NEXT_PUBLIC_API_URL=http://localhost:8002
-- Si cambiaste el .env, reconstruye: docker-compose build --no-cache web
-- Limpia cache del navegador (Ctrl + Shift + R)
-
-### Error: Backend no conecta a la Base de Datos
-- Si la BD esta en Windows, usa host.docker.internal en DATABASE_URL
-- Verifica que PostgreSQL este corriendo en el host
-- Revisa logs: docker-compose logs micancha-backend
-
-### Error: Cambios de codigo no se ven reflejados
-- Siempre usa docker-compose build --no-cache cuando actualices codigo
-
-### Error en migraciones: "relation already exists"
-- Las migraciones usan CREATE TABLE IF NOT EXISTS -- es un warning seguro, no error bloqueante
-
-### Modulo Academias -- "No tenes acceso a ninguna academia"
-- El usuario con rol='academia' no tiene registro en academias.academias
-- Crear el registro manualmente o via endpoint de creacion de usuario administrador
+*Mi Cancha — La revolución digital para torneos, academias y complejos deportivos.*

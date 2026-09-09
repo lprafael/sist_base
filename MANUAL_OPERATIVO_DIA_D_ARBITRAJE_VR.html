@@ -294,6 +294,74 @@
       word-break: break-all;
     }
 
+    /* ─── Print Styles & Floating Button ─── */
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 25px;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .print-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(239, 68, 68, 0.6);
+    }
+
+    @media print {
+      .print-btn, .quick-nav, .no-print {
+        display: none !important;
+      }
+      body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        padding-bottom: 0;
+      }
+      header {
+        background: none !important;
+        padding: 20px 0 !important;
+        border-bottom: 2px solid #0f172a !important;
+      }
+      header::after { display: none !important; }
+      h1 { color: #0f172a !important; font-size: 24px !important; }
+      h1 span.hl-red, h1 span.hl-amber {
+        -webkit-text-fill-color: #0f172a !important;
+        background: none !important;
+      }
+      .subtitle { color: #334155 !important; font-size: 12px !important; }
+      .card {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a !important;
+        break-inside: avoid;
+        box-shadow: none !important;
+      }
+      .card-title, h2, h5 { color: #0f172a !important; }
+      .text-muted, p, li, td { color: #334155 !important; }
+      th { background: #e2e8f0 !important; color: #0f172a !important; }
+      .step-item {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        break-inside: avoid;
+      }
+      .step-badge {
+        background: #0f172a !important;
+        color: white !important;
+      }
+    }
+
     /* ─── Footer ─── */
     footer {
       margin-top: 60px;
@@ -306,6 +374,10 @@
   </style>
 </head>
 <body>
+
+  <button class="print-btn no-print" onclick="window.print()">
+    🖨️ Imprimir / Guardar PDF
+  </button>
 
   <header>
     <div class="container">
@@ -343,7 +415,7 @@
 
       <div class="card">
         <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
-          Todos los componentes necesarios para la jornada oficial están <strong>100% construidos, compilados y verificados</strong> en el servidor <code style="color: #60a5fa;">https://micancha.com.py</code>:
+          Todos los componentes necesarios para la jornada oficial están <strong>100% construidos, verificados y listos para operar</strong> tanto en la nube (<code style="color: #60a5fa;">https://micancha.com.py</code>) como en servidor local para torneos sin internet (<code style="color: #60a5fa;">http://[IP_SERVIDOR]:3000</code>):
         </p>
 
         <div class="table-wrap">
@@ -782,9 +854,27 @@
       </div>
     </section>
 
+    <!-- ─── SECCIÓN 7: DOCUMENTACIÓN RELACIONADA ─── -->
+    <section class="section-block no-print">
+      <div class="card" style="border-color: rgba(59, 130, 246, 0.3); background: rgba(15, 23, 42, 0.7);">
+        <div class="card-title">
+          <span>📚 Documentación Complementaria del Sistema</span>
+          <span class="badge-subtle badge-blue">Recursos Oficiales</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+          Para conocer las especificaciones técnicas completas o configurar la transmisión en vivo, consulte:
+        </p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <a href="ESPECIFICACIONES_TECNICAS_WKF.html" style="color: #60a5fa; font-size: 13px; text-decoration: none; font-weight: 600; padding: 6px 12px; background: rgba(59,130,246,0.1); border-radius: 8px; border: 1px solid rgba(59,130,246,0.2);">📄 Especificaciones Técnicas WKF</a>
+          <a href="GUIA_STREAMING_EN_VIVO_MICANCHA.html" style="color: #f87171; font-size: 13px; text-decoration: none; font-weight: 600; padding: 6px 12px; background: rgba(239,68,68,0.1); border-radius: 8px; border: 1px solid rgba(239,68,68,0.2);">📹 Guía de Streaming en Vivo</a>
+          <a href="MANUAL_USUARIO_TORNEOS.html" style="color: #34d399; font-size: 13px; text-decoration: none; font-weight: 600; padding: 6px 12px; background: rgba(16,185,129,0.1); border-radius: 8px; border: 1px solid rgba(16,185,129,0.2);">🏆 Manual de Funcionalidades de Torneos</a>
+        </div>
+      </div>
+    </section>
+
     <footer>
       <p>Manual Operativo Oficial para Torneos WKF / ASAM — <strong>Mi Cancha Platform</strong></p>
-      <p style="margin-top: 6px;">Documento técnico y reglamentario para directores de tatami, árbitros y jueces de video.</p>
+      <p style="margin-top: 6px;">Documento operativo para directores de tatami, árbitros, jueces de video y comités organizadores.</p>
     </footer>
 
   </div>

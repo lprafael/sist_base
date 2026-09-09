@@ -20,6 +20,7 @@ import StreamingView from '@/components/torneo-admin/modulos/StreamingView';
 import AjedrezController from '@/components/torneo-admin/modulos/AjedrezController';
 import AjedrezParticipantesView from '@/components/torneo-admin/modulos/AjedrezParticipantesView';
 import AjedrezCircuitosView from '@/components/torneo-admin/modulos/AjedrezCircuitosView';
+import TorneoReconocimientosView from '@/components/torneo-admin/modulos/TorneoReconocimientosView';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -162,6 +163,17 @@ export default function TorneoAdminPage() {
         return (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 min-h-[60vh]">
             <MultimediaView torneoId={id as string} torneo={torneo} />
+          </div>
+        );
+      case 'reconocimientos':
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:p-8 min-h-[60vh]">
+            <TorneoReconocimientosView 
+              torneoId={id as string} 
+              torneo={torneo} 
+              isOrganizer={isOrganizer} 
+              isPublicView={false} 
+            />
           </div>
         );
       default:

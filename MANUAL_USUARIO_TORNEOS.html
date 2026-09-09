@@ -25,6 +25,11 @@
       --secondary: #3b82f6;
       --secondary-glow: rgba(59, 130, 246, 0.15);
       --accent-red: #ef4444;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --indigo-500: #6366f1;
+      --purple-500: #a855f7;
       --sidebar-width: 280px;
       --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
     }
@@ -71,8 +76,11 @@
       padding: 2rem 1.5rem;
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1.5rem;
       z-index: 100;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color) transparent;
     }
 
     .brand {
@@ -392,7 +400,74 @@
       margin-bottom: 0.5rem;
     }
 
-    /* Responsive adjustments */
+    /* Section Cards and Feature Grids */
+    .section-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.2rem;
+      box-shadow: var(--shadow-premium);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-icon-wrapper {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      background-color: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.12);
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 1rem;
+    }
+
+    .feature-title {
+      font-size: 1.1rem;
+      color: white;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* Responsive and Print adjustments */
     @media (max-width: 1024px) {
       .sidebar {
         display: none;
@@ -403,10 +478,66 @@
         padding: 2rem;
       }
     }
+
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 25px;
+      background: linear-gradient(135deg, var(--primary), #059669);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .print-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(16, 185, 129, 0.6);
+    }
+
+    @media print {
+      .sidebar, .print-btn, .no-print {
+        display: none !important;
+      }
+      .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+      }
+      .card, .section-card, .feature-card {
+        background-color: #f8fafc !important;
+        border-color: #e2e8f0 !important;
+        color: #0f172a !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+      }
+      .card-title, .section-title, .feature-title, h1, h2, h3, h4 {
+        color: #0f172a !important;
+      }
+      .card-text, .section-desc, .feature-desc, p, li {
+        color: #334155 !important;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <button class="print-btn no-print" onclick="window.print()">
+    🖨️ Imprimir / Guardar PDF
+  </button>
 
   <div class="app-container">
     <!-- Sidebar Navigation -->
@@ -420,13 +551,20 @@
       </div>
       <ul class="nav-menu">
         <li class="nav-item active"><a href="#introduccion"><i data-lucide="compass"></i> Introducción</a></li>
-        <li class="nav-item"><a href="#creacion"><i data-lucide="plus-circle"></i> Configuración Inicial</a></li>
-        <li class="nav-item"><a href="#plantillas"><i data-lucide="users"></i> Equipos y Planteles</a></li>
-        <li class="nav-item"><a href="#facial"><i data-lucide="scan-face"></i> Reconocimiento Facial</a></li>
-        <li class="nav-item"><a href="#formatos"><i data-lucide="calendar"></i> Formatos de Fixture</a></li>
-        <li class="nav-item"><a href="#actas"><i data-lucide="swords"></i> Actas y Estadísticas</a></li>
-        <li class="nav-item"><a href="#pagos"><i data-lucide="credit-card"></i> Pagos y Finanzas</a></li>
-        <li class="nav-item"><a href="#reglas"><i data-lucide="shield-alert"></i> Reglas y Disciplina</a></li>
+        <li class="nav-item"><a href="#creacion"><i data-lucide="plus-circle"></i> 1. Configuración Inicial</a></li>
+        <li class="nav-item"><a href="#plantillas"><i data-lucide="users"></i> 2. Equipos y Planteles</a></li>
+        <li class="nav-item"><a href="#facial"><i data-lucide="scan-face"></i> 3. Reconocimiento Facial</a></li>
+        <li class="nav-item"><a href="#formatos"><i data-lucide="calendar"></i> 4. Formatos de Fixture</a></li>
+        <li class="nav-item"><a href="#actas"><i data-lucide="swords"></i> 5. Actas y Estadísticas</a></li>
+        <li class="nav-item"><a href="#pagos"><i data-lucide="credit-card"></i> 6. Pagos y Finanzas</a></li>
+        <li class="nav-item"><a href="#reglas"><i data-lucide="shield-alert"></i> 7. Reglas y Disciplina</a></li>
+        <li class="nav-item"><a href="#herramientas"><i data-lucide="copy"></i> 8. Herramientas Avanzadas</a></li>
+        <li class="nav-item"><a href="#finanzas"><i data-lucide="banknote"></i> 9. Control Financiero</a></li>
+        <li class="nav-item"><a href="#dashboard"><i data-lucide="bar-chart-2"></i> 10. Dashboard y KPIs</a></li>
+        <li class="nav-item"><a href="#noticias-ia"><i data-lucide="newspaper"></i> 11. Noticias con IA</a></li>
+        <li class="nav-item"><a href="#multideporte"><i data-lucide="trophy"></i> 12. Multideporte (Karate/Ajedrez)</a></li>
+        <li class="nav-item"><a href="#streaming"><i data-lucide="video"></i> 13. Streaming en Vivo</a></li>
+        <li class="nav-item"><a href="#portal-publico"><i data-lucide="globe"></i> 14. Portales Web Públicos</a></li>
       </ul>
     </aside>
 
@@ -436,14 +574,13 @@
       <!-- Hero Header -->
       <section id="introduccion" class="hero">
         <div class="hero-content">
-          <img src="public\public\700430873_28129029520030207_5517782211097718004_n.jpg" alt="Mi Cancha Logo"
+          <img src="public/public/700430873_28129029520030207_5517782211097718004_n.jpg" alt="Mi Cancha Logo"
             style="width: 100px; height: 100px; border-radius: 20px; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2); object-fit: cover;">
           <div class="badge">
-            <i data-lucide="sparkles"></i> Módulo de Gestión de Torneos V2 — Actualizado 2026-07-01
+            <i data-lucide="sparkles"></i> Ecosistema Integral de Torneos Multideporte — Versión Oficial 2026
           </div>
-          <h1 class="hero-title">Manual de Usuario de Torneos</h1>
-          <p class="hero-subtitle">Descubre cómo configurar, administrar y sincronizar el ecosistema de campeonatos
-            deportivos en la plataforma premium de Mi Cancha.</p>
+          <h1 class="hero-title">Manual de Funcionalidades de Torneos</h1>
+          <p class="hero-subtitle">Guía de capacidades, administración y sincronización del ecosistema deportivo de Mi Cancha para organizadores, clubes, complejos y federaciones.</p>
         </div>
       </section>
 
@@ -837,100 +974,190 @@
       </section>
 
       <!-- SECTION 9: CONTROL FINANCIERO -->
-      <section class="section">
+      <section id="finanzas" class="section">
         <div class="section-card">
           <div class="section-header">
             <div class="section-icon-wrapper" style="background: rgba(16,185,129,0.1); color: var(--primary);">
               <i data-lucide="banknote"></i>
             </div>
-            <h2 class="section-title">9. Control Financiero y Cuenta Corriente</h2>
+            <h2 class="section-title" style="margin-bottom:0; border-left:none; padding-left:0;">9. Control Financiero y Cuenta Corriente</h2>
           </div>
           <p class="card-text">
-            El sistema ahora incluye un módulo completo para el seguimiento financiero de cada equipo, garantizando que todos los pagos, deudas y multas estén al día antes de disputar los encuentros.
+            Módulo completo para el seguimiento financiero de cada equipo, garantizando que todos los pagos, deudas y aranceles estén al día antes de disputar los encuentros.
           </p>
 
           <div class="feature-grid" style="margin-top:2rem;">
             <div class="feature-card">
               <i data-lucide="wallet" class="feature-icon" style="color:var(--primary);"></i>
               <h4 class="feature-title">Cuenta Corriente</h4>
-              <p class="feature-desc">Cada equipo posee una pestaña de Finanzas en el panel de administración para visualizar el detalle histórico de cargos (deudas) y pagos realizados, así como el saldo total adeudado.</p>
+              <p class="feature-desc">Cada equipo posee un panel de Finanzas para visualizar el detalle histórico de cargos (inscripción, multas) y pagos realizados, así como el saldo total adeudado.</p>
             </div>
             
             <div class="feature-card">
               <i data-lucide="receipt" class="feature-icon" style="color:var(--amber);"></i>
               <h4 class="feature-title">Multas Automáticas</h4>
-              <p class="feature-desc">Configura el costo de multas por tarjetas. Al emitirse una tarjeta en el Acta de Partido, se generará automáticamente un cargo en la cuenta corriente del equipo infractor.</p>
+              <p class="feature-desc">Configura el costo de multas por tarjetas. Al registrarse una infracción en el Acta de Partido, se genera automáticamente un cargo en la cuenta del equipo infractor.</p>
             </div>
             
             <div class="feature-card">
               <i data-lucide="lock" class="feature-icon" style="color:var(--red);"></i>
-              <h4 class="feature-title">Bloqueos de Partido (Soft Lock)</h4>
-              <p class="feature-desc">Si un equipo supera el "Límite de Deuda" configurado, al intentar iniciar un partido se emitirá una Advertencia en rojo al organizador, quien podrá decidir si inicia bajo su riesgo.</p>
+              <h4 class="feature-title">Bloqueo Preventivo</h4>
+              <p class="feature-desc">Si un equipo supera el límite de deuda permitido, la mesa de control recibe una advertencia visual inmediata para impedir su alineación hasta regularizar su situación.</p>
             </div>
           </div>
         </div>
       </section>
 
       <!-- SECTION 10: DASHBOARD DE KPIs -->
-      <section class="section">
+      <section id="dashboard" class="section">
         <div class="section-card">
           <div class="section-header">
             <div class="section-icon-wrapper" style="background: rgba(16,185,129,0.1); color: var(--primary);">
               <i data-lucide="bar-chart-2"></i>
             </div>
-            <h2 class="section-title">10. Dashboard y Analítica en Tiempo Real</h2>
+            <h2 class="section-title" style="margin-bottom:0; border-left:none; padding-left:0;">10. Dashboard y Analítica en Tiempo Real</h2>
           </div>
           <p class="card-text">
-            Al ingresar al administrador en el modo Torneos, dispondrás de un panel lateral de indicadores clave (KPIs) en tiempo real para mantener el control sobre la salud de tus competencias.
+            Panel ejecutivo con indicadores clave (KPIs) en tiempo real para mantener el control sobre la salud deportiva y operativa de las competencias.
           </p>
 
           <div class="feature-grid" style="margin-top:2rem;">
             <div class="feature-card">
               <i data-lucide="activity" class="feature-icon" style="color:var(--primary);"></i>
               <h4 class="feature-title">Torneos y Partidos</h4>
-              <p class="feature-desc">Visualiza rápidamente cuántos torneos están en curso y la cantidad total de partidos programados para el día actual.</p>
+              <p class="feature-desc">Visualiza cuántos campeonatos están en curso y la cantidad de partidos programados y en disputa para la jornada actual.</p>
             </div>
             
             <div class="feature-card">
               <i data-lucide="alert-circle" class="feature-icon" style="color:var(--amber);"></i>
               <h4 class="feature-title">Equipos Pendientes</h4>
-              <p class="feature-desc">Monitorea si existen equipos que solicitaron inscripción pero aún no fueron confirmados, para no perder potenciales participantes.</p>
+              <p class="feature-desc">Monitorea solicitudes de inscripción pendientes de validación para agilizar la confirmación y no demorar el inicio de las llaves.</p>
             </div>
             
             <div class="feature-card">
               <i data-lucide="alert-triangle" class="feature-icon" style="color:var(--red);"></i>
               <h4 class="feature-title">Alerta de Deudores</h4>
-              <p class="feature-desc">Si hay equipos que mantienen deuda o cargos pendientes en su cuenta corriente, se mostrará una advertencia roja en el panel principal.</p>
+              <p class="feature-desc">Filtro rápido de equipos con saldos vencidos para cobro inmediato en mesa de entrada antes del pitazo inicial.</p>
             </div>
           </div>
         </div>
       </section>
 
       <!-- SECTION 11: NOTICIAS IA -->
-      <section class="section">
+      <section id="noticias-ia" class="section">
         <div class="section-card">
           <div class="section-header">
             <div class="section-icon-wrapper" style="background: rgba(99,102,241,0.1); color: var(--indigo-500);">
               <i data-lucide="newspaper"></i>
             </div>
-            <h2 class="section-title">11. Generador de Noticias con IA (Gemini)</h2>
+            <h2 class="section-title" style="margin-bottom:0; border-left:none; padding-left:0;">11. Generador de Noticias con IA (Google Gemini)</h2>
           </div>
           <p class="card-text">
-            El sistema incluye una pestaña de "Noticias IA" en el administrador de cada torneo. Esta herramienta te permite generar automáticamente crónicas y resúmenes de los partidos más importantes usando Inteligencia Artificial (Google Gemini).
+            Genera automáticamente crónicas, titulares y resúmenes profesionales de los encuentros más destacados utilizando Inteligencia Artificial, listos para publicar en redes sociales y en el portal del torneo.
           </p>
 
           <div class="feature-grid" style="margin-top:2rem;">
             <div class="feature-card">
-              <i data-lucide="star" class="feature-icon" style="color:var(--indigo-500);"></i>
+              <i data-lucide="sparkles" class="feature-icon" style="color:var(--indigo-500);"></i>
               <h4 class="feature-title">Redacción Automática</h4>
-              <p class="feature-desc">Con solo ingresar el contexto ("Lazio ganó 3 a 2"), la IA redactará un artículo completo y profesional, ideal para compartir en redes sociales de tu torneo.</p>
+              <p class="feature-desc">A partir de las estadísticas del acta o con una breve frase del partido, la IA redacta crónicas periodísticas de alto impacto listas para Instagram, Facebook o WhatsApp.</p>
             </div>
             
             <div class="feature-card">
               <i data-lucide="file-text" class="feature-icon" style="color:var(--purple-500);"></i>
-              <h4 class="feature-title">Historial de Crónicas</h4>
-              <p class="feature-desc">Todas las noticias quedan guardadas en un historial dentro de la plataforma, claramente identificadas si fueron escritas por un humano o generadas por IA.</p>
+              <h4 class="feature-title">Historial y Publicación</h4>
+              <p class="feature-desc">Todas las noticias quedan archivadas en la mediateca del campeonato y se sincronizan directamente con la landing pública de la competencia.</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 12: MULTIDEPORTE -->
+      <section id="multideporte" class="section">
+        <h2 class="section-title">12. Ecosistema Multideporte Integral</h2>
+        <p class="section-desc">Mi Cancha va más allá del fútbol: gestiona competencias oficiales de combate, mente y pista con reglas internacionales parametrizadas.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;"><i data-lucide="swords"></i></div>
+            <h3 class="card-title">Artes Marciales (Karate WKF / ASAM)</h3>
+            <p class="card-text">
+              Sistema oficial para <strong>Kumite</strong> (combate por puntos Yuko, Waza-Ari, Ippon y Senshu) y <strong>Kata</strong> (formas con puntuación decimal). Incluye:
+            </p>
+            <ul class="list-premium">
+              <li><i data-lucide="video"></i> <strong>Video Review Digital:</strong> Repetición instantánea en menos de 1 segundo para jueces con smartphones o cámaras broadcast.</li>
+              <li><i data-lucide="tv"></i> <strong>Pantalla Gigante de Tatami:</strong> Marcador a pantalla completa para el público con banner animado de VR.</li>
+              <li><i data-lucide="qr-code"></i> <strong>Fichas QR:</strong> Apertura de puestos arbitrales en 15 segundos sin escribir direcciones web.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-icon" style="background: rgba(59,130,246,0.1); color: #3b82f6;"><i data-lucide="layout-grid"></i></div>
+            <h3 class="card-title">Ajedrez y Deportes Mentales</h3>
+            <p class="card-text">
+              Motor de emparejamientos y seguimiento de partidas para clubes y federaciones:
+            </p>
+            <ul class="list-premium">
+              <li><i data-lucide="git-branch"></i> <strong>Sistema Suizo y Round Robin:</strong> Cálculo matemático de rondas sin cruces repetidos.</li>
+              <li><i data-lucide="refresh-cw"></i> <strong>Sincronización Lichess:</strong> Conexión en tiempo real con partidas en línea de Lichess.</li>
+              <li><i data-lucide="trending-up"></i> <strong>Cálculo de ELO FIDE:</strong> Actualización automática del ranking de cada maestro y aficionado.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;"><i data-lucide="dribbble"></i></div>
+            <h3 class="card-title">Básquetbol y Deportes de Sala</h3>
+            <p class="card-text">
+              Marcador electrónico adaptado a básquetbol con cronómetro de posesión reglamentario (24 / 14 segundos), faltas acumuladas por equipo, tiempos muertos y planilla digital por cuartos.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 13: STREAMING EN VIVO -->
+      <section id="streaming" class="section">
+        <h2 class="section-title">13. Transmisiones en Vivo y Streaming Multi-Cancha</h2>
+        <p class="section-desc">Lleva tus campeonatos a todo el mundo con el Centro de Transmisión embebido en la plataforma.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;"><i data-lucide="youtube"></i></div>
+            <h3 class="card-title">Emisión Directa en YouTube Live</h3>
+            <p class="card-text">
+              Asigna enlaces de transmisión por cada cancha o tatami. El público y los seguidores pueden ver los cotejos en directo desde la página pública del torneo con selección de canales.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-icon" style="background: rgba(16,185,129,0.1); color: #10b981;"><i data-lucide="layers"></i></div>
+            <h3 class="card-title">Marcadores Interactivos Sobrepuestos</h3>
+            <p class="card-text">
+              Los espectadores ven el tanteador oficial y el tiempo actualizado segundo a segundo junto al video, ofreciendo una experiencia televisiva profesional.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 14: PORTAL PUBLICO CON MARCA PROPIA -->
+      <section id="portal-publico" class="section">
+        <h2 class="section-title">14. Portales Web Públicos con Marca Propia (White Label)</h2>
+        <p class="section-desc">Cada organizador y complejo cuenta con su propio sitio web institucional sin costo de desarrollo adicional.</p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-icon" style="background: rgba(99,102,241,0.1); color: #6366f1;"><i data-lucide="globe"></i></div>
+            <h3 class="card-title">Página Web Propia del Organizador</h3>
+            <p class="card-text">
+              Cada liga u organizador dispone de una dirección exclusiva (ej. <code>/organizador/miliga2026</code>) con su logotipo, colores institucionales, información de contacto, mapa y patrocinadores oficiales.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-icon" style="background: rgba(16,185,129,0.1); color: #10b981;"><i data-lucide="share-2"></i></div>
+            <h3 class="card-title">Difusión y Redes Sociales</h3>
+            <p class="card-text">
+              Los delegados, jugadores y aficionados pueden consultar tablas, fixtures, goleadores y actas desde su celular sin necesidad de descargar aplicaciones complejas.
+            </p>
           </div>
         </div>
       </section>

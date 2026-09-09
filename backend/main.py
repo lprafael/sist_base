@@ -271,6 +271,9 @@ app.include_router(whatsapp_router)
 from routers.patrocinadores import router as patrocinadores_router
 app.include_router(patrocinadores_router)
 
+from routers.reconocimientos import router as reconocimientos_router
+app.include_router(reconocimientos_router)
+
 from routers.futbol_core import router as futbol_core_router
 app.include_router(futbol_core_router)
 

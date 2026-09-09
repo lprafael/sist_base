@@ -394,13 +394,13 @@
       <div class="toc-item"><a href="#s2">2. Arquitectura del Sistema</a><span>§2</span></div>
       <div class="toc-item"><a href="#s7">7. API Reference</a><span>§7</span></div>
       <div class="toc-item"><a href="#s3">3. Módulo de Puntuación WKF</a><span>§3</span></div>
-      <div class="toc-item"><a href="#s8">8. Base de Datos</a><span>§8</span></div>
+      <div class="toc-item"><a href="#s8">8. Modelo de Datos y Trazabilidad</a><span>§8</span></div>
       <div class="toc-item"><a href="#s4">4. Módulo de Video Review</a><span>§4</span></div>
       <div class="toc-item"><a href="#s9">9. Requisitos de Hardware</a><span>§9</span></div>
       <div class="toc-item"><a href="#s5">5. Pantallas del Sistema</a><span>§5</span></div>
       <div class="toc-item"><a href="#s10">10. Seguridad y Continuidad</a><span>§10</span></div>
       <div class="toc-item"><a href="#s11">11. Cumplimiento Reglamento WKF</a><span>§11</span></div>
-      <div class="toc-item"><a href="#s12">12. Instalación y Despliegue</a><span>§12</span></div>
+      <div class="toc-item"><a href="#s12">12. Despliegue y Puesta en Marcha</a><span>§12</span></div>
     </div>
   </div>
 
@@ -876,38 +876,30 @@
       <li><strong>Latencia de Entrega al Juez VR:</strong> El proceso completo (corte en cliente + subida HTTP local + notificación WebSocket <code>CLIP_DISPONIBLE</code>) toma <strong>menos de 1 segundo</strong>.</li>
     </ul>
 
-    <pre><span class="cmt">// Fragmento de código operativo — Búfer circular en TatamiCameraStation</span>
-<span class="kw">const</span> BUFFER_MAX_SECONDS = <span class="num">45</span>;
-<span class="kw">const</span> recorder = <span class="kw">new</span> <span class="fn">MediaRecorder</span>(mediaStream, {
-  mimeType: <span class="str">'video/webm;codecs=vp9,opus'</span>,
-  videoBitsPerSecond: <span class="num">4_000_000</span> <span class="cmt">// 4 Mbps para alta nitidez marcial</span>
-});
-
-recorder.<span class="fn">ondataavailable</span> = (event) => {
-  <span class="kw">if</span> (event.data && event.data.size > <span class="num">0</span>) {
-    <span class="kw">const</span> now = Date.<span class="fn">now</span>();
-    chunksRef.current.<span class="fn">push</span>({ blob: event.data, timestamp: now });
-
-    <span class="cmt">// Poda FIFO: retener solo los últimos 45 segundos</span>
-    <span class="kw">const</span> cutoff = now - BUFFER_MAX_SECONDS * <span class="num">1000</span>;
-    chunksRef.current = chunksRef.current.<span class="fn">filter</span>(c => c.timestamp >= cutoff);
-  }
-};
-recorder.<span class="fn">start</span>(<span class="num">1000</span>); <span class="cmt">// Chunks de 1 segundo</span></pre>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Parámetro Técnico</th><th>Valor Operativo</th><th>Función y Beneficio</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Ventana del Búfer Temporal</strong></td><td>45 segundos continuos</td><td>Garantiza retener el intercambio técnico completo sin saturar memoria.</td></tr>
+          <tr><td><strong>Tasa de Bitrate de Video</strong></td><td>4 Mbps (4,000,000 bps)</td><td>Alta nitidez marcial para distinguir contacto milimétrico de puños y pies.</td></tr>
+          <tr><td><strong>Resolución y Cuadros</strong></td><td>1080p Full HD @ 30/60 fps</td><td>Aprovecha al máximo el sensor nativo de la cámara del smartphone o webcam.</td></tr>
+          <tr><td><strong>Ubicación del Búfer</strong></td><td>Memoria RAM viva del cliente</td><td>Cero desgaste de disco flash y corte instantáneo de video.</td></tr>
+          <tr><td><strong>Mecanismo de Disparo</strong></td><td>Señal digital automática</td><td>Se activa al confirmar apelación en mesa arbitral, sin intervención manual.</td></tr>
+          <tr><td><strong>Latencia de Entrega</strong></td><td>&lt; 1 segundo garantizado</td><td>El Juez VR inicia la revisión inmediatamente sin demorar el tatami.</td></tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- ─── 6.2 Modo OBS Studio Pro ──────────────────────── -->
     <h3>6.2 Modo OBS Studio Pro (Transmisión y Alta Velocidad)</h3>
     <p>
-      Para torneos de nivel internacional o finales televisadas donde se utilicen cámaras reflex, videocámaras broadcast SDI o cámaras de alta velocidad (120 fps) conectadas a tarjetas capturadoras HDMI/PCIe, el sistema mantiene plena integración con <strong>OBS Studio 30+</strong> a través de <code>obs_bridge.py</code>.
+      Para torneos de nivel internacional o finales televisadas donde se utilicen cámaras reflex, videocámaras broadcast SDI o cámaras de alta velocidad (120 fps) conectadas a tarjetas capturadoras HDMI/PCIe, el sistema mantiene plena integración con <strong>OBS Studio 30+</strong> a través del conector bridge oficial.
     </p>
     <ul class="bullets">
       <li><strong>Replay Buffer de OBS:</strong> Mantiene en RAM entre 30 y 60 segundos de grabación continua codificada por hardware (NVENC o AMD AMF).</li>
-      <li><strong>Bridge Daemon:</strong> El script Python escucha eventos de <code>obs-websocket</code> en el puerto 4455. Al presionar el atajo o gatillarse la acción, OBS guarda el archivo en disco (<code>C:\Users\Public\Videos\OBS_Replays</code>).</li>
-      <li><strong>Notificación al Backend:</strong> El bridge intercepta <code>ReplayBufferSaved</code> y envía un <code>PATCH /api/vr/combates/{id}/clip/{review_id}</code> al servidor.</li>
+      <li><strong>Bridge Automatizado:</strong> Escucha los eventos de guardado de OBS e intercepta el clip para enviarlo de inmediato a la estación de Video Review.</li>
+      <li><strong>Sincronización Multi-Tatami:</strong> Cada área de combate se comunica de forma independiente sin mezclar las repeticiones.</li>
     </ul>
-
-    <pre><span class="cmt"># Iniciar el daemon de sincronización OBS (por tatami)</span>
-python obs_bridge.py --match-id <span class="num">123</span> --tatami <span class="num">1</span></pre>
 
     <!-- ─── 6.3 Comparativa Técnica ──────────────────────── -->
     <h3>6.3 Comparativa: Cámara Nativa Web vs. OBS Studio Pro</h3>
@@ -1073,31 +1065,26 @@ python obs_bridge.py --match-id <span class="num">123</span> --tatami <span clas
     <!-- ─── §8 Base de Datos ──────────────────────────────────── -->
     <div id="s8" class="section-title avoid-break">
       <div class="section-num">8</div>
-      <h2>Base de Datos</h2>
+      <h2>Modelo de Datos y Trazabilidad de Auditoría</h2>
     </div>
 
-    <h3>8.1 Tabla <code>torneos.video_reviews</code></h3>
-    <pre><span class="kw">CREATE TABLE</span> torneos.video_reviews (
-    id               <span class="fn">SERIAL PRIMARY KEY</span>,
-    partido_id       <span class="fn">INTEGER NOT NULL</span>,                 <span class="cmt">-- FK al partido/combate</span>
-    competidor_color <span class="fn">VARCHAR(10) NOT NULL</span>
-        <span class="kw">CHECK</span> (competidor_color <span class="kw">IN</span> (<span class="str">'Aka'</span>, <span class="str">'Ao'</span>, <span class="str">'Blanco'</span>, <span class="str">'Rojo'</span>)),
-    tiempo_cronometro <span class="fn">VARCHAR(10) NOT NULL</span>,             <span class="cmt">-- e.g. "1:23"</span>
-    tipo_solicitud   <span class="fn">VARCHAR(20) NOT NULL</span>
-        <span class="kw">CHECK</span> (tipo_solicitud <span class="kw">IN</span> (<span class="str">'YUKO'</span>, <span class="str">'WAZA_ARI'</span>, <span class="str">'IPPON'</span>, <span class="str">'SENSHU'</span>, <span class="str">'OTRO'</span>)),
-    resultado        <span class="fn">VARCHAR(20)</span>
-        <span class="kw">CHECK</span> (resultado <span class="kw">IN</span> (<span class="str">'ACEPTADO'</span>, <span class="str">'RECHAZADO'</span>, <span class="str">'MIENAI'</span>)),
-    puntos_otorgados <span class="fn">INTEGER DEFAULT</span> <span class="num">0</span>,
-    clip_url         <span class="fn">VARCHAR(255)</span>,                        <span class="cmt">-- URL accesible (Cámara Nativa o OBS)</span>
-    reglamento       <span class="fn">VARCHAR(10) DEFAULT</span> <span class="str">'WKF'</span>,
-    resuelto         <span class="fn">BOOLEAN DEFAULT FALSE</span>,
-    created_at       <span class="fn">TIMESTAMP DEFAULT NOW()</span>,
-    resuelto_at      <span class="fn">TIMESTAMP</span>
-);
+    <p>Cada apelación de Video Review queda registrada de forma inmutable con trazabilidad total para auditoría federativa y actas oficiales:</p>
 
-<span class="cmt">-- Índices de performance</span>
-<span class="kw">CREATE INDEX</span> idx_video_reviews_partido  <span class="kw">ON</span> torneos.video_reviews(partido_id);
-<span class="kw">CREATE INDEX</span> idx_video_reviews_resuelto <span class="kw">ON</span> torneos.video_reviews(resuelto);</pre>
+    <div class="table-wrap avoid-break">
+      <table>
+        <thead><tr><th>Campo Registrado</th><th>Tipo de Dato</th><th>Valores / Formato</th><th>Propósito en Auditoría</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Identificador de Combate</strong></td><td>Referencia Numérica</td><td>ID único del match</td><td>Vinculación directa con el cuadro o llave del torneo.</td></tr>
+          <tr><td><strong>Esquina Apelante</strong></td><td>Texto reglamentario</td><td>AKA (Rojo) / AO (Azul)</td><td>Identifica qué competidor o coach solicitó la revisión.</td></tr>
+          <tr><td><strong>Tiempo del Cronómetro</strong></td><td>Minutos y segundos</td><td>Ej. "1:24"</td><td>Momento exacto en que se detuvo el tiempo reglamentario.</td></tr>
+          <tr><td><strong>Técnica Reclamada</strong></td><td>Código oficial</td><td>YUKO, WAZA-ARI, IPPON, SENSHU</td><td>Criterio reglamentario que el entrenador exige revisar.</td></tr>
+          <tr><td><strong>Veredicto Oficial</strong></td><td>Resolución final</td><td>ACEPTADO / RECHAZADO / MIENAI</td><td>Dictamen inapelable emitido por el Juez VR.</td></tr>
+          <tr><td><strong>Puntos Otorgados</strong></td><td>Puntuación entera</td><td>0, 1, 2 o 3 puntos</td><td>Puntos sumados automáticamente al marcador oficial.</td></tr>
+          <tr><td><strong>Enlace al Clip de Video</strong></td><td>URL de archivo</td><td>Ruta de repetición MP4/WebM</td><td>Evidencia audiovisual archivada para revisión posterior.</td></tr>
+          <tr><td><strong>Marcas de Tiempo</strong></td><td>Timestamp oficial</td><td>Fecha y hora al segundo</td><td>Constancia de inicio de deliberación y cierre del veredicto.</td></tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- ─── §9 Hardware ──────────────────────────────────────── -->
     <div id="s9" class="section-title avoid-break page-break">
@@ -1313,41 +1300,46 @@ python obs_bridge.py --match-id <span class="num">123</span> --tatami <span clas
       </table>
     </div>
 
-    <!-- ─── §12 Instalación ──────────────────────────────────── -->
+    <!-- ─── §12 Despliegue Operativo ──────────────────────────── -->
     <div id="s12" class="section-title avoid-break">
       <div class="section-num">12</div>
-      <h2>Instalación y Despliegue Rápido</h2>
+      <h2>Protocolo de Despliegue y Puesta en Marcha en el Recinto</h2>
     </div>
 
-    <h3>12.1 Servidor Backend (una vez por evento)</h3>
-    <pre><span class="cmt"># 1. Levantar el backend en la PC servidor</span>
-<span class="kw">cd</span> backend
-python -m uvicorn main:app <span class="fn">--host</span> <span class="num">0.0.0.0</span> <span class="fn">--port</span> <span class="num">8002</span>
-
-<span class="cmt"># 2. Ejecutar migración de Video Review (solo la primera vez)</span>
-python migrations/<span class="url">049_video_review.py</span></pre>
-
-    <h3>12.2 Frontend (una vez por evento)</h3>
-    <pre><span class="kw">cd</span> web
-npm run dev     <span class="cmt"># desarrollo local</span>
-<span class="cmt"># o en producción:</span>
-npm run build
-npm start       <span class="cmt"># Puerto 3000 por defecto</span></pre>
-
-    <h3>12.3 Despliegue por Tatami (Kit Ágil — Recomendado)</h3>
-    <p>Para poner en marcha un tatami en <strong>menos de 2 minutos</strong> con el Kit Ágil:</p>
+    <h3>12.1 Opciones de Conectividad para el Evento</h3>
+    <p>El sistema ofrece dos modalidades de operación según la infraestructura del gimnasio o estadio:</p>
     <ul class="bullets">
-      <li><strong>Mesa Árbitro:</strong> Abrir en Chrome: <code>http://servidor:3000/torneos/{ID}/arbitraje/combate</code></li>
-      <li><strong>TV Tatami:</strong> Abrir en la TV: <code>http://servidor:3000/torneos/{ID}/tatami/{N}</code> (F11 para pantalla completa)</li>
-      <li><strong>Cámara Tatami:</strong> En el celular en trípode, abrir en Chrome: <code>http://servidor:3000/torneos/{ID}/tatami/{N}/camara?matchId={ID_COMBATE}</code></li>
-      <li><strong>Juez VR:</strong> En la tablet, abrir: <code>http://servidor:3000/torneos/{ID}/vr-station</code></li>
+      <li><strong>Modo Nube (Cloud Oficial):</strong> Los dispositivos acceden directamente a <code>https://micancha.com.py</code> mediante conexión a Internet (Wi-Fi o 4G/5G). Todo se sincroniza en tiempo real y los resultados quedan públicos de inmediato.</li>
+      <li><strong>Modo Servidor Local (100% Offline):</strong> Una laptop actúa como servidor central dentro del pabellón deportivo. Todos los tatamis se conectan al router Wi-Fi local sin consumir datos ni requerir salida a internet.</li>
     </ul>
 
-    <h3>12.4 Despliegue con OBS Studio Pro (Opcional)</h3>
-    <pre><span class="cmt"># Solo si se utiliza OBS Studio con cámaras profesionales:</span>
-python backend/obs_bridge.py --match-id <span class="num">{ID_COMBATE}</span> --tatami <span class="num">{N}</span></pre>
+    <h3>12.2 Despliegue Rápido de Estaciones con Fichas QR Oficiales (2 Minutos)</h3>
+    <p>Para agilizar la puesta a punto sin que el personal arbitral deba escribir direcciones web complejas:</p>
+    <div class="flow avoid-break">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <div class="flow-title">Impresión de Fichas QR</div>
+          <div class="flow-desc">Desde la <strong>Mesa Central</strong> o el panel de administración, presionar <em>"🖨️ Fichas QR Tatamis"</em> para generar la hoja A4 con los códigos QR de cada puesto (Mesa de Control, TV Display, Juez VR y Cámara).</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <div class="flow-title">Escaneo en Dispositivos</div>
+          <div class="flow-desc">En la tablet del Juez VR y el smartphone de la cámara, simplemente apuntar la cámara al código QR de su estación. La pantalla correspondiente se abrirá de inmediato en pantalla completa.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <div class="flow-title">Prueba de Fuego de 1 Minuto</div>
+          <div class="flow-desc">Realizar un movimiento frente a la cámara y pulsar <em>"⚡ Disparar Replay Ahora"</em> en la estación de cámara. Confirmar que el clip aparezca reproduciéndose en la tablet del Juez VR en menos de un segundo.</div>
+        </div>
+      </div>
+    </div>
 
-    <h3>12.5 Roadmap Técnico 2026–2027</h3>
+    <h3>12.3 Roadmap Funcional 2026–2027</h3>
     <div class="table-wrap avoid-break">
       <table>
         <thead><tr><th>Feature</th><th>Descripción</th><th>Prioridad</th><th>Estado</th></tr></thead>
