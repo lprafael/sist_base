@@ -5,6 +5,13 @@ import {
   Eye, X, Upload, Check, RefreshCw, Sparkles, ChevronRight, Shield, 
   Calendar, MapPin, User, Building, FileText, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import CertificateCard, {
+  PRESETS_TEXTO,
+  getTemplatePreviewStyle,
+  getTextColor,
+  getPlantillaLabel,
+  isPortraitTemplate
+} from '@/components/certificados/CertificateCard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -19,7 +26,7 @@ export interface Reconocimiento {
   texto_agradecimiento: string;
   otorgado_por?: string | null;
   ciudad_fecha?: string | null;
-  plantilla?: string | null; // "placa_madera" | "diploma_clasico" | "gala_oscura" | "moderno_esmeralda"
+  plantilla?: string | null;
   logo_url?: string | null;
   firma_url?: string | null;
   cargo_firmante?: string | null;
@@ -28,53 +35,16 @@ export interface Reconocimiento {
   updated_at?: string;
 }
 
-// Plantillas predeterminadas de texto rápido
-const PRESETS_TEXTO = [
-  {
-    nombre: "Placa Conmemorativa y Agradecimiento (Autoridad / Patrocinador)",
-    titulo: "PLACA CONMEMORATIVA Y DE AGRADECIMIENTO",
-    subtitulo: "Por su inestimable compromiso y contribución",
-    texto: "Los integrantes del Comité Directivo y la Comunidad Deportiva le saludan en esta fecha tan especial y le extienden su más sincero agradecimiento por su inquebrantable apoyo, su visión inspiradora y la oportunidad de crecimiento brindada a nuestros deportistas, valores fundamentales para el fortalecimiento del deporte y el desarrollo de nuestra comunidad.",
-    otorgado_por: "EL COMITÉ ORGANIZADOR",
-    cargo_firmante: "Presidente del Comité",
-    plantilla: "placa_madera"
-  },
-  {
-    nombre: "Diploma de Honor al Mérito Deportivo (Campeón / MVP)",
-    titulo: "DIPLOMA DE HONOR AL MÉRITO",
-    subtitulo: "En reconocimiento a la excelencia, disciplina y entrega",
-    texto: "Por haber demostrado un desempeño sobresaliente, liderazgo en el campo de juego y un intachable espíritu competitivo, consagrándose como referente ejemplar a lo largo de todo el Campeonato.",
-    otorgado_por: "ASOCIACIÓN Y LIGA DE TORNEOS",
-    cargo_firmante: "Director de Competición",
-    plantilla: "diploma_clasico"
-  },
-  {
-    nombre: "Premio Fair Play y Espíritu Deportivo",
-    titulo: "RECONOCIMIENTO AL ESPÍRITU DEPORTIVO Y FAIR PLAY",
-    subtitulo: "Copa Juego Limpio y Compañerismo",
-    texto: "En homenaje a su ejemplar conducta deportiva, caballerosidad dentro y fuera de la cancha, y respeto irrestricto hacia rivales, árbitros y espectadores, engrandeciendo la verdadera esencia del fútbol.",
-    otorgado_por: "TRIBUNAL DE DISCIPLINA Y ORGANIZACIÓN",
-    cargo_firmante: "Coordinador General",
-    plantilla: "gala_oscura"
-  },
-  {
-    nombre: "Homenaje a la Trayectoria y Compromiso Dirigencial",
-    titulo: "RECONOCIMIENTO A LA TRAYECTORIA",
-    subtitulo: "Una vida dedicada a la pasión deportiva",
-    texto: "En testimonio de profunda gratitud y admiración por sus años de entrega incondicional, esfuerzo incansable y liderazgo dirigencial, dejando una huella imborrable en el corazón de nuestra institución deportiva.",
-    otorgado_por: "LA COMISIÓN DIRECTIVA Y CLUBES AFILIADOS",
-    cargo_firmante: "Secretario General",
-    plantilla: "placa_madera"
-  },
-  {
-    nombre: "Agradecimiento a Patrocinador Oficial",
-    titulo: "DISTINCIÓN DE GRATITUD INSTITUCIONAL",
-    subtitulo: "Alianza Estratégica y Apoyo al Deporte",
-    texto: "Nuestro sincero agradecimiento por creer en el talento y la juventud, haciendo posible con su valioso patrocinio la realización exitosa de este gran certamen deportivo.",
-    otorgado_por: "COMITÉ EJECUTIVO DEL CAMPEONATO",
-    cargo_firmante: "Área de Marketing y Alianzas",
-    plantilla: "moderno_esmeralda"
-  }
+const TEMPLATES_LIST = [
+  { id: "pergamino_marcial", name: "1. Pergamino de Honor", desc: "Rollo con madera, papiro envejecido y sello de lacre", badge: "Vertical A4" },
+  { id: "azul_imperial_oro", name: "2. Azul Marino y Oro 24K", desc: "Fondo azul noche imperial, filigrana de oro y sello de lacre", badge: "Vertical A4" },
+  { id: "diploma_marcial_laurel", name: "3. Diploma Clásico Laurel", desc: "Orla renacentista de laurel, sello Hanko y lacre", badge: "Vertical A4" },
+  { id: "placa_madera", name: "4. Placa Nogal y Bronce", desc: "Madera oscura, chapa de latón y tornillos de bronce", badge: "Horizontal" },
+  { id: "placa_cristal", name: "5. Placa Cristal y Acero", desc: "Cristal templado flotante y pernos cromados", badge: "Horizontal" },
+  { id: "placa_caoba_plata", name: "6. Placa Caoba y Plata", desc: "Madera rojiza, acero cepillado y grabado láser", badge: "Horizontal" },
+  { id: "gala_oscura", name: "7. Gala Dark & Gold 24K", desc: "Negro obsidiana y marcos en oro fundido de 24K", badge: "Horizontal" },
+  { id: "diploma_clasico", name: "8. Diploma Real de Honor", desc: "Fondo pergamino con orlas florales doradas", badge: "Horizontal" },
+  { id: "moderno_esmeralda", name: "9. Certificado Deportivo", desc: "Estética deportiva dinámica azul y esmeralda", badge: "Horizontal" }
 ];
 
 export default function ReconocimientosPage() {
@@ -99,17 +69,17 @@ export default function ReconocimientosPage() {
   // Form State
   const [formData, setFormData] = useState<Reconocimiento>({
     torneo_id: "",
-    titulo: "PLACA CONMEMORATIVA Y DE AGRADECIMIENTO",
-    subtitulo: "Por su inquebrantable apoyo al deporte y la comunidad",
-    destinatario: "Lic. Carlos Benítez",
-    texto_agradecimiento: "Los integrantes del Cuadro de Honor y la Comisión Organizadora lo saludan en esta fecha tan especial y le extienden su agradecimiento por su inquebrantable apoyo, su visión inspiradora y la oportunidad de crecimiento brindada, fundamentales para el desarrollo del deporte.",
-    otorgado_por: "EL COMITÉ ORGANIZADOR",
-    ciudad_fecha: "Asunción, Paraguay, Octubre de 2026",
-    plantilla: "placa_madera",
+    titulo: "Reconocimiento y Honor a",
+    subtitulo: "KARATE DO GO JU RYU",
+    destinatario: "Sensei ROBERTO TAKESHI FUKOCHI",
+    texto_agradecimiento: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO. Este pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial. Su legado de rectitud y maestría perdurará.",
+    otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
+    ciudad_fecha: "Dada en Ciudad del Este, Paraguay. Noviembre 2026.",
+    plantilla: "pergamino_marcial",
     logo_url: "",
     firma_url: "",
-    cargo_firmante: "Presidente del Torneo",
-    nombre_firmante: "Lic. Juan Pérez"
+    cargo_firmante: "Representación Seigokan Paraguay",
+    nombre_firmante: "Sensei Jorge Salgado Castillo"
   });
 
   const printRef = useRef<HTMLDivElement>(null);
@@ -162,34 +132,45 @@ export default function ReconocimientosPage() {
           setReconocimientos(JSON.parse(cached));
         } catch {}
       } else {
-        // Datos de ejemplo iniciales para que el usuario experimente inmediatamente
         const demoItems: Reconocimiento[] = [
           {
             id: 1,
             torneo_id: null,
-            titulo: "PLACA CONMEMORATIVA Y DE AGRADECIMIENTO",
-            subtitulo: "Homenaje de Honor y Reconocimiento Institucional",
-            destinatario: "Lic. Horacio Cartes",
-            texto_agradecimiento: "Los integrantes del Cuadro de Honor de la Primera Promoción lo saludan en esta fecha tan especial y le extienden su agradecimiento por su inquebrantable apoyo a la formación de líderes con vocación de servicio, su visión inspiradora y la oportunidad de crecimiento brindada, fundamentales para el desarrollo de la Nación.",
-            otorgado_por: "EL CUADRO DE HONOR",
-            ciudad_fecha: "Asunción, Paraguay, 2026",
-            plantilla: "placa_madera",
-            logo_url: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=120&auto=format&fit=crop&q=80",
-            nombre_firmante: "Comisión Organizadora",
-            cargo_firmante: "Directiva de Honor"
+            titulo: "Reconocimiento y Honor a",
+            subtitulo: "KARATE DO GO JU RYU",
+            destinatario: "Sensei ROBERTO TAKESHI FUKOCHI",
+            texto_agradecimiento: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO. Este pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial. Su legado de rectitud y maestría perdurará.",
+            otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
+            ciudad_fecha: "Dada en Ciudad del Este, Paraguay. Noviembre 2026.",
+            plantilla: "pergamino_marcial",
+            nombre_firmante: "Sensei Jorge Salgado Castillo",
+            cargo_firmante: "Representación Seigokan Paraguay"
           },
           {
             id: 2,
             torneo_id: null,
-            titulo: "DIPLOMA DE HONOR AL MÉRITO",
-            subtitulo: "Campeonato Clausura 2026 - Copa de Oro",
-            destinatario: "Santiago Giménez",
-            texto_agradecimiento: "Por su destacada participación, disciplina deportiva y consagrarse como el Máximo Goleador y Jugador Más Valioso (MVP) del torneo, siendo ejemplo de superación y compañerismo.",
-            otorgado_por: "ASOCIACIÓN DE FÚTBOL AMATEUR",
-            ciudad_fecha: "San Lorenzo, Paraguay, Noviembre de 2026",
-            plantilla: "diploma_clasico",
-            nombre_firmante: "Prof. Marcos Duarte",
-            cargo_firmante: "Presidente del Tribunal"
+            titulo: "CERTIFICADO DE PARTICIPACIÓN",
+            subtitulo: "XIII Torneo Seigokan Go Ju Ryu Karate Do",
+            destinatario: "Sensei Jorge Salgado Castillo",
+            texto_agradecimiento: "La Escuela Seigokan otorga este presente Certificado por su valiosa participación en el XIII Torneo Seigokan Go Ju Ryu Karate Do realizado en noviembre de 2026.",
+            otorgado_por: "ESCUELA SEIGOKAN DE KARATE DO",
+            ciudad_fecha: "Dado en Ciudad del Este, a los 15 días del mes de noviembre de 2026.",
+            plantilla: "azul_imperial_oro",
+            nombre_firmante: "Jorge Salgado Castillo",
+            cargo_firmante: "Representación de Seigokan Paraguay"
+          },
+          {
+            id: 3,
+            torneo_id: null,
+            titulo: "CERTIFICADO DE AGRADECIMIENTO",
+            subtitulo: "XIII TORNEO SUDAMERICANO SEIGOKAN",
+            destinatario: "Sensei JORGE SALGADO CASTILLO",
+            texto_agradecimiento: "La Asociación Seigokan, con profundo respeto y gratitud, otorga el presente Certificado en reconocimiento y sincera gratitud por su invaluable aporte y dedicación en la organización y éxito del XIII TORNEO SUDAMERICANO SEIGOKAN. Este evento, gracias a su apoyo, ha fortalecido los lazos de fraternidad y el espíritu del Karate Do.",
+            otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
+            ciudad_fecha: "Realizado en la Ciudad del Este, Paraguay, en el mes de noviembre del año 2026.",
+            plantilla: "diploma_marcial_laurel",
+            nombre_firmante: "Sensei JORGE SALGADO CASTILLO.",
+            cargo_firmante: "Seigokan Paraguay"
           }
         ];
         setReconocimientos(demoItems);
@@ -223,7 +204,6 @@ export default function ReconocimientosPage() {
         const data = await res.json();
         setFormData(prev => ({ ...prev, logo_url: data.url }));
       } else {
-        // Fallback FileReader local
         const reader = new FileReader();
         reader.onloadend = () => {
           setFormData(prev => ({ ...prev, logo_url: reader.result as string }));
@@ -245,17 +225,17 @@ export default function ReconocimientosPage() {
     setEditingId(null);
     setFormData({
       torneo_id: filterTorneo !== "all" ? filterTorneo : "",
-      titulo: "PLACA CONMEMORATIVA Y DE AGRADECIMIENTO",
-      subtitulo: "Por su inquebrantable apoyo al deporte y la comunidad",
+      titulo: "Reconocimiento y Honor a",
+      subtitulo: "KARATE DO GO JU RYU",
       destinatario: "",
-      texto_agradecimiento: "Los integrantes del Comité Directivo y la Organización le extienden su sincero reconocimiento y gratitud por su inquebrantable apoyo y vocación de servicio.",
-      otorgado_por: "EL COMITÉ ORGANIZADOR",
-      ciudad_fecha: "Asunción, Paraguay, 2026",
-      plantilla: "placa_madera",
+      texto_agradecimiento: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO. Este pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial.",
+      otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
+      ciudad_fecha: "Dada en Ciudad del Este, Paraguay. Noviembre 2026.",
+      plantilla: "pergamino_marcial",
       logo_url: "",
       firma_url: "",
-      cargo_firmante: "Presidente",
-      nombre_firmante: ""
+      cargo_firmante: "Representación Seigokan Paraguay",
+      nombre_firmante: "Sensei Jorge Salgado Castillo"
     });
     setActiveTab("form");
     setModalOpen(true);
@@ -326,7 +306,6 @@ export default function ReconocimientosPage() {
       }
     } catch (err) {
       console.warn("Fallo el guardado en servidor, guardando localmente:", err);
-      // Actualizar localmente
       if (modalMode === "edit" && editingId) {
         const updated = reconocimientos.map(r => r.id === editingId ? { ...formData, id: editingId } : r);
         setReconocimientos(updated);
@@ -377,6 +356,8 @@ export default function ReconocimientosPage() {
       subtitulo: preset.subtitulo,
       texto_agradecimiento: preset.texto,
       otorgado_por: preset.otorgado_por,
+      ciudad_fecha: preset.ciudad_fecha || prev.ciudad_fecha,
+      nombre_firmante: preset.nombre_firmante || prev.nombre_firmante,
       cargo_firmante: preset.cargo_firmante,
       plantilla: preset.plantilla
     }));
@@ -423,13 +404,13 @@ export default function ReconocimientosPage() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2">
-                Menciones y Reconocimientos
+                Menciones, Diplomas y Reconocimientos
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                   Imprimibles A4
                 </span>
               </h1>
               <p className="text-sm text-slate-500 mt-1">
-                Genera placas conmemorativas de madera y bronce, diplomas y certificados oficiales listos para imprimir para dirigentes, patrocinadores, jugadores y clubes.
+                Genera pergaminos tradicionales con sello de lacre, diplomas de gala en oro, placas conmemorativas de madera y diplomas oficiales listos para imprimir.
               </p>
             </div>
           </div>
@@ -439,7 +420,7 @@ export default function ReconocimientosPage() {
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap cursor-pointer"
           >
             <Plus size={20} />
-            Nueva Mención / Placa
+            Nueva Mención / Diploma
           </button>
         </div>
 
@@ -476,13 +457,16 @@ export default function ReconocimientosPage() {
               onChange={(e) => setFilterPlantilla(e.target.value)}
               className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 text-slate-700 shadow-sm cursor-pointer"
             >
-              <option value="all">Todas las Plantillas (6 Disponibles)</option>
-              <option value="placa_madera">Placa Madera de Nogal y Bronce</option>
-              <option value="placa_cristal">Placa de Cristal Templado y Acero</option>
-              <option value="placa_caoba_plata">Placa de Caoba y Acero Cepillado</option>
-              <option value="gala_oscura">Gala Dark & Gold 24K</option>
-              <option value="diploma_clasico">Diploma Real de Honor</option>
-              <option value="moderno_esmeralda">Certificado Deportivo Dinámico</option>
+              <option value="all">Todas las Plantillas (9 Disponibles)</option>
+              <option value="pergamino_marcial">Pergamino Antiguo de Honor (Vertical A4)</option>
+              <option value="azul_imperial_oro">Azul Marino y Oro 24K (Vertical A4)</option>
+              <option value="diploma_marcial_laurel">Diploma Clásico Laurel (Vertical A4)</option>
+              <option value="placa_madera">Placa Madera de Nogal y Bronce (Horizontal)</option>
+              <option value="placa_cristal">Placa de Cristal Templado y Acero (Horizontal)</option>
+              <option value="placa_caoba_plata">Placa de Caoba y Acero Cepillado (Horizontal)</option>
+              <option value="gala_oscura">Gala Dark & Gold 24K (Horizontal)</option>
+              <option value="diploma_clasico">Diploma Real de Honor (Horizontal)</option>
+              <option value="moderno_esmeralda">Certificado Deportivo Dinámico (Horizontal)</option>
             </select>
           </div>
         </div>
@@ -504,7 +488,7 @@ export default function ReconocimientosPage() {
             </div>
             <h3 className="text-lg font-bold text-slate-800">Aún no hay reconocimientos creados</h3>
             <p className="text-slate-500 text-sm max-w-md mx-auto mt-1 mb-6">
-              Crea placas conmemorativas de madera y bronce, diplomas de honor y agradecimientos para premiar en las finales y galas.
+              Crea pergaminos conmemorativos, diplomas en oro y placas de honor para premiar en las finales y galas.
             </p>
             <button
               onClick={handleOpenCreate}
@@ -525,14 +509,12 @@ export default function ReconocimientosPage() {
                 <div 
                   onClick={() => handlePrint(item)}
                   className="h-44 w-full p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-transform duration-300 group-hover:scale-[1.01] relative overflow-hidden"
-                  style={getTemplatePreviewStyle(item.plantilla || 'placa_madera')}
+                  style={getTemplatePreviewStyle(item.plantilla || 'pergamino_marcial')}
                 >
-                  {/* Badge de plantilla */}
                   <span className="absolute top-3 left-3 text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-md bg-black/40 text-amber-200 border border-amber-400/30">
                     {getPlantillaLabel(item.plantilla)}
                   </span>
 
-                  {/* Icono de lupa o imprimir al hover */}
                   <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-semibold text-xs">
                     <Printer size={16} /> Ver e Imprimir
                   </div>
@@ -669,11 +651,18 @@ export default function ReconocimientosPage() {
                 <div className="flex flex-col items-center">
                   <div className="mb-4 text-xs font-medium text-slate-500 flex items-center gap-2 bg-amber-50 text-amber-800 px-3 py-1.5 rounded-lg border border-amber-200">
                     <Sparkles size={16} className="text-amber-600" />
-                    Vista previa a escala real. El diseño se adaptará perfectamente al imprimir en hoja A4 horizontal.
+                    Vista previa a escala real. El diseño se adaptará perfectamente al imprimir en hoja A4 (
+                    {isPortraitTemplate(formData.plantilla) ? "Vertical" : "Horizontal"}).
                   </div>
 
                   {/* Renderizado de la plantilla en vivo */}
-                  <div className="w-full max-w-3xl aspect-[1.414/1] shadow-2xl rounded-lg overflow-hidden border border-slate-300">
+                  <div 
+                    className={`w-full ${
+                      isPortraitTemplate(formData.plantilla)
+                        ? 'max-w-md md:max-w-lg aspect-[1/1.414]'
+                        : 'max-w-3xl aspect-[1.414/1]'
+                    } shadow-2xl rounded-lg overflow-hidden border border-slate-300 mx-auto transition-all`}
+                  >
                     <CertificateCard data={formData} />
                   </div>
                 </div>
@@ -700,30 +689,19 @@ export default function ReconocimientosPage() {
                     </div>
                   </div>
 
-                  {/* Selector Visual de Plantilla */}
+                  {/* Selector Visual de Plantilla (9 Opciones) */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Selecciona la Plantilla de Impresión (6 Opciones)
+                        Selecciona la Plantilla de Impresión (9 Opciones)
                       </label>
                       <span className="text-[11px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        {formData.plantilla === 'placa_madera' ? 'Placa Nogal y Bronce' :
-                         formData.plantilla === 'placa_cristal' ? 'Placa Cristal y Acero' :
-                         formData.plantilla === 'placa_caoba_plata' ? 'Placa Caoba y Plata' :
-                         formData.plantilla === 'gala_oscura' ? 'Gala Dark & Gold 24K' :
-                         formData.plantilla === 'diploma_clasico' ? 'Diploma Real de Honor' : 'Certificado Deportivo Dinámico'}
+                        {getPlantillaLabel(formData.plantilla)}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {[
-                        { id: "placa_madera", name: "1. Placa Nogal y Bronce", desc: "Madera oscura, chapa de latón y tornillos de bronce" },
-                        { id: "placa_cristal", name: "2. Placa Cristal y Acero", desc: "Cristal templado flotante y pernos cromados" },
-                        { id: "placa_caoba_plata", name: "3. Placa Caoba y Plata", desc: "Madera rojiza, acero cepillado y grabado láser" },
-                        { id: "gala_oscura", name: "4. Gala Dark & Gold 24K", desc: "Negro obsidiana y marcos en oro fundido de 24K" },
-                        { id: "diploma_clasico", name: "5. Diploma Real de Honor", desc: "Fondo pergamino con orlas florales doradas" },
-                        { id: "moderno_esmeralda", name: "6. Certificado Deportivo", desc: "Estética deportiva dinámica azul y esmeralda" }
-                      ].map(tmpl => (
+                      {TEMPLATES_LIST.map(tmpl => (
                         <div
                           key={tmpl.id}
                           onClick={() => setFormData(prev => ({ ...prev, plantilla: tmpl.id }))}
@@ -734,8 +712,13 @@ export default function ReconocimientosPage() {
                           }`}
                         >
                           <div>
-                            <span className="block font-bold text-xs text-slate-900">{tmpl.name}</span>
-                            <span className="text-[11px] text-slate-500 leading-tight mt-0.5 block">{tmpl.desc}</span>
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                              <span className="block font-bold text-xs text-slate-900">{tmpl.name}</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {tmpl.badge}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-slate-500 leading-tight block">{tmpl.desc}</span>
                           </div>
                           {formData.plantilla === tmpl.id && (
                             <span className="self-end mt-2 text-amber-600">
@@ -749,7 +732,6 @@ export default function ReconocimientosPage() {
 
                   {/* Campos Principales */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Torneo Vinculado */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Torneo o Competencia Vinculada
@@ -766,7 +748,6 @@ export default function ReconocimientosPage() {
                       </select>
                     </div>
 
-                    {/* Destinatario */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Destinatario / Homenajeado *
@@ -774,14 +755,13 @@ export default function ReconocimientosPage() {
                       <input
                         type="text"
                         required
-                        placeholder="Ej: Ing. Roberto González / Club Libertad"
+                        placeholder="Ej: Sensei ROBERTO TAKESHI FUKOCHI"
                         value={formData.destinatario}
                         onChange={(e) => setFormData(prev => ({ ...prev, destinatario: e.target.value }))}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                       />
                     </div>
 
-                    {/* Título de la Mención */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Título de la Placa / Diploma *
@@ -789,21 +769,20 @@ export default function ReconocimientosPage() {
                       <input
                         type="text"
                         required
-                        placeholder="Ej: PLACA CONMEMORATIVA Y DE AGRADECIMIENTO"
+                        placeholder="Ej: Reconocimiento y Honor a / CERTIFICADO DE PARTICIPACIÓN"
                         value={formData.titulo}
                         onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm uppercase tracking-wide focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                       />
                     </div>
 
-                    {/* Subtítulo / Motivo */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Subtítulo o Motivo (Opcional)
+                        Subtítulo, Disciplina o Evento
                       </label>
                       <input
                         type="text"
-                        placeholder="Ej: Por su inquebrantable apoyo al deporte y formación juvenil"
+                        placeholder="Ej: KARATE DO GO JU RYU / XIII Torneo Sudamericano"
                         value={formData.subtitulo || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, subtitulo: e.target.value }))}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
@@ -811,78 +790,80 @@ export default function ReconocimientosPage() {
                     </div>
                   </div>
 
-                  {/* Cuerpo del Texto */}
+                  {/* Texto Dedicatoria */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Texto de Agradecimiento / Conmemorativo *
+                      Texto de Agradecimiento / Certificación *
                     </label>
                     <textarea
                       rows={4}
                       required
-                      placeholder="Escribe la dedicatoria completa que se grabará en la placa o se imprimirá en el diploma..."
+                      placeholder="Escribe el texto de la dedicatoria o certificación..."
                       value={formData.texto_agradecimiento}
                       onChange={(e) => setFormData(prev => ({ ...prev, texto_agradecimiento: e.target.value }))}
-                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm leading-relaxed focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm leading-relaxed focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     />
                   </div>
 
-                  {/* Firmas, Fechas y Logotipos */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  {/* Firmante, fecha y entidad */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Otorgado Por (Entidad / Grupo)
-                      </label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Otorgado Por</label>
                       <input
                         type="text"
-                        placeholder="Ej: EL COMITÉ ORGANIZADOR"
+                        placeholder="Ej: ASOCIACIÓN SEIGOKAN DE KARATE DO"
                         value={formData.otorgado_por || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, otorgado_por: e.target.value }))}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-emerald-500/30"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Ciudad y Fecha
-                      </label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Ciudad y Fecha</label>
                       <input
                         type="text"
-                        placeholder="Ej: Asunción, Paraguay, 2026"
+                        placeholder="Ej: Dada en Ciudad del Este, Paraguay. Noviembre 2026."
                         value={formData.ciudad_fecha || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, ciudad_fecha: e.target.value }))}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500/30"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Nombre y Cargo Firmante (Opcional)
-                      </label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Firmante</label>
                       <input
                         type="text"
-                        placeholder="Ej: Lic. Juan Pérez - Presidente"
+                        placeholder="Ej: Sensei Jorge Salgado Castillo"
                         value={formData.nombre_firmante || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, nombre_firmante: e.target.value }))}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500/30"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs"
                       />
                     </div>
 
-                    {/* Logo institucional */}
-                    <div className="md:col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Cargo o Representación del Firmante</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Representación Seigokan Paraguay"
+                        value={formData.cargo_firmante || ""}
+                        onChange={(e) => setFormData(prev => ({ ...prev, cargo_firmante: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2">
                       <div className="flex-1">
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Logo o Escudo del Torneo / Organización (Opcional)
-                        </label>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Logo o Escudo Personalizado (Opcional)</label>
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
-                            placeholder="URL de la imagen o escudo..."
+                            placeholder="URL del logo (si se deja vacío se muestra el emblema oficial Seigokan)..."
                             value={formData.logo_url || ""}
                             onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
-                            className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500/30"
+                            className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs"
                           />
-                          <label className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg cursor-pointer flex items-center gap-1.5 transition-colors whitespace-nowrap">
-                            <Upload size={14} /> Subir archivo
+                          <label className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-lg cursor-pointer flex items-center gap-1 transition">
+                            <Upload size={14} /> Subir
                             <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
                           </label>
                         </div>
@@ -890,12 +871,11 @@ export default function ReconocimientosPage() {
 
                       {formData.logo_url && (
                         <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                          <img src={formData.logo_url} alt="Logo" className="w-10 h-10 object-contain rounded" />
+                          <img src={formData.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded" />
                           <button
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, logo_url: "" }))}
-                            className="text-red-500 hover:text-red-700 p-1"
-                            title="Quitar logo"
+                            className="text-red-500 hover:text-red-700 p-0.5"
                           >
                             <X size={16} />
                           </button>
@@ -904,12 +884,12 @@ export default function ReconocimientosPage() {
                     </div>
                   </div>
 
-                  {/* Botones de acción modal */}
+                  {/* Acciones */}
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                     <button
                       type="button"
                       onClick={() => setModalOpen(false)}
-                      className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium text-sm transition-colors cursor-pointer"
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium text-xs transition cursor-pointer"
                     >
                       Cancelar
                     </button>
@@ -917,23 +897,23 @@ export default function ReconocimientosPage() {
                     <button
                       type="button"
                       onClick={() => setActiveTab("preview")}
-                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow transition cursor-pointer"
                     >
-                      <Eye size={16} /> Ver Vista Previa
+                      <Eye size={14} /> Ver Vista Previa
                     </button>
 
                     <button
                       type="submit"
                       disabled={saving}
-                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                       {saving ? (
                         <>
-                          <RefreshCw size={16} className="animate-spin" /> Guardando...
+                          <RefreshCw size={15} className="animate-spin" /> Guardando...
                         </>
                       ) : (
                         <>
-                          <Check size={16} /> Guardar Reconocimiento
+                          <Check size={15} /> Guardar Reconocimiento
                         </>
                       )}
                     </button>
@@ -946,19 +926,27 @@ export default function ReconocimientosPage() {
       )}
 
       {/* ============================================================
-          MODAL DE IMPRESIÓN Y EXPORTACIÓN A4
+          MODAL DE IMPRESIÓN Y EXPORTACIÓN A4 INTELIGENTE
           ============================================================ */}
       {printModalOpen && printItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto print:p-0 print:bg-white print:static">
           <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto border border-slate-300 print:border-none print:shadow-none print:w-full print:max-w-none">
             
-            {/* Print Dialog Actions Bar (Hidden on actual print) */}
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
               <div className="flex items-center gap-2">
                 <Printer className="text-amber-400" size={20} />
                 <div>
-                  <h4 className="font-bold text-sm">Vista de Impresión Lista</h4>
-                  <p className="text-[11px] text-slate-400">Configurada automáticamente para formato horizontal (Landscape) A4.</p>
+                  <h4 className="font-bold text-sm flex items-center gap-2">
+                    Vista de Impresión Lista
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {isPortraitTemplate(printItem.plantilla) ? "Formato Vertical A4" : "Formato Horizontal A4"}
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    {isPortraitTemplate(printItem.plantilla)
+                      ? "Configurada automáticamente para formato vertical A4 lista para impresora o exportar en PDF."
+                      : "Configurada automáticamente para formato horizontal (Landscape) A4 lista para impresora o exportar en PDF."}
+                  </p>
                 </div>
               </div>
 
@@ -967,7 +955,7 @@ export default function ReconocimientosPage() {
                   onClick={triggerBrowserPrint}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
                 >
-                  <Printer size={16} /> Imprimir / Guardar en PDF
+                  <Printer size={16} /> Imprimir / PDF
                 </button>
                 <button
                   onClick={() => setPrintModalOpen(false)}
@@ -978,18 +966,24 @@ export default function ReconocimientosPage() {
               </div>
             </div>
 
-            {/* Contenedor del documento imprimible */}
             <div className="p-4 sm:p-8 bg-slate-200/70 flex items-center justify-center overflow-auto print:p-0 print:bg-transparent">
               <div 
                 ref={printRef}
-                className="w-full max-w-4xl aspect-[1.414/1] bg-white shadow-2xl rounded-xl overflow-hidden print:w-screen print:h-screen print:max-w-none print:aspect-auto print:rounded-none print:shadow-none"
+                className={`w-full ${
+                  isPortraitTemplate(printItem.plantilla)
+                    ? 'max-w-md md:max-w-lg aspect-[1/1.414]'
+                    : 'max-w-4xl aspect-[1.414/1]'
+                } bg-white shadow-2xl rounded-xl overflow-hidden print:w-screen print:h-screen print:max-w-none print:aspect-auto print:rounded-none print:shadow-none mx-auto`}
               >
                 <CertificateCard data={printItem} isPrintMode={true} />
               </div>
             </div>
 
             <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex items-center justify-between print:hidden">
-              <span>💡 Consejo: En la ventana de impresión, asegúrate de seleccionar orientación <b>Horizontal</b> y activar <b>"Gráficos de fondo"</b>.</span>
+              <span>
+                💡 Consejo: En la ventana de impresión, asegúrate de seleccionar orientación{" "}
+                <b>{isPortraitTemplate(printItem.plantilla) ? "Vertical" : "Horizontal"}</b> y activar <b>"Gráficos de fondo"</b>.
+              </span>
               <button
                 onClick={() => setPrintModalOpen(false)}
                 className="text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
@@ -1007,7 +1001,7 @@ export default function ReconocimientosPage() {
       <style jsx global>{`
         @media print {
           @page {
-            size: landscape;
+            size: ${printItem && isPortraitTemplate(printItem.plantilla) ? 'portrait' : 'landscape'};
             margin: 0;
           }
           body {
@@ -1023,898 +1017,4 @@ export default function ReconocimientosPage() {
       `}</style>
     </div>
   );
-}
-
-// =========================================================================
-// COMPONENTE: TARJETA DE RECONOCIMIENTO / CERTIFICADO / PLACA
-// =========================================================================
-interface CertificateCardProps {
-  data: Reconocimiento;
-  isPrintMode?: boolean;
-}
-
-function CertificateCard({ data, isPrintMode = false }: CertificateCardProps) {
-  const plantilla = data.plantilla || "placa_madera";
-
-  // -------------------------------------------------------------
-  // PLANTILLA 1: PLACA DE MADERA Y BRONCE (IDÉNTICA A LA FOTO)
-  // -------------------------------------------------------------
-  if (plantilla === "placa_madera") {
-    return (
-      <div 
-        className="w-full h-full relative flex items-center justify-center p-[4%] select-none"
-        style={{
-          // Marco de madera noble de nogal con vetas y profundidad
-          background: "radial-gradient(ellipse at center, #572e12 0%, #381a08 60%, #200e04 100%)",
-          boxShadow: isPrintMode ? "none" : "inset 0 0 40px rgba(0,0,0,0.9), 0 20px 45px rgba(0,0,0,0.5)",
-          border: "8px solid #281306"
-        }}
-      >
-        {/* Bisel interior de la madera */}
-        <div 
-          className="absolute inset-[2.5%] pointer-events-none rounded-sm"
-          style={{
-            border: "2px solid rgba(255,255,255,0.12)",
-            boxShadow: "inset 0 0 15px rgba(0,0,0,0.8)"
-          }}
-        />
-
-        {/* =========================================================
-            PLACA METÁLICA DE BRONCE / LATÓN DORADO
-            ========================================================= */}
-        <div 
-          className="w-full h-full relative rounded-sm p-[5%] flex flex-col justify-between text-center overflow-hidden"
-          style={{
-            // Acabado de bronce pulido con reflejo metálico sutil
-            background: "linear-gradient(135deg, #dfc26a 0%, #f6e28d 25%, #d1ae47 50%, #f3da82 75%, #caa135 100%)",
-            boxShadow: "inset 0 0 35px rgba(135, 95, 20, 0.45), 0 10px 25px rgba(0,0,0,0.7)",
-            border: "1px solid #997728"
-          }}
-        >
-          {/* Doble filete perimetral grabado en la placa metálica */}
-          <div 
-            className="absolute inset-[3.5%] pointer-events-none rounded-sm"
-            style={{
-              border: "1.5px solid #6b4e12",
-              boxShadow: "inset 0 0 0 3px rgba(255, 245, 180, 0.4), inset 0 0 0 4.5px #7a5a16"
-            }}
-          />
-
-          {/* =======================================================
-              4 TORNILLOS DE BRONCE EN LAS ESQUINAS
-              ======================================================= */}
-          <Screw corner="top-left" />
-          <Screw corner="top-right" />
-          <Screw corner="bottom-left" />
-          <Screw corner="bottom-right" />
-
-          {/* CONTENIDO DE LA PLACA */}
-          <div className="relative z-10 flex flex-col items-center justify-between h-full pt-1 pb-1">
-            
-            {/* Título grabado */}
-            <div className="mb-2">
-              <h2 
-                className="text-base sm:text-lg md:text-xl lg:text-2xl font-black tracking-[0.14em] uppercase"
-                style={{
-                  color: "#181207",
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  textShadow: "0 1px 0 rgba(255,255,255,0.4)"
-                }}
-              >
-                {data.titulo}
-              </h2>
-
-              {data.subtitulo && (
-                <p 
-                  className="text-[10px] sm:text-xs md:text-sm font-semibold tracking-wider uppercase mt-0.5 opacity-90"
-                  style={{ color: "#2e210a" }}
-                >
-                  {data.subtitulo}
-                </p>
-              )}
-            </div>
-
-            {/* Destinatario / Homenajeado */}
-            <div className="my-auto py-2 max-w-[90%]">
-              {data.destinatario && (
-                <h3 
-                  className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-wide mb-2"
-                  style={{
-                    color: "#120c04",
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    textShadow: "0 1px 0 rgba(255,255,255,0.3)"
-                  }}
-                >
-                  {data.destinatario}
-                </h3>
-              )}
-
-              {/* Texto de dedicatoria */}
-              <p 
-                className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] leading-relaxed font-serif italic text-justify px-4"
-                style={{
-                  color: "#1f1708",
-                  fontFamily: "Georgia, 'Times New Roman', serif"
-                }}
-              >
-                {data.texto_agradecimiento}
-              </p>
-            </div>
-
-            {/* Pie de placa: Ciudad, Fecha y Entidad Firmante */}
-            <div className="w-full mt-2 pt-2 flex flex-col items-center">
-              {data.ciudad_fecha && (
-                <p 
-                  className="text-[10px] sm:text-xs md:text-sm font-medium italic mb-1"
-                  style={{ color: "#2a1e08" }}
-                >
-                  {data.ciudad_fecha}
-                </p>
-              )}
-
-              {data.otorgado_por && (
-                <p 
-                  className="text-xs sm:text-sm md:text-base font-black tracking-[0.15em] uppercase"
-                  style={{
-                    color: "#140e04",
-                    fontFamily: "'Playfair Display', Georgia, serif"
-                  }}
-                >
-                  {data.otorgado_por}
-                </p>
-              )}
-
-              {data.nombre_firmante && (
-                <div className="mt-2 flex flex-col items-center">
-                  <div className="w-40 border-b border-amber-950/40 my-1" />
-                  <p className="text-[10px] sm:text-xs font-bold" style={{ color: "#201607" }}>
-                    {data.nombre_firmante}
-                  </p>
-                  {data.cargo_firmante && (
-                    <p className="text-[9px] sm:text-[11px] opacity-80" style={{ color: "#36260c" }}>
-                      {data.cargo_firmante}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* DUAL LOGOS: Logo del Organizador (Izquierda) y Logo de Mi Cancha (Derecha) */}
-            <div className="w-full flex items-end justify-between px-2 sm:px-4 mt-2">
-              <div className="flex items-center">
-                {data.logo_url ? (
-                  <img 
-                    src={data.logo_url} 
-                    alt="Logo Organizador" 
-                    className="h-7 sm:h-10 md:h-12 max-w-[110px] object-contain drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)] mix-blend-multiply" 
-                  />
-                ) : (
-                  <div className="text-[10px] sm:text-xs font-black tracking-widest text-[#2a1e08] uppercase border-b border-[#2a1e08]/40 pb-0.5 opacity-80">
-                    Comité Organizador
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <MiCanchaBadge theme="bronce" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // PLANTILLA 2: PLACA DE CRISTAL TEMPLADO Y ACERO FLOTANTE
-  // -------------------------------------------------------------
-  if (plantilla === "placa_cristal") {
-    return (
-      <div 
-        className="w-full h-full relative flex items-center justify-center p-[4%] select-none"
-        style={{
-          background: "radial-gradient(ellipse at center, #1e293b 0%, #0f172a 60%, #020617 100%)",
-          boxShadow: isPrintMode ? "none" : "inset 0 0 50px rgba(0,0,0,0.9), 0 20px 45px rgba(0,0,0,0.6)",
-          border: "8px solid #0b0f19"
-        }}
-      >
-        <div 
-          className="w-full h-full relative rounded-md p-[5%] flex flex-col justify-between text-center overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.12) 100%)",
-            backdropFilter: "blur(16px)",
-            border: "2px solid rgba(255, 255, 255, 0.45)",
-            boxShadow: "inset 0 0 30px rgba(255, 255, 255, 0.12), 0 15px 35px rgba(0, 0, 0, 0.7)"
-          }}
-        >
-          <div 
-            className="absolute inset-[3%] pointer-events-none rounded-sm"
-            style={{
-              border: "1.5px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "inset 0 0 15px rgba(255,255,255,0.05)"
-            }}
-          />
-
-          <ChromeBolt corner="top-left" />
-          <ChromeBolt corner="top-right" />
-          <ChromeBolt corner="bottom-left" />
-          <ChromeBolt corner="bottom-right" />
-
-          <div className="relative z-10 flex flex-col items-center justify-between h-full pt-1 pb-1">
-            <div className="mb-2">
-              <span className="text-[10px] sm:text-xs tracking-[0.25em] uppercase text-cyan-200 font-bold block mb-1 drop-shadow">
-                Distinción de Excelencia
-              </span>
-              <h2 
-                className="text-base sm:text-lg md:text-xl lg:text-2xl font-black tracking-[0.14em] uppercase text-white"
-                style={{
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  textShadow: "0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(255,255,255,0.3)"
-                }}
-              >
-                {data.titulo}
-              </h2>
-
-              {data.subtitulo && (
-                <p className="text-[10px] sm:text-xs md:text-sm font-medium tracking-wider text-slate-300 mt-1 drop-shadow">
-                  {data.subtitulo}
-                </p>
-              )}
-            </div>
-
-            <div className="my-auto py-2 max-w-[90%]">
-              {data.destinatario && (
-                <h3 
-                  className="text-xl sm:text-3xl md:text-4xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-100 mb-2 drop-shadow-[0_2px_12px_rgba(255,255,255,0.4)]"
-                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                >
-                  {data.destinatario}
-                </h3>
-              )}
-
-              <p 
-                className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] leading-relaxed italic text-slate-200 text-justify px-4 font-serif drop-shadow"
-                style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
-              >
-                {data.texto_agradecimiento}
-              </p>
-            </div>
-
-            <div className="w-full mt-2 pt-2 flex flex-col items-center">
-              {data.ciudad_fecha && (
-                <p className="text-[10px] sm:text-xs md:text-sm text-cyan-200/90 font-medium italic mb-1 drop-shadow">
-                  {data.ciudad_fecha}
-                </p>
-              )}
-
-              {data.otorgado_por && (
-                <p 
-                  className="text-xs sm:text-sm md:text-base font-black tracking-[0.18em] uppercase text-white drop-shadow"
-                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                >
-                  {data.otorgado_por}
-                </p>
-              )}
-
-              {data.nombre_firmante && (
-                <div className="mt-2 flex flex-col items-center">
-                  <div className="w-40 border-b border-slate-300/40 my-1" />
-                  <p className="text-[10px] sm:text-xs font-bold text-slate-100 drop-shadow">
-                    {data.nombre_firmante}
-                  </p>
-                  {data.cargo_firmante && (
-                    <p className="text-[9px] sm:text-[11px] text-slate-300 drop-shadow">
-                      {data.cargo_firmante}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* DUAL LOGOS: Logo del Organizador (Izquierda) y Logo de Mi Cancha (Derecha) */}
-            <div className="w-full flex items-end justify-between px-2 sm:px-4 mt-2">
-              <div className="flex items-center">
-                {data.logo_url ? (
-                  <img 
-                    src={data.logo_url} 
-                    alt="Logo Organizador" 
-                    className="h-7 sm:h-10 md:h-12 max-w-[110px] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" 
-                  />
-                ) : (
-                  <div className="text-[10px] sm:text-xs font-black tracking-widest text-cyan-200 uppercase border-b border-white/40 pb-0.5 drop-shadow">
-                    Comisión Organizadora
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <MiCanchaBadge theme="cristal" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // PLANTILLA 3: PLACA DE CAOBA ROJIZA Y ACERO CEPILLADO
-  // -------------------------------------------------------------
-  if (plantilla === "placa_caoba_plata") {
-    return (
-      <div 
-        className="w-full h-full relative flex items-center justify-center p-[4%] select-none"
-        style={{
-          background: "radial-gradient(ellipse at center, #54160d 0%, #300a04 60%, #170402 100%)",
-          boxShadow: isPrintMode ? "none" : "inset 0 0 45px rgba(0,0,0,0.9), 0 20px 45px rgba(0,0,0,0.55)",
-          border: "8px solid #200603"
-        }}
-      >
-        <div 
-          className="absolute inset-[2.5%] pointer-events-none rounded-sm"
-          style={{
-            border: "2px solid rgba(255,255,255,0.15)",
-            boxShadow: "inset 0 0 15px rgba(0,0,0,0.8)"
-          }}
-        />
-
-        <div 
-          className="w-full h-full relative rounded-sm p-[5%] flex flex-col justify-between text-center overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 25%, #e2e8f0 50%, #94a3b8 75%, #f8fafc 100%)",
-            boxShadow: "inset 0 0 30px rgba(71, 85, 105, 0.35), 0 10px 25px rgba(0,0,0,0.7)",
-            border: "1.5px solid #64748b"
-          }}
-        >
-          <div 
-            className="absolute inset-[3.5%] pointer-events-none rounded-sm"
-            style={{
-              border: "1.5px solid #334155",
-              boxShadow: "inset 0 0 0 3px rgba(255, 255, 255, 0.7), inset 0 0 0 4.5px #475569"
-            }}
-          />
-
-          <ChromeBolt corner="top-left" />
-          <ChromeBolt corner="top-right" />
-          <ChromeBolt corner="bottom-left" />
-          <ChromeBolt corner="bottom-right" />
-
-          <div className="relative z-10 flex flex-col items-center justify-between h-full pt-1 pb-1">
-            <div className="mb-2">
-              <h2 
-                className="text-base sm:text-lg md:text-xl lg:text-2xl font-black tracking-[0.14em] uppercase"
-                style={{
-                  color: "#0f172a",
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  textShadow: "0 1px 0 rgba(255,255,255,0.6)"
-                }}
-              >
-                {data.titulo}
-              </h2>
-
-              {data.subtitulo && (
-                <p 
-                  className="text-[10px] sm:text-xs md:text-sm font-semibold tracking-wider uppercase mt-0.5 opacity-90"
-                  style={{ color: "#334155" }}
-                >
-                  {data.subtitulo}
-                </p>
-              )}
-            </div>
-
-            <div className="my-auto py-2 max-w-[90%]">
-              {data.destinatario && (
-                <h3 
-                  className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-wide mb-2"
-                  style={{
-                    color: "#020617",
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    textShadow: "0 1px 0 rgba(255,255,255,0.5)"
-                  }}
-                >
-                  {data.destinatario}
-                </h3>
-              )}
-
-              <p 
-                className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] leading-relaxed font-serif italic text-justify px-4"
-                style={{
-                  color: "#1e293b",
-                  fontFamily: "Georgia, 'Times New Roman', serif"
-                }}
-              >
-                {data.texto_agradecimiento}
-              </p>
-            </div>
-
-            <div className="w-full mt-2 pt-2 flex flex-col items-center">
-              {data.ciudad_fecha && (
-                <p className="text-[10px] sm:text-xs md:text-sm font-medium italic mb-1" style={{ color: "#334155" }}>
-                  {data.ciudad_fecha}
-                </p>
-              )}
-
-              {data.otorgado_por && (
-                <p 
-                  className="text-xs sm:text-sm md:text-base font-black tracking-[0.15em] uppercase"
-                  style={{
-                    color: "#0f172a",
-                    fontFamily: "'Playfair Display', Georgia, serif"
-                  }}
-                >
-                  {data.otorgado_por}
-                </p>
-              )}
-
-              {data.nombre_firmante && (
-                <div className="mt-2 flex flex-col items-center">
-                  <div className="w-40 border-b border-slate-700/40 my-1" />
-                  <p className="text-[10px] sm:text-xs font-bold" style={{ color: "#0f172a" }}>
-                    {data.nombre_firmante}
-                  </p>
-                  {data.cargo_firmante && (
-                    <p className="text-[9px] sm:text-[11px] opacity-80" style={{ color: "#475569" }}>
-                      {data.cargo_firmante}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* DUAL LOGOS: Logo del Organizador (Izquierda) y Logo de Mi Cancha (Derecha) */}
-            <div className="w-full flex items-end justify-between px-2 sm:px-4 mt-2">
-              <div className="flex items-center">
-                {data.logo_url ? (
-                  <img 
-                    src={data.logo_url} 
-                    alt="Logo Organizador" 
-                    className="h-7 sm:h-10 md:h-12 max-w-[110px] object-contain drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)] mix-blend-multiply" 
-                  />
-                ) : (
-                  <div className="text-[10px] sm:text-xs font-black tracking-widest text-slate-800 uppercase border-b border-slate-700/40 pb-0.5">
-                    Comité Organizador
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <MiCanchaBadge theme="acero" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // PLANTILLA 4: DIPLOMA REAL DE HONOR AL MÉRITO
-  // -------------------------------------------------------------
-  if (plantilla === "diploma_clasico") {
-    return (
-      <div 
-        className="w-full h-full relative p-[5%] flex flex-col justify-between text-center select-none bg-[#fdfbf7]"
-        style={{
-          boxShadow: isPrintMode ? "none" : "0 10px 30px rgba(0,0,0,0.15)"
-        }}
-      >
-        <div className="absolute inset-[2%] border-4 border-[#b89758] rounded pointer-events-none" />
-        <div className="absolute inset-[3%] border border-[#7a5e2c] pointer-events-none" />
-        
-        <div className="absolute top-[2.5%] left-[2.5%] w-8 h-8 border-t-2 border-l-2 border-[#b89758]" />
-        <div className="absolute top-[2.5%] right-[2.5%] w-8 h-8 border-t-2 border-r-2 border-[#b89758]" />
-        <div className="absolute bottom-[2.5%] left-[2.5%] w-8 h-8 border-b-2 border-l-2 border-[#b89758]" />
-        <div className="absolute bottom-[2.5%] right-[2.5%] w-8 h-8 border-b-2 border-r-2 border-[#b89758]" />
-
-        <div className="relative z-10 flex flex-col justify-between h-full py-2">
-          {/* Cabecera con DUAL LOGOS: Organizador (Izq) y Mi Cancha (Der) */}
-          <div className="flex items-center justify-between px-4 mb-2">
-            <div className="flex items-center">
-              {data.logo_url ? (
-                <img src={data.logo_url} alt="Logo Organizador" className="h-10 sm:h-12 object-contain" />
-              ) : (
-                <div className="w-10" />
-              )}
-            </div>
-
-            <div className="text-center">
-              <p className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-amber-800 font-bold mb-0.5">
-                Certificación Oficial del Campeonato
-              </p>
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-black uppercase text-slate-900 tracking-wider font-serif">
-                {data.titulo}
-              </h2>
-              {data.subtitulo && (
-                <p className="text-xs sm:text-sm text-slate-600 font-medium italic mt-0.5">
-                  {data.subtitulo}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center">
-              <MiCanchaBadge theme="diploma" />
-            </div>
-          </div>
-
-          <div className="my-auto py-2">
-            <p className="text-xs sm:text-sm uppercase tracking-widest text-slate-500 mb-1">
-              Se otorga el presente reconocimiento a:
-            </p>
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#947632] font-serif tracking-wide border-b-2 border-[#e6d5aa] inline-block px-8 pb-2 mb-3">
-              {data.destinatario}
-            </h3>
-            <p className="text-xs sm:text-sm md:text-base leading-relaxed text-slate-700 max-w-2xl mx-auto px-4 font-serif">
-              {data.texto_agradecimiento}
-            </p>
-          </div>
-
-          <div className="pt-2 border-t border-[#e2d5b6] flex items-end justify-between px-6">
-            <div className="text-left text-[10px] sm:text-xs text-slate-600">
-              <p className="font-semibold text-slate-800">{data.ciudad_fecha}</p>
-              <p className="text-[10px] text-slate-500">{data.otorgado_por || "Registro Oficial"}</p>
-            </div>
-
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-[#b89758] flex items-center justify-center text-[#b89758] text-[10px] font-bold uppercase rotate-[-12deg]">
-              ★ HONOR ★
-            </div>
-
-            <div className="text-center text-[10px] sm:text-xs">
-              <div className="w-36 sm:w-48 border-b border-slate-400 mb-1 mx-auto" />
-              <p className="font-bold text-slate-900">{data.nombre_firmante || data.otorgado_por || "Comité Organizador"}</p>
-              <p className="text-slate-500 text-[10px]">{data.cargo_firmante || "Autoridad Competente"}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // PLANTILLA 5: RECONOCIMIENTO DE GALA DARK & 24K GOLD
-  // -------------------------------------------------------------
-  if (plantilla === "gala_oscura") {
-    return (
-      <div 
-        className="w-full h-full relative p-[5%] flex flex-col justify-between text-center select-none text-white"
-        style={{
-          background: "radial-gradient(ellipse at center, #1a202c 0%, #0d1117 70%, #05070a 100%)",
-          boxShadow: isPrintMode ? "none" : "0 15px 35px rgba(0,0,0,0.4)"
-        }}
-      >
-        <div className="absolute inset-[2.5%] border-2 border-[#d4af37]/60 pointer-events-none" />
-        <div className="absolute inset-[3.5%] border border-[#d4af37]/20 pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col justify-between h-full py-2">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-2">
-              <Sparkles size={12} /> Noche de Campeones
-            </div>
-            <h2 className="text-xl sm:text-3xl md:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 font-serif">
-              {data.titulo}
-            </h2>
-            {data.subtitulo && (
-              <p className="text-xs sm:text-sm text-slate-400 font-medium tracking-wide mt-1">
-                {data.subtitulo}
-              </p>
-            )}
-          </div>
-
-          <div className="my-auto py-2">
-            <p className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-amber-400 font-bold mb-1">
-              Distingue y Condecora a:
-            </p>
-            <h3 className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-wide text-white font-serif my-2 drop-shadow-[0_2px_10px_rgba(212,175,55,0.3)]">
-              {data.destinatario}
-            </h3>
-            <p className="text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 max-w-2xl mx-auto px-4 font-light">
-              {data.texto_agradecimiento}
-            </p>
-          </div>
-
-          {/* Pie con DUAL LOGOS: Organizador (Izq) y Mi Cancha (Der) */}
-          <div className="pt-3 border-t border-amber-500/30 flex items-center justify-between px-6 text-xs text-slate-400">
-            <div className="flex items-center gap-3">
-              {data.logo_url && (
-                <img src={data.logo_url} alt="Logo Organizador" className="h-9 sm:h-11 object-contain opacity-90" />
-              )}
-              <div className="text-left">
-                <p className="font-medium text-amber-200">{data.ciudad_fecha}</p>
-                <p className="text-[10px] text-slate-500">{data.otorgado_por}</p>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="w-32 border-b border-amber-400/40 mb-1 mx-auto" />
-              <p className="font-bold text-amber-200">{data.nombre_firmante || "Directiva General"}</p>
-              <p className="text-[10px] text-slate-400">{data.cargo_firmante || "Comisión Organizadora"}</p>
-            </div>
-
-            <div className="flex items-center">
-              <MiCanchaBadge theme="gala" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // PLANTILLA 6: CERTIFICADO DEPORTIVO DINÁMICO & HERITAGE
-  // -------------------------------------------------------------
-  return (
-    <div 
-      className="w-full h-full relative p-[5%] flex flex-col justify-between text-center select-none bg-white border-8 border-slate-900"
-      style={{
-        boxShadow: isPrintMode ? "none" : "0 10px 25px rgba(0,0,0,0.1)"
-      }}
-    >
-      <div className="absolute top-0 left-0 w-36 h-36 bg-gradient-to-br from-blue-900 to-emerald-600 opacity-15 -rotate-45 -translate-x-16 -translate-y-16 pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-36 h-36 bg-gradient-to-tl from-blue-900 to-emerald-600 opacity-15 -rotate-45 translate-x-16 translate-y-16 pointer-events-none" />
-      <div className="absolute inset-[2%] border border-slate-200 pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col justify-between h-full py-2">
-        {/* Cabecera con DUAL LOGOS: Organizador (Izq) y Mi Cancha (Der) */}
-        <div className="flex items-center justify-between border-b-2 border-emerald-600 pb-3">
-          <div className="flex items-center gap-3">
-            {data.logo_url ? (
-              <img src={data.logo_url} alt="Logo Organizador" className="h-10 sm:h-12 object-contain" />
-            ) : (
-              <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center font-black text-slate-700 text-xs">
-                T
-              </div>
-            )}
-            <div className="text-left">
-              <h4 className="text-xs font-black text-blue-950 uppercase tracking-widest flex items-center gap-1">
-                <Shield size={14} className="text-emerald-600" /> Certificación Deportiva Oficial
-              </h4>
-              <p className="text-[10px] text-slate-500 font-medium">División de Competencias y Torneos</p>
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            <MiCanchaBadge theme="moderno" />
-          </div>
-        </div>
-
-        <div className="my-auto py-4">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-wide uppercase">
-            {data.titulo}
-          </h2>
-          {data.subtitulo && (
-            <p className="text-xs sm:text-sm font-bold text-emerald-700 mt-1 uppercase tracking-wider">
-              {data.subtitulo}
-            </p>
-          )}
-
-          <div className="my-4">
-            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Se concede la presente distinción a:</span>
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-blue-950 mt-1">
-              {data.destinatario}
-            </h3>
-          </div>
-
-          <p className="text-xs sm:text-sm md:text-base text-slate-700 max-w-2xl mx-auto px-4 leading-relaxed font-medium">
-            {data.texto_agradecimiento}
-          </p>
-        </div>
-
-        <div className="pt-3 border-t border-slate-200 flex items-center justify-between px-4 text-xs">
-          <div className="text-left text-slate-600">
-            <p className="font-bold text-slate-900">{data.ciudad_fecha}</p>
-            <p className="text-[10px] text-slate-400 font-medium">{data.otorgado_por}</p>
-          </div>
-
-          <div className="text-right">
-            <div className="w-36 border-b-2 border-slate-900 mb-1 ml-auto" />
-            <p className="font-black text-slate-900">{data.nombre_firmante || "Comité Organizador"}</p>
-            <p className="text-[10px] text-slate-500 font-medium">{data.cargo_firmante || "Dirección de Torneo"}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Tornillo de bronce con hendidura en cruz
-function Screw({ corner }: { corner: "top-left" | "top-right" | "bottom-left" | "bottom-right" }) {
-  const positionClasses = {
-    "top-left": "top-2 left-2 sm:top-3 sm:left-3",
-    "top-right": "top-2 right-2 sm:top-3 sm:right-3",
-    "bottom-left": "bottom-2 left-2 sm:bottom-3 sm:left-3",
-    "bottom-right": "bottom-2 right-2 sm:bottom-3 sm:right-3"
-  }[corner];
-
-  return (
-    <div 
-      className={`absolute ${positionClasses} w-4 h-4 sm:w-6 sm:h-6 rounded-full flex items-center justify-center pointer-events-none z-20`}
-      style={{
-        background: "radial-gradient(circle at 35% 35%, #fff5c0 0%, #c9a33e 50%, #634710 100%)",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.7)",
-        border: "1px solid #573e0e"
-      }}
-    >
-      <div 
-        className="w-2.5 sm:w-3.5 h-[1.5px] sm:h-[2px] bg-[#3a2707] rounded-xs"
-        style={{
-          boxShadow: "inset 0 1px 1px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.3)",
-          transform: "rotate(45deg)"
-        }}
-      />
-    </div>
-  );
-}
-
-// Perno / Separador cromado de acero inoxidable
-function ChromeBolt({ corner }: { corner: "top-left" | "top-right" | "bottom-left" | "bottom-right" }) {
-  const positionClasses = {
-    "top-left": "top-2.5 left-2.5 sm:top-3.5 sm:left-3.5",
-    "top-right": "top-2.5 right-2.5 sm:top-3.5 sm:right-3.5",
-    "bottom-left": "bottom-2.5 left-2.5 sm:bottom-3.5 sm:left-3.5",
-    "bottom-right": "bottom-2.5 right-2.5 sm:bottom-3.5 sm:right-3.5"
-  }[corner];
-
-  return (
-    <div 
-      className={`absolute ${positionClasses} w-4 h-4 sm:w-6 sm:h-6 rounded-full flex items-center justify-center pointer-events-none z-20`}
-      style={{
-        background: "radial-gradient(circle at 35% 35%, #ffffff 0%, #cbd5e1 50%, #475569 100%)",
-        boxShadow: "0 2px 5px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.8)",
-        border: "1px solid #64748b"
-      }}
-    >
-      <div 
-        className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#1e293b]"
-        style={{
-          boxShadow: "inset 0 1px 2px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.4)"
-        }}
-      />
-    </div>
-  );
-}
-
-// Logo Oficial de MiCancha.com.py para plantillas
-function MiCanchaBadge({ theme }: { theme: 'bronce' | 'cristal' | 'acero' | 'diploma' | 'gala' | 'moderno' }) {
-  if (theme === 'bronce') {
-    return (
-      <div className="flex items-center select-none" title="MiCancha.com.py - Plataforma Oficial">
-        <img 
-          src="/logo-micancha.jpg" 
-          alt="MiCancha.com.py" 
-          className="h-9 sm:h-12 md:h-14 max-w-[130px] object-contain mix-blend-multiply drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)]" 
-        />
-      </div>
-    );
-  }
-
-  if (theme === 'acero') {
-    return (
-      <div className="flex items-center select-none" title="MiCancha.com.py - Plataforma Oficial">
-        <img 
-          src="/logo-micancha.jpg" 
-          alt="MiCancha.com.py" 
-          className="h-9 sm:h-12 md:h-14 max-w-[130px] object-contain mix-blend-multiply drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]" 
-        />
-      </div>
-    );
-  }
-
-  if (theme === 'cristal') {
-    return (
-      <div className="flex items-center bg-white/95 px-2 py-1 rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.6)] border border-white/50 backdrop-blur-sm select-none" title="MiCancha.com.py - Certificación Oficial">
-        <img 
-          src="/logo-micancha.jpg" 
-          alt="MiCancha.com.py" 
-          className="h-8 sm:h-10 md:h-11 max-w-[120px] object-contain" 
-        />
-      </div>
-    );
-  }
-
-  if (theme === 'diploma') {
-    return (
-      <div className="flex items-center select-none" title="MiCancha.com.py - Certificación de Torneo">
-        <img 
-          src="/logo-micancha.jpg" 
-          alt="MiCancha.com.py" 
-          className="h-10 sm:h-12 md:h-14 max-w-[130px] object-contain mix-blend-multiply" 
-        />
-      </div>
-    );
-  }
-
-  if (theme === 'gala') {
-    return (
-      <div className="flex items-center bg-white/95 px-2.5 py-1 rounded-xl shadow-[0_4px_16px_rgba(212,175,55,0.3)] border border-amber-400/40 select-none" title="MiCancha.com.py - Gala Oficial">
-        <img 
-          src="/logo-micancha.jpg" 
-          alt="MiCancha.com.py" 
-          className="h-8 sm:h-10 md:h-11 max-w-[120px] object-contain" 
-        />
-      </div>
-    );
-  }
-
-  // Moderno
-  return (
-    <div className="flex items-center select-none" title="MiCancha.com.py - Competición Oficial">
-      <img 
-        src="/logo-micancha.jpg" 
-        alt="MiCancha.com.py" 
-        className="h-9 sm:h-11 md:h-13 max-w-[130px] object-contain" 
-      />
-    </div>
-  );
-}
-
-function getTemplatePreviewStyle(plantilla?: string | null): React.CSSProperties {
-  switch (plantilla) {
-    case "placa_madera":
-      return {
-        background: "radial-gradient(circle, #572e12 0%, #200e04 100%)",
-        border: "4px solid #381a08"
-      };
-    case "placa_cristal":
-      return {
-        background: "radial-gradient(circle, #1e293b 0%, #020617 100%)",
-        border: "4px solid #64748b"
-      };
-    case "placa_caoba_plata":
-      return {
-        background: "radial-gradient(circle, #54160d 0%, #170402 100%)",
-        border: "4px solid #300a04"
-      };
-    case "diploma_clasico":
-      return {
-        background: "#fbf9f4",
-        border: "4px solid #b89758"
-      };
-    case "gala_oscura":
-      return {
-        background: "radial-gradient(circle, #1a202c 0%, #05070a 100%)",
-        border: "4px solid #d4af37"
-      };
-    case "moderno_esmeralda":
-    default:
-      return {
-        background: "#ffffff",
-        border: "4px solid #0f172a"
-      };
-  }
-}
-
-function getTextColor(plantilla?: string | null): string {
-  switch (plantilla) {
-    case "placa_madera":
-      return "#ffd97a";
-    case "placa_cristal":
-      return "#e2e8f0";
-    case "placa_caoba_plata":
-      return "#f1f5f9";
-    case "diploma_clasico":
-      return "#1e293b";
-    case "gala_oscura":
-      return "#facc15";
-    case "moderno_esmeralda":
-    default:
-      return "#0f172a";
-  }
-}
-
-function getPlantillaLabel(plantilla?: string | null): string {
-  switch (plantilla) {
-    case "placa_madera":
-      return "Placa Nogal y Bronce";
-    case "placa_cristal":
-      return "Placa Cristal y Acero";
-    case "placa_caoba_plata":
-      return "Placa Caoba y Plata";
-    case "diploma_clasico":
-      return "Diploma Real de Honor";
-    case "gala_oscura":
-      return "Gala Dark & Gold 24K";
-    case "moderno_esmeralda":
-      return "Certificado Deportivo";
-    default:
-      return "Placa Personalizada";
-  }
 }
