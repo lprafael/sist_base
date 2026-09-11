@@ -3310,24 +3310,6 @@ function ConfigTab({ configCuotas, setConfigCuotas, notify, apiFetch, isDueno, i
           </div>
         </div>
       </div>
-
-      {/* Tarjeta SIFEN en Configuración */}
-      <div style={{ ...card(), marginTop: 20, border: `1px solid ${C.yellow}44`, background: `${C.yellow}0a` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ padding: 10, borderRadius: 10, background: `${C.yellow}22`, color: C.yellow }}>
-              <ShieldCheck size={24} />
-            </div>
-            <div>
-              <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.text }}>Facturación Electrónica SIFEN & Certificado Firma Digital (.P12)</h4>
-              <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 0' }}>Carga de certificado PKCS#12, datos de emisor SET y emisión opcional de comprobantes.</p>
-            </div>
-          </div>
-          <button onClick={() => window.dispatchEvent(new CustomEvent('nav-sifen'))} style={btn(C.yellow)}>
-            <Upload size={14} /> Cargar Certificado .P12 / Configurar SIFEN
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -5131,8 +5113,6 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
       setTimeout(() => window.print(), 250);
     } else if (tipo === 'carnets') {
       setSubTab('carnets');
-    } else if (tipo === 'facturacion') {
-      window.dispatchEvent(new CustomEvent('nav-sifen'));
     } else if (tipo === 'asistencias') {
       setSubTab('alumnos');
       setTimeout(() => window.print(), 250);
@@ -5215,7 +5195,6 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
             { id: 'deudores', label: 'Informe de Cartera Morosa', desc: 'Detalle de cuotas vencidas y saldos pendientes por cobro', icon: AlertCircle, color: C.red },
             { id: 'carnets', label: 'Carnets y Credenciales Oficiales', desc: 'Emisión e impresión masiva de carnets con QR de alumnos', icon: QrCode, color: C.purple },
             { id: 'asistencias', label: 'Planilla de Control de Asistencias', desc: 'Formulario impreso para control diario en prácticas', icon: Calendar, color: C.green },
-            { id: 'facturacion', label: 'Resumen de Cobros y SIFEN', desc: 'Estado contable de cobros y facturas electrónicas', icon: DollarSign, color: C.yellow },
           ].map(rep => (
             <div key={rep.id} style={{
               background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14,
@@ -5231,7 +5210,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
                 </div>
               </div>
               <button onClick={() => imprimirReporte(rep.id)} style={{ ...btn(rep.color, true), padding: '6px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
-                {rep.id === 'facturacion' ? <><ShieldCheck size={13} /> Ir a SIFEN</> : <><Printer size={13} /> Imprimir</>}
+                <Printer size={13} /> Imprimir
               </button>
             </div>
           ))}
