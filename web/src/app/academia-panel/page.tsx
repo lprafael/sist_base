@@ -649,15 +649,14 @@ export default function AcademiaPanel() {
           {activeTab === 'reportes' && (
             <ReportesTab
               perfil={perfil} sucursales={sucursales} categorias={categorias}
-              notify={notify} apiFetch={apiFetch} initialSubTab="alumnos"
+              notify={notify} apiFetch={apiFetch}
             />
           )}
 
           {/* ──────────────── FACTURACIÓN SIFEN / .P12 ──────────────── */}
           {activeTab === 'sifen' && (
-            <ReportesTab
-              perfil={perfil} sucursales={sucursales} categorias={categorias}
-              notify={notify} apiFetch={apiFetch} initialSubTab="sifen"
+            <SifenTab
+              perfil={perfil} notify={notify} apiFetch={apiFetch}
             />
           )}
 
@@ -5093,26 +5092,17 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
 // ═══════════════════════════════════════════════════════════
 // REPORTES Y CARNETS TAB
 // ═══════════════════════════════════════════════════════════
-function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetch, initialSubTab = 'alumnos' }: any) {
-  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets' | 'sifen'>(initialSubTab);
+function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetch }: any) {
+  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets'>('alumnos');
   const [reporteAlumnos, setReporteAlumnos] = useState<any[]>([]);
   const [deudores, setDeudores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroSucursal, setFiltroSucursal] = useState('');
   const [modalCarnet, setModalCarnet] = useState<any>(null);
   const carnetFotoRef = useRef<HTMLInputElement>(null);
-  const p12FileRef = useRef<HTMLInputElement>(null);
-
-  // Estados para Facturación SIFEN y Firma Digital .P12
-  const [emisor, setEmisor] = useState<any>({});
-  const [emisorStatus, setEmisorStatus] = useState<any>({});
-  const [certPassword, setCertPassword] = useState('');
-  const [documentosSifen, setDocumentosSifen] = useState<any[]>([]);
-  const [savingSifen, setSavingSifen] = useState(false);
 
   useEffect(() => {
     loadData();
-    loadSifenData();
   }, []);
 
   const loadData = async () => {
@@ -5126,75 +5116,6 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
       setDeudores(Array.isArray(de) ? de : []);
     } catch (e: any) { notify(e.message, 'err'); }
     setLoading(false);
-  };
-
-  const loadSifenData = async () => {
-    try {
-      const [st, em, docs] = await Promise.all([
-        apiFetch('/academia/facturacion/emisor/status').catch(() => ({})),
-        apiFetch('/academia/facturacion/emisor').catch(() => ({})),
-        apiFetch('/academia/facturacion/documentos').catch(() => []),
-      ]);
-      setEmisorStatus(st || {});
-      setEmisor(em || {});
-      setDocumentosSifen(Array.isArray(docs) ? docs : []);
-    } catch (e: any) {
-      console.error('Error al cargar datos SIFEN:', e);
-    }
-  };
-
-  const guardarEmisor = async () => {
-    setSavingSifen(true);
-    try {
-      await apiFetch('/academia/facturacion/emisor', {
-        method: 'POST',
-        body: JSON.stringify(emisor),
-      });
-      notify('Configuración de Emisor SIFEN guardada exitosamente');
-      loadSifenData();
-    } catch (e: any) {
-      notify(e.message || 'Error al guardar emisor', 'err');
-    }
-    setSavingSifen(false);
-  };
-
-  const subirP12 = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.p12')) {
-      notify('Solo se aceptan archivos de certificado con extensión .p12', 'err');
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await apiFetch('/academia/facturacion/emisor/certificado', {
-        method: 'POST',
-        body: formData,
-      });
-      notify(res.message || 'Certificado .p12 subido correctamente');
-      loadSifenData();
-    } catch (e: any) {
-      notify(e.message || 'Error al subir certificado .p12', 'err');
-    }
-  };
-
-  const guardarPasswordP12 = async () => {
-    if (!certPassword.trim()) {
-      notify('Ingrese la contraseña del certificado .p12', 'err');
-      return;
-    }
-    try {
-      await apiFetch('/academia/facturacion/emisor/certificado/password', {
-        method: 'PUT',
-        body: JSON.stringify({ password: certPassword }),
-      });
-      notify('Contraseña del certificado .p12 guardada correctamente');
-      setCertPassword('');
-      loadSifenData();
-    } catch (e: any) {
-      notify(e.message || 'Error al guardar contraseña del certificado', 'err');
-    }
   };
 
   const imprimir = () => {
@@ -5211,7 +5132,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
     } else if (tipo === 'carnets') {
       setSubTab('carnets');
     } else if (tipo === 'facturacion') {
-      setSubTab('sifen');
+      window.dispatchEvent(new CustomEvent('nav-sifen'));
     } else if (tipo === 'asistencias') {
       setSubTab('alumnos');
       setTimeout(() => window.print(), 250);
@@ -5310,7 +5231,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
                 </div>
               </div>
               <button onClick={() => imprimirReporte(rep.id)} style={{ ...btn(rep.color, true), padding: '6px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
-                <Printer size={13} /> Imprimir
+                {rep.id === 'facturacion' ? <><ShieldCheck size={13} /> Ir a SIFEN</> : <><Printer size={13} /> Imprimir</>}
               </button>
             </div>
           ))}
@@ -5468,138 +5389,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
         </div>
       )}
 
-      {/* ── SECCIÓN 4: FACTURACIÓN ELECTRÓNICA SIFEN Y CERTIFICADO .P12 ── */}
-      {subTab === 'sifen' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Card 1: Estado del Sistema y Carga de Certificado .P12 */}
-          <div style={card()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ShieldCheck size={18} color={C.yellow} /> Estado del Emisor y Certificado Digital (.P12)
-                </h3>
-                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0' }}>
-                  Gestión del Certificado Firma Digital PKCS#12 y contraseña para e-Kuatia / SIFEN SET Paraguay.
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <span style={badge(emisorStatus?.configurado ? C.green : C.red)}>
-                  {emisorStatus?.configurado ? '✅ RUC Emisor Configurado' : '⚠️ RUC Pendiente'}
-                </span>
-                <span style={badge(emisorStatus?.tiene_certificado_activo ? C.green : C.red)}>
-                  {emisorStatus?.tiene_certificado_activo ? '🔐 Certificado .P12 Activo' : '❌ Sin Certificado .P12'}
-                </span>
-              </div>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {/* Carga de Archivo .P12 */}
-              <div style={{ background: C.bg, padding: 16, borderRadius: 12, border: `1px solid ${C.border}` }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 800, color: C.text }}>
-                  1. Cargar Certificado Digital (.p12)
-                </h4>
-                <p style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-                  Suba el archivo <code>.p12</code> proveído por la autoridad certificadora (CODE10, E-Sign, etc.).
-                </p>
-                <input type="file" ref={p12FileRef} accept=".p12" onChange={subirP12} style={{ display: 'none' }} />
-                <button onClick={() => p12FileRef.current?.click()} style={btn(C.primary)}>
-                  <Upload size={14} /> Seleccionar y Subir Archivo .P12
-                </button>
-              </div>
-
-              {/* Contraseña del Certificado .P12 */}
-              <div style={{ background: C.bg, padding: 16, borderRadius: 12, border: `1px solid ${C.border}` }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 800, color: C.text }}>
-                  2. Contraseña de la Firma Digital
-                </h4>
-                <p style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-                  {emisorStatus?.tiene_password_cert ? '✅ Contraseña almacenada y cifrada correctamente.' : '⚠️ Ingrese la clave secreta de su archivo .p12 para firmar facturas.'}
-                </p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="password"
-                    placeholder="Contraseña del .p12"
-                    value={certPassword}
-                    onChange={e => setCertPassword(e.target.value)}
-                    style={{ ...input(), flex: 1 }}
-                  />
-                  <button onClick={guardarPasswordP12} style={btn(C.yellow)}>
-                    <Lock size={14} /> Guardar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Configuración de Datos Contribuyente SIFEN */}
-          <div style={card()}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FileText size={18} color={C.primary} /> Datos del Emisor (Academia Contribuyente SET)
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <FormField label="RUC con DV *" value={emisor.ruc_con_dv || ''} onChange={v => setEmisor((e: any) => ({ ...e, ruc_con_dv: v }))} placeholder="80012345-6" />
-              <FormField label="Razón Social *" value={emisor.razon_social || ''} onChange={v => setEmisor((e: any) => ({ ...e, razon_social: v }))} placeholder="Academia Deportiva S.A." />
-              <FormField label="Nombre de Fantasía" value={emisor.nombre_fantasia || ''} onChange={v => setEmisor((e: any) => ({ ...e, nombre_fantasia: v }))} placeholder="Club Olimpia / Mi Cancha" />
-              <FormField label="Timbrado *" value={emisor.d_num_tim || ''} onChange={v => setEmisor((e: any) => ({ ...e, d_num_tim: v }))} placeholder="12345678" />
-              <FormField label="Establecimiento" value={emisor.d_est || '001'} onChange={v => setEmisor((e: any) => ({ ...e, d_est: v }))} placeholder="001" />
-              <FormField label="Punto de Expedición" value={emisor.d_pun_exp || '001'} onChange={v => setEmisor((e: any) => ({ ...e, d_pun_exp: v }))} placeholder="001" />
-            </div>
-            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={guardarEmisor} disabled={savingSifen} style={btn(C.primary)}>
-                {savingSifen ? 'Guardando...' : '💾 Guardar Datos de Emisor'}
-              </button>
-            </div>
-          </div>
-
-          {/* Card 3: Historial de Facturas Electrónicas & Prevención de Duplicados */}
-          <div style={card()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <DollarSign size={18} color={C.green} /> Facturas Electrónicas Emitidas ({documentosSifen.length})
-                </h3>
-                <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0' }}>
-                  🛡️ <strong>Control Anti-Duplicado:</strong> El sistema impide generar más de una factura por cada cuota o matrícula pagada.
-                </p>
-              </div>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${C.border}`, fontSize: 12, color: C.muted }}>
-                  <th style={{ padding: '10px', textAlign: 'left' }}>N° COMPROBANTE</th>
-                  <th style={{ padding: '10px', textAlign: 'left' }}>CDC (CÓDIGO CONTROL)</th>
-                  <th style={{ padding: '10px', textAlign: 'left' }}>RECEPTOR / TUTOR</th>
-                  <th style={{ padding: '10px', textAlign: 'left' }}>MONTO TOTAL</th>
-                  <th style={{ padding: '10px', textAlign: 'center' }}>ESTADO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documentosSifen.map((doc: any) => (
-                  <tr key={doc.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
-                    <td style={{ padding: '10px', fontWeight: 800, color: C.text }}>{doc.numero_documento}</td>
-                    <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: 11, color: C.muted }}>{doc.cdc || 'En proceso'}</td>
-                    <td style={{ padding: '10px', color: C.text }}>{doc.receptor_nombre} ({doc.receptor_ruc || 'Sin RUC'})</td>
-                    <td style={{ padding: '10px', fontWeight: 800, color: C.green }}>{new Intl.NumberFormat('es-PY').format(doc.d_tot_gral_ope || 0)} GS</td>
-                    <td style={{ padding: '10px', textAlign: 'center' }}>
-                      <span style={badge(doc.estado === 'firmado' ? C.green : doc.estado === 'anulado' ? C.red : C.yellow)}>
-                        {doc.estado}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {documentosSifen.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: C.muted }}>
-                      Aún no se han emitido facturas electrónicas en esta academia.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* ── MODAL VER E IMPRIMIR CARNET ── */}
       {modalCarnet && (
@@ -5663,6 +5453,245 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// FACTURACIÓN ELECTRÓNICA SIFEN / .P12 TAB
+// ═══════════════════════════════════════════════════════════
+function SifenTab({ perfil, notify, apiFetch }: any) {
+  const [emisor, setEmisor] = useState<any>({});
+  const [emisorStatus, setEmisorStatus] = useState<any>({});
+  const [certPassword, setCertPassword] = useState('');
+  const [documentosSifen, setDocumentosSifen] = useState<any[]>([]);
+  const [savingSifen, setSavingSifen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const p12FileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    loadSifenData();
+  }, []);
+
+  const loadSifenData = async () => {
+    setLoading(true);
+    try {
+      const [st, em, docs] = await Promise.all([
+        apiFetch('/academia/facturacion/emisor/status').catch(() => ({})),
+        apiFetch('/academia/facturacion/emisor').catch(() => ({})),
+        apiFetch('/academia/facturacion/documentos').catch(() => []),
+      ]);
+      setEmisorStatus(st || {});
+      setEmisor(em || {});
+      setDocumentosSifen(Array.isArray(docs) ? docs : []);
+    } catch (e: any) {
+      console.error('Error al cargar datos SIFEN:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const guardarEmisor = async () => {
+    setSavingSifen(true);
+    try {
+      await apiFetch('/academia/facturacion/emisor', {
+        method: 'POST',
+        body: JSON.stringify(emisor),
+      });
+      notify('Configuración de Emisor SIFEN guardada exitosamente');
+      loadSifenData();
+    } catch (e: any) {
+      notify(e.message || 'Error al guardar emisor', 'err');
+    }
+    setSavingSifen(false);
+  };
+
+  const subirP12 = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.p12')) {
+      notify('Solo se aceptan archivos de certificado con extensión .p12', 'err');
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiFetch('/academia/facturacion/emisor/certificado', {
+        method: 'POST',
+        body: formData,
+      });
+      notify(res.message || 'Certificado .p12 subido correctamente');
+      loadSifenData();
+    } catch (e: any) {
+      notify(e.message || 'Error al subir certificado .p12', 'err');
+    }
+  };
+
+  const guardarPasswordP12 = async () => {
+    if (!certPassword.trim()) {
+      notify('Ingrese la contraseña del certificado .p12', 'err');
+      return;
+    }
+    try {
+      await apiFetch('/academia/facturacion/emisor/certificado/password', {
+        method: 'PUT',
+        body: JSON.stringify({ password: certPassword }),
+      });
+      notify('Contraseña del certificado .p12 guardada correctamente');
+      setCertPassword('');
+      loadSifenData();
+    } catch (e: any) {
+      notify(e.message || 'Error al guardar contraseña del certificado', 'err');
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* ── SECTOR CABECERA SIFEN ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ShieldCheck size={24} color={C.yellow} /> Facturación Electrónica SIFEN / .P12
+          </h2>
+          <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
+            Integración oficial con el Sistema Integrado de Facturación Electrónica Nacional (SIFEN - SET Paraguay).
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={loadSifenData} disabled={loading} style={btn(C.surface, true)}>
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> {loading ? 'Cargando...' : 'Actualizar Estado'}
+          </button>
+        </div>
+      </div>
+
+      {/* Card 1: Estado del Sistema y Carga de Certificado .P12 */}
+      <div style={card()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ShieldCheck size={18} color={C.yellow} /> Estado del Emisor y Certificado Digital (.P12)
+            </h3>
+            <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0' }}>
+              Gestión del Certificado Firma Digital PKCS#12 y contraseña para e-Kuatia / SIFEN SET Paraguay.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span style={badge(emisorStatus?.configurado ? C.green : C.red)}>
+              {emisorStatus?.configurado ? '✅ RUC Emisor Configurado' : '⚠️ RUC Pendiente'}
+            </span>
+            <span style={badge(emisorStatus?.tiene_certificado_activo ? C.green : C.red)}>
+              {emisorStatus?.tiene_certificado_activo ? '🔐 Certificado .P12 Activo' : '❌ Sin Certificado .P12'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {/* Carga de Archivo .P12 */}
+          <div style={{ background: C.bg, padding: 16, borderRadius: 12, border: `1px solid ${C.border}` }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 800, color: C.text }}>
+              1. Cargar Certificado Digital (.p12)
+            </h4>
+            <p style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              Suba el archivo <code>.p12</code> proveído por la autoridad certificadora (CODE10, E-Sign, etc.).
+            </p>
+            <input type="file" ref={p12FileRef} accept=".p12" onChange={subirP12} style={{ display: 'none' }} />
+            <button onClick={() => p12FileRef.current?.click()} style={btn(C.primary)}>
+              <Upload size={14} /> Seleccionar y Subir Archivo .P12
+            </button>
+          </div>
+
+          {/* Contraseña del Certificado .P12 */}
+          <div style={{ background: C.bg, padding: 16, borderRadius: 12, border: `1px solid ${C.border}` }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 800, color: C.text }}>
+              2. Contraseña de la Firma Digital
+            </h4>
+            <p style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              {emisorStatus?.tiene_password_cert ? '✅ Contraseña almacenada y cifrada correctamente.' : '⚠️ Ingrese la clave secreta de su archivo .p12 para firmar facturas.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="password"
+                placeholder="Contraseña del .p12"
+                value={certPassword}
+                onChange={e => setCertPassword(e.target.value)}
+                style={{ ...input(), flex: 1 }}
+              />
+              <button onClick={guardarPasswordP12} style={btn(C.yellow)}>
+                <Lock size={14} /> Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Card 2: Configuración de Datos Contribuyente SIFEN */}
+      <div style={card()}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileText size={18} color={C.primary} /> Datos del Emisor (Academia Contribuyente SET)
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <FormField label="RUC con DV *" value={emisor.ruc_con_dv || ''} onChange={(v: any) => setEmisor((e: any) => ({ ...e, ruc_con_dv: v }))} placeholder="80012345-6" />
+          <FormField label="Razón Social *" value={emisor.razon_social || ''} onChange={(v: any) => setEmisor((e: any) => ({ ...e, razon_social: v }))} placeholder="Academia Deportiva S.A." />
+          <FormField label="Nombre de Fantasía" value={emisor.nombre_fantasia || ''} onChange={(v: any) => setEmisor((e: any) => ({ ...e, nombre_fantasia: v }))} placeholder="Club Olimpia / Mi Cancha" />
+          <FormField label="Timbrado *" value={emisor.d_num_tim || ''} onChange={(v: any) => setEmisor((e: any) => ({ ...e, d_num_tim: v }))} placeholder="12345678" />
+          <FormField label="Establecimiento" value={emisor.d_est || '001'} onChange={(v: any) => setEmisor((e: any) => ({ ...e, d_est: v }))} placeholder="001" />
+          <FormField label="Punto de Expedición" value={emisor.d_pun_exp || '001'} onChange={(v: any) => setEmisor((e: any) => ({ ...e, d_pun_exp: v }))} placeholder="001" />
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={guardarEmisor} disabled={savingSifen} style={btn(C.primary)}>
+            {savingSifen ? 'Guardando...' : '💾 Guardar Datos de Emisor'}
+          </button>
+        </div>
+      </div>
+
+      {/* Card 3: Historial de Facturas Electrónicas & Prevención de Duplicados */}
+      <div style={card()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <DollarSign size={18} color={C.green} /> Facturas Electrónicas Emitidas ({documentosSifen.length})
+            </h3>
+            <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0' }}>
+              🛡️ <strong>Control Anti-Duplicado:</strong> El sistema impide generar más de una factura por cada cuota o matrícula pagada.
+            </p>
+          </div>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${C.border}`, fontSize: 12, color: C.muted }}>
+              <th style={{ padding: '10px', textAlign: 'left' }}>N° COMPROBANTE</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>CDC (CÓDIGO CONTROL)</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>RECEPTOR / TUTOR</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>MONTO TOTAL</th>
+              <th style={{ padding: '10px', textAlign: 'center' }}>ESTADO</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documentosSifen.map((doc: any) => (
+              <tr key={doc.id} style={{ borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
+                <td style={{ padding: '10px', fontWeight: 800, color: C.text }}>{doc.numero_documento}</td>
+                <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: 11, color: C.muted }}>{doc.cdc || 'En proceso'}</td>
+                <td style={{ padding: '10px', color: C.text }}>{doc.receptor_nombre} ({doc.receptor_ruc || 'Sin RUC'})</td>
+                <td style={{ padding: '10px', fontWeight: 800, color: C.green }}>{new Intl.NumberFormat('es-PY').format(doc.d_tot_gral_ope || 0)} GS</td>
+                <td style={{ padding: '10px', textAlign: 'center' }}>
+                  <span style={badge(doc.estado === 'firmado' ? C.green : doc.estado === 'anulado' ? C.red : C.yellow)}>
+                    {doc.estado}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {documentosSifen.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: C.muted }}>
+                  Aún no se han emitido facturas electrónicas en esta academia.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
