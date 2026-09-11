@@ -828,6 +828,36 @@ export function MiCanchaBadge({ theme }: { theme: 'bronce' | 'cristal' | 'acero'
   );
 }
 
+// Funciones auxiliares para detectar textos predeterminados de las fotos
+function isDefaultPergaminoText(text?: string | null): boolean {
+  if (!text) return true;
+  return (
+    text.includes("incontables años") ||
+    text.includes("dedicación inquebrantable") ||
+    text.includes("pilar fundamental") ||
+    text.length < 10
+  );
+}
+
+function isDefaultAzulText(text?: string | null): boolean {
+  if (!text) return true;
+  return (
+    text.includes("valiosa participación") ||
+    text.includes("otorga este presente") ||
+    text.length < 10
+  );
+}
+
+function isDefaultClasicoText(text?: string | null): boolean {
+  if (!text) return true;
+  return (
+    text.includes("sincera gratitud") ||
+    text.includes("invaluable aporte") ||
+    text.includes("lazos de fraternidad") ||
+    text.length < 10
+  );
+}
+
 // =========================================================================
 // COMPONENTE PRINCIPAL: RENDERIZADOR DE TODAS LAS 9 PLANTILLAS
 // =========================================================================
@@ -835,371 +865,450 @@ export default function CertificateCard({ data, isPrintMode = false, torneo }: C
   const plantilla = data.plantilla || "placa_madera";
 
   // =======================================================================
-  // NUEVA PLANTILLA 1: PERGAMINO MARCIAL / ROLLO DE HONOR (IDÉNTICO A FOTO 1)
+  // NUEVA PLANTILLA 1: PERGAMINO MARCIAL / ROLLO DE HONOR (FOTO 1 IDÉNTICA)
   // =======================================================================
   if (plantilla === "pergamino_marcial") {
     return (
       <div
-        className="w-full h-full relative flex flex-col justify-between select-none overflow-hidden"
+        className="w-full h-full relative select-none overflow-hidden"
         style={{
-          backgroundColor: "#f5e6ca",
-          backgroundImage: `radial-gradient(ellipse at center, #fbf2dc 0%, #eddab3 55%, #dfc79b 85%, #bfa06f 100%)`,
-          boxShadow: isPrintMode ? "none" : "inset 0 0 60px rgba(120, 80, 20, 0.4), 0 20px 45px rgba(0,0,0,0.5)",
-          border: isPrintMode ? "none" : "6px solid #4a2810"
+          aspectRatio: "842/1024",
+          boxShadow: isPrintMode ? "none" : "0 20px 45px rgba(0,0,0,0.5)"
         }}
       >
-        <div
-          className="absolute inset-[1.5%] pointer-events-none rounded-sm"
-          style={{
-            border: "1.5px solid rgba(139, 69, 19, 0.35)",
-            boxShadow: "inset 0 0 35px rgba(110, 60, 15, 0.3)"
-          }}
+        {/* Imagen fotográfica de fondo idéntica a la referencia */}
+        <img
+          src="/images/certificados/pergamino_clean.jpg"
+          alt="Pergamino Antiguo de Honor"
+          className="absolute inset-0 w-full h-full object-fill pointer-events-none"
         />
 
-        <div className="pt-2 px-2 sm:px-4">
-          <WoodenScrollRod />
-        </div>
+        {/* Logo personalizado si se subió uno */}
+        {data.logo_url && (
+          <div className="absolute top-[12.5%] left-1/2 -translate-x-1/2 w-28 h-16 flex items-center justify-center pointer-events-none z-10">
+            <img src={data.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+          </div>
+        )}
 
-        <div className="flex-1 flex flex-col justify-between items-center text-center px-6 sm:px-10 md:px-12 py-3 z-10">
-          <div className="mt-1">
-            <SeigokanCrest logoUrl={data.logo_url} variant="dark" size="md" />
+        {/* Capa de textos con tipografía idéntica a la foto */}
+        <div className="absolute inset-0 flex flex-col items-center pointer-events-none z-20">
+          
+          {/* Título: "Reconocimiento y Honor a" */}
+          <div
+            className="absolute top-[31.6%] w-[78%] text-center text-[#241e19] italic font-medium leading-none"
+            style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: "clamp(13px, 2.2vw, 24px)"
+            }}
+          >
+            {data.titulo || "Reconocimiento y Honor a"}
           </div>
 
-          <div className="mt-2 mb-1">
-            <h2
-              className="text-base sm:text-lg md:text-xl font-normal italic"
-              style={{
-                color: "#2b1911",
-                fontFamily: "'Playfair Display', 'EB Garamond', Georgia, serif"
-              }}
-            >
-              {data.titulo || "Reconocimiento y Honor a"}
-            </h2>
-
-            <h1
-              className="text-xl sm:text-2xl md:text-3xl font-bold tracking-wide mt-1 uppercase"
-              style={{
-                color: "#180c06",
-                fontFamily: "'Cinzel', 'Playfair Display', serif",
-                textShadow: "0 1px 1px rgba(255,255,255,0.4)"
-              }}
-            >
-              {data.destinatario || "Sensei ROBERTO TAKESHI FUKOCHI"}
-            </h1>
+          {/* Destinatario: "Sensei ROBERTO TAKESHI FUKOCHI" */}
+          <div
+            className="absolute top-[34.8%] w-[78%] text-center text-[#15110e] font-bold uppercase tracking-[0.05em] leading-tight"
+            style={{
+              fontFamily: "'Cinzel', Georgia, serif",
+              fontSize: "clamp(14px, 2.6vw, 27px)",
+              textShadow: "0 0 1px rgba(0,0,0,0.2)"
+            }}
+          >
+            {data.destinatario || "Sensei ROBERTO TAKESHI FUKOCHI"}
           </div>
 
-          <div className="max-w-xl my-auto py-1.5 space-y-2">
-            <p
-              className="text-xs sm:text-sm md:text-[15px] leading-relaxed italic text-justify px-2"
-              style={{
-                color: "#2e1c12",
-                fontFamily: "'EB Garamond', Georgia, serif"
-              }}
-            >
-              {data.texto_agradecimiento}
-            </p>
-
-            {data.subtitulo && (
-              <p
-                className="text-xs sm:text-sm font-bold tracking-wide uppercase mt-1"
-                style={{
-                  color: "#1f120a",
-                  fontFamily: "'Cinzel', 'Playfair Display', serif"
-                }}
-              >
-                {data.subtitulo}
-              </p>
-            )}
-
-            {data.otorgado_por && (
-              <p
-                className="text-xs sm:text-sm font-extrabold uppercase tracking-wider mt-1"
-                style={{
-                  color: "#180c06",
-                  fontFamily: "'Cinzel', serif"
-                }}
-              >
-                {data.otorgado_por}
-              </p>
-            )}
-          </div>
-
-          {data.ciudad_fecha && (
-            <div className="my-1">
-              <p
-                className="text-[11px] sm:text-xs md:text-sm italic"
-                style={{
-                  color: "#382013",
-                  fontFamily: "'EB Garamond', Georgia, serif"
-                }}
-              >
-                {data.ciudad_fecha}
-              </p>
-            </div>
-          )}
-
-          <div className="w-full flex items-end justify-between px-2 sm:px-6 pt-2 pb-3 mt-1">
-            <div className="flex items-center">
-              <RedWaxSeal size={72} />
-            </div>
-
-            <div className="flex items-end gap-3 text-right">
-              <div className="flex flex-col items-end">
-                <CalligraphySignature
-                  nombre={data.nombre_firmante || "Jorge Salgado Castillo"}
-                  color="#150a04"
-                />
-                <div className="w-32 sm:w-44 border-b border-[#3b2011]/60 my-0.5" />
-                <p className="text-[10px] sm:text-xs font-bold" style={{ color: "#1d0f07" }}>
-                  {data.nombre_firmante || "Sensei Jorge Salgado Castillo"}
+          {/* Bloque central de dedicación */}
+          <div
+            className="absolute top-[39.2%] w-[72%] text-center flex flex-col items-center justify-start space-y-1 sm:space-y-1.5"
+            style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+          >
+            {isDefaultPergaminoText(data.texto_agradecimiento) ? (
+              <>
+                <p
+                  className="text-[#2a221b] italic font-medium leading-[1.34] text-center"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 19px)" }}
+                >
+                  Por sus incontables años de dedicación inquebrantable,<br className="hidden sm:inline" />
+                  {" "}pasión y sabiduría en la enseñanza y difusión del
                 </p>
-                {data.cargo_firmante && (
-                  <p className="text-[9px] sm:text-[10px] italic opacity-85" style={{ color: "#361d0f" }}>
-                    {data.cargo_firmante}
+
+                <p
+                  className="text-[#15110e] font-bold tracking-[0.14em] uppercase text-center mt-0.5 sm:mt-1"
+                  style={{
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: "clamp(11px, 2.05vw, 21px)"
+                  }}
+                >
+                  {data.subtitulo || "KARATE DO GO JU RYU"}
+                </p>
+
+                <p
+                  className="text-[#2a221b] italic font-medium leading-tight text-center mt-0.5 sm:mt-1"
+                  style={{ fontSize: "clamp(10px, 1.75vw, 18px)" }}
+                >
+                  Como pilar fundamental de la
+                </p>
+
+                <p
+                  className="text-[#15110e] font-bold tracking-[0.09em] uppercase text-center"
+                  style={{
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: "clamp(11px, 1.95vw, 20px)"
+                  }}
+                >
+                  {data.otorgado_por || "ASOCIACIÓN SEIGOKAN DE KARATE DO"}
+                </p>
+
+                <p
+                  className="text-[#2a221b] italic font-medium leading-[1.32] text-center mt-1 sm:mt-2"
+                  style={{ fontSize: "clamp(9.5px, 1.65vw, 17px)" }}
+                >
+                  Este pergamino certifica la gratitud profunda de sus estudiantes<br className="hidden sm:inline" />
+                  {" "}y la comunidad marcial. Su legado de rectitud y maestría perdurará.
+                </p>
+              </>
+            ) : (
+              <div className="space-y-1.5 py-1">
+                <p
+                  className="text-[#2a221b] italic font-medium leading-relaxed text-center px-2"
+                  style={{ fontSize: "clamp(10px, 1.8vw, 18px)" }}
+                >
+                  {data.texto_agradecimiento}
+                </p>
+                {data.subtitulo && (
+                  <p
+                    className="text-[#15110e] font-bold tracking-[0.12em] uppercase text-center"
+                    style={{ fontFamily: "'Cinzel', serif", fontSize: "clamp(11px, 2.0vw, 20px)" }}
+                  >
+                    {data.subtitulo}
+                  </p>
+                )}
+                {data.otorgado_por && (
+                  <p
+                    className="text-[#15110e] font-bold tracking-[0.08em] uppercase text-center"
+                    style={{ fontFamily: "'Cinzel', serif", fontSize: "clamp(10px, 1.8vw, 18px)" }}
+                  >
+                    {data.otorgado_por}
                   </p>
                 )}
               </div>
-
-              <div className="pb-1">
-                <JapaneseHankoSeal size={38} />
-              </div>
-            </div>
+            )}
           </div>
-        </div>
 
-        <div
-          className="absolute -bottom-2 -left-2 w-16 h-16 pointer-events-none opacity-40 z-20"
-          style={{
-            background: "radial-gradient(circle at 0% 100%, #8b5a2b 0%, transparent 70%)"
-          }}
-        />
+          {/* Fecha y Lugar */}
+          <div
+            className="absolute top-[64.2%] w-[72%] text-center text-[#2d241c] italic font-medium leading-snug whitespace-pre-line"
+            style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: "clamp(10px, 1.7vw, 17px)"
+            }}
+          >
+            {data.ciudad_fecha || "Dada en Ciudad del Este, Paraguay.\nNoviembre 2026."}
+          </div>
+
+          {/* Firma personalizada en caso de que se configure otro firmante */}
+          {data.nombre_firmante && !data.nombre_firmante.includes("Jorge Salgado") && (
+            <div className="absolute bottom-[17.5%] right-[11%] text-right bg-[#f1dfbe]/90 px-3 py-1 rounded shadow-sm">
+              <p className="font-['Alex_Brush'] text-xl sm:text-2xl text-[#150a04] leading-none">{data.nombre_firmante}</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-[#1d0f07]">{data.nombre_firmante}</p>
+              {data.cargo_firmante && <p className="text-[9px] sm:text-[10px] italic text-[#361d0f]">{data.cargo_firmante}</p>}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   // =======================================================================
-  // NUEVA PLANTILLA 2: AZUL MARINO IMPERIAL Y ORO 24K (IDÉNTICO A FOTO 2)
+  // NUEVA PLANTILLA 2: AZUL MARINO IMPERIAL Y ORO 24K (FOTO 2 IDÉNTICA)
   // =======================================================================
   if (plantilla === "azul_imperial_oro") {
     return (
       <div
-        className="w-full h-full relative flex flex-col justify-between select-none overflow-hidden p-6 sm:p-10"
+        className="w-full h-full relative select-none overflow-hidden"
         style={{
-          backgroundColor: "#0d2644",
-          backgroundImage: `radial-gradient(ellipse at center, #1b3d68 0%, #0d2644 60%, #061324 100%)`,
-          boxShadow: isPrintMode ? "none" : "inset 0 0 70px rgba(0,0,0,0.85), 0 20px 45px rgba(0,0,0,0.6)",
-          border: isPrintMode ? "none" : "6px solid #081729"
+          aspectRatio: "842/1024",
+          boxShadow: isPrintMode ? "none" : "0 20px 45px rgba(0,0,0,0.6)"
         }}
       >
-        <GoldFiligreeFrame />
+        {/* Imagen fotográfica de fondo idéntica a la referencia */}
+        <img
+          src="/images/certificados/azul_oro_clean.jpg"
+          alt="Certificado Azul Marino y Oro 24K"
+          className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+        />
 
-        <div className="relative z-20 flex-1 flex flex-col justify-between items-center text-center py-4 px-4 sm:px-8">
-          <div className="mt-1">
-            <SeigokanCrest logoUrl={data.logo_url} variant="gold" size="lg" />
+        {/* Logo personalizado opcional */}
+        {data.logo_url && (
+          <div className="absolute top-[16%] left-1/2 -translate-x-1/2 w-28 h-16 flex items-center justify-center pointer-events-none z-10">
+            <img src={data.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+          </div>
+        )}
+
+        <div className="absolute inset-0 flex flex-col items-center pointer-events-none z-20">
+          
+          {/* Título: "CERTIFICADO DE PARTICIPACIÓN" en oro en relieve */}
+          <div
+            className="absolute top-[40.2%] w-[76%] text-center font-bold uppercase tracking-[0.14em]"
+            style={{
+              fontFamily: "'Cinzel', Georgia, serif",
+              fontSize: "clamp(13px, 2.35vw, 24px)",
+              color: "#dfbe76",
+              textShadow: "0 2px 4px rgba(0,0,0,0.8), 0 0 12px rgba(223,190,118,0.45)"
+            }}
+          >
+            {data.titulo || "CERTIFICADO DE PARTICIPACIÓN"}
           </div>
 
-          <div className="my-2">
-            <h1
-              className="text-lg sm:text-2xl md:text-3xl font-black uppercase tracking-[0.14em]"
-              style={{
-                color: "#e8c872",
-                fontFamily: "'Cinzel', Georgia, serif",
-                textShadow: "0 2px 10px rgba(0,0,0,0.7), 0 0 20px rgba(232,200,114,0.3)"
-              }}
-            >
-              {data.titulo || "CERTIFICADO DE PARTICIPACIÓN"}
-            </h1>
-          </div>
+          {/* Texto del certificado */}
+          <div
+            className="absolute top-[45.2%] w-[68%] text-center flex flex-col items-center space-y-1 sm:space-y-1.5"
+            style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+          >
+            {isDefaultAzulText(data.texto_agradecimiento) ? (
+              <>
+                <p
+                  className="text-[#dfc285] italic leading-tight"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 19px)" }}
+                >
+                  La Escuela Seigokan otorga este presente
+                </p>
 
-          <div className="max-w-xl my-auto py-2 space-y-3">
-            <p
-              className="text-xs sm:text-sm md:text-base leading-relaxed italic"
-              style={{
-                color: "#e2d5b6",
-                fontFamily: "'EB Garamond', Georgia, serif"
-              }}
-            >
-              {data.otorgado_por || "La Escuela Seigokan"} otorga este presente Certificado a{" "}
-              <span className="font-bold text-white tracking-wide">
-                {data.destinatario || "Sensei ............................."}
-              </span>
-            </p>
+                <p
+                  className="text-[#dfc285] italic leading-tight"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 19px)" }}
+                >
+                  Certificado a <span className="font-semibold text-[#f8ebd0]">{data.destinatario || "Sensei .........................................."}</span>,
+                </p>
 
-            <p
-              className="text-xs sm:text-sm md:text-base leading-relaxed italic text-justify px-2"
-              style={{
-                color: "#e9ddbf",
-                fontFamily: "'EB Garamond', Georgia, serif"
-              }}
-            >
-              {data.texto_agradecimiento}
-            </p>
+                <p
+                  className="text-[#dfc285] italic leading-tight"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 19px)" }}
+                >
+                  representante de la Escuela Seigokan de ......................
+                </p>
 
-            {data.subtitulo && (
-              <p
-                className="text-xs sm:text-sm font-semibold tracking-wider uppercase mt-1 text-[#f3dfa2]"
-                style={{ fontFamily: "'Cinzel', serif" }}
-              >
-                {data.subtitulo}
-              </p>
+                <p
+                  className="text-[#dfc285] italic leading-tight mt-1 sm:mt-1.5"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 19px)" }}
+                >
+                  por su valiosa participación en el
+                </p>
+
+                <p
+                  className="text-[#f1d798] font-bold italic leading-tight"
+                  style={{ fontSize: "clamp(11px, 2.05vw, 21px)" }}
+                >
+                  {data.subtitulo || "XIII Torneo Seigokan Go Ju Ryu Karate Do"}
+                </p>
+
+                <p
+                  className="text-[#dfc285] italic leading-tight"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 19px)" }}
+                >
+                  realizado en noviembre de 2026.
+                </p>
+              </>
+            ) : (
+              <div className="space-y-1.5 py-1">
+                <p
+                  className="text-[#dfc285] italic leading-relaxed text-center px-2"
+                  style={{ fontSize: "clamp(10px, 1.8vw, 18px)" }}
+                >
+                  {data.texto_agradecimiento}
+                </p>
+                {data.destinatario && (
+                  <p
+                    className="text-[#f8ebd0] font-bold italic text-center"
+                    style={{ fontSize: "clamp(11px, 2.1vw, 21px)" }}
+                  >
+                    {data.destinatario}
+                  </p>
+                )}
+                {data.subtitulo && (
+                  <p
+                    className="text-[#f1d798] font-bold italic text-center"
+                    style={{ fontSize: "clamp(11px, 2.0vw, 20px)" }}
+                  >
+                    {data.subtitulo}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
-          {data.ciudad_fecha && (
-            <div className="my-1.5">
-              <p
-                className="text-[11px] sm:text-xs md:text-sm italic text-[#c7b280]"
-                style={{ fontFamily: "'EB Garamond', serif" }}
-              >
-                {data.ciudad_fecha}
-              </p>
+          {/* Fecha y Lugar */}
+          <div
+            className="absolute top-[66.0%] w-[68%] text-center text-[#d8bb78] italic leading-tight"
+            style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: "clamp(9.5px, 1.55vw, 16px)"
+            }}
+          >
+            {data.ciudad_fecha || "Dado en [Lugar], a los [Día] días del mes de noviembre de 2026."}
+          </div>
+
+          {/* Firma personalizada si se cambia de autoridad */}
+          {data.nombre_firmante && !data.nombre_firmante.includes("Jorge Salgado") && (
+            <div className="absolute bottom-[20%] left-[16%] text-left bg-[#091b33]/90 px-3 py-1 rounded border border-[#dfbe76]/40">
+              <p className="font-['Alex_Brush'] text-xl sm:text-2xl text-[#f5dfa5] leading-none">{data.nombre_firmante}</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-[#f5dfa5]">{data.nombre_firmante}</p>
+              {data.cargo_firmante && <p className="text-[9px] sm:text-[10px] italic text-[#dfc285]">{data.cargo_firmante}</p>}
             </div>
           )}
-
-          <div className="w-full flex items-end justify-between px-2 sm:px-6 pt-3 mt-1">
-            <div className="flex flex-col items-start text-left">
-              <CalligraphySignature
-                nombre={data.nombre_firmante || "Jorge Salgado Castillo"}
-                color="#fdfbf7"
-              />
-              <div className="w-36 sm:w-48 border-b border-[#dfbf68]/60 my-0.5" />
-              <p className="text-[10px] sm:text-xs font-semibold text-[#f3e3a9]">
-                {data.cargo_firmante || "Representación de Seigokan Paraguay"}
-              </p>
-              <p className="text-[9px] sm:text-[10px] text-[#c9b990] italic">
-                {data.nombre_firmante || "Sensei Jorge Salgado Castillo."}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              <RedWaxSeal size={68} />
-              <CircularInkanSeal size={42} />
-            </div>
-          </div>
         </div>
       </div>
     );
   }
 
   // =======================================================================
-  // NUEVA PLANTILLA 3: DIPLOMA CLÁSICO LAUREL Y AGRADECIMIENTO (IDÉNTICO A FOTO 3)
+  // NUEVA PLANTILLA 3: DIPLOMA CLÁSICO LAUREL Y AGRADECIMIENTO (FOTO 3 IDÉNTICA)
   // =======================================================================
   if (plantilla === "diploma_marcial_laurel") {
     return (
       <div
-        className="w-full h-full relative flex flex-col justify-between select-none overflow-hidden p-6 sm:p-10"
+        className="w-full h-full relative select-none overflow-hidden"
         style={{
-          backgroundColor: "#faf7f0",
-          backgroundImage: `radial-gradient(ellipse at center, #ffffff 0%, #f9f5ec 70%, #f1eadc 100%)`,
-          boxShadow: isPrintMode ? "none" : "inset 0 0 45px rgba(0,0,0,0.06), 0 15px 35px rgba(0,0,0,0.2)",
-          border: isPrintMode ? "none" : "4px solid #b5a48b"
+          aspectRatio: "842/1024",
+          boxShadow: isPrintMode ? "none" : "0 20px 45px rgba(0,0,0,0.3)"
         }}
       >
-        <ClassicLaurelEngravedBorder />
+        {/* Imagen fotográfica de fondo idéntica a la referencia */}
+        <img
+          src="/images/certificados/clasico_laurel_clean.jpg"
+          alt="Diploma Clásico Laurel"
+          className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+        />
 
-        <div className="relative z-20 flex-1 flex flex-col justify-between items-center text-center py-4 px-6 sm:px-10">
-          <div className="mt-1">
-            <SeigokanCrest logoUrl={data.logo_url} variant="black" size="md" />
+        {/* Logo personalizado opcional */}
+        {data.logo_url && (
+          <div className="absolute top-[13.5%] left-1/2 -translate-x-1/2 w-28 h-16 flex items-center justify-center pointer-events-none z-10">
+            <img src={data.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+          </div>
+        )}
+
+        <div className="absolute inset-0 flex flex-col items-center pointer-events-none z-20">
+          
+          {/* Título: "CERTIFICADO DE AGRADECIMIENTO" */}
+          <div
+            className="absolute top-[32.6%] w-[74%] text-center font-bold uppercase tracking-[0.12em] text-[#141414]"
+            style={{
+              fontFamily: "'Cinzel', Georgia, serif",
+              fontSize: "clamp(13px, 2.4vw, 25px)"
+            }}
+          >
+            {data.titulo || "CERTIFICADO DE AGRADECIMIENTO"}
           </div>
 
-          <div className="my-1.5">
-            <h1
-              className="text-base sm:text-xl md:text-2xl font-black uppercase tracking-[0.14em]"
-              style={{
-                color: "#18181b",
-                fontFamily: "'Cinzel', 'Playfair Display', serif"
-              }}
-            >
-              {data.titulo || "CERTIFICADO DE AGRADECIMIENTO"}
-            </h1>
-
-            <p
-              className="text-xs sm:text-sm italic mt-1"
-              style={{
-                color: "#3f3f46",
-                fontFamily: "'EB Garamond', Georgia, serif"
-              }}
-            >
-              {data.otorgado_por || "La Asociación Seigokan"}, con profundo respeto y gratitud, otorga el presente
-            </p>
-
-            <span
-              className="inline-block text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase text-[#18181b] mt-1.5 px-3 py-0.5 border-b border-[#18181b]/30"
-              style={{ fontFamily: "'Cinzel', serif" }}
-            >
-              CERTIFICADO A
-            </span>
+          {/* Texto de apertura */}
+          <div
+            className="absolute top-[36.8%] w-[68%] text-center text-[#252525] italic leading-tight"
+            style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: "clamp(10.5px, 1.8vw, 18px)"
+            }}
+          >
+            La Asociación Seigokan, con profundo respeto y<br className="hidden sm:inline" />
+            {" "}gratitud, otorga el presente
           </div>
 
-          <div className="max-w-xl my-auto py-1 space-y-2">
-            <div className="py-1">
-              <h2
-                className="text-lg sm:text-2xl md:text-3xl font-bold tracking-wide uppercase border-b-2 border-[#d4c5a9] inline-block px-6 pb-1"
-                style={{
-                  color: "#18181b",
-                  fontFamily: "'Cinzel', 'Playfair Display', serif"
-                }}
-              >
-                {data.destinatario || "..........................................................."}
-              </h2>
-            </div>
+          {/* "CERTIFICADO A" */}
+          <div
+            className="absolute top-[43.4%] w-[68%] text-center font-bold uppercase tracking-[0.15em] text-[#141414]"
+            style={{
+              fontFamily: "'Cinzel', Georgia, serif",
+              fontSize: "clamp(11px, 1.95vw, 20px)"
+            }}
+          >
+            CERTIFICADO A
+          </div>
 
-            <p
-              className="text-xs sm:text-sm md:text-[15px] leading-relaxed italic text-justify px-2"
-              style={{
-                color: "#27272a",
-                fontFamily: "'EB Garamond', Georgia, serif"
-              }}
-            >
-              {data.texto_agradecimiento}
-            </p>
+          {/* Destinatario con línea punteada */}
+          <div
+            className="absolute top-[47.6%] w-[64%] text-center font-bold tracking-wide text-[#0f0f0f] border-b-2 border-dotted border-[#666] pb-0.5"
+            style={{
+              fontFamily: "'Cinzel', 'EB Garamond', serif",
+              fontSize: "clamp(13px, 2.5vw, 26px)"
+            }}
+          >
+            {data.destinatario || ".................................................."}
+          </div>
 
-            {data.subtitulo && (
-              <p
-                className="text-xs sm:text-sm font-bold tracking-wide uppercase text-[#18181b] mt-1"
-                style={{ fontFamily: "'Cinzel', serif" }}
-              >
-                {data.subtitulo}
-              </p>
+          {/* Texto de agradecimiento */}
+          <div
+            className="absolute top-[52.4%] w-[68%] text-center flex flex-col items-center space-y-1 sm:space-y-1.5"
+            style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+          >
+            {isDefaultClasicoText(data.texto_agradecimiento) ? (
+              <>
+                <p
+                  className="text-[#222222] italic leading-[1.32]"
+                  style={{ fontSize: "clamp(10.5px, 1.75vw, 18px)" }}
+                >
+                  En reconocimiento y sincera gratitud por su invaluable<br className="hidden sm:inline" />
+                  {" "}aporte y dedicación en la organización y éxito del
+                </p>
+
+                <p
+                  className="text-[#111111] font-bold tracking-[0.09em] uppercase text-center mt-0.5 sm:mt-1"
+                  style={{
+                    fontFamily: "'Cinzel', serif",
+                    fontSize: "clamp(11.5px, 2.05vw, 21px)"
+                  }}
+                >
+                  {data.subtitulo || "XIII TORNEO SUDAMERICANO SEIGOKAN"}
+                </p>
+
+                <p
+                  className="text-[#222222] italic leading-tight"
+                  style={{ fontSize: "clamp(10.5px, 1.75vw, 18px)" }}
+                >
+                  {data.ciudad_fecha || "Realizado en la Ciudad del Este, Paraguay, en el mes de noviembre del año 2026."}
+                </p>
+
+                <p
+                  className="text-[#222222] italic leading-[1.32] mt-0.5 sm:mt-1"
+                  style={{ fontSize: "clamp(10.5px, 1.75vw, 18px)" }}
+                >
+                  Este evento, gracias a su apoyo, ha fortalecido los lazos<br className="hidden sm:inline" />
+                  {" "}de fraternidad y el espíritu del Karate Do.
+                </p>
+              </>
+            ) : (
+              <div className="space-y-1.5 py-1">
+                <p
+                  className="text-[#222222] italic leading-relaxed text-center px-2"
+                  style={{ fontSize: "clamp(10.5px, 1.8vw, 18px)" }}
+                >
+                  {data.texto_agradecimiento}
+                </p>
+                {data.subtitulo && (
+                  <p
+                    className="text-[#111111] font-bold tracking-[0.08em] uppercase text-center"
+                    style={{ fontFamily: "'Cinzel', serif", fontSize: "clamp(11.5px, 2.0vw, 20px)" }}
+                  >
+                    {data.subtitulo}
+                  </p>
+                )}
+                {data.ciudad_fecha && (
+                  <p
+                    className="text-[#222222] italic text-center"
+                    style={{ fontSize: "clamp(10.5px, 1.7vw, 17px)" }}
+                  >
+                    {data.ciudad_fecha}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
-          {data.ciudad_fecha && (
-            <div className="my-1">
-              <p
-                className="text-[11px] sm:text-xs md:text-sm italic text-[#52525b]"
-                style={{ fontFamily: "'EB Garamond', serif" }}
-              >
-                {data.ciudad_fecha}
-              </p>
+          {/* Firma personalizada si se cambia la autoridad */}
+          {data.nombre_firmante && !data.nombre_firmante.includes("Jorge Salgado") && (
+            <div className="absolute bottom-[16%] left-[22%] text-left bg-[#faf7f0]/95 px-3 py-1 rounded shadow-sm border border-slate-300">
+              <p className="font-['Alex_Brush'] text-xl sm:text-2xl text-[#111111] leading-none">{data.nombre_firmante}</p>
+              <p className="text-[10px] sm:text-[11px] font-bold text-[#111111]">{data.nombre_firmante}</p>
+              {data.cargo_firmante && <p className="text-[9px] sm:text-[10px] italic text-[#333333]">{data.cargo_firmante}</p>}
             </div>
           )}
-
-          <div className="w-full flex items-end justify-between px-2 sm:px-6 pt-2 mt-1">
-            <div className="flex items-end gap-3 text-left">
-              <div>
-                <CalligraphySignature
-                  nombre={data.nombre_firmante || "Jorge Salgado Castillo"}
-                  color="#18181b"
-                />
-                <div className="w-36 sm:w-48 border-b border-[#27272a]/60 my-0.5" />
-                <p className="text-[10px] sm:text-xs font-bold text-[#18181b]" style={{ fontFamily: "'Cinzel', serif" }}>
-                  {data.nombre_firmante || "Sensei JORGE SALGADO CASTILLO."}
-                </p>
-                <p className="text-[9px] sm:text-[10px] italic text-[#52525b]">
-                  {data.cargo_firmante || "Seigokan Paraguay"}
-                </p>
-              </div>
-
-              <div className="pb-1">
-                <JapaneseHankoSeal size={40} />
-              </div>
-            </div>
-
-            <div className="flex items-center -mr-2 -mb-2">
-              <RedWaxSeal size={74} />
-            </div>
-          </div>
         </div>
       </div>
     );

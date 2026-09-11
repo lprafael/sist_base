@@ -101,6 +101,9 @@ def get_current_user(
                 cid = request.headers.get("x-complejo-id") or request.query_params.get("complejo_id")
                 if cid:
                     payload["impersonate_complejo_id"] = cid
+                acad_id = request.headers.get("x-academia-id") or request.headers.get("X-Academia-Id") or request.query_params.get("academia_id")
+                if acad_id:
+                    payload["academia_id"] = acad_id
             except Exception:
                 pass
     return payload

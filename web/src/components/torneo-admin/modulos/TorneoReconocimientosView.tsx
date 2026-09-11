@@ -35,9 +35,9 @@ export interface Reconocimiento {
 }
 
 const TEMPLATES_LIST = [
-  { id: "pergamino_marcial", name: "1. Pergamino de Honor", desc: "Rollo con madera, papiro envejecido y sello de lacre", badge: "Vertical A4" },
-  { id: "azul_imperial_oro", name: "2. Azul Marino y Oro 24K", desc: "Fondo azul noche imperial, filigrana de oro y sello de lacre", badge: "Vertical A4" },
-  { id: "diploma_marcial_laurel", name: "3. Diploma Clásico Laurel", desc: "Orla renacentista de laurel, sello Hanko y lacre", badge: "Vertical A4" },
+  { id: "pergamino_marcial", name: "1. Pergamino de Honor", desc: "Rollo de madera, papiro milenario y sello de lacre rojo", badge: "Vertical A4", image: "/images/certificados/pergamino_raw.jpg" },
+  { id: "azul_imperial_oro", name: "2. Azul Marino y Oro 24K", desc: "Lienzo azul noche imperial, filigrana dorada y sellos", badge: "Vertical A4", image: "/images/certificados/azul_oro_raw.jpg" },
+  { id: "diploma_marcial_laurel", name: "3. Diploma Clásico Laurel", desc: "Orla renacentista de laurel, sello Hanko y lacre", badge: "Vertical A4", image: "/images/certificados/clasico_laurel_raw.jpg" },
   { id: "placa_madera", name: "4. Placa Nogal y Bronce", desc: "Madera oscura, chapa de latón y tornillos de bronce", badge: "Horizontal" },
   { id: "placa_cristal", name: "5. Placa Cristal y Acero", desc: "Cristal templado flotante y pernos cromados", badge: "Horizontal" },
   { id: "placa_caoba_plata", name: "6. Placa Caoba y Plata", desc: "Madera rojiza, acero cepillado y grabado láser", badge: "Horizontal" },

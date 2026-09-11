@@ -1205,25 +1205,76 @@ export default function AdminConsole() {
     }
   };
 
-  const handleAccessAcademiaPanel = (a: any) => {
+  const handleAccessAcademiaPanel = async (a: any) => {
     if (typeof window === 'undefined') return;
-    const currentSession = localStorage.getItem('user_session');
-    if (currentSession) {
-      localStorage.setItem('admin_session_backup', currentSession);
+
+    // 1. Respaldar sesión del administrador para retornar luego
+    const currentSessionStr = localStorage.getItem('user_session');
+    let sessionData = JSON.parse(currentSessionStr || '{}');
+    const adminBackup = localStorage.getItem('admin_session_backup');
+    if (adminBackup) {
+      sessionData = JSON.parse(adminBackup);
+      localStorage.setItem('user_session', adminBackup);
+    } else if (currentSessionStr) {
+      localStorage.setItem('admin_session_backup', currentSessionStr);
     }
+
+    const currentToken = sessionData.access_token || sessionData.token || '';
+    let tokenToUse = currentToken;
+    let userIdToUse = sessionData.usuario_id || sessionData.id;
+
+    // 2. Si la academia tiene usuario asignado registrado, intentar impersonar token oficial
+    const assignedEmail = (a.usuario_email || a.email || '').toLowerCase().trim();
+    const matchedUser = usuarios.find((u: any) => 
+      (u.email && u.email.toLowerCase().trim() === assignedEmail) ||
+      (u.username && u.username.toLowerCase().trim() === assignedEmail.split('@')[0])
+    );
+
+    if (matchedUser && matchedUser.id && currentToken) {
+      try {
+        const res = await fetch(`${API_URL}/auth/impersonate/${matchedUser.id}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          tokenToUse = data.access_token;
+          userIdToUse = data.user.id;
+        }
+      } catch (err) {
+        console.warn("Fallo de impersonate de usuario asignado, continuando con sesión de admin delegada:", err);
+      }
+    }
+
+    // 3. Crear sesión para el panel de academia
     const academiaSession = {
+      ...sessionData,
       role: 'academia',
       academia_id: a.id,
+      id: a.id,
       nombre: a.nombre,
-      email: a.usuario_email || a.email || '',
-      token: session?.access_token || session?.token || ''
+      academia_nombre: a.nombre,
+      email: a.usuario_email || a.email || sessionData.email,
+      telefono: a.telefono || '',
+      direccion: a.direccion || '',
+      ciudad: a.ciudad || '',
+      token: tokenToUse,
+      access_token: tokenToUse,
+      usuario_id: userIdToUse,
+      is_impersonating: true,
+      impersonator_role: sessionData.role || 'admin',
+      rol_academia: 'dueño',
+      authorized: true
     };
     localStorage.setItem('user_session', JSON.stringify(academiaSession));
+
     logEvent('auditoria', {
       accion: 'Acceso a Panel Academia',
-      detalles: `El administrador ingresó al panel de configuración de la academia "${a.nombre}"`
+      detalles: `El administrador ingresó al panel de configuración de la academia "${a.nombre}" (ID: ${a.id})`
     });
-    window.location.href = '/academia-panel';
+
+    // 4. Redirigir al panel de la academia con parámetro academia_id
+    window.location.href = `/academia-panel?academia_id=${encodeURIComponent(a.id)}`;
   };
 
   const handleAccessComplejoPanel = async (c: any) => {

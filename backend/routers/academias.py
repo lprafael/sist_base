@@ -82,7 +82,7 @@ async def get_academia_context(
         header_acad_id = current_user.get("academia_id")
 
     # Caso 0: Super Admin / Admin global -> acceso total a cualquier academia
-    if role in ["super", "admin", "superadmin"]:
+    if role in ["super", "admin", "superadmin", "administrador", "dueno", "dueño"] or current_user.get("is_admin"):
         if header_acad_id:
             try:
                 target_uuid = uuid.UUID(str(header_acad_id))
@@ -174,7 +174,7 @@ def require_roles(*allowed_roles: str):
         session: AsyncSession = Depends(get_session)
     ):
         ctx = await get_academia_context(request, current_user, session)
-        if current_user.get("role") in ["super", "admin", "superadmin"] or ctx["rol_interno"] in allowed_roles:
+        if current_user.get("role") in ["super", "admin", "superadmin", "administrador", "dueno", "dueño"] or current_user.get("is_admin") or ctx["rol_interno"] in allowed_roles:
             return {**current_user, **ctx}
 
         raise HTTPException(

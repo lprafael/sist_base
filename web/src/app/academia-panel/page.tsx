@@ -133,9 +133,21 @@ export default function AcademiaPanel() {
   useEffect(() => {
     const raw = localStorage.getItem('user_session');
     if (!raw) { setLoading(false); return; }
-    const s = JSON.parse(raw);
-    setSession(s);
-    setToken(s.token || s.access_token || '');
+    try {
+      const s = JSON.parse(raw);
+      // Sincronizar academia_id desde URL query parameter si existe
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlAcadId = urlParams.get('academia_id');
+        if (urlAcadId && urlAcadId !== s.academia_id) {
+          s.academia_id = urlAcadId;
+          localStorage.setItem('user_session', JSON.stringify(s));
+        }
+      }
+      setSession(s);
+      const effectiveToken = s.access_token || s.token || '';
+      setToken(effectiveToken);
+    } catch (e) {}
     setLoading(false);
   }, []);
 
@@ -144,9 +156,30 @@ export default function AcademiaPanel() {
   }, [token]);
 
   const apiFetch = async (endpoint: string, opts: any = {}) => {
-    const acadId = session?.academia_id || session?.id || '';
+    let currentToken = token;
+    let acadId = session?.academia_id || session?.id || '';
+
+    // Fallback robusto directo desde localStorage si el estado de React aún no cargó
+    if (typeof window !== 'undefined') {
+      if (!currentToken || !acadId) {
+        try {
+          const raw = localStorage.getItem('user_session');
+          if (raw) {
+            const s = JSON.parse(raw);
+            if (!currentToken) currentToken = s.access_token || s.token || '';
+            if (!acadId) acadId = s.academia_id || s.id || '';
+          }
+        } catch (e) {}
+      }
+      if (!acadId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlId = urlParams.get('academia_id');
+        if (urlId) acadId = urlId;
+      }
+    }
+
     const headers: any = {
-      Authorization: `Bearer ${token}`,
+      ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
       ...(acadId ? { 'X-Academia-Id': acadId } : {}),
       ...opts.headers,
     };
@@ -158,9 +191,18 @@ export default function AcademiaPanel() {
       headers,
     });
     if (res.status === 401) {
-      localStorage.removeItem('user_session');
-      window.location.href = '/login';
-      throw new Error('Sesión expirada.');
+      const adminBackup = localStorage.getItem('admin_session_backup');
+      if (adminBackup) {
+        // Si venía de administración, restaurar sesión de admin para no perder credenciales
+        localStorage.setItem('user_session', adminBackup);
+        localStorage.removeItem('admin_session_backup');
+        window.location.href = '/admin';
+        throw new Error('Sesión de academia no autorizada o expirada. Retornando a la Consola de Administrador...');
+      } else {
+        localStorage.removeItem('user_session');
+        window.location.href = '/login';
+        throw new Error('Sesión expirada.');
+      }
     }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || 'Error en la petición.');
@@ -390,6 +432,57 @@ export default function AcademiaPanel() {
 
       {/* ── Main ── */}
       <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* Super Admin Impersonation Alert Banner */}
+        {Boolean(session?.is_impersonating || (typeof window !== 'undefined' && localStorage.getItem('admin_session_backup'))) && (
+          <div style={{
+            background: 'linear-gradient(90deg, #1d4ed8 0%, #1e40af 100%)',
+            color: '#fff', padding: '12px 20px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            borderBottom: '1px solid rgba(255,255,255,0.2)',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.15)', flexWrap: 'wrap', gap: 12,
+            position: 'sticky', top: 0, zIndex: 1000
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ background: 'rgba(255,255,255,0.15)', width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShieldCheck style={{ width: 22, height: 22, color: '#93c5fd' }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.01em' }}>👑 Modo Super Administrador Activo</div>
+                <div style={{ fontSize: 12, opacity: 0.9 }}>
+                  Estás visualizando y administrando la academia: <strong>{perfil?.nombre || session?.nombre || session?.academia_nombre || 'esta academia'}</strong>.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const backup = localStorage.getItem('admin_session_backup');
+                if (backup) {
+                  localStorage.setItem('user_session', backup);
+                  localStorage.removeItem('admin_session_backup');
+                }
+                window.location.href = '/admin';
+              }}
+              style={{
+                background: '#ffffff',
+                color: '#1e3a8a',
+                border: 'none',
+                padding: '8px 18px',
+                borderRadius: 10,
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                transition: 'all .2s'
+              }}
+            >
+              ⬅️ Volver a Consola de Administrador
+            </button>
+          </div>
+        )}
+
         {/* Header Superior Móvil */}
         <div className="mobile-header-bar" style={{
           alignItems: 'center', justifyContent: 'space-between',
@@ -853,12 +946,42 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, to
           }}>
             <Lock size={14} /> Cambiar contraseña
           </button>
-          <button onClick={() => { localStorage.removeItem('user_session'); window.location.href = 'https://micancha.com.py'; }} style={{
+          {typeof window !== 'undefined' && Boolean(localStorage.getItem('admin_session_backup')) && (
+            <button
+              onClick={() => {
+                const backup = localStorage.getItem('admin_session_backup');
+                if (backup) {
+                  localStorage.setItem('user_session', backup);
+                  localStorage.removeItem('admin_session_backup');
+                }
+                window.location.href = '/admin';
+              }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 12px', borderRadius: 8, background: '#1d4ed822',
+                border: '1px solid #1d4ed844', color: '#60a5fa', fontSize: 12,
+                fontWeight: 700, cursor: 'pointer', marginBottom: 6,
+              }}
+            >
+              <ShieldCheck size={14} /> Volver al Admin
+            </button>
+          )}
+          <button onClick={() => {
+            const backup = localStorage.getItem('admin_session_backup');
+            if (backup) {
+              localStorage.setItem('user_session', backup);
+              localStorage.removeItem('admin_session_backup');
+              window.location.href = '/admin';
+            } else {
+              localStorage.removeItem('user_session');
+              window.location.href = 'https://micancha.com.py';
+            }
+          }} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 12px', borderRadius: 8, background: 'transparent',
             border: 'none', color: C.faint, fontSize: 12, cursor: 'pointer',
           }}>
-            <LogOut size={14} /> Cerrar sesión
+            <LogOut size={14} /> {typeof window !== 'undefined' && localStorage.getItem('admin_session_backup') ? 'Salir al Admin' : 'Cerrar sesión'}
           </button>
         </div>
       </div>
