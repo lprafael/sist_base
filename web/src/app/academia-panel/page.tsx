@@ -8,7 +8,8 @@ import {
   ChevronRight, AlertCircle, Save, Eye, RefreshCw, UserPlus,
   Calendar, TrendingUp, TrendingDown, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
   MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock,
-  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt, Sun, Moon, Menu
+  Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt, Sun, Moon, Menu,
+  ShoppingBag, Trophy, PauseCircle, PlayCircle, FileSpreadsheet, Layers, Award, Package, Shirt, Filter, CheckCircle2
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -67,7 +68,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'tesoreria' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'tesoreria' | 'tienda' | 'competencias' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -600,7 +601,8 @@ export default function AcademiaPanel() {
           {activeTab === 'alumnos' && (
             <AlumnosTab
               alumnos={alumnos} setAlumnos={setAlumnos}
-              sucursales={sucursales} modal={modalAlumno} setModal={setModalAlumno}
+              sucursales={sucursales} tutores={tutores} categorias={categorias} inscripciones={inscripciones}
+              modal={modalAlumno} setModal={setModalAlumno}
               notify={notify} apiFetch={apiFetch} isAdmin={isAdmin}
               fetchAll={fetchAll}
             />
@@ -642,6 +644,22 @@ export default function AcademiaPanel() {
               cuentas={cuentas} setCuentas={setCuentas}
               metodosPago={metodosPago} setMetodosPago={setMetodosPago}
               fetchAll={fetchAll}
+            />
+          )}
+
+          {/* ──────────────── UNIFORMES Y ACCESORIOS ──────────────── */}
+          {activeTab === 'tienda' && (
+            <TiendaTab
+              notify={notify} apiFetch={apiFetch} isAdmin={isAdmin} isTesorero={isTesorero}
+              alumnos={alumnos} cuentas={cuentas} metodosPago={metodosPago}
+            />
+          )}
+
+          {/* ──────────────── COMPETENCIAS Y TORNEOS ──────────────── */}
+          {activeTab === 'competencias' && (
+            <CompetenciasTab
+              notify={notify} apiFetch={apiFetch} isAdmin={isAdmin} isTesorero={isTesorero}
+              alumnos={alumnos}
             />
           )}
 
@@ -830,6 +848,8 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, to
     { id: 'inscripciones',     label: 'Inscripciones',          icon: BookOpen },
     { id: 'cuotas',            label: 'Cuotas / Pagos',         icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
     { id: 'tesoreria',         label: 'Tesorería / Cuentas',    icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
+    { id: 'tienda',            label: 'Uniformes y Accesorios', icon: ShoppingBag, roles: ['dueño','administrador','tesorero'] },
+    { id: 'competencias',      label: 'Competencias / Torneos', icon: Trophy, roles: ['dueño','administrador','tesorero','profesor'] },
     { id: 'reportes',          label: 'Reportes y Carnets',     icon: ClipboardList, roles: ['dueño','administrador','tesorero','profesor'] },
     { id: 'sifen',             label: 'Facturación SIFEN / .P12', icon: ShieldCheck, roles: ['dueño','administrador','tesorero'] },
     { id: 'asistencias',       label: 'Asistencias',            icon: Calendar, roles: ['dueño','administrador','profesor'] },
@@ -2109,23 +2129,44 @@ function SucursalesTab({ sucursales, setSucursales, deportes, modal, setModal, n
 // ═══════════════════════════════════════════════════════════
 // ALUMNOS
 // ═══════════════════════════════════════════════════════════
-function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, apiFetch, isAdmin, fetchAll }: any) {
+function AlumnosTab({ alumnos, setAlumnos, sucursales, tutores = [], categorias = [], inscripciones = [], modal, setModal, notify, apiFetch, isAdmin, fetchAll }: any) {
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
   const fileFotoRef = useRef<HTMLInputElement>(null);
 
-  const filtered = alumnos.filter((a: any) =>
-    `${a.nombre} ${a.apellido}`.toLowerCase().includes(search.toLowerCase())
-  );
+  // Selector de facturación (Alumno, Tutor, Tercero)
+  const [tipoFacturacion, setTipoFacturacion] = useState<'alumno' | 'tutor' | 'tercero'>('alumno');
+  const [tutorFacturacionId, setTutorFacturacionId] = useState('');
+
+  // Modales adicionales requeridos
+  const [modalCursos, setModalCursos] = useState<any>(null);
+  const [modalEstadoCuenta, setModalEstadoCuenta] = useState<any>(null);
+  const [estadoCuentaData, setEstadoCuentaData] = useState<any>(null);
+  const [loadingEstadoCuenta, setLoadingEstadoCuenta] = useState(false);
+  const [modalSuspension, setModalSuspension] = useState<any>(null);
+  const [suspensionesAlumno, setSuspensionesAlumno] = useState<any[]>([]);
+  const [suspensionForm, setSuspensionForm] = useState<any>({ fecha_inicio: '', fecha_fin_estimada: '', motivo: '' });
+  const [savingSuspension, setSavingSuspension] = useState(false);
+
+  const filtered = alumnos.filter((a: any) => {
+    const matchesSearch = `${a.nombre} ${a.apellido}`.toLowerCase().includes(search.toLowerCase());
+    const matchesEstado = !filtroEstado || a.estado === filtroEstado;
+    return matchesSearch && matchesEstado;
+  });
 
   const openNew = () => {
     setForm({ nombre: '', apellido: '', estado: 'activo', foto_perfil: '', facturacion_ruc: '', facturacion_nombre: '', facturacion_email: '' });
+    setTipoFacturacion('alumno');
+    setTutorFacturacionId('');
     setModal('new');
   };
 
   const openEdit = async (a: any) => {
     setForm({ ...a, facturacion_ruc: '', facturacion_nombre: '', facturacion_email: '' });
+    setTipoFacturacion('alumno');
+    setTutorFacturacionId('');
     setModal(a.id);
     try {
       const df = await apiFetch(`/academia/facturacion/datos-facturacion/alumno/${a.id}`).catch(() => null);
@@ -2136,9 +2177,55 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
           facturacion_nombre: df.receptor_nombre || '',
           facturacion_email: df.receptor_email || '',
         }));
+        // Deducir si coincide con algún tutor
+        const matchingTutor = tutores.find((t: any) =>
+          (t.ci && df.receptor_ruc && t.ci.includes(df.receptor_ruc)) ||
+          (t.email && df.receptor_email && t.email.toLowerCase() === df.receptor_email.toLowerCase())
+        );
+        if (matchingTutor) {
+          setTipoFacturacion('tutor');
+          setTutorFacturacionId(matchingTutor.id);
+        } else if (df.receptor_nombre && df.receptor_nombre !== `${a.nombre} ${a.apellido || ''}`.trim()) {
+          setTipoFacturacion('tercero');
+        } else {
+          setTipoFacturacion('alumno');
+        }
       }
     } catch (err) {
       console.error('Error al cargar datos facturación alumno:', err);
+    }
+  };
+
+  const handleTipoFacturacionChange = (tipo: 'alumno' | 'tutor' | 'tercero') => {
+    setTipoFacturacion(tipo);
+    if (tipo === 'alumno') {
+      setForm((f: any) => ({
+        ...f,
+        facturacion_nombre: `${f.nombre || ''} ${f.apellido || ''}`.trim(),
+      }));
+    } else if (tipo === 'tutor' && tutorFacturacionId) {
+      const t = tutores.find((tut: any) => tut.id === tutorFacturacionId);
+      if (t) {
+        setForm((f: any) => ({
+          ...f,
+          facturacion_nombre: `${t.nombre} ${t.apellido || ''}`.trim(),
+          facturacion_ruc: t.ci || t.documento || '',
+          facturacion_email: t.email || '',
+        }));
+      }
+    }
+  };
+
+  const handleSelectTutorFacturacion = (tutorId: string) => {
+    setTutorFacturacionId(tutorId);
+    const t = tutores.find((tut: any) => tut.id === tutorId);
+    if (t) {
+      setForm((f: any) => ({
+        ...f,
+        facturacion_nombre: `${t.nombre} ${t.apellido || ''}`.trim(),
+        facturacion_ruc: t.ci || t.documento || '',
+        facturacion_email: t.email || '',
+      }));
     }
   };
 
@@ -2210,20 +2297,111 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
     setSaving(false);
   };
 
-  const estadoColor: Record<string, string> = { activo: C.green, inactivo: C.faint, prueba: C.yellow };
+  // Abrir Cursos del Alumno
+  const abrirCursos = (a: any) => {
+    setModalCursos(a);
+  };
+
+  // Abrir Estado de Cuenta Consolidado
+  const abrirEstadoCuenta = async (a: any) => {
+    setModalEstadoCuenta(a);
+    setLoadingEstadoCuenta(true);
+    try {
+      const data = await apiFetch(`/academia/alumnos/${a.id}/estado-cuenta`);
+      setEstadoCuentaData(data);
+    } catch (err: any) {
+      notify(err.message || 'Error al cargar estado de cuenta', 'err');
+    } finally {
+      setLoadingEstadoCuenta(false);
+    }
+  };
+
+  // Abrir Modal de Baja Temporal / Suspensión
+  const abrirSuspension = async (a: any) => {
+    setModalSuspension(a);
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    const fechaFinSug = new Date();
+    fechaFinSug.setMonth(fechaFinSug.getMonth() + 2);
+    setSuspensionForm({ fecha_inicio: hoyStr, fecha_fin_estimada: fechaFinSug.toISOString().slice(0, 10), motivo: '' });
+    try {
+      const list = await apiFetch(`/academia/alumnos/${a.id}/suspensiones`);
+      setSuspensionesAlumno(Array.isArray(list) ? list : []);
+    } catch {
+      setSuspensionesAlumno([]);
+    }
+  };
+
+  // Guardar Baja Temporal
+  const registrarBajaTemporal = async () => {
+    if (!modalSuspension) return;
+    if (!suspensionForm.fecha_inicio) {
+      notify('Ingresá la fecha de inicio de la suspensión', 'err');
+      return;
+    }
+    setSavingSuspension(true);
+    try {
+      await apiFetch(`/academia/alumnos/${modalSuspension.id}/suspension`, {
+        method: 'POST',
+        body: JSON.stringify(suspensionForm),
+      });
+      notify('Baja temporal registrada exitosamente. El alumno no generará cuotas en los meses de suspensión.');
+      await fetchAll();
+      setModalSuspension(null);
+    } catch (err: any) {
+      notify(err.message || 'Error al registrar baja temporal', 'err');
+    } finally {
+      setSavingSuspension(false);
+    }
+  };
+
+  // Reactivar Alumno Suspendido
+  const reactivarAlumno = async (suspensionId: string) => {
+    try {
+      await apiFetch(`/academia/alumnos/suspensiones/${suspensionId}/reactivar`, {
+        method: 'PUT',
+      });
+      notify('Alumno reactivado exitosamente');
+      await fetchAll();
+      setModalSuspension(null);
+    } catch (err: any) {
+      notify(err.message || 'Error al reactivar alumno', 'err');
+    }
+  };
+
+  const estadoColor: Record<string, string> = {
+    activo: C.green,
+    inactivo: C.faint,
+    prueba: C.yellow,
+    suspendido: '#f97316',
+    baja_temporal: '#f97316'
+  };
+
+  // Cursos del alumno activo
+  const cursosDelAlumno = modalCursos
+    ? inscripciones.filter((i: any) => i.alumno_id === modalCursos.id && i.estado === 'activa')
+    : [];
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Alumnos</h1>
           <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>{alumnos.length} alumnos registrados</p>
         </div>
-        {isAdmin && <button onClick={openNew} style={btn()}><Plus size={15} /> Nuevo alumno</button>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ ...input({ width: 170 }) }}>
+            <option value="">Todos los estados</option>
+            <option value="activo">Solo Activos</option>
+            <option value="suspendido">En Baja Temporal</option>
+            <option value="prueba">En Prueba</option>
+            <option value="inactivo">Inactivos</option>
+          </select>
+          {isAdmin && <button onClick={openNew} style={btn()}><Plus size={15} /> Nuevo alumno</button>}
+        </div>
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍  Buscar alumno..." style={input({ maxWidth: 360 })} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍  Buscar alumno por nombre o apellido..." style={input({ maxWidth: 360 })} />
       </div>
 
       <div style={card({ padding: 0 })}>
@@ -2237,10 +2415,11 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay alumnos.</td></tr>
+              <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay alumnos registrados con ese filtro.</td></tr>
             )}
             {filtered.map((a: any) => {
               const edad = a.fecha_nacimiento ? Math.floor((Date.now() - new Date(a.fecha_nacimiento).getTime()) / 31557600000) : null;
+              const isSuspendido = a.estado === 'suspendido' || a.estado === 'baja_temporal';
               return (
                 <tr key={a.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
                   <td style={{ padding: '11px 16px', fontWeight: 600 }}>
@@ -2252,20 +2431,36 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
                       }}>
                         {a.foto_perfil ? <img src={a.foto_perfil} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <GraduationCap size={20} color={C.muted} />}
                       </div>
-                      <div>{a.nombre} {a.apellido}</div>
+                      <div>
+                        <div>{a.nombre} {a.apellido}</div>
+                        {isSuspendido && <div style={{ fontSize: 10, color: '#f97316', fontWeight: 700 }}>⏸️ Baja Temporal Activa</div>}
+                      </div>
                     </div>
                   </td>
                   <td style={{ padding: '11px 16px', color: C.muted }}>{a.sucursal_nombre || '—'}</td>
                   <td style={{ padding: '11px 16px', color: C.muted }}>{edad != null ? `${edad} años` : '—'}</td>
                   <td style={{ padding: '11px 16px' }}>
-                    <span style={badge(estadoColor[a.estado] || C.faint)}>{a.estado}</span>
+                    <span style={badge(estadoColor[a.estado] || C.faint)}>
+                      {isSuspendido ? 'Baja Temporal' : a.estado}
+                    </span>
                   </td>
                   <td style={{ padding: '11px 16px' }}>
-                    {isAdmin && (
-                      <button onClick={() => openEdit(a)} style={{ ...btn(C.primary, true), fontSize: 11, padding: '5px 10px' }}>
-                        <Pencil size={11} /> Editar
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {isAdmin && (
+                        <button onClick={() => openEdit(a)} style={{ ...btn(C.primary, true), fontSize: 11, padding: '5px 9px' }} title="Editar Alumno">
+                          <Pencil size={11} /> Editar
+                        </button>
+                      )}
+                      <button onClick={() => abrirCursos(a)} style={{ ...btn(C.purple, true), fontSize: 11, padding: '5px 9px' }} title="Ver cursos que toma">
+                        <BookOpen size={11} /> Cursos
                       </button>
-                    )}
+                      <button onClick={() => abrirEstadoCuenta(a)} style={{ ...btn(C.green, true), fontSize: 11, padding: '5px 9px' }} title="Consultar Estado de Cuenta">
+                        <Receipt size={11} /> Estado de Cuenta
+                      </button>
+                      <button onClick={() => abrirSuspension(a)} style={{ ...btn(isSuspendido ? '#f97316' : C.faint, true), fontSize: 11, padding: '5px 9px' }} title="Dar de baja temporal por unos meses">
+                        <PauseCircle size={11} /> {isSuspendido ? 'En Baja' : 'Baja Temporal'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -2274,7 +2469,7 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
         </table>
       </div>
 
-      {/* Modal alumno */}
+      {/* ════ MODAL ALUMNO (Creación / Edición) ════ */}
       {modal && (
         <Modal title={modal === 'new' ? 'Nuevo Alumno' : 'Editar Alumno'} onClose={() => setModal(null)} wide>
           {/* Subida de foto de perfil */}
@@ -2318,6 +2513,7 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
             <select value={form.estado || 'activo'} onChange={e => setForm((f: any) => ({ ...f, estado: e.target.value }))} style={input()}>
               <option value="activo">Activo</option>
               <option value="prueba">En prueba</option>
+              <option value="suspendido">Baja Temporal / Suspendido</option>
               <option value="inactivo">Inactivo</option>
             </select>
           </div>
@@ -2330,36 +2526,402 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, modal, setModal, notify, 
           <FormField label="Alergias" value={form.alergias} onChange={v => setForm((f: any) => ({ ...f, alergias: v }))} placeholder="Ninguna conocida" />
           <FormField label="Condiciones médicas" value={form.condiciones_medicas} onChange={v => setForm((f: any) => ({ ...f, condiciones_medicas: v }))} placeholder="Asma, diabetes, etc." />
           <FormField label="Contacto de emergencia" value={form.contacto_emergencia} onChange={v => setForm((f: any) => ({ ...f, contacto_emergencia: v }))} placeholder="Mamá: 0981-123-456" />
-          <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '12px 0' }} />
-          <p style={{ fontSize: 12, color: C.yellow, fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <FileText size={14} /> DATOS DE FACTURACIÓN SIFEN (TUTOR / ALUMNO)
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <FormField label="RUC o C.I. (con DV si aplica)" value={form.facturacion_ruc || ''} onChange={v => setForm((f: any) => ({ ...f, facturacion_ruc: v }))} placeholder="Ej: 1234567-8" />
-            <FormField label="Razón Social / Nombre en Factura" value={form.facturacion_nombre || ''} onChange={v => setForm((f: any) => ({ ...f, facturacion_nombre: v }))} placeholder="Ej: María Pérez" />
+
+          <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '14px 0' }} />
+
+          {/* DATOS DE FACTURACIÓN CON SELECTOR EXPLICITO: ALUMNO / PAPA/MAMA / TERCERO */}
+          <div style={{ background: `${C.bg}88`, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
+            <p style={{ fontSize: 13, color: C.yellow, fontWeight: 800, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileText size={15} /> DATOS PARA FACTURACIÓN ELECTRÓNICA SIFEN
+            </p>
+            <p style={{ fontSize: 11, color: C.muted, margin: '0 0 12px' }}>
+              ¿A nombre de quién debe emitirse la factura de las cuotas y uniformes?
+            </p>
+
+            {/* Botones selectores de tipo */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {[
+                { id: 'alumno', label: '👤 Alumno' },
+                { id: 'tutor', label: '👨‍👩‍👦 Papá / Mamá (Tutor)' },
+                { id: 'tercero', label: '🏢 Otro / RUC particular' },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleTipoFacturacionChange(t.id as any)}
+                  style={{
+                    flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', transition: 'all .15s',
+                    background: tipoFacturacion === t.id ? `${C.primary}25` : 'transparent',
+                    border: `1px solid ${tipoFacturacion === t.id ? C.primary : C.border}`,
+                    color: tipoFacturacion === t.id ? C.primary : C.muted,
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Dropdown de tutores si se seleccionó Papá/Mamá */}
+            {tipoFacturacion === 'tutor' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={label()}>Seleccionar Tutor / Padre *</label>
+                {tutores.length > 0 ? (
+                  <select
+                    value={tutorFacturacionId}
+                    onChange={e => handleSelectTutorFacturacion(e.target.value)}
+                    style={input()}
+                  >
+                    <option value="">— Elegir tutor registrado —</option>
+                    {tutores.map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nombre} {t.apellido || ''} {t.ci ? `(CI: ${t.ci})` : ''} {t.email ? `— ${t.email}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ fontSize: 12, color: C.yellow, padding: 8, borderRadius: 6, background: `${C.yellow}15` }}>
+                    ⚠️ No hay tutores registrados aún en la academia. Podés escribir los datos manualmente abajo.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <FormField
+                label="RUC o C.I. (con DV si aplica)"
+                value={form.facturacion_ruc || ''}
+                onChange={v => setForm((f: any) => ({ ...f, facturacion_ruc: v }))}
+                placeholder="Ej: 1234567-8"
+              />
+              <FormField
+                label="Razón Social / Nombre en Factura"
+                value={form.facturacion_nombre || ''}
+                onChange={v => setForm((f: any) => ({ ...f, facturacion_nombre: v }))}
+                placeholder="Ej: Juan Pérez o María González"
+              />
+            </div>
+            <FormField
+              label="Email para envío de Factura Electrónica SIFEN"
+              value={form.facturacion_email || ''}
+              onChange={v => setForm((f: any) => ({ ...f, facturacion_email: v }))}
+              placeholder="facturas@email.com"
+            />
           </div>
-          <FormField label="Email para envío de Factura Electrónica" value={form.facturacion_email || ''} onChange={v => setForm((f: any) => ({ ...f, facturacion_email: v }))} placeholder="tutor@email.com" />
+
           <ModalActions onCancel={() => setModal(null)} onSave={save} saving={saving} />
+        </Modal>
+      )}
+
+      {/* ════ MODAL: CURSOS QUE TOMA EL ALUMNO ════ */}
+      {modalCursos && (
+        <Modal title={`Cursos de ${modalCursos.nombre} ${modalCursos.apellido}`} onClose={() => setModalCursos(null)} wide>
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
+              Cursos y categorías en las que este alumno se encuentra formalmente inscripto:
+            </p>
+          </div>
+
+          {cursosDelAlumno.length === 0 ? (
+            <div style={{ padding: 28, textAlign: 'center', color: C.faint, background: `${C.bg}88`, borderRadius: 10 }}>
+              <BookOpen size={36} style={{ marginBottom: 10, opacity: 0.4 }} />
+              <p style={{ margin: 0, fontSize: 14 }}>El alumno no está inscripto en ningún curso activo.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {cursosDelAlumno.map((i: any) => {
+                const catObj = categorias.find((c: any) => c.id === i.categoria_id);
+                return (
+                  <div key={i.id} style={{
+                    background: `${C.bg}bb`, border: `1px solid ${C.border}`,
+                    borderRadius: 12, padding: '14px 18px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>⚽</span> {i.categoria || catObj?.nombre || 'Curso'}
+                        <span style={badge(C.green)}>Activo</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
+                        {i.sucursal || catObj?.sucursal_nombre} · {i.deporte || catObj?.deporte}
+                      </div>
+                      {catObj?.horario && (
+                        <div style={{ fontSize: 12, color: C.faint, marginTop: 2 }}>
+                          ⏰ Horarios: {catObj.horario}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: C.muted }}>Cuota Mensual</div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>
+                        Gs. {(i.cuota_mensual || 0).toLocaleString('es-PY')}
+                      </div>
+                      {i.descuento_aplicado > 0 && (
+                        <div style={{ fontSize: 11, color: C.green }}>-{i.descuento_aplicado}% desc.</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={() => setModalCursos(null)} style={btn(C.primary)}>Cerrar</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ════ MODAL: ESTADO DE CUENTA CONSOLIDADO ════ */}
+      {modalEstadoCuenta && (
+        <Modal title={`Estado de Cuenta — ${modalEstadoCuenta.nombre} ${modalEstadoCuenta.apellido}`} onClose={() => setModalEstadoCuenta(null)} wide>
+          {loadingEstadoCuenta ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.muted }}>
+              <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: 8 }} />
+              <p>Generando extracto financiero consolidado...</p>
+            </div>
+          ) : estadoCuentaData ? (
+            <div>
+              {/* Tarjetas Resumen */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
+                <div style={{ background: `${C.primary}15`, border: `1px solid ${C.primary}33`, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>TOTAL CARGOS</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 4 }}>
+                    Gs. {(estadoCuentaData.resumen?.total_cargos || 0).toLocaleString('es-PY')}
+                  </div>
+                </div>
+                <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}33`, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>TOTAL PAGADO</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: C.green, marginTop: 4 }}>
+                    Gs. {(estadoCuentaData.resumen?.total_pagado || 0).toLocaleString('es-PY')}
+                  </div>
+                </div>
+                <div style={{ background: `${estadoCuentaData.resumen?.saldo_deudor > 0 ? C.red : C.green}15`, border: `1px solid ${estadoCuentaData.resumen?.saldo_deudor > 0 ? C.red : C.green}33`, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>SALDO PENDIENTE</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: estadoCuentaData.resumen?.saldo_deudor > 0 ? C.red : C.green, marginTop: 4 }}>
+                    Gs. {(estadoCuentaData.resumen?.saldo_deudor || 0).toLocaleString('es-PY')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalle de Cuotas */}
+              <div style={{ marginBottom: 16 }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: 13, color: C.text, fontWeight: 800 }}>CUOTAS MENSUALES</h4>
+                <div style={{ maxHeight: 180, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: `${C.bg}aa`, borderBottom: `1px solid ${C.border}` }}>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Período</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Monto</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Pagado</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Saldo</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(estadoCuentaData.cuotas || []).length === 0 ? (
+                        <tr><td colSpan={5} style={{ padding: 12, textAlign: 'center', color: C.faint }}>No registra cuotas.</td></tr>
+                      ) : (
+                        estadoCuentaData.cuotas.map((c: any) => (
+                          <tr key={c.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                            <td style={{ padding: '7px 10px', fontWeight: 600 }}>{c.periodo}</td>
+                            <td style={{ padding: '7px 10px' }}>Gs. {(c.monto_final || 0).toLocaleString('es-PY')}</td>
+                            <td style={{ padding: '7px 10px', color: C.green }}>Gs. {(c.monto_pagado || 0).toLocaleString('es-PY')}</td>
+                            <td style={{ padding: '7px 10px', color: c.saldo > 0 ? C.red : C.muted, fontWeight: c.saldo > 0 ? 700 : 400 }}>
+                              Gs. {(c.saldo || 0).toLocaleString('es-PY')}
+                            </td>
+                            <td style={{ padding: '7px 10px' }}><span style={badge(estadoColor[c.estado] || C.faint)}>{c.estado}</span></td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Detalle de Compras de Uniformes / Accesorios */}
+              {estadoCuentaData.compras_productos && estadoCuentaData.compras_productos.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: 13, color: C.text, fontWeight: 800 }}>UNIFORMES Y ACCESORIOS ADQUIRIDOS</h4>
+                  <div style={{ maxHeight: 150, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: `${C.bg}aa`, borderBottom: `1px solid ${C.border}` }}>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Artículo</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Cant.</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Total</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Fecha</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: C.muted }}>Entrega</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {estadoCuentaData.compras_productos.map((cp: any) => (
+                          <tr key={cp.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                            <td style={{ padding: '7px 10px', fontWeight: 600 }}>{cp.producto_nombre}</td>
+                            <td style={{ padding: '7px 10px' }}>{cp.cantidad}</td>
+                            <td style={{ padding: '7px 10px' }}>Gs. {(cp.precio_total || 0).toLocaleString('es-PY')}</td>
+                            <td style={{ padding: '7px 10px', color: C.muted }}>{cp.fecha_venta?.slice(0, 10)}</td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <span style={badge(cp.entregado ? C.green : C.yellow)}>{cp.entregado ? 'Entregado' : 'Pendiente'}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Botones de acción del extracto */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+                <button
+                  onClick={() => window.print()}
+                  style={{ ...btn(C.purple, true), display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Printer size={15} /> Imprimir Estado de Cuenta
+                </button>
+                <button onClick={() => setModalEstadoCuenta(null)} style={btn(C.primary)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 20, textAlign: 'center', color: C.muted }}>No se pudo obtener el estado de cuenta.</div>
+          )}
+        </Modal>
+      )}
+
+      {/* ════ MODAL: BAJA TEMPORAL / SUSPENSIÓN ════ */}
+      {modalSuspension && (
+        <Modal title={`Baja Temporal — ${modalSuspension.nombre} ${modalSuspension.apellido}`} onClose={() => setModalSuspension(null)}>
+          <div style={{ background: `${C.yellow}15`, border: `1px solid ${C.yellow}44`, borderRadius: 10, padding: 12, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: C.yellow, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertCircle size={15} /> Suspensión Temporal por unos meses
+            </div>
+            <div style={{ fontSize: 12, color: C.text, marginTop: 4, lineHeight: 1.4 }}>
+              Durante el lapso de baja temporal, el alumno <strong>no generará cuotas mensuales</strong> en los procesos de facturación automática mensual.
+            </div>
+          </div>
+
+          {/* Suspensiones activas o históricas */}
+          {suspensionesAlumno.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 6 }}>HISTORIAL DE SUSPENSIONES:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {suspensionesAlumno.map((s: any) => (
+                  <div key={s.id} style={{ background: `${C.bg}bb`, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ fontWeight: 700 }}>Desde {s.fecha_inicio} {s.fecha_fin_estimada ? `hasta ${s.fecha_fin_estimada}` : '(indefinida)'}</div>
+                      <div style={{ color: C.muted, fontSize: 11 }}>Motivo: {s.motivo || 'No especificado'}</div>
+                    </div>
+                    <div>
+                      {s.activa ? (
+                        <button
+                          onClick={() => reactivarAlumno(s.id)}
+                          style={{ ...btn(C.green), fontSize: 11, padding: '4px 8px' }}
+                        >
+                          <PlayCircle size={12} /> Reactivar Alumno
+                        </button>
+                      ) : (
+                        <span style={badge(C.faint)}>Finalizada</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Formulario para registrar nueva baja temporal */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Fecha de Inicio *" type="date" value={suspensionForm.fecha_inicio} onChange={v => setSuspensionForm((f: any) => ({ ...f, fecha_inicio: v }))} />
+            <FormField label="Fecha de Fin Estimada" type="date" value={suspensionForm.fecha_fin_estimada} onChange={v => setSuspensionForm((f: any) => ({ ...f, fecha_fin_estimada: v }))} />
+          </div>
+          <FormField
+            label="Motivo de la Baja Temporal"
+            value={suspensionForm.motivo}
+            onChange={v => setSuspensionForm((f: any) => ({ ...f, motivo: v }))}
+            placeholder="Ej: Viaje familiar por 3 meses, lesión médica, receso escolar..."
+          />
+
+          <ModalActions
+            onCancel={() => setModalSuspension(null)}
+            onSave={registrarBajaTemporal}
+            saving={savingSuspension}
+            saveLabel="Confirmar Baja Temporal"
+          />
         </Modal>
       )}
     </div>
   );
 }
 
+
 // ═══════════════════════════════════════════════════════════
 // INSCRIPCIONES
 // ═══════════════════════════════════════════════════════════
 function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal, notify, apiFetch, isAdmin, isTesorero, fetchAll }: any) {
   const [form, setForm] = useState<any>({ dias_por_semana: 3, cuota_mensual: 0, descuento_aplicado: 0, beca: false });
+  const [modoMultiple, setModoMultiple] = useState(false);
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>([]);
+  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [busqueda, setBusqueda] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const filteredInscripciones = inscripciones.filter((i: any) => {
+    const matchesCat = !filtroCategoria || i.categoria_id === filtroCategoria;
+    const matchesBusqueda = !busqueda ||
+      (i.alumno_nombre && i.alumno_nombre.toLowerCase().includes(busqueda.toLowerCase())) ||
+      (i.categoria && i.categoria.toLowerCase().includes(busqueda.toLowerCase()));
+    return matchesCat && matchesBusqueda;
+  });
+
+  const toggleCategoriaMultiple = (catId: string) => {
+    setCategoriasSeleccionadas(prev =>
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    );
+  };
+
   const save = async () => {
+    if (!form.alumno_id) {
+      notify('Seleccioná un alumno', 'err');
+      return;
+    }
+
     setSaving(true);
     try {
-      await apiFetch('/academia/inscripciones', { method: 'POST', body: JSON.stringify(form) });
-      notify('Alumno inscrito correctamente');
+      if (modoMultiple) {
+        if (categoriasSeleccionadas.length === 0) {
+          notify('Seleccioná al menos un curso o categoría', 'err');
+          setSaving(false);
+          return;
+        }
+        const res = await apiFetch('/academia/inscripciones/multiples', {
+          method: 'POST',
+          body: JSON.stringify({
+            alumno_id: form.alumno_id,
+            categoria_ids: categoriasSeleccionadas,
+            fecha_inicio: form.fecha_inicio || undefined,
+            cuota_mensual: form.cuota_mensual ? Number(form.cuota_mensual) : undefined,
+            descuento_aplicado: form.descuento_aplicado ? Number(form.descuento_aplicado) : undefined,
+            beca: Boolean(form.beca),
+          })
+        });
+        notify(res.message || 'Inscripción múltiple realizada exitosamente');
+      } else {
+        if (!form.categoria_id) {
+          notify('Seleccioná una categoría', 'err');
+          setSaving(false);
+          return;
+        }
+        await apiFetch('/academia/inscripciones', { method: 'POST', body: JSON.stringify(form) });
+        notify('Alumno inscripto correctamente');
+      }
+
       await fetchAll();
       setModal(null);
+      setCategoriasSeleccionadas([]);
+      setModoMultiple(false);
     } catch (e: any) { notify(e.message, 'err'); }
     setSaving(false);
   };
@@ -2368,15 +2930,55 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Inscripciones</h1>
-          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>{inscripciones.filter((i: any) => i.estado === 'activa').length} inscripciones activas</p>
+          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>
+            {inscripciones.filter((i: any) => i.estado === 'activa').length} inscripciones activas
+          </p>
         </div>
         {(isAdmin || isTesorero) && (
-          <button onClick={() => { setForm({ dias_por_semana: 3, cuota_mensual: 0, descuento_aplicado: 0, beca: false }); setModal('new'); }} style={btn()}>
+          <button onClick={() => {
+            setForm({ dias_por_semana: 3, cuota_mensual: 0, descuento_aplicado: 0, beca: false });
+            setModoMultiple(false);
+            setCategoriasSeleccionadas([]);
+            setModal('new');
+          }} style={btn()}>
             <Plus size={15} /> Inscribir alumno
           </button>
+        )}
+      </div>
+
+      {/* Barra de Filtros y Consulta de Alumnos por Curso */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          placeholder="🔍 Buscar por alumno o curso..."
+          style={input({ maxWidth: 280 })}
+        />
+
+        {/* Consulta Alumnos por Curso */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ ...label({ marginBottom: 0 }), fontSize: 12 }}>Filtrar por Curso:</label>
+          <select
+            value={filtroCategoria}
+            onChange={e => setFiltroCategoria(e.target.value)}
+            style={{ ...input({ width: 230 }), fontWeight: filtroCategoria ? 700 : 400 }}
+          >
+            <option value="">Todos los Cursos / Categorías</option>
+            {categorias.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre} ({c.deporte})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {filtroCategoria && (
+          <div style={{ fontSize: 12, color: C.green, fontWeight: 700, background: `${C.green}18`, padding: '6px 12px', borderRadius: 8 }}>
+            👥 {filteredInscripciones.length} alumnos inscriptos en este curso
+          </div>
         )}
       </div>
 
@@ -2390,17 +2992,17 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
             </tr>
           </thead>
           <tbody>
-            {inscripciones.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay inscripciones.</td></tr>
+            {filteredInscripciones.length === 0 && (
+              <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay inscripciones para este curso o búsqueda.</td></tr>
             )}
-            {inscripciones.map((i: any) => (
+            {filteredInscripciones.map((i: any) => (
               <tr key={i.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
                 <td style={{ padding: '11px 16px', fontWeight: 600 }}>{i.alumno_nombre}</td>
                 <td style={{ padding: '11px 16px' }}>
                   <div style={{ fontWeight: 600 }}>{i.categoria}</div>
                   <div style={{ color: C.muted, fontSize: 11 }}>{i.sucursal} · {i.deporte}</div>
                 </td>
-                <td style={{ padding: '11px 16px' }}>Gs. {i.cuota_mensual.toLocaleString('es-PY')}</td>
+                <td style={{ padding: '11px 16px' }}>Gs. {(i.cuota_mensual || 0).toLocaleString('es-PY')}</td>
                 <td style={{ padding: '11px 16px', color: i.descuento_aplicado > 0 ? C.green : C.faint }}>
                   {i.descuento_aplicado > 0 ? `-${i.descuento_aplicado}%` : '—'}
                 </td>
@@ -2414,8 +3016,37 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
         </table>
       </div>
 
+      {/* ════ MODAL INSCRIBIR ALUMNO (Individual o Múltiple) ════ */}
       {modal && (
-        <Modal title="Inscribir Alumno" onClose={() => setModal(null)} wide>
+        <Modal title="Inscribir Alumno a Cursos" onClose={() => setModal(null)} wide>
+          {/* Selector de Modo: Simple o Varios Cursos */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 18, background: `${C.bg}88`, padding: 4, borderRadius: 10, border: `1px solid ${C.border}` }}>
+            <button
+              type="button"
+              onClick={() => setModoMultiple(false)}
+              style={{
+                flex: 1, padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                cursor: 'pointer', border: 'none',
+                background: !modoMultiple ? C.primary : 'transparent',
+                color: !modoMultiple ? '#fff' : C.muted
+              }}
+            >
+              1️⃣ Inscripción Individual (1 Curso)
+            </button>
+            <button
+              type="button"
+              onClick={() => setModoMultiple(true)}
+              style={{
+                flex: 1, padding: '9px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                cursor: 'pointer', border: 'none',
+                background: modoMultiple ? C.primary : 'transparent',
+                color: modoMultiple ? '#fff' : C.muted
+              }}
+            >
+              📚 Inscripción Múltiple (Varios Cursos a la vez)
+            </button>
+          </div>
+
           <div style={{ marginBottom: 14 }}>
             <label style={label()}>Alumno *</label>
             <select value={form.alumno_id || ''} onChange={e => setForm((f: any) => ({ ...f, alumno_id: e.target.value }))} style={input()}>
@@ -2423,29 +3054,79 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
               {alumnos.map((a: any) => <option key={a.id} value={a.id}>{a.nombre} {a.apellido}</option>)}
             </select>
           </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Categoría *</label>
-            <select value={form.categoria_id || ''} onChange={e => setForm((f: any) => ({ ...f, categoria_id: e.target.value }))} style={input()}>
-              <option value="">Seleccionar categoría...</option>
-              {categorias.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} — {c.sucursal_nombre}</option>)}
-            </select>
-          </div>
+
+          {!modoMultiple ? (
+            /* Modo 1 Curso */
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Categoría / Curso *</label>
+              <select value={form.categoria_id || ''} onChange={e => setForm((f: any) => ({ ...f, categoria_id: e.target.value }))} style={input()}>
+                <option value="">Seleccionar categoría...</option>
+                {categorias.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} — {c.sucursal_nombre} ({c.deporte})</option>)}
+              </select>
+            </div>
+          ) : (
+            /* Modo Múltiples Cursos */
+            <div style={{ marginBottom: 16 }}>
+              <label style={label()}>Seleccioná todos los cursos a los que se inscribe simultáneamente *</label>
+              <div style={{ maxHeight: 200, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 10, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {categorias.map((c: any) => {
+                  const isChecked = categoriasSeleccionadas.includes(c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => toggleCategoriaMultiple(c.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                        borderRadius: 8, cursor: 'pointer',
+                        background: isChecked ? `${C.primary}20` : 'transparent',
+                        border: `1px solid ${isChecked ? C.primary : 'transparent'}`
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // handled by div click
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{c.nombre}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{c.sucursal_nombre} · {c.deporte} {c.horario ? `· ⏰ ${c.horario}` : ''}</div>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>
+                        Gs. {(c.cuota_mensual || 0).toLocaleString('es-PY')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
+                {categoriasSeleccionadas.length} cursos seleccionados
+              </div>
+            </div>
+          )}
+
           <FormField label="Fecha de inicio *" value={form.fecha_inicio || ''} type="date" onChange={v => setForm((f: any) => ({ ...f, fecha_inicio: v }))} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <FormField label="Cuota mensual (Gs.)" value={form.cuota_mensual} type="number" onChange={v => setForm((f: any) => ({ ...f, cuota_mensual: Number(v) }))} />
-            <FormField label="Días por semana" value={form.dias_por_semana} type="number" onChange={v => setForm((f: any) => ({ ...f, dias_por_semana: Number(v) }))} />
-            <FormField label="Descuento (%)" value={form.descuento_aplicado} type="number" onChange={v => setForm((f: any) => ({ ...f, descuento_aplicado: Number(v) }))} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: modoMultiple ? '1fr 1fr' : '1fr 1fr 1fr', gap: 12 }}>
+            <FormField label="Cuota mensual (Gs.) (0 = usar tarifa del curso)" value={form.cuota_mensual} type="number" onChange={v => setForm((f: any) => ({ ...f, cuota_mensual: Number(v) }))} />
+            {!modoMultiple && (
+              <FormField label="Días por semana" value={form.dias_por_semana} type="number" onChange={v => setForm((f: any) => ({ ...f, dias_por_semana: Number(v) }))} />
+            )}
+            <FormField label="Descuento aplicado (%)" value={form.descuento_aplicado} type="number" onChange={v => setForm((f: any) => ({ ...f, descuento_aplicado: Number(v) }))} />
           </div>
+
           <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" id="beca" checked={form.beca} onChange={e => setForm((f: any) => ({ ...f, beca: e.target.checked }))} />
-            <label htmlFor="beca" style={{ color: C.text, fontSize: 13, cursor: 'pointer' }}>Beca (cuota $0)</label>
+            <label htmlFor="beca" style={{ color: C.text, fontSize: 13, cursor: 'pointer' }}>Beca completa (cuota Gs. 0)</label>
           </div>
+
           <ModalActions onCancel={() => setModal(null)} onSave={save} saving={saving} />
         </Modal>
       )}
     </div>
   );
 }
+
 
 // ═══════════════════════════════════════════════════════════
 // CUOTAS
@@ -2532,14 +3213,16 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
 
   const registrarPago = async () => {
     if (!modalPago) return;
-    if (!pagoForm.monto || Number(pagoForm.monto) <= 0) {
+    const saldoPendiente = (modalPago.monto_final || 0) - (modalPago.monto_pagado || 0);
+    const montoEfectivo = pagoForm.monto ? Number(pagoForm.monto) : saldoPendiente;
+    if (montoEfectivo <= 0) {
       notify('Ingresá un monto válido', 'err');
       return;
     }
     setSaving(true);
     try {
       const body: any = {
-        monto: Number(pagoForm.monto),
+        monto: montoEfectivo,
         fecha_pago: pagoForm.fecha_pago || undefined,
         generar_factura: Boolean(pagoForm.generar_factura),
         notas: pagoForm.notas || undefined,
@@ -2984,6 +3667,28 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
             )}
           </div>
           <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button
+                type="button"
+                onClick={() => setPagoForm((f: any) => ({ ...f, monto: String((modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)) }))}
+                style={{
+                  flex: 1, padding: '7px 10px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', background: `${C.green}20`, border: `1px solid ${C.green}66`, color: C.green
+                }}
+              >
+                💰 Pago Total (Gs. {((modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)).toLocaleString('es-PY')})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPagoForm((f: any) => ({ ...f, monto: '' }))}
+                style={{
+                  flex: 1, padding: '7px 10px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', background: `${C.yellow}20`, border: `1px solid ${C.yellow}66`, color: C.yellow
+                }}
+              >
+                💵 Pago Parcial
+              </button>
+            </div>
             <label style={label()}>Monto a pagar (Gs.) <span style={{ color: C.faint, fontWeight: 400 }}>— vacío = pago total</span></label>
             <input type="number" placeholder={`${(modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)}`}
               value={pagoForm.monto} onChange={e => setPagoForm((f: any) => ({ ...f, monto: e.target.value }))} style={input()} />
@@ -5075,13 +5780,18 @@ function TutoresTab({ tutores = [], alumnos = [], notify, apiFetch, isAdmin, fet
 // REPORTES Y CARNETS TAB
 // ═══════════════════════════════════════════════════════════
 function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetch }: any) {
-  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets'>('alumnos');
+  const [subTab, setSubTab] = useState<'alumnos' | 'deudores' | 'carnets' | 'cobranzas'>('alumnos');
   const [reporteAlumnos, setReporteAlumnos] = useState<any[]>([]);
   const [deudores, setDeudores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroSucursal, setFiltroSucursal] = useState('');
   const [modalCarnet, setModalCarnet] = useState<any>(null);
   const carnetFotoRef = useRef<HTMLInputElement>(null);
+
+  // Estados de Cobranzas Mensuales y Anuales
+  const [anioCobranzas, setAnioCobranzas] = useState(new Date().getFullYear());
+  const [reporteCobranzas, setReporteCobranzas] = useState<any>(null);
+  const [loadingCobranzas, setLoadingCobranzas] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -5100,6 +5810,18 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
     setLoading(false);
   };
 
+  const cargarCobranzas = async (anio: number) => {
+    setLoadingCobranzas(true);
+    try {
+      const data = await apiFetch(`/academia/reportes/cobranzas-anuales?anio=${anio}`);
+      setReporteCobranzas(data);
+    } catch (err: any) {
+      notify(err.message || 'Error al cargar reporte de cobranzas', 'err');
+    } finally {
+      setLoadingCobranzas(false);
+    }
+  };
+
   const imprimir = () => {
     window.print();
   };
@@ -5113,6 +5835,10 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
       setTimeout(() => window.print(), 250);
     } else if (tipo === 'carnets') {
       setSubTab('carnets');
+    } else if (tipo === 'cobranzas') {
+      setSubTab('cobranzas');
+      cargarCobranzas(anioCobranzas);
+      setTimeout(() => window.print(), 350);
     } else if (tipo === 'asistencias') {
       setSubTab('alumnos');
       setTimeout(() => window.print(), 250);
@@ -5165,7 +5891,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Centro de Reportes y Credenciales</h2>
           <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
-            Reporte de alumnos, control de cartera morosa y emisión de carnets impresos.
+            Reporte de alumnos, control de cartera morosa, cobranzas anuales y emisión de carnets impresos.
           </p>
         </div>
 
@@ -5189,12 +5915,12 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
           {[
             { id: 'alumnos', label: 'Planilla Consolidada de Alumnos', desc: 'Listado por sede, categoría y contactos de emergencia', icon: ClipboardList, color: C.primary },
+            { id: 'cobranzas', label: 'Balance Anual de Cobranzas', desc: 'Comparativa mes a mes de facturado vs recaudado', icon: BarChart3, color: C.green },
             { id: 'deudores', label: 'Informe de Cartera Morosa', desc: 'Detalle de cuotas vencidas y saldos pendientes por cobro', icon: AlertCircle, color: C.red },
             { id: 'carnets', label: 'Carnets y Credenciales Oficiales', desc: 'Emisión e impresión masiva de carnets con QR de alumnos', icon: QrCode, color: C.purple },
-            { id: 'asistencias', label: 'Planilla de Control de Asistencias', desc: 'Formulario impreso para control diario en prácticas', icon: Calendar, color: C.green },
           ].map(rep => (
             <div key={rep.id} style={{
               background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14,
@@ -5218,12 +5944,19 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
       </div>
 
       {/* Subtabs Selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, flexWrap: 'wrap' }}>
         <button
           onClick={() => setSubTab('alumnos')}
           style={{ ...btn(subTab === 'alumnos' ? C.primary : 'transparent', subTab !== 'alumnos'), borderRadius: 20 }}
         >
           📋 Listado de Alumnos ({alumnosFiltrados.length})
+        </button>
+
+        <button
+          onClick={() => { setSubTab('cobranzas'); cargarCobranzas(anioCobranzas); }}
+          style={{ ...btn(subTab === 'cobranzas' ? C.green : 'transparent', subTab !== 'cobranzas'), borderRadius: 20 }}
+        >
+          📊 Cobranzas Mensuales y Anuales
         </button>
 
         <button
@@ -5432,9 +6165,167 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
           </div>
         </div>
       )}
+
+      {/* ── SECCIÓN 4: INFORMES MENSUALES Y ANUALES DE COBRANZAS ── */}
+      {subTab === 'cobranzas' && (
+        <div style={card()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>
+                📊 Balance Anual y Mensual de Cobranzas
+              </h3>
+              <p style={{ fontSize: 12, color: C.muted, margin: '4px 0 0' }}>
+                Resumen comparativo mes a mes de cuotas emitidas vs efectivamente cobradas y tasa de efectividad.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <label style={{ ...label({ marginBottom: 0 }), fontSize: 12 }}>Año fiscal:</label>
+              <select
+                value={anioCobranzas}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setAnioCobranzas(val);
+                  cargarCobranzas(val);
+                }}
+                style={{ ...input({ width: 120 }), fontWeight: 700 }}
+              >
+                {[2027, 2026, 2025, 2024].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button onClick={() => cargarCobranzas(anioCobranzas)} style={{ ...btn(C.primary, true), padding: '8px 12px' }}>
+                <RefreshCw size={14} /> Recargar
+              </button>
+            </div>
+          </div>
+
+          {loadingCobranzas ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.muted }}>
+              <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: 8 }} />
+              <p>Consolidando cobranzas del año {anioCobranzas}...</p>
+            </div>
+          ) : reporteCobranzas ? (
+            <div>
+              {/* Tarjetas KPI Anuales */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
+                <div style={{ background: `${C.primary}15`, border: `1px solid ${C.primary}33`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>TOTAL FACTURADO / EMITIDO</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 4 }}>
+                    Gs. {(reporteCobranzas.totales_anuales?.total_facturado || 0).toLocaleString('es-PY')}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    {reporteCobranzas.totales_anuales?.cuotas_emitidas || 0} cuotas emitidas en el año
+                  </div>
+                </div>
+
+                <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}33`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>TOTAL COBRADO / RECAUDADO</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: C.green, marginTop: 4 }}>
+                    Gs. {(reporteCobranzas.totales_anuales?.total_cobrado || 0).toLocaleString('es-PY')}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.green, marginTop: 4 }}>
+                    {reporteCobranzas.totales_anuales?.cuotas_cobradas || 0} cuotas cobradas
+                  </div>
+                </div>
+
+                <div style={{ background: `${C.red}15`, border: `1px solid ${C.red}33`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>SALDO PENDIENTE / MOROSO</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: C.red, marginTop: 4 }}>
+                    Gs. {(reporteCobranzas.totales_anuales?.total_pendiente || 0).toLocaleString('es-PY')}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>
+                    Por cobrar en el ejercicio
+                  </div>
+                </div>
+
+                <div style={{ background: `${C.purple}15`, border: `1px solid ${C.purple}33`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>EFECTIVIDAD DE COBRANZA</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: C.purple, marginTop: 4 }}>
+                    {reporteCobranzas.totales_anuales?.porcentaje_efectividad || 0}%
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    Ratio cobrado vs facturado
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla Comparativa Mes a Mes (12 meses) */}
+              <div style={{ marginBottom: 24 }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, color: C.text }}>
+                  EVOLUCIÓN MENSUAL ({anioCobranzas})
+                </h4>
+                <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: `${C.bg}bb`, borderBottom: `1px solid ${C.border}` }}>
+                        {['Mes', 'Cuotas Emitidas', 'Facturado (Gs.)', 'Cuotas Cobradas', 'Cobrado (Gs.)', 'Pendiente (Gs.)', '% Efectividad'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '11px 14px', color: C.muted, fontWeight: 700, fontSize: 12 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(reporteCobranzas.meses || []).map((m: any) => {
+                        const efect = m.porcentaje_efectividad || 0;
+                        const efectColor = efect >= 80 ? C.green : efect >= 50 ? C.yellow : m.total_facturado > 0 ? C.red : C.faint;
+                        return (
+                          <tr key={m.mes} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                            <td style={{ padding: '10px 14px', fontWeight: 700 }}>{m.nombre_mes}</td>
+                            <td style={{ padding: '10px 14px', color: C.muted }}>{m.cuotas_emitidas}</td>
+                            <td style={{ padding: '10px 14px', fontWeight: 600 }}>Gs. {(m.total_facturado || 0).toLocaleString('es-PY')}</td>
+                            <td style={{ padding: '10px 14px', color: C.green }}>{m.cuotas_cobradas}</td>
+                            <td style={{ padding: '10px 14px', fontWeight: 700, color: C.green }}>Gs. {(m.total_cobrado || 0).toLocaleString('es-PY')}</td>
+                            <td style={{ padding: '10px 14px', color: m.total_pendiente > 0 ? C.red : C.faint, fontWeight: m.total_pendiente > 0 ? 700 : 400 }}>
+                              Gs. {(m.total_pendiente || 0).toLocaleString('es-PY')}
+                            </td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{
+                                padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 800,
+                                background: `${efectColor}20`, color: efectColor, border: `1px solid ${efectColor}44`
+                              }}>
+                                {efect}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Desglose por Categoría / Deporte si existen pagos */}
+              {reporteCobranzas.por_categoria && reporteCobranzas.por_categoria.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 800, color: C.text }}>
+                    RECAUDACIÓN POR CATEGORÍA / DEPORTE
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+                    {reporteCobranzas.por_categoria.map((cat: any) => (
+                      <div key={cat.categoria_id || cat.categoria} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{cat.categoria}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{cat.deporte} · {cat.sucursal}</div>
+                        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, color: C.muted }}>{cat.cantidad_pagos} cobros</span>
+                          <span style={{ fontWeight: 800, color: C.green, fontSize: 14 }}>Gs. {(cat.total_recaudado || 0).toLocaleString('es-PY')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: 30, textAlign: 'center', color: C.faint }}>
+              No hay datos financieros registrados para el año {anioCobranzas}.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
 
 // ═══════════════════════════════════════════════════════════
 // FACTURACIÓN ELECTRÓNICA SIFEN / .P12 TAB
@@ -6315,3 +7206,942 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════
+// UNIFORMES Y ACCESORIOS TAB (TIENDA ACADÉMICA)
+// ═══════════════════════════════════════════════════════════
+function TiendaTab({ notify, apiFetch, isAdmin, isTesorero, alumnos = [], cuentas = [], metodosPago = [] }: any) {
+  const [subTab, setSubTab] = useState<'catalogo' | 'ventas'>('catalogo');
+  const [productos, setProductos] = useState<any[]>([]);
+  const [ventas, setVentas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+
+  // Modales
+  const [modalProducto, setModalProducto] = useState<any>(null);
+  const [formProd, setFormProd] = useState<any>({});
+  const [modalVenta, setModalVenta] = useState<any>(null);
+  const [formVenta, setFormVenta] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    setLoading(true);
+    try {
+      const [prods, vts] = await Promise.all([
+        apiFetch('/academia/productos').catch(() => []),
+        apiFetch('/academia/ventas-productos').catch(() => []),
+      ]);
+      setProductos(Array.isArray(prods) ? prods : []);
+      setVentas(Array.isArray(vts) ? vts : []);
+    } catch (err: any) {
+      notify(err.message || 'Error al cargar productos y ventas', 'err');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtrado de productos
+  const filteredProductos = productos.filter((p: any) => {
+    const matchesSearch = !search || p.nombre?.toLowerCase().includes(search.toLowerCase()) || p.descripcion?.toLowerCase().includes(search.toLowerCase());
+    const matchesTipo = !filtroTipo || p.tipo === filtroTipo;
+    return matchesSearch && matchesTipo;
+  });
+
+  // Abrir nuevo producto
+  const openNewProducto = () => {
+    setFormProd({
+      nombre: '',
+      tipo: 'uniforme',
+      descripcion: '',
+      talle_variante: '',
+      precio: 0,
+      stock: 10,
+      stock_minimo: 3,
+    });
+    setModalProducto('new');
+  };
+
+  // Abrir edición de producto
+  const openEditProducto = (p: any) => {
+    setFormProd({ ...p });
+    setModalProducto(p.id);
+  };
+
+  // Guardar producto
+  const saveProducto = async () => {
+    if (!formProd.nombre) return notify('Ingresá el nombre del artículo', 'err');
+    setSaving(true);
+    try {
+      if (modalProducto === 'new') {
+        await apiFetch('/academia/productos', { method: 'POST', body: JSON.stringify(formProd) });
+        notify('Artículo creado exitosamente');
+      } else {
+        await apiFetch(`/academia/productos/${modalProducto}`, { method: 'PUT', body: JSON.stringify(formProd) });
+        notify('Artículo actualizado exitosamente');
+      }
+      await cargarDatos();
+      setModalProducto(null);
+    } catch (err: any) {
+      notify(err.message || 'Error al guardar producto', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Eliminar producto
+  const deleteProducto = async (prodId: string) => {
+    if (!confirm('¿Seguro que deseás eliminar este producto?')) return;
+    try {
+      await apiFetch(`/academia/productos/${prodId}`, { method: 'DELETE' });
+      notify('Producto eliminado');
+      await cargarDatos();
+    } catch (err: any) {
+      notify(err.message || 'Error al eliminar', 'err');
+    }
+  };
+
+  // Abrir modal de venta
+  const openVentaModal = (p?: any) => {
+    const prodSeleccionado = p || productos[0];
+    const precioUnitario = prodSeleccionado ? prodSeleccionado.precio : 0;
+    setFormVenta({
+      producto_id: prodSeleccionado?.id || '',
+      alumno_id: '',
+      cantidad: 1,
+      precio_unitario: precioUnitario,
+      cuenta_id: cuentas[0]?.id || '',
+      metodo_pago_id: metodosPago[0]?.id || '',
+      metodo_pago: '',
+      entregado: true,
+      generar_factura: false,
+      notas: '',
+    });
+    setModalVenta(true);
+  };
+
+  // Cuando cambia el producto en el formulario de venta, actualizar el precio unitario
+  const handleVentaProductoChange = (prodId: string) => {
+    const p = productos.find((prod: any) => prod.id === prodId);
+    setFormVenta((f: any) => ({
+      ...f,
+      producto_id: prodId,
+      precio_unitario: p ? p.precio : f.precio_unitario,
+    }));
+  };
+
+  // Guardar venta
+  const saveVenta = async () => {
+    if (!formVenta.producto_id) return notify('Seleccioná un producto', 'err');
+    if (!formVenta.cantidad || formVenta.cantidad <= 0) return notify('Ingresá una cantidad válida', 'err');
+    setSaving(true);
+    try {
+      const res = await apiFetch('/academia/ventas-productos', {
+        method: 'POST',
+        body: JSON.stringify(formVenta),
+      });
+      notify(res.message || 'Venta registrada exitosamente');
+      await cargarDatos();
+      setModalVenta(false);
+    } catch (err: any) {
+      notify(err.message || 'Error al registrar venta', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Marcar venta como entregada
+  const marcarEntregado = async (ventaId: string) => {
+    try {
+      await apiFetch(`/academia/ventas-productos/${ventaId}/entregar`, { method: 'PUT' });
+      notify('Pedido marcado como entregado');
+      await cargarDatos();
+    } catch (err: any) {
+      notify(err.message || 'Error al actualizar estado', 'err');
+    }
+  };
+
+  const tipoBadgeColor: Record<string, string> = {
+    uniforme: C.primary,
+    accesorio: C.purple,
+    indumentaria: '#06b6d4',
+    calzado: '#f59e0b',
+    otro: C.muted,
+  };
+
+  const totalVentasGs = ventas.reduce((acc, v) => acc + (v.precio_total || 0), 0);
+  const pendientesEntrega = ventas.filter(v => !v.entregado).length;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Uniformes y Accesorios</h1>
+          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>
+            Gestión de indumentaria, talles, stock en depósito y ventas directas a alumnos.
+          </p>
+        </div>
+        {(isAdmin || isTesorero) && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => openVentaModal()} style={btn(C.green)}>
+              <ShoppingBag size={15} /> Registrar Venta / Pedido
+            </button>
+            <button onClick={openNewProducto} style={btn(C.primary)}>
+              <Plus size={15} /> Nuevo Artículo
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Subtabs Selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
+        <button
+          onClick={() => setSubTab('catalogo')}
+          style={{ ...btn(subTab === 'catalogo' ? C.primary : 'transparent', subTab !== 'catalogo'), borderRadius: 20 }}
+        >
+          🎽 Catálogo de Artículos ({productos.length})
+        </button>
+        <button
+          onClick={() => setSubTab('ventas')}
+          style={{ ...btn(subTab === 'ventas' ? C.purple : 'transparent', subTab !== 'ventas'), borderRadius: 20 }}
+        >
+          🛍️ Historial de Ventas y Pedidos ({ventas.length})
+          {pendientesEntrega > 0 && (
+            <span style={{ marginLeft: 6, background: C.yellow, color: '#000', borderRadius: 999, padding: '1px 6px', fontSize: 10, fontWeight: 800 }}>
+              {pendientesEntrega} pend.
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ─── SUBTAB: CATÁLOGO DE PRODUCTOS ─── */}
+      {subTab === 'catalogo' && (
+        <>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="🔍 Buscar artículo..."
+              style={input({ maxWidth: 280 })}
+            />
+            <select
+              value={filtroTipo}
+              onChange={e => setFiltroTipo(e.target.value)}
+              style={{ ...input({ width: 200 }) }}
+            >
+              <option value="">Todos los tipos</option>
+              <option value="uniforme">Uniformes Oficiales</option>
+              <option value="accesorio">Accesorios y Equipamiento</option>
+              <option value="indumentaria">Indumentaria y Remeras</option>
+              <option value="calzado">Calzados y Medias</option>
+              <option value="otro">Otros</option>
+            </select>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: C.muted }}>Cargando catálogo...</div>
+          ) : filteredProductos.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 50, color: C.faint }}>
+              <Package size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <h3 style={{ margin: 0, color: C.text }}>No hay productos registrados</h3>
+              <p style={{ fontSize: 13, margin: '6px 0 16px' }}>Comenzá agregando uniformes o accesorios para vender a tus alumnos.</p>
+              {(isAdmin || isTesorero) && (
+                <button onClick={openNewProducto} style={btn()}><Plus size={14} /> Agregar Producto</button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+              {filteredProductos.map((p: any) => {
+                const stockBajo = p.stock <= (p.stock_minimo || 3);
+                return (
+                  <div key={p.id} style={{ ...card({ padding: 18 }), display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <span style={badge(tipoBadgeColor[p.tipo] || C.muted)}>{p.tipo?.toUpperCase()}</span>
+                        <span style={badge(stockBajo ? C.red : C.green)}>
+                          {stockBajo ? `⚠️ Stock bajo (${p.stock})` : `📦 ${p.stock} unid.`}
+                        </span>
+                      </div>
+                      <h3 style={{ margin: '4px 0', fontSize: 16, fontWeight: 800, color: C.text }}>{p.nombre}</h3>
+                      {p.talle_variante && (
+                        <div style={{ fontSize: 12, color: C.primary, fontWeight: 700, marginBottom: 6 }}>
+                          Talles: {p.talle_variante}
+                        </div>
+                      )}
+                      {p.descripcion && (
+                        <p style={{ fontSize: 12, color: C.muted, margin: '0 0 12px', lineHeight: 1.4 }}>
+                          {p.descripcion}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ borderTop: `1px solid ${C.border}44`, paddingTop: 12, marginTop: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                        <span style={{ fontSize: 11, color: C.muted }}>Precio Unitario</span>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: C.text }}>
+                          Gs. {(p.precio || 0).toLocaleString('es-PY')}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        {(isAdmin || isTesorero) && (
+                          <>
+                            <button onClick={() => openVentaModal(p)} style={{ ...btn(C.green), fontSize: 11, padding: '6px 10px' }} title="Vender a alumno">
+                              <ShoppingBag size={12} /> Vender
+                            </button>
+                            <button onClick={() => openEditProducto(p)} style={{ ...btn(C.primary, true), fontSize: 11, padding: '6px 8px' }} title="Editar">
+                              <Pencil size={12} />
+                            </button>
+                            <button onClick={() => deleteProducto(p.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '6px 8px' }} title="Eliminar">
+                              <Trash2 size={12} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ─── SUBTAB: HISTORIAL DE VENTAS Y PEDIDOS ─── */}
+      {subTab === 'ventas' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 18 }}>
+            <div style={{ background: `${C.green}15`, border: `1px solid ${C.green}33`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>RECAUDACIÓN POR PRODUCTOS</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.green, marginTop: 4 }}>
+                Gs. {totalVentasGs.toLocaleString('es-PY')}
+              </div>
+            </div>
+            <div style={{ background: `${pendientesEntrega > 0 ? C.yellow : C.green}15`, border: `1px solid ${pendientesEntrega > 0 ? C.yellow : C.green}33`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>PEDIDOS PENDIENTES DE ENTREGA</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: pendientesEntrega > 0 ? C.yellow : C.green, marginTop: 4 }}>
+                {pendientesEntrega} pedidos
+              </div>
+            </div>
+          </div>
+
+          <div style={card({ padding: 0 })}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                  {['Fecha', 'Alumno / Cliente', 'Producto', 'Cant.', 'Total (Gs.)', 'Medio de Pago', 'Estado Entrega', 'Acción'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '11px 14px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ventas.length === 0 ? (
+                  <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay ventas registradas aún.</td></tr>
+                ) : (
+                  ventas.map((v: any) => (
+                    <tr key={v.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontSize: 12 }}>{v.fecha_venta?.slice(0, 10)}</td>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{v.alumno_nombre || 'Público General'}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <div style={{ fontWeight: 600 }}>{v.producto_nombre}</div>
+                        {v.talle_variante && <div style={{ fontSize: 11, color: C.muted }}>Talle: {v.talle_variante}</div>}
+                      </td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>{v.cantidad}</td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700 }}>Gs. {(v.precio_total || 0).toLocaleString('es-PY')}</td>
+                      <td style={{ padding: '9px 14px', color: C.muted, fontSize: 12 }}>{v.metodo_pago_nombre || v.metodo_pago || 'Efectivo'}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <span style={badge(v.entregado ? C.green : C.yellow)}>
+                          {v.entregado ? '✅ Entregado' : '⏳ Pendiente'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 14px' }}>
+                        {!v.entregado && (isAdmin || isTesorero) && (
+                          <button
+                            onClick={() => marcarEntregado(v.id)}
+                            style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 8px' }}
+                          >
+                            <Check size={11} /> Entregar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ════ MODAL CREAR / EDITAR PRODUCTO ════ */}
+      {modalProducto && (
+        <Modal title={modalProducto === 'new' ? 'Nuevo Artículo / Uniforme' : 'Editar Artículo'} onClose={() => setModalProducto(null)}>
+          <FormField label="Nombre del Artículo *" value={formProd.nombre} onChange={v => setFormProd((f: any) => ({ ...f, nombre: v }))} placeholder="Ej: Camiseta Oficial Titular" />
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Tipo de Artículo *</label>
+            <select value={formProd.tipo || 'uniforme'} onChange={e => setFormProd((f: any) => ({ ...f, tipo: e.target.value }))} style={input()}>
+              <option value="uniforme">Uniforme Oficial</option>
+              <option value="accesorio">Accesorio / Equipamiento</option>
+              <option value="indumentaria">Indumentaria de Entrenamiento</option>
+              <option value="calzado">Calzado / Medias</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+
+          <FormField
+            label="Talles o Variantes Disponibles"
+            value={formProd.talle_variante}
+            onChange={v => setFormProd((f: any) => ({ ...f, talle_variante: v }))}
+            placeholder="Ej: Talles 6, 8, 10, 12, S, M, L, XL"
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Precio de Venta (Gs.) *" type="number" value={formProd.precio} onChange={v => setFormProd((f: any) => ({ ...f, precio: Number(v) }))} />
+            <FormField label="Stock Actual (unidades) *" type="number" value={formProd.stock} onChange={v => setFormProd((f: any) => ({ ...f, stock: Number(v) }))} />
+          </div>
+
+          <FormField label="Alerta de Stock Mínimo" type="number" value={formProd.stock_minimo} onChange={v => setFormProd((f: any) => ({ ...f, stock_minimo: Number(v) }))} placeholder="3" />
+          <FormField label="Descripción o especificaciones" value={formProd.descripcion} onChange={v => setFormProd((f: any) => ({ ...f, descripcion: v }))} placeholder="Detalles de tela, color o marca..." />
+
+          <ModalActions onCancel={() => setModalProducto(null)} onSave={saveProducto} saving={saving} />
+        </Modal>
+      )}
+
+      {/* ════ MODAL REGISTRAR VENTA ════ */}
+      {modalVenta && (
+        <Modal title="Registrar Venta de Uniforme / Accesorio" onClose={() => setModalVenta(false)} wide>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Producto / Artículo *</label>
+            <select value={formVenta.producto_id} onChange={e => handleVentaProductoChange(e.target.value)} style={input()}>
+              <option value="">Seleccionar artículo...</option>
+              {productos.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} — Gs. {(p.precio || 0).toLocaleString('es-PY')} (Stock: {p.stock})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Alumno Comprador (Opcional — vincular a su ficha)</label>
+            <select value={formVenta.alumno_id} onChange={e => setFormVenta((f: any) => ({ ...f, alumno_id: e.target.value }))} style={input()}>
+              <option value="">— Público General / Sin alumno asociado —</option>
+              {alumnos.map((a: any) => (
+                <option key={a.id} value={a.id}>{a.nombre} {a.apellido}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <FormField label="Cantidad *" type="number" value={formVenta.cantidad} onChange={v => setFormVenta((f: any) => ({ ...f, cantidad: Number(v) }))} />
+            <FormField label="Precio Unitario (Gs.)" type="number" value={formVenta.precio_unitario} onChange={v => setFormVenta((f: any) => ({ ...f, precio_unitario: Number(v) }))} />
+            <div>
+              <label style={label()}>TOTAL A COBRAR</label>
+              <div style={{ ...input(), fontWeight: 800, color: C.green, fontSize: 16 }}>
+                Gs. {((formVenta.cantidad || 0) * (formVenta.precio_unitario || 0)).toLocaleString('es-PY')}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+            <div>
+              <label style={label()}>Cuenta de Caja Destino</label>
+              <select value={formVenta.cuenta_id} onChange={e => setFormVenta((f: any) => ({ ...f, cuenta_id: e.target.value }))} style={input()}>
+                <option value="">— Sin especificar cuenta —</option>
+                {cuentas.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.tipo === 'efectivo' ? '💵' : '🏦'} {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={label()}>Método de Pago</label>
+              {metodosPago.length > 0 ? (
+                <select value={formVenta.metodo_pago_id} onChange={e => setFormVenta((f: any) => ({ ...f, metodo_pago_id: e.target.value }))} style={input()}>
+                  <option value="">— Sin especificar —</option>
+                  {metodosPago.map((m: any) => (
+                    <option key={m.id} value={m.id}>{m.nombre}</option>
+                  ))}
+                </select>
+              ) : (
+                <select value={formVenta.metodo_pago} onChange={e => setFormVenta((f: any) => ({ ...f, metodo_pago: e.target.value }))} style={input()}>
+                  {['Efectivo', 'Transferencia', 'Tarjeta', 'QR', 'Otro'].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: C.text }}>
+              <input
+                type="checkbox"
+                checked={formVenta.entregado}
+                onChange={e => setFormVenta((f: any) => ({ ...f, entregado: e.target.checked }))}
+              />
+              Entregar artículo inmediatamente al comprador (o desmarcar si queda pendiente de entrega)
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: C.text }}>
+              <input
+                type="checkbox"
+                checked={formVenta.generar_factura}
+                onChange={e => setFormVenta((f: any) => ({ ...f, generar_factura: e.target.checked }))}
+              />
+              📄 Emitir Factura Electrónica SIFEN por esta venta
+            </label>
+          </div>
+
+          <ModalActions onCancel={() => setModalVenta(false)} onSave={saveVenta} saving={saving} saveLabel="Confirmar Venta y Cobro" />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMPETENCIAS Y TORNEOS TAB
+// ═══════════════════════════════════════════════════════════
+function CompetenciasTab({ notify, apiFetch, isAdmin, isTesorero, alumnos = [] }: any) {
+  const [competencias, setCompetencias] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Modales
+  const [modalComp, setModalComp] = useState<any>(null);
+  const [formComp, setFormComp] = useState<any>({});
+  const [modalPart, setModalPart] = useState<any>(null);
+  const [participantes, setParticipantes] = useState<any[]>([]);
+  const [loadingPart, setLoadingPart] = useState(false);
+  const [formPart, setFormPart] = useState<any>({ alumno_id: '', categoria_modalidad: '', arancel_pagado: false });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    cargarCompetencias();
+  }, []);
+
+  const cargarCompetencias = async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch('/academia/competencias');
+      setCompetencias(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      notify(err.message || 'Error al cargar competencias', 'err');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredComp = competencias.filter((c: any) => {
+    const matchesSearch = !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.sede_lugar?.toLowerCase().includes(search.toLowerCase());
+    const matchesEstado = !filtroEstado || c.estado === filtroEstado;
+    return matchesSearch && matchesEstado;
+  });
+
+  const openNewComp = () => {
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    setFormComp({
+      nombre: '',
+      deporte: 'Fútbol',
+      fecha_inicio: hoyStr,
+      fecha_fin: hoyStr,
+      sede_lugar: '',
+      costo_inscripcion: 0,
+      descripcion: '',
+      estado: 'programada',
+    });
+    setModalComp('new');
+  };
+
+  const openEditComp = (c: any) => {
+    setFormComp({ ...c });
+    setModalComp(c.id);
+  };
+
+  const saveComp = async () => {
+    if (!formComp.nombre) return notify('Ingresá el nombre del torneo o competencia', 'err');
+    setSaving(true);
+    try {
+      if (modalComp === 'new') {
+        await apiFetch('/academia/competencias', { method: 'POST', body: JSON.stringify(formComp) });
+        notify('Competencia creada exitosamente');
+      } else {
+        await apiFetch(`/academia/competencias/${modalComp}`, { method: 'PUT', body: JSON.stringify(formComp) });
+        notify('Competencia actualizada exitosamente');
+      }
+      await cargarCompetencias();
+      setModalComp(null);
+    } catch (err: any) {
+      notify(err.message || 'Error al guardar competencia', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteComp = async (compId: string) => {
+    if (!confirm('¿Seguro que deseás eliminar esta competencia?')) return;
+    try {
+      await apiFetch(`/academia/competencias/${compId}`, { method: 'DELETE' });
+      notify('Competencia eliminada');
+      await cargarCompetencias();
+    } catch (err: any) {
+      notify(err.message || 'Error al eliminar', 'err');
+    }
+  };
+
+  // Abrir modal de participantes
+  const openParticipantesModal = async (c: any) => {
+    setModalPart(c);
+    setLoadingPart(true);
+    setFormPart({ alumno_id: '', categoria_modalidad: '', arancel_pagado: false });
+    try {
+      const data = await apiFetch(`/academia/competencias/${c.id}/participantes`);
+      setParticipantes(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      notify(err.message || 'Error al cargar participantes', 'err');
+    } finally {
+      setLoadingPart(false);
+    }
+  };
+
+  // Inscribir alumno en competencia
+  const addParticipante = async () => {
+    if (!formPart.alumno_id) return notify('Seleccioná un alumno', 'err');
+    setSaving(true);
+    try {
+      await apiFetch(`/academia/competencias/${modalPart.id}/participantes`, {
+        method: 'POST',
+        body: JSON.stringify(formPart),
+      });
+      notify('Alumno inscripto en la competencia');
+      const updated = await apiFetch(`/academia/competencias/${modalPart.id}/participantes`);
+      setParticipantes(Array.isArray(updated) ? updated : []);
+      setFormPart({ alumno_id: '', categoria_modalidad: '', arancel_pagado: false });
+      await cargarCompetencias();
+    } catch (err: any) {
+      notify(err.message || 'Error al inscribir participante', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Toggle arancel pagado
+  const toggleArancelPagado = async (p: any) => {
+    try {
+      await apiFetch(`/academia/competencias/${modalPart.id}/participantes/${p.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ arancel_pagado: !p.arancel_pagado }),
+      });
+      const updated = await apiFetch(`/academia/competencias/${modalPart.id}/participantes`);
+      setParticipantes(Array.isArray(updated) ? updated : []);
+    } catch (err: any) {
+      notify(err.message || 'Error al actualizar arancel', 'err');
+    }
+  };
+
+  // Actualizar puesto / podio
+  const updatePuesto = async (p: any, puesto: string) => {
+    try {
+      await apiFetch(`/academia/competencias/${modalPart.id}/participantes/${p.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ puesto_obtenido: puesto }),
+      });
+      notify('Resultado / Podio registrado');
+      const updated = await apiFetch(`/academia/competencias/${modalPart.id}/participantes`);
+      setParticipantes(Array.isArray(updated) ? updated : []);
+    } catch (err: any) {
+      notify(err.message || 'Error al registrar podio', 'err');
+    }
+  };
+
+  // Quitar participante
+  const removeParticipante = async (partId: string) => {
+    if (!confirm('¿Quitar alumno de esta competencia?')) return;
+    try {
+      await apiFetch(`/academia/competencias/${modalPart.id}/participantes/${partId}`, {
+        method: 'DELETE',
+      });
+      notify('Participante eliminado');
+      const updated = await apiFetch(`/academia/competencias/${modalPart.id}/participantes`);
+      setParticipantes(Array.isArray(updated) ? updated : []);
+      await cargarCompetencias();
+    } catch (err: any) {
+      notify(err.message || 'Error al quitar participante', 'err');
+    }
+  };
+
+  const compEstadoColor: Record<string, string> = {
+    programada: C.primary,
+    en_curso: C.green,
+    finalizada: C.purple,
+    cancelada: C.faint,
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Competencias y Torneos</h1>
+          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>
+            Planificación de torneos, inscripción de alumnos, aranceles y seguimiento de podios.
+          </p>
+        </div>
+        {(isAdmin || isTesorero) && (
+          <button onClick={openNewComp} style={btn(C.primary)}>
+            <Trophy size={15} /> Nueva Competencia
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="🔍 Buscar competencia o torneo..."
+          style={input({ maxWidth: 280 })}
+        />
+        <select
+          value={filtroEstado}
+          onChange={e => setFiltroEstado(e.target.value)}
+          style={{ ...input({ width: 180 }) }}
+        >
+          <option value="">Todos los estados</option>
+          <option value="programada">Programada</option>
+          <option value="en_curso">En Curso</option>
+          <option value="finalizada">Finalizada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: C.muted }}>Cargando competencias...</div>
+      ) : filteredComp.length === 0 ? (
+        <div style={{ ...card(), textAlign: 'center', padding: 50, color: C.faint }}>
+          <Trophy size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
+          <h3 style={{ margin: 0, color: C.text }}>No hay competencias registradas</h3>
+          <p style={{ fontSize: 13, margin: '6px 0 16px' }}>Creá torneos y eventos deportivos para inscribir a tus alumnos y registrar sus logros.</p>
+          {(isAdmin || isTesorero) && (
+            <button onClick={openNewComp} style={btn()}><Plus size={14} /> Crear Torneo</button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+          {filteredComp.map((c: any) => (
+            <div key={c.id} style={{ ...card({ padding: 20 }), display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={badge(compEstadoColor[c.estado] || C.muted)}>{c.estado?.toUpperCase()}</span>
+                  <span style={{ fontSize: 12, color: C.muted, fontWeight: 700 }}>
+                    📅 {c.fecha_inicio}
+                  </span>
+                </div>
+                <h3 style={{ margin: '4px 0', fontSize: 17, fontWeight: 800, color: C.text }}>{c.nombre}</h3>
+                <div style={{ fontSize: 12, color: C.primary, fontWeight: 700, marginTop: 4 }}>
+                  🏆 {c.deporte} {c.sede_lugar ? `· 📍 ${c.sede_lugar}` : ''}
+                </div>
+                {c.descripcion && (
+                  <p style={{ fontSize: 12, color: C.muted, margin: '8px 0 12px', lineHeight: 1.4 }}>
+                    {c.descripcion}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ borderTop: `1px solid ${C.border}44`, paddingTop: 12, marginTop: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: C.muted }}>Inscripción / Arancel</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
+                      {c.costo_inscripcion > 0 ? `Gs. ${c.costo_inscripcion.toLocaleString('es-PY')}` : 'Gratuito'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 11, color: C.muted }}>Participantes</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: C.purple }}>
+                      👥 {c.total_participantes || 0} alumnos
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => openParticipantesModal(c)}
+                    style={{ ...btn(C.purple), fontSize: 11, padding: '6px 12px' }}
+                  >
+                    👥 Participantes y Podios
+                  </button>
+                  {(isAdmin || isTesorero) && (
+                    <>
+                      <button onClick={() => openEditComp(c)} style={{ ...btn(C.primary, true), fontSize: 11, padding: '6px 8px' }} title="Editar">
+                        <Pencil size={12} />
+                      </button>
+                      <button onClick={() => deleteComp(c.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '6px 8px' }} title="Eliminar">
+                        <Trash2 size={12} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ════ MODAL CREAR / EDITAR COMPETENCIA ════ */}
+      {modalComp && (
+        <Modal title={modalComp === 'new' ? 'Nueva Competencia / Torneo' : 'Editar Competencia'} onClose={() => setModalComp(null)} wide>
+          <FormField label="Nombre de la Competencia *" value={formComp.nombre} onChange={v => setFormComp((f: any) => ({ ...f, nombre: v }))} placeholder="Ej: Torneo Apertura Sub-12" />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Deporte / Modalidad *" value={formComp.deporte} onChange={v => setFormComp((f: any) => ({ ...f, deporte: v }))} placeholder="Fútbol, Tenis, Pádel..." />
+            <div>
+              <label style={label()}>Estado del Evento</label>
+              <select value={formComp.estado || 'programada'} onChange={e => setFormComp((f: any) => ({ ...f, estado: e.target.value }))} style={input()}>
+                <option value="programada">Programada</option>
+                <option value="en_curso">En Curso</option>
+                <option value="finalizada">Finalizada</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Fecha de Inicio *" type="date" value={formComp.fecha_inicio || ''} onChange={v => setFormComp((f: any) => ({ ...f, fecha_inicio: v }))} />
+            <FormField label="Fecha de Fin" type="date" value={formComp.fecha_fin || ''} onChange={v => setFormComp((f: any) => ({ ...f, fecha_fin: v }))} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormField label="Sede o Lugar de Encuentro" value={formComp.sede_lugar} onChange={v => setFormComp((f: any) => ({ ...f, sede_lugar: v }))} placeholder="Cancha Principal Sede Central" />
+            <FormField label="Arancel / Costo de Inscripción (Gs.)" type="number" value={formComp.costo_inscripcion} onChange={v => setFormComp((f: any) => ({ ...f, costo_inscripcion: Number(v) }))} />
+          </div>
+
+          <FormField label="Descripción o bases del torneo" value={formComp.descripcion} onChange={v => setFormComp((f: any) => ({ ...f, descripcion: v }))} placeholder="Reglamento, premios o detalles..." />
+
+          <ModalActions onCancel={() => setModalComp(null)} onSave={saveComp} saving={saving} />
+        </Modal>
+      )}
+
+      {/* ════ MODAL PARTICIPANTES Y PODIOS ════ */}
+      {modalPart && (
+        <Modal title={`Participantes — ${modalPart.nombre}`} onClose={() => setModalPart(null)} wide>
+          {/* Formulario para agregar participante */}
+          <div style={{ background: `${C.bg}88`, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Inscribir Alumno al Torneo:</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
+              <div>
+                <label style={label()}>Alumno *</label>
+                <select value={formPart.alumno_id} onChange={e => setFormPart((f: any) => ({ ...f, alumno_id: e.target.value }))} style={input()}>
+                  <option value="">Seleccionar alumno...</option>
+                  {alumnos.map((a: any) => (
+                    <option key={a.id} value={a.id}>{a.nombre} {a.apellido}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={label()}>Categoría / División</label>
+                <input
+                  value={formPart.categoria_modalidad}
+                  onChange={e => setFormPart((f: any) => ({ ...f, categoria_modalidad: e.target.value }))}
+                  placeholder="Ej: Sub-12 Varones, Dobles"
+                  style={input()}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addParticipante}
+                disabled={saving}
+                style={{ ...btn(C.primary), padding: '10px 14px', height: 40 }}
+              >
+                <Plus size={14} /> Inscribir
+              </button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: C.muted }}>
+                <input
+                  type="checkbox"
+                  checked={formPart.arancel_pagado}
+                  onChange={e => setFormPart((f: any) => ({ ...f, arancel_pagado: e.target.checked }))}
+                />
+                Marcar arancel de inscripción como pagado inmediatamente
+              </label>
+            </div>
+          </div>
+
+          {/* Tabla de Participantes */}
+          <div style={{ maxHeight: 300, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: `${C.bg}aa`, borderBottom: `1px solid ${C.border}` }}>
+                  {['Alumno', 'División / Modalidad', 'Arancel', 'Podio / Puesto', 'Acción'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '9px 12px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loadingPart ? (
+                  <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: C.muted }}>Cargando participantes...</td></tr>
+                ) : participantes.length === 0 ? (
+                  <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: C.faint }}>No hay alumnos inscriptos aún en este torneo.</td></tr>
+                ) : (
+                  participantes.map((p: any) => (
+                    <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                      <td style={{ padding: '8px 12px', fontWeight: 600 }}>{p.alumno_nombre}</td>
+                      <td style={{ padding: '8px 12px', color: C.muted }}>{p.categoria_modalidad || 'General'}</td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <button
+                          onClick={() => toggleArancelPagado(p)}
+                          style={{
+                            background: 'transparent', border: 'none', cursor: 'pointer',
+                            padding: 0
+                          }}
+                          title="Clic para alternar estado de pago del arancel"
+                        >
+                          <span style={badge(p.arancel_pagado ? C.green : C.yellow)}>
+                            {p.arancel_pagado ? '✅ Pagado' : '⏳ Pendiente'}
+                          </span>
+                        </button>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <select
+                          value={p.puesto_obtenido || ''}
+                          onChange={e => updatePuesto(p, e.target.value)}
+                          style={{ ...input({ padding: '4px 8px', fontSize: 11, width: 140 }), fontWeight: p.puesto_obtenido ? 700 : 400 }}
+                        >
+                          <option value="">— Sin puesto —</option>
+                          <option value="1er Lugar 🥇">🥇 1er Lugar</option>
+                          <option value="2do Lugar 🥈">🥈 2do Lugar</option>
+                          <option value="3er Lugar 🥉">🥉 3er Lugar</option>
+                          <option value="Mención de Honor 🏅">🏅 Mención de Honor</option>
+                          <option value="Participación 🎖️">🎖️ Participación</option>
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <button
+                          onClick={() => removeParticipante(p.id)}
+                          style={{ ...btn(C.red, true), padding: '4px 8px', fontSize: 11 }}
+                          title="Quitar"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <button onClick={() => setModalPart(null)} style={btn(C.primary)}>Cerrar</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+

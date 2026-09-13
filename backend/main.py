@@ -262,6 +262,9 @@ app.include_router(complejo_router)
 from routers.academias_mejoras import router as academias_mejoras_router
 app.include_router(academias_mejoras_router)
 
+from routers.academias_extension import router as academias_extension_router
+app.include_router(academias_extension_router)
+
 from routers.cuentas_caja import router as cuentas_caja_router
 app.include_router(cuentas_caja_router)
 
@@ -306,6 +309,9 @@ app.include_router(suscripciones_router)
 
 from routers.video_review import router as video_review_router
 app.include_router(video_review_router)
+
+from routers.cantinas import router as cantinas_router
+app.include_router(cantinas_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA

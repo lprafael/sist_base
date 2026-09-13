@@ -51,6 +51,7 @@ export default function Nav({ scrolled }: NavProps) {
           <a href="/MANUAL_USUARIO_TORNEOS.html" target="_blank" rel="noopener noreferrer" className="nav-link">Cómo funciona</a>
           <a href="/torneos" className="nav-link">Torneos</a>
           <a href="/academias" className="nav-link">🎓 Academias</a>
+          <a href="/cantina-panel" className="nav-link">🍔 Cantina</a>
         </div>
 
         <div className="nav-actions">
@@ -69,6 +70,11 @@ export default function Nav({ scrolled }: NavProps) {
               {(session.role === 'complejo' || session.complejo_id) && (
                 <a href="/complejo-panel" className="btn btn-outline btn-sm nav-desktop-action">
                   Panel Complejo
+                </a>
+              )}
+              {(session.role === 'cantina' || session.cantina_id || session.rol_cantina) && (
+                <a href="/cantina-panel" className="btn btn-outline btn-sm nav-desktop-action">
+                  Panel Cantina
                 </a>
               )}
               {session.role === 'admin' && (
@@ -136,6 +142,16 @@ export default function Nav({ scrolled }: NavProps) {
                       <div><p style={{ margin: 0, color: '#e2e8f0', fontWeight: 700, fontSize: 13 }}>Academia Deportiva</p><p style={{ margin: 0, color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>Alumnos, cuotas & más</p></div>
                     </a>
 
+                    <a href="/cantina/login" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 10, textDecoration: 'none', transition: 'background 0.15s' }}
+                      onMouseOver={e => (e.currentTarget.style.background = 'rgba(249,115,22,0.15)')}
+                      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#f97316,#ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+                      </div>
+                      <div><p style={{ margin: 0, color: '#e2e8f0', fontWeight: 700, fontSize: 13 }}>Gestión de Cantinas</p><p style={{ margin: 0, color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>POS, Turnos, Stock & QR</p></div>
+                    </a>
+
+
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 10px' }} />
 
                     <a href="/torneos/login" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, textDecoration: 'none', transition: 'background 0.15s' }}
@@ -182,6 +198,9 @@ export default function Nav({ scrolled }: NavProps) {
           <a href="/academias" className="nav-mobile-link">
             <span>🎓</span> Academias Deportivas
           </a>
+          <a href="/cantina-panel" className="nav-mobile-link">
+            <span>🍔</span> Gestión de Cantinas
+          </a>
           <a href="/MANUAL_USUARIO_TORNEOS.html" target="_blank" rel="noopener noreferrer" className="nav-mobile-link">
             <span>📖</span> Cómo funciona
           </a>
@@ -201,6 +220,11 @@ export default function Nav({ scrolled }: NavProps) {
               {(session.role === 'complejo' || session.complejo_id) && (
                 <a href="/complejo-panel" className="nav-mobile-link">
                   <span>🏢</span> Panel Complejo
+                </a>
+              )}
+              {(session.role === 'cantina' || session.cantina_id || session.rol_cantina) && (
+                <a href="/cantina-panel" className="nav-mobile-link">
+                  <span>🍔</span> Panel Cantina
                 </a>
               )}
               {session.role === 'admin' && (

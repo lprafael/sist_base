@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía del Módulo de Cantinas & Buffets — Mi Cancha</title>
+    <meta name="description" content="Manual operativo integral para el Módulo 4 de Mi Cancha: Gestión de Cantinas, Punto de Venta (POS), Despacho KDS en vivo, Arqueos de Turno, Multi-Cuentas y Código QR.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-base: #060b14;
+            --bg-surface: #0d1829;
+            --bg-card: rgba(13, 24, 41, 0.85);
+            --border-subtle: rgba(255,255,255,0.07);
+            --border-hover: rgba(255,255,255,0.18);
+            --orange: #f97316;
+            --orange-glow: rgba(249,115,22,0.25);
+            --amber: #f59e0b;
+            --amber-glow: rgba(245,158,11,0.2);
+            --green: #10b981;
+            --green-glow: rgba(16,185,129,0.2);
+            --blue: #3b82f6;
+            --blue-glow: rgba(59,130,246,0.2);
+            --purple: #8b5cf6;
+            --red: #ef4444;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --font-sans: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.65;
+            background-image:
+                radial-gradient(circle at 15% 10%, rgba(249,115,22,0.08) 0%, transparent 45%),
+                radial-gradient(circle at 85% 20%, rgba(245,158,11,0.06) 0%, transparent 45%),
+                radial-gradient(circle at 50% 90%, rgba(16,185,129,0.05) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 20px 100px;
+        }
+
+        /* ── HERO ── */
+        .hero {
+            position: relative;
+            background: linear-gradient(135deg, rgba(35,20,10,0.85) 0%, rgba(15,23,42,0.95) 100%);
+            border: 1px solid rgba(249,115,22,0.2);
+            border-radius: 28px;
+            padding: 44px 48px;
+            margin-bottom: 32px;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(249,115,22,0.15);
+            border: 1px solid rgba(249,115,22,0.3);
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--orange);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .hero h1 {
+            font-size: 38px;
+            font-weight: 900;
+            line-height: 1.15;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, #ffffff 40%, #fb923c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .quick-nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .quick-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .quick-nav-btn:hover {
+            background: rgba(249,115,22,0.15);
+            border-color: rgba(249,115,22,0.4);
+            transform: translateY(-2px);
+        }
+
+        /* ── SECCIONES ── */
+        .section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 36px;
+            margin-bottom: 28px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .section-icon {
+            width: 44px; height: 44px;
+            border-radius: 14px;
+            background: var(--orange-glow);
+            color: var(--orange);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .section-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .section-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ── GRIDS & CARDS ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 18px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 18px;
+        }
+        .card {
+            background: rgba(6,11,20,0.6);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 22px;
+        }
+        .card h4 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--orange);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        /* ── DIAGRAMA DE FLUJO ── */
+        .workflow-box {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(249,115,22,0.3);
+            border-radius: 20px;
+            padding: 24px;
+            margin: 20px 0;
+        }
+        .workflow-steps {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .step {
+            flex: 1;
+            min-width: 180px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 18px;
+            position: relative;
+        }
+        .step-num {
+            width: 24px; height: 24px;
+            border-radius: 8px;
+            background: var(--orange);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 900;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 8px;
+        }
+        .step-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .step-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+        .workflow-arrow {
+            color: var(--orange);
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* ── TABLA ESTILO TERMINAL ── */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            margin: 16px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+        th {
+            background: rgba(255,255,255,0.03);
+            padding: 12px 16px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+        tr:last-child td { border-bottom: none; }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+        .tag-orange { background: rgba(249,115,22,0.15); color: var(--orange); }
+        .tag-green { background: rgba(16,185,129,0.15); color: var(--green); }
+        .tag-blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+
+        .callout {
+            border-left: 4px solid var(--orange);
+            background: rgba(249,115,22,0.08);
+            border-radius: 0 16px 16px 0;
+            padding: 16px 20px;
+            margin: 18px 0;
+            font-size: 13.5px;
+            color: #fed7aa;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-subtle);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- HERO -->
+    <div class="hero">
+        <div class="hero-badge">⚽ Mi Cancha — Módulo 4</div>
+        <h1>Guía de Gestión de Cantinas & Buffets</h1>
+        <p>
+            Manual operativo completo para digitalizar el mininegocio de cantina del club: control de ventas en tiempo real, pantallas táctiles de cajera y despachante, control de turnos y chequeo de inventario inicial/final, administración multi-cuenta y carta digital por código QR.
+        </p>
+
+        <div class="quick-nav">
+            <a href="#roles" class="quick-nav-btn">👤 Roles & Acceso</a>
+            <a href="#flujo-venta" class="quick-nav-btn">⚡ Flujo POS & Despacho</a>
+            <a href="#turnos" class="quick-nav-btn">⏱️ Turnos & Arqueos</a>
+            <a href="#inventario" class="quick-nav-btn">📦 Inventario & Compras</a>
+            <a href="#cuentas" class="quick-nav-btn">💳 Multi-Cuentas</a>
+            <a href="#qr" class="quick-nav-btn">📱 Menú Digital QR</a>
+            <a href="#rendimiento" class="quick-nav-btn">📊 Gráfico de Rendimiento</a>
+        </div>
+    </div>
+
+    <!-- 1. ROLES Y ACCESO INDEPENDIENTE -->
+    <div class="section" id="roles">
+        <div class="section-header">
+            <div class="section-icon">🔐</div>
+            <div>
+                <h2 class="section-title">1. Independencia del Módulo y Roles Operativos</h2>
+                <p class="section-subtitle">Aislamiento total de base de datos y sistema de login dedicado</p>
+            </div>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 14px;">
+            El Módulo de Cantinas cuenta con su propio portal en <code>/cantina/login</code> y su panel de administración en <code>/cantina-panel</code>. Permite operar con perfiles rápidos diseñados para tablets compartidas en el mostrador del buffet.
+        </p>
+
+        <div class="grid-3">
+            <div class="card">
+                <h4>🏪 Cajera (Punto de Venta)</h4>
+                <p>Interfaz optimizada para máxima velocidad. Toca los productos, selecciona la forma de cobro (Efectivo, Banco 1, Banco 2, QR) y emite la comanda numerada al instante.</p>
+            </div>
+            <div class="card">
+                <h4>👨‍🍳 Despachante (Cocina/Parrilla)</h4>
+                <p>Pantalla KDS en vivo en el área de preparación. Visualiza los pedidos entrantes y los marca como entregados. <b>Al entregar, se descuenta el stock automáticamente</b>.</p>
+            </div>
+            <div class="card">
+                <h4>🤝 Encargado / Padres Voluntarios</h4>
+                <p>Responsable del turno asignado. Realiza el conteo físico de stock al abrir y cerrar el turno, registra compras de insumos y verifica el fondo de caja.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. FLUJO OPERATIVO: CAJERA + DESPACHANTE -->
+    <div class="section" id="flujo-venta">
+        <div class="section-header">
+            <div class="section-icon">⚡</div>
+            <div>
+                <h2 class="section-title">2. Flujo de Pedido, Pago y Descuento de Stock</h2>
+                <p class="section-subtitle">Procedimiento exacto entre la pantalla de la cajera y la del despachante</p>
+            </div>
+        </div>
+
+        <div class="workflow-box">
+            <div class="workflow-steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-title">Toma de Pedido</div>
+                    <div class="step-desc">La cajera selecciona productos por categoría táctil y carga la orden en 5 segundos.</div>
+                </div>
+                <div class="workflow-arrow">➔</div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-title">Cobro & Comanda</div>
+                    <div class="step-desc">Elige la cuenta receptora (Caja, Banco 1, etc.). Se genera el ticket con número correlativo (ej: #042).</div>
+                </div>
+                <div class="workflow-arrow">➔</div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-title">Aparición en KDS</div>
+                    <div class="step-desc">Aparece en tiempo real en la pantalla del despachante en estado <b>"Pagado / Pendiente"</b>.</div>
+                </div>
+                <div class="workflow-arrow">➔</div>
+                <div class="step" style="border-color: rgba(16,185,129,0.4);">
+                    <div class="step-num" style="background: var(--green);">4</div>
+                    <div class="step-title" style="color: var(--green);">Entrega & Descuento</div>
+                    <div class="step-desc">El despachante pulsa "Entregar Pedido". <b>El sistema descuenta automáticamente las unidades del stock</b>.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="callout">
+            💡 <b>Regla de Seguridad de Stock:</b> Si un cliente anula su pedido antes de la entrega o se produce una equivocación en caja, el stock físico no se ve afectado porque el descuento ocurre estrictamente cuando la mercadería sale del mostrador de entrega.
+        </div>
+    </div>
+
+    <!-- 3. TURNOS Y ARQUEOS DE INVENTARIO -->
+    <div class="section" id="turnos">
+        <div class="section-header">
+            <div class="section-icon">⏱️</div>
+            <div>
+                <h2 class="section-title">3. Turnos y Chequeos de Inventario (Apertura y Cierre)</h2>
+                <p class="section-subtitle">Control riguroso de mermas, discrepancias y fondo de caja</p>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>📋 Chequeo Inicial (Apertura de Turno)</h4>
+                <p>Al iniciar la jornada o cambio de turno:</p>
+                <ul style="padding-left: 18px; margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                    <li>Se registra el nombre del encargado/padre responsable.</li>
+                    <li>Se ingresa el <b>Fondo Inicial de Caja</b> (dinero en efectivo para cambio).</li>
+                    <li>La pantalla presenta el stock teórico de cada producto: la encargada hace el conteo físico rápido y confirma discrepancias iniciales si las hubiera.</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>🔒 Chequeo Final (Cierre y Balance)</h4>
+                <p>Al finalizar el horario del turno:</p>
+                <ul style="padding-left: 18px; margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                    <li>Se realiza el conteo final de productos remanentes.</li>
+                    <li>El sistema compara el stock vendido vs el stock físico final para detectar mermas o sobrantes.</li>
+                    <li>Se emite el <b>Balance Neto del Turno</b>: Total ventas cobradas menos compras y gastos realizados durante ese horario.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. INVENTARIO Y COMPRAS DE INSUMOS -->
+    <div class="section" id="inventario">
+        <div class="section-header">
+            <div class="section-icon">📦</div>
+            <div>
+                <h2 class="section-title">4. Compras de Insumos y Mininegocio de Padres</h2>
+                <p class="section-subtitle">Registro de reposiciones de mercadería y gastos menores</p>
+            </div>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 14px;">
+            Los padres y colaboradores pueden registrar fácilmente las compras que hacen para la cantina del club:
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tipo de Operación</th>
+                        <th>Impacto en Stock</th>
+                        <th>Impacto en Cuentas</th>
+                        <th>Ejemplo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="tag tag-orange">Compra de Mercadería</span></td>
+                        <td><b style="color: var(--green);">Suma automáticamente</b> al stock del producto</td>
+                        <td>Debita de la cuenta de pago (Caja, Banco, etc.)</td>
+                        <td>Compra de 5 packs de Coca Cola o 50 empanadas</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-blue">Gasto Operativo</span></td>
+                        <td>Sin impacto en stock</td>
+                        <td>Debita de la cuenta de pago</td>
+                        <td>Bolsas de hielo, servilletas, carbón, vasos descartables</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 5. MULTI-CUENTAS -->
+    <div class="section" id="cuentas">
+        <div class="section-header">
+            <div class="section-icon">💳</div>
+            <div>
+                <h2 class="section-title">5. Multi-Cuentas Financieras</h2>
+                <p class="section-subtitle">Gestión simultánea de Caja Efectivo y Cuentas Bancarias / QR</p>
+            </div>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 14px;">
+            La cantina puede configurar múltiples cuentas para cobrar y pagar. Cada venta y cada compra queda registrada en el libro mayor de la cuenta respectiva para que la tesorería del club no tenga desfasajes:
+        </p>
+
+        <div class="grid-3">
+            <div class="card">
+                <h4>💵 Caja Efectivo</h4>
+                <p>El dinero billete que se maneja en el cajón del buffet. Permite arqueos físicos de efectivo en cada cierre de turno.</p>
+            </div>
+            <div class="card">
+                <h4>🏦 Banco 1 (Ej: Itaú Transferencia)</h4>
+                <p>Cuenta para transferencias directas de socios y clientes vía home banking con alias o número de cuenta.</p>
+            </div>
+            <div class="card">
+                <h4>📱 Banco 2 / QR (Ej: Continental / Zimple)</h4>
+                <p>Cuenta destinada a cobros con QR estático o billeteras digitales en el mostrador para agilizar filas.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. CÓDIGO QR Y CARTA DIGITAL -->
+    <div class="section" id="qr">
+        <div class="section-header">
+            <div class="section-icon">📱</div>
+            <div>
+                <h2 class="section-title">6. Menú Digital Público con Código QR</h2>
+                <p class="section-subtitle">Lista de precios accesible desde cualquier smartphone</p>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                    El panel cuenta con un <b>Generador de Código QR imprimible</b>. Se imprime y se coloca en las mesas, el mostrador y las paredes del club.
+                </p>
+                <div style="margin-top: 14px; font-size: 13px; color: var(--text-muted);">
+                    <p>✔️ <b>Cero contacto:</b> Los espectadores escanean con la cámara sin descargar ninguna app.</p>
+                    <p>✔️ <b>Precios y fotos actualizadas:</b> Todo cambio en el inventario se refleja en el celular al instante.</p>
+                    <p>✔️ <b>Indicador de disponibilidad:</b> Si un producto se queda sin stock, se muestra automáticamente como "Agotado".</p>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-subtle); border-radius: 18px; padding: 20px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--orange); text-transform: uppercase; margin-bottom: 8px;">Vista Previa de Enlace</div>
+                <div style="font-family: var(--font-mono); font-size: 12px; color: #fff; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; word-break: break-all;">
+                    https://micancha.com.py/cantina/menu/cantina-central
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. RENDIMIENTO POR TURNO -->
+    <div class="section" id="rendimiento">
+        <div class="section-header">
+            <div class="section-icon">📊</div>
+            <div>
+                <h2 class="section-title">7. Métricas y Gráfico de Rendimiento por Turno</h2>
+                <p class="section-subtitle">Evaluación de productividad e ingresos / cantidad de horas</p>
+            </div>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+            El módulo incluye un panel de analíticas avanzadas para entender cuáles son los mejores días y turnos de la cantina:
+        </p>
+
+        <div class="grid-3">
+            <div class="card">
+                <h4>📈 Ingresos por Hora (Gs. / h)</h4>
+                <p>Relaciona las ventas cobradas con la duración real del turno para saber la recaudación horaria promedio.</p>
+            </div>
+            <div class="card">
+                <h4>💰 Ganancia Neta Global</h4>
+                <p>Diferencia automática entre el total de ventas cobradas y el total de compras de mercadería y gastos operativos.</p>
+            </div>
+            <div class="card">
+                <h4>⭐ Ranking de Productos Estrella</h4>
+                <p>Top 5 de artículos más vendidos (unidades y facturación) para saber con precisión qué reponer antes del fin de semana.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Mi Cancha — Plataforma Integral de Gestión Deportiva</p>
+        <p style="margin-top: 4px; font-size: 11px;">Módulo 1: Complejos | Módulo 2: Academias | Módulo 3: Torneos | Módulo 4: Cantinas</p>
+    </footer>
+
+</div>
+
+</body>
+</html>

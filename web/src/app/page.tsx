@@ -177,6 +177,17 @@ export default function HomePage() {
             </a>
           </div>
 
+          <div className="action-card" style={{ borderColor: 'rgba(249,115,22,0.3)', background: 'linear-gradient(180deg, rgba(249,115,22,0.06) 0%, rgba(15,23,42,0.6) 100%)' }}>
+            <div className="action-card-icon" style={{ background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>🍔</div>
+            <h3 className="action-card-title">Gestión de Cantinas</h3>
+            <p className="action-card-desc">
+              Punto de venta ultrarrápido para padres y encargados. Comandas para despacho en vivo, control de stock por turno, multi-cuentas y carta digital QR.
+            </p>
+            <a href="/cantina/login" className="btn btn-primary btn-sm" style={{ marginTop: 'auto', background: 'linear-gradient(135deg, #ea580c, #c2410c)', border: 'none' }}>
+              Ingresar a la Cantina
+            </a>
+          </div>
+
           <div className="action-card">
             <div className="action-card-icon">📱</div>
             <h3 className="action-card-title">¡Probá la App de Jugadores!</h3>

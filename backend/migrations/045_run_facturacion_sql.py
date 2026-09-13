@@ -42,11 +42,11 @@ async def run():
             try:
                 await conn.execute(text(stmt))
                 short = stmt[:100].replace("\n", " ")
-                print(f"  ✅ OK: {short}...")
+                print(f"  OK: {short}...")
             except Exception as e:
-                print(f"  ⚠️  WARN: {e} → stmt: {stmt[:80]}")
+                print(f"  WARN: {e} -> stmt: {stmt[:80]}")
     await engine.dispose()
-    print("\n✅ Migration 045 (facturación schema) aplicada correctamente.")
+    print("\nMigration 045 (facturacion schema) aplicada correctamente.")
 
 
 if __name__ == "__main__":

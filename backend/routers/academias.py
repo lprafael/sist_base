@@ -2126,7 +2126,19 @@ async def generar_cuotas(
               SELECT 1 FROM academias.cuotas q
               WHERE q.inscripcion_id = i.id AND q.periodo = :periodo
           )
-    """), {"aid": current_user["academia_id"], "periodo": periodo})
+          AND NOT EXISTS (
+              SELECT 1 FROM academias.alumnos_suspensiones sus
+              WHERE sus.alumno_id = i.alumno_id
+                AND sus.activa = TRUE
+                AND CAST(:periodo_ini AS DATE) <= sus.fecha_fin
+                AND CAST(:periodo_fin AS DATE) >= sus.fecha_inicio
+          )
+    """), {
+        "aid": current_user["academia_id"],
+        "periodo": periodo,
+        "periodo_ini": date(year, month, 1),
+        "periodo_fin": date(year, month, last_day),
+    })
 
     generadas = 0
     for row in inscripciones_res.fetchall():
