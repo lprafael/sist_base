@@ -454,7 +454,25 @@ export default function AdminConsole() {
   }, [dbRoles, catalogFilters.roles_nombre, catalogFilters.roles_descripcion, catalogSortField, catalogSortAsc]);
 
   // Tabs states
-  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit' | 'suscripciones'>('complejos');
+  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit' | 'suscripciones' | 'cantinas'>('complejos');
+
+  // ── Cantinas & Buffets state ──
+  const [cantinasList, setCantinasList] = useState<any[]>([]);
+  const [cantinaSolicitudes, setCantinaSolicitudes] = useState<any[]>([]);
+  const [modalNuevaCantina, setModalNuevaCantina] = useState(false);
+  const [modalEditarVigencia, setModalEditarVigencia] = useState<any | null>(null);
+  const [formNuevaCantina, setFormNuevaCantina] = useState({
+    nombre: '',
+    evento_nombre: '',
+    tipo_temporalidad: 'fin_de_semana',
+    fecha_inicio: new Date().toISOString().split('T')[0],
+    fecha_fin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    admin_nombre: '',
+    admin_email: '',
+    admin_password: '',
+    admin_telefono: '',
+    descripcion: ''
+  });
 
   // ── Suscripciones state ──
   const [susStats, setSusStats] = useState<any>(null);
@@ -908,10 +926,142 @@ export default function AdminConsole() {
         }
       } catch (_e) { }
 
+      try {
+        const resCant = await fetch(`${API_URL}/cantina/admin/todas`, fetchOpts);
+        if (resCant.ok) setCantinasList(await resCant.json());
+      } catch (_e) { }
+
+      try {
+        const resSolCant = await fetch(`${API_URL}/cantina/admin/solicitudes`, fetchOpts);
+        if (resSolCant.ok) setCantinaSolicitudes(await resSolCant.json());
+      } catch (_e) { }
+
       await fetchCatalogs();
     };
     fetchData();
   }, []);
+
+  const fetchCantinas = async () => {
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+    const fetchOpts = token ? { headers: { 'Authorization': `Bearer ${token}` } } : undefined;
+
+    try {
+      const resCant = await fetch(`${API_URL}/cantina/admin/todas`, fetchOpts);
+      if (resCant.ok) setCantinasList(await resCant.json());
+    } catch (_e) { }
+
+    try {
+      const resSol = await fetch(`${API_URL}/cantina/admin/solicitudes`, fetchOpts);
+      if (resSol.ok) setCantinaSolicitudes(await resSol.json());
+    } catch (_e) { }
+  };
+
+  const handleAprobarCantina = async (cantinaId: string, cantinaNombre: string) => {
+    if (!confirm(`¿Aprobar y habilitar la concesión de la cantina "${cantinaNombre}"?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/cantina/admin/solicitudes/${cantinaId}/aprobar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        addToast(`✅ Cantina "${cantinaNombre}" aprobada y habilitada.`);
+        await fetchCantinas();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al aprobar: ${err.detail || 'Desconocido'}`);
+      }
+    } catch (e) {
+      alert('Error de conexión al aprobar la cantina.');
+    }
+  };
+
+  const handleRechazarCantina = async (cantinaId: string, cantinaNombre: string) => {
+    const motivo = prompt(`Motivo de rechazo para la cantina "${cantinaNombre}":`, 'No cumple con las fechas del evento');
+    if (!motivo) return;
+    try {
+      const res = await fetch(`${API_URL}/cantina/admin/solicitudes/${cantinaId}/rechazar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo_rechazo: motivo })
+      });
+      if (res.ok) {
+        addToast(`❌ Solicitud de "${cantinaNombre}" rechazada.`);
+        await fetchCantinas();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al rechazar: ${err.detail || 'Desconocido'}`);
+      }
+    } catch (e) {
+      alert('Error de conexión al rechazar.');
+    }
+  };
+
+  const handleCrearCantinaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/cantina/admin/crear-directa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formNuevaCantina)
+      });
+      if (res.ok) {
+        addToast(`🎉 Cantina "${formNuevaCantina.nombre}" creada y habilitada.`);
+        setModalNuevaCantina(false);
+        setFormNuevaCantina({
+          nombre: '',
+          evento_nombre: '',
+          tipo_temporalidad: 'fin_de_semana',
+          fecha_inicio: new Date().toISOString().split('T')[0],
+          fecha_fin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          admin_nombre: '',
+          admin_email: '',
+          admin_password: '',
+          admin_telefono: '',
+          descripcion: ''
+        });
+        await fetchCantinas();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al crear: ${err.detail || 'Error desconocido'}`);
+      }
+    } catch (e) {
+      alert('Error de red al crear la cantina.');
+    }
+  };
+
+  const handleActualizarVigenciaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalEditarVigencia) return;
+    try {
+      const res = await fetch(`${API_URL}/cantina/admin/${modalEditarVigencia.id}/vigencia`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fecha_inicio: modalEditarVigencia.fecha_inicio,
+          fecha_fin: modalEditarVigencia.fecha_fin,
+          tipo_temporalidad: modalEditarVigencia.tipo_temporalidad,
+          activo: modalEditarVigencia.activo
+        })
+      });
+      if (res.ok) {
+        addToast(`📅 Vigencia de "${modalEditarVigencia.nombre}" actualizada.`);
+        setModalEditarVigencia(null);
+        await fetchCantinas();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al actualizar: ${err.detail || 'Error desconocido'}`);
+      }
+    } catch (e) {
+      alert('Error de red al actualizar vigencia.');
+    }
+  };
 
   // Secure Administrative Logs Cleanup
   const handleClearLogs = (type: 'acceso' | 'auditoria') => {
@@ -1732,7 +1882,8 @@ export default function AdminConsole() {
                 { id: 'complejos', label: '🏟️ Complejos', count: complejos.length },
                 { id: 'organizadores', label: '🏆 Organizadores', count: organizadores.length },
                 { id: 'academias', label: '🎓 Academias', count: academias.length },
-                { id: 'requests', label: '📥 Solicitudes', count: pendingRequests.filter(r => r.estado === 'pendiente').length },
+                { id: 'cantinas', label: '🍽️ Cantinas y Buffets', count: cantinasList.length },
+                { id: 'requests', label: '📥 Solicitudes', count: pendingRequests.filter(r => r.estado === 'pendiente').length + cantinaSolicitudes.length },
                 { id: 'sports', label: '🏆 Deportes y Catálogos', count: dbDeportes.length },
                 { id: 'suscripciones', label: '💳 Suscripciones', count: susStats?.total_activos || 0 },
                 { id: 'audit', label: '📜 Auditoría y Logs', count: accessLogs.length + auditLogs.length }
@@ -2543,11 +2694,384 @@ export default function AdminConsole() {
                       )}
                     </div>
                   ))}
-                  {pendingRequests.length === 0 && (
+                  {pendingRequests.length === 0 && cantinaSolicitudes.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
-                      No hay solicitudes de registro de propietarios pendientes en este momento.
+                      No hay solicitudes de registro pendientes en este momento.
                     </div>
                   )}
+
+                  {/* Solicitudes de Cantinas Temporales */}
+                  {cantinaSolicitudes.length > 0 && (
+                    <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #e2e8f0' }}>
+                      <h4 style={{ fontSize: 16, fontWeight: 900, marginBottom: 8, color: '#9a3412' }}>
+                        🍽️ Solicitudes de Cantinas y Buffets ({cantinaSolicitudes.length})
+                      </h4>
+                      <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+                        Concesiones solicitadas para torneos que esperan tu habilitación de fechas.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {cantinaSolicitudes.map(sol => (
+                          <div key={sol.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff7ed', padding: '18px 22px', borderRadius: 16, border: '1px solid #fed7aa', flexWrap: 'wrap', gap: 14 }}>
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: 16, color: '#9a3412' }}>
+                                {sol.nombre} <span style={{ fontSize: 13, fontWeight: 600, color: '#c2410c' }}>• {sol.evento_nombre}</span>
+                              </div>
+                              <div style={{ fontSize: 13, color: '#7c2d12', marginTop: 3 }}>
+                                Responsable: <strong>{sol.solicitante_nombre}</strong> ({sol.solicitante_email} • {sol.solicitante_telefono || 'Sin tel.'})
+                              </div>
+                              <div style={{ fontSize: 12, color: '#9a3412', marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span style={{ background: '#ffedd5', border: '1px solid #fdba74', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                                  📅 {sol.fecha_inicio} al {sol.fecha_fin}
+                                </span>
+                                <span style={{ background: '#ffedd5', border: '1px solid #fdba74', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                                  ⏱️ {sol.tipo_temporalidad === 'fin_de_semana' ? 'Fines de Semana' : sol.tipo_temporalidad === 'dia' ? '1 Día' : sol.tipo_temporalidad}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                onClick={() => handleAprobarCantina(sol.id, sol.nombre)}
+                                style={{
+                                  background: '#16a34a',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '8px 16px',
+                                  borderRadius: 10,
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6
+                                }}
+                              >
+                                <CheckCircle size={15} />
+                                Aprobar y Habilitar
+                              </button>
+                              <button
+                                onClick={() => handleRechazarCantina(sol.id, sol.nombre)}
+                                style={{
+                                  background: '#fee2e2',
+                                  color: '#dc2626',
+                                  border: 'none',
+                                  padding: '8px 14px',
+                                  borderRadius: 10,
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Rechazar
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: CANTINAS Y BUFFETS */}
+            {activeSuperTab === 'cantinas' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {/* Header & KPI Metrics */}
+                <div style={{ background: '#fff', padding: 32, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+                    <div>
+                      <h3 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0 }}>
+                        🍽️ Gestión de Cantinas y Buffets Temporales
+                      </h3>
+                      <p style={{ color: '#64748b', fontSize: 14, marginTop: 4, marginBottom: 0 }}>
+                        Control de concesiones temporales para torneos, fechas de vigencia y administradores asignados.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={fetchCantinas}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: '#f1f5f9',
+                          color: '#475569',
+                          border: 'none',
+                          padding: '10px 16px',
+                          borderRadius: 12,
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <RefreshCw size={15} />
+                        Actualizar
+                      </button>
+
+                      <button
+                        onClick={() => setModalNuevaCantina(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: 'linear-gradient(135deg, #ea580c, #f97316)',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '10px 20px',
+                          borderRadius: 12,
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(234,88,12,0.25)'
+                        }}
+                      >
+                        <Plus size={16} />
+                        Crear Cantina Directamente
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Summary Metric Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '18px 20px', borderRadius: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', textTransform: 'uppercase' }}>Vigentes Hoy</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: '#15803d', marginTop: 4 }}>
+                        {cantinasList.filter(c => c.vigencia?.vigente && c.activo).length}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>Operando en torneos/eventos</div>
+                    </div>
+
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '18px 20px', borderRadius: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#d97706', textTransform: 'uppercase' }}>Solicitudes Pendientes</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: '#b45309', marginTop: 4 }}>
+                        {cantinaSolicitudes.length}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#92400e', marginTop: 2 }}>Esperando tu habilitación</div>
+                    </div>
+
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '18px 20px', borderRadius: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#2563eb', textTransform: 'uppercase' }}>Próximas a Iniciar</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: '#1d4ed8', marginTop: 4 }}>
+                        {cantinasList.filter(c => c.vigencia?.estado === 'proxima').length}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#1e40af', marginTop: 2 }}>Eventos futuros programados</div>
+                    </div>
+
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '18px 20px', borderRadius: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Vencidas / Finalizadas</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: '#334155', marginTop: 4 }}>
+                        {cantinasList.filter(c => c.vigencia?.estado === 'vencida').length}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Concesiones concluidas</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bandeja de Solicitudes Pendientes */}
+                {cantinaSolicitudes.length > 0 && (
+                  <div style={{ background: '#fff', padding: 28, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid #fed7aa' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ea580c', animation: 'pulse 1.5s infinite' }} />
+                      <h4 style={{ fontSize: 18, fontWeight: 900, color: '#9a3412', margin: 0 }}>
+                        📥 Solicitudes Pendientes de Aprobación ({cantinaSolicitudes.length})
+                      </h4>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {cantinaSolicitudes.map(sol => (
+                        <div key={sol.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff7ed', padding: '20px 24px', borderRadius: 18, border: '1px solid #ffedd5', flexWrap: 'wrap', gap: 16 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 900, fontSize: 17, color: '#9a3412' }}>{sol.nombre}</span>
+                              <span style={{ fontSize: 12, background: '#fed7aa', color: '#9a3412', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                                🏆 {sol.evento_nombre}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 13, color: '#7c2d12', marginTop: 4 }}>
+                              Responsable Solicitante: <strong>{sol.solicitante_nombre}</strong> ({sol.solicitante_email} • Tel: {sol.solicitante_telefono || 'No especificado'})
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', fontSize: 12 }}>
+                              <span style={{ background: '#fff', border: '1px solid #fdba74', padding: '3px 10px', borderRadius: 8, fontWeight: 700, color: '#c2410c' }}>
+                                📅 Vigencia: {sol.fecha_inicio} al {sol.fecha_fin}
+                              </span>
+                              <span style={{ background: '#fff', border: '1px solid #fdba74', padding: '3px 10px', borderRadius: 8, fontWeight: 700, color: '#c2410c' }}>
+                                ⏱️ {sol.tipo_temporalidad === 'fin_de_semana' ? 'Fines de Semana (Sáb/Dom)' : sol.tipo_temporalidad === 'dia' ? '1 Solo Día' : sol.tipo_temporalidad === 'semana' ? '1 Semana' : sol.tipo_temporalidad}
+                              </span>
+                              <span style={{ color: '#9a3412', alignSelf: 'center', fontSize: 11 }}>
+                                Solicitado el {new Date(sol.created_at).toLocaleDateString('es-PY')}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              onClick={() => handleAprobarCantina(sol.id, sol.nombre)}
+                              style={{
+                                background: '#16a34a',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 18px',
+                                borderRadius: 12,
+                                fontWeight: 800,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                boxShadow: '0 4px 10px rgba(22,163,74,0.2)'
+                              }}
+                            >
+                              <CheckCircle size={16} />
+                              Aprobar y Habilitar
+                            </button>
+                            <button
+                              onClick={() => handleRechazarCantina(sol.id, sol.nombre)}
+                              style={{
+                                background: '#fee2e2',
+                                color: '#dc2626',
+                                border: 'none',
+                                padding: '10px 16px',
+                                borderRadius: 12,
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Rechazar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabla de Todas las Cantinas Registradas */}
+                <div style={{ background: '#fff', padding: 28, borderRadius: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                  <h4 style={{ fontSize: 18, fontWeight: 900, color: '#0f172a', marginBottom: 16 }}>
+                    📋 Registro General de Cantinas y Concesiones ({cantinasList.length})
+                  </h4>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #f1f5f9', color: '#64748b', textAlign: 'left' }}>
+                          <th style={{ padding: '12px 16px' }}>Cantina / Evento</th>
+                          <th style={{ padding: '12px 16px' }}>Administrador Responsable</th>
+                          <th style={{ padding: '12px 16px' }}>Temporalidad & Fechas</th>
+                          <th style={{ padding: '12px 16px' }}>Estado Vigencia</th>
+                          <th style={{ padding: '12px 16px' }}>Personal / Stock</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cantinasList.map(c => {
+                          const isVigente = c.vigencia?.vigente && c.activo;
+                          const isProxima = c.vigencia?.estado === 'proxima';
+                          const isVencida = c.vigencia?.estado === 'vencida';
+                          return (
+                            <tr key={c.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}>
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 14 }}>{c.nombre}</div>
+                                <div style={{ fontSize: 12, color: '#ea580c', fontWeight: 600 }}>🏆 {c.evento_nombre || 'Evento no especificado'}</div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: 600, color: '#334155' }}>{c.solicitante_nombre || 'Admin'}</div>
+                                <div style={{ fontSize: 12, color: '#64748b' }}>{c.admin_email || 'Sin email'}</div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                                  {c.fecha_inicio} al {c.fecha_fin}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#64748b', textTransform: 'capitalize' }}>
+                                  {c.tipo_temporalidad === 'fin_de_semana' ? 'Fines de Semana' : c.tipo_temporalidad === 'dia' ? '1 Día' : c.tipo_temporalidad}
+                                </div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px' }}>
+                                {isVigente ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: 8, fontWeight: 800, fontSize: 11 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }} />
+                                    VIGENTE ({c.vigencia?.dias_restantes} d)
+                                  </span>
+                                ) : isProxima ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: 8, fontWeight: 800, fontSize: 11 }}>
+                                    ⏳ PRÓXIMA
+                                  </span>
+                                ) : isVencida ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', color: '#dc2626', padding: '4px 10px', borderRadius: 8, fontWeight: 800, fontSize: 11 }}>
+                                    🛑 VENCIDA
+                                  </span>
+                                ) : (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f5f9', color: '#64748b', padding: '4px 10px', borderRadius: 8, fontWeight: 800, fontSize: 11 }}>
+                                    ⚪ {c.estado_aprobacion.toUpperCase()}
+                                  </span>
+                                )}
+                              </td>
+
+                              <td style={{ padding: '14px 16px', color: '#475569' }}>
+                                <div style={{ fontWeight: 600 }}>{c.total_colaboradores} colaboradores</div>
+                                <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.total_productos} productos</div>
+                              </td>
+
+                              <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => setModalEditarVigencia(c)}
+                                    title="Modificar fechas o extender plazo"
+                                    style={{
+                                      background: '#f8fafc',
+                                      border: '1px solid #cbd5e1',
+                                      color: '#334155',
+                                      padding: '6px 12px',
+                                      borderRadius: 8,
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Editar Vigencia
+                                  </button>
+                                  <a
+                                    href={`/cantina/menu/${c.slug}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title="Ver menú público QR"
+                                    style={{
+                                      background: '#fff7ed',
+                                      border: '1px solid #fed7aa',
+                                      color: '#ea580c',
+                                      padding: '6px 10px',
+                                      borderRadius: 8,
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      textDecoration: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center'
+                                    }}
+                                  >
+                                    Menú QR
+                                  </a>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {cantinasList.length === 0 && (
+                          <tr>
+                            <td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                              No hay cantinas registradas aún en el sistema.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -3809,6 +4333,408 @@ export default function AdminConsole() {
                 Enviar
                 <MessageSquare size={16} />
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Nueva Cantina Directa */}
+      {modalNuevaCantina && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 20,
+            width: '100%',
+            maxWidth: 620,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              padding: '24px 28px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+                  🍽️ Nueva Cantina / Buffet Temporal
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#64748b' }}>
+                  Habilita una cantina asignando a su Administrador responsable
+                </p>
+              </div>
+              <button
+                onClick={() => setModalNuevaCantina(false)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearCantinaSubmit} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Nombre de la Cantina / Buffet *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Cantina Central Polideportivo, Buffet Cancha 1..."
+                  value={formNuevaCantina.nombre}
+                  onChange={e => setFormNuevaCantina({ ...formNuevaCantina, nombre: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Torneo o Evento Asignado
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Copa Primavera Padel, Torneo Clausura 2026..."
+                  value={formNuevaCantina.evento_nombre}
+                  onChange={e => setFormNuevaCantina({ ...formNuevaCantina, evento_nombre: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Temporalidad
+                  </label>
+                  <select
+                    value={formNuevaCantina.tipo_temporalidad}
+                    onChange={e => setFormNuevaCantina({ ...formNuevaCantina, tipo_temporalidad: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14, background: '#fff' }}
+                  >
+                    <option value="fin_de_semana">Fines de Semana (Sáb/Dom)</option>
+                    <option value="dia_unico">Día Único</option>
+                    <option value="semana">Semana Completa</option>
+                    <option value="personalizado">Rango Personalizado</option>
+                    <option value="permanente">Permanente</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Teléfono de Contacto
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: +595 981 123456"
+                    value={formNuevaCantina.admin_telefono}
+                    onChange={e => setFormNuevaCantina({ ...formNuevaCantina, admin_telefono: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Fecha Inicio *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formNuevaCantina.fecha_inicio}
+                    onChange={e => setFormNuevaCantina({ ...formNuevaCantina, fecha_inicio: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Fecha Fin *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formNuevaCantina.fecha_fin}
+                    onChange={e => setFormNuevaCantina({ ...formNuevaCantina, fecha_fin: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+                  👤 Datos del Administrador de la Cantina
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                      Nombre Completo *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: Marcos Silva"
+                      value={formNuevaCantina.admin_nombre}
+                      onChange={e => setFormNuevaCantina({ ...formNuevaCantina, admin_nombre: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                      Email (o Google Account) *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin@cantina.com"
+                      value={formNuevaCantina.admin_email}
+                      onChange={e => setFormNuevaCantina({ ...formNuevaCantina, admin_email: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                    Contraseña Inicial (opcional si usa Google OAuth)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={formNuevaCantina.admin_password}
+                    onChange={e => setFormNuevaCantina({ ...formNuevaCantina, admin_password: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Notas / Descripción
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Detalles sobre canchas cubiertas, horarios, etc."
+                  value={formNuevaCantina.descripcion}
+                  onChange={e => setFormNuevaCantina({ ...formNuevaCantina, descripcion: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14, resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setModalNuevaCantina(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 10,
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    color: '#475569',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ea580c, #f97316)',
+                    color: '#fff',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.3)'
+                  }}
+                >
+                  Crear y Habilitar Cantina
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Vigencia de Cantina */}
+      {modalEditarVigencia && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 20,
+            width: '100%',
+            maxWidth: 520,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a' }}>
+                  ⏳ Modificar Vigencia de Concesión
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#ea580c', fontWeight: 700 }}>
+                  {modalEditarVigencia.nombre} {modalEditarVigencia.evento_nombre ? `(${modalEditarVigencia.evento_nombre})` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setModalEditarVigencia(null)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleActualizarVigenciaSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Modalidad de Temporalidad
+                </label>
+                <select
+                  value={modalEditarVigencia.tipo_temporalidad || 'fin_de_semana'}
+                  onChange={e => setModalEditarVigencia({ ...modalEditarVigencia, tipo_temporalidad: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14, background: '#fff' }}
+                >
+                  <option value="fin_de_semana">Fines de Semana (Sáb/Dom)</option>
+                  <option value="dia_unico">Día Único</option>
+                  <option value="semana">Semana Completa</option>
+                  <option value="personalizado">Rango Personalizado</option>
+                  <option value="permanente">Permanente</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Fecha Inicio
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={modalEditarVigencia.fecha_inicio ? String(modalEditarVigencia.fecha_inicio).split('T')[0] : ''}
+                    onChange={e => setModalEditarVigencia({ ...modalEditarVigencia, fecha_inicio: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Fecha Fin
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={modalEditarVigencia.fecha_fin ? String(modalEditarVigencia.fecha_fin).split('T')[0] : ''}
+                    onChange={e => setModalEditarVigencia({ ...modalEditarVigencia, fecha_fin: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14 }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Estado de Habilitación
+                </label>
+                <select
+                  value={modalEditarVigencia.activo ? '1' : '0'}
+                  onChange={e => setModalEditarVigencia({ ...modalEditarVigencia, activo: e.target.value === '1' })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 14, background: '#fff' }}
+                >
+                  <option value="1">🟢 Habilitada (Permite operar y vender)</option>
+                  <option value="0">🔴 Bloqueada / Deshabilitada (Ventas suspendidas)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setModalEditarVigencia(null)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 10,
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    color: '#475569',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: '#16a34a',
+                    color: '#fff',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)'
+                  }}
+                >
+                  Guardar Cambios
+                </button>
+              </div>
             </form>
           </div>
         </div>

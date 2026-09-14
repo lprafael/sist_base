@@ -9,7 +9,7 @@ import {
   DollarSign, ShoppingCart, Trash2, Printer, RefreshCw, 
   Clock, CheckCircle2, XCircle, ArrowRight, ShieldCheck, 
   ExternalLink, LogOut, ChevronRight, FileText, Calendar,
-  CreditCard, Sparkles, Filter
+  CreditCard, Sparkles, Filter, Eye, EyeOff, Key, UserCheck, Shield
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
@@ -19,9 +19,25 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function CantinaPanelPage() {
-  const [tabActiva, setTabActiva] = useState<'pos' | 'despacho' | 'turnos' | 'inventario' | 'cuentas' | 'qr' | 'analytics'>('pos');
+  const [tabActiva, setTabActiva] = useState<'pos' | 'despacho' | 'turnos' | 'inventario' | 'cuentas' | 'qr' | 'analytics' | 'equipo'>('pos');
   const [session, setSession] = useState<any>(null);
   const [cantinaInfo, setCantinaInfo] = useState<any>(null);
+
+  // Multi-cantinas del Administrador
+  const [misCantinas, setMisCantinas] = useState<any[]>([]);
+  const [selectedCantinaId, setSelectedCantinaId] = useState<string>('');
+
+  // Colaboradores & Equipo
+  const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [modalNuevoColaborador, setModalNuevoColaborador] = useState(false);
+  const [colaboradorForm, setColaboradorForm] = useState({
+    nombre: '',
+    email: '',
+    pin: '',
+    rol: 'cajero'
+  });
+  const [guardandoColaborador, setGuardandoColaborador] = useState(false);
+  const [mostrarPins, setMostrarPins] = useState<{ [key: string]: boolean }>({});
 
   // Estados compartidos
   const [cuentas, setCuentas] = useState<any[]>([]);
@@ -77,16 +93,42 @@ export default function CantinaPanelPage() {
   const [resumenFinanciero, setResumenFinanciero] = useState<any>(null);
   const [rendimientoTurnos, setRendimientoTurnos] = useState<any>(null);
 
-  // Cargar sesión
+  // Cargar sesión inicial
   useEffect(() => {
     const raw = localStorage.getItem('user_session');
     if (raw) {
       try {
         const s = JSON.parse(raw);
         setSession(s);
+        if (s.cantina_id) {
+          setSelectedCantinaId(s.cantina_id);
+        }
+
+        // Si es rol despachante o cajero, forzar su vista operativa permitida
+        if (s.rol_cantina === 'despachante') {
+          setTabActiva('despacho');
+        } else if (s.rol_cantina === 'cajero') {
+          setTabActiva('pos');
+        }
+
+        // Si es administrador, buscar todas las cantinas que administra a lo largo del tiempo
+        const emailParam = s.email || s.admin_email;
+        if (s.rol_cantina === 'admin' && emailParam) {
+          fetch(`${API_URL}/cantina/mis-cantinas?email=${encodeURIComponent(emailParam)}`)
+            .then(res => res.ok ? res.json() : [])
+            .then(data => {
+              if (Array.isArray(data) && data.length > 0) {
+                setMisCantinas(data);
+                if (!s.cantina_id) {
+                  setSelectedCantinaId(data[0].id);
+                }
+              }
+            })
+            .catch(() => {});
+        }
       } catch {}
     } else {
-      // Si no hay sesión, inicializar con cajera demo
+      // Demo fallback
       const demo = {
         role: 'cantina',
         rol_cantina: 'admin',
@@ -97,18 +139,35 @@ export default function CantinaPanelPage() {
     }
   }, []);
 
-  // Carga inicial de datos
+  // Cargar lista de colaboradores
+  const cargarColaboradores = useCallback(async (cid?: string) => {
+    try {
+      const targetId = cid || selectedCantinaId || session?.cantina_id || '';
+      const query = targetId ? `?cantina_id=${targetId}` : '';
+      const res = await fetch(`${API_URL}/cantina/usuarios${query}`);
+      if (res.ok) {
+        setColaboradores(await res.json());
+      }
+    } catch (e) {
+      console.error("Error cargando colaboradores:", e);
+    }
+  }, [selectedCantinaId, session?.cantina_id]);
+
+  // Carga integral de datos
   const cargarDatos = useCallback(async () => {
     try {
+      const cid = selectedCantinaId || session?.cantina_id || '';
+      const query = cid ? `?cantina_id=${cid}` : '';
+
       // 1. Info cantina
-      const cRes = await fetch(`${API_URL}/cantina/info`);
+      const cRes = await fetch(`${API_URL}/cantina/info${query}`);
       if (cRes.ok) {
         const cData = await cRes.json();
         setCantinaInfo(cData);
       }
 
       // 2. Cuentas
-      const cuRes = await fetch(`${API_URL}/cantina/cuentas`);
+      const cuRes = await fetch(`${API_URL}/cantina/cuentas${query}`);
       if (cuRes.ok) {
         const cuData = await cuRes.json();
         setCuentas(cuData);
@@ -119,7 +178,7 @@ export default function CantinaPanelPage() {
       }
 
       // 3. Productos
-      const pRes = await fetch(`${API_URL}/cantina/productos?solo_activos=false`);
+      const pRes = await fetch(`${API_URL}/cantina/productos?solo_activos=false${cid ? `&cantina_id=${cid}` : ''}`);
       if (pRes.ok) {
         const pData = await pRes.json();
         setProductos(pData);
@@ -128,30 +187,33 @@ export default function CantinaPanelPage() {
       }
 
       // 4. Turno activo
-      const tRes = await fetch(`${API_URL}/cantina/turnos/activo`);
+      const tRes = await fetch(`${API_URL}/cantina/turnos/activo${query}`);
       if (tRes.ok) {
         const tData = await tRes.json();
         setTurnoActivo(tData.activo ? tData.turno : null);
       }
 
       // 5. Historial turnos
-      const thRes = await fetch(`${API_URL}/cantina/turnos`);
+      const thRes = await fetch(`${API_URL}/cantina/turnos${query}`);
       if (thRes.ok) {
         const thData = await thRes.json();
         setTurnosLista(thData);
       }
 
       // 6. Reportes
-      const rRes = await fetch(`${API_URL}/cantina/reportes/resumen-financiero`);
+      const rRes = await fetch(`${API_URL}/cantina/reportes/resumen-financiero${query}`);
       if (rRes.ok) setResumenFinanciero(await rRes.json());
 
-      const rtRes = await fetch(`${API_URL}/cantina/reportes/rendimiento-turnos`);
+      const rtRes = await fetch(`${API_URL}/cantina/reportes/rendimiento-turnos${query}`);
       if (rtRes.ok) setRendimientoTurnos(await rtRes.json());
+
+      // 7. Colaboradores
+      await cargarColaboradores(cid);
 
     } catch (e) {
       console.error("Error cargando cantina:", e);
     }
-  }, [cuentaCobroId]);
+  }, [selectedCantinaId, session?.cantina_id, cuentaCobroId, cargarColaboradores]);
 
   useEffect(() => {
     cargarDatos();
@@ -160,13 +222,15 @@ export default function CantinaPanelPage() {
   // Cargar pedidos de despacho con polling continuo si está en la pestaña Despacho o POS
   const cargarDespacho = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/cantina/despacho/pedidos`);
+      const cid = selectedCantinaId || session?.cantina_id || '';
+      const query = cid ? `?cantina_id=${cid}` : '';
+      const res = await fetch(`${API_URL}/cantina/despacho/pedidos${query}`);
       if (res.ok) {
         const data = await res.json();
         setPedidosDespacho(data);
       }
     } catch {}
-  }, []);
+  }, [selectedCantinaId, session?.cantina_id]);
 
   useEffect(() => {
     cargarDespacho();
@@ -175,6 +239,84 @@ export default function CantinaPanelPage() {
     }, 4000);
     return () => clearInterval(interval);
   }, [cargarDespacho]);
+
+  // Cambiar de cantina activa (para organizadores/administradores con múltiples cantinas)
+  const handleCambiarCantina = (newId: string) => {
+    setSelectedCantinaId(newId);
+    const found = misCantinas.find(c => c.id === newId);
+    if (found && session) {
+      const updated = {
+        ...session,
+        cantina_id: newId,
+        cantina_slug: found.slug,
+        cantina_nombre: found.nombre,
+        evento_nombre: found.evento_nombre
+      };
+      setSession(updated);
+      localStorage.setItem('user_session', JSON.stringify(updated));
+    }
+  };
+
+  // Crear colaborador (cajera, despachante, encargado) con PIN
+  const submitNuevoColaborador = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!colaboradorForm.nombre.trim() || !colaboradorForm.pin.trim()) {
+      alert("Por favor ingresa el nombre y el PIN numérico.");
+      return;
+    }
+    const cleanPin = colaboradorForm.pin.trim();
+    if (!cleanPin.isdigit?.() && (!/^\d+$/.test(cleanPin) || cleanPin.length < 4 || cleanPin.length > 6)) {
+      alert("El PIN debe tener entre 4 y 6 dígitos numéricos (ej: 1234).");
+      return;
+    }
+
+    setGuardandoColaborador(true);
+    try {
+      const cid = selectedCantinaId || cantinaInfo?.id || session?.cantina_id || '';
+      const query = cid ? `?cantina_id=${cid}` : '';
+      const res = await fetch(`${API_URL}/cantina/usuarios${query}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cantina_id: cid,
+          nombre: colaboradorForm.nombre.trim(),
+          email: colaboradorForm.email.trim() || undefined,
+          pin: cleanPin,
+          rol: colaboradorForm.rol
+        })
+      });
+
+      if (res.ok) {
+        setModalNuevoColaborador(false);
+        setColaboradorForm({ nombre: '', email: '', pin: '', rol: 'cajero' });
+        await cargarColaboradores(cid);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al registrar colaborador: ${err.detail || 'Error desconocido'}`);
+      }
+    } catch {
+      alert("Error de conexión al dar de alta el colaborador.");
+    } finally {
+      setGuardandoColaborador(false);
+    }
+  };
+
+  // Eliminar / dar de baja colaborador
+  const handleEliminarColaborador = async (usuarioId: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de dar de baja a "${nombre}"? Su PIN ya no podrá ingresar al mostrador.`)) return;
+    try {
+      const res = await fetch(`${API_URL}/cantina/usuarios/${usuarioId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await cargarColaboradores();
+      } else {
+        alert("Error al dar de baja al colaborador.");
+      }
+    } catch {
+      alert("Error de conexión.");
+    }
+  };
 
   // Logout
   const handleLogout = () => {
@@ -223,7 +365,9 @@ export default function CantinaPanelPage() {
     if (carrito.length === 0) return;
     setCobrando(true);
     try {
-      const res = await fetch(`${API_URL}/cantina/pedidos`, {
+      const cid = selectedCantinaId || session?.cantina_id || '';
+      const query = cid ? `?cantina_id=${cid}` : '';
+      const res = await fetch(`${API_URL}/cantina/pedidos${query}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -246,7 +390,8 @@ export default function CantinaPanelPage() {
         cargarDatos();
         cargarDespacho();
       } else {
-        alert("Error al registrar la venta.");
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al registrar la venta: ${err.detail || 'Error desconocido'}`);
       }
     } catch {
       alert("Error de conexión al procesar venta.");
@@ -486,15 +631,49 @@ export default function CantinaPanelPage() {
 
             <div className="h-6 w-px bg-slate-800 hidden sm:block" />
 
-            {/* Cantina activa */}
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-300">
-                {cantinaInfo?.nombre || 'Cantina Central'}
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                PYG (Gs.)
-              </span>
-            </div>
+            {/* Cantina activa o Switcher Multi-Cantina */}
+            {session?.rol_cantina === 'admin' && misCantinas.length > 1 ? (
+              <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 rounded-xl px-2.5 py-1 shadow-inner">
+                <Store className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                <select
+                  value={selectedCantinaId || cantinaInfo?.id || ''}
+                  onChange={e => handleCambiarCantina(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-200 focus:outline-none cursor-pointer pr-1"
+                >
+                  {misCantinas.map((c: any) => (
+                    <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                      {c.nombre} {c.evento_nombre ? `(${c.evento_nombre})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-300">
+                  {cantinaInfo?.nombre || 'Cantina Central'}
+                </span>
+                {cantinaInfo?.evento_nombre && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 font-bold">
+                    {cantinaInfo.evento_nombre}
+                  </span>
+                )}
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                  PYG (Gs.)
+                </span>
+              </div>
+            )}
+
+            {/* Pill de Estado de Concesión */}
+            {cantinaInfo?.vigencia && (
+              <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border ${
+                cantinaInfo.vigencia.vigente
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+              }`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${cantinaInfo.vigencia.vigente ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                <span>{cantinaInfo.vigencia.vigente ? 'Concesión Vigente' : 'Concesión Inactiva'}</span>
+              </div>
+            )}
           </div>
 
           {/* Estado del Turno y Operador */}
@@ -531,17 +710,19 @@ export default function CantinaPanelPage() {
 
         {/* NAVEGACIÓN POR PESTAÑAS */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1.5 border-t border-slate-800/50">
-          <button
-            onClick={() => setTabActiva('pos')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
-              tabActiva === 'pos'
-                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            <span>Punto de Venta (POS)</span>
-          </button>
+          {session?.rol_cantina !== 'despachante' && (
+            <button
+              onClick={() => setTabActiva('pos')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                tabActiva === 'pos'
+                  ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <Store className="w-4 h-4" />
+              <span>Punto de Venta (POS)</span>
+            </button>
+          )}
 
           <button
             onClick={() => setTabActiva('despacho')}
@@ -560,67 +741,98 @@ export default function CantinaPanelPage() {
             )}
           </button>
 
-          <button
-            onClick={() => setTabActiva('turnos')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
-              tabActiva === 'turnos'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Turnos & Arqueos</span>
-          </button>
+          {session?.rol_cantina !== 'despachante' && (
+            <button
+              onClick={() => setTabActiva('turnos')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                tabActiva === 'turnos'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Turnos & Arqueos</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setTabActiva('inventario')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
-              tabActiva === 'inventario'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>Inventario & Compras</span>
-          </button>
+          {session?.rol_cantina === 'admin' && (
+            <>
+              <button
+                onClick={() => setTabActiva('inventario')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                  tabActiva === 'inventario'
+                    ? 'bg-sky-600 text-white shadow-md shadow-sky-600/25'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>Inventario & Compras</span>
+              </button>
 
-          <button
-            onClick={() => setTabActiva('cuentas')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
-              tabActiva === 'cuentas'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Landmark className="w-4 h-4" />
-            <span>Cuentas & Tesorería</span>
-          </button>
+              <button
+                onClick={() => setTabActiva('cuentas')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                  tabActiva === 'cuentas'
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Landmark className="w-4 h-4" />
+                <span>Cuentas & Tesorería</span>
+              </button>
 
-          <button
-            onClick={() => setTabActiva('qr')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
-              tabActiva === 'qr'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <QrCode className="w-4 h-4" />
-            <span>Código QR & Menú</span>
-          </button>
+              <button
+                onClick={() => setTabActiva('qr')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                  tabActiva === 'qr'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Código QR & Menú</span>
+              </button>
 
-          <button
-            onClick={() => setTabActiva('analytics')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
-              tabActiva === 'analytics'
-                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            <span>Rendimiento por Turno</span>
-          </button>
+              <button
+                onClick={() => setTabActiva('analytics')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                  tabActiva === 'analytics'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>Rendimiento por Turno</span>
+              </button>
+
+              <button
+                onClick={() => setTabActiva('equipo')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
+                  tabActiva === 'equipo'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Equipo & Colaboradores</span>
+                {colaboradores.length > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-blue-500/30 text-blue-200 text-[10px] font-black flex items-center justify-center border border-blue-400/40">
+                    {colaboradores.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </header>
+
+      {/* Alerta de Vigencia Temporal (si está inactiva o expirada) */}
+      {cantinaInfo?.vigencia && !cantinaInfo.vigencia.vigente && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-amber-300 text-xs font-semibold flex items-center justify-center gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span><b>Aviso de Concesión:</b> {cantinaInfo.vigencia.motivo || 'Cantina no habilitada actualmente.'} Las ventas en mostrador están bloqueadas.</span>
+        </div>
+      )}
 
       {/* CONTENIDO PRINCIPAL POR PESTAÑA */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
@@ -810,13 +1022,22 @@ export default function CantinaPanelPage() {
                   </span>
                 </div>
 
+                {cantinaInfo?.vigencia && !cantinaInfo.vigencia.vigente && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2 font-semibold">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>Concesión temporal no vigente. Cobros suspendidos para este evento.</span>
+                  </div>
+                )}
+
                 <button
                   onClick={handleConfirmarVenta}
-                  disabled={carrito.length === 0 || cobrando}
+                  disabled={carrito.length === 0 || cobrando || (cantinaInfo?.vigencia && !cantinaInfo.vigencia.vigente)}
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-sm shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-40 cursor-pointer"
                 >
                   {cobrando ? (
                     <span>Registrando venta...</span>
+                  ) : cantinaInfo?.vigencia && !cantinaInfo.vigencia.vigente ? (
+                    <span>VENTAS DESHABILITADAS (INACTIVA)</span>
                   ) : (
                     <>
                       <span>CONFIRMAR Y COBRAR</span>
@@ -1776,6 +1997,264 @@ export default function CantinaPanelPage() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ================================================================ */}
+        {/* PESTAÑA 8: EQUIPO & COLABORADORES (SOLO ADMIN DE CANTINA) */}
+        {/* ================================================================ */}
+        {tabActiva === 'equipo' && session?.rol_cantina === 'admin' && (
+          <div className="space-y-6">
+            {/* Header de la sección */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-3xl">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center font-bold">
+                    <UserCheck className="w-4 h-4" />
+                  </span>
+                  <h2 className="text-lg font-black text-white">Equipo & Personal de Mostrador</h2>
+                </div>
+                <p className="text-xs text-slate-400 max-w-2xl">
+                  Cada cajero y despachante ingresa al mostrador con su PIN de 4 dígitos asignado por vos. No requieren cuentas complejas, ideal para rotación ágil durante el evento.
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-slate-400">Cantina actual:</span>
+                  <span className="text-[11px] font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
+                    {cantinaInfo?.nombre} {cantinaInfo?.evento_nombre ? `• ${cantinaInfo.evento_nombre}` : ''}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setModalNuevoColaborador(true)}
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/25 flex items-center gap-2 transition-all self-start sm:self-auto cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nuevo Colaborador</span>
+              </button>
+            </div>
+
+            {/* Tarjetas KPI de resumen */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Equipo</span>
+                <p className="text-2xl font-black text-white mt-1">{colaboradores.length}</p>
+                <span className="text-[10px] text-slate-500 mt-1">Colaboradores activos</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">💳 Cajeros</span>
+                <p className="text-2xl font-black text-emerald-400 mt-1">
+                  {colaboradores.filter(c => c.rol === 'cajero' || c.rol === 'cajera').length}
+                </p>
+                <span className="text-[10px] text-slate-500 mt-1">Acceso a POS y cobro</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">📦 Despachantes</span>
+                <p className="text-2xl font-black text-amber-400 mt-1">
+                  {colaboradores.filter(c => c.rol === 'despachante').length}
+                </p>
+                <span className="text-[10px] text-slate-500 mt-1">Pantalla KDS de cocina</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between">
+                <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider">👔 Encargados</span>
+                <p className="text-2xl font-black text-purple-400 mt-1">
+                  {colaboradores.filter(c => c.rol === 'encargado' || c.rol === 'admin').length}
+                </p>
+                <span className="text-[10px] text-slate-500 mt-1">Arqueo y turnos</span>
+              </div>
+            </div>
+
+            {/* Listado de Colaboradores */}
+            {colaboradores.length === 0 ? (
+              <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-bold text-white mb-1">Aún no hay colaboradores dados de alta</h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto mb-6">
+                  Crea los perfiles de tus cajeros y despachantes asignándoles un PIN de 4 dígitos para que puedan operar en las tabletas de mostrador.
+                </p>
+                <button
+                  onClick={() => setModalNuevoColaborador(true)}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/25 inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Dar de Alta Primer Colaborador</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {colaboradores.map((colab: any) => {
+                  const rolLabel = colab.rol === 'cajero' || colab.rol === 'cajera' ? '💳 Cajero / POS'
+                    : colab.rol === 'despachante' ? '📦 Despachante / KDS'
+                    : colab.rol === 'encargado' ? '👔 Encargado de Turno'
+                    : '👑 Administrador';
+
+                  const rolBadgeClass = colab.rol === 'cajero' || colab.rol === 'cajera'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : colab.rol === 'despachante'
+                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                    : 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+
+                  const pinVisible = mostrarPins[colab.id];
+
+                  return (
+                    <div
+                      key={colab.id}
+                      className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between group relative"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700 text-white flex items-center justify-center font-bold text-sm">
+                              {colab.nombre?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-sm text-white leading-tight">{colab.nombre}</h4>
+                              <p className="text-[11px] text-slate-400 mt-0.5">{colab.email || 'Sin email registrado'}</p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleEliminarColaborador(colab.id, colab.nombre)}
+                            title="Dar de baja colaborador"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="mb-4">
+                          <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${rolBadgeClass}`}>
+                            {rolLabel}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* PIN Box */}
+                      <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-semibold text-slate-400 block">PIN de Mostrador</span>
+                          <span className="font-mono text-sm font-black text-orange-400 tracking-wider">
+                            {pinVisible ? colab.pin : '••••'}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setMostrarPins(prev => ({ ...prev, [colab.id]: !prev[colab.id] }))}
+                          className="px-2 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          {pinVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{pinVisible ? 'Ocultar' : 'Ver PIN'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Modal: Nuevo Colaborador */}
+            {modalNuevoColaborador && (
+              <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                        <UserCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-white">Nuevo Colaborador</h3>
+                        <p className="text-xs text-slate-400">Asigna nombre y PIN para tabletas de mostrador</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setModalNuevoColaborador(false)}
+                      className="w-8 h-8 rounded-xl bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={submitNuevoColaborador} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Nombre Completo *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ej: María Gómez, Lucas Silva..."
+                        value={colaboradorForm.nombre}
+                        onChange={e => setColaboradorForm({ ...colaboradorForm, nombre: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Rol Operativo *</label>
+                      <select
+                        value={colaboradorForm.rol}
+                        onChange={e => setColaboradorForm({ ...colaboradorForm, rol: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="cajero">💳 Cajero / POS (Toma pedidos y cobra en mostrador)</option>
+                        <option value="despachante">📦 Despachante / Cocina (Visualiza KDS y entrega)</option>
+                        <option value="encargado">👔 Encargado de Turno (Apertura/Cierre de turnos y arqueos)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        PIN de Mostrador (4 a 6 dígitos numéricos) *
+                      </label>
+                      <div className="relative">
+                        <Key className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          placeholder="Ej: 1234"
+                          value={colaboradorForm.pin}
+                          onChange={e => setColaboradorForm({ ...colaboradorForm, pin: e.target.value.replace(/\D/g, '') })}
+                          className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-orange-400 font-mono font-bold tracking-widest focus:outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Este código será ingresado en la pantalla de inicio de sesión de la tableta de la cantina.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Email de Contacto (opcional)</label>
+                      <input
+                        type="email"
+                        placeholder="colaborador@email.com"
+                        value={colaboradorForm.email}
+                        onChange={e => setColaboradorForm({ ...colaboradorForm, email: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalNuevoColaborador(false)}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={guardandoColaborador}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/25 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {guardandoColaborador ? 'Guardando...' : 'Dar de Alta Colaborador'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
