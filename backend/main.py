@@ -78,12 +78,24 @@ from database import engine, SessionLocal, get_session
 # 5. INICIALIZACIÓN DE FASTAPI
 # ============================================
 from fastapi.exceptions import RequestValidationError
+from contextlib import asynccontextmanager
+from scheduler import init_scheduler, shutdown_scheduler
+
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    # Iniciar el planificador de envíos en segundo plano al arrancar la aplicación
+    await init_scheduler()
+    yield
+    # Detener el planificador al apagar la aplicación
+    await shutdown_scheduler()
 
 app = FastAPI(
     title="SIGEL - Sistema de Gestión Electoral",
     description="API para la gestión electoral, captación de votantes y logística de campaña",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=app_lifespan
 )
+
 
 # Definir la carpeta de subidas y asegurarse de que exista
 os.makedirs("uploads/actividades", exist_ok=True)
@@ -145,6 +157,7 @@ from public_routes import router as public_router
 from inteligencia_routes import router as inteligencia_router
 from financiamiento_routes import router as financiamiento_router
 from dia_d_routes import router as dia_d_router
+from mensajeria_routes import router as mensajeria_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
 app.include_router(auth_router)
@@ -161,6 +174,8 @@ app.include_router(public_router) # Registrar Rutas publicas
 app.include_router(inteligencia_router)  # Inteligencia Territorial
 app.include_router(financiamiento_router) # Financiamiento Político
 app.include_router(dia_d_router) # Escrutinio Día D
+app.include_router(mensajeria_router) # Módulo de Mensajería
+
 
 
 # ============================================

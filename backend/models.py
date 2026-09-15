@@ -671,3 +671,50 @@ class ResultadoMesa(Base):
     auditado = Column(Boolean, default=False)
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
     fecha_registro = Column(DateTime, default=func.now())
+
+# ===== SISTEMA DE MENSAJERÍA ELECTORAL =====
+
+class MensajeCampania(Base):
+    __tablename__ = "mensajes_campania"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre_campania = Column(String(150), nullable=False)
+    tipo_destinatario = Column(String(30), nullable=False) # seguidores / padron_completo
+    canal = Column(String(20), nullable=False) # sms / whatsapp / email / n8n
+    plantilla_mensaje = Column(Text, nullable=False)
+    fecha_programada = Column(DateTime(timezone=True), nullable=False)
+    estado = Column(String(20), default="pendiente")
+    total_destinatarios = Column(Integer, default=0)
+    enviados_exito = Column(Integer, default=0)
+    enviados_fallido = Column(Integer, default=0)
+    creado_por = Column(Integer, ForeignKey("sistema.usuarios.id"), nullable=True)
+    eleccion_id = Column(Integer, ForeignKey("electoral.elecciones.id"), nullable=True)
+    filtros = Column(JSONB, nullable=True)
+    fecha_creacion = Column(DateTime(timezone=True), default=func.now())
+    fecha_modificacion = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    
+    # Relaciones
+    usuario_creador = relationship("Usuario", foreign_keys=[creado_por])
+    eleccion = relationship("Eleccion", foreign_keys=[eleccion_id])
+    destinatarios = relationship("MensajeDestinatario", back_populates="campania", cascade="all, delete-orphan")
+
+
+class MensajeDestinatario(Base):
+    __tablename__ = "mensaje_destinatarios"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campania_id = Column(Integer, ForeignKey("electoral.mensajes_campania.id", ondelete="CASCADE"), nullable=False)
+    cedula = Column(String(20), ForeignKey("electoral.personas.cedula"), nullable=True)
+    telefono = Column(String(20))
+    email = Column(String(100))
+    mensaje_personalizado = Column(Text, nullable=False)
+    estado = Column(String(20), default="pendiente") # pendiente / enviado / fallido
+    fecha_envio = Column(DateTime(timezone=True))
+    error_mensaje = Column(Text)
+    
+    # Relaciones
+    campania = relationship("MensajeCampania", back_populates="destinatarios")
+    persona = relationship("Persona", foreign_keys=[cedula])
+

@@ -26,6 +26,7 @@ import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
 import ChoferScanner from "./components/ChoferScanner.jsx";
 import EleccionesManagement from "./components/EleccionesManagement.jsx";
 import PadronImport from "./components/PadronImport.jsx";
+import MensajeriaDashboard from "./components/MensajeriaDashboard.jsx";
 
 // Helper global para identificar el rol de forma robusta
 const getSafeRole = (user) => {
@@ -364,6 +365,7 @@ function MainDashboard({ user, onLogout }) {
         { id: 'padron_plra', label: 'Padrón PLRA', icon: '🔵', roles: ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'] },
         { id: 'inteligencia_territorial', label: 'Inteligencia Territorial', icon: '🧠', roles: ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'] },
         { id: 'financiamiento', label: 'Financiamiento Político', icon: '⚖️', roles: ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'] },
+        { id: 'mensajeria', label: 'Mensajería Campaña', icon: '💬', roles: ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'] },
       ]
     },
     {
@@ -461,6 +463,7 @@ function MainDashboard({ user, onLogout }) {
             {tab === "inteligencia_territorial" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <InteligenciaTerritorial user={user} />}
             {tab === "financiamiento" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <FinanciamientoPolitico user={user} />}
             {tab === "escrutinio_dia_d" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <EscrutinioDiaD user={user} />}
+            {tab === "mensajeria" && ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'].includes(user.rol) && <MensajeriaDashboard user={user} />}
           </div>
         </main>
       </div>

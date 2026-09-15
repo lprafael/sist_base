@@ -772,3 +772,60 @@ class ParticipanteCreate(BaseModel):
     apellido: Optional[str] = None
     telefono: Optional[str] = None
     observaciones: Optional[str] = None
+
+# ===== SCHEMAS DE MENSAJERÍA ELECTORAL =====
+
+class MensajeCampaniaCreate(BaseModel):
+    nombre_campania: str
+    tipo_destinatario: str # seguidores / padron_completo
+    canal: str # sms / whatsapp / email / n8n
+    plantilla_mensaje: str
+    fecha_programada: datetime
+    eleccion_id: int
+    filtros: Optional[Dict[str, Any]] = None
+
+class MensajeCampaniaUpdate(BaseModel):
+    nombre_campania: Optional[str] = None
+    tipo_destinatario: Optional[str] = None
+    canal: Optional[str] = None
+    plantilla_mensaje: Optional[str] = None
+    fecha_programada: Optional[datetime] = None
+    eleccion_id: Optional[int] = None
+    filtros: Optional[Dict[str, Any]] = None
+
+class MensajeCampaniaResponse(BaseModel):
+    id: int
+    nombre_campania: str
+    tipo_destinatario: str
+    canal: str
+    plantilla_mensaje: str
+    fecha_programada: datetime
+    estado: str
+    total_destinatarios: int
+    enviados_exito: int
+    enviados_fallido: int
+    creado_por: Optional[int] = None
+    eleccion_id: Optional[int] = None
+    filtros: Optional[Dict[str, Any]] = None
+    fecha_creacion: datetime
+    
+    class Config:
+        from_attributes = True
+
+class MensajeDestinatarioResponse(BaseModel):
+    id: int
+    campania_id: int
+    cedula: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    mensaje_personalizado: str
+    estado: str
+    fecha_envio: Optional[datetime] = None
+    error_mensaje: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class CampaniaPreviewRequest(BaseModel):
+    plantilla_mensaje: str
+    eleccion_id: int

@@ -64,3 +64,6 @@ verify_*.py
 sync_*.py
 dev_output.txt
 *.txt
+scratch/
+*scratch*
+*diag.html

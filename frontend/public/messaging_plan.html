@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Implementación: Módulo de Mensajería Electoral - SIGEL</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --accent: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.15);
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #374151;
+            --font-sans: 'Plus Jakarta Sans', 'Outfit', system-ui, -apple-system, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar navigation */
+        aside {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo i {
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent);
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-item a {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item a:hover, .nav-item.active a {
+            color: #ffffff;
+            background-color: var(--bg-tertiary);
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Main content container */
+        main {
+            margin-left: 280px;
+            flex: 1;
+            padding: 50px 80px;
+            max-width: 1200px;
+        }
+
+        header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            color: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            color: #ffffff;
+        }
+
+        p {
+            margin-bottom: 20px;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        /* Callout note */
+        .callout {
+            background-color: var(--bg-secondary);
+            border-left: 4px solid var(--accent);
+            border-radius: 6px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+
+        .callout-title {
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Code block wrapper */
+        pre {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+
+        code {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: #e2e8f0;
+        }
+
+        /* Inline code */
+        p code, li code {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.88rem;
+            color: #fca5a5;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-bottom: 20px;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Status badge */
+        .status-pill {
+            display: inline-block;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent-success);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .mermaid {
+            background: #111827;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            margin: 24px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Responsive styling */
+        @media (max-width: 992px) {
+            aside {
+                display: none;
+            }
+            main {
+                margin-left: 0;
+                padding: 40px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside>
+        <div class="logo">
+            <i class="fa-solid fa-square-envelope"></i>
+            <span>SIGEL Messaging</span>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="#introduccion"><i class="fa-solid fa-circle-info"></i> Introducción</a></li>
+            <li class="nav-item"><a href="#arquitectura"><i class="fa-solid fa-network-wired"></i> Arquitectura</a></li>
+            <li class="nav-item"><a href="#basededatos"><i class="fa-solid fa-database"></i> Base de Datos</a></li>
+            <li class="nav-item"><a href="#scheduler"><i class="fa-solid fa-clock"></i> Motor Scheduler</a></li>
+            <li class="nav-item"><a href="#endpoints"><i class="fa-solid fa-route"></i> Endpoints API</a></li>
+            <li class="nav-item"><a href="#frontend"><i class="fa-solid fa-desktop"></i> Interfaz React</a></li>
+            <li class="nav-item"><a href="#estado"><i class="fa-solid fa-check-double"></i> Estado y Progreso</a></li>
+        </ul>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main>
+        <header>
+            <h1>Ficha de Implementación: Mensajería Programada</h1>
+            <p>Registro técnico y plan de arquitectura ejecutado para el Módulo de Mensajería del Sistema Integral de Gestión Electoral (SIGEL).</p>
+            <span class="status-pill"><i class="fa-solid fa-circle-check"></i> Implementación Finalizada</span>
+        </header>
+
+        <section id="introduccion">
+            <h2><i class="fa-solid fa-circle-info"></i> Introducción y Objetivos</h2>
+            <p>El Módulo de Mensajería de SIGEL permite a los candidatos parametrizar, agendar y redactar plantillas de mensajes para ser enviados de manera masiva o personalizada. Los placeholders se autocompletan en tiempo real con datos de las tablas del padrón y simpatizantes.</p>
+            <div class="callout">
+                <div class="callout-title"><i class="fa-solid fa-lightbulb"></i> Dos Universos de Envío</div>
+                <p style="margin:0;">1) <strong>Mis Seguidores:</strong> Simpatizantes captados que apoyan al candidato actual.<br>
+                2) <strong>Padrón Completo:</strong> Todos los registrados en el censo electoral de un departamento, distrito o local de votación (disponible para administradores y candidatos principales).</p>
+            </div>
+        </section>
+
+        <section id="arquitectura">
+            <h2><i class="fa-solid fa-network-wired"></i> Arquitectura de Ejecución</h2>
+            <p>Para evitar sobrecargar el entorno con dependencias externas como Redis o Celery, se optó por un motor de sondeo asíncrono utilizando <strong>APScheduler</strong>. Este motor corre dentro del mismo bucle de eventos de FastAPI y actualiza el progreso en lotes de 20 mensajes.</p>
+            
+            <div class="mermaid">
+flowchart TD
+    UI["React Frontend"] -->|"Programar Campaña"| API["FastAPI Endpoint"]
+    API -->|"Registrar cabecera"| DB[("PostgreSQL DB")]
+    SCHEDULER["APScheduler - AsyncIOScheduler"] -->|"Sondeo cada 60s"| TICK["Verificar Campañas Pendientes"]
+    TICK -->|"Procesa lotes"| SEND["Reemplazar Variables e Iniciar Envíos"]
+    SEND -->|"Canales"| GW["Canales: SMS / WA / Email / n8n Webhook"]
+    GW -->|"Resultados"| DB
+            </div>
+        </section>
+
+        <section id="basededatos">
+            <h2><i class="fa-solid fa-database"></i> Estructura de la Base de Datos</h2>
+            <p>Se crearon dos tablas en el esquema <code>electoral</code> para la gestión y bitácora de auditoría:</p>
+            <h3>Tabla <code>electoral.mensajes_campania</code></h3>
+            <p>Almacena la cabecera de la campaña, la plantilla del mensaje, filtros territoriales y estadísticas acumuladas de envío.</p>
+            <pre><code>CREATE TABLE electoral.mensajes_campania (
+    id SERIAL PRIMARY KEY,
+    nombre_campania VARCHAR(150) NOT NULL,
+    tipo_destinatario VARCHAR(30) NOT NULL, -- 'seguidores' o 'padron_completo'
+    canal VARCHAR(20) NOT NULL, -- 'sms', 'whatsapp', 'email', 'n8n'
+    plantilla_mensaje TEXT NOT NULL,
+    fecha_programada TIMESTAMP WITH TIME ZONE NOT NULL,
+    estado VARCHAR(20) DEFAULT 'pendiente', -- 'pendiente', 'en_progreso', 'enviado'
+    total_destinatarios INTEGER DEFAULT 0,
+    enviados_exito INTEGER DEFAULT 0,
+    enviados_fallido INTEGER DEFAULT 0,
+    creado_por INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL,
+    eleccion_id INTEGER REFERENCES electoral.elecciones(id) ON DELETE CASCADE,
+    filtros JSONB,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);</code></pre>
+
+            <h3>Tabla <code>electoral.mensaje_destinatarios</code></h3>
+            <p>Bitácora de auditoría individual. Registra el mensaje final traducido y el estado/error de la API de comunicación.</p>
+            <pre><code>CREATE TABLE electoral.mensaje_destinatarios (
+    id SERIAL PRIMARY KEY,
+    campania_id INTEGER REFERENCES electoral.mensajes_campania(id) ON DELETE CASCADE,
+    cedula VARCHAR(20) REFERENCES electoral.personas(cedula) ON DELETE SET NULL,
+    telefono VARCHAR(20),
+    email VARCHAR(100),
+    mensaje_personalizado TEXT NOT NULL,
+    estado VARCHAR(20) DEFAULT 'pendiente', -- 'pendiente', 'enviado', 'fallido'
+    fecha_envio TIMESTAMP WITH TIME ZONE,
+    error_mensaje TEXT
+);</code></pre>
+        </section>
+
+        <section id="scheduler">
+            <h2><i class="fa-solid fa-clock"></i> Motor del Planificador (scheduler.py)</h2>
+            <p>El backend utiliza un bucle asíncrono para ejecutar los envíos. A continuación se detalla la lógica clave de reemplazo de placeholders definidos por llaves individuales:</p>
+            <pre><code class="language-python">def construir_mensaje_personalizado(plantilla: str, persona: dict) -> str:
+    mapeo = {
+        "{nombre_apellido}": f"{persona.get('nombres', '')} {persona.get('apellidos', '')}".strip() or "Votante",
+        "{local}": persona.get("nombre_local") or "No asignado",
+        "{mesa}": str(persona.get("mesa", "Sin mesa")),
+        "{candidato}": persona.get("nombre_candidato") or "Candidato"
+    }
+    mensaje = plantilla
+    for tag, valor in mapeo.items():
+        mensaje = mensaje.replace(tag, valor)
+    return mensaje</code></pre>
+        </section>
+
+        <section id="endpoints">
+            <h2><i class="fa-solid fa-route"></i> Endpoints API Registrados</h2>
+            <p>Se crearon y montaron los siguientes endpoints REST en el router de FastAPI (<code>mensajeria_routes.py</code>):</p>
+            <ul>
+                <li><code>POST /api/mensajeria/campanias</code> - Crear y programar una campaña.</li>
+                <li><code>GET /api/mensajeria/campanias</code> - Listar campañas históricas y activas.</li>
+                <li><code>GET /api/mensajeria/campanias/{id}</code> - Obtener estadísticas de progreso en vivo.</li>
+                <li><code>DELETE /api/mensajeria/campanias/{id}</code> - Eliminar o cancelar una campaña en estado 'pendiente'.</li>
+                <li><code>GET /api/mensajeria/campanias/{id}/destinatarios</code> - Obtener bitácora detallada de envíos.</li>
+                <li><code>POST /api/mensajeria/preview</code> - Renderizar una plantilla de prueba con datos mock.</li>
+            </ul>
+        </section>
+
+        <section id="frontend">
+            <h2><i class="fa-solid fa-desktop"></i> Interfaz del Dashboard React</h2>
+            <p>El componente frontend principal se ubica en <code>frontend/src/components/MensajeriaDashboard.jsx</code>. Ofrece una experiencia interactiva completa:</p>
+            <ul>
+                <li><strong>Métricas Generales:</strong> Tarjetas con el total de campañas, mensajes entregados con éxito y fallidos.</li>
+                <li><strong>Inserción Inteligente:</strong> Botones rápidos para inyectar variables en la posición del cursor de texto.</li>
+                <li><strong>Segmentación Jerárquica:</strong> Dropdowns geográficos encadenados (Departamento &rarr; Distrito &rarr; Local) que cargan dinámicamente opciones del servidor.</li>
+                <li><strong>Vista Previa Celular:</strong> Maqueta visual interactiva de un teléfono smartphone para ver cómo lucirá el mensaje según el canal seleccionado (SMS, WhatsApp o Email).</li>
+                <li><strong>Bitácora en Vivo:</strong> Consulta detallada de errores de red y estados de cada destinatario.</li>
+            </ul>
+        </section>
+
+        <section id="estado">
+            <h2><i class="fa-solid fa-check-double"></i> Estado Actual del Proyecto</h2>
+            <p>Todas las fases planificadas han sido completadas con éxito:</p>
+            <ul>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success)"></i> Creación de tablas de base de datos verificada con <code>init_db.py</code>.</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success)"></i> Integración del ciclo de vida de APScheduler en FastAPI.</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success)"></i> Registro de Rutas API y dependencias de seguridad.</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success)"></i> Creación del componente de Dashboard en React con estilos CSS premium y adaptables.</li>
+            </ul>
+        </section>
+    </main>
+
+    <!-- Script de Mermaid para renderizar los diagramas en vivo -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                background: '#111827',
+                primaryColor: '#1f2937',
+                secondaryColor: '#374151',
+                textColor: '#f3f4f6',
+                lineColor: '#2563eb'
+            }
+        });
+    </script>
+</body>
+</html>

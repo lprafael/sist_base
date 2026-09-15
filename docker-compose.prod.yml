@@ -40,7 +40,7 @@ services:
     image: sigel-backend:latest
     container_name: SIGEL-backend
     ports:
-      - "8002:8001"
+      - "8006:8001"
     depends_on:
       - db
     environment:
@@ -73,7 +73,7 @@ services:
     image: sigel-frontend:latest
     container_name: SIGEL-frontend
     ports:
-      - "3002:80"
+      - "3006:80"
     depends_on:
       backend:
         condition: service_healthy
