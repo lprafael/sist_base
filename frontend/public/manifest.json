@@ -1,0 +1,16 @@
+{
+  "name": "SIGEL Día D Tracking",
+  "short_name": "SIGEL Tracking",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a365d",
+  "theme_color": "#1a365d",
+  "description": "Sistema de Seguimiento para Choferes SIGEL",
+  "icons": [
+    {
+      "src": "/imagenes/Logo_SIGEL2.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}
