@@ -24,7 +24,7 @@ from pydantic import BaseModel
 
 from database import get_session
 from security import get_current_user
-from routers.academias import get_academia_context, require_roles
+from routers.academias import get_academia_context, require_roles, _clean_date
 
 router = APIRouter(prefix="/academia", tags=["Academias Extensiones"])
 
@@ -119,11 +119,18 @@ class InscripcionItem(BaseModel):
     dias_por_semana: Optional[int] = 3
     descuento_aplicado: Optional[float] = 0.0
     beca: Optional[bool] = False
+    fecha_fin: Optional[str] = None
 
 class InscripcionesMultiplesRequest(BaseModel):
     alumno_id: str
-    categorias: List[InscripcionItem]
+    categorias: Optional[List[InscripcionItem]] = None
+    categoria_ids: Optional[List[str]] = None
     fecha_inicio: Optional[str] = None
+    fecha_fin: Optional[str] = None
+    cuota_mensual: Optional[float] = None
+    descuento_aplicado: Optional[float] = None
+    dias_por_semana: Optional[int] = 3
+    beca: Optional[bool] = False
     notas: Optional[str] = None
 
 
@@ -281,10 +288,11 @@ async def inscribir_multiples_cursos(
     current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Inscribe a un alumno a varios cursos/categorías a la vez."""
+    """Inscribe a un alumno a varios cursos/categorías a la vez con fechas de vigencia."""
     ctx = await get_academia_context(request, current_user, session)
     aid = str(ctx["academia_id"])
-    fecha_ini = data.fecha_inicio or date.today().isoformat()
+    fecha_ini = _clean_date(data.fecha_inicio) or date.today()
+    fecha_fin_global = _clean_date(data.fecha_fin)
 
     res_al = await session.execute(
         text("SELECT id, nombre, apellido FROM academias.alumnos WHERE id = CAST(:id AS UUID) AND academia_id = CAST(:aid AS UUID)"),
@@ -293,35 +301,54 @@ async def inscribir_multiples_cursos(
     if not res_al.fetchone():
         raise HTTPException(status_code=404, detail="Alumno no encontrado.")
 
-    if not data.categorias:
+    # Normalizar lista de categorías a procesar
+    items_to_process: List[InscripcionItem] = []
+    if data.categorias:
+        items_to_process = data.categorias
+    elif data.categoria_ids:
+        for cid in data.categoria_ids:
+            items_to_process.append(InscripcionItem(
+                categoria_id=cid,
+                cuota_mensual=data.cuota_mensual or 0.0,
+                dias_por_semana=data.dias_por_semana or 3,
+                descuento_aplicado=data.descuento_aplicado or 0.0,
+                beca=data.beca or False,
+                fecha_fin=data.fecha_fin,
+            ))
+
+    if not items_to_process:
         raise HTTPException(status_code=400, detail="Debe seleccionar al menos un curso o categoría.")
 
     inscritas = 0
-    for item in data.categorias:
-        # Verificar que no esté ya inscrito en esa categoría activa
+    for item in items_to_process:
+        # Verificar si ya está inscrito en esa categoría y el período sigue activo/vigente
         res_ya = await session.execute(
             text("""
                 SELECT id FROM academias.inscripciones
-                WHERE alumno_id = CAST(:aid AS UUID) AND categoria_id = CAST(:cid AS UUID) AND estado = 'activa'
+                WHERE alumno_id = CAST(:aid AS UUID) 
+                  AND categoria_id = CAST(:cid AS UUID) 
+                  AND estado = 'activa'
+                  AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
             """),
             {"aid": data.alumno_id, "cid": item.categoria_id}
         )
         if res_ya.fetchone():
-            continue  # ya está inscrito en esa
+            continue  # ya tiene un período activo vigente en este curso
 
+        f_fin = _clean_date(item.fecha_fin) if item.fecha_fin else fecha_fin_global
         new_id = str(uuid.uuid4())
         await session.execute(
             text("""
                 INSERT INTO academias.inscripciones
-                    (id, alumno_id, categoria_id, fecha_inicio, dias_por_semana,
-                     cuota_mensual, descuento_aplicado, beca, notas)
+                    (id, alumno_id, categoria_id, fecha_inicio, fecha_fin, dias_por_semana,
+                     cuota_mensual, descuento_aplicado, beca, notas, estado)
                 VALUES
                     (CAST(:id AS UUID), CAST(:alumno_id AS UUID), CAST(:categoria_id AS UUID),
-                     CAST(:fecha_inicio AS DATE), :dias, :cuota, :desc, :beca, :notas)
+                     CAST(:fecha_inicio AS DATE), CAST(:fecha_fin AS DATE), :dias, :cuota, :desc, :beca, :notas, 'activa')
             """),
             {
                 "id": new_id, "alumno_id": data.alumno_id, "categoria_id": item.categoria_id,
-                "fecha_inicio": fecha_ini, "dias": item.dias_por_semana or 3,
+                "fecha_inicio": fecha_ini, "fecha_fin": f_fin, "dias": item.dias_por_semana or 3,
                 "cuota": float(item.cuota_mensual or 0), "desc": float(item.descuento_aplicado or 0),
                 "beca": item.beca or False, "notas": data.notas,
             }

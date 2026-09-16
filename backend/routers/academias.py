@@ -220,8 +220,16 @@ class SucursalRequest(BaseModel):
     lon: Optional[float] = None
 
 
+class ModalidadRequest(BaseModel):
+    nombre: str
+    deporte: Optional[str] = None
+    descripcion: Optional[str] = None
+    color: Optional[str] = '#3b82f6'
+
+
 class CategoriaRequest(BaseModel):
     sucursal_id: Optional[str] = None
+    modalidad_id: Optional[str] = None
     nombre: str
     edad_min: Optional[int] = 0
     edad_max: Optional[int] = 99
@@ -316,7 +324,8 @@ class VincularTutorRequest(BaseModel):
 
 
 class CategoriaRequest(BaseModel):
-    sucursal_id: str
+    sucursal_id: Optional[str] = None
+    modalidad_id: Optional[str] = None
     nombre: str
     edad_min: Optional[int] = None
     edad_max: Optional[int] = None
@@ -328,11 +337,13 @@ class InscripcionRequest(BaseModel):
     alumno_id: str
     categoria_id: str
     fecha_inicio: str
+    fecha_fin: Optional[str] = None
     dias_por_semana: Optional[int] = 3
     cuota_mensual: float
     descuento_aplicado: Optional[float] = 0
     beca: Optional[bool] = False
     notas: Optional[str] = None
+    estado: Optional[str] = None
 
 
 class PagarCuotaRequest(BaseModel):
@@ -343,6 +354,8 @@ class PagarCuotaRequest(BaseModel):
     fecha_pago: Optional[str] = None        # YYYY-MM-DD; None = hoy
     generar_factura: Optional[bool] = False # Si True → emite factura electronica SIFEN
     notas: Optional[str] = None
+    descuento_adicional: Optional[float] = 0 # Descuento aplicado en el cobro (ej. iniciación tardía)
+    motivo_descuento: Optional[str] = None   # Motivo del descuento (ej. "Iniciación tardía - Quincena")
 
 
 class AnularPagoRequest(BaseModel):
@@ -1131,23 +1144,151 @@ async def desactivar_sucursal(
 
 
 # ================================================================
+# ENDPOINTS — MODALIDADES DEPORTIVAS DE LA ACADEMIA
+# ================================================================
+
+@router.get("/academia/modalidades")
+async def listar_modalidades(
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero", "profesor")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Lista todas las modalidades activas de la academia con el conteo de categorías asociadas."""
+    aid = current_user["academia_id"]
+    res = await session.execute(text("""
+        SELECT m.id, m.nombre, m.deporte, m.descripcion, m.color, m.activa, m.creado_en,
+               COUNT(DISTINCT c.id) AS total_categorias
+        FROM academias.modalidades m
+        LEFT JOIN academias.categorias c ON c.modalidad_id = m.id AND c.activa = TRUE
+        WHERE m.academia_id = CAST(:aid AS UUID) AND m.activa = TRUE
+        GROUP BY m.id, m.nombre, m.deporte, m.descripcion, m.color, m.activa, m.creado_en
+        ORDER BY m.nombre ASC
+    """), {"aid": str(aid)})
+    return [
+        {
+            "id": str(r[0]),
+            "nombre": r[1],
+            "deporte": r[2] or "",
+            "descripcion": r[3] or "",
+            "color": r[4] or "#3b82f6",
+            "activa": r[5],
+            "creado_en": r[6].isoformat() if r[6] else None,
+            "total_categorias": r[7],
+        }
+        for r in res.fetchall()
+    ]
+
+
+@router.post("/academia/modalidades")
+async def crear_modalidad(
+    data: ModalidadRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Crea una nueva modalidad para la academia."""
+    nombre = (data.nombre or "").strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre de la modalidad es obligatorio.")
+    aid = current_user["academia_id"]
+
+    res = await session.execute(text("""
+        INSERT INTO academias.modalidades
+            (academia_id, nombre, deporte, descripcion, color, activa)
+        VALUES
+            (CAST(:aid AS UUID), :nombre, :deporte, :descripcion, :color, TRUE)
+        RETURNING id
+    """), {
+        "aid": str(aid),
+        "nombre": nombre,
+        "deporte": data.deporte.strip() if data.deporte else None,
+        "descripcion": data.descripcion.strip() if data.descripcion else None,
+        "color": data.color or "#3b82f6",
+    })
+    new_id = res.fetchone()[0]
+    await session.commit()
+    return {"message": "Modalidad creada exitosamente.", "id": str(new_id)}
+
+
+@router.put("/academia/modalidades/{modalidad_id}")
+async def actualizar_modalidad(
+    modalidad_id: str,
+    data: ModalidadRequest,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Actualiza una modalidad deportiva."""
+    nombre = (data.nombre or "").strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre de la modalidad es obligatorio.")
+    aid = current_user["academia_id"]
+
+    res = await session.execute(text("""
+        UPDATE academias.modalidades SET
+            nombre      = :nombre,
+            deporte     = :deporte,
+            descripcion = :descripcion,
+            color       = :color
+        WHERE id = CAST(:mid AS UUID) AND academia_id = CAST(:aid AS UUID)
+    """), {
+        "mid": str(modalidad_id),
+        "aid": str(aid),
+        "nombre": nombre,
+        "deporte": data.deporte.strip() if data.deporte else None,
+        "descripcion": data.descripcion.strip() if data.descripcion else None,
+        "color": data.color or "#3b82f6",
+    })
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Modalidad no encontrada.")
+    await session.commit()
+    return {"message": "Modalidad actualizada exitosamente."}
+
+
+@router.delete("/academia/modalidades/{modalidad_id}")
+async def desactivar_modalidad(
+    modalidad_id: str,
+    current_user: dict = Depends(require_roles("dueño", "administrador")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Desactiva una modalidad deportiva."""
+    aid = current_user["academia_id"]
+    res = await session.execute(text("""
+        UPDATE academias.modalidades SET activa = FALSE
+        WHERE id = CAST(:mid AS UUID) AND academia_id = CAST(:aid AS UUID)
+    """), {"mid": str(modalidad_id), "aid": str(aid)})
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Modalidad no encontrada.")
+    await session.commit()
+    return {"message": "Modalidad desactivada exitosamente."}
+
+
+# ================================================================
 # ENDPOINTS — CATEGORÍAS DE LA ACADEMIA
 # ================================================================
 
 @router.get("/academia/categorias")
 async def listar_categorias(
     current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero", "profesor")),
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    modalidad_id: Optional[str] = None
 ):
-    """Lista todas las categorías de la academia."""
-    res = await session.execute(text("""
+    """Lista todas las categorías de la academia, con información de modalidad."""
+    conditions = ["(s.academia_id = :aid OR c.sucursal_id IS NULL)", "c.activa = TRUE"]
+    params = {"aid": current_user["academia_id"]}
+
+    if modalidad_id and modalidad_id.strip():
+        conditions.append("c.modalidad_id = CAST(:mid AS UUID)")
+        params["mid"] = modalidad_id.strip()
+
+    where_sql = " AND ".join(conditions)
+    res = await session.execute(text(f"""
         SELECT c.id, c.nombre, c.edad_min, c.edad_max, c.descripcion, c.color,
-               c.sucursal_id, s.nombre AS sucursal_nombre, c.activa
+               c.sucursal_id, s.nombre AS sucursal_nombre, c.activa,
+               c.modalidad_id, m.nombre AS modalidad_nombre, m.color AS modalidad_color, m.deporte AS modalidad_deporte
         FROM academias.categorias c
         LEFT JOIN academias.sucursales s ON s.id = c.sucursal_id
-        WHERE (s.academia_id = :aid OR c.sucursal_id IS NULL) AND c.activa = TRUE
+        LEFT JOIN academias.modalidades m ON m.id = c.modalidad_id
+        WHERE {where_sql}
         ORDER BY c.edad_min ASC, c.nombre ASC
-    """), {"aid": current_user["academia_id"]})
+    """), params)
     return [
         {
             "id": str(r[0]), "nombre": r[1], "edad_min": r[2], "edad_max": r[3],
@@ -1155,6 +1296,10 @@ async def listar_categorias(
             "sucursal_id": str(r[6]) if r[6] else None,
             "sucursal_nombre": r[7] or "General",
             "activa": r[8],
+            "modalidad_id": str(r[9]) if r[9] else None,
+            "modalidad_nombre": r[10] or None,
+            "modalidad_color": r[11] or None,
+            "modalidad_deporte": r[12] or None,
         }
         for r in res.fetchall()
     ]
@@ -1166,7 +1311,7 @@ async def crear_categoria(
     current_user: dict = Depends(require_roles("dueño", "administrador")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Crea una nueva categoría para la academia."""
+    """Crea una nueva categoría para la academia con soporte de modalidad."""
     aid_str = str(current_user["academia_id"])
     suc_id = data.sucursal_id if data.sucursal_id and data.sucursal_id.strip() else None
 
@@ -1185,14 +1330,17 @@ async def crear_categoria(
             """), {"aid": aid_str})
             suc_id = str(res_new_suc.fetchone()[0])
 
+    mod_id = data.modalidad_id.strip() if data.modalidad_id and data.modalidad_id.strip() else None
+
     res = await session.execute(text("""
         INSERT INTO academias.categorias
-            (sucursal_id, nombre, edad_min, edad_max, descripcion, color, activa)
+            (sucursal_id, modalidad_id, nombre, edad_min, edad_max, descripcion, color, activa)
         VALUES
-            (:sucursal_id, :nombre, :edad_min, :edad_max, :descripcion, :color, TRUE)
+            (:sucursal_id, CAST(:modalidad_id AS UUID), :nombre, :edad_min, :edad_max, :descripcion, :color, TRUE)
         RETURNING id
     """), {
         "sucursal_id": suc_id,
+        "modalidad_id": mod_id,
         "nombre": data.nombre,
         "edad_min": data.edad_min or 0,
         "edad_max": data.edad_max or 99,
@@ -1213,15 +1361,17 @@ async def actualizar_categoria(
 ):
     """Actualiza una categoría."""
     suc_id = data.sucursal_id if data.sucursal_id and data.sucursal_id.strip() else None
+    mod_id = data.modalidad_id.strip() if data.modalidad_id and data.modalidad_id.strip() else None
 
     await session.execute(text("""
         UPDATE academias.categorias SET
-            nombre      = :nombre,
-            edad_min    = :edad_min,
-            edad_max    = :edad_max,
-            descripcion = :descripcion,
-            color       = :color,
-            sucursal_id = COALESCE(:sucursal_id, sucursal_id)
+            nombre       = :nombre,
+            edad_min     = :edad_min,
+            edad_max     = :edad_max,
+            descripcion  = :descripcion,
+            color        = :color,
+            sucursal_id  = COALESCE(:sucursal_id, sucursal_id),
+            modalidad_id = CAST(:modalidad_id AS UUID)
         WHERE id = :cid
     """), {
         "cid": str(categoria_id),
@@ -1231,6 +1381,7 @@ async def actualizar_categoria(
         "descripcion": data.descripcion,
         "color": data.color or "#3b82f6",
         "sucursal_id": suc_id,
+        "modalidad_id": mod_id,
     })
     await session.commit()
     return {"message": "Categoría actualizada exitosamente."}
@@ -1867,9 +2018,10 @@ async def listar_inscripciones(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     categoria_id: Optional[str] = None,
-    estado: Optional[str] = "activa"
+    estado: Optional[str] = None,
+    filtro_vigencia: Optional[str] = None
 ):
-    """Lista inscripciones activas."""
+    """Lista inscripciones con fechas de vigencia y estado."""
     ctx = await get_academia_context(request, current_user, session)
 
     conditions = ["s.academia_id = :aid"]
@@ -1881,35 +2033,61 @@ async def listar_inscripciones(
     if categoria_id:
         conditions.append("i.categoria_id = :cid")
         params["cid"] = categoria_id
-    if estado:
+    if estado and estado != "todos":
         conditions.append("i.estado = :estado")
         params["estado"] = estado
+
+    if filtro_vigencia == "vigentes":
+        conditions.append("(i.estado = 'activa' AND (i.fecha_fin IS NULL OR i.fecha_fin >= CURRENT_DATE))")
+    elif filtro_vigencia == "finalizadas":
+        conditions.append("(i.estado = 'finalizada' OR (i.fecha_fin IS NOT NULL AND i.fecha_fin < CURRENT_DATE))")
 
     where = " AND ".join(conditions)
     res = await session.execute(text(f"""
         SELECT i.id, a.nombre || ' ' || COALESCE(a.apellido, '') AS alumno_nombre,
-               a.id AS alumno_id, c.nombre AS categoria, s.nombre AS sucursal, s.deporte,
+               a.id AS alumno_id, c.id AS categoria_id, c.nombre AS categoria,
+               c.modalidad_id, m.nombre AS modalidad_nombre, m.color AS modalidad_color,
+               s.nombre AS sucursal, s.deporte,
                i.dias_por_semana, i.cuota_mensual, i.descuento_aplicado,
-               i.estado, i.fecha_inicio, i.beca
+               i.estado, i.fecha_inicio, i.fecha_fin, i.beca, i.notas
         FROM academias.inscripciones i
         JOIN academias.alumnos a ON a.id = i.alumno_id
         JOIN academias.categorias c ON c.id = i.categoria_id
+        LEFT JOIN academias.modalidades m ON m.id = c.modalidad_id
         JOIN academias.sucursales s ON s.id = c.sucursal_id
         WHERE {where}
-        ORDER BY a.apellido, a.nombre
+        ORDER BY i.creado_en DESC, a.apellido, a.nombre
     """), params)
-    return [
-        {
-            "id": str(r[0]), "alumno_nombre": r[1].strip(),
-            "alumno_id": str(r[2]), "categoria": r[3],
-            "sucursal": r[4], "deporte": r[5],
-            "dias_por_semana": r[6], "cuota_mensual": float(r[7]),
-            "descuento_aplicado": float(r[8]), "estado": r[9],
-            "fecha_inicio": r[10].isoformat() if r[10] else None,
-            "beca": r[11],
-        }
-        for r in res.fetchall()
-    ]
+
+    hoy = date.today()
+    rows = []
+    for r in res.fetchall():
+        est = r[13]
+        f_fin = r[15]
+        # Si fecha_fin es null o >= hoy, y estado es 'activa' -> sigue_inscripto = True
+        sigue_inscripto = (est == 'activa') and (f_fin is None or f_fin >= hoy)
+        rows.append({
+            "id": str(r[0]),
+            "alumno_nombre": r[1].strip(),
+            "alumno_id": str(r[2]),
+            "categoria_id": str(r[3]),
+            "categoria": r[4],
+            "modalidad_id": str(r[5]) if r[5] else None,
+            "modalidad_nombre": r[6],
+            "modalidad_color": r[7],
+            "sucursal": r[8],
+            "deporte": r[9],
+            "dias_por_semana": r[10],
+            "cuota_mensual": float(r[11]) if r[11] is not None else 0.0,
+            "descuento_aplicado": float(r[12]) if r[12] is not None else 0.0,
+            "estado": est,
+            "fecha_inicio": r[14].isoformat() if r[14] else None,
+            "fecha_fin": f_fin.isoformat() if f_fin else None,
+            "sigue_inscripto": sigue_inscripto,
+            "beca": r[16],
+            "notas": r[17],
+        })
+    return rows
 
 
 @router.post("/academia/inscripciones")
@@ -1918,28 +2096,34 @@ async def inscribir_alumno(
     current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Inscribe un alumno en una categoría."""
+    """Inscribe un alumno en una categoría con fechas de vigencia opcionales."""
     try:
         new_id = str(uuid.uuid4())
         fecha_ini = _clean_date(data.fecha_inicio) or date.today()
+        fecha_fin = _clean_date(data.fecha_fin)
         
+        estado_val = data.estado if data.estado in ('activa', 'suspendida', 'finalizada') else 'activa'
+
         await session.execute(text("""
             INSERT INTO academias.inscripciones
-                (id, alumno_id, categoria_id, fecha_inicio, dias_por_semana,
-                 cuota_mensual, descuento_aplicado, beca, notas)
+                (id, alumno_id, categoria_id, fecha_inicio, fecha_fin, dias_por_semana,
+                 cuota_mensual, descuento_aplicado, beca, notas, estado)
             VALUES
-                (CAST(:id AS UUID), CAST(:alumno_id AS UUID), CAST(:categoria_id AS UUID), CAST(:fecha_inicio AS DATE), :dias_por_semana,
-                 :cuota_mensual, :descuento_aplicado, :beca, :notas)
+                (CAST(:id AS UUID), CAST(:alumno_id AS UUID), CAST(:categoria_id AS UUID),
+                 CAST(:fecha_inicio AS DATE), CAST(:fecha_fin AS DATE), :dias_por_semana,
+                 :cuota_mensual, :descuento_aplicado, :beca, :notas, :estado)
         """), {
             "id": new_id,
             "alumno_id": str(data.alumno_id).strip(),
             "categoria_id": str(data.categoria_id).strip(),
             "fecha_inicio": fecha_ini,
+            "fecha_fin": fecha_fin,
             "dias_por_semana": data.dias_por_semana or 3,
             "cuota_mensual": float(data.cuota_mensual) if data.cuota_mensual is not None else 0.0,
             "descuento_aplicado": float(data.descuento_aplicado) if data.descuento_aplicado is not None else 0.0,
             "beca": data.beca if data.beca is not None else False,
             "notas": _clean_str(data.notas),
+            "estado": estado_val,
         })
         await session.commit()
         return {"message": "Alumno inscrito exitosamente.", "id": new_id}
@@ -1963,26 +2147,37 @@ async def actualizar_inscripcion(
     """Actualiza una inscripción."""
     try:
         fecha_ini = _clean_date(data.fecha_inicio)
-        await session.execute(text("""
-            UPDATE academias.inscripciones SET
-                categoria_id       = CAST(:categoria_id AS UUID),
-                fecha_inicio       = CAST(:fecha_inicio AS DATE),
-                dias_por_semana    = :dias_por_semana,
-                cuota_mensual      = :cuota_mensual,
-                descuento_aplicado = :descuento_aplicado,
-                beca               = :beca,
-                notas              = :notas
-            WHERE id = CAST(:inscripcion_id AS UUID)
-        """), {
+        fecha_fin = _clean_date(data.fecha_fin)
+        
+        update_estado = ""
+        params = {
             "inscripcion_id": inscripcion_id,
             "categoria_id": str(data.categoria_id).strip(),
             "fecha_inicio": fecha_ini,
+            "fecha_fin": fecha_fin,
             "dias_por_semana": data.dias_por_semana or 3,
             "cuota_mensual": float(data.cuota_mensual) if data.cuota_mensual is not None else 0.0,
             "descuento_aplicado": float(data.descuento_aplicado) if data.descuento_aplicado is not None else 0.0,
             "beca": data.beca if data.beca is not None else False,
             "notas": _clean_str(data.notas),
-        })
+        }
+        if data.estado and data.estado in ('activa', 'suspendida', 'finalizada'):
+            update_estado = ", estado = :estado"
+            params["estado"] = data.estado
+
+        await session.execute(text(f"""
+            UPDATE academias.inscripciones SET
+                categoria_id       = CAST(:categoria_id AS UUID),
+                fecha_inicio       = CAST(:fecha_inicio AS DATE),
+                fecha_fin          = CAST(:fecha_fin AS DATE),
+                dias_por_semana    = :dias_por_semana,
+                cuota_mensual      = :cuota_mensual,
+                descuento_aplicado = :descuento_aplicado,
+                beca               = :beca,
+                notas              = :notas
+                {update_estado}
+            WHERE id = CAST(:inscripcion_id AS UUID)
+        """), params)
         await session.commit()
         return {"message": "Inscripción actualizada."}
     except Exception as e:
@@ -2001,14 +2196,16 @@ async def cancelar_inscripcion(
     current_user: dict = Depends(require_roles("dueño", "administrador")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Cancela o elimina una inscripción."""
+    """Finaliza una inscripción (marca como finalizada y sella fecha_fin si era null)."""
     try:
         await session.execute(text("""
-            UPDATE academias.inscripciones SET estado = 'cancelada'
+            UPDATE academias.inscripciones 
+            SET estado = 'finalizada',
+                fecha_fin = COALESCE(fecha_fin, CURRENT_DATE)
             WHERE id = CAST(:inscripcion_id AS UUID)
         """), {"inscripcion_id": inscripcion_id})
         await session.commit()
-        return {"message": "Inscripción cancelada."}
+        return {"message": "Inscripción finalizada."}
     except Exception as e:
         await session.rollback()
         print(f"[ERROR cancelar_inscripcion]: {e}")
@@ -2047,7 +2244,8 @@ async def listar_cuotas(
                q.monto_original, q.descuento, q.monto_final,
                q.estado, q.fecha_vencimiento, q.fecha_pago, q.metodo_pago, q.notas,
                COALESCE(q.monto_pagado, 0) AS monto_pagado,
-               COALESCE(q.tipo_cuota, 'mensual') AS tipo_cuota
+               COALESCE(q.tipo_cuota, 'mensual') AS tipo_cuota,
+               q.documento_electronico_id
         FROM academias.cuotas q
         JOIN academias.alumnos a ON a.id = q.alumno_id
         WHERE {where}
@@ -2063,6 +2261,7 @@ async def listar_cuotas(
             "fecha_pago": r[9].isoformat() if r[9] else None,
             "metodo_pago": r[10], "notas": r[11],
             "monto_pagado": float(r[12]), "tipo_cuota": r[13],
+            "documento_electronico_id": str(r[14]) if r[14] else None,
         }
         for r in res.fetchall()
     ]
@@ -2108,9 +2307,10 @@ async def generar_cuotas(
         FROM academias.tutores t
         JOIN academias.alumno_tutores at2 ON at2.tutor_id = t.id AND at2.es_tutor_principal = TRUE
         JOIN academias.inscripciones i ON i.alumno_id = at2.alumno_id AND i.estado = 'activa'
+             AND (i.fecha_fin IS NULL OR i.fecha_fin >= CAST(:periodo_ini AS DATE))
         WHERE t.academia_id = :aid
         GROUP BY t.id
-    """), {"aid": current_user["academia_id"]})
+    """), {"aid": current_user["academia_id"], "periodo_ini": date(year, month, 1)})
     hermanos_map = {str(r[0]): int(r[1]) for r in hermanos_res.fetchall()}
 
     # Obtener inscripciones activas sin cuota en este periodo
@@ -2122,6 +2322,8 @@ async def generar_cuotas(
         JOIN academias.categorias c ON c.id = i.categoria_id
         JOIN academias.sucursales s ON s.id = c.sucursal_id
         WHERE s.academia_id = :aid AND i.estado = 'activa'
+          AND (i.fecha_fin IS NULL OR i.fecha_fin >= CAST(:periodo_ini AS DATE))
+          AND (i.fecha_inicio IS NULL OR i.fecha_inicio <= CAST(:periodo_fin AS DATE))
           AND NOT EXISTS (
               SELECT 1 FROM academias.cuotas q
               WHERE q.inscripcion_id = i.id AND q.periodo = :periodo
@@ -2232,7 +2434,7 @@ async def registrar_pago(
 
         # Leer cuota actual
         res = await session.execute(text("""
-            SELECT id, monto_final, monto_pagado, estado, alumno_id
+            SELECT id, monto_original, descuento, monto_final, monto_pagado, estado, alumno_id, notas
             FROM academias.cuotas
             WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
         """), {"cid": cuota_id, "aid": aid})
@@ -2240,26 +2442,48 @@ async def registrar_pago(
         if not cuota:
             raise HTTPException(status_code=404, detail="Cuota no encontrada.")
 
-        _, monto_final, monto_ya_pagado, estado_actual, cuota_alumno_id = cuota
-        monto_final = float(monto_final)
-        monto_ya_pagado = float(monto_ya_pagado)
+        _, monto_original, desc_previo, monto_final, monto_ya_pagado, estado_actual, cuota_alumno_id, notas_cuota = cuota
+        monto_original = float(monto_original or 0)
+        desc_previo = float(desc_previo or 0)
+        monto_final = float(monto_final or 0)
+        monto_ya_pagado = float(monto_ya_pagado or 0)
+        notas_cuota = notas_cuota or ""
 
         if estado_actual in ("pagada", "anulada", "becada"):
             raise HTTPException(status_code=400, detail=f"La cuota ya está en estado '{estado_actual}', no se puede pagar.")
 
+        # Descuento adicional aplicado en el cobro (ej. iniciación tardía / quincena)
+        desc_adicional = float(data.descuento_adicional or 0)
+        nuevo_descuento = desc_previo
+        motivo_desc = _clean_str(data.motivo_descuento) or "Iniciación tardía"
+        if desc_adicional > 0:
+            saldo_actual = max(monto_final - monto_ya_pagado, 0)
+            if desc_adicional > saldo_actual + 0.01:
+                raise HTTPException(status_code=400, detail=f"El descuento aplicado (Gs. {desc_adicional:,.0f}) no puede superar el saldo pendiente (Gs. {saldo_actual:,.0f}).")
+            nuevo_descuento = desc_previo + desc_adicional
+            monto_final = max(monto_original - nuevo_descuento, 0)
+
+            nota_desc_str = f"[Descuento en cobro: Gs. {desc_adicional:,.0f} - {motivo_desc}]"
+            notas_cuota = f"{notas_cuota}\n{nota_desc_str}".strip() if notas_cuota else nota_desc_str
+
         saldo_pendiente = max(monto_final - monto_ya_pagado, 0)
         monto_a_pagar = float(data.monto) if data.monto is not None else saldo_pendiente
 
-        if monto_a_pagar <= 0:
+        if monto_a_pagar <= 0 and saldo_pendiente > 0:
             raise HTTPException(status_code=400, detail="El monto a pagar debe ser mayor a 0.")
         if monto_a_pagar > saldo_pendiente + 0.01:
-            raise HTTPException(status_code=400, detail=f"El monto ({monto_a_pagar}) supera el saldo pendiente ({saldo_pendiente:.0f}).")
+            raise HTTPException(status_code=400, detail=f"El monto ({monto_a_pagar:,.0f}) supera el saldo pendiente ({saldo_pendiente:,.0f}).")
 
         monto_pagado_nuevo = monto_ya_pagado + monto_a_pagar
         estado_nuevo = "pagada" if monto_pagado_nuevo >= monto_final - 0.01 else "parcial"
 
         # Registrar pago individual en tabla pagos (con cuenta_id y metodo_pago_id)
         pago_id = str(uuid.uuid4())
+        notas_pago = _clean_str(data.notas) or ""
+        if desc_adicional > 0:
+            detalle_desc = f"(Descuento en cobro: Gs. {desc_adicional:,.0f} - {motivo_desc})"
+            notas_pago = f"{notas_pago} {detalle_desc}".strip() if notas_pago else detalle_desc
+
         await session.execute(text("""
             INSERT INTO academias.pagos
                 (id, cuota_id, alumno_id, academia_id, monto,
@@ -2276,23 +2500,31 @@ async def registrar_pago(
             "metodo": metodo_str,
             "metodo_pago_id": metodo_pago_id_db,
             "cuenta_id": cuenta_id_db,
-            "fecha": fecha_pago, "notas": _clean_str(data.notas),
+            "fecha": fecha_pago, "notas": notas_pago,
             "reg_por": current_user["user_id"],
         })
 
         # Actualizar estado de la cuota
         await session.execute(text("""
             UPDATE academias.cuotas SET
+                descuento      = :descuento,
+                monto_final    = :monto_final,
                 estado         = :estado,
                 monto_pagado   = :monto_pagado,
                 metodo_pago    = :metodo,
+                notas          = :notas,
                 fecha_pago     = CASE WHEN :estado = 'pagada' THEN NOW() ELSE fecha_pago END,
                 registrado_por = :reg_por
             WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
         """), {
-            "cid": cuota_id, "aid": aid, "estado": estado_nuevo,
+            "cid": cuota_id, "aid": aid,
+            "descuento": nuevo_descuento,
+            "monto_final": monto_final,
+            "estado": estado_nuevo,
             "monto_pagado": monto_pagado_nuevo,
-            "metodo": metodo_str, "reg_por": current_user["user_id"],
+            "metodo": metodo_str,
+            "notas": notas_cuota,
+            "reg_por": current_user["user_id"],
         })
 
         # ── Crear movimiento de INGRESO en caja si se indicó cuenta ──────
@@ -2363,10 +2595,12 @@ async def registrar_pago(
                 print(f"[AVISO facturación cuota {cuota_id}]: {fe}")
         # ────────────────────────────────────────────────────────────────────
 
+        msg_extra = f" (Descuento aplicado: Gs. {desc_adicional:,.0f})" if desc_adicional > 0 else ""
         return {
-            "message": f"Pago de Gs. {monto_a_pagar:,.0f} registrado. Estado: {estado_nuevo}.",
+            "message": f"Pago de Gs. {monto_a_pagar:,.0f} registrado. Estado: {estado_nuevo}.{msg_extra}",
             "pago_id": pago_id,
             "monto_pagado": monto_pagado_nuevo,
+            "descuento_aplicado": desc_adicional,
             "saldo_pendiente": max(monto_final - monto_pagado_nuevo, 0),
             "estado": estado_nuevo,
             "factura": factura_result,
@@ -2527,6 +2761,7 @@ async def editar_cuota(
     cuota_id: str,
     monto_final: float,
     descuento: Optional[float] = 0,
+    motivo_descuento: Optional[str] = None,
     notas: Optional[str] = None,
     current_user: dict = Depends(require_roles("dueño", "administrador")),
     session: AsyncSession = Depends(get_session)
@@ -2534,6 +2769,11 @@ async def editar_cuota(
     """Edita el monto y descuento de una cuota pendiente o parcial."""
     try:
         aid = str(current_user["academia_id"])
+        notas_val = _clean_str(notas)
+        if motivo_descuento:
+            motivo_str = f"[Motivo descuento: {_clean_str(motivo_descuento)}]"
+            notas_val = f"{notas_val}\n{motivo_str}".strip() if notas_val else motivo_str
+
         await session.execute(text("""
             UPDATE academias.cuotas SET
                 monto_final = :monto_final,
@@ -2545,7 +2785,7 @@ async def editar_cuota(
             "cid": cuota_id, "aid": aid,
             "monto_final": float(monto_final),
             "descuento": float(descuento or 0),
-            "notas": _clean_str(notas),
+            "notas": notas_val,
         })
         await session.commit()
         return {"message": "Cuota actualizada correctamente."}
@@ -2660,7 +2900,8 @@ async def listar_matriculas(
 
     res = await session.execute(text(f"""
         SELECT m.id, m.anio, m.monto, m.estado, m.fecha_vencimiento, m.notas,
-               a.nombre || ' ' || COALESCE(a.apellido,'') AS alumno, a.id AS alumno_id
+               a.nombre || ' ' || COALESCE(a.apellido,'') AS alumno, a.id AS alumno_id,
+               m.documento_electronico_id
         FROM academias.matriculas m
         JOIN academias.alumnos a ON a.id = m.alumno_id
         WHERE {where}
@@ -2671,6 +2912,7 @@ async def listar_matriculas(
             "id": str(r[0]), "anio": r[1], "monto": float(r[2]), "estado": r[3],
             "fecha_vencimiento": r[4].isoformat() if r[4] else None,
             "notas": r[5], "alumno": r[6].strip(), "alumno_id": str(r[7]),
+            "documento_electronico_id": str(r[8]) if r[8] else None,
         }
         for r in res.fetchall()
     ]

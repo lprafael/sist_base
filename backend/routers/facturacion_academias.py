@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import os
 import uuid
+import io
+import base64
+import urllib.parse
 from datetime import datetime
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, status
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -692,6 +696,814 @@ async def descargar_xml(
         media_type="application/xml",
         headers={"Content-Disposition": f'attachment; filename="DE_{row[0]}.xml"'},
     )
+
+
+# ============================================================
+# IMPRESIÓN Y REPRESENTACIÓN GRÁFICA (KuDE)
+# ============================================================
+
+def _generar_qr_base64(url: str) -> str:
+    """Genera código QR en base64 de manera local o con fallback."""
+    if not url:
+        return ""
+    try:
+        import qrcode
+        buf = io.BytesIO()
+        img = qrcode.make(url)
+        img.save(buf, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return f"https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data={urllib.parse.quote(url)}"
+
+
+def _numero_a_letras(n: int) -> str:
+    """Convierte un importe numérico entero a letras en idioma español (Guaraníes)."""
+    if n <= 0:
+        return "GUARANÍES CERO"
+
+    unidades = ["", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"]
+    decenas_especiales = {
+        10: "DIEZ", 11: "ONCE", 12: "DOCE", 13: "TRECE", 14: "CATORCE", 15: "QUINCE",
+        16: "DIECISÉIS", 17: "DIECISIETE", 18: "DIECIOCHO", 19: "DIECINUEVE",
+        20: "VEINTE", 21: "VEINTIÚN", 22: "VEINTIDÓS", 23: "VEINTITRÉS", 24: "VEINTICUATRO",
+        25: "VEINTICINCO", 26: "VEINTISÉIS", 27: "VEINTISIETE", 28: "VEINTIOCHO", 29: "VEINTINUEVE"
+    }
+    decenas = ["", "", "", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"]
+    centenas = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS",
+                "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"]
+
+    def _seccion(num: int) -> str:
+        if num == 0:
+            return ""
+        if num == 100:
+            return "CIEN"
+        c = num // 100
+        resto_c = num % 100
+        res = centenas[c] + " " if c > 0 else ""
+        if resto_c in decenas_especiales:
+            res += decenas_especiales[resto_c]
+        else:
+            d = resto_c // 10
+            u = resto_c % 10
+            if d > 0:
+                res += decenas[d]
+                if u > 0:
+                    res += " Y " + unidades[u]
+            elif u > 0:
+                res += unidades[u]
+        return res.strip()
+
+    millones = n // 1_000_000
+    resto_millones = n % 1_000_000
+    miles = resto_millones // 1_000
+    unidades_final = resto_millones % 1_000
+
+    partes = []
+    if millones > 0:
+        if millones == 1:
+            partes.append("UN MILLÓN")
+        else:
+            partes.append(f"{_seccion(millones)} MILLONES")
+    if miles > 0:
+        if miles == 1:
+            partes.append("MIL")
+        else:
+            partes.append(f"{_seccion(miles)} MIL")
+    if unidades_final > 0:
+        partes.append(_seccion(unidades_final))
+
+    resultado = " ".join(partes).strip()
+    return f"GUARANÍES {resultado}"
+
+
+async def _obtener_datos_completos_kude(documento_id: str, academia_id: str, session: AsyncSession) -> dict:
+    """Obtiene y formatea todos los datos requeridos para la representación gráfica KuDE."""
+    res = await session.execute(
+        text("""
+            SELECT de.id, de.academia_id, de.cdc, de.numero_documento, de.d_fe_emi_de,
+                   de.receptor_ruc, de.receptor_dv, de.receptor_nombre, de.receptor_dir,
+                   de.receptor_tel, de.receptor_email, de.c_dep_rec, de.d_des_dep_rec,
+                   de.c_ciu_rec, de.d_des_ciu_rec, de.i_cond_ope, de.d_tot_gral_ope,
+                   de.d_tot_iva, de.d_car_qr, de.estado, de.cancelado, de.motivo_cancelacion,
+                   de.cancelado_en, de.creado_en, de.cuota_id, de.matricula_id, de.concepto_libre,
+                   em.ruc_con_dv, em.tipo_contribuyente, em.razon_social, em.nombre_fantasia,
+                   em.direccion, em.num_casa, em.telefono, em.email,
+                   em.d_des_ciu_emi, em.d_des_dep_emi, em.c_act_eco, em.d_des_act_eco,
+                   em.num_tim, em.d_est, em.d_pun_exp,
+                   acad.nombre AS academia_nombre, acad.logo_url
+            FROM facturacion.documentos_electronicos de
+            LEFT JOIN facturacion.emisor_academia em ON em.academia_id = de.academia_id
+            LEFT JOIN academias.academias acad ON acad.id = de.academia_id
+            WHERE de.id = CAST(:did AS UUID) AND de.academia_id = CAST(:aid AS UUID)
+        """),
+        {"did": documento_id, "aid": academia_id}
+    )
+    row = res.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Documento electrónico no encontrado.")
+
+    # Líneas
+    res_ln = await session.execute(
+        text("""
+            SELECT id, orden, d_cod_int, d_des_pro_ser, c_uni_med, d_des_uni_med,
+                   d_cant_pro_ser, d_p_uni_pro_ser, d_tasa_iva, i_afec_iva
+            FROM facturacion.de_lineas
+            WHERE documento_id = CAST(:did AS UUID)
+            ORDER BY orden ASC
+        """),
+        {"did": documento_id}
+    )
+    raw_lines = res_ln.fetchall()
+
+    lineas = []
+    subtotal_exenta = 0
+    subtotal_5 = 0
+    subtotal_10 = 0
+    liq_iva_5 = 0
+    liq_iva_10 = 0
+
+    for ln in raw_lines:
+        cant = float(ln[6] or 1.0)
+        p_uni = int(ln[7] or 0)
+        tasa = int(ln[8] if ln[8] is not None else 10)
+        subtotal = round(cant * p_uni)
+
+        m_exe = subtotal if tasa == 0 else 0
+        m_5 = subtotal if tasa == 5 else 0
+        m_10 = subtotal if tasa == 10 else 0
+
+        l_iva5 = round(subtotal / 21) if tasa == 5 else 0
+        l_iva10 = round(subtotal / 11) if tasa == 10 else 0
+
+        subtotal_exenta += m_exe
+        subtotal_5 += m_5
+        subtotal_10 += m_10
+        liq_iva_5 += l_iva5
+        liq_iva_10 += l_iva10
+
+        lineas.append({
+            "orden": ln[1],
+            "codigo": ln[2] or f"SERV-{ln[1]}",
+            "descripcion": ln[3] or "Servicio Deportivo",
+            "unidad_medida": ln[5] or "SERVICIO",
+            "cantidad": cant,
+            "precio_unitario": p_uni,
+            "tasa_iva": tasa,
+            "monto_exenta": m_exe,
+            "monto_5": m_5,
+            "monto_10": m_10,
+            "subtotal": subtotal,
+        })
+
+    tot_gral = int(row[16] or (subtotal_exenta + subtotal_5 + subtotal_10))
+    tot_iva = int(row[17] or (liq_iva_5 + liq_iva_10))
+
+    d_est = row[39] or "001"
+    d_pun_exp = row[40] or "001"
+    num_doc = row[3] or 1
+    numero_formateado = f"{d_est}-{d_pun_exp}-{str(num_doc).zfill(7)}"
+
+    cdc_raw = row[2] or ""
+    cdc_formateado = " ".join(cdc_raw[i:i+4] for i in range(0, len(cdc_raw), 4)) if cdc_raw else ""
+
+    rec_ruc = row[5] or "Sin RUC"
+    if row[6]:
+        rec_ruc = f"{row[5]}-{row[6]}"
+
+    fe_emi = row[4] or row[23]
+    fecha_emision_str = fe_emi.strftime("%d/%m/%Y %H:%M:%S") if fe_emi else ""
+
+    qr_url = row[18] or ""
+    qr_b64 = _generar_qr_base64(qr_url)
+
+    razon_social = row[29] or row[41] or "Academia Deportiva"
+    nombre_fantasia = row[30] or row[41] or ""
+    ruc_emisor = row[27] or "Sin RUC"
+
+    ciudad_dep_emisor = ""
+    if row[35] and row[36]:
+        ciudad_dep_emisor = f"{row[35]} - {row[36]}"
+    elif row[35] or row[36]:
+        ciudad_dep_emisor = row[35] or row[36]
+
+    return {
+        "id": str(row[0]),
+        "academia_id": str(row[1]),
+        "numero_documento": num_doc,
+        "numero_documento_formateado": numero_formateado,
+        "cdc": cdc_raw,
+        "cdc_formateado": cdc_formateado,
+        "fecha_emision": fe_emi.isoformat() if fe_emi else None,
+        "fecha_emision_formateada": fecha_emision_str,
+        "condicion_venta": "CONTADO" if (row[15] or 1) == 1 else "CRÉDITO",
+        "i_cond_ope": row[15] or 1,
+        "total_gral": tot_gral,
+        "total_en_letras": _numero_a_letras(tot_gral),
+        "total_iva": tot_iva,
+        "subtotal_exenta": subtotal_exenta,
+        "subtotal_5": subtotal_5,
+        "subtotal_10": subtotal_10,
+        "liq_iva_5": liq_iva_5,
+        "liq_iva_10": liq_iva_10,
+        "d_car_qr": qr_url,
+        "qr_image_base64": qr_b64,
+        "estado": row[19] or "generado",
+        "cancelado": bool(row[20]),
+        "motivo_cancelacion": row[21],
+        "cancelado_en": row[22].isoformat() if row[22] else None,
+        "cuota_id": str(row[24]) if row[24] else None,
+        "matricula_id": str(row[25]) if row[25] else None,
+        "concepto_libre": row[26],
+        "emisor": {
+            "razon_social": razon_social,
+            "nombre_fantasia": nombre_fantasia,
+            "ruc_con_dv": ruc_emisor,
+            "num_timbrado": row[38] or "00000000",
+            "establecimiento": d_est,
+            "punto_expedicion": d_pun_exp,
+            "direccion": row[31] or "Dirección no especificada",
+            "num_casa": row[32] or "S/N",
+            "telefono": row[33] or "",
+            "email": row[34] or "",
+            "ciudad_departamento": ciudad_dep_emisor,
+            "actividad_economica": row[37] or "Enseñanza y Actividades Deportivas",
+            "logo_url": row[42] or "",
+        },
+        "receptor": {
+            "nombre": row[7] or "Cliente Ocasional",
+            "ruc_con_dv": rec_ruc,
+            "direccion": row[8] or "Sin especificar",
+            "telefono": row[9] or "",
+            "email": row[10] or "",
+            "ciudad": row[14] or "",
+            "departamento": row[12] or "",
+        },
+        "lineas": lineas,
+    }
+
+
+def _render_kude_html(kude: dict, autoprint: bool = False) -> str:
+    """Genera la representación gráfica KuDE en HTML/CSS oficial de la SET/DNIT Paraguay."""
+    em = kude["emisor"]
+    rec = kude["receptor"]
+    doc = kude
+
+    lineas_html = ""
+    for ln in doc["lineas"]:
+        cant_str = f"{ln['cantidad']:g}"
+        p_uni_str = f"{ln['precio_unitario']:,}".replace(",", ".")
+        m_exe_str = f"{ln['monto_exenta']:,}".replace(",", ".") if ln["monto_exenta"] > 0 else "0"
+        m_5_str = f"{ln['monto_5']:,}".replace(",", ".") if ln["monto_5"] > 0 else "0"
+        m_10_str = f"{ln['monto_10']:,}".replace(",", ".") if ln["monto_10"] > 0 else "0"
+
+        lineas_html += f"""
+        <tr>
+          <td style="text-align:center; font-family:monospace;">{ln['codigo']}</td>
+          <td style="text-align:center; font-weight:700;">{cant_str}</td>
+          <td>{ln['descripcion']}</td>
+          <td style="text-align:right; font-family:monospace;">{p_uni_str}</td>
+          <td style="text-align:right; font-family:monospace;">{m_exe_str}</td>
+          <td style="text-align:right; font-family:monospace;">{m_5_str}</td>
+          <td style="text-align:right; font-family:monospace;">{m_10_str}</td>
+        </tr>
+        """
+
+    total_gral_str = f"{doc['total_gral']:,}".replace(",", ".")
+    sub_exe_str = f"{doc['subtotal_exenta']:,}".replace(",", ".")
+    sub_5_str = f"{doc['subtotal_5']:,}".replace(",", ".")
+    sub_10_str = f"{doc['subtotal_10']:,}".replace(",", ".")
+    iva_5_str = f"{doc['liq_iva_5']:,}".replace(",", ".")
+    iva_10_str = f"{doc['liq_iva_10']:,}".replace(",", ".")
+    tot_iva_str = f"{doc['total_iva']:,}".replace(",", ".")
+
+    watermark_html = ""
+    if doc.get("cancelado"):
+        watermark_html = '<div class="cancelado-watermark">DOCUMENTO ANULADO / CANCELADO</div>'
+
+    logo_img_html = ""
+    if em.get("logo_url"):
+        logo_img_html = f'<img src="{em["logo_url"]}" alt="Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; margin-bottom: 6px;" />'
+
+    autoprint_script = "<script>window.onload = function() { setTimeout(() => window.print(), 350); };</script>" if autoprint else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factura Electrónica {doc['numero_documento_formateado']} - {em['razon_social']}</title>
+  <style>
+    @page {{
+      size: A4 portrait;
+      margin: 8mm 10mm;
+    }}
+    * {{
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 11px;
+      color: #0f172a;
+      background: #f1f5f9;
+      line-height: 1.35;
+    }}
+    .action-bar {{
+      max-width: 820px;
+      margin: 14px auto 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      background: #0f172a;
+      border-radius: 10px;
+      color: #f8fafc;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    }}
+    .btn-print {{
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 7px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.4);
+      transition: background .15s;
+    }}
+    .btn-print:hover {{ background: #1d4ed8; }}
+    .btn-ghost {{
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 8px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }}
+    .btn-ghost:hover {{ background: rgba(255,255,255,0.18); color: #fff; }}
+    .kude-container {{
+      max-width: 820px;
+      margin: 14px auto 30px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 22px 24px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+      position: relative;
+    }}
+    .header-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }}
+    .emisor-cell {{
+      width: 58%;
+      vertical-align: top;
+      padding-right: 14px;
+    }}
+    .fiscal-box {{
+      width: 42%;
+      border: 2px solid #0f172a;
+      border-radius: 8px;
+      text-align: center;
+      padding: 10px 12px;
+      vertical-align: middle;
+      background: #fafafa;
+    }}
+    .emisor-title {{
+      font-size: 15px;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #0f172a;
+      margin-bottom: 3px;
+    }}
+    .emisor-fantasy {{
+      font-size: 13px;
+      font-weight: 800;
+      color: #1d4ed8;
+      margin-bottom: 4px;
+    }}
+    .emisor-meta {{
+      font-size: 10.5px;
+      color: #475569;
+      line-height: 1.4;
+    }}
+    .fiscal-box .timbrado {{
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+    }}
+    .fiscal-box .ruc {{
+      font-size: 13px;
+      font-weight: 900;
+      color: #0f172a;
+      margin: 3px 0;
+    }}
+    .fiscal-box .factura-title {{
+      font-size: 14px;
+      font-weight: 900;
+      color: #1d4ed8;
+      letter-spacing: 0.5px;
+      margin: 4px 0;
+    }}
+    .fiscal-box .numero-doc {{
+      font-size: 16px;
+      font-weight: 900;
+      font-family: monospace;
+      color: #0f172a;
+    }}
+    .section-box {{
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #ffffff;
+    }}
+    .grid-2 {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 14px;
+    }}
+    .info-label {{
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+      font-size: 9.5px;
+      margin-right: 4px;
+    }}
+    .info-val {{
+      font-size: 11px;
+      color: #0f172a;
+      font-weight: 500;
+    }}
+    .items-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }}
+    .items-table th {{
+      background: #f8fafc;
+      border-bottom: 1px solid #cbd5e1;
+      border-right: 1px solid #cbd5e1;
+      padding: 7px 8px;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #334155;
+    }}
+    .items-table td {{
+      border-bottom: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      font-size: 10.5px;
+      color: #0f172a;
+    }}
+    .items-table tr:last-child td {{
+      border-bottom: none;
+    }}
+    .totals-box {{
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #f8fafc;
+    }}
+    .total-grand-row {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }}
+    .total-grand-title {{
+      font-size: 13px;
+      font-weight: 900;
+      color: #0f172a;
+    }}
+    .total-grand-amount {{
+      font-size: 16px;
+      font-weight: 900;
+      color: #059669;
+      font-family: monospace;
+    }}
+    .total-letras {{
+      font-size: 10px;
+      color: #334155;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }}
+    .subtotales-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+      font-size: 10px;
+    }}
+    .subtotales-table td {{
+      padding: 2px 4px;
+    }}
+    .iva-table {{
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 6px;
+      font-size: 10px;
+    }}
+    .iva-table td {{
+      padding: 4px 6px;
+      color: #475569;
+    }}
+    .iva-table .iva-bold {{
+      font-weight: 800;
+      color: #0f172a;
+      font-family: monospace;
+    }}
+    .sifen-footer {{
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #ffffff;
+    }}
+    .qr-img {{
+      width: 110px;
+      height: 110px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px;
+      background: #ffffff;
+      flex-shrink: 0;
+    }}
+    .sifen-details {{
+      flex: 1;
+      font-size: 10px;
+      color: #334155;
+      line-height: 1.4;
+    }}
+    .cdc-title {{
+      font-weight: 900;
+      color: #0f172a;
+      text-transform: uppercase;
+      font-size: 9.5px;
+      margin-bottom: 2px;
+    }}
+    .cdc-number {{
+      font-family: monospace;
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #1e40af;
+      letter-spacing: 0.5px;
+      word-break: break-all;
+      background: #f1f5f9;
+      padding: 3px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 5px;
+    }}
+    .legal-notice {{
+      font-size: 9.5px;
+      color: #64748b;
+    }}
+    .cancelado-watermark {{
+      position: absolute;
+      top: 40%;
+      left: 10%;
+      right: 10%;
+      text-align: center;
+      transform: rotate(-25deg);
+      font-size: 48px;
+      font-weight: 900;
+      color: rgba(239, 68, 68, 0.28);
+      border: 5px solid rgba(239, 68, 68, 0.28);
+      border-radius: 12px;
+      padding: 12px;
+      pointer-events: none;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }}
+    @media print {{
+      body {{
+        background: #ffffff !important;
+        font-size: 10px !important;
+      }}
+      .action-bar {{
+        display: none !important;
+      }}
+      .kude-container {{
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }}
+      .no-print {{
+        display: none !important;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="action-bar no-print">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:16px;">🧾</span>
+      <div>
+        <strong style="font-size:13px;">Factura Electrónica {doc['numero_documento_formateado']}</strong>
+        <span style="font-size:11px; color:#94a3b8; margin-left:8px;">KuDE Oficial SET/DNIT Paraguay</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="btn-print" onclick="window.print()">
+        🖨️ Imprimir Factura
+      </button>
+      <a href="/academia/facturacion/documentos/{doc['id']}/xml" target="_blank" class="btn-ghost">
+        📄 Descargar XML
+      </a>
+      <button class="btn-ghost" onclick="window.close()">
+        Cerrar
+      </button>
+    </div>
+  </div>
+
+  <div class="kude-container">
+    {watermark_html}
+
+    <!-- CABECERA -->
+    <table class="header-table">
+      <tr>
+        <td class="emisor-cell">
+          {logo_img_html}
+          <div class="emisor-title">{em['razon_social']}</div>
+          <div class="emisor-fantasy">{em['nombre_fantasia']}</div>
+          <div class="emisor-meta">
+            <div><strong>Actividad:</strong> {em['actividad_economica']}</div>
+            <div><strong>Dirección:</strong> {em['direccion']} N° {em['num_casa']}</div>
+            <div><strong>Ubicación:</strong> {em['ciudad_departamento']}</div>
+            <div><strong>Tel / Email:</strong> {em['telefono']} {(' | ' + em['email']) if em['email'] else ''}</div>
+          </div>
+        </td>
+        <td class="fiscal-box">
+          <div class="timbrado">TIMBRADO N°: <strong>{em['num_timbrado']}</strong></div>
+          <div class="ruc">RUC: {em['ruc_con_dv']}</div>
+          <div class="factura-title">FACTURA ELECTRÓNICA</div>
+          <div class="numero-doc">{doc['numero_documento_formateado']}</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- DATOS DE EMISIÓN Y RECEPTOR -->
+    <div class="section-box">
+      <div class="grid-2">
+        <div class="info-row">
+          <span class="info-label">Fecha y Hora:</span>
+          <span class="info-val">{doc['fecha_emision_formateada']}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Condición Venta:</span>
+          <span class="info-val" style="font-weight:800; color:#1d4ed8;">{doc['condicion_venta']}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Receptor / Razón Social:</span>
+          <span class="info-val" style="font-weight:700;">{rec['nombre']}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">RUC / Documento:</span>
+          <span class="info-val" style="font-weight:700; font-family:monospace;">{rec['ruc_con_dv']}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Dirección:</span>
+          <span class="info-val">{rec['direccion']}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Teléfono:</span>
+          <span class="info-val">{rec['telefono'] or '—'}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETALLE DE CONCEPTOS / SERVICIOS -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 12%; text-align:center;">Código</th>
+          <th style="width: 8%; text-align:center;">Cant.</th>
+          <th style="width: 44%;">Descripción del Servicio</th>
+          <th style="width: 12%; text-align:right;">P. Unitario</th>
+          <th style="width: 8%; text-align:right;">Exentas</th>
+          <th style="width: 8%; text-align:right;">IVA 5%</th>
+          <th style="width: 8%; text-align:right;">IVA 10%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {lineas_html}
+      </tbody>
+    </table>
+
+    <!-- TOTALES Y LIQUIDACIÓN -->
+    <div class="totals-box">
+      <table class="subtotales-table">
+        <tr>
+          <td style="font-weight:700; color:#475569;">SUBTOTALES:</td>
+          <td style="text-align:right;">Exentas: <strong style="font-family:monospace;">{sub_exe_str}</strong> Gs.</td>
+          <td style="text-align:right;">IVA 5%: <strong style="font-family:monospace;">{sub_5_str}</strong> Gs.</td>
+          <td style="text-align:right;">IVA 10%: <strong style="font-family:monospace;">{sub_10_str}</strong> Gs.</td>
+        </tr>
+      </table>
+
+      <div class="total-grand-row">
+        <span class="total-grand-title">TOTAL A PAGAR:</span>
+        <span class="total-grand-amount">Gs. {total_gral_str}</span>
+      </div>
+
+      <div class="total-letras">
+        <strong>SON:</strong> {doc['total_en_letras']}
+      </div>
+
+      <table class="iva-table">
+        <tr>
+          <td style="width:25%;">LIQUIDACIÓN DEL IVA:</td>
+          <td style="width:25%; text-align:center;">(IVA 5%): <span class="iva-bold">Gs. {iva_5_str}</span></td>
+          <td style="width:25%; text-align:center;">(IVA 10%): <span class="iva-bold">Gs. {iva_10_str}</span></td>
+          <td style="width:25%; text-align:right;">TOTAL IVA: <span class="iva-bold" style="color:#059669;">Gs. {tot_iva_str}</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- PIE SIFEN / KuDE -->
+    <div class="sifen-footer">
+      <img src="{doc['qr_image_base64']}" alt="Código QR SIFEN" class="qr-img" />
+      <div class="sifen-details">
+        <div class="cdc-title">KuDE — Representación Gráfica de Documento Electrónico (SIFEN)</div>
+        <div>Código de Control (CDC):</div>
+        <div class="cdc-number">{doc['cdc_formateado']}</div>
+        <div class="legal-notice">
+          Consulte la validez de esta Factura Electrónica con el número de CDC impreso o escaneando el código QR en
+          <a href="https://ekuatia.set.gov.py/consultas" target="_blank" style="color:#1d4ed8; text-decoration:none; font-weight:700;">https://ekuatia.set.gov.py/consultas</a>.
+          Si su documento electrónico no se encuentra registrado en el sistema de la SET/DNIT, por favor consulte nuevamente en 24 horas.
+        </div>
+      </div>
+    </div>
+  </div>
+  {autoprint_script}
+</body>
+</html>
+"""
+
+
+@router.get("/documentos/{documento_id}/imprimir")
+async def imprimir_documento(
+    documento_id: str,
+    request: Request,
+    formato: str = "json",
+    autoprint: bool = False,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Retorna la representación gráfica KuDE de la factura electrónica.
+    - formato=json: Objeto estructurado para visualización en el modal del panel.
+    - formato=html: Documento HTML completo optimizado para impresión del navegador.
+    """
+    ctx = await get_academia_context(request, current_user, session)
+    academia_id = str(ctx["academia_id"])
+
+    datos_kude = await _obtener_datos_completos_kude(documento_id, academia_id, session)
+
+    if formato == "html" or request.query_params.get("html") in ("1", "true"):
+        html_content = _render_kude_html(datos_kude, autoprint=autoprint)
+        return HTMLResponse(content=html_content)
+
+    return datos_kude
+
+
+@router.get("/documentos/{documento_id}/kude")
+async def obtener_kude(
+    documento_id: str,
+    request: Request,
+    current_user: dict = Depends(require_roles("dueño", "administrador", "tesorero")),
+    session: AsyncSession = Depends(get_session),
+):
+    """Alias para obtener los datos estructurados del KuDE de la factura electrónica."""
+    ctx = await get_academia_context(request, current_user, session)
+    academia_id = str(ctx["academia_id"])
+    return await _obtener_datos_completos_kude(documento_id, academia_id, session)
 
 
 @router.post("/documentos")

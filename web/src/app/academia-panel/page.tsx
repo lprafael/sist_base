@@ -115,6 +115,7 @@ export default function AcademiaPanel() {
   const [cuotas, setCuotas] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
+  const [modalidades, setModalidades] = useState<any[]>([]);
   const [deportes, setDeportes] = useState<string[]>([]);
   const [configCuotas, setConfigCuotas] = useState<any>(null);
   const [cuentas, setCuentas] = useState<any[]>([]);
@@ -126,6 +127,8 @@ export default function AcademiaPanel() {
   const [modalStaff, setModalStaff] = useState(false);
   const [modalCategoria, setModalCategoria] = useState<any>(null);
   const [modalInscripcion, setModalInscripcion] = useState<any>(null);
+  const [modalFactura, setModalFactura] = useState<any>(null);
+  const [loadingFactura, setLoadingFactura] = useState(false);
 
   const fileLogoRef = useRef<HTMLInputElement>(null);
   const fileBannerRef = useRef<HTMLInputElement>(null);
@@ -215,18 +218,37 @@ export default function AcademiaPanel() {
     setTimeout(() => setNotif(null), 4000);
   };
 
+  const abrirFactura = async (docId: string) => {
+    if (!docId) return;
+    setLoadingFactura(true);
+    try {
+      const data = await apiFetch(`/academia/facturacion/documentos/${docId}/imprimir?formato=json`);
+      if (data && data.numero_documento) {
+        setModalFactura(data);
+      } else {
+        notify('No se pudo cargar la factura electrónica', 'err');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Error al cargar la factura electrónica', 'err');
+    } finally {
+      setLoadingFactura(false);
+    }
+  };
+
   const fetchAll = async () => {
     try {
-      const [p, s, cat, d] = await Promise.all([
+      const [p, s, cat, d, mod] = await Promise.all([
         apiFetch('/academia/perfil').catch(() => null),
         apiFetch('/academia/sucursales').catch(() => []),
         apiFetch('/academia/categorias').catch(() => []),
         apiFetch('/api/deportes').catch(() => []),
+        apiFetch('/academia/modalidades').catch(() => []),
       ]);
       setPerfil(p);
       setSucursales(s || []);
       setCategorias(cat || []);
       setDeportes(d || []);
+      setModalidades(mod || []);
 
       // Cargas opcionales según tab
       apiFetch('/academia/alumnos').then(setAlumnos).catch(() => {});
@@ -572,10 +594,11 @@ export default function AcademiaPanel() {
             />
           )}
 
-          {/* ──────────────── CATEGORÍAS ──────────────── */}
+          {/* ──────────────── CATEGORÍAS & MODALIDADES ──────────────── */}
           {activeTab === 'categorias' && (
             <CategoriasTab
-              categorias={categorias} sucursales={sucursales}
+              categorias={categorias} sucursales={sucursales} modalidades={modalidades}
+              deportes={deportes}
               notify={notify} apiFetch={apiFetch} isDueno={isDueno} isAdmin={isAdmin}
               fetchAll={fetchAll}
             />
@@ -633,6 +656,7 @@ export default function AcademiaPanel() {
               cuotas={cuotas} notify={notify} apiFetch={apiFetch}
               isTesorero={isTesorero} isDueno={isDueno} fetchAll={fetchAll}
               cuentas={cuentas} metodosPago={metodosPago}
+              abrirFactura={abrirFactura}
             />
           )}
 
@@ -675,6 +699,7 @@ export default function AcademiaPanel() {
           {activeTab === 'sifen' && (
             <SifenTab
               perfil={perfil} notify={notify} apiFetch={apiFetch}
+              abrirFactura={abrirFactura}
             />
           )}
 
@@ -724,6 +749,15 @@ export default function AcademiaPanel() {
           onClose={() => setShowPasswordModal(false)} 
           apiFetch={apiFetch} 
           notify={notify} 
+        />
+      )}
+
+      {modalFactura && (
+        <FacturaKuDEModal
+          factura={modalFactura}
+          onClose={() => setModalFactura(null)}
+          apiFetch={apiFetch}
+          notify={notify}
         />
       )}
     </div>
@@ -833,6 +867,490 @@ function ChangePasswordModal({ onClose, apiFetch, notify }: any) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// FACTURA ELECTRÓNICA SIFEN / KuDE MODAL
+// ═══════════════════════════════════════════════════════════
+function FacturaKuDEModal({ factura, onClose, apiFetch, notify }: any) {
+  if (!factura) return null;
+  const em = factura.emisor || {};
+  const rec = factura.receptor || {};
+  const lineas = factura.lineas || [];
+
+  const handleImprimir = () => {
+    window.print();
+  };
+
+  const handleAbrirVentana = () => {
+    window.open(`${API_URL}/academia/facturacion/documentos/${factura.id}/imprimir?formato=html&autoprint=1`, '_blank');
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15, 23, 42, 0.85)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        zIndex: 99999,
+        overflowY: 'auto',
+        padding: '20px 10px',
+      }}
+    >
+      {/* ── ESTILOS DE IMPRESIÓN PARA AISLAR EL KUDE EN HOJA A4 ── */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-factura-kude, #printable-factura-kude * {
+            visibility: visible !important;
+          }
+          #printable-factura-kude {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 8mm 10mm !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}} />
+
+      {/* ── BARRA DE ACCIONES SUPERIOR (no se imprime) ── */}
+      <div
+        className="no-print"
+        style={{
+          width: '100%',
+          maxWidth: 820,
+          background: '#0f172a',
+          color: '#ffffff',
+          borderRadius: 12,
+          padding: '12px 18px',
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 10,
+          border: '1px solid #334155',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: '#2563eb22', color: '#60a5fa', padding: 8, borderRadius: 8 }}>
+            <FileText size={20} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+              Factura Electrónica {factura.numero_documento_formateado}
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  fontWeight: 700,
+                  background: factura.estado === 'firmado' ? '#05966922' : factura.estado === 'anulado' || factura.cancelado ? '#dc262622' : '#d9770622',
+                  color: factura.estado === 'firmado' ? '#34d399' : factura.estado === 'anulado' || factura.cancelado ? '#f87171' : '#fbbf24',
+                  border: `1px solid ${factura.estado === 'firmado' ? '#05966944' : factura.estado === 'anulado' || factura.cancelado ? '#dc262644' : '#d9770644'}`,
+                }}
+              >
+                {factura.cancelado ? 'ANULADO' : factura.estado?.toUpperCase()}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8' }}>
+              KuDE Oficial SIFEN — {em.razon_social}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleImprimir}
+            style={{
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              padding: '9px 18px',
+              borderRadius: 8,
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 2px 8px rgba(37,99,235,0.4)',
+            }}
+          >
+            <Printer size={15} /> Imprimir Factura
+          </button>
+          <button
+            onClick={handleAbrirVentana}
+            style={{
+              background: '#334155',
+              color: '#f8fafc',
+              border: '1px solid #475569',
+              padding: '8px 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            title="Abrir página imprimible en pestaña independiente"
+          >
+            <ArrowUpRight size={14} /> Abrir en Ventana
+          </button>
+          <a
+            href={`${API_URL}/academia/facturacion/documentos/${factura.id}/xml`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              background: '#1e293b',
+              color: '#cbd5e1',
+              border: '1px solid #475569',
+              padding: '8px 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <FileText size={14} /> XML
+          </a>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              color: '#94a3b8',
+              border: '1px solid #475569',
+              padding: '8px 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+
+      {/* ── CUERPO DEL COMPROBANTE KUDE (Hoja blanca imprimible) ── */}
+      <div
+        id="printable-factura-kude"
+        style={{
+          width: '100%',
+          maxWidth: 820,
+          background: '#ffffff',
+          color: '#0f172a',
+          borderRadius: 10,
+          padding: '24px 28px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+          fontSize: 11,
+          lineHeight: 1.35,
+          position: 'relative',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        }}
+      >
+        {/* Marca de agua si cancelado */}
+        {Boolean(factura.cancelado) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '40%',
+              left: '10%',
+              right: '10%',
+              textAlign: 'center',
+              transform: 'rotate(-25deg)',
+              fontSize: 46,
+              fontWeight: 900,
+              color: 'rgba(239, 68, 68, 0.28)',
+              border: '5px solid rgba(239, 68, 68, 0.28)',
+              borderRadius: 12,
+              padding: 12,
+              pointerEvents: 'none',
+              letterSpacing: 3,
+            }}
+          >
+            DOCUMENTO ANULADO / CANCELADO
+          </div>
+        )}
+
+        {/* 1. CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
+          {/* Lado izquierdo: Datos del Emisor */}
+          <div style={{ flex: 1 }}>
+            {em.logo_url && (
+              <img
+                src={em.logo_url}
+                alt="Logo Academia"
+                style={{ maxHeight: 54, maxWidth: 160, objectFit: 'contain', marginBottom: 6 }}
+              />
+            )}
+            <div style={{ fontSize: 16, fontWeight: 900, textTransform: 'uppercase', color: '#0f172a', letterSpacing: '-0.02em' }}>
+              {em.razon_social}
+            </div>
+            {em.nombre_fantasia && (
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>
+                {em.nombre_fantasia}
+              </div>
+            )}
+            <div style={{ fontSize: 10.5, color: '#475569', lineHeight: 1.4 }}>
+              <div><strong>Actividad Económica:</strong> {em.actividad_economica}</div>
+              <div><strong>Casa Central / Dirección:</strong> {em.direccion} N° {em.num_casa}</div>
+              {em.ciudad_departamento && <div><strong>Ciudad / Dpto:</strong> {em.ciudad_departamento}</div>}
+              <div><strong>Teléfono:</strong> {em.telefono || '—'} {em.email ? ` | Email: ${em.email}` : ''}</div>
+            </div>
+          </div>
+
+          {/* Lado derecho: Recuadro Fiscal Timbrado / Factura */}
+          <div
+            style={{
+              width: 290,
+              border: '2px solid #0f172a',
+              borderRadius: 8,
+              padding: '12px 14px',
+              textAlign: 'center',
+              background: '#f8fafc',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#334155' }}>
+              TIMBRADO N°: <strong style={{ color: '#0f172a' }}>{em.num_timbrado}</strong>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: '#0f172a', margin: '3px 0' }}>
+              RUC: {em.ruc_con_dv}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#1d4ed8', letterSpacing: '0.5px', margin: '4px 0' }}>
+              FACTURA ELECTRÓNICA
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 900, fontFamily: 'monospace', color: '#0f172a' }}>
+              N° {factura.numero_documento_formateado}
+            </div>
+          </div>
+        </div>
+
+        {/* 2. DATOS DE OPERACIÓN Y RECEPTOR */}
+        <div
+          style={{
+            border: '1px solid #cbd5e1',
+            borderRadius: 8,
+            padding: '10px 14px',
+            marginBottom: 12,
+            background: '#ffffff',
+          }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 18px', fontSize: 11 }}>
+            <div>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: 4 }}>
+                Fecha y Hora de Emisión:
+              </span>
+              <strong style={{ color: '#0f172a' }}>{factura.fecha_emision_formateada}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: 4 }}>
+                Condición de Venta:
+              </span>
+              <strong style={{ color: '#1d4ed8' }}>{factura.condicion_venta}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: 4 }}>
+                Nombre / Razón Social:
+              </span>
+              <strong style={{ color: '#0f172a' }}>{rec.nombre}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: 4 }}>
+                RUC / Doc. Identidad:
+              </span>
+              <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{rec.ruc_con_dv}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: 4 }}>
+                Dirección del Receptor:
+              </span>
+              <span style={{ color: '#334155' }}>{rec.direccion}</span>
+            </div>
+            <div>
+              <span style={{ fontSize: 9.5, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: 4 }}>
+                Teléfono / Contacto:
+              </span>
+              <span style={{ color: '#334155' }}>{rec.telefono || '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. TABLA DE ÍTEMS / SERVICIOS */}
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            marginBottom: 12,
+            border: '1px solid #cbd5e1',
+            borderRadius: 6,
+            overflow: 'hidden',
+          }}
+        >
+          <thead>
+            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', fontSize: 9.5, color: '#334155' }}>
+              <th style={{ padding: '7px 8px', textAlign: 'center', width: '12%', borderRight: '1px solid #cbd5e1' }}>CÓDIGO</th>
+              <th style={{ padding: '7px 8px', textAlign: 'center', width: '8%', borderRight: '1px solid #cbd5e1' }}>CANT.</th>
+              <th style={{ padding: '7px 8px', textAlign: 'left', width: '44%', borderRight: '1px solid #cbd5e1' }}>DESCRIPCIÓN DEL BIEN O SERVICIO</th>
+              <th style={{ padding: '7px 8px', textAlign: 'right', width: '12%', borderRight: '1px solid #cbd5e1' }}>P. UNITARIO</th>
+              <th style={{ padding: '7px 8px', textAlign: 'right', width: '8%', borderRight: '1px solid #cbd5e1' }}>EXENTAS</th>
+              <th style={{ padding: '7px 8px', textAlign: 'right', width: '8%', borderRight: '1px solid #cbd5e1' }}>IVA 5%</th>
+              <th style={{ padding: '7px 8px', textAlign: 'right', width: '8%' }}>IVA 10%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lineas.map((ln: any, idx: number) => (
+              <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', fontSize: 10.5 }}>
+                <td style={{ padding: '6px 8px', textAlign: 'center', fontFamily: 'monospace', borderRight: '1px solid #e2e8f0' }}>
+                  {ln.codigo}
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 700, borderRight: '1px solid #e2e8f0' }}>
+                  {ln.cantidad}
+                </td>
+                <td style={{ padding: '6px 8px', borderRight: '1px solid #e2e8f0', color: '#0f172a' }}>
+                  {ln.descripcion}
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', borderRight: '1px solid #e2e8f0' }}>
+                  {new Intl.NumberFormat('es-PY').format(ln.precio_unitario || 0)}
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', borderRight: '1px solid #e2e8f0' }}>
+                  {ln.monto_exenta > 0 ? new Intl.NumberFormat('es-PY').format(ln.monto_exenta) : '0'}
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', borderRight: '1px solid #e2e8f0' }}>
+                  {ln.monto_5 > 0 ? new Intl.NumberFormat('es-PY').format(ln.monto_5) : '0'}
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
+                  {ln.monto_10 > 0 ? new Intl.NumberFormat('es-PY').format(ln.monto_10) : '0'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* 4. TOTALES Y LIQUIDACIÓN */}
+        <div
+          style={{
+            border: '1px solid #cbd5e1',
+            borderRadius: 8,
+            padding: '10px 14px',
+            marginBottom: 12,
+            background: '#f8fafc',
+          }}
+        >
+          {/* Subtotales */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 6 }}>
+            <span style={{ fontWeight: 700, color: '#475569' }}>SUBTOTALES:</span>
+            <span>Exentas: <strong style={{ fontFamily: 'monospace' }}>{new Intl.NumberFormat('es-PY').format(factura.subtotal_exenta || 0)}</strong> Gs.</span>
+            <span>IVA 5%: <strong style={{ fontFamily: 'monospace' }}>{new Intl.NumberFormat('es-PY').format(factura.subtotal_5 || 0)}</strong> Gs.</span>
+            <span>IVA 10%: <strong style={{ fontFamily: 'monospace' }}>{new Intl.NumberFormat('es-PY').format(factura.subtotal_10 || 0)}</strong> Gs.</span>
+          </div>
+
+          {/* Total a pagar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 900, color: '#0f172a' }}>TOTAL A PAGAR:</span>
+            <span style={{ fontSize: 17, fontWeight: 900, color: '#059669', fontFamily: 'monospace' }}>
+              Gs. {new Intl.NumberFormat('es-PY').format(factura.total_gral || 0)}
+            </span>
+          </div>
+
+          <div style={{ fontSize: 10, color: '#334155', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+            <strong>SON:</strong> {factura.total_en_letras}
+          </div>
+
+          {/* Liquidación del IVA */}
+          <div
+            style={{
+              borderTop: '1px dashed #cbd5e1',
+              paddingTop: 6,
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: 10,
+              color: '#475569',
+            }}
+          >
+            <span style={{ fontWeight: 800 }}>LIQUIDACIÓN DEL IVA:</span>
+            <span>(IVA 5%): <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>Gs. {new Intl.NumberFormat('es-PY').format(factura.liq_iva_5 || 0)}</strong></span>
+            <span>(IVA 10%): <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>Gs. {new Intl.NumberFormat('es-PY').format(factura.liq_iva_10 || 0)}</strong></span>
+            <span>TOTAL IVA: <strong style={{ fontFamily: 'monospace', color: '#059669' }}>Gs. {new Intl.NumberFormat('es-PY').format(factura.total_iva || 0)}</strong></span>
+          </div>
+        </div>
+
+        {/* 5. PIE SIFEN / KuDE */}
+        <div
+          style={{
+            border: '1px solid #cbd5e1',
+            borderRadius: 8,
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            background: '#ffffff',
+          }}
+        >
+          {factura.qr_image_base64 && (
+            <img
+              src={factura.qr_image_base64}
+              alt="Código QR SIFEN"
+              style={{ width: 105, height: 105, border: '1px solid #cbd5e1', borderRadius: 6, padding: 3, flexShrink: 0 }}
+            />
+          )}
+          <div style={{ flex: 1, fontSize: 10, color: '#334155', lineHeight: 1.45 }}>
+            <div style={{ fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', fontSize: 10, marginBottom: 2 }}>
+              KuDE — Representación Gráfica de Documento Electrónico (SIFEN)
+            </div>
+            <div style={{ color: '#475569' }}>Código de Control (CDC):</div>
+            <div
+              style={{
+                fontFamily: 'monospace',
+                fontSize: 10.5,
+                fontWeight: 800,
+                color: '#1d4ed8',
+                letterSpacing: 0.5,
+                background: '#f1f5f9',
+                padding: '3px 6px',
+                borderRadius: 4,
+                display: 'inline-block',
+                margin: '4px 0',
+                wordBreak: 'break-all',
+              }}
+            >
+              {factura.cdc_formateado || factura.cdc}
+            </div>
+            <div style={{ fontSize: 9.5, color: '#64748b' }}>
+              Consulte la validez de esta Factura Electrónica con el número de CDC impreso o escaneando el código QR en{' '}
+              <a href="https://ekuatia.set.gov.py/consultas" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8', fontWeight: 700, textDecoration: 'none' }}>
+                https://ekuatia.set.gov.py/consultas
+              </a>.
+              Si su documento electrónico no se encuentra registrado en el sistema de la SET/DNIT, por favor consulte nuevamente en 24 horas.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
 function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, toggleTheme, mobileMenuOpen, setMobileMenuOpen, setShowPasswordModal }: any) {
@@ -840,14 +1358,14 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, to
     { id: 'dashboard',         label: 'Dashboard',             icon: BarChart3 },
     { id: 'perfil',            label: 'Mi Academia',            icon: GraduationCap, roles: ['dueño','administrador'] },
     { id: 'sucursales',        label: 'Sedes y Canchas',        icon: Building2 },
-    { id: 'categorias',        label: 'Categorías',            icon: Tag, roles: ['dueño','administrador'] },
+    { id: 'categorias',        label: 'Categorías y Modalidades', icon: Tag, roles: ['dueño','administrador'] },
     { id: 'horarios_practica', label: 'Horarios de Práctica',    icon: Calendar, roles: ['dueño','administrador'] },
     { id: 'tarifas_costos',    label: 'Costos e Indumentaria',  icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
     { id: 'alumnos',           label: 'Alumnos',                icon: Users },
     { id: 'tutores',           label: 'Tutores / Padres',       icon: Users, roles: ['dueño','administrador','tesorero'] },
     { id: 'inscripciones',     label: 'Inscripciones',          icon: BookOpen },
     { id: 'cuotas',            label: 'Cuotas / Pagos',         icon: CreditCard, roles: ['dueño','administrador','tesorero'] },
-    { id: 'tesoreria',         label: 'Tesorería / Cuentas',    icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
+    { id: 'tesoreria',         label: 'Tesorería & Gastos',     icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
     { id: 'tienda',            label: 'Uniformes y Accesorios', icon: ShoppingBag, roles: ['dueño','administrador','tesorero'] },
     { id: 'competencias',      label: 'Competencias / Torneos', icon: Trophy, roles: ['dueño','administrador','tesorero','profesor'] },
     { id: 'reportes',          label: 'Reportes y Carnets',     icon: ClipboardList, roles: ['dueño','administrador','tesorero','profesor'] },
@@ -1133,8 +1651,11 @@ function DashboardTab({
               <button onClick={() => setTab('cuotas')} style={btn(C.green)}>
                 <CreditCard size={15} /> Cobrar Cuota
               </button>
+              <button onClick={() => setTab('tesoreria')} style={btn(C.red)}>
+                <Receipt size={15} /> ➕ Registrar Gasto / Compra
+              </button>
               <button onClick={() => setTab('tesoreria')} style={btn(C.surface, true)}>
-                <Wallet size={15} /> Ir a Tesorería
+                <Wallet size={15} /> Tesorería
               </button>
             </>
           )}
@@ -2861,19 +3382,32 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, tutores = [], categorias 
 // INSCRIPCIONES
 // ═══════════════════════════════════════════════════════════
 function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal, notify, apiFetch, isAdmin, isTesorero, fetchAll }: any) {
-  const [form, setForm] = useState<any>({ dias_por_semana: 3, cuota_mensual: 0, descuento_aplicado: 0, beca: false });
+  const [form, setForm] = useState<any>({ dias_por_semana: 3, cuota_mensual: 0, descuento_aplicado: 0, beca: false, fecha_inicio: '', fecha_fin: '', notas: '', estado: 'activa' });
   const [modoMultiple, setModoMultiple] = useState(false);
   const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>([]);
   const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [filtroVigencia, setFiltroVigencia] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   const filteredInscripciones = inscripciones.filter((i: any) => {
     const matchesCat = !filtroCategoria || i.categoria_id === filtroCategoria;
     const matchesBusqueda = !busqueda ||
       (i.alumno_nombre && i.alumno_nombre.toLowerCase().includes(busqueda.toLowerCase())) ||
       (i.categoria && i.categoria.toLowerCase().includes(busqueda.toLowerCase()));
-    return matchesCat && matchesBusqueda;
+
+    const esVigente = (i.sigue_inscripto !== undefined ? i.sigue_inscripto : (i.estado === 'activa' && (!i.fecha_fin || i.fecha_fin >= todayStr)));
+    const esFinalizada = i.estado === 'finalizada' || (i.fecha_fin && i.fecha_fin < todayStr);
+    const esSuspendida = i.estado === 'suspendida';
+
+    let matchesVigencia = true;
+    if (filtroVigencia === 'vigentes') matchesVigencia = esVigente;
+    else if (filtroVigencia === 'finalizadas') matchesVigencia = esFinalizada;
+    else if (filtroVigencia === 'suspendidas') matchesVigencia = esSuspendida;
+
+    return matchesCat && matchesBusqueda && matchesVigencia;
   });
 
   const toggleCategoriaMultiple = (catId: string) => {
@@ -2882,7 +3416,82 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
     );
   };
 
+  const abrirNuevo = () => {
+    setForm({
+      dias_por_semana: 3,
+      cuota_mensual: 0,
+      descuento_aplicado: 0,
+      beca: false,
+      fecha_inicio: todayStr,
+      fecha_fin: '',
+      notas: '',
+      estado: 'activa'
+    });
+    setModoMultiple(false);
+    setCategoriasSeleccionadas([]);
+    setModal('new');
+  };
+
+  const abrirEditar = (i: any) => {
+    setForm({
+      id: i.id,
+      alumno_id: i.alumno_id,
+      alumno_nombre: i.alumno_nombre,
+      categoria_id: i.categoria_id,
+      fecha_inicio: i.fecha_inicio || '',
+      fecha_fin: i.fecha_fin || '',
+      dias_por_semana: i.dias_por_semana || 3,
+      cuota_mensual: i.cuota_mensual || 0,
+      descuento_aplicado: i.descuento_aplicado || 0,
+      beca: Boolean(i.beca),
+      notas: i.notas || '',
+      estado: i.estado || 'activa',
+    });
+    setModoMultiple(false);
+    setModal('edit');
+  };
+
+  const finalizarInscripcion = async (i: any) => {
+    if (!confirm(`¿Finalizar el período de inscripción de ${i.alumno_nombre} en ${i.categoria}?`)) return;
+    try {
+      await apiFetch(`/academia/inscripciones/${i.id}`, { method: 'DELETE' });
+      notify('Período de inscripción finalizado');
+      await fetchAll();
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+  };
+
   const save = async () => {
+    if (modal === 'edit') {
+      if (!form.id) return;
+      setSaving(true);
+      try {
+        await apiFetch(`/academia/inscripciones/${form.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            alumno_id: form.alumno_id,
+            categoria_id: form.categoria_id,
+            fecha_inicio: form.fecha_inicio || undefined,
+            fecha_fin: form.fecha_fin ? form.fecha_fin : null,
+            cuota_mensual: Number(form.cuota_mensual || 0),
+            dias_por_semana: Number(form.dias_por_semana || 3),
+            descuento_aplicado: Number(form.descuento_aplicado || 0),
+            beca: Boolean(form.beca),
+            notas: form.notas || null,
+            estado: form.estado || 'activa',
+          })
+        });
+        notify('Inscripción actualizada correctamente');
+        await fetchAll();
+        setModal(null);
+      } catch (e: any) {
+        notify(e.message, 'err');
+      }
+      setSaving(false);
+      return;
+    }
+
     if (!form.alumno_id) {
       notify('Seleccioná un alumno', 'err');
       return;
@@ -2902,9 +3511,11 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
             alumno_id: form.alumno_id,
             categoria_ids: categoriasSeleccionadas,
             fecha_inicio: form.fecha_inicio || undefined,
+            fecha_fin: form.fecha_fin ? form.fecha_fin : null,
             cuota_mensual: form.cuota_mensual ? Number(form.cuota_mensual) : undefined,
             descuento_aplicado: form.descuento_aplicado ? Number(form.descuento_aplicado) : undefined,
             beca: Boolean(form.beca),
+            notas: form.notas || undefined,
           })
         });
         notify(res.message || 'Inscripción múltiple realizada exitosamente');
@@ -2914,7 +3525,13 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
           setSaving(false);
           return;
         }
-        await apiFetch('/academia/inscripciones', { method: 'POST', body: JSON.stringify(form) });
+        await apiFetch('/academia/inscripciones', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...form,
+            fecha_fin: form.fecha_fin ? form.fecha_fin : null,
+          })
+        });
         notify('Alumno inscripto correctamente');
       }
 
@@ -2926,24 +3543,21 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
     setSaving(false);
   };
 
-  const estadoColor: Record<string, string> = { activa: C.green, suspendida: C.yellow, finalizada: C.faint };
+  const cantVigentes = inscripciones.filter((i: any) => i.sigue_inscripto || (i.estado === 'activa' && (!i.fecha_fin || i.fecha_fin >= todayStr))).length;
+  const cantFinalizadas = inscripciones.filter((i: any) => i.estado === 'finalizada' || (i.fecha_fin && i.fecha_fin < todayStr)).length;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Inscripciones</h1>
-          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>
-            {inscripciones.filter((i: any) => i.estado === 'activa').length} inscripciones activas
+          <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span><strong style={{ color: C.green }}>🟢 {cantVigentes}</strong> alumnos que siguen inscriptos (vigentes)</span>
+            {cantFinalizadas > 0 && <span style={{ color: C.muted }}>· ⏳ {cantFinalizadas} períodos concluidos</span>}
           </p>
         </div>
         {(isAdmin || isTesorero) && (
-          <button onClick={() => {
-            setForm({ dias_por_semana: 3, cuota_mensual: 0, descuento_aplicado: 0, beca: false });
-            setModoMultiple(false);
-            setCategoriasSeleccionadas([]);
-            setModal('new');
-          }} style={btn()}>
+          <button onClick={abrirNuevo} style={btn()}>
             <Plus size={15} /> Inscribir alumno
           </button>
         )}
@@ -2955,23 +3569,38 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           placeholder="🔍 Buscar por alumno o curso..."
-          style={input({ maxWidth: 280 })}
+          style={input({ maxWidth: 260 })}
         />
 
         {/* Consulta Alumnos por Curso */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ ...label({ marginBottom: 0 }), fontSize: 12 }}>Filtrar por Curso:</label>
+          <label style={{ ...label({ marginBottom: 0 }), fontSize: 12 }}>Curso:</label>
           <select
             value={filtroCategoria}
             onChange={e => setFiltroCategoria(e.target.value)}
-            style={{ ...input({ width: 230 }), fontWeight: filtroCategoria ? 700 : 400 }}
+            style={{ ...input({ width: 220 }), fontWeight: filtroCategoria ? 700 : 400 }}
           >
             <option value="">Todos los Cursos / Categorías</option>
             {categorias.map((c: any) => (
               <option key={c.id} value={c.id}>
-                {c.nombre} ({c.deporte})
+                {c.nombre} {c.modalidad_nombre ? `[${c.modalidad_nombre}]` : ''} {c.deporte ? `(${c.deporte})` : ''}
               </option>
             ))}
+          </select>
+        </div>
+
+        {/* Filtro por Vigencia */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ ...label({ marginBottom: 0 }), fontSize: 12 }}>Vigencia:</label>
+          <select
+            value={filtroVigencia}
+            onChange={e => setFiltroVigencia(e.target.value)}
+            style={{ ...input({ width: 210 }), fontWeight: filtroVigencia !== 'todas' ? 700 : 400 }}
+          >
+            <option value="todas">📋 Todas ({inscripciones.length})</option>
+            <option value="vigentes">🟢 Sigue inscripto ({cantVigentes})</option>
+            <option value="finalizadas">⏳ Períodos finalizados ({cantFinalizadas})</option>
+            <option value="suspendidas">⚠️ Suspendidas ({inscripciones.filter((i: any) => i.estado === 'suspendida').length})</option>
           </select>
         </div>
 
@@ -2986,38 +3615,97 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-              {['Alumno', 'Categoría / Sucursal', 'Cuota mensual', 'Descuento', 'Desde', 'Estado'].map(h => (
+              {['Alumno', 'Categoría / Modalidad', 'Período de Inscripción', 'Vigencia', 'Cuota mensual', 'Acciones'].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '12px 16px', color: C.muted, fontWeight: 600, fontSize: 12 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredInscripciones.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay inscripciones para este curso o búsqueda.</td></tr>
+              <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: C.faint }}>No hay inscripciones para este filtro o búsqueda.</td></tr>
             )}
-            {filteredInscripciones.map((i: any) => (
-              <tr key={i.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
-                <td style={{ padding: '11px 16px', fontWeight: 600 }}>{i.alumno_nombre}</td>
-                <td style={{ padding: '11px 16px' }}>
-                  <div style={{ fontWeight: 600 }}>{i.categoria}</div>
-                  <div style={{ color: C.muted, fontSize: 11 }}>{i.sucursal} · {i.deporte}</div>
-                </td>
-                <td style={{ padding: '11px 16px' }}>Gs. {(i.cuota_mensual || 0).toLocaleString('es-PY')}</td>
-                <td style={{ padding: '11px 16px', color: i.descuento_aplicado > 0 ? C.green : C.faint }}>
-                  {i.descuento_aplicado > 0 ? `-${i.descuento_aplicado}%` : '—'}
-                </td>
-                <td style={{ padding: '11px 16px', color: C.muted }}>{i.fecha_inicio}</td>
-                <td style={{ padding: '11px 16px' }}>
-                  <span style={badge(estadoColor[i.estado] || C.faint)}>{i.estado}</span>
-                </td>
-              </tr>
-            ))}
+            {filteredInscripciones.map((i: any) => {
+              const esVigente = (i.sigue_inscripto !== undefined ? i.sigue_inscripto : (i.estado === 'activa' && (!i.fecha_fin || i.fecha_fin >= todayStr)));
+              const esFinalizada = i.estado === 'finalizada' || (i.fecha_fin && i.fecha_fin < todayStr);
+              const esSuspendida = i.estado === 'suspendida';
+
+              return (
+                <tr key={i.id} style={{ borderBottom: `1px solid ${C.border}44`, opacity: esFinalizada ? 0.78 : 1 }}>
+                  <td style={{ padding: '11px 16px', fontWeight: 600 }}>
+                    <div>{i.alumno_nombre}</div>
+                    {i.beca && <span style={{ ...badge(C.purple), fontSize: 10, marginTop: 4, display: 'inline-block' }}>Beca 100%</span>}
+                  </td>
+                  <td style={{ padding: '11px 16px' }}>
+                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{i.categoria}</span>
+                      {i.modalidad_nombre && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, background: `${i.modalidad_color || C.purple}22`, color: i.modalidad_color || C.purple }}>
+                          {i.modalidad_nombre}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ color: C.muted, fontSize: 11 }}>{i.sucursal} · {i.deporte}</div>
+                  </td>
+                  <td style={{ padding: '11px 16px', fontSize: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.text }}>
+                      <span style={{ color: C.muted, fontSize: 11 }}>Desde:</span>
+                      <strong>{i.fecha_inicio || '—'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                      <span style={{ color: C.muted, fontSize: 11 }}>Hasta:</span>
+                      {i.fecha_fin ? (
+                        <span style={{ color: esFinalizada ? C.red : C.text, fontWeight: 600 }}>{i.fecha_fin}</span>
+                      ) : (
+                        <span style={{ color: C.green, fontWeight: 600 }}>Indefinido</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ padding: '11px 16px' }}>
+                    {esVigente ? (
+                      <span style={badge(C.green)}>🟢 Sigue inscripto</span>
+                    ) : esSuspendida ? (
+                      <span style={badge(C.yellow)}>⚠️ Suspendida</span>
+                    ) : (
+                      <span style={badge(C.faint)}>⏳ Período finalizado</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '11px 16px' }}>
+                    <div>Gs. {(i.cuota_mensual || 0).toLocaleString('es-PY')}</div>
+                    {i.descuento_aplicado > 0 && (
+                      <div style={{ color: C.green, fontSize: 11 }}>-{i.descuento_aplicado}% desc.</div>
+                    )}
+                  </td>
+                  <td style={{ padding: '11px 16px' }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {(isAdmin || isTesorero) && (
+                        <button
+                          onClick={() => abrirEditar(i)}
+                          title="Editar inscripción y período"
+                          style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                      {isAdmin && esVigente && (
+                        <button
+                          onClick={() => finalizarInscripcion(i)}
+                          title="Finalizar este período de inscripción"
+                          style={{ padding: '5px 8px', borderRadius: 6, border: `1px solid ${C.border}`, background: `${C.red}15`, color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* ════ MODAL INSCRIBIR ALUMNO (Individual o Múltiple) ════ */}
-      {modal && (
+      {/* ════ MODAL CREAR / EDITAR INSCRIPCIÓN ════ */}
+      {modal === 'new' && (
         <Modal title="Inscribir Alumno a Cursos" onClose={() => setModal(null)} wide>
           {/* Selector de Modo: Simple o Varios Cursos */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 18, background: `${C.bg}88`, padding: 4, borderRadius: 10, border: `1px solid ${C.border}` }}>
@@ -3061,7 +3749,7 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
               <label style={label()}>Categoría / Curso *</label>
               <select value={form.categoria_id || ''} onChange={e => setForm((f: any) => ({ ...f, categoria_id: e.target.value }))} style={input()}>
                 <option value="">Seleccionar categoría...</option>
-                {categorias.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} — {c.sucursal_nombre} ({c.deporte})</option>)}
+                {categorias.map((c: any) => <option key={c.id} value={c.id}>{c.nombre} {c.modalidad_nombre ? `[${c.modalidad_nombre}] ` : ''}— {c.sucursal_nombre} {c.deporte ? `(${c.deporte})` : ''}</option>)}
               </select>
             </div>
           ) : (
@@ -3085,11 +3773,13 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => {}} // handled by div click
+                        onChange={() => {}}
                         style={{ cursor: 'pointer' }}
                       />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{c.nombre}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>
+                          {c.nombre} {c.modalidad_nombre && <span style={{ color: C.purple, fontSize: 11, fontWeight: 700, marginLeft: 4 }}>[{c.modalidad_nombre}]</span>}
+                        </div>
                         <div style={{ fontSize: 11, color: C.muted }}>{c.sucursal_nombre} · {c.deporte} {c.horario ? `· ⏰ ${c.horario}` : ''}</div>
                       </div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>
@@ -3105,7 +3795,15 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
             </div>
           )}
 
-          <FormField label="Fecha de inicio *" value={form.fecha_inicio || ''} type="date" onChange={v => setForm((f: any) => ({ ...f, fecha_inicio: v }))} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 6 }}>
+            <FormField label="Fecha de inicio *" value={form.fecha_inicio || ''} type="date" onChange={v => setForm((f: any) => ({ ...f, fecha_inicio: v }))} />
+            <div>
+              <FormField label="Fecha de fin (opcional)" value={form.fecha_fin || ''} type="date" onChange={v => setForm((f: any) => ({ ...f, fecha_fin: v }))} />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: -8, marginBottom: 10 }}>
+                💡 Dejar vacío si el alumno continúa inscripto (sigue inscripto).
+              </div>
+            </div>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: modoMultiple ? '1fr 1fr' : '1fr 1fr 1fr', gap: 12 }}>
             <FormField label="Cuota mensual (Gs.) (0 = usar tarifa del curso)" value={form.cuota_mensual} type="number" onChange={v => setForm((f: any) => ({ ...f, cuota_mensual: Number(v) }))} />
@@ -3123,6 +3821,53 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
           <ModalActions onCancel={() => setModal(null)} onSave={save} saving={saving} />
         </Modal>
       )}
+
+      {modal === 'edit' && (
+        <Modal title={`Editar Inscripción — ${form.alumno_nombre || ''}`} onClose={() => setModal(null)} wide>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Categoría / Curso</label>
+            <select value={form.categoria_id || ''} onChange={e => setForm((f: any) => ({ ...f, categoria_id: e.target.value }))} style={input()}>
+              {categorias.map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre} {c.modalidad_nombre ? `[${c.modalidad_nombre}] ` : ''}— {c.sucursal_nombre} {c.deporte ? `(${c.deporte})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 6 }}>
+            <FormField label="Fecha de inicio *" value={form.fecha_inicio || ''} type="date" onChange={v => setForm((f: any) => ({ ...f, fecha_inicio: v }))} />
+            <div>
+              <FormField label="Fecha de fin (opcional)" value={form.fecha_fin || ''} type="date" onChange={v => setForm((f: any) => ({ ...f, fecha_fin: v }))} />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: -8, marginBottom: 10 }}>
+                💡 Dejar vacío si el alumno continúa inscripto (sigue inscripto).
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Estado de la inscripción</label>
+            <select value={form.estado || 'activa'} onChange={e => setForm((f: any) => ({ ...f, estado: e.target.value }))} style={input()}>
+              <option value="activa">🟢 Activa (Vigente)</option>
+              <option value="suspendida">⚠️ Suspendida (Baja temporal)</option>
+              <option value="finalizada">⏹️ Finalizada (Período concluido)</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <FormField label="Cuota mensual (Gs.)" value={form.cuota_mensual} type="number" onChange={v => setForm((f: any) => ({ ...f, cuota_mensual: Number(v) }))} />
+            <FormField label="Días por semana" value={form.dias_por_semana} type="number" onChange={v => setForm((f: any) => ({ ...f, dias_por_semana: Number(v) }))} />
+            <FormField label="Descuento aplicado (%)" value={form.descuento_aplicado} type="number" onChange={v => setForm((f: any) => ({ ...f, descuento_aplicado: Number(v) }))} />
+          </div>
+
+          <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" id="beca_edit" checked={form.beca} onChange={e => setForm((f: any) => ({ ...f, beca: e.target.checked }))} />
+            <label htmlFor="beca_edit" style={{ color: C.text, fontSize: 13, cursor: 'pointer' }}>Beca completa (cuota Gs. 0)</label>
+          </div>
+
+          <ModalActions onCancel={() => setModal(null)} onSave={save} saving={saving} />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -3131,7 +3876,7 @@ function InscripcionesTab({ inscripciones, alumnos, categorias, modal, setModal,
 // ═══════════════════════════════════════════════════════════
 // CUOTAS
 // ═══════════════════════════════════════════════════════════
-function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cuentas = [], metodosPago = [] }: any) {
+function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cuentas = [], metodosPago = [], abrirFactura }: any) {
   const [subTab, setSubTab] = useState<'cuotas' | 'matriculas'>('cuotas');
   const [generando, setGenerando] = useState(false);
   const [generandoMat, setGenerandoMat] = useState(false);
@@ -3213,9 +3958,26 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
 
   const registrarPago = async () => {
     if (!modalPago) return;
-    const saldoPendiente = (modalPago.monto_final || 0) - (modalPago.monto_pagado || 0);
-    const montoEfectivo = pagoForm.monto ? Number(pagoForm.monto) : saldoPendiente;
-    if (montoEfectivo <= 0) {
+    const saldoOriginal = (modalPago.monto_final || 0) - (modalPago.monto_pagado || 0);
+
+    let descuentoGs = 0;
+    if (pagoForm.aplicar_descuento) {
+      if (pagoForm.tipo_descuento === 'quincena') {
+        descuentoGs = Math.round(saldoOriginal * 0.5);
+      } else if (pagoForm.tipo_descuento === 'semana') {
+        descuentoGs = Math.round(saldoOriginal * 0.75);
+      } else if (pagoForm.tipo_descuento === 'porcentaje') {
+        const pct = Math.max(0, Math.min(100, Number(pagoForm.descuento_valor || 0)));
+        descuentoGs = Math.round(saldoOriginal * (pct / 100));
+      } else if (pagoForm.tipo_descuento === 'monto') {
+        descuentoGs = Math.max(0, Math.min(saldoOriginal, Number(pagoForm.descuento_valor || 0)));
+      }
+    }
+
+    const saldoPendiente = Math.max(0, saldoOriginal - descuentoGs);
+    const montoEfectivo = pagoForm.monto !== '' ? Number(pagoForm.monto) : saldoPendiente;
+
+    if (montoEfectivo <= 0 && saldoPendiente > 0) {
       notify('Ingresá un monto válido', 'err');
       return;
     }
@@ -3226,6 +3988,8 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
         fecha_pago: pagoForm.fecha_pago || undefined,
         generar_factura: Boolean(pagoForm.generar_factura),
         notas: pagoForm.notas || undefined,
+        descuento_adicional: descuentoGs > 0 ? descuentoGs : undefined,
+        motivo_descuento: (descuentoGs > 0 && pagoForm.motivo_descuento) ? pagoForm.motivo_descuento : undefined,
       };
       // Cuenta destino
       if (pagoForm.cuenta_id) body.cuenta_id = pagoForm.cuenta_id;
@@ -3241,6 +4005,9 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
       });
       notify(res.message || 'Pago registrado exitosamente');
       setModalPago(null);
+      if (res.factura && res.factura.id && abrirFactura) {
+        abrirFactura(res.factura.id);
+      }
       if (fetchAll) await fetchAll();
     } catch (e: any) {
       notify(e.message || 'Error al registrar pago', 'err');
@@ -3258,6 +4025,7 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
         body: JSON.stringify({
           monto_final: Number(editarForm.monto_final),
           descuento: Number(editarForm.descuento || 0),
+          motivo_descuento: editarForm.motivo_descuento || undefined,
           notas: editarForm.notas || undefined
         })
       });
@@ -3314,6 +4082,9 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
         method: 'PUT'
       });
       notify(res.message || 'Matrícula pagada exitosamente');
+      if (res.factura && res.factura.id && abrirFactura) {
+        abrirFactura(res.factura.id);
+      }
       cargarMatriculas();
       if (fetchAll) await fetchAll();
     } catch (e: any) {
@@ -3505,8 +4276,17 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
                       <td style={{ padding: '9px 14px', fontWeight: 600 }}>{q.alumno}</td>
                       <td style={{ padding: '9px 14px', color: C.muted, fontFamily: 'monospace' }}>{q.periodo}</td>
                       <td style={{ padding: '9px 14px', color: C.faint }}>Gs. {(q.monto_original || 0).toLocaleString('es-PY')}</td>
-                      <td style={{ padding: '9px 14px', color: q.descuento > 0 ? C.green : C.faint }}>
-                        {q.descuento > 0 ? `- Gs. ${(q.descuento || 0).toLocaleString('es-PY')}` : '—'}
+                      <td style={{ padding: '9px 14px', color: q.descuento > 0 ? C.purple : C.faint }}>
+                        {q.descuento > 0 ? (
+                          <div>
+                            <span style={{ fontWeight: 700, color: C.purple }}>- Gs. {(q.descuento || 0).toLocaleString('es-PY')}</span>
+                            {q.notas && q.notas.includes('Descuento') && (
+                              <div style={{ fontSize: 10, color: C.muted, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={q.notas}>
+                                {q.notas.split('\n').filter((l: string) => l.includes('Descuento')).pop()}
+                              </div>
+                            )}
+                          </div>
+                        ) : '—'}
                       </td>
                       <td style={{ padding: '9px 14px', fontWeight: 700 }}>Gs. {(q.monto_final || 0).toLocaleString('es-PY')}</td>
                       <td style={{ padding: '9px 14px', color: q.monto_pagado > 0 ? C.green : C.faint, fontSize: 12 }}>
@@ -3522,7 +4302,19 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
                           {canPay && (
                             <button onClick={() => {
                               setModalPago(q);
-                              setPagoForm({ cuenta_id: '', metodo_pago_id: '', metodo_pago: '', monto: saldo > 0 ? String(saldo) : '', fecha_pago: '', generar_factura: false, notas: '' });
+                              setPagoForm({
+                                cuenta_id: '',
+                                metodo_pago_id: '',
+                                metodo_pago: '',
+                                monto: saldo > 0 ? String(saldo) : '',
+                                fecha_pago: '',
+                                generar_factura: false,
+                                notas: '',
+                                aplicar_descuento: false,
+                                tipo_descuento: 'quincena',
+                                descuento_valor: 50,
+                                motivo_descuento: 'Iniciación tardía (ingreso a mitad de mes)',
+                              });
                             }} style={{ ...btn(C.green, true), fontSize: 11, padding: '4px 9px' }}>
                               <DollarSign size={11} /> Pagar
                             </button>
@@ -3539,6 +4331,15 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
                           }} style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 9px' }} title="Ver historial de pagos">
                             <Eye size={11} />
                           </button>
+                          {q.documento_electronico_id && (
+                            <button
+                              onClick={() => abrirFactura && abrirFactura(q.documento_electronico_id)}
+                              style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 9px', background: `${C.purple}22`, color: C.purple, borderColor: `${C.purple}55` }}
+                              title="Imprimir Factura Electrónica (KuDE)"
+                            >
+                              <Printer size={11} /> Factura
+                            </button>
+                          )}
                           {canEdit && (
                             <button onClick={() => {
                               setModalEditar(q);
@@ -3637,6 +4438,15 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
                               <DollarSign size={11} /> Pagar
                             </button>
                           )}
+                          {m.documento_electronico_id && (
+                            <button
+                              onClick={() => abrirFactura && abrirFactura(m.documento_electronico_id)}
+                              style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 9px', background: `${C.purple}22`, color: C.purple, borderColor: `${C.purple}55` }}
+                              title="Imprimir Factura Electrónica (KuDE)"
+                            >
+                              <Printer size={11} /> Factura
+                            </button>
+                          )}
                           {isDueno && m.estado !== 'anulada' && (
                             <button onClick={() => anularMatricula(m.id)} style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 9px' }}>
                               <X size={11} />
@@ -3654,111 +4464,329 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
       )}
 
       {/* ════ MODAL: Registrar Pago ════ */}
-      {modalPago && (
-        <Modal title={`Registrar Pago — ${modalPago.alumno}`} onClose={() => setModalPago(null)}>
-          <div style={{ background: `${C.primary}11`, border: `1px solid ${C.primary}33`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: C.muted }}>Cuota {modalPago.periodo}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: C.text }}>Gs. {(modalPago.monto_final || 0).toLocaleString('es-PY')}</div>
-            {modalPago.monto_pagado > 0 && (
-              <div style={{ fontSize: 12, color: C.green, marginTop: 4 }}>
-                Ya pagado: Gs. {(modalPago.monto_pagado || 0).toLocaleString('es-PY')} —
-                Saldo: Gs. {((modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)).toLocaleString('es-PY')}
+      {modalPago && (() => {
+        const saldoOriginal = Math.max(0, (modalPago.monto_final || 0) - (modalPago.monto_pagado || 0));
+        let descuentoCalculado = 0;
+        if (pagoForm.aplicar_descuento) {
+          if (pagoForm.tipo_descuento === 'quincena') {
+            descuentoCalculado = Math.round(saldoOriginal * 0.5);
+          } else if (pagoForm.tipo_descuento === 'semana') {
+            descuentoCalculado = Math.round(saldoOriginal * 0.75);
+          } else if (pagoForm.tipo_descuento === 'porcentaje') {
+            const pct = Math.max(0, Math.min(100, Number(pagoForm.descuento_valor || 0)));
+            descuentoCalculado = Math.round(saldoOriginal * (pct / 100));
+          } else if (pagoForm.tipo_descuento === 'monto') {
+            descuentoCalculado = Math.max(0, Math.min(saldoOriginal, Number(pagoForm.descuento_valor || 0)));
+          }
+        }
+        const saldoConDescuento = Math.max(0, saldoOriginal - descuentoCalculado);
+
+        return (
+          <Modal title={`Registrar Cobro — ${modalPago.alumno}`} onClose={() => setModalPago(null)}>
+            {/* Tarjeta Resumen */}
+            <div style={{ background: `${C.primary}11`, border: `1px solid ${C.primary}33`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Cuota {modalPago.periodo}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: C.text }}>
+                    Gs. {(modalPago.monto_final || 0).toLocaleString('es-PY')}
+                  </div>
+                </div>
+                {modalPago.descuento > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ ...badge(C.purple), fontSize: 11 }}>
+                      Desc. inicial: Gs. {(modalPago.descuento || 0).toLocaleString('es-PY')}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button
-                type="button"
-                onClick={() => setPagoForm((f: any) => ({ ...f, monto: String((modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)) }))}
-                style={{
-                  flex: 1, padding: '7px 10px', borderRadius: 7, fontSize: 12, fontWeight: 700,
-                  cursor: 'pointer', background: `${C.green}20`, border: `1px solid ${C.green}66`, color: C.green
-                }}
-              >
-                💰 Pago Total (Gs. {((modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)).toLocaleString('es-PY')})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPagoForm((f: any) => ({ ...f, monto: '' }))}
-                style={{
-                  flex: 1, padding: '7px 10px', borderRadius: 7, fontSize: 12, fontWeight: 700,
-                  cursor: 'pointer', background: `${C.yellow}20`, border: `1px solid ${C.yellow}66`, color: C.yellow
-                }}
-              >
-                💵 Pago Parcial
-              </button>
+              {modalPago.monto_pagado > 0 && (
+                <div style={{ fontSize: 12, color: C.green, marginTop: 6, fontWeight: 600 }}>
+                  Ya pagado: Gs. {(modalPago.monto_pagado || 0).toLocaleString('es-PY')} —
+                  Saldo pendiente: Gs. {saldoOriginal.toLocaleString('es-PY')}
+                </div>
+              )}
             </div>
-            <label style={label()}>Monto a pagar (Gs.) <span style={{ color: C.faint, fontWeight: 400 }}>— vacío = pago total</span></label>
-            <input type="number" placeholder={`${(modalPago.monto_final || 0) - (modalPago.monto_pagado || 0)}`}
-              value={pagoForm.monto} onChange={e => setPagoForm((f: any) => ({ ...f, monto: e.target.value }))} style={input()} />
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Cuenta destino {cuentas.length > 0 ? '*' : <span style={{ color: C.faint, fontWeight: 400 }}>(configurá cuentas en Tesorería)</span>}</label>
-            {cuentas.length > 0 ? (
-              <select value={pagoForm.cuenta_id} onChange={e => setPagoForm((f: any) => ({ ...f, cuenta_id: e.target.value }))} style={input()}>
-                <option value="">— Sin especificar cuenta —</option>
-                {cuentas.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.tipo === 'efectivo' ? '💵' : c.tipo === 'banco' ? '🏦' : '📱'} {c.nombre}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div style={{ ...input(), color: C.faint, display: 'flex', alignItems: 'center' }}>No hay cuentas configuradas</div>
-            )}
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Método de pago {metodosPago.length > 0 ? '*' : <span style={{ color: C.faint, fontWeight: 400 }}>(configurá métodos en Tesorería)</span>}</label>
-            {metodosPago.length > 0 ? (
-              <select value={pagoForm.metodo_pago_id} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago_id: e.target.value, metodo_pago: '' }))} style={input()}>
-                <option value="">— Sin especificar método —</option>
-                {metodosPago.map((m: any) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </select>
-            ) : (
-              <select value={pagoForm.metodo_pago} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago: e.target.value }))} style={input()}>
-                {['Efectivo', 'Transferencia', 'Tarjeta', 'QR', 'Débito', 'Otro'].map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            )}
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Fecha de pago (opcional — por defecto hoy)</label>
-            <input type="date" value={pagoForm.fecha_pago} onChange={e => setPagoForm((f: any) => ({ ...f, fecha_pago: e.target.value }))} style={input()} />
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Notas</label>
-            <input value={pagoForm.notas} onChange={e => setPagoForm((f: any) => ({ ...f, notas: e.target.value }))} style={input()} placeholder="Observaciones opcionales" />
-          </div>
-          <div style={{ marginBottom: 14, background: `${C.yellow}11`, border: `1px solid ${C.yellow}33`, padding: 10, borderRadius: 8 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.text }}>
+
+            {/* Bloque Descuento por Iniciación Tardía / Motivo Especial */}
+            <div style={{
+              marginBottom: 16,
+              borderRadius: 10,
+              border: `1px solid ${pagoForm.aplicar_descuento ? C.purple : C.border}`,
+              background: pagoForm.aplicar_descuento ? `${C.purple}12` : `${C.surface}`,
+              padding: 12,
+              transition: 'all 0.2s ease'
+            }}>
+              <div
+                onClick={() => {
+                  const nuevoAplicar = !pagoForm.aplicar_descuento;
+                  let nuevoDesc = 0;
+                  if (nuevoAplicar) {
+                    nuevoDesc = Math.round(saldoOriginal * 0.5);
+                  }
+                  const nuevoSaldo = Math.max(0, saldoOriginal - nuevoDesc);
+                  setPagoForm((f: any) => ({
+                    ...f,
+                    aplicar_descuento: nuevoAplicar,
+                    tipo_descuento: f.tipo_descuento || 'quincena',
+                    descuento_valor: f.descuento_valor || 50,
+                    motivo_descuento: f.motivo_descuento || 'Iniciación tardía (ingreso a mitad de mes)',
+                    monto: String(nuevoSaldo)
+                  }));
+                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={pagoForm.aplicar_descuento || false}
+                    onChange={() => {}}
+                    style={{ width: 16, height: 16, cursor: 'pointer', accentColor: C.purple }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: pagoForm.aplicar_descuento ? C.purple : C.text }}>
+                    🏷️ Aplicar Descuento (Iniciación tardía / Motivo especial)
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: C.muted }}>
+                  {pagoForm.aplicar_descuento ? '▲ Ocultar' : '▼ Habilitar descuento'}
+                </span>
+              </div>
+
+              {pagoForm.aplicar_descuento && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}55` }}>
+                  <label style={{ ...label(), fontSize: 11, marginBottom: 6 }}>Presets rápidos por inicio tardío:</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
+                    {[
+                      { id: 'quincena', label: '🌗 Quincena (-50%)', descVal: 50, motivo: 'Iniciación tardía (ingreso a mitad de mes)' },
+                      { id: 'semana', label: '📅 Última sem. (-75%)', descVal: 75, motivo: 'Iniciación tardía (ingreso en última semana)' },
+                      { id: 'porcentaje', label: '🔢 Porcentaje (%)', descVal: 25, motivo: 'Iniciación tardía proporcional' },
+                      { id: 'monto', label: '💵 Monto fijo (Gs.)', descVal: Math.round(saldoOriginal * 0.3), motivo: 'Descuento especial' },
+                    ].map(p => {
+                      const active = pagoForm.tipo_descuento === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            let descGs = 0;
+                            if (p.id === 'quincena') descGs = Math.round(saldoOriginal * 0.5);
+                            else if (p.id === 'semana') descGs = Math.round(saldoOriginal * 0.75);
+                            else if (p.id === 'porcentaje') descGs = Math.round(saldoOriginal * (p.descVal / 100));
+                            else descGs = p.descVal;
+
+                            const nuevoSaldo = Math.max(0, saldoOriginal - descGs);
+                            setPagoForm((f: any) => ({
+                              ...f,
+                              tipo_descuento: p.id,
+                              descuento_valor: p.descVal,
+                              motivo_descuento: p.motivo,
+                              monto: String(nuevoSaldo)
+                            }));
+                          }}
+                          style={{
+                            padding: '7px 8px',
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: active ? C.purple : C.surface,
+                            color: active ? '#fff' : C.text,
+                            border: `1px solid ${active ? C.purple : C.border}`,
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Input de porcentaje o monto libre */}
+                  {(pagoForm.tipo_descuento === 'porcentaje' || pagoForm.tipo_descuento === 'monto') && (
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ ...label(), fontSize: 11 }}>
+                        {pagoForm.tipo_descuento === 'porcentaje' ? 'Porcentaje de descuento (%) *' : 'Monto de descuento en Guaraníes (Gs.) *'}
+                      </label>
+                      <input
+                        type="number"
+                        value={pagoForm.descuento_valor}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          let descGs = 0;
+                          if (pagoForm.tipo_descuento === 'porcentaje') {
+                            descGs = Math.round(saldoOriginal * (Math.min(100, Math.max(0, val)) / 100));
+                          } else {
+                            descGs = Math.min(saldoOriginal, Math.max(0, val));
+                          }
+                          const nuevoSaldo = Math.max(0, saldoOriginal - descGs);
+                          setPagoForm((f: any) => ({
+                            ...f,
+                            descuento_valor: e.target.value,
+                            monto: String(nuevoSaldo)
+                          }));
+                        }}
+                        style={input()}
+                        placeholder={pagoForm.tipo_descuento === 'porcentaje' ? 'Ej: 35' : 'Ej: 100000'}
+                      />
+                    </div>
+                  )}
+
+                  {/* Motivo del Descuento */}
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ ...label(), fontSize: 11 }}>Motivo / Justificación del descuento *</label>
+                    <input
+                      value={pagoForm.motivo_descuento || ''}
+                      onChange={e => setPagoForm((f: any) => ({ ...f, motivo_descuento: e.target.value }))}
+                      style={input()}
+                      placeholder="Ej: Iniciación tardía (ingreso el 16/09), Quincena, etc."
+                    />
+                  </div>
+
+                  {/* Resumen de cálculo del descuento */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: C.bg,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    marginTop: 6
+                  }}>
+                    <span style={{ color: C.muted }}>Saldo cuota: Gs. {saldoOriginal.toLocaleString('es-PY')}</span>
+                    <span style={{ color: C.purple, fontWeight: 700 }}>- Descuento: Gs. {descuentoCalculado.toLocaleString('es-PY')}</span>
+                    <span style={{ color: C.green, fontWeight: 800, fontSize: 13 }}>
+                      Neto a cobrar: Gs. {saldoConDescuento.toLocaleString('es-PY')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botones de Pago Total / Parcial */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setPagoForm((f: any) => ({ ...f, monto: String(saldoConDescuento) }))}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', background: `${C.green}20`, border: `1px solid ${C.green}66`, color: C.green
+                  }}
+                >
+                  💰 Pago Total (Gs. {saldoConDescuento.toLocaleString('es-PY')})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPagoForm((f: any) => ({ ...f, monto: '' }))}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', background: `${C.yellow}20`, border: `1px solid ${C.yellow}66`, color: C.yellow
+                  }}
+                >
+                  💵 Pago Parcial
+                </button>
+              </div>
+              <label style={label()}>Monto a pagar (Gs.) <span style={{ color: C.faint, fontWeight: 400 }}>— vacío = pago total</span></label>
               <input
-                type="checkbox"
-                checked={pagoForm.generar_factura || false}
-                onChange={e => setPagoForm((f: any) => ({ ...f, generar_factura: e.target.checked }))}
-                style={{ width: 16, height: 16, accentColor: C.yellow }}
+                type="number"
+                placeholder={`${saldoConDescuento}`}
+                value={pagoForm.monto}
+                onChange={e => setPagoForm((f: any) => ({ ...f, monto: e.target.value }))}
+                style={input()}
               />
-              📄 Emitir Factura Electrónica SIFEN para este pago
-            </label>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 4, marginLeft: 26 }}>
-              Marque esta casilla solo si el tutor o alumno solicita factura oficial para este cobro.
             </div>
-          </div>
-          <ModalActions onCancel={() => setModalPago(null)} onSave={registrarPago} saving={saving}
-            saveLabel={pagoForm.monto && parseFloat(pagoForm.monto) < (modalPago.monto_final - modalPago.monto_pagado) ? '💰 Registrar pago parcial' : '✅ Registrar pago total'} />
-        </Modal>
-      )}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Cuenta destino {cuentas.length > 0 ? '*' : <span style={{ color: C.faint, fontWeight: 400 }}>(configurá cuentas en Tesorería)</span>}</label>
+              {cuentas.length > 0 ? (
+                <select value={pagoForm.cuenta_id} onChange={e => setPagoForm((f: any) => ({ ...f, cuenta_id: e.target.value }))} style={input()}>
+                  <option value="">— Sin especificar cuenta —</option>
+                  {cuentas.map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.tipo === 'efectivo' ? '💵' : c.tipo === 'banco' ? '🏦' : '📱'} {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ ...input(), color: C.faint, display: 'flex', alignItems: 'center' }}>No hay cuentas configuradas</div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Método de pago {metodosPago.length > 0 ? '*' : <span style={{ color: C.faint, fontWeight: 400 }}>(configurá métodos en Tesorería)</span>}</label>
+              {metodosPago.length > 0 ? (
+                <select value={pagoForm.metodo_pago_id} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago_id: e.target.value, metodo_pago: '' }))} style={input()}>
+                  <option value="">— Sin especificar método —</option>
+                  {metodosPago.map((m: any) => (
+                    <option key={m.id} value={m.id}>{m.nombre}</option>
+                  ))}
+                </select>
+              ) : (
+                <select value={pagoForm.metodo_pago} onChange={e => setPagoForm((f: any) => ({ ...f, metodo_pago: e.target.value }))} style={input()}>
+                  {['Efectivo', 'Transferencia', 'Tarjeta', 'QR', 'Débito', 'Otro'].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Fecha de pago (opcional — por defecto hoy)</label>
+              <input type="date" value={pagoForm.fecha_pago} onChange={e => setPagoForm((f: any) => ({ ...f, fecha_pago: e.target.value }))} style={input()} />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Notas</label>
+              <input value={pagoForm.notas} onChange={e => setPagoForm((f: any) => ({ ...f, notas: e.target.value }))} style={input()} placeholder="Observaciones opcionales" />
+            </div>
+
+            <div style={{ marginBottom: 14, background: `${C.yellow}11`, border: `1px solid ${C.yellow}33`, padding: 10, borderRadius: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.text }}>
+                <input
+                  type="checkbox"
+                  checked={pagoForm.generar_factura || false}
+                  onChange={e => setPagoForm((f: any) => ({ ...f, generar_factura: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: C.yellow }}
+                />
+                📄 Emitir Factura Electrónica SIFEN para este pago
+              </label>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4, marginLeft: 26 }}>
+                Marque esta casilla solo si el tutor o alumno solicita factura oficial para este cobro.
+              </div>
+            </div>
+
+            <ModalActions
+              onCancel={() => setModalPago(null)}
+              onSave={registrarPago}
+              saving={saving}
+              saveLabel={
+                pagoForm.monto && parseFloat(pagoForm.monto) < saldoConDescuento
+                  ? '💰 Registrar pago parcial'
+                  : '✅ Registrar pago total'
+              }
+            />
+          </Modal>
+        );
+      })()}
 
       {/* ════ MODAL: Historial de pagos ════ */}
       {modalHistorial && (
         <Modal title={`Historial de pagos — ${modalHistorial.alumno} (${modalHistorial.periodo})`} onClose={() => setModalHistorial(null)}>
-          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontSize: 13, color: C.muted }}>
               Total: <strong style={{ color: C.text }}>Gs. {(modalHistorial.monto_final || 0).toLocaleString('es-PY')}</strong>
               {' '} · Pagado: <strong style={{ color: C.green }}>Gs. {(modalHistorial.monto_pagado || 0).toLocaleString('es-PY')}</strong>
             </div>
-            <span style={badge(estadoColor[modalHistorial.estado] || C.faint)}>{modalHistorial.estado}</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {modalHistorial.documento_electronico_id && (
+                <button
+                  onClick={() => abrirFactura && abrirFactura(modalHistorial.documento_electronico_id)}
+                  style={{ ...btn(C.primary, true), fontSize: 11, padding: '4px 10px', background: `${C.purple}22`, color: C.purple, borderColor: `${C.purple}55` }}
+                  title="Ver e Imprimir Factura Electrónica (KuDE)"
+                >
+                  <Printer size={12} /> Factura KuDE
+                </button>
+              )}
+              <span style={badge(estadoColor[modalHistorial.estado] || C.faint)}>{modalHistorial.estado}</span>
+            </div>
           </div>
           {historialPagos.length === 0 ? (
             <p style={{ color: C.faint, textAlign: 'center', padding: 24 }}>No hay pagos registrados para esta cuota.</p>
@@ -3800,13 +4828,54 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
       {/* ════ MODAL: Editar Cuota ════ */}
       {modalEditar && (
         <Modal title={`Editar Cuota — ${modalEditar.alumno} (${modalEditar.periodo})`} onClose={() => setModalEditar(null)}>
+          <div style={{ background: `${C.surface}`, border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>Presets rápidos por inicio tardío:</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const orig = Number(modalEditar.monto_original || modalEditar.monto_final || 0);
+                  const desc = Math.round(orig * 0.5);
+                  setEditarForm((f: any) => ({
+                    ...f,
+                    descuento: desc,
+                    monto_final: Math.max(0, orig - desc),
+                    motivo_descuento: 'Iniciación tardía (quincena / mitad de mes)'
+                  }));
+                }}
+                style={{ padding: '5px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: `${C.purple}20`, border: `1px solid ${C.purple}66`, color: C.purple }}
+              >
+                🌗 Quincena (-50%)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const orig = Number(modalEditar.monto_original || modalEditar.monto_final || 0);
+                  const desc = Math.round(orig * 0.75);
+                  setEditarForm((f: any) => ({
+                    ...f,
+                    descuento: desc,
+                    monto_final: Math.max(0, orig - desc),
+                    motivo_descuento: 'Iniciación tardía (última semana)'
+                  }));
+                }}
+                style={{ padding: '5px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: `${C.purple}20`, border: `1px solid ${C.purple}66`, color: C.purple }}
+              >
+                📅 Última semana (-75%)
+              </button>
+            </div>
+          </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Monto final (Gs.) *</label>
+            <label style={label()}>Monto final a cobrar (Gs.) *</label>
             <input type="number" value={editarForm.monto_final} onChange={e => setEditarForm((f: any) => ({ ...f, monto_final: e.target.value }))} style={input()} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={label()}>Descuento (Gs.)</label>
             <input type="number" value={editarForm.descuento} onChange={e => setEditarForm((f: any) => ({ ...f, descuento: e.target.value }))} style={input()} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Motivo del descuento (opcional)</label>
+            <input value={editarForm.motivo_descuento || ''} onChange={e => setEditarForm((f: any) => ({ ...f, motivo_descuento: e.target.value }))} style={input()} placeholder="Ej: Iniciación tardía, Quincena, etc." />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={label()}>Notas</label>
@@ -5310,7 +6379,7 @@ function TarifasCostosTab({ categorias = [], notify, apiFetch, isDueno, isTesore
                 <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} style={input()}>
                   <option value="">Ninguna / General</option>
                   {listCategorias.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                    <option key={c.id} value={c.id}>{c.nombre} {c.modalidad_nombre ? `[${c.modalidad_nombre}]` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -5344,13 +6413,22 @@ function TarifasCostosTab({ categorias = [], notify, apiFetch, isDueno, isTesore
 }
 
 // ═══════════════════════════════════════════════════════════
-// CATEGORÍAS TAB
+// CATEGORÍAS & MODALIDADES TAB
 // ═══════════════════════════════════════════════════════════
-function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isAdmin, fetchAll }: any) {
+function CategoriasTab({ categorias = [], sucursales = [], modalidades = [], deportes = [], notify, apiFetch, isAdmin, isDueno, fetchAll }: any) {
   const listCategorias = Array.isArray(categorias) ? categorias : [];
   const listSucursales = Array.isArray(sucursales) ? sucursales : [];
-  const [modal, setModal] = useState<any>(null);
+  const listModalidades = Array.isArray(modalidades) ? modalidades : [];
 
+  const [subTab, setSubTab] = useState<'categorias' | 'modalidades'>('categorias');
+  const [filtroModalidad, setFiltroModalidad] = useState('');
+  const [filtroSucursal, setFiltroSucursal] = useState('');
+
+  // Modales
+  const [modal, setModal] = useState<any>(null);
+  const [modalModalidad, setModalModalidad] = useState<any>(null);
+
+  // Handlers para Categorías
   const abrirNuevo = () => {
     setModal({
       nombre: '',
@@ -5359,6 +6437,7 @@ function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isA
       descripcion: '',
       color: '#3b82f6',
       sucursal_id: listSucursales[0]?.id || '',
+      modalidad_id: filtroModalidad && filtroModalidad !== 'sin_modalidad' ? filtroModalidad : '',
     });
   };
 
@@ -5398,73 +6477,315 @@ function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isA
     }
   };
 
+  // Handlers para Modalidades
+  const abrirNuevaModalidad = () => {
+    setModalModalidad({
+      nombre: '',
+      deporte: listSucursales[0]?.deporte || (deportes && deportes[0]) || '',
+      descripcion: '',
+      color: '#8b5cf6',
+    });
+  };
+
+  const guardarModalidad = async () => {
+    if (!modalModalidad.nombre || !modalModalidad.nombre.trim()) {
+      return notify('Ingresá el nombre de la modalidad', 'err');
+    }
+    try {
+      if (modalModalidad.id) {
+        await apiFetch(`/academia/modalidades/${modalModalidad.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(modalModalidad),
+        });
+        notify('Modalidad actualizada exitosamente.');
+      } else {
+        await apiFetch('/academia/modalidades', {
+          method: 'POST',
+          body: JSON.stringify(modalModalidad),
+        });
+        notify('Modalidad creada exitosamente.');
+      }
+      setModalModalidad(null);
+      fetchAll();
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+  };
+
+  const eliminarModalidad = async (id: string) => {
+    if (!confirm('¿Estás seguro de desactivar esta modalidad? Las categorías asignadas seguirán existiendo como independientes.')) return;
+    try {
+      await apiFetch(`/academia/modalidades/${id}`, { method: 'DELETE' });
+      notify('Modalidad desactivada.');
+      fetchAll();
+    } catch (e: any) {
+      notify(e.message, 'err');
+    }
+  };
+
+  const categoriasFiltradas = listCategorias.filter((cat: any) => {
+    if (filtroSucursal && cat.sucursal_id !== filtroSucursal) return false;
+    if (filtroModalidad === 'sin_modalidad') return !cat.modalidad_id;
+    if (filtroModalidad && cat.modalidad_id !== filtroModalidad) return false;
+    return true;
+  });
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      {/* Selector de Sub-Pestañas */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Categorías de la Academia</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Tag size={22} color={C.primary} /> Categorías y Modalidades
+          </h2>
           <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>
-            Gestioná los grupos, edades y categorías deportivas (ej: Cat. 2018, Sub-15, Femenino) de tu academia.
+            Gestioná las modalidades de práctica (ej: Formas o Combate en Karate, Danza o Libre en Patinaje) y sus categorías asociadas.
           </p>
         </div>
-        {isAdmin && (
-          <button onClick={abrirNuevo} style={btn(C.primary)}>
-            <Plus size={16} /> Crear Categoría
+
+        {/* Switcher de SubTabs */}
+        <div style={{ display: 'flex', background: C.surface, padding: 4, borderRadius: 10, border: `1px solid ${C.border}`, gap: 4 }}>
+          <button
+            onClick={() => setSubTab('categorias')}
+            style={{
+              padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
+              background: subTab === 'categorias' ? C.primary : 'transparent',
+              color: subTab === 'categorias' ? '#fff' : C.muted,
+              display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s'
+            }}
+          >
+            <Tag size={15} /> Categorías ({listCategorias.length})
           </button>
-        )}
+          <button
+            onClick={() => setSubTab('modalidades')}
+            style={{
+              padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
+              background: subTab === 'modalidades' ? C.purple || '#8b5cf6' : 'transparent',
+              color: subTab === 'modalidades' ? '#fff' : C.muted,
+              display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s'
+            }}
+          >
+            <Layers size={15} /> Modalidades ({listModalidades.length})
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-        {listCategorias.map((cat: any) => (
-          <div key={cat.id} style={card({ borderLeft: `6px solid ${cat.color || C.primary}` })}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <span style={badge(cat.color || C.primary)}>
-                  {cat.sucursal_nombre || 'General'}
-                </span>
-                <h3 style={{ margin: '8px 0 4px', fontSize: 18, fontWeight: 800, color: C.text }}>
-                  {cat.nombre}
-                </h3>
+      {/* ════ SUB-TAB: CATEGORÍAS ════ */}
+      {subTab === 'categorias' && (
+        <>
+          {/* Barra de Filtros y Botón Crear */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Filtro por Modalidad */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Modalidad:</span>
+                <select
+                  value={filtroModalidad}
+                  onChange={e => setFiltroModalidad(e.target.value)}
+                  style={{ ...input(), width: 'auto', minWidth: 170, fontSize: 12, padding: '6px 10px' }}
+                >
+                  <option value="">Todas las modalidades</option>
+                  {listModalidades.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      🥋 {m.nombre} {m.deporte ? `(${m.deporte})` : ''}
+                    </option>
+                  ))}
+                  <option value="sin_modalidad">— Sin modalidad asignada —</option>
+                </select>
               </div>
-              {isAdmin && (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => setModal({ ...cat })} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer' }}>
-                    <Pencil size={15} />
-                  </button>
-                  <button onClick={() => eliminar(cat.id)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer' }}>
-                    <Trash2 size={15} />
-                  </button>
+
+              {/* Filtro por Sucursal */}
+              {listSucursales.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Sede:</span>
+                  <select
+                    value={filtroSucursal}
+                    onChange={e => setFiltroSucursal(e.target.value)}
+                    style={{ ...input(), width: 'auto', minWidth: 150, fontSize: 12, padding: '6px 10px' }}
+                  >
+                    <option value="">Todas las sedes</option>
+                    {listSucursales.map((s: any) => (
+                      <option key={s.id} value={s.id}>{s.nombre}</option>
+                    ))}
+                  </select>
                 </div>
               )}
             </div>
 
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 10 }}>
-              <div>👥 <strong>Rango de edad:</strong> {cat.edad_min || 0} a {cat.edad_max || 99} años</div>
-              {cat.descripcion && <div style={{ marginTop: 6, fontStyle: 'italic', color: C.faint }}>{cat.descripcion}</div>}
-            </div>
-          </div>
-        ))}
-
-        {listCategorias.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, color: C.muted }}>
-            <Tag size={40} color={C.faint} style={{ marginBottom: 12 }} />
-            <p style={{ margin: 0, fontWeight: 600 }}>No tenés categorías creadas en tu academia.</p>
-            <p style={{ margin: '6px 0 16px', fontSize: 13, color: C.faint }}>
-              Creá tus categorías (ej: Cat. 2020/2021, Sub-15, Principiantes) para organizar los horarios de práctica y cobros.
-            </p>
             {isAdmin && (
               <button onClick={abrirNuevo} style={btn(C.primary)}>
-                <Plus size={16} /> Crear primera categoría
+                <Plus size={16} /> Crear Categoría
               </button>
             )}
           </div>
-        )}
-      </div>
 
-      {/* MODAL CREAR / EDITAR CATEGORIA */}
+          {/* Grilla de Categorías */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {categoriasFiltradas.map((cat: any) => (
+              <div key={cat.id} style={card({ borderLeft: `6px solid ${cat.color || C.primary}` })}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={badge(cat.color || C.primary)}>
+                        {cat.sucursal_nombre || 'General'}
+                      </span>
+                      {cat.modalidad_nombre && (
+                        <span style={{
+                          ...badge(cat.modalidad_color || '#8b5cf6'),
+                          background: `${cat.modalidad_color || '#8b5cf6'}20`,
+                          border: `1px solid ${cat.modalidad_color || '#8b5cf6'}55`,
+                          color: cat.modalidad_color || '#a78bfa',
+                          fontWeight: 700
+                        }}>
+                          🥋 {cat.modalidad_nombre}
+                        </span>
+                      )}
+                    </div>
+                    <h3 style={{ margin: '4px 0', fontSize: 18, fontWeight: 800, color: C.text }}>
+                      {cat.nombre}
+                    </h3>
+                  </div>
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => setModal({ ...cat })} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer' }} title="Editar categoría">
+                        <Pencil size={15} />
+                      </button>
+                      <button onClick={() => eliminar(cat.id)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer' }} title="Eliminar categoría">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 13, color: C.muted, marginTop: 10 }}>
+                  <div>👥 <strong>Rango de edad:</strong> {cat.edad_min || 0} a {cat.edad_max || 99} años</div>
+                  {cat.descripcion && <div style={{ marginTop: 6, fontStyle: 'italic', color: C.faint }}>{cat.descripcion}</div>}
+                </div>
+              </div>
+            ))}
+
+            {categoriasFiltradas.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, color: C.muted }}>
+                <Tag size={40} color={C.faint} style={{ marginBottom: 12 }} />
+                <p style={{ margin: 0, fontWeight: 600 }}>No hay categorías {filtroModalidad || filtroSucursal ? 'con los filtros seleccionados' : 'creadas en tu academia'}.</p>
+                <p style={{ margin: '6px 0 16px', fontSize: 13, color: C.faint }}>
+                  Creá tus categorías para organizar los horarios de práctica, alumnos y cobros.
+                </p>
+                {isAdmin && (
+                  <button onClick={abrirNuevo} style={btn(C.primary)}>
+                    <Plus size={16} /> Crear Categoría
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ════ SUB-TAB: MODALIDADES (CRUD) ════ */}
+      {subTab === 'modalidades' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>
+                Modalidades de la Academia ({listModalidades.length})
+              </h3>
+              <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 0' }}>
+                Creá las modalidades que correspondan a tus disciplinas (ej: Formas vs. Combate, Libre vs. Danza).
+              </p>
+            </div>
+            {isAdmin && (
+              <button onClick={abrirNuevaModalidad} style={btn(C.purple || '#8b5cf6')}>
+                <Plus size={16} /> Crear Modalidad
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+            {listModalidades.map((modItem: any) => (
+              <div key={modItem.id} style={card({ borderLeft: `6px solid ${modItem.color || '#8b5cf6'}` })}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{
+                        ...badge(modItem.color || '#8b5cf6'),
+                        background: `${modItem.color || '#8b5cf6'}22`,
+                        border: `1px solid ${modItem.color || '#8b5cf6'}55`,
+                        color: modItem.color || '#a78bfa',
+                        fontWeight: 800
+                      }}>
+                        🥋 Modalidad
+                      </span>
+                      {modItem.deporte && (
+                        <span style={badge(C.surface)}>
+                          {modItem.deporte}
+                        </span>
+                      )}
+                    </div>
+                    <h3 style={{ margin: '4px 0', fontSize: 19, fontWeight: 800, color: C.text }}>
+                      {modItem.nombre}
+                    </h3>
+                  </div>
+
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => setModalModalidad({ ...modItem })} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer' }} title="Editar modalidad">
+                        <Pencil size={15} />
+                      </button>
+                      <button onClick={() => eliminarModalidad(modItem.id)} style={{ background: 'transparent', border: 'none', color: C.red, cursor: 'pointer' }} title="Desactivar modalidad">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 13, color: C.muted, marginTop: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: C.text }}>
+                    🏷️ <strong>{modItem.total_categorias || 0}</strong> categorías asociadas
+                  </div>
+                  {modItem.descripcion && (
+                    <div style={{ marginTop: 6, fontStyle: 'italic', color: C.faint, lineHeight: 1.4 }}>
+                      {modItem.descripcion}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px solid ${C.border}33`, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => {
+                      setFiltroModalidad(modItem.id);
+                      setSubTab('categorias');
+                    }}
+                    style={{ ...btn(C.surface, true), fontSize: 11, padding: '4px 10px' }}
+                  >
+                    Ver categorías ({modItem.total_categorias || 0}) →
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {listModalidades.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, color: C.muted }}>
+                <Layers size={40} color={C.faint} style={{ marginBottom: 12 }} />
+                <p style={{ margin: 0, fontWeight: 600 }}>No tenés modalidades configuradas todavía.</p>
+                <p style={{ margin: '6px 0 16px', fontSize: 13, color: C.faint }}>
+                  Creá modalidades como "Formas" o "Combate" para Karate, "Escuela", "Danza" o "Libre" para Patinaje, etc.
+                </p>
+                {isAdmin && (
+                  <button onClick={abrirNuevaModalidad} style={btn(C.purple || '#8b5cf6')}>
+                    <Plus size={16} /> Crear primera modalidad
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ════ MODAL CREAR / EDITAR CATEGORÍA ════ */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 440, padding: 26 }}>
+          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 440, padding: 26, maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>
               {modal.id ? 'Editar Categoría' : 'Nueva Categoría'}
             </h3>
@@ -5477,6 +6798,26 @@ function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isA
                 placeholder="Ej: Categoría 2020 / 2021, Sub-15, Formativa"
                 style={input()}
               />
+            </div>
+
+            {/* Modalidad Asociada */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Modalidad Deportiva (opcional)</label>
+              <select
+                value={modal.modalidad_id || ''}
+                onChange={e => setModal({ ...modal, modalidad_id: e.target.value })}
+                style={input()}
+              >
+                <option value="">— Ninguna / General —</option>
+                {listModalidades.map((m: any) => (
+                  <option key={m.id} value={m.id}>
+                    🥋 {m.nombre} {m.deporte ? `(${m.deporte})` : ''}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                Asigná esta categoría a una modalidad (ej: Formas, Combate, Danza, Libre, etc.).
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
@@ -5538,6 +6879,65 @@ function CategoriasTab({ categorias = [], sucursales = [], notify, apiFetch, isA
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setModal(null)} style={btn(C.faint, true)}>Cancelar</button>
               <button onClick={guardar} style={btn(C.primary)}>Guardar Categoría</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════ MODAL CREAR / EDITAR MODALIDAD ════ */}
+      {modalModalidad && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: C.surface, borderRadius: 14, border: `1px solid ${C.border}`, width: 440, padding: 26, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 800 }}>
+              {modalModalidad.id ? 'Editar Modalidad Deportiva' : 'Nueva Modalidad Deportiva'}
+            </h3>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={label()}>Nombre de la Modalidad *</label>
+              <input
+                value={modalModalidad.nombre}
+                onChange={e => setModalModalidad({ ...modalModalidad, nombre: e.target.value })}
+                placeholder="Ej: Formas, Combate, Danza, Libre, Escuela, etc."
+                style={input()}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={label()}>Deporte / Disciplina (opcional)</label>
+                <input
+                  value={modalModalidad.deporte || ''}
+                  onChange={e => setModalModalidad({ ...modalModalidad, deporte: e.target.value })}
+                  placeholder="Ej: Karate, Patinaje, etc."
+                  style={input()}
+                />
+              </div>
+              <div>
+                <label style={label()}>Color Distintivo</label>
+                <input
+                  type="color"
+                  value={modalModalidad.color || '#8b5cf6'}
+                  onChange={e => setModalModalidad({ ...modalModalidad, color: e.target.value })}
+                  style={{ width: '100%', height: 42, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'transparent' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={label()}>Descripción breve (opcional)</label>
+              <input
+                value={modalModalidad.descripcion || ''}
+                onChange={e => setModalModalidad({ ...modalModalidad, descripcion: e.target.value })}
+                placeholder="Ej: Katas y técnicas tradicionales de Karate"
+                style={input()}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setModalModalidad(null)} style={btn(C.faint, true)}>Cancelar</button>
+              <button onClick={guardarModalidad} style={btn(C.purple || '#8b5cf6')}>
+                {modalModalidad.id ? 'Actualizar Modalidad' : 'Guardar Modalidad'}
+              </button>
             </div>
           </div>
         </div>
@@ -6330,7 +7730,7 @@ function ReportesTab({ perfil, sucursales = [], categorias = [], notify, apiFetc
 // ═══════════════════════════════════════════════════════════
 // FACTURACIÓN ELECTRÓNICA SIFEN / .P12 TAB
 // ═══════════════════════════════════════════════════════════
-function SifenTab({ perfil, notify, apiFetch }: any) {
+function SifenTab({ perfil, notify, apiFetch, abrirFactura }: any) {
   const [emisor, setEmisor] = useState<any>({});
   const [emisorStatus, setEmisorStatus] = useState<any>({});
   const [certPassword, setCertPassword] = useState('');
@@ -6536,6 +7936,7 @@ function SifenTab({ perfil, notify, apiFetch }: any) {
               <th style={{ padding: '10px', textAlign: 'left' }}>RECEPTOR / TUTOR</th>
               <th style={{ padding: '10px', textAlign: 'left' }}>MONTO TOTAL</th>
               <th style={{ padding: '10px', textAlign: 'center' }}>ESTADO</th>
+              <th style={{ padding: '10px', textAlign: 'right' }}>ACCIONES</th>
             </tr>
           </thead>
           <tbody>
@@ -6550,11 +7951,31 @@ function SifenTab({ perfil, notify, apiFetch }: any) {
                     {doc.estado}
                   </span>
                 </td>
+                <td style={{ padding: '10px', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => abrirFactura && abrirFactura(doc.id)}
+                      style={{ ...btn(C.primary, true), fontSize: 11, padding: '5px 10px' }}
+                      title="Imprimir Representación Gráfica KuDE"
+                    >
+                      <Printer size={12} /> KuDE
+                    </button>
+                    <a
+                      href={`${API_URL}/academia/facturacion/documentos/${doc.id}/xml`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ ...btn(C.surface, true), fontSize: 11, padding: '5px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      title="Descargar XML firmado SIFEN"
+                    >
+                      <FileText size={12} /> XML
+                    </a>
+                  </div>
+                </td>
               </tr>
             ))}
             {documentosSifen.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: C.muted }}>
+                <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: C.muted }}>
                   Aún no se han emitido facturas electrónicas en esta academia.
                 </td>
               </tr>
@@ -6570,7 +7991,57 @@ function SifenTab({ perfil, notify, apiFetch }: any) {
 // TESORERÍA — Cuentas, Métodos de Pago, Movimientos y Cierre de Caja
 // ═══════════════════════════════════════════════════════════
 function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuentas, metodosPago, setMetodosPago, fetchAll }: any) {
-  const [subTab, setSubTab] = useState<'cuentas' | 'metodos' | 'movimientos' | 'cierre'>('cuentas');
+  const [subTab, setSubTab] = useState<'compras' | 'proveedores' | 'cuentas' | 'metodos' | 'movimientos' | 'cierre'>('compras');
+
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+  // ── Estado Compras y Gastos ──
+  const [compras, setCompras] = useState<any[]>([]);
+  const [loadingCompras, setLoadingCompras] = useState(false);
+  const [resumenCompras, setResumenCompras] = useState<any>(null);
+  const [modalCompra, setModalCompra] = useState(false);
+  const [modalPagarCompra, setModalPagarCompra] = useState<any>(null);
+  const [savingCompra, setSavingCompra] = useState(false);
+  const [savingPagoCompra, setSavingPagoCompra] = useState(false);
+
+  const [filtroCompraEstado, setFiltroCompraEstado] = useState('');
+  const [filtroCompraCondicion, setFiltroCompraCondicion] = useState('');
+  const [filtroCompraCategoria, setFiltroCompraCategoria] = useState('');
+  const [filtroCompraBusqueda, setFiltroCompraBusqueda] = useState('');
+
+  const [compraForm, setCompraForm] = useState<any>({
+    proveedor_id: '',
+    proveedor_nombre: '',
+    tipo: 'gasto_operativo',
+    categoria: 'alquiler_pista',
+    concepto: '',
+    monto_total: '',
+    condicion_pago: 'contado',
+    fecha_emision: hoyStr,
+    fecha_vencimiento: '',
+    comprobante_nro: '',
+    cuenta_id: cuentas[0]?.id || '',
+    metodo_pago_id: '',
+    notas: '',
+  });
+
+  const [pagoCompraForm, setPagoCompraForm] = useState<any>({
+    monto: '',
+    cuenta_id: cuentas[0]?.id || '',
+    metodo_pago_id: '',
+    fecha: hoyStr,
+    notas: '',
+  });
+
+  // ── Estado Proveedores ──
+  const [proveedores, setProveedores] = useState<any[]>([]);
+  const [loadingProveedores, setLoadingProveedores] = useState(false);
+  const [modalProveedor, setModalProveedor] = useState<any>(null);
+  const [savingProveedor, setSavingProveedor] = useState(false);
+  const [proveedorForm, setProveedorForm] = useState<any>({
+    nombre: '', ruc_ci: '', telefono: '', email: '', categoria_frecuente: 'alquiler_pista', direccion: '', notas: ''
+  });
 
   // ── Estado Cuentas ──
   const [modalCuenta, setModalCuenta] = useState<any>(null);
@@ -6586,7 +8057,7 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
   const [movimientos, setMovimientos] = useState<any[]>([]);
   const [loadingMov, setLoadingMov] = useState(false);
   const [modalEgreso, setModalEgreso] = useState(false);
-  const [egresoForm, setEgresoForm] = useState<any>({ cuenta_id: '', metodo_pago_id: '', categoria: 'otro', concepto: '', monto: '', fecha: '', referencia: '', notas: '' });
+  const [egresoForm, setEgresoForm] = useState<any>({ cuenta_id: '', metodo_pago_id: '', categoria: 'alquiler_pista', concepto: '', monto: '', fecha: '', referencia: '', notas: '' });
   const [filtroMovCuenta, setFiltroMovCuenta] = useState('');
   const [filtroMovTipo, setFiltroMovTipo] = useState('');
   const [savingMov, setSavingMov] = useState(false);
@@ -6594,10 +8065,19 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
   // ── Estado Cierre de Caja ──
   const [cierre, setCierre] = useState<any>(null);
   const [loadingCierre, setLoadingCierre] = useState(false);
-  const hoyStr = new Date().toISOString().split('T')[0];
-  const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const [cierreFechaDesde, setCierreFechaDesde] = useState(primerDiaMes);
   const [cierreFechaHasta, setCierreFechaHasta] = useState(hoyStr);
+
+  const categoriasGastos = [
+    { value: 'alquiler_pista', label: '🏟️ Alquiler de Pistas / Instalaciones', color: '#3B82F6' },
+    { value: 'sueldos', label: '👨‍🏫 Sueldos / Pago de Profesores', color: '#10B981' },
+    { value: 'eventos_cumpleanos', label: '🎂 Eventos, Cumpleaños y Festejos', color: '#EC4899' },
+    { value: 'impuestos', label: '🏛️ Habilitaciones, Impuestos y Tasas', color: '#8B5CF6' },
+    { value: 'materiales', label: '⚽ Materiales y Equipamiento Deportivo', color: '#F59E0B' },
+    { value: 'servicios', label: '💡 Servicios Básicos (Luz, Agua, Internet)', color: '#06B6D4' },
+    { value: 'mantenimiento', label: '🛠️ Mantenimiento y Reparaciones', color: '#F97316' },
+    { value: 'otro', label: '📦 Otro Gasto Operativo', color: '#64748B' },
+  ];
 
   const tiposCuenta = [
     { value: 'efectivo', label: '💵 Efectivo (Caja)' },
@@ -6616,14 +8096,46 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
   ];
 
   const categoriasEgreso = [
-    { value: 'alquiler', label: 'Alquiler / Local' },
-    { value: 'sueldos', label: 'Sueldos / Honorarios' },
+    { value: 'alquiler_pista', label: 'Alquiler de Pistas / Local' },
+    { value: 'sueldos', label: 'Sueldos / Pago Profesores' },
+    { value: 'eventos_cumpleanos', label: 'Eventos / Cumpleaños' },
+    { value: 'impuestos', label: 'Habilitaciones / Impuestos / Tasas' },
     { value: 'materiales', label: 'Materiales / Equipamiento' },
     { value: 'servicios', label: 'Servicios (Agua, Luz, etc.)' },
-    { value: 'impuestos', label: 'Impuestos / Tasas' },
+    { value: 'mantenimiento', label: 'Mantenimiento / Reparaciones' },
     { value: 'transferencia_interna', label: 'Transferencia entre Cuentas' },
     { value: 'otro', label: 'Otro' },
   ];
+
+  const cargarCompras = async () => {
+    setLoadingCompras(true);
+    try {
+      let url = '/academia/compras-gastos?limit=150';
+      if (filtroCompraEstado) url += `&estado=${filtroCompraEstado}`;
+      if (filtroCompraCondicion) url += `&condicion_pago=${filtroCompraCondicion}`;
+      if (filtroCompraCategoria) url += `&categoria=${filtroCompraCategoria}`;
+      if (filtroCompraBusqueda) url += `&search=${encodeURIComponent(filtroCompraBusqueda)}`;
+      const data = await apiFetch(url);
+      setCompras(data || []);
+
+      const resResumen = await apiFetch('/academia/compras-gastos/resumen');
+      setResumenCompras(resResumen || null);
+    } catch (e: any) {
+      notify(e.message || 'Error al cargar compras y gastos', 'err');
+    }
+    setLoadingCompras(false);
+  };
+
+  const cargarProveedores = async () => {
+    setLoadingProveedores(true);
+    try {
+      const data = await apiFetch('/academia/proveedores?solo_activos=false');
+      setProveedores(data || []);
+    } catch (e: any) {
+      notify(e.message || 'Error al cargar proveedores', 'err');
+    }
+    setLoadingProveedores(false);
+  };
 
   const cargarMovimientos = async () => {
     setLoadingMov(true);
@@ -6646,11 +8158,143 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
     setLoadingCierre(false);
   };
 
-  // Cargar movimientos y cierre al cambiar sub-tab
+  // Cargar datos al cambiar sub-tab
   const handleSubTab = (t: typeof subTab) => {
     setSubTab(t);
+    if (t === 'compras') cargarCompras();
+    if (t === 'proveedores') cargarProveedores();
     if (t === 'movimientos') cargarMovimientos();
     if (t === 'cierre') cargarCierre();
+  };
+
+  useEffect(() => {
+    cargarCompras();
+    cargarProveedores();
+  }, []);
+
+  // ── Acciones Compras y Gastos ──
+  const guardarCompra = async () => {
+    if (!compraForm.concepto) { notify('El concepto o descripción es obligatorio', 'err'); return; }
+    if (!compraForm.monto_total || Number(compraForm.monto_total) <= 0) { notify('Ingresá un monto válido', 'err'); return; }
+    if (compraForm.condicion_pago === 'contado' && !compraForm.cuenta_id) {
+      notify('Seleccioná la cuenta de donde sale el pago', 'err');
+      return;
+    }
+    setSavingCompra(true);
+    try {
+      const body = {
+        ...compraForm,
+        monto_total: Number(compraForm.monto_total),
+        proveedor_id: compraForm.proveedor_id || undefined,
+        cuenta_id: compraForm.condicion_pago === 'contado' ? compraForm.cuenta_id : undefined,
+        metodo_pago_id: compraForm.metodo_pago_id || undefined,
+        fecha_vencimiento: compraForm.condicion_pago === 'credito' && compraForm.fecha_vencimiento ? compraForm.fecha_vencimiento : undefined,
+      };
+      await apiFetch('/academia/compras-gastos', { method: 'POST', body: JSON.stringify(body) });
+      notify('Compra / Gasto registrado con éxito');
+      setModalCompra(false);
+      setCompraForm({
+        proveedor_id: '',
+        proveedor_nombre: '',
+        tipo: 'gasto_operativo',
+        categoria: 'alquiler_pista',
+        concepto: '',
+        monto_total: '',
+        condicion_pago: 'contado',
+        fecha_emision: hoyStr,
+        fecha_vencimiento: '',
+        comprobante_nro: '',
+        cuenta_id: cuentas[0]?.id || '',
+        metodo_pago_id: '',
+        notas: '',
+      });
+      cargarCompras();
+      if (fetchAll) fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al registrar compra o gasto', 'err');
+    }
+    setSavingCompra(false);
+  };
+
+  const abrirPagarCompra = (c: any) => {
+    setModalPagarCompra(c);
+    setPagoCompraForm({
+      monto: c.saldo_pendiente,
+      cuenta_id: cuentas[0]?.id || '',
+      metodo_pago_id: '',
+      fecha: hoyStr,
+      notas: '',
+    });
+  };
+
+  const ejecutarPagoCompra = async () => {
+    if (!pagoCompraForm.cuenta_id) { notify('Seleccioná la cuenta para abonar', 'err'); return; }
+    if (!pagoCompraForm.monto || Number(pagoCompraForm.monto) <= 0) { notify('Ingresá un monto a abonar válido', 'err'); return; }
+    setSavingPagoCompra(true);
+    try {
+      const body = {
+        cuenta_id: pagoCompraForm.cuenta_id,
+        monto: Number(pagoCompraForm.monto),
+        metodo_pago_id: pagoCompraForm.metodo_pago_id || undefined,
+        fecha: pagoCompraForm.fecha || undefined,
+        notas: pagoCompraForm.notas || undefined,
+      };
+      const res = await apiFetch(`/academia/compras-gastos/${modalPagarCompra.id}/pagar`, { method: 'POST', body: JSON.stringify(body) });
+      notify(res.message || 'Pago registrado correctamente');
+      setModalPagarCompra(null);
+      cargarCompras();
+      if (fetchAll) fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al pagar factura', 'err');
+    }
+    setSavingPagoCompra(false);
+  };
+
+  const anularCompra = async (c: any) => {
+    const motivo = prompt('Motivo de anulación (opcional):');
+    if (motivo === null) return;
+    try {
+      const res = await apiFetch(`/academia/compras-gastos/${c.id}/anular`, {
+        method: 'PUT',
+        body: JSON.stringify({ motivo_anulacion: motivo }),
+      });
+      notify(res.message || 'Anulado correctamente');
+      cargarCompras();
+      if (fetchAll) fetchAll();
+    } catch (e: any) {
+      notify(e.message || 'Error al anular compra', 'err');
+    }
+  };
+
+  // ── Acciones Proveedores ──
+  const guardarProveedor = async () => {
+    if (!proveedorForm.nombre) { notify('El nombre del proveedor es obligatorio', 'err'); return; }
+    setSavingProveedor(true);
+    try {
+      if (modalProveedor?.id) {
+        await apiFetch(`/academia/proveedores/${modalProveedor.id}`, { method: 'PUT', body: JSON.stringify(proveedorForm) });
+        notify('Proveedor actualizado');
+      } else {
+        await apiFetch('/academia/proveedores', { method: 'POST', body: JSON.stringify(proveedorForm) });
+        notify('Proveedor registrado con éxito');
+      }
+      setModalProveedor(null);
+      cargarProveedores();
+    } catch (e: any) {
+      notify(e.message || 'Error al guardar proveedor', 'err');
+    }
+    setSavingProveedor(false);
+  };
+
+  const desactivarProveedor = async (id: string) => {
+    if (!confirm('¿Desactivar este proveedor?')) return;
+    try {
+      await apiFetch(`/academia/proveedores/${id}`, { method: 'DELETE' });
+      notify('Proveedor desactivado');
+      cargarProveedores();
+    } catch (e: any) {
+      notify(e.message || 'Error al desactivar proveedor', 'err');
+    }
   };
 
   // ── CRUD Cuentas ──
@@ -6752,16 +8396,18 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Tesorería / Cuentas</h1>
-        <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Administrá las cuentas, métodos de pago y el flujo de caja de tu academia</p>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Tesorería & Gastos</h1>
+        <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Gestión de compras, gastos operativos, honorarios, proveedores, cuentas y flujo de caja</p>
       </div>
 
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
+          { id: 'compras', label: '🧾 Gastos & Compras' },
+          { id: 'proveedores', label: '👥 Proveedores' },
           { id: 'cuentas', label: '🏦 Cuentas' },
           { id: 'metodos', label: '💳 Métodos de Pago' },
-          { id: 'movimientos', label: '📊 Movimientos' },
+          { id: 'movimientos', label: '📊 Libro Diario' },
           { id: 'cierre', label: '🔒 Cierre de Caja' },
         ].map(t => (
           <button key={t.id} onClick={() => handleSubTab(t.id as any)}
@@ -6770,6 +8416,728 @@ function TesoreriaTab({ notify, apiFetch, isDueno, isTesorero, cuentas, setCuent
           </button>
         ))}
       </div>
+
+      {/* ════ GASTOS Y COMPRAS ════ */}
+      {subTab === 'compras' && (
+        <div>
+          {/* Barra superior con resumen y botón crear */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ color: C.muted, fontSize: 13 }}>
+                {compras.length} registro{compras.length !== 1 ? 's' : ''} de compras y gastos
+              </div>
+            </div>
+            {(isDueno || isTesorero) && (
+              <button
+                onClick={() => {
+                  setCompraForm({
+                    proveedor_id: '',
+                    proveedor_nombre: '',
+                    tipo: 'gasto_operativo',
+                    categoria: 'alquiler_pista',
+                    concepto: '',
+                    monto_total: '',
+                    condicion_pago: 'contado',
+                    fecha_emision: hoyStr,
+                    fecha_vencimiento: '',
+                    comprobante_nro: '',
+                    cuenta_id: cuentas[0]?.id || '',
+                    metodo_pago_id: '',
+                    notas: '',
+                  });
+                  setModalCompra(true);
+                }}
+                style={btn(C.primary)}
+              >
+                <Plus size={14} /> Registrar Gasto / Compra
+              </button>
+            )}
+          </div>
+
+          {/* Tarjetas KPI de Compras y Gastos */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div style={{ ...card({ padding: 16 }), borderLeft: `4px solid ${C.primary}` }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 600 }}>Total Gastos del Mes</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>
+                Gs. {(resumenCompras?.total_gastos || 0).toLocaleString('es-PY')}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Compras y gastos del período</div>
+            </div>
+
+            <div style={{ ...card({ padding: 16 }), borderLeft: `4px solid ${C.yellow}` }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 600 }}>Cuentas por Pagar (Deudas)</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.yellow }}>
+                Gs. {(resumenCompras?.total_por_pagar || 0).toLocaleString('es-PY')}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Facturas pendientes a crédito</div>
+            </div>
+
+            <div style={{ ...card({ padding: 16 }), borderLeft: `4px solid ${(resumenCompras?.cuentas_vencidas?.cantidad || 0) > 0 ? C.red : C.faint}` }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 600 }}>Facturas Vencidas</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: (resumenCompras?.cuentas_vencidas?.cantidad || 0) > 0 ? C.red : C.text }}>
+                {(resumenCompras?.cuentas_vencidas?.cantidad || 0)} vencidas
+              </div>
+              <div style={{ fontSize: 11, color: (resumenCompras?.cuentas_vencidas?.cantidad || 0) > 0 ? C.red : C.muted, marginTop: 4, fontWeight: 600 }}>
+                Gs. {(resumenCompras?.cuentas_vencidas?.monto_total || 0).toLocaleString('es-PY')}
+              </div>
+            </div>
+
+            <div style={{ ...card({ padding: 16 }), borderLeft: `4px solid ${C.green}` }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 600 }}>Total Pagado al Contado</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.green }}>
+                Gs. {(resumenCompras?.total_pagado || 0).toLocaleString('es-PY')}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>Salidas efectivas de caja/banco</div>
+            </div>
+          </div>
+
+          {/* Filtros */}
+          <div style={{ ...card({ padding: 14 }), marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 200px' }}>
+              <Search size={15} color={C.muted} />
+              <input
+                value={filtroCompraBusqueda}
+                onChange={e => setFiltroCompraBusqueda(e.target.value)}
+                placeholder="Buscar por concepto, proveedor o comprobante..."
+                style={{ ...input(), width: '100%' }}
+              />
+            </div>
+
+            <select value={filtroCompraEstado} onChange={e => setFiltroCompraEstado(e.target.value)} style={{ ...input({ width: 160 }) }}>
+              <option value="">Todos los Estados</option>
+              <option value="pendiente">⏳ Pendiente de Pago</option>
+              <option value="parcial">⚖️ Pago Parcial</option>
+              <option value="pagado">✓ Pagado</option>
+              <option value="anulado">✕ Anulado</option>
+            </select>
+
+            <select value={filtroCompraCondicion} onChange={e => setFiltroCompraCondicion(e.target.value)} style={{ ...input({ width: 140 }) }}>
+              <option value="">Condición: Todas</option>
+              <option value="contado">💵 Contado</option>
+              <option value="credito">📑 Crédito</option>
+            </select>
+
+            <select value={filtroCompraCategoria} onChange={e => setFiltroCompraCategoria(e.target.value)} style={{ ...input({ width: 190 }) }}>
+              <option value="">Todas las Categorías</option>
+              {categoriasGastos.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+            </select>
+
+            <button onClick={cargarCompras} style={btn(C.primary, true)}>
+              <RefreshCw size={13} /> Filtrar
+            </button>
+          </div>
+
+          {/* Tabla de Compras */}
+          {loadingCompras ? (
+            <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Cargando compras y gastos...</div>
+          ) : compras.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 60, color: C.faint }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🧾</div>
+              <h3 style={{ margin: '0 0 8px', color: C.text }}>No hay gastos o compras registradas</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13 }}>Registrá tu primer gasto operativo, alquiler de pista, pago de profesor o compra de materiales</p>
+              {(isDueno || isTesorero) && (
+                <button onClick={() => setModalCompra(true)} style={btn(C.primary)}>
+                  + Registrar primer gasto
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={card({ padding: 0 })}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}`, background: `${C.surface}` }}>
+                    {['Fecha', 'Categoría', 'Concepto / Detalle', 'Proveedor', 'Condición / Vencimiento', 'Monto Total', 'Pagado / Saldo', 'Estado', 'Acciones'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '11px 12px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {compras.map((c: any) => {
+                    const catObj = categoriasGastos.find(x => x.value === c.categoria);
+                    const vencida = c.fecha_vencimiento && new Date(c.fecha_vencimiento) < new Date(hoyStr) && c.estado !== 'pagado' && c.estado !== 'anulado';
+                    return (
+                      <tr key={c.id} style={{ borderBottom: `1px solid ${C.border}22`, opacity: c.estado === 'anulado' ? 0.5 : 1 }}>
+                        <td style={{ padding: '9px 12px', color: C.muted, fontSize: 11, fontFamily: 'monospace' }}>
+                          {c.fecha_emision}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <span style={{
+                            ...badge(catObj?.color || C.primary),
+                            fontSize: 10,
+                            padding: '3px 7px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {catObj?.label || c.categoria}
+                          </span>
+                        </td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, maxWidth: 220 }}>
+                          <div>{c.concepto}</div>
+                          {c.comprobante_nro && (
+                            <div style={{ fontSize: 10, color: C.faint, marginTop: 2 }}>
+                              Comprobante: {c.comprobante_nro}
+                            </div>
+                          )}
+                          {c.cuenta_nombre && (
+                            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+                              Cuenta: {c.cuenta_nombre}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 12px', color: C.text, fontSize: 12 }}>
+                          {c.proveedor_nombre}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ ...badge(c.condicion_pago === 'contado' ? C.green : C.yellow), fontSize: 10 }}>
+                              {c.condicion_pago === 'contado' ? 'Contado' : 'Crédito'}
+                            </span>
+                          </div>
+                          {c.condicion_pago === 'credito' && c.fecha_vencimiento && (
+                            <div style={{ fontSize: 10, marginTop: 3, color: vencida ? C.red : C.muted, fontWeight: vencida ? 700 : 400 }}>
+                              Vence: {c.fecha_vencimiento} {vencida ? '⚠️' : ''}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 12px', fontWeight: 800, color: C.text }}>
+                          Gs. {c.monto_total.toLocaleString('es-PY')}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>
+                            Gs. {c.monto_pagado.toLocaleString('es-PY')}
+                          </div>
+                          {c.saldo_pendiente > 0 && (
+                            <div style={{ fontSize: 10, color: C.red, fontWeight: 700, marginTop: 2 }}>
+                              Saldo: Gs. {c.saldo_pendiente.toLocaleString('es-PY')}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          {c.estado === 'pagado' && <span style={badge(C.green)}>✓ Pagado</span>}
+                          {c.estado === 'pendiente' && <span style={badge(C.yellow)}>⏳ Pendiente</span>}
+                          {c.estado === 'parcial' && <span style={badge(C.purple)}>⚖️ Parcial</span>}
+                          {c.estado === 'anulado' && <span style={badge(C.faint)}>✕ Anulado</span>}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            {c.saldo_pendiente > 0 && c.estado !== 'anulado' && (
+                              <button
+                                onClick={() => abrirPagarCompra(c)}
+                                style={{ ...btn(C.green), fontSize: 11, padding: '4px 8px' }}
+                                title="Pagar saldo de factura"
+                              >
+                                💳 Pagar
+                              </button>
+                            )}
+                            {isDueno && c.estado !== 'anulado' && (
+                              <button
+                                onClick={() => anularCompra(c)}
+                                style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 7px' }}
+                                title="Anular compra / gasto"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal Nueva Compra / Gasto */}
+          {modalCompra && (
+            <Modal title="Registrar Compra o Gasto" onClose={() => setModalCompra(false)} wide>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <label style={label()}>Categoría del Gasto *</label>
+                  <select
+                    value={compraForm.categoria}
+                    onChange={e => setCompraForm({ ...compraForm, categoria: e.target.value })}
+                    style={input()}
+                  >
+                    {categoriasGastos.map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={label()}>Proveedor o Prestador</label>
+                  <select
+                    value={compraForm.proveedor_id}
+                    onChange={e => {
+                      const selId = e.target.value;
+                      const selProv = proveedores.find(p => p.id === selId);
+                      setCompraForm({
+                        ...compraForm,
+                        proveedor_id: selId,
+                        proveedor_nombre: selProv ? selProv.nombre : compraForm.proveedor_nombre,
+                      });
+                    }}
+                    style={input()}
+                  >
+                    <option value="">— Ninguno / Escribir libremente —</option>
+                    {proveedores.map(p => (
+                      <option key={p.id} value={p.id}>{p.nombre} {p.ruc_ci ? `(${p.ruc_ci})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {!compraForm.proveedor_id && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={label()}>Nombre del Proveedor / Prestador (opcional)</label>
+                  <input
+                    value={compraForm.proveedor_nombre}
+                    onChange={e => setCompraForm({ ...compraForm, proveedor_nombre: e.target.value })}
+                    style={input()}
+                    placeholder="Ej: Complejo Las Palmeras, Prof. Carlos Gómez, Municipalidad"
+                  />
+                </div>
+              )}
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Concepto / Descripción del Gasto *</label>
+                <input
+                  value={compraForm.concepto}
+                  onChange={e => setCompraForm({ ...compraForm, concepto: e.target.value })}
+                  style={input()}
+                  placeholder="Ej: Alquiler de pista pista central, Pago de clases Karate, Torta cumpleaños, Habilitación"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <label style={label()}>Monto Total (Gs.) *</label>
+                  <input
+                    type="number"
+                    value={compraForm.monto_total}
+                    onChange={e => setCompraForm({ ...compraForm, monto_total: e.target.value })}
+                    style={input()}
+                    placeholder="Ej: 500000"
+                  />
+                </div>
+
+                <div>
+                  <label style={label()}>Condición de Pago *</label>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setCompraForm({ ...compraForm, condicion_pago: 'contado' })}
+                      style={{
+                        flex: 1, padding: '9px 12px', borderRadius: 8,
+                        background: compraForm.condicion_pago === 'contado' ? C.green : C.surface,
+                        color: compraForm.condicion_pago === 'contado' ? '#fff' : C.muted,
+                        border: `1px solid ${compraForm.condicion_pago === 'contado' ? C.green : C.border}`,
+                        fontWeight: 700, cursor: 'pointer', fontSize: 12
+                      }}
+                    >
+                      💵 Contado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCompraForm({ ...compraForm, condicion_pago: 'credito' })}
+                      style={{
+                        flex: 1, padding: '9px 12px', borderRadius: 8,
+                        background: compraForm.condicion_pago === 'credito' ? C.yellow : C.surface,
+                        color: compraForm.condicion_pago === 'credito' ? '#fff' : C.muted,
+                        border: `1px solid ${compraForm.condicion_pago === 'credito' ? C.yellow : C.border}`,
+                        fontWeight: 700, cursor: 'pointer', fontSize: 12
+                      }}
+                    >
+                      📑 Crédito (Por pagar)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {compraForm.condicion_pago === 'contado' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14, background: `${C.green}10`, padding: 14, borderRadius: 10, border: `1px solid ${C.green}33` }}>
+                  <div>
+                    <label style={label()}>Cuenta de Salida (Caja / Banco) *</label>
+                    <select
+                      value={compraForm.cuenta_id}
+                      onChange={e => setCompraForm({ ...compraForm, cuenta_id: e.target.value })}
+                      style={input()}
+                    >
+                      <option value="">— Seleccionar cuenta —</option>
+                      {cuentas.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.tipo === 'efectivo' ? '💵' : '🏦'} {c.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={label()}>Método de Pago</label>
+                    <select
+                      value={compraForm.metodo_pago_id}
+                      onChange={e => setCompraForm({ ...compraForm, metodo_pago_id: e.target.value })}
+                      style={input()}
+                    >
+                      <option value="">— Seleccionar método —</option>
+                      {metodosPago.map((m: any) => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 14, background: `${C.yellow}10`, padding: 14, borderRadius: 10, border: `1px solid ${C.yellow}33` }}>
+                  <label style={label()}>Fecha de Vencimiento de Factura / Deuda</label>
+                  <input
+                    type="date"
+                    value={compraForm.fecha_vencimiento}
+                    onChange={e => setCompraForm({ ...compraForm, fecha_vencimiento: e.target.value })}
+                    style={input()}
+                  />
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    💡 Esta fecha te alertará en Cuentas por Pagar antes de que expire el plazo acordado con el proveedor.
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <label style={label()}>Nro. de Comprobante / Factura / Timbrado</label>
+                  <input
+                    value={compraForm.comprobante_nro}
+                    onChange={e => setCompraForm({ ...compraForm, comprobante_nro: e.target.value })}
+                    style={input()}
+                    placeholder="Ej: Fac 001-001-0001234"
+                  />
+                </div>
+
+                <div>
+                  <label style={label()}>Fecha de Emisión</label>
+                  <input
+                    type="date"
+                    value={compraForm.fecha_emision}
+                    onChange={e => setCompraForm({ ...compraForm, fecha_emision: e.target.value })}
+                    style={input()}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Notas / Observaciones</label>
+                <input
+                  value={compraForm.notas}
+                  onChange={e => setCompraForm({ ...compraForm, notas: e.target.value })}
+                  style={input()}
+                  placeholder="Detalles adicionales, modalidad de pago acordada, etc."
+                />
+              </div>
+
+              <ModalActions
+                onCancel={() => setModalCompra(false)}
+                onSave={guardarCompra}
+                saving={savingCompra}
+                saveLabel="Guardar Compra / Gasto"
+              />
+            </Modal>
+          )}
+
+          {/* Modal Pagar Compra a Crédito */}
+          {modalPagarCompra && (
+            <Modal title="Registrar Pago de Factura / Deuda" onClose={() => setModalPagarCompra(null)}>
+              <div style={{ background: `${C.primary}12`, padding: 14, borderRadius: 10, marginBottom: 16, border: `1px solid ${C.primary}33` }}>
+                <div style={{ fontSize: 12, color: C.muted }}>Gasto / Compra a abonar:</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginTop: 2 }}>
+                  {modalPagarCompra.concepto}
+                </div>
+                <div style={{ fontSize: 12, color: C.primary, marginTop: 2 }}>
+                  Proveedor: {modalPagarCompra.proveedor_nombre}
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Saldo pendiente:</span>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: C.red }}>
+                    Gs. {modalPagarCompra.saldo_pendiente.toLocaleString('es-PY')}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Monto a Abonar (Gs.) *</label>
+                <input
+                  type="number"
+                  value={pagoCompraForm.monto}
+                  onChange={e => setPagoCompraForm({ ...pagoCompraForm, monto: e.target.value })}
+                  style={input()}
+                  placeholder="Monto a pagar"
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Cuenta de Salida (Caja / Banco) *</label>
+                <select
+                  value={pagoCompraForm.cuenta_id}
+                  onChange={e => setPagoCompraForm({ ...pagoCompraForm, cuenta_id: e.target.value })}
+                  style={input()}
+                >
+                  <option value="">— Seleccionar cuenta —</option>
+                  {cuentas.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.tipo === 'efectivo' ? '💵' : '🏦'} {c.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Método de Pago</label>
+                <select
+                  value={pagoCompraForm.metodo_pago_id}
+                  onChange={e => setPagoCompraForm({ ...pagoCompraForm, metodo_pago_id: e.target.value })}
+                  style={input()}
+                >
+                  <option value="">— Seleccionar método —</option>
+                  {metodosPago.map((m: any) => (
+                    <option key={m.id} value={m.id}>{m.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Fecha de Pago</label>
+                <input
+                  type="date"
+                  value={pagoCompraForm.fecha}
+                  onChange={e => setPagoCompraForm({ ...pagoCompraForm, fecha: e.target.value })}
+                  style={input()}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Notas / Referencia de Pago</label>
+                <input
+                  value={pagoCompraForm.notas}
+                  onChange={e => setPagoCompraForm({ ...pagoCompraForm, notas: e.target.value })}
+                  style={input()}
+                  placeholder="Ej: Transferencia bancaria nro 481923"
+                />
+              </div>
+
+              <ModalActions
+                onCancel={() => setModalPagarCompra(null)}
+                onSave={ejecutarPagoCompra}
+                saving={savingPagoCompra}
+                saveLabel="Confirmar Pago"
+              />
+            </Modal>
+          )}
+        </div>
+      )}
+
+      {/* ════ PROVEEDORES ════ */}
+      {subTab === 'proveedores' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ color: C.muted, fontSize: 13 }}>
+              {proveedores.length} proveedor{proveedores.length !== 1 ? 'es' : ''} / prestadores registrados
+            </div>
+            {(isDueno || isTesorero) && (
+              <button
+                onClick={() => {
+                  setModalProveedor({});
+                  setProveedorForm({
+                    nombre: '', ruc_ci: '', telefono: '', email: '',
+                    categoria_frecuente: 'alquiler_pista', direccion: '', notas: ''
+                  });
+                }}
+                style={btn(C.green)}
+              >
+                + Nuevo Proveedor / Prestador
+              </button>
+            )}
+          </div>
+
+          {loadingProveedores ? (
+            <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Cargando directorio de proveedores...</div>
+          ) : proveedores.length === 0 ? (
+            <div style={{ ...card(), textAlign: 'center', padding: 60, color: C.faint }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
+              <h3 style={{ margin: '0 0 8px', color: C.text }}>No hay proveedores registrados</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13 }}>Registrá tus complejos de pistas, profesores externos o proveedores de insumos</p>
+              {(isDueno || isTesorero) && (
+                <button
+                  onClick={() => {
+                    setModalProveedor({});
+                    setProveedorForm({ nombre: '', ruc_ci: '', telefono: '', email: '', categoria_frecuente: 'alquiler_pista', direccion: '', notas: '' });
+                  }}
+                  style={btn(C.green)}
+                >
+                  + Crear primer proveedor
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={card({ padding: 0 })}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    {['Proveedor / Empresa', 'RUC / CI', 'Contacto', 'Rubro / Categoría', 'Deuda Pendiente', 'Compras', 'Acciones'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '11px 14px', color: C.muted, fontWeight: 600, fontSize: 11 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {proveedores.map((p: any) => {
+                    const catObj = categoriasGastos.find(x => x.value === p.categoria_frecuente);
+                    return (
+                      <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}22`, opacity: p.activo ? 1 : 0.5 }}>
+                        <td style={{ padding: '10px 14px', fontWeight: 700 }}>
+                          <div>{p.nombre}</div>
+                          {p.direccion && <div style={{ fontSize: 10, color: C.faint, marginTop: 2 }}>{p.direccion}</div>}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: C.muted, fontFamily: 'monospace', fontSize: 12 }}>
+                          {p.ruc_ci || '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                          {p.telefono && <div>📞 {p.telefono}</div>}
+                          {p.email && <div style={{ color: C.muted, fontSize: 11 }}>✉️ {p.email}</div>}
+                          {!p.telefono && !p.email && <span style={{ color: C.faint }}>—</span>}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span style={{ ...badge(catObj?.color || C.primary), fontSize: 10 }}>
+                            {catObj?.label || p.categoria_frecuente || 'General'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', fontWeight: 800, color: p.saldo_pendiente > 0 ? C.red : C.green }}>
+                          Gs. {(p.saldo_pendiente || 0).toLocaleString('es-PY')}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: C.muted, fontSize: 12 }}>
+                          {p.cant_compras || 0} facturas
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button
+                              onClick={() => {
+                                setModalProveedor(p);
+                                setProveedorForm({
+                                  nombre: p.nombre,
+                                  ruc_ci: p.ruc_ci || '',
+                                  telefono: p.telefono || '',
+                                  email: p.email || '',
+                                  categoria_frecuente: p.categoria_frecuente || 'alquiler_pista',
+                                  direccion: p.direccion || '',
+                                  notas: p.notas || '',
+                                });
+                              }}
+                              style={{ ...btn(C.yellow, true), fontSize: 11, padding: '4px 8px' }}
+                              title="Editar proveedor"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            {isDueno && (
+                              <button
+                                onClick={() => desactivarProveedor(p.id)}
+                                style={{ ...btn(C.red, true), fontSize: 11, padding: '4px 8px' }}
+                                title="Desactivar proveedor"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal Proveedor */}
+          {modalProveedor !== null && (
+            <Modal title={modalProveedor.id ? `Editar — ${modalProveedor.nombre}` : 'Nuevo Proveedor / Prestador'} onClose={() => setModalProveedor(null)}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Nombre del Proveedor o Prestador *</label>
+                <input
+                  value={proveedorForm.nombre}
+                  onChange={e => setProveedorForm({ ...proveedorForm, nombre: e.target.value })}
+                  style={input()}
+                  placeholder="Ej: Complejo Las Palmeras, Prof. Carlos Gómez, Deportes Asunción"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                <div>
+                  <label style={label()}>RUC / C.I.</label>
+                  <input
+                    value={proveedorForm.ruc_ci}
+                    onChange={e => setProveedorForm({ ...proveedorForm, ruc_ci: e.target.value })}
+                    style={input()}
+                    placeholder="Ej: 80012345-6"
+                  />
+                </div>
+                <div>
+                  <label style={label()}>Teléfono</label>
+                  <input
+                    value={proveedorForm.telefono}
+                    onChange={e => setProveedorForm({ ...proveedorForm, telefono: e.target.value })}
+                    style={input()}
+                    placeholder="Ej: 0981 123 456"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Email</label>
+                <input
+                  type="email"
+                  value={proveedorForm.email}
+                  onChange={e => setProveedorForm({ ...proveedorForm, email: e.target.value })}
+                  style={input()}
+                  placeholder="proveedor@empresa.com"
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Rubro / Categoría Habitual</label>
+                <select
+                  value={proveedorForm.categoria_frecuente}
+                  onChange={e => setProveedorForm({ ...proveedorForm, categoria_frecuente: e.target.value })}
+                  style={input()}
+                >
+                  {categoriasGastos.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Dirección</label>
+                <input
+                  value={proveedorForm.direccion}
+                  onChange={e => setProveedorForm({ ...proveedorForm, direccion: e.target.value })}
+                  style={input()}
+                  placeholder="Ubicación o dirección (opcional)"
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={label()}>Notas / Datos bancarios para transferencias</label>
+                <input
+                  value={proveedorForm.notas}
+                  onChange={e => setProveedorForm({ ...proveedorForm, notas: e.target.value })}
+                  style={input()}
+                  placeholder="Ej: Cta Cte Banco Itaú N° 1234567 a nombre de..."
+                />
+              </div>
+
+              <ModalActions
+                onCancel={() => setModalProveedor(null)}
+                onSave={guardarProveedor}
+                saving={savingProveedor}
+                saveLabel={modalProveedor.id ? 'Guardar Cambios' : 'Registrar Proveedor'}
+              />
+            </Modal>
+          )}
+        </div>
+      )}
 
       {/* ════ CUENTAS ════ */}
       {subTab === 'cuentas' && (
