@@ -288,7 +288,11 @@ def _clean_estado(val: Optional[str]) -> str:
 
 
 class MiembroRequest(BaseModel):
-    usuario_id: int
+    usuario_id: Optional[int] = None
+    email: Optional[str] = None
+    nombre_completo: Optional[str] = None
+    telefono: Optional[str] = None
+    password: Optional[str] = None
     rol: str  # 'administrador', 'tesorero', 'profesor'
     sucursal_id: Optional[str] = None  # UUID string, solo para profesores
 
@@ -919,42 +923,196 @@ async def invitar_miembro(
     current_user: dict = Depends(require_roles("dueño")),
     session: AsyncSession = Depends(get_session)
 ):
-    """Invita a un usuario del sistema como miembro del staff."""
+    """
+    Agrega o invita a un miembro al staff de la academia mediante su correo electrónico.
+    Crea o vincula la cuenta del usuario, asigna una contraseña temporal segura,
+    y envía un correo al nuevo miembro con su usuario, contraseña y enlace de acceso directo.
+    """
+    import re
+    import secrets
+    from security import get_password_hash
+    from email_service import email_service
+
     if data.rol not in ("administrador", "tesorero", "profesor"):
-        raise HTTPException(status_code=400, detail="Rol inválido. Opciones: administrador, tesorero, profesor.")
+        raise HTTPException(status_code=400, detail="Rol inválido. Opciones disponibles: administrador, tesorero, profesor.")
 
-    # Verificar que el usuario existe
-    check = await session.execute(
-        text("SELECT id FROM sistema.usuarios WHERE id = :uid AND activo = TRUE"),
-        {"uid": data.usuario_id}
-    )
-    if not check.fetchone():
-        raise HTTPException(status_code=404, detail="Usuario no encontrado o inactivo.")
-
-    # Verificar que no sea el propio dueño
+    # 1. Obtener datos de la academia y verificar que exista
     academia_res = await session.execute(
-        text("SELECT usuario_id FROM academias.academias WHERE id = :aid"),
+        text("""
+            SELECT a.id, a.usuario_id, a.nombre, u.email 
+            FROM academias.academias a 
+            LEFT JOIN sistema.usuarios u ON u.id = a.usuario_id 
+            WHERE a.id = :aid
+        """),
         {"aid": current_user["academia_id"]}
     )
-    academia = academia_res.fetchone()
-    if academia and academia[0] == data.usuario_id:
-        raise HTTPException(status_code=400, detail="El dueño no puede ser invitado como miembro.")
+    academia_row = academia_res.fetchone()
+    if not academia_row:
+        raise HTTPException(status_code=404, detail="Academia no encontrada.")
 
+    owner_uid = academia_row[1]
+    academia_nombre = academia_row[2] or "Academia Deportiva"
+    owner_email = (academia_row[3] or "").strip().lower()
+
+    # 2. Determinar si se ingresó correo o ID
+    email_clean = (data.email or "").strip().lower()
+    uid = data.usuario_id
+
+    if email_clean:
+        # Validación estricta del formato de correo
+        EMAIL_REGEX = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(EMAIL_REGEX, email_clean) or ".." in email_clean:
+            raise HTTPException(
+                status_code=400,
+                detail="El correo electrónico ingresado no tiene un formato válido (ejemplo: usuario@correo.com)."
+            )
+
+        # Control: No puede ser el dueño de la academia
+        if owner_email and email_clean == owner_email:
+            raise HTTPException(
+                status_code=400,
+                detail="El correo ingresado pertenece al dueño de la academia. El dueño ya posee el control total y no puede ser miembro de su propio equipo."
+            )
+
+        # Buscar si el usuario ya existe en sistema.usuarios
+        usr_res = await session.execute(
+            text("SELECT id, username, email, nombre_completo, activo FROM sistema.usuarios WHERE LOWER(email) = :email"),
+            {"email": email_clean}
+        )
+        user_row = usr_res.fetchone()
+
+        if user_row:
+            uid = user_row[0]
+            username = user_row[1]
+            full_name = (data.nombre_completo and data.nombre_completo.strip()) or user_row[3] or username
+
+            if uid == owner_uid:
+                raise HTTPException(status_code=400, detail="El dueño no puede ser invitado como miembro.")
+
+            # Verificar si ya es miembro activo de esta academia
+            check_mem = await session.execute(
+                text("SELECT id, rol, activo FROM academias.miembros WHERE academia_id = :aid AND usuario_id = :uid"),
+                {"aid": current_user["academia_id"], "uid": uid}
+            )
+            existing_mem = check_mem.fetchone()
+            if existing_mem and existing_mem[2]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Este correo ya pertenece a un miembro activo de la academia con el rol de {existing_mem[1]}."
+                )
+
+            # Generar o actualizar contraseña para asegurar que reciba credenciales funcionales
+            temp_password = (data.password and data.password.strip()) or f"Aca{secrets.choice('!@#$%*')}{secrets.token_hex(2).upper()}{secrets.randbelow(899)+100}"
+            await session.execute(
+                text("UPDATE sistema.usuarios SET hashed_password = :hp, activo = TRUE WHERE id = :uid"),
+                {"hp": get_password_hash(temp_password), "uid": uid}
+            )
+        else:
+            # Crear nuevo usuario en el sistema
+            base_user = re.sub(r'[^a-zA-Z0-9_.]', '', email_clean.split('@')[0])[:20]
+            if len(base_user) < 3:
+                base_user = f"miembro_{secrets.token_hex(2)}"
+            candidate_user = base_user
+            idx = 1
+            while True:
+                u_check = await session.execute(
+                    text("SELECT id FROM sistema.usuarios WHERE LOWER(username) = :u"),
+                    {"u": candidate_user.lower()}
+                )
+                if not u_check.fetchone():
+                    break
+                candidate_user = f"{base_user}_{idx}"
+                idx += 1
+
+            username = candidate_user
+            full_name = (data.nombre_completo and data.nombre_completo.strip()) or candidate_user
+            temp_password = (data.password and data.password.strip()) or f"Aca{secrets.choice('!@#$%*')}{secrets.token_hex(2).upper()}{secrets.randbelow(899)+100}"
+
+            ins_res = await session.execute(
+                text("""
+                    INSERT INTO sistema.usuarios (username, email, hashed_password, nombre_completo, telefono, rol, activo)
+                    VALUES (:u, :email, :hp, :nc, :tel, 'academia', TRUE)
+                    RETURNING id
+                """),
+                {
+                    "u": username,
+                    "email": email_clean,
+                    "hp": get_password_hash(temp_password),
+                    "nc": full_name,
+                    "tel": data.telefono or None,
+                }
+            )
+            uid = ins_res.fetchone()[0]
+
+    elif uid:
+        # Fallback por compatibilidad si se envía usuario_id
+        check = await session.execute(
+            text("SELECT id, username, email, nombre_completo FROM sistema.usuarios WHERE id = :uid AND activo = TRUE"),
+            {"uid": uid}
+        )
+        u_row = check.fetchone()
+        if not u_row:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado o inactivo.")
+        if u_row[0] == owner_uid:
+            raise HTTPException(status_code=400, detail="El dueño no puede ser invitado como miembro.")
+        username = u_row[1]
+        email_clean = u_row[2]
+        full_name = u_row[3] or username
+        temp_password = (data.password and data.password.strip()) or f"Aca{secrets.choice('!@#$%*')}{secrets.token_hex(2).upper()}{secrets.randbelow(899)+100}"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Debes ingresar el correo electrónico del miembro del equipo a invitar."
+        )
+
+    # 3. Vincular miembro a la academia
     await session.execute(text("""
-        INSERT INTO academias.miembros (academia_id, usuario_id, rol, sucursal_id)
-        VALUES (:aid, :uid, :rol, :sucursal_id)
+        INSERT INTO academias.miembros (academia_id, usuario_id, rol, sucursal_id, activo)
+        VALUES (:aid, :uid, :rol, :sucursal_id, TRUE)
         ON CONFLICT (academia_id, usuario_id) DO UPDATE SET
             rol = EXCLUDED.rol,
             sucursal_id = EXCLUDED.sucursal_id,
             activo = TRUE
     """), {
         "aid": current_user["academia_id"],
-        "uid": data.usuario_id,
+        "uid": uid,
         "rol": data.rol,
         "sucursal_id": data.sucursal_id,
     })
     await session.commit()
-    return {"message": f"Usuario invitado como {data.rol} exitosamente."}
+
+    # 4. Enviar email con credenciales de acceso
+    login_url = os.getenv("FRONTEND_URL", "https://micancha.com.py") + "/academias/login"
+    email_sent = False
+    try:
+        email_sent = email_service.send_academia_member_credentials(
+            to_email=email_clean,
+            nombre_completo=full_name,
+            username=username,
+            password=temp_password,
+            rol_miembro=data.rol,
+            academia_nombre=academia_nombre,
+            login_url=login_url
+        )
+    except Exception as e:
+        print(f"Error enviando correo de credenciales a {email_clean}: {e}")
+
+    msg = f"Miembro ({email_clean}) agregado exitosamente como {data.rol}."
+    if email_sent:
+        msg += " Se han enviado su usuario y contraseña por correo electrónico."
+    else:
+        msg += " Credenciales generadas listas en el sistema."
+
+    return {
+        "message": msg,
+        "usuario_id": uid,
+        "username": username,
+        "email": email_clean,
+        "nombre_completo": full_name,
+        "password_temporal": temp_password,
+        "email_enviado": email_sent,
+        "rol": data.rol
+    }
 
 
 @router.delete("/academia/miembros/{miembro_id}")

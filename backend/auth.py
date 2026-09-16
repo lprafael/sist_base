@@ -39,12 +39,52 @@ def generate_random_password(length: int = 12) -> str:
     characters = string.ascii_letters + string.digits + "!@#$%^&*"
     return ''.join(secrets.choice(characters) for _ in range(length))
 
+# Helpers para parseo de dispositivo y captura de IP remota real
+def parse_device_info(user_agent: Optional[str]) -> str:
+    if not user_agent:
+        return "Navegador Web"
+    ua = user_agent.lower()
+    if "iphone" in ua:
+        return "📱 iPhone"
+    if "ipad" in ua:
+        return "📱 iPad"
+    if "android" in ua:
+        return "📱 Android"
+    if "windows" in ua:
+        return "💻 Windows"
+    if "macintosh" in ua or "mac os" in ua:
+        return "💻 Mac"
+    if "linux" in ua:
+        return "💻 Linux"
+    return "🌐 Web"
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip") or request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "Desconocida"
+
 # Función para registrar logs de acceso
 async def log_access(session: AsyncSession, log_data: LogAccesoCreate):
-    """Registra un log de acceso"""
-    log = LogAcceso(**log_data.dict())
-    session.add(log)
-    await session.commit()
+    """Registra un log de acceso de forma segura"""
+    try:
+        log = LogAcceso(**log_data.dict())
+        session.add(log)
+        await session.commit()
+        await session.refresh(log)
+        return log
+    except Exception as e:
+        print(f"Error registrando log de acceso: {e}")
+        try:
+            await session.rollback()
+        except Exception:
+            pass
+        return None
 
 @router.post("/login", response_model=Token)
 async def login(
@@ -53,8 +93,13 @@ async def login(
     session: AsyncSession = Depends(get_session)
 ):
     """Inicio de sesión de usuario"""
-    # Buscar usuario por nombre de usuario o correo indistintamente
     clean_username = user_credentials.username.strip() if user_credentials.username else ""
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")
+    dispositivo = parse_device_info(user_agent)
+    origen = (getattr(user_credentials, "origen", None) or request.headers.get("x-app-origin") or "").lower()
+
+    # Buscar usuario por nombre de usuario o correo indistintamente
     result = await session.execute(
         select(Usuario).where(
             (func.lower(Usuario.username) == clean_username.lower()) | 
@@ -64,12 +109,42 @@ async def login(
     user = result.scalar_one_or_none()
     
     if not user or not verify_password(user_credentials.password, user.hashed_password):
+        accion_fallida = "Intento Fallido (Academia)" if origen == "academia" else "Intento Fallido"
+        await log_access(session, LogAccesoCreate(
+            usuario_id=user.id if user else None,
+            username=clean_username or "desconocido",
+            accion=accion_fallida,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            exitoso=False,
+            detalles={
+                "origen": origen or "web",
+                "rol": "Desconocido",
+                "dispositivo": dispositivo,
+                "motivo": "Credenciales incorrectas"
+            }
+        ))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas"
         )
     
     if not user.activo:
+        accion_fallida = "Acceso Denegado (Academia)" if origen == "academia" else "Acceso Denegado (Inactivo)"
+        await log_access(session, LogAccesoCreate(
+            usuario_id=user.id,
+            username=user.username,
+            accion=accion_fallida,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            exitoso=False,
+            detalles={
+                "origen": origen or "web",
+                "rol": user.rol or "Usuario",
+                "dispositivo": dispositivo,
+                "motivo": "Usuario inactivo"
+            }
+        ))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario inactivo"
@@ -83,15 +158,6 @@ async def login(
     access_token = create_access_token(
         data={"sub": user.username, "role": user.rol, "user_id": user.id}
     )
-    
-    # Registrar log
-    await log_access(session, LogAccesoCreate(
-        usuario_id=user.id,
-        username=user.username,
-        accion="login",
-        ip_address=request.client.host,
-        user_agent=request.headers.get("user-agent")
-    ))
     
     # Obtener información de organizador si existe registro en cancha.organizadores o rol
     tipo_torneo = None
@@ -108,23 +174,26 @@ async def login(
     elif user.rol in ["organizador", "veedor", "delegado", "admin", "super"]:
         is_organizador = True
 
-    # Obtener academia_id y rol_academia (para dueños e integrantes invitados)
+    # Obtener academia_id, rol_academia y nombre de la academia
     academia_id = None
     rol_academia = None
-    from sqlalchemy import text as sql_text
+    academia_nombre = None
     acad_result = await session.execute(
-        sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
+        sql_text("SELECT id, nombre FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
         {"uid": user.id}
     )
     acad_row = acad_result.fetchone()
     if acad_row:
         academia_id = str(acad_row[0])
+        academia_nombre = str(acad_row[1]) if acad_row[1] else None
         rol_academia = "dueño"
     else:
         mem_result = await session.execute(
             sql_text("""
-                SELECT academia_id, rol FROM academias.miembros
-                WHERE usuario_id = :uid AND activo = TRUE LIMIT 1
+                SELECT m.academia_id, m.rol, a.nombre 
+                FROM academias.miembros m
+                JOIN academias.academias a ON a.id = m.academia_id
+                WHERE m.usuario_id = :uid AND m.activo = TRUE LIMIT 1
             """),
             {"uid": user.id}
         )
@@ -132,6 +201,39 @@ async def login(
         if mem_row:
             academia_id = str(mem_row[0])
             rol_academia = mem_row[1]
+            academia_nombre = str(mem_row[2]) if mem_row[2] else None
+
+    # Determinar rol y tipo de acción para auditoría
+    es_academia = origen == "academia" or bool(academia_id) or user.rol == "academia"
+    if es_academia:
+        accion = "Login Academia Exitoso"
+        rol_display = f"Academia ({rol_academia.capitalize()})" if rol_academia else "Academia"
+    elif user.rol in ["admin", "super", "administrador", "superadmin"]:
+        accion = "Login Admin Exitoso"
+        rol_display = "Administrador"
+    elif is_organizador:
+        accion = "Login Organizador Exitoso"
+        rol_display = "Organizador"
+    else:
+        accion = "Login Exitoso"
+        rol_display = user.rol.capitalize() if user.rol else "Usuario"
+
+    # Registrar log en base de datos
+    await log_access(session, LogAccesoCreate(
+        usuario_id=user.id,
+        username=user.username,
+        accion=accion,
+        ip_address=client_ip,
+        user_agent=user_agent,
+        exitoso=True,
+        detalles={
+            "origen": "academia" if es_academia else (origen or "web"),
+            "rol": rol_display,
+            "academia_id": academia_id,
+            "academia_nombre": academia_nombre,
+            "dispositivo": dispositivo
+        }
+    ))
 
     user_response = UserResponse.from_orm(user)
     user_response.tipo_torneo = tipo_torneo
@@ -329,15 +431,12 @@ async def google_login(
             data={"sub": user.username, "role": user.rol, "user_id": user.id}
         )
         
-        # Registrar log de acceso
-        await log_access(session, LogAccesoCreate(
-            usuario_id=user.id,
-            username=user.username,
-            accion="login_google",
-            ip_address=request.client.host,
-            user_agent=request.headers.get("user-agent")
-        ))
-        
+        # Capturar datos de cliente y origen
+        client_ip = get_client_ip(request)
+        user_agent = request.headers.get("user-agent", "")
+        dispositivo = parse_device_info(user_agent)
+        origen = (getattr(login_data, "origen", None) or request.headers.get("x-app-origin") or "").lower()
+
         # Obtener información de organizador y academia
         tipo_torneo = None
         is_organizador = False
@@ -355,19 +454,23 @@ async def google_login(
 
         academia_id = None
         rol_academia = None
+        academia_nombre = None
         acad_result = await session.execute(
-            sql_text("SELECT id FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
+            sql_text("SELECT id, nombre FROM academias.academias WHERE usuario_id = :uid LIMIT 1"),
             {"uid": user.id}
         )
         acad_row = acad_result.fetchone()
         if acad_row:
             academia_id = str(acad_row[0])
+            academia_nombre = str(acad_row[1]) if acad_row[1] else None
             rol_academia = "dueño"
         else:
             mem_result = await session.execute(
                 sql_text("""
-                    SELECT academia_id, rol FROM academias.miembros
-                    WHERE usuario_id = :uid AND activo = TRUE LIMIT 1
+                    SELECT m.academia_id, m.rol, a.nombre 
+                    FROM academias.miembros m
+                    JOIN academias.academias a ON a.id = m.academia_id
+                    WHERE m.usuario_id = :uid AND m.activo = TRUE LIMIT 1
                 """),
                 {"uid": user.id}
             )
@@ -375,6 +478,39 @@ async def google_login(
             if mem_row:
                 academia_id = str(mem_row[0])
                 rol_academia = mem_row[1]
+                academia_nombre = str(mem_row[2]) if mem_row[2] else None
+
+        # Determinar rol y tipo de acción para auditoría
+        es_academia = origen == "academia" or bool(academia_id) or user.rol == "academia"
+        if es_academia:
+            accion = "Login Academia con Google Exitoso"
+            rol_display = f"Academia ({rol_academia.capitalize()})" if rol_academia else "Academia"
+        elif user.rol in ["admin", "super", "administrador", "superadmin"]:
+            accion = "Login Admin con Google Exitoso"
+            rol_display = "Administrador"
+        elif is_organizador:
+            accion = "Login Organizador con Google Exitoso"
+            rol_display = "Organizador"
+        else:
+            accion = "Login Google Exitoso"
+            rol_display = user.rol.capitalize() if user.rol else "Usuario"
+
+        # Registrar log de acceso en base de datos
+        await log_access(session, LogAccesoCreate(
+            usuario_id=user.id,
+            username=user.username,
+            accion=accion,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            exitoso=True,
+            detalles={
+                "origen": "academia" if es_academia else (origen or "google"),
+                "rol": rol_display,
+                "academia_id": academia_id,
+                "academia_nombre": academia_nombre,
+                "dispositivo": dispositivo
+            }
+        ))
 
         user_response = UserResponse.from_orm(user)
         user_response.tipo_torneo = tipo_torneo
@@ -757,14 +893,59 @@ async def get_roles():
 async def get_logs(
     current_user: dict = Depends(check_permission("manage_users")),
     session: AsyncSession = Depends(get_session),
-    limit: int = 100
+    limit: int = 150
 ):
-    """Obtener logs de acceso (solo administradores)"""
+    """Obtener logs de acceso para auditoría en tiempo real (solo administradores)"""
     result = await session.execute(
         select(LogAcceso).order_by(LogAcceso.fecha.desc()).limit(limit)
     )
     logs = result.scalars().all()
-    return [LogAccesoResponse.from_orm(log) for log in logs] 
+    
+    formatted = []
+    for log in logs:
+        detalles = log.detalles or {}
+        rol = detalles.get("rol") or "Usuario"
+        dispositivo = detalles.get("dispositivo") or parse_device_info(log.user_agent)
+        ip = log.ip_address or "Desconocida"
+        fecha_iso = log.fecha.isoformat() if log.fecha else ""
+        es_acad = (
+            "academia" in (log.accion or "").lower() or 
+            detalles.get("origen") == "academia" or 
+            bool(detalles.get("academia_id"))
+        )
+        
+        item = LogAccesoResponse(
+            id=log.id,
+            usuario_id=log.usuario_id,
+            username=log.username,
+            usuario=log.username,
+            accion=log.accion,
+            ip_address=ip,
+            ip=ip,
+            user_agent=log.user_agent,
+            fecha=log.fecha,
+            fecha_iso=fecha_iso,
+            exitoso=log.exitoso,
+            detalles=detalles,
+            rol=rol,
+            dispositivo=dispositivo,
+            academia_id=detalles.get("academia_id"),
+            academia_nombre=detalles.get("academia_nombre"),
+            es_academia=es_acad
+        )
+        formatted.append(item)
+    return formatted
+
+@router.delete("/logs")
+async def clear_logs(
+    current_user: dict = Depends(check_permission("manage_users")),
+    session: AsyncSession = Depends(get_session)
+):
+    """Limpiar logs de acceso (solo administradores)"""
+    from sqlalchemy import delete
+    await session.execute(delete(LogAcceso))
+    await session.commit()
+    return {"message": "Logs de acceso eliminados correctamente"} 
 
 @router.get("/check-username")
 async def check_username_availability(

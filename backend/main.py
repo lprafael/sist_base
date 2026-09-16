@@ -415,7 +415,51 @@ async def obtener_logs_acceso(
     
     result = await session.execute(query)
     logs = result.scalars().all()
-    return logs
+    from auth import parse_device_info
+    formatted = []
+    for log in logs:
+        detalles = log.detalles or {}
+        rol = detalles.get("rol") or "Usuario"
+        dispositivo = detalles.get("dispositivo") or parse_device_info(log.user_agent)
+        ip = log.ip_address or "Desconocida"
+        fecha_iso = log.fecha.isoformat() if log.fecha else ""
+        es_acad = (
+            "academia" in (log.accion or "").lower() or 
+            detalles.get("origen") == "academia" or 
+            bool(detalles.get("academia_id"))
+        )
+        item = LogAccesoResponse(
+            id=log.id,
+            usuario_id=log.usuario_id,
+            username=log.username,
+            usuario=log.username,
+            accion=log.accion,
+            ip_address=ip,
+            ip=ip,
+            user_agent=log.user_agent,
+            fecha=log.fecha,
+            fecha_iso=fecha_iso,
+            exitoso=log.exitoso,
+            detalles=detalles,
+            rol=rol,
+            dispositivo=dispositivo,
+            academia_id=detalles.get("academia_id"),
+            academia_nombre=detalles.get("academia_nombre"),
+            es_academia=es_acad
+        )
+        formatted.append(item)
+    return formatted
+
+@app.delete("/auditoria/accesos", summary="Limpiar logs de acceso")
+async def limpiar_logs_acceso(
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(check_permission("auditoria_read"))
+):
+    """Limpia los logs de acceso de la base de datos"""
+    from sqlalchemy import delete
+    await session.execute(delete(LogAcceso))
+    await session.commit()
+    return {"message": "Logs eliminados correctamente"}
 
 @app.get("/auditoria/sesiones", summary="Obtener sesiones de usuarios", response_model=List[SesionUsuarioResponse])
 async def obtener_sesiones_usuarios(

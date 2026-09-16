@@ -504,5 +504,104 @@ class EmailService:
         
         return self.send_email(to_email, subject, html_body, is_html=True)
 
+    def send_academia_member_credentials(
+        self,
+        to_email: str,
+        nombre_completo: str,
+        username: str,
+        password: str,
+        rol_miembro: str,
+        academia_nombre: str,
+        login_url: str
+    ) -> bool:
+        """Envía credenciales de acceso por correo a un nuevo miembro del equipo de una academia"""
+        rol_display = rol_miembro.capitalize()
+        subject = f"🎓 Bienvenido al equipo de {academia_nombre} - Tus Credenciales de Acceso"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; margin: 0;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="display: inline-block; background: #dcfce7; color: #16a34a; font-size: 28px; padding: 12px 18px; border-radius: 50%; margin-bottom: 12px;">🎓</div>
+                    <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 22px;">¡Bienvenido a {academia_nombre}!</h2>
+                    <p style="color: #64748b; font-size: 14px; margin: 0;">Has sido incorporado al equipo con el rol de <strong>{rol_display}</strong></p>
+                </div>
+
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola <strong>{nombre_completo}</strong>,</p>
+                <p style="color: #334155; font-size: 15px; line-height: 1.5;">
+                    La academia deportiva <strong>{academia_nombre}</strong> te ha habilitado como <strong>{rol_display}</strong> en la plataforma Mi Cancha. A continuación encontrarás tus credenciales para ingresar:
+                </p>
+                
+                <!-- Tarjeta de Credenciales -->
+                <div style="background-color: #f1f5f9; border-left: 4px solid #16a34a; padding: 20px; border-radius: 8px; margin: 24px 0;">
+                    <p style="margin: 0 0 12px 0; color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Tus Datos de Acceso</p>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px; width: 140px;"><strong>Academia:</strong></td>
+                            <td style="padding: 6px 0; font-size: 15px; font-weight: 700; color: #0f172a;">{academia_nombre}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Rol asignado:</strong></td>
+                            <td style="padding: 6px 0; font-size: 14px; font-weight: 700; color: #16a34a;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 4px;">{rol_display}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Usuario / Nick:</strong></td>
+                            <td style="padding: 6px 0; font-family: monospace; font-size: 15px; font-weight: 700; color: #1e40af;"><span style="background: #dbeafe; padding: 2px 8px; border-radius: 4px;">{username}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Correo electrónico:</strong></td>
+                            <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600;">{to_email}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569; font-size: 14px;"><strong>Contraseña temporal:</strong></td>
+                            <td style="padding: 6px 0; font-family: monospace; font-size: 16px; font-weight: 700; color: #0f172a;"><span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">{password}</span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Métodos de Conexión Disponibles -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 18px 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0; color: #0f172a; font-size: 14px; font-weight: bold;">
+                        🔑 ¿Cómo podés ingresar al sistema?
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">✉️</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con tu correo o usuario:</strong> Ingresando tu email <span style="font-weight: 600; color: #0f172a;">{to_email}</span> (o usuario <span style="font-family: monospace; color: #1e40af;">{username}</span>) y tu contraseña temporal.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; vertical-align: top; width: 28px; font-size: 16px;">🌐</td>
+                            <td style="padding: 6px 0; color: #334155; font-size: 13px; line-height: 1.4;">
+                                <strong>Con Google:</strong> Si tu correo es de Google/Gmail, podés hacer clic en <em>"Continuar con Google"</em> directamente.
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Botón de Acceso -->
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{login_url}" style="display: inline-block; padding: 14px 32px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);">
+                        🚀 Ingresar al Portal de Academias
+                    </a>
+                </div>
+
+                <p style="color: #64748b; font-size: 13px; line-height: 1.4;">
+                    Enlace de acceso directo:<br>
+                    <a href="{login_url}" style="color: #2563eb; font-size: 12px;">{login_url}</a>
+                </p>
+
+                <p style="color: #475569; font-size: 13px;">Por seguridad, te sugerimos cambiar tu contraseña al ingresar por primera vez en la sección de Mi Cuenta.</p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">© Mi Cancha — Sistema de Gestión Deportiva</p>
+            </div>
+        </body>
+        </html>
+        """
+        return self.send_email(to_email, subject, html_body, is_html=True)
+
 # Instancia global del servicio de email
 email_service = EmailService()

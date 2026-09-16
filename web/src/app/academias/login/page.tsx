@@ -46,8 +46,11 @@ export default function AcademiasLoginPage() {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
       const res = await fetch(`${apiBase}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-App-Origin': 'academia'
+        },
+        body: JSON.stringify({ username, password, origen: 'academia' })
       });
 
       if (res.ok) {
@@ -90,8 +93,11 @@ export default function AcademiasLoginPage() {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
       const res = await fetch(`${apiBase}/auth/google-login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: credentialResponse.credential })
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-App-Origin': 'academia'
+        },
+        body: JSON.stringify({ credential: credentialResponse.credential, origen: 'academia' })
       });
 
       if (res.ok) {

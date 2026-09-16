@@ -733,6 +733,54 @@ export default function AdminConsole() {
   // Audit Logs states
   const [accessLogs, setAccessLogs] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isFetchingAccessLogs, setIsFetchingAccessLogs] = useState(false);
+  const [autoRefreshLogs, setAutoRefreshLogs] = useState(true);
+  const [logFilterCategory, setLogFilterCategory] = useState<'todos' | 'academias' | 'fallidos'>('todos');
+
+  const fetchBackendAccessLogs = async (silent = false) => {
+    if (!silent) setIsFetchingAccessLogs(true);
+    let token = '';
+    try {
+      const sessionStr = localStorage.getItem('user_session');
+      if (sessionStr) {
+        const s = JSON.parse(sessionStr);
+        token = s.access_token || s.token || '';
+      }
+    } catch (e) {}
+
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${API_URL}/auth/logs?limit=150`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAccessLogs(data);
+          localStorage.setItem('logs_acceso', JSON.stringify(data));
+        }
+      } else {
+        const local = JSON.parse(localStorage.getItem('logs_acceso') || '[]');
+        setAccessLogs(local);
+      }
+    } catch (e) {
+      const local = JSON.parse(localStorage.getItem('logs_acceso') || '[]');
+      setAccessLogs(local);
+    } finally {
+      if (!silent) setIsFetchingAccessLogs(false);
+    }
+  };
+
+  // Real-time access logs polling (every 4 seconds) when viewing audit tab
+  useEffect(() => {
+    if (activeSuperTab === 'audit') {
+      fetchBackendAccessLogs();
+      if (!autoRefreshLogs) return;
+      const timer = setInterval(() => {
+        fetchBackendAccessLogs(true);
+      }, 4000);
+      return () => clearInterval(timer);
+    }
+  }, [activeSuperTab, autoRefreshLogs]);
 
   // Active Tenant state for Local Deportivo
   const [selectedComplejoId, setSelectedComplejoId] = useState<string>('11111111-1111-1111-1111-111111111111');
@@ -1064,11 +1112,28 @@ export default function AdminConsole() {
   };
 
   // Secure Administrative Logs Cleanup
-  const handleClearLogs = (type: 'acceso' | 'auditoria') => {
+  const handleClearLogs = async (type: 'acceso' | 'auditoria') => {
     if (confirm(`⚠️ ¿Estás seguro de vaciar el historial de logs de ${type}? Esta acción es irreversible.`)) {
       localStorage.removeItem(type === 'acceso' ? 'logs_acceso' : 'logs_auditoria');
-      if (type === 'acceso') setAccessLogs([]);
-      else setAuditLogs([]);
+      if (type === 'acceso') {
+        setAccessLogs([]);
+        try {
+          let token = '';
+          const sessionStr = localStorage.getItem('user_session');
+          if (sessionStr) {
+            const s = JSON.parse(sessionStr);
+            token = s.access_token || s.token || '';
+          }
+          if (token) {
+            await fetch(`${API_URL}/auth/logs`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+          }
+        } catch (e) {}
+      } else {
+        setAuditLogs([]);
+      }
 
       logEvent('auditoria', {
         accion: 'Limpieza de Logs',
@@ -3485,34 +3550,207 @@ export default function AdminConsole() {
 
                 {/* Access Auditing Logs */}
                 <div style={{ background: '#fff', padding: 28, borderRadius: 24, border: '1px solid rgba(0,0,0,0.05)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 900 }}>🚪 Logs de Acceso y Logueo</h3>
-                    <button onClick={() => handleClearLogs('acceso')} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Trash2 size={13} /> Limpiar Logs
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>🚪 Logs de Acceso y Logueo</h3>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: autoRefreshLogs ? '#dcfce7' : '#f1f5f9',
+                          color: autoRefreshLogs ? '#15803d' : '#64748b',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 999
+                        }}>
+                          <span style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: '50%',
+                            background: autoRefreshLogs ? '#22c55e' : '#94a3b8',
+                            boxShadow: autoRefreshLogs ? '0 0 6px #22c55e' : 'none'
+                          }} />
+                          {autoRefreshLogs ? 'En vivo (4s)' : 'Pausado'}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
+                        Auditoría remota de inicios de sesión desde cualquier celular o PC
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        onClick={() => fetchBackendAccessLogs(false)}
+                        disabled={isFetchingAccessLogs}
+                        style={{
+                          background: '#f1f5f9',
+                          border: '1px solid #e2e8f0',
+                          color: '#0f172a',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: isFetchingAccessLogs ? 'wait' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '6px 10px',
+                          borderRadius: 8
+                        }}
+                        title="Actualizar logs ahora"
+                      >
+                        <RefreshCw size={13} style={{ animation: isFetchingAccessLogs ? 'spin 1s linear infinite' : 'none' }} />
+                        {isFetchingAccessLogs ? 'Cargando...' : 'Actualizar'}
+                      </button>
+                      <button
+                        onClick={() => setAutoRefreshLogs(prev => !prev)}
+                        style={{
+                          background: autoRefreshLogs ? '#fee2e2' : '#dcfce7',
+                          border: 'none',
+                          color: autoRefreshLogs ? '#b91c1c' : '#15803d',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: '6px 10px',
+                          borderRadius: 8
+                        }}
+                        title={autoRefreshLogs ? "Pausar actualización automática" : "Reanudar actualización en vivo"}
+                      >
+                        {autoRefreshLogs ? '⏸️ Pausar' : '▶️ En vivo'}
+                      </button>
+                      <button onClick={() => handleClearLogs('acceso')} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Trash2 size={13} /> Limpiar Logs
+                      </button>
+                    </div>
                   </div>
 
+                  {/* Filter Pills */}
+                  {(() => {
+                    const countAcademias = accessLogs.filter(l => l.es_academia || l.accion?.toLowerCase().includes('academia') || l.detalles?.origen === 'academia').length;
+                    const countFallidos = accessLogs.filter(l => l.exitoso === false || l.accion?.toLowerCase().includes('fallid') || l.accion?.toLowerCase().includes('denegad')).length;
+
+                    return (
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                        <button
+                          onClick={() => setLogFilterCategory('todos')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 7,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            border: '1px solid',
+                            borderColor: logFilterCategory === 'todos' ? '#0f172a' : '#e2e8f0',
+                            background: logFilterCategory === 'todos' ? '#0f172a' : '#fff',
+                            color: logFilterCategory === 'todos' ? '#fff' : '#64748b',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Todos ({accessLogs.length})
+                        </button>
+                        <button
+                          onClick={() => setLogFilterCategory('academias')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 7,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            border: '1px solid',
+                            borderColor: logFilterCategory === 'academias' ? '#16a34a' : '#e2e8f0',
+                            background: logFilterCategory === 'academias' ? '#16a34a' : '#fff',
+                            color: logFilterCategory === 'academias' ? '#fff' : '#16a34a',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🎓 Academias ({countAcademias})
+                        </button>
+                        <button
+                          onClick={() => setLogFilterCategory('fallidos')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 7,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            border: '1px solid',
+                            borderColor: logFilterCategory === 'fallidos' ? '#dc2626' : '#e2e8f0',
+                            background: logFilterCategory === 'fallidos' ? '#dc2626' : '#fff',
+                            color: logFilterCategory === 'fallidos' ? '#fff' : '#dc2626',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ❌ Fallidos ({countFallidos})
+                        </button>
+                      </div>
+                    );
+                  })()}
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '550px', overflowY: 'auto', paddingRight: 6 }}>
-                    {accessLogs.map(log => (
-                      <div key={log.id} style={{ background: '#f8fafc', padding: 14, borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: '#0f172a' }}>
-                          <span>{log.usuario}</span>
-                          <span style={{ fontSize: 11, color: '#64748b' }}>{log.fecha}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 12 }}>
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>{log.accion}</span>
-                          <span style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>{log.rol}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, fontFamily: 'monospace' }}>
-                          IP: {log.ip} · {log.dispositivo}
-                        </div>
-                      </div>
-                    ))}
-                    {accessLogs.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
-                        No hay registros de accesos aún.
-                      </div>
-                    )}
+                    {(() => {
+                      const filtered = accessLogs.filter(log => {
+                        const isAcademia = log.es_academia || log.accion?.toLowerCase().includes('academia') || log.detalles?.origen === 'academia';
+                        const isFailed = log.exitoso === false || log.accion?.toLowerCase().includes('fallid') || log.accion?.toLowerCase().includes('denegad');
+                        if (logFilterCategory === 'academias') return isAcademia;
+                        if (logFilterCategory === 'fallidos') return isFailed;
+                        return true;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+                            {logFilterCategory === 'academias' ? 'No hay registros de logueo de academias aún.' : 'No hay registros de accesos en este filtro.'}
+                          </div>
+                        );
+                      }
+
+                      return filtered.map(log => {
+                        const isAcademia = log.es_academia || log.accion?.toLowerCase().includes('academia') || log.detalles?.origen === 'academia';
+                        const isFailed = log.exitoso === false || log.accion?.toLowerCase().includes('fallid') || log.accion?.toLowerCase().includes('denegad');
+
+                        return (
+                          <div
+                            key={log.id}
+                            style={{
+                              background: isFailed ? '#fff1f2' : (isAcademia ? '#f0fdf4' : '#f8fafc'),
+                              padding: 14,
+                              borderRadius: 12,
+                              border: `1px solid ${isFailed ? '#fecdd3' : (isAcademia ? '#bbf7d0' : '#e2e8f0')}`,
+                              fontSize: 13,
+                              boxShadow: isAcademia ? '0 1px 3px rgba(34, 197, 94, 0.08)' : 'none'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontWeight: 700, color: '#0f172a' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                                <span>{log.usuario}</span>
+                                {isAcademia && (
+                                  <span style={{ background: '#22c55e', color: '#fff', fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    🎓 Academia
+                                  </span>
+                                )}
+                                {log.academia_nombre && (
+                                  <span style={{ background: '#dcfce7', color: '#166534', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6 }}>
+                                    📍 {log.academia_nombre}
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap' }}>{log.fecha}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, fontSize: 12 }}>
+                              <span style={{ color: isFailed ? '#e11d48' : '#16a34a', fontWeight: 700 }}>
+                                {log.accion}
+                              </span>
+                              <span style={{ background: isFailed ? '#fecdd3' : '#e2e8f0', color: isFailed ? '#9f1239' : '#334155', padding: '2px 7px', borderRadius: 5, fontSize: 10, fontWeight: 700 }}>
+                                {log.rol || 'Usuario'}
+                              </span>
+                            </div>
+
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, fontFamily: 'monospace', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>IP: {log.ip || log.ip_address || 'Desconocida'}</span>
+                              <span>{log.dispositivo || 'Navegador Web'}</span>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 

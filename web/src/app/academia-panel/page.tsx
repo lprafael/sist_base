@@ -9,7 +9,8 @@ import {
   Calendar, TrendingUp, TrendingDown, DollarSign, BookOpen, BarChart3, Link as LinkIcon,
   MessageSquare, FileText, Tag, Printer, QrCode, PhoneCall, Sparkles, Search, Image as ImageIcon, ShieldCheck, Lock,
   Wallet, ArrowUpRight, ArrowDownRight, Clock, Activity, Receipt, Sun, Moon, Menu,
-  ShoppingBag, Trophy, PauseCircle, PlayCircle, FileSpreadsheet, Layers, Award, Package, Shirt, Filter, CheckCircle2
+  ShoppingBag, Trophy, PauseCircle, PlayCircle, FileSpreadsheet, Layers, Award, Package, Shirt, Filter, CheckCircle2,
+  Mail, Copy
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
@@ -4918,17 +4919,55 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
 // STAFF
 // ═══════════════════════════════════════════════════════════
 function StaffTab({ staff, sucursales, modal, setModal, notify, apiFetch, isDueno, fetchAll }: any) {
-  const [form, setForm] = useState<any>({ rol: 'profesor' });
+  const [form, setForm] = useState<any>({ rol: 'profesor', email: '', nombre_completo: '', telefono: '', sucursal_id: '' });
   const [saving, setSaving] = useState(false);
+  const [createdResult, setCreatedResult] = useState<any | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  // Validador estricto del formato de correo electrónico
+  const validateEmail = (email: string) => {
+    const re = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    const trimmed = String(email || '').trim().toLowerCase();
+    return re.test(trimmed) && !trimmed.includes('..');
+  };
+
+  const isEmailValid = validateEmail(form.email);
 
   const save = async () => {
+    const emailClean = (form.email || '').trim().toLowerCase();
+    if (!emailClean) {
+      notify('Por favor ingresá el correo electrónico del nuevo miembro.', 'err');
+      setEmailTouched(true);
+      return;
+    }
+    if (!validateEmail(emailClean)) {
+      notify('El correo electrónico no es válido. Debe tener un formato como nombre@dominio.com', 'err');
+      setEmailTouched(true);
+      return;
+    }
+
     setSaving(true);
     try {
-      await apiFetch('/academia/miembros', { method: 'POST', body: JSON.stringify(form) });
-      notify('Miembro agregado al equipo');
+      const res = await apiFetch('/academia/miembros', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: emailClean,
+          nombre_completo: form.nombre_completo?.trim() || '',
+          telefono: form.telefono?.trim() || '',
+          rol: form.rol || 'profesor',
+          sucursal_id: form.sucursal_id || null,
+        })
+      });
+      notify(res.message || 'Miembro agregado exitosamente.');
       await fetchAll();
       setModal(false);
-    } catch (e: any) { notify(e.message, 'err'); }
+      setCreatedResult(res);
+      setForm({ rol: 'profesor', email: '', nombre_completo: '', telefono: '', sucursal_id: '' });
+      setEmailTouched(false);
+    } catch (e: any) {
+      notify(e.message || 'Error al agregar miembro', 'err');
+    }
     setSaving(false);
   };
 
@@ -4950,14 +4989,36 @@ function StaffTab({ staff, sucursales, modal, setModal, notify, apiFetch, isDuen
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Mi Equipo</h1>
           <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>Administradores, tesoreros y profesores de la academia</p>
         </div>
-        {isDueno && <button onClick={() => { setForm({ rol: 'profesor' }); setModal(true); }} style={btn()}><UserPlus size={15} /> Agregar miembro</button>}
+        {isDueno && (
+          <button
+            onClick={() => {
+              setForm({ rol: 'profesor', email: '', nombre_completo: '', telefono: '', sucursal_id: '' });
+              setEmailTouched(false);
+              setModal(true);
+            }}
+            style={btn()}
+          >
+            <UserPlus size={15} /> Agregar miembro
+          </button>
+        )}
       </div>
 
       {staff.length === 0 && (
         <div style={{ ...card(), textAlign: 'center', padding: 60 }}>
           <Users size={40} color={C.faint} style={{ marginBottom: 12 }} />
           <p style={{ color: C.muted }}>Aún no hay miembros del equipo.</p>
-          {isDueno && <button onClick={() => { setForm({ rol: 'profesor' }); setModal(true); }} style={{ ...btn(), marginTop: 10 }}><UserPlus size={14} /> Invitar miembro</button>}
+          {isDueno && (
+            <button
+              onClick={() => {
+                setForm({ rol: 'profesor', email: '', nombre_completo: '', telefono: '', sucursal_id: '' });
+                setEmailTouched(false);
+                setModal(true);
+              }}
+              style={{ ...btn(), marginTop: 10 }}
+            >
+              <UserPlus size={14} /> Invitar miembro
+            </button>
+          )}
         </div>
       )}
 
@@ -4969,7 +5030,10 @@ function StaffTab({ staff, sucursales, modal, setModal, notify, apiFetch, isDuen
               {!m.activo && <span style={badge(C.faint)}>Inactivo</span>}
             </div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{m.nombre_completo || m.username}</div>
-            <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{m.email}</div>
+            <div style={{ color: C.muted, fontSize: 12, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Mail size={12} color={C.faint} /> {m.email}
+            </div>
+            <div style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>Usuario: @{m.username}</div>
             {m.sucursal_nombre && <div style={{ color: C.faint, fontSize: 12, marginTop: 4 }}>📍 {m.sucursal_nombre}</div>}
             {isDueno && m.activo && (
               <button onClick={() => revocar(m.id)} style={{ ...btn(C.red, true), marginTop: 12, fontSize: 12, padding: '6px 12px' }}>
@@ -4980,18 +5044,71 @@ function StaffTab({ staff, sucursales, modal, setModal, notify, apiFetch, isDuen
         ))}
       </div>
 
+      {/* Modal para Agregar Miembro por Correo */}
       {modal && (
         <Modal title="Agregar Miembro al Equipo" onClose={() => setModal(false)}>
-          <FormField label="ID de usuario del sistema *" value={form.usuario_id || ''} type="number"
-            onChange={v => setForm((f: any) => ({ ...f, usuario_id: Number(v) }))} placeholder="Buscá el ID en el panel admin" />
-          <div style={{ marginBottom: 14 }}>
-            <label style={label()}>Rol interno *</label>
-            <select value={form.rol} onChange={e => setForm((f: any) => ({ ...f, rol: e.target.value }))} style={input()}>
-              <option value="administrador">Administrador</option>
-              <option value="tesorero">Tesorero</option>
-              <option value="profesor">Profesor</option>
-            </select>
+          <div style={{ marginBottom: 16 }}>
+            <label style={label()}>Correo electrónico del nuevo miembro *</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="email"
+                value={form.email || ''}
+                onBlur={() => setEmailTouched(true)}
+                onChange={e => {
+                  setForm((f: any) => ({ ...f, email: e.target.value }));
+                  if (!emailTouched) setEmailTouched(true);
+                }}
+                placeholder="ej: profesor.padel@gmail.com"
+                style={{
+                  ...input(),
+                  borderColor: (emailTouched && form.email) ? (isEmailValid ? C.green : C.red) : C.border,
+                  paddingRight: 40
+                }}
+              />
+              <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15 }}>
+                {emailTouched && form.email ? (isEmailValid ? '✅' : '❌') : '✉️'}
+              </span>
+            </div>
+            {emailTouched && form.email && !isEmailValid && (
+              <p style={{ color: C.red, fontSize: 11, margin: '4px 0 0', fontWeight: 600 }}>
+                ⚠️ Formato de correo incorrecto. Verifica que no contenga espacios y tenga @ y dominio válido (ej: usuario@correo.com).
+              </p>
+            )}
+            {emailTouched && form.email && isEmailValid && (
+              <p style={{ color: C.green, fontSize: 11, margin: '4px 0 0', fontWeight: 600 }}>
+                ✓ Correo válido. A esta dirección se enviarán su usuario y contraseña automáticamente.
+              </p>
+            )}
           </div>
+
+          <FormField
+            label="Nombre y Apellido (opcional)"
+            value={form.nombre_completo || ''}
+            onChange={v => setForm((f: any) => ({ ...f, nombre_completo: v }))}
+            placeholder="ej: Prof. Carlos Gómez"
+          />
+
+          <FormField
+            label="Teléfono / WhatsApp (opcional)"
+            value={form.telefono || ''}
+            onChange={v => setForm((f: any) => ({ ...f, telefono: v }))}
+            placeholder="ej: 0981 123456"
+          />
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={label()}>Rol en la academia *</label>
+            <select value={form.rol} onChange={e => setForm((f: any) => ({ ...f, rol: e.target.value }))} style={input()}>
+              <option value="profesor">Profesor / Instructor</option>
+              <option value="administrador">Administrador</option>
+              <option value="tesorero">Tesorero / Cobranzas</option>
+            </select>
+            <p style={{ fontSize: 11, color: C.faint, margin: '4px 0 0' }}>
+              {form.rol === 'profesor' && 'Podrá tomar asistencia, ver cursos asignados y gestionar evaluaciones.'}
+              {form.rol === 'administrador' && 'Podrá gestionar alumnos, inscripciones, cursos, reportes y staff.'}
+              {form.rol === 'tesorero' && 'Podrá gestionar cuotas, cobranzas, pagos, gastos y proveedores.'}
+            </p>
+          </div>
+
           {form.rol === 'profesor' && (
             <div style={{ marginBottom: 14 }}>
               <label style={label()}>Sucursal asignada (opcional)</label>
@@ -4999,10 +5116,89 @@ function StaffTab({ staff, sucursales, modal, setModal, notify, apiFetch, isDuen
                 <option value="">Todas las sucursales</option>
                 {sucursales.map((s: any) => <option key={s.id} value={s.id}>{s.nombre} — {s.deporte}</option>)}
               </select>
-              <p style={{ fontSize: 11, color: C.faint, margin: '4px 0 0' }}>Si asignás una sucursal, el profesor solo verá los alumnos y podrá tomar asistencia en esa sede.</p>
+              <p style={{ fontSize: 11, color: C.faint, margin: '4px 0 0' }}>Si asignás una sucursal, el profesor solo verá alumnos y tomará asistencia en esa sede.</p>
             </div>
           )}
-          <ModalActions onCancel={() => setModal(false)} onSave={save} saving={saving} saveLabel="Agregar al equipo" />
+
+          <div style={{ background: `${C.primary}12`, border: `1px solid ${C.primary}33`, borderRadius: 10, padding: 12, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <Mail size={22} color={C.primary} style={{ flexShrink: 0 }} />
+            <p style={{ margin: 0, fontSize: 12, color: C.muted, lineHeight: 1.4 }}>
+              Al confirmar, el sistema creará la cuenta y le <strong>enviará automáticamente un correo electrónico con su usuario y contraseña temporal</strong> para que pueda ingresar de inmediato al panel.
+            </p>
+          </div>
+
+          <ModalActions
+            onCancel={() => setModal(false)}
+            onSave={save}
+            saving={saving}
+            saveLabel="Crear e Invitar Miembro"
+            disabled={!form.email || !isEmailValid}
+          />
+        </Modal>
+      )}
+
+      {/* Modal de confirmación con credenciales generadas */}
+      {createdResult && (
+        <Modal title="🎉 ¡Miembro Incorporado con Éxito!" onClose={() => setCreatedResult(null)}>
+          <div style={{ textAlign: 'center', padding: '10px 0 16px' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800 }}>
+              {createdResult.nombre_completo || createdResult.username}
+            </h3>
+            <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
+              Incorporado como <span style={badge(rolColor[createdResult.rol] || C.primary)}>{createdResult.rol}</span>
+            </p>
+            {createdResult.email_enviado ? (
+              <p style={{ color: '#16a34a', fontSize: 13, fontWeight: 700, marginTop: 10 }}>
+                ✉️ Se enviaron las credenciales de acceso a: <u>{createdResult.email}</u>
+              </p>
+            ) : (
+              <p style={{ color: '#d97706', fontSize: 12, marginTop: 10 }}>
+                ℹ️ Credenciales generadas listas en el sistema. Puedes compartirlas directamente:
+              </p>
+            )}
+          </div>
+
+          <div style={{ background: C.inputBg || C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px 12px', fontSize: 13, alignItems: 'center' }}>
+              <span style={{ color: C.muted, fontWeight: 600 }}>Usuario / Nick:</span>
+              <span style={{ fontWeight: 800, color: C.primary, fontFamily: 'monospace', fontSize: 14 }}>{createdResult.username}</span>
+
+              <span style={{ color: C.muted, fontWeight: 600 }}>Correo:</span>
+              <span style={{ fontWeight: 700 }}>{createdResult.email}</span>
+
+              <span style={{ color: C.muted, fontWeight: 600 }}>Contraseña:</span>
+              <span style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: 14, background: '#fef3c7', color: '#92400e', padding: '3px 8px', borderRadius: 6, display: 'inline-block', width: 'fit-content' }}>
+                {createdResult.password_temporal}
+              </span>
+
+              <span style={{ color: C.muted, fontWeight: 600 }}>Portal de acceso:</span>
+              <a href="https://micancha.com.py/academias/login" target="_blank" rel="noreferrer" style={{ color: C.primary, fontSize: 12, textDecoration: 'underline' }}>
+                micancha.com.py/academias/login
+              </a>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+            <button
+              onClick={() => {
+                const textToCopy = `¡Hola! Has sido incorporado al equipo de la academia en Mi Cancha como ${createdResult.rol}.\n\nTus credenciales de acceso:\n👤 Usuario: ${createdResult.username}\n✉️ Correo: ${createdResult.email}\n🔑 Contraseña temporal: ${createdResult.password_temporal}\n\n🚀 Ingresá desde aquí:\nhttps://micancha.com.py/academias/login`;
+                navigator.clipboard.writeText(textToCopy);
+                setCopied(true);
+                notify('Credenciales copiadas al portapapeles para enviar por WhatsApp');
+                setTimeout(() => setCopied(false), 2500);
+              }}
+              style={{ ...btn(C.green), display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Copy size={15} />
+              {copied ? '¡Copiado!' : 'Copiar para WhatsApp'}
+            </button>
+            <button onClick={() => setCreatedResult(null)} style={btn(C.faint, true)}>
+              Cerrar
+            </button>
+          </div>
         </Modal>
       )}
     </div>
@@ -5124,11 +5320,11 @@ function FormField({ label: lbl, value, onChange, placeholder = '', type = 'text
   );
 }
 
-function ModalActions({ onCancel, onSave, saving, saveLabel = 'Guardar' }: any) {
+function ModalActions({ onCancel, onSave, saving, saveLabel = 'Guardar', disabled = false }: any) {
   return (
     <div className="academia-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
       <button onClick={onCancel} style={btn(C.faint, true)}>Cancelar</button>
-      <button onClick={onSave} disabled={saving} style={btn()}>
+      <button onClick={onSave} disabled={saving || disabled} style={{ ...btn(), opacity: (saving || disabled) ? 0.6 : 1, cursor: (saving || disabled) ? 'not-allowed' : 'pointer' }}>
         {saving ? 'Guardando...' : saveLabel}
       </button>
     </div>

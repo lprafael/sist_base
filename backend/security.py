@@ -131,6 +131,10 @@ ROLES = {
         "description": "Super Administrador",
         "permissions": ADMIN_PERMISSIONS
     },
+    "super": {
+        "description": "Super Administrador",
+        "permissions": ADMIN_PERMISSIONS
+    },
     "dueno": {
         "description": "Dueño de entidad",
         "permissions": ADMIN_PERMISSIONS
@@ -176,7 +180,7 @@ def check_permission(required_permission: str):
         user_permissions = ROLES.get(role, {}).get("permissions", [])
         
         # Permitir acceso si tiene el permiso explícito o es rol administrativo principal
-        if required_permission in user_permissions or role in ["admin", "administrador", "superadmin", "dueno", "dueño"]:
+        if required_permission in user_permissions or role in ["admin", "administrador", "superadmin", "super", "dueno", "dueño"]:
             return current_user
 
         print(f"DEBUG: Permission denied for '{required_permission}' and role '{role}'")
