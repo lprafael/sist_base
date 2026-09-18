@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const VoterRegistration = () => {
+const VoterRegistration = ({ user, currentEleccionId }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [myVoters, setMyVoters] = useState([]);
@@ -90,6 +90,10 @@ const VoterRegistration = () => {
         setLoading(true);
         try {
             let url = `/electoral/padron/search?query=${searchQuery}`;
+            const effectiveElec = currentEleccionId || currentUser?.eleccion_id;
+            if (effectiveElec) {
+                url += `&eleccion_id=${effectiveElec}`;
+            }
             if (isRestricted) {
                 if (currentUser.departamento_id) url += `&departamento_id=${currentUser.departamento_id}`;
                 if (currentUser.distrito_id) url += `&distrito_id=${currentUser.distrito_id}`;
@@ -279,8 +283,10 @@ const VoterRegistration = () => {
             const method = editingVoter ? 'PUT' : 'POST';
             const url = editingVoter ? `/electoral/votante/${editingVoter.id}` : '/electoral/captacion';
 
+            const effectiveElec = currentEleccionId || currentUser?.eleccion_id;
             const payload = {
                 cedula_votante: selectedPerson.cedula,
+                eleccion_id: effectiveElec || null,
                 ...formData
             };
 

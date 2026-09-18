@@ -25,8 +25,8 @@ import FinanciamientoPolitico from "./components/FinanciamientoPolitico.jsx";
 import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
 import ChoferScanner from "./components/ChoferScanner.jsx";
 import EleccionesManagement from "./components/EleccionesManagement.jsx";
-import PadronImport from "./components/PadronImport.jsx";
 import MensajeriaDashboard from "./components/MensajeriaDashboard.jsx";
+import { authFetch } from "./utils/authFetch";
 
 // Helper global para identificar el rol de forma robusta
 const getSafeRole = (user) => {
@@ -264,7 +264,16 @@ function MobileBottomNav({ tab, setTab, user, menuGroups, onLogout }) {
   );
 }
 
-function CabeceradePagina({ user, onLogout, onChangePassword, onToggleSidebar, isSidebarCollapsed }) {
+function CabeceradePagina({ 
+  user, 
+  onLogout, 
+  onChangePassword, 
+  onToggleSidebar, 
+  isSidebarCollapsed,
+  elecciones = [],
+  currentEleccionId,
+  onChangeEleccion
+}) {
   return (
     <header className="main-header">
       <div className="header-title">
@@ -280,6 +289,34 @@ function CabeceradePagina({ user, onLogout, onChangePassword, onToggleSidebar, i
         <h1>SIGEL - Gestión Electoral</h1>
       </div>
       <div className="header-user-info">
+        {user && elecciones && elecciones.length > 0 && (
+          <div className="election-selector-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.15)', padding: '5px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.25)' }}>
+            <span style={{ fontSize: '1rem' }}>🗳️</span>
+            <label style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 600 }}>Elección:</label>
+            <select
+              value={currentEleccionId || ''}
+              onChange={(e) => onChangeEleccion && onChangeEleccion(Number(e.target.value))}
+              style={{
+                background: '#0f172a',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.35)',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+              title="Elección activa en el sistema"
+            >
+              {elecciones.map((el) => (
+                <option key={el.id} value={el.id} style={{ color: '#0f172a', background: '#fff' }}>
+                  {el.nombre} {el.activo ? '' : '(Inactiva)'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {user && (
           <div className="user-details">
             <div className="user-name">{user.nombre_completo}</div>
@@ -320,6 +357,40 @@ function MainDashboard({ user, onLogout }) {
   const [tab, setTab] = useState("captacion");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [elecciones, setElecciones] = useState([]);
+  const [currentEleccionId, setCurrentEleccionId] = useState(() => {
+    const saved = localStorage.getItem('sigel_selected_eleccion_id');
+    return saved ? Number(saved) : (user?.eleccion_id || null);
+  });
+
+  useEffect(() => {
+    const fetchElecciones = async () => {
+      try {
+        const res = await authFetch('/api/electoral/elecciones');
+        if (res.ok) {
+          const list = await res.json();
+          setElecciones(list);
+          if (list.length > 0) {
+            const exists = list.some(e => e.id === currentEleccionId);
+            if (!exists) {
+              const userElec = list.find(e => e.id === user?.eleccion_id);
+              const defaultElec = userElec || list.find(e => e.activo) || list[0];
+              setCurrentEleccionId(defaultElec.id);
+              localStorage.setItem('sigel_selected_eleccion_id', String(defaultElec.id));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error al cargar elecciones:', err);
+      }
+    };
+    fetchElecciones();
+  }, [user]);
+
+  const handleEleccionChange = (newElecId) => {
+    setCurrentEleccionId(newElecId);
+    localStorage.setItem('sigel_selected_eleccion_id', String(newElecId));
+  };
   // Inicializar todas las categorías como colapsadas
   const [collapsedCategories, setCollapsedCategories] = useState({
     "Administración": true,
@@ -388,6 +459,9 @@ function MainDashboard({ user, onLogout }) {
         onChangePassword={() => setShowPasswordModal(true)}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         isSidebarCollapsed={sidebarCollapsed}
+        elecciones={elecciones}
+        currentEleccionId={currentEleccionId}
+        onChangeEleccion={handleEleccionChange}
       />
 
       {showPasswordModal && <PasswordChangeModal onClose={() => setShowPasswordModal(false)} />}
@@ -431,7 +505,14 @@ function MainDashboard({ user, onLogout }) {
             })}
           </nav>
 
-          <div style={{ marginTop: 'auto', padding: '0 12px', marginBottom: '12px' }}>
+          <div style={{ marginTop: 'auto', padding: '0 12px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <button
+              className="sidebar-tab"
+              onClick={() => window.open('/GUIA_FUNCIONALIDADES_SIGEL.html', '_blank')}
+            >
+              <span className="icon">📖</span>
+              {!sidebarCollapsed && <span className="label">Guía Funcionalidades</span>}
+            </button>
             <button
               className="sidebar-tab"
               onClick={() => window.open('/ficha_tecnica_sistema.html', '_blank')}
@@ -449,12 +530,12 @@ function MainDashboard({ user, onLogout }) {
             {tab === "backup" && user.rol === 'admin' && <BackupSystem />}
             {tab === "elecciones" && user.rol === 'admin' && <EleccionesManagement user={user} />}
             {tab === "import_padron" && user.rol === 'admin' && <PadronImport user={user} />}
-            {tab === "captacion" && ['admin', 'candidato_principal', 'equipo_electoral', 'referente'].includes(user.rol) && <VoterRegistration user={user} />}
-            {tab === "tablero" && ['admin', 'candidato_principal', 'equipo_electoral', 'referente'].includes(user.rol) && <CandidateDashboard user={user} />}
+            {tab === "captacion" && ['admin', 'candidato_principal', 'equipo_electoral', 'referente'].includes(user.rol) && <VoterRegistration user={user} currentEleccionId={currentEleccionId} />}
+            {tab === "tablero" && ['admin', 'candidato_principal', 'equipo_electoral', 'referente'].includes(user.rol) && <CandidateDashboard user={user} currentEleccionId={currentEleccionId} />}
             {tab === "actividades" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <ActivitiesManagement user={user} />}
-            {tab === "geografia" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <GeoDashboard user={user} />}
+            {tab === "geografia" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <GeoDashboard user={user} currentEleccionId={currentEleccionId} />}
             {tab === "analisis_historico" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <HistoricalAnalysis user={user} />}
-            {tab === "padron_impresion" && ['admin', 'candidato_principal', 'equipo_electoral', 'referente'].includes(user.rol) && <PadronImpresion user={user} />}
+            {tab === "padron_impresion" && ['admin', 'candidato_principal', 'equipo_electoral', 'referente'].includes(user.rol) && <PadronImpresion user={user} currentEleccionId={currentEleccionId} />}
             {tab === "logistica" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <LogisticaControlPanel user={user} />}
             {tab === "choferes" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <ChoferGestion user={user} />}
             {tab === "veedores" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <VeedorGestion user={user} />}
@@ -462,8 +543,8 @@ function MainDashboard({ user, onLogout }) {
             {tab === "padron_plra" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <PlraPadronConsult />}
             {tab === "inteligencia_territorial" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <InteligenciaTerritorial user={user} />}
             {tab === "financiamiento" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <FinanciamientoPolitico user={user} />}
-            {tab === "escrutinio_dia_d" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <EscrutinioDiaD user={user} />}
-            {tab === "mensajeria" && ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'].includes(user.rol) && <MensajeriaDashboard user={user} />}
+            {tab === "escrutinio_dia_d" && ['admin', 'candidato_principal', 'equipo_electoral'].includes(user.rol) && <EscrutinioDiaD user={user} currentEleccionId={currentEleccionId} />}
+            {tab === "mensajeria" && ['admin', 'candidato_principal', 'intendente', 'equipo_electoral', 'concejal'].includes(user.rol) && <MensajeriaDashboard user={user} currentEleccionId={currentEleccionId} />}
           </div>
         </main>
       </div>

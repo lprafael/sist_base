@@ -69,3 +69,18 @@ dev_output.txt
 scratch/
 *scratch*
 *diag.html
+
+# Padrón raw data and DBF binaries
+[Pp]adron/
+[Pp]adron/**
+*.dbf
+*.DBF
+*.cdx
+*.CDX
+*.fpt
+*.FPT
+*.dll
+*.DLL
+*.exe
+
+

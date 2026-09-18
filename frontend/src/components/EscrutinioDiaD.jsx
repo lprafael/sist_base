@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./EscrutinioDiaD.css";
 
-const EscrutinioDiaD = ({ user }) => {
+const EscrutinioDiaD = ({ user, currentEleccionId }) => {
     const [candidatoInfo, setCandidatoInfo] = useState({ id: null, nombre: "" });
     const [comparativo, setComparativo] = useState([]);
     const [locales, setLocales] = useState([]);
     const [mesasDisponibles, setMesasDisponibles] = useState([]);
+    const effectiveEleccionId = currentEleccionId || user?.eleccion_id;
     
     // Filtros de Territorio
     const [territorio, setTerritorio] = useState({
@@ -113,7 +114,10 @@ const EscrutinioDiaD = ({ user }) => {
     const fetchComparativo = async (cId) => {
         if (!cId) return;
         try {
-            const resComp = await axios.get(`${API_URL}/dia-d/comparativo/${cId}`, { headers });
+            const url = effectiveEleccionId 
+                ? `${API_URL}/dia-d/comparativo/${cId}?eleccion_id=${effectiveEleccionId}`
+                : `${API_URL}/dia-d/comparativo/${cId}`;
+            const resComp = await axios.get(url, { headers });
             setComparativo(Array.isArray(resComp.data) ? resComp.data : []);
         } catch (err) {
             console.error("Error al cargar comparativo", err);
@@ -171,6 +175,7 @@ const EscrutinioDiaD = ({ user }) => {
                 local_id: loc,
                 nro_mesa: parseInt(formData.nro_mesa),
                 id_candidato: targetCandId,
+                eleccion_id: effectiveEleccionId || null,
                 votos_obtenidos: parseInt(formData.votos_obtenidos),
                 votos_blancos: parseInt(formData.votos_blancos),
                 votos_nulos: parseInt(formData.votos_nulos),

@@ -377,6 +377,7 @@ class Candidato(Base):
     logo_url = Column(Text)
     activo = Column(Boolean, default=True)
     fecha_registro = Column(DateTime, default=func.now())
+    eleccion_id = Column(Integer, ForeignKey('electoral.elecciones.id'), nullable=True)
 
 class Referente(Base):
     __tablename__ = "referentes"
@@ -671,6 +672,7 @@ class ResultadoMesa(Base):
     auditado = Column(Boolean, default=False)
     creado_por = Column(Integer, ForeignKey('sistema.usuarios.id'))
     fecha_registro = Column(DateTime, default=func.now())
+    eleccion_id = Column(Integer, ForeignKey('electoral.elecciones.id'), nullable=True)
 
 # ===== SISTEMA DE MENSAJERÍA ELECTORAL =====
 

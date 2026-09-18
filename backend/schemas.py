@@ -604,6 +604,7 @@ class ResultadoMesaBase(BaseModel):
     local_id: int
     nro_mesa: int
     id_candidato: int
+    eleccion_id: Optional[int] = None
     votos_obtenidos: int = 0
     votos_blancos: int = 0
     votos_nulos: int = 0

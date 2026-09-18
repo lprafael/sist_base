@@ -18,17 +18,21 @@ async def registrar_resultado(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    # Verificar si ya existe un resultado para esa mesa y candidato
-    stmt = select(ResultadoMesa).where(
-        and_(
-            ResultadoMesa.departamento_id == data.departamento_id,
-            ResultadoMesa.distrito_id == data.distrito_id,
-            ResultadoMesa.seccional_id == data.seccional_id,
-            ResultadoMesa.local_id == data.local_id,
-            ResultadoMesa.nro_mesa == data.nro_mesa,
-            ResultadoMesa.id_candidato == data.id_candidato
-        )
-    )
+    eleccion_id = data.eleccion_id or current_user.get("eleccion_id")
+
+    # Verificar si ya existe un resultado para esa mesa y candidato en esta eleccion
+    conditions = [
+        ResultadoMesa.departamento_id == data.departamento_id,
+        ResultadoMesa.distrito_id == data.distrito_id,
+        ResultadoMesa.seccional_id == data.seccional_id,
+        ResultadoMesa.local_id == data.local_id,
+        ResultadoMesa.nro_mesa == data.nro_mesa,
+        ResultadoMesa.id_candidato == data.id_candidato
+    ]
+    if eleccion_id:
+        conditions.append(ResultadoMesa.eleccion_id == eleccion_id)
+
+    stmt = select(ResultadoMesa).where(and_(*conditions))
     res = await session.execute(stmt)
     existente = res.scalar_one_or_none()
     
@@ -36,12 +40,17 @@ async def registrar_resultado(
         # Actualizar existente
         for key, value in data.dict().items():
             setattr(existente, key, value)
+        if eleccion_id and not existente.eleccion_id:
+            existente.eleccion_id = eleccion_id
         await session.commit()
         await session.refresh(existente)
         return existente
 
+    payload = data.dict()
+    if eleccion_id:
+        payload["eleccion_id"] = eleccion_id
     nuevo = ResultadoMesa(
-        **data.dict(),
+        **payload,
         creado_por=current_user["user_id"]
     )
     session.add(nuevo)
@@ -52,20 +61,26 @@ async def registrar_resultado(
 @router.get("/comparativo/{candidato_id}", response_model=List[ResumenMesaComparativo])
 async def get_comparativo_resultados(
     candidato_id: int,
+    eleccion_id: Optional[int] = None,
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Compara votos reales vs simpatizantes esperados por mesa.
+    Compara votos reales vs simpatizantes esperados por mesa filtrando por eleccion.
     """
+    elec_id = eleccion_id or current_user.get("eleccion_id")
+    if not elec_id:
+        # Fallback a la primera eleccion activa
+        res_e = await session.execute(text("SELECT id FROM electoral.elecciones WHERE activo = true ORDER BY id LIMIT 1;"))
+        elec_id = res_e.scalar() or 1
     
-    # 1. Obtener simpatizantes esperados por mesa
+    # 1. Obtener simpatizantes esperados por mesa en la eleccion indicada
     query_symp = text("""
         SELECT pa.departamento_id as departamento, pa.distrito_id as distrito, pa.seccional_id as seccional, pa.local_id as local, pa.mesa, 
-               l.descripcion as nombre_local, COUNT(pv.id) as simpatizantes
+               l.descripcion as nombre_local, COUNT(DISTINCT pv.id) as simpatizantes
         FROM electoral.posibles_votantes pv
         JOIN electoral.personas p ON pv.cedula_votante = p.cedula
-        JOIN electoral.padrones pa ON p.cedula = pa.cedula
+        JOIN electoral.padrones pa ON p.cedula = pa.cedula AND pa.eleccion_id = :elec_id
         JOIN electoral.ref_locales l ON pa.local_id = l.local_id 
              AND pa.departamento_id = l.departamento_id 
              AND pa.distrito_id = l.distrito_id
@@ -73,11 +88,13 @@ async def get_comparativo_resultados(
         GROUP BY pa.departamento_id, pa.distrito_id, pa.seccional_id, pa.local_id, pa.mesa, l.descripcion
     """)
     
-    res_symp = await session.execute(query_symp)
+    res_symp = await session.execute(query_symp, {"elec_id": elec_id})
     rows_symp = res_symp.fetchall()
     
     # 2. Obtener resultados reales
     stmt_real = select(ResultadoMesa).where(ResultadoMesa.id_candidato == candidato_id)
+    if elec_id:
+        stmt_real = stmt_real.where(or_(ResultadoMesa.eleccion_id == elec_id, ResultadoMesa.eleccion_id == None))
     res_real = await session.execute(stmt_real)
     resultados_reales = res_real.scalars().all()
     
