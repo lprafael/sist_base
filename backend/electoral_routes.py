@@ -203,9 +203,12 @@ async def search_padron(
     # Construir lista de filtros dinámicos
     filters = []
 
-    # Búsqueda inteligente por palabras
+    # Búsqueda inteligente por palabras (Cédula directa o nombre/apellido)
     if len(search_terms) == 1 and search_terms[0].isdigit():
-        filters.append(Persona.cedula.ilike(f"%{search_terms[0]}%"))
+        if len(search_terms[0]) >= 5:
+            filters.append(Persona.cedula == search_terms[0])
+        else:
+            filters.append(Persona.cedula.like(f"{search_terms[0]}%"))
     else:
         for term in search_terms:
             search_pattern = f"%{term}%"
@@ -373,6 +376,7 @@ async def get_mis_votantes(
         Persona.apellidos.label("apellido_votante"),
         PosibleVotante.parentesco,
         PosibleVotante.domicilio,
+        PosibleVotante.observaciones,
         Persona.direccion_residencia.label("direccion_padron"),
         PosibleVotante.grado_seguridad,
         PosibleVotante.fecha_captacion,
@@ -380,7 +384,7 @@ async def get_mis_votantes(
         PosibleVotante.movilidad_propia
     ).outerjoin(Persona, PosibleVotante.cedula_votante == Persona.cedula).where(
         PosibleVotante.id_referente.in_(referente_ids)
-    ).order_by(PosibleVotante.fecha_captacion.desc())
+    ).order_by(PosibleVotante.fecha_captacion.desc().nullslast())
     
     result = await session.execute(stmt)
     items = []
@@ -393,10 +397,11 @@ async def get_mis_votantes(
             "apellido_votante": row.apellido_votante or "",
             "parentesco": row.parentesco,
             "domicilio": row.domicilio or row.direccion_padron,
-            "grado_seguridad": row.grado_seguridad,
+            "observaciones": row.observaciones,
+            "grado_seguridad": row.grado_seguridad if row.grado_seguridad is not None else 3,
             "fecha_captacion": row.fecha_captacion,
-            "validacion_candidato": row.validacion_candidato,
-            "movilidad_propia": row.movilidad_propia
+            "validacion_candidato": bool(row.validacion_candidato) if row.validacion_candidato is not None else False,
+            "movilidad_propia": bool(row.movilidad_propia) if row.movilidad_propia is not None else False
         })
     return items
 

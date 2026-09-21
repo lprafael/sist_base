@@ -54,10 +54,10 @@ def parse_int(s):
         return None
 
 def clean_str(s):
-    """Limpia cadenas removiendo espacios sobrantes y nulos."""
+    """Limpia cadenas removiendo espacios sobrantes y caracteres nulos."""
     if not s:
         return None
-    cleaned = s.strip()
+    cleaned = s.replace('\x00', '').strip()
     return cleaned if cleaned else None
 
 async def run_migration(dbf_path=DEFAULT_DBF_PATH, batch_size=50000, limit=None, dry_run=False):
@@ -195,7 +195,7 @@ async def run_migration(dbf_path=DEFAULT_DBF_PATH, batch_size=50000, limit=None,
                     if rec[0] == 0x2A: # Eliminado
                         continue
                     
-                    cedula = rec[ci_off:ci_off+ci_len].decode('latin-1', errors='replace').strip()
+                    cedula = clean_str(rec[ci_off:ci_off+ci_len].decode('latin-1', errors='replace'))
                     if not cedula:
                         continue
                         
@@ -204,7 +204,7 @@ async def run_migration(dbf_path=DEFAULT_DBF_PATH, batch_size=50000, limit=None,
                     direccion = clean_str(rec[dir_off:dir_off+dir_len].decode('latin-1', errors='replace'))
                     fenaci = parse_date(rec[fen_off:fen_off+fen_len].decode('latin-1', errors='replace'))
                     
-                    sexo_raw = rec[sex_off:sex_off+sex_len].decode('latin-1', errors='replace').strip()
+                    sexo_raw = rec[sex_off:sex_off+sex_len].decode('latin-1', errors='replace').replace('\x00', '').strip()
                     sexo = sexo_raw if sexo_raw in ('M', 'F') else None
                     
                     dep = parse_int(rec[dep_off:dep_off+dep_len].decode('latin-1', errors='replace'))
@@ -239,6 +239,20 @@ async def run_migration(dbf_path=DEFAULT_DBF_PATH, batch_size=50000, limit=None,
                     elapsed = time.time() - t_load_start
                     rate = processed_count / elapsed if elapsed > 0 else 0
                     print(f"  -> {processed_count:,} / {target_records:,} registros ({pct:.1f}%) cargados a staging ({rate:,.0f} reg/s)")
+
+            # Cargar remanente si existiera
+            if batch:
+                await conn.copy_records_to_table(
+                    table_name="staging_regciv_2026",
+                    schema_name="electoral",
+                    columns=[
+                        "cedula", "nombres", "apellidos", "fecha_nacimiento", "genero",
+                        "direccion", "departamento_id", "distrito_id", "seccional_id",
+                        "local_id", "mesa", "orden"
+                    ],
+                    records=batch
+                )
+                batch = []
 
         staging_rows = await conn.fetchval("SELECT count(*) FROM electoral.staging_regciv_2026;")
         print(f"[OK] Carga en staging finalizada: {staging_rows:,} registros insertados en {time.time() - t_load_start:.2f}s.")

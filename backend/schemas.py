@@ -483,10 +483,12 @@ class PosibleVotanteResponse(BaseModel):
     nombre_votante: str
     apellido_votante: str
     parentesco: Optional[str] = None
-    grado_seguridad: int
-    fecha_captacion: datetime
-    validacion_candidato: bool
-    movilidad_propia: bool
+    domicilio: Optional[str] = None
+    observaciones: Optional[str] = None
+    grado_seguridad: Optional[int] = 3
+    fecha_captacion: Optional[datetime] = None
+    validacion_candidato: Optional[bool] = False
+    movilidad_propia: Optional[bool] = False
 
     class Config:
         from_attributes = True
