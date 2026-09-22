@@ -191,12 +191,24 @@
 }
 
 .registration-form input[type="text"],
+.registration-form input[type="tel"],
 .registration-form textarea {
     width: 100%;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1.5px solid #cbd5e0;
     font-size: 0.95rem;
+    box-sizing: border-box;
+    background-color: #fff;
+    color: #1a202c;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.registration-form input:focus,
+.registration-form textarea:focus {
+    border-color: #3182ce;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
 }
 
 .range-container {
@@ -720,30 +732,51 @@
 }
 
 .phone-input-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 140px;
     gap: 10px;
+    width: 100%;
+    align-items: center;
 }
 
 .phone-input-row input {
-    flex: 1;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #cbd5e0;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+    background-color: #fff;
+    color: #1a202c;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.phone-input-row input:focus {
+    border-color: #3182ce;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
 }
 
 .phone-type-select {
-    width: 130px;
+    width: 100% !important;
+    min-width: 0 !important;
     padding: 10px 12px;
-    border: 2px solid #e2e8f0;
+    border: 1.5px solid #cbd5e0;
     border-radius: 8px;
     background-color: #fff;
     color: #2d3748;
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: 0.92rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: border-color 0.2s;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .phone-type-select:focus {
     border-color: #3182ce;
     outline: none;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
 }
 
 .field-hint {
@@ -1302,5 +1335,17 @@
     .phone-btn-icon {
         width: 38px;
         height: 38px;
+    }
+
+    .phone-input-row {
+        grid-template-columns: 1fr 120px;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 400px) {
+    .phone-input-row {
+        grid-template-columns: 1fr 105px;
+        gap: 6px;
     }
 }
