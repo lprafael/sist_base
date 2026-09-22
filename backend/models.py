@@ -1,7 +1,7 @@
 # models.py
 # Modelos de base de datos para el sistema
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Table, JSON, Float, Date, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -313,6 +313,29 @@ class Persona(Base):
     # Relaciones
     padrones = relationship("PadronElectoral", back_populates="persona")
     captaciones = relationship("PosibleVotante", back_populates="persona")
+    telefonos = relationship("PersonaTelefono", back_populates="persona", cascade="all, delete-orphan", order_by="desc(PersonaTelefono.fecha_registro)")
+
+class PersonaTelefono(Base):
+    __tablename__ = "persona_telefonos"
+    __table_args__ = (
+        Index("idx_persona_telefonos_cedula", "cedula"),
+        Index("idx_persona_telefonos_fecha", "fecha_registro"),
+        Index("idx_persona_telefonos_actual", "cedula", "es_actual"),
+        {"schema": "electoral"}
+    )
+    
+    id = Column(Integer, primary_key=True, index=True)
+    cedula = Column(String(20), ForeignKey('electoral.personas.cedula', ondelete='CASCADE'), nullable=False)
+    telefono = Column(String(50), nullable=False)
+    tipo = Column(String(50), default="Celular") # Celular, WhatsApp, Casa, Trabajo, Familiar, etc.
+    observacion = Column(String(255), nullable=True) # "Atiende por la tarde", "Hermano", etc.
+    id_usuario_registro = Column(Integer, ForeignKey('sistema.usuarios.id', ondelete='SET NULL'), nullable=True)
+    fecha_registro = Column(DateTime, default=func.now(), nullable=False)
+    es_actual = Column(Boolean, default=True)
+
+    # Relaciones
+    persona = relationship("Persona", back_populates="telefonos")
+    usuario_registro = relationship("Usuario")
 
 class Eleccion(Base):
     __tablename__ = "elecciones"

@@ -26,7 +26,10 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
         domicilio: '',
         latitud: null,
         longitud: null,
-        movilidad_propia: false
+        movilidad_propia: false,
+        telefono: '',
+        telefono_tipo: 'Celular',
+        telefono_observacion: ''
     });
     const [message, setMessage] = useState({ type: '', text: '' });
     const [fetchingLocation, setFetchingLocation] = useState(false);
@@ -36,6 +39,18 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
     const [cercaniasResults, setCercaniasResults] = useState([]);
     const [selectedForCercania, setSelectedForCercania] = useState(null);
     const [loadingCercanias, setLoadingCercanias] = useState(false);
+
+    // Estados para el Modal de Historial de Teléfonos
+    const [showPhonesModal, setShowPhonesModal] = useState(false);
+    const [selectedPersonForPhones, setSelectedPersonForPhones] = useState(null);
+    const [personPhonesList, setPersonPhonesList] = useState([]);
+    const [loadingPhones, setLoadingPhones] = useState(false);
+    const [newPhoneData, setNewPhoneData] = useState({
+        telefono: '',
+        tipo: 'Celular',
+        observacion: ''
+    });
+    const [phoneActionLoading, setPhoneActionLoading] = useState(false);
 
     // Estados para la Tabla (Filtrado y Ordenación)
     const [tableFilter, setTableFilter] = useState('');
@@ -157,7 +172,10 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
             domicilio: voter.domicilio || '',
             latitud: voter.latitud || null,
             longitud: voter.longitud || null,
-            movilidad_propia: voter.movilidad_propia || false
+            movilidad_propia: voter.movilidad_propia || false,
+            telefono: voter.telefono || '',
+            telefono_tipo: 'Celular',
+            telefono_observacion: ''
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -194,6 +212,111 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
         }
     };
 
+    // Funciones para el Modal de Historial de Teléfonos
+    const handleOpenPhonesModal = (voterOrPerson) => {
+        const cedula = voterOrPerson.cedula_votante || voterOrPerson.cedula;
+        const nombre = voterOrPerson.nombre_votante 
+            ? `${voterOrPerson.nombre_votante} ${voterOrPerson.apellido_votante || ''}`
+            : `${voterOrPerson.nombres || ''} ${voterOrPerson.apellidos || ''}`;
+        
+        setSelectedPersonForPhones({
+            cedula,
+            nombre: nombre.trim() || 'Simpatizante'
+        });
+        setNewPhoneData({
+            telefono: '',
+            tipo: 'Celular',
+            observacion: ''
+        });
+        setShowPhonesModal(true);
+        fetchPersonPhones(cedula);
+    };
+
+    const fetchPersonPhones = async (cedula) => {
+        setLoadingPhones(true);
+        try {
+            const res = await authFetch(`/electoral/personas/${cedula}/telefonos`);
+            if (res.ok) {
+                const data = await res.json();
+                setPersonPhonesList(data);
+            } else {
+                setPersonPhonesList([]);
+            }
+        } catch (err) {
+            console.error('Error al cargar teléfonos:', err);
+        } finally {
+            setLoadingPhones(false);
+        }
+    };
+
+    const handleAddNewPhone = async (e) => {
+        e.preventDefault();
+        if (!selectedPersonForPhones || !newPhoneData.telefono.trim()) return;
+
+        setPhoneActionLoading(true);
+        try {
+            const res = await authFetch(`/electoral/personas/${selectedPersonForPhones.cedula}/telefonos`, {
+                method: 'POST',
+                body: JSON.stringify(newPhoneData)
+            });
+            if (res.ok) {
+                setNewPhoneData({ telefono: '', tipo: 'Celular', observacion: '' });
+                await fetchPersonPhones(selectedPersonForPhones.cedula);
+                fetchMyVoters();
+                setMessage({ type: 'success', text: 'Nuevo número de teléfono registrado como actual.' });
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al guardar el teléfono');
+            }
+        } catch (err) {
+            console.error('Error al agregar teléfono:', err);
+            alert('Error de conexión al guardar el teléfono');
+        } finally {
+            setPhoneActionLoading(false);
+        }
+    };
+
+    const handleDeletePhone = async (phoneId) => {
+        if (!window.confirm('¿Deseas eliminar este número de teléfono?')) return;
+        setPhoneActionLoading(true);
+        try {
+            const res = await authFetch(`/electoral/personas/${selectedPersonForPhones.cedula}/telefonos/${phoneId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                await fetchPersonPhones(selectedPersonForPhones.cedula);
+                fetchMyVoters();
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al eliminar el teléfono');
+            }
+        } catch (err) {
+            console.error('Error al eliminar teléfono:', err);
+        } finally {
+            setPhoneActionLoading(false);
+        }
+    };
+
+    const handleSetPhoneActual = async (phoneId) => {
+        setPhoneActionLoading(true);
+        try {
+            const res = await authFetch(`/electoral/personas/${selectedPersonForPhones.cedula}/telefonos/${phoneId}/marcar-actual`, {
+                method: 'PUT'
+            });
+            if (res.ok) {
+                await fetchPersonPhones(selectedPersonForPhones.cedula);
+                fetchMyVoters();
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Error al marcar teléfono como actual');
+            }
+        } catch (err) {
+            console.error('Error al marcar teléfono como actual:', err);
+        } finally {
+            setPhoneActionLoading(false);
+        }
+    };
+
     const handleSelectPerson = (person) => {
         setEditingVoter(null);
         setSelectedPerson(person);
@@ -204,7 +327,10 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
             domicilio: '',
             latitud: null,
             longitud: null,
-            movilidad_propia: false
+            movilidad_propia: false,
+            telefono: person.telefono || '',
+            telefono_tipo: 'Celular',
+            telefono_observacion: ''
         });
     };
 
@@ -224,7 +350,8 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                 voter.cedula_votante.toLowerCase().includes(query) ||
                 voter.nombre_votante.toLowerCase().includes(query) ||
                 voter.apellido_votante.toLowerCase().includes(query) ||
-                (voter.parentesco || '').toLowerCase().includes(query)
+                (voter.parentesco || '').toLowerCase().includes(query) ||
+                (voter.telefono || '').toLowerCase().includes(query)
             );
         })
         .sort((a, b) => {
@@ -237,6 +364,9 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
             } else if (sortConfig.key === 'estado') {
                 aVal = a.validacion_candidato ? 1 : 0;
                 bVal = b.validacion_candidato ? 1 : 0;
+            } else if (sortConfig.key === 'telefono') {
+                aVal = (a.telefono || '').toLowerCase();
+                bVal = (b.telefono || '').toLowerCase();
             } else {
                 aVal = a[sortConfig.key];
                 bVal = b[sortConfig.key];
@@ -308,7 +438,11 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                     observaciones: '',
                     domicilio: '',
                     latitud: null,
-                    longitud: null
+                    longitud: null,
+                    movilidad_propia: false,
+                    telefono: '',
+                    telefono_tipo: 'Celular',
+                    telefono_observacion: ''
                 });
                 fetchMyVoters();
                 setSearchResults([]);
@@ -432,6 +566,46 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                                     value={formData.parentesco}
                                     onChange={(e) => setFormData({ ...formData, parentesco: e.target.value })}
                                 />
+                            </div>
+
+                            <div className="form-group">
+                                <div className="label-with-action">
+                                    <label>📱 Teléfono / Celular</label>
+                                    {editingVoter && (
+                                        <button 
+                                            type="button" 
+                                            className="link-subtle-btn"
+                                            onClick={() => handleOpenPhonesModal(editingVoter)}
+                                        >
+                                            📜 Historial ({editingVoter.total_telefonos || 1})
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="phone-input-row">
+                                    <input
+                                        type="tel"
+                                        placeholder="Ej: 0981 123456"
+                                        value={formData.telefono}
+                                        onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                                    />
+                                    <select
+                                        className="phone-type-select"
+                                        value={formData.telefono_tipo}
+                                        onChange={(e) => setFormData({ ...formData, telefono_tipo: e.target.value })}
+                                    >
+                                        <option value="Celular">Celular</option>
+                                        <option value="WhatsApp">WhatsApp</option>
+                                        <option value="Casa">Casa</option>
+                                        <option value="Laboral">Laboral</option>
+                                        <option value="Familiar">Familiar</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                {editingVoter && formData.telefono !== (editingVoter.telefono || '') && formData.telefono.trim() !== '' && (
+                                    <small className="field-hint text-success">
+                                        💡 Se registrará este nuevo número con fecha actual y pasará a ser el vigente.
+                                    </small>
+                                )}
                             </div>
 
                             <div className="form-group">
@@ -566,6 +740,9 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                                     <th className="sortable" onClick={() => handleSort('nombre')}>
                                         Nombre {sortConfig.key === 'nombre' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
                                     </th>
+                                    <th className="sortable" onClick={() => handleSort('telefono')}>
+                                        Teléfono {sortConfig.key === 'telefono' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
+                                    </th>
                                     <th className="sortable" onClick={() => handleSort('parentesco')}>
                                         Parentesco {sortConfig.key === 'parentesco' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
                                     </th>
@@ -584,6 +761,48 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                                     <tr key={voter.id}>
                                         <td>{voter.cedula_votante}</td>
                                         <td>{voter.nombre_votante} {voter.apellido_votante}</td>
+                                        <td>
+                                            {voter.telefono ? (
+                                                <div className="table-phone-cell">
+                                                    <span className="phone-number" title="Teléfono actual">{voter.telefono}</span>
+                                                    <div className="phone-quick-actions">
+                                                        <a 
+                                                            href={`https://wa.me/595${voter.telefono.replace(/\D/g, '').replace(/^0/, '')}`}
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="phone-action-icon whatsapp" 
+                                                            title="Abrir WhatsApp"
+                                                        >
+                                                            💬
+                                                        </a>
+                                                        <a 
+                                                            href={`tel:${voter.telefono}`} 
+                                                            className="phone-action-icon call" 
+                                                            title="Llamar"
+                                                        >
+                                                            📞
+                                                        </a>
+                                                        {voter.total_telefonos > 1 && (
+                                                            <button 
+                                                                className="phone-badge-history" 
+                                                                title={`Ver los ${voter.total_telefonos} teléfonos registrados`}
+                                                                onClick={() => handleOpenPhonesModal(voter)}
+                                                            >
+                                                                +{voter.total_telefonos - 1}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    className="add-phone-quick-btn"
+                                                    onClick={() => handleOpenPhonesModal(voter)}
+                                                    title="Agregar teléfono"
+                                                >
+                                                    + Teléfono
+                                                </button>
+                                            )}
+                                        </td>
                                         <td>{voter.parentesco}</td>
                                         <td>{voter.grado_seguridad}</td>
                                         <td>{voter.validacion_candidato ? '✓' : '⏳'}</td>
@@ -594,6 +813,7 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                                                     <button className="action-btn validate" title="Validar oficialmente" onClick={() => handleValidateVoter(voter.id)}>✅</button>
                                                 )}
                                                 <button className="action-btn edit" title="Editar datos" onClick={() => handleEditClick(voter)}>✏️</button>
+                                                <button className="action-btn phone" title="Gestionar teléfonos e historial" onClick={() => handleOpenPhonesModal(voter)}>📱</button>
                                                 <button className="action-btn delete" title="Eliminar de mi lista" onClick={() => handleDeleteVoter(voter.id)}>🗑️</button>
                                                 <button className="action-btn family" title="Buscar parientes y vecinos" onClick={() => handleSearchCercanias(voter)}>🔍</button>
                                             </div>
@@ -642,6 +862,143 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                                     </>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showPhonesModal && (
+                <div className="phone-modal-overlay">
+                    <div className="phone-modal card">
+                        <div className="phone-modal-header">
+                            <div>
+                                <h3>📱 Teléfonos de {selectedPersonForPhones?.nombre}</h3>
+                                <p className="phone-modal-subtitle">
+                                    C.I.: <strong>{selectedPersonForPhones?.cedula}</strong> • El número más nuevo se considera automáticamente el actual
+                                </p>
+                            </div>
+                            <button className="close-modal" onClick={() => setShowPhonesModal(false)}>×</button>
+                        </div>
+
+                        <div className="phone-modal-body">
+                            {/* Formulario para registrar un nuevo número */}
+                            <form onSubmit={handleAddNewPhone} className="add-phone-form-box">
+                                <h4>➕ Agregar Nuevo Número</h4>
+                                <div className="add-phone-fields">
+                                    <div className="input-group">
+                                        <label>Número de Teléfono / Celular *</label>
+                                        <input
+                                            type="tel"
+                                            placeholder="Ej: 0981 123456"
+                                            value={newPhoneData.telefono}
+                                            onChange={(e) => setNewPhoneData({ ...newPhoneData, telefono: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Tipo de Línea</label>
+                                        <select
+                                            value={newPhoneData.tipo}
+                                            onChange={(e) => setNewPhoneData({ ...newPhoneData, tipo: e.target.value })}
+                                        >
+                                            <option value="Celular">Celular</option>
+                                            <option value="WhatsApp">WhatsApp</option>
+                                            <option value="Casa">Casa / Fijo</option>
+                                            <option value="Laboral">Laboral</option>
+                                            <option value="Familiar">Familiar</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+                                    <div className="input-group full-width">
+                                        <label>Observación / Nota (Opcional)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: Hermano, llamar en horario de la tarde..."
+                                            value={newPhoneData.observacion}
+                                            onChange={(e) => setNewPhoneData({ ...newPhoneData, observacion: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="input-group btn-col">
+                                        <button type="submit" className="btn-add-phone" disabled={phoneActionLoading}>
+                                            {phoneActionLoading ? 'Guardando...' : '⭐ Guardar como Actual'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            {/* Historial cronológico */}
+                            <div className="phone-history-container">
+                                <h4>📜 Historial de Teléfonos ({personPhonesList.length})</h4>
+                                {loadingPhones ? (
+                                    <div className="empty-state">Cargando historial telefónico...</div>
+                                ) : personPhonesList.length === 0 ? (
+                                    <div className="empty-state">No hay teléfonos registrados aún para esta persona.</div>
+                                ) : (
+                                    <div className="phone-cards-list">
+                                        {personPhonesList.map((item) => (
+                                            <div key={item.id} className={`phone-item-card ${item.es_actual ? 'is-actual' : ''}`}>
+                                                <div className="phone-item-main">
+                                                    <div className="phone-number-line">
+                                                        <span className="phone-val">{item.telefono}</span>
+                                                        <span className="phone-badge-type">{item.tipo}</span>
+                                                        {item.es_actual && (
+                                                            <span className="badge-actual">⭐ ACTUAL</span>
+                                                        )}
+                                                    </div>
+                                                    {item.observacion && (
+                                                        <div className="phone-item-obs">📝 {item.observacion}</div>
+                                                    )}
+                                                    <div className="phone-item-date">
+                                                        <span>📅 {new Date(item.fecha_registro).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                        {item.nombre_usuario_registro && (
+                                                            <span> • Agregado por: <strong>{item.nombre_usuario_registro}</strong></span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="phone-item-actions">
+                                                    <a 
+                                                        href={`https://wa.me/595${item.telefono.replace(/\D/g, '').replace(/^0/, '')}`}
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="phone-btn-icon wa" 
+                                                        title="Enviar WhatsApp"
+                                                    >
+                                                        💬
+                                                    </a>
+                                                    <a 
+                                                        href={`tel:${item.telefono}`} 
+                                                        className="phone-btn-icon call" 
+                                                        title="Llamar"
+                                                    >
+                                                        📞
+                                                    </a>
+                                                    {!item.es_actual && (
+                                                        <button 
+                                                            type="button"
+                                                            className="btn-set-actual"
+                                                            title="Marcar este número histórico como el actual"
+                                                            disabled={phoneActionLoading}
+                                                            onClick={() => handleSetPhoneActual(item.id)}
+                                                        >
+                                                            Hacer Actual
+                                                        </button>
+                                                    )}
+                                                    <button 
+                                                        type="button"
+                                                        className="btn-del-phone"
+                                                        title="Eliminar número"
+                                                        disabled={phoneActionLoading}
+                                                        onClick={() => handleDeletePhone(item.id)}
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

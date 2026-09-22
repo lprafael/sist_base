@@ -457,6 +457,25 @@ class PadronResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PersonaTelefonoCreate(BaseModel):
+    telefono: str
+    tipo: Optional[str] = "Celular"
+    observacion: Optional[str] = None
+
+class PersonaTelefonoResponse(BaseModel):
+    id: int
+    cedula: str
+    telefono: str
+    tipo: Optional[str] = "Celular"
+    observacion: Optional[str] = None
+    id_usuario_registro: Optional[int] = None
+    nombre_usuario_registro: Optional[str] = None
+    fecha_registro: datetime
+    es_actual: bool = True
+
+    class Config:
+        from_attributes = True
+
 class CaptacionCreate(BaseModel):
     cedula_votante: str
     parentesco: Optional[str] = None
@@ -466,6 +485,9 @@ class CaptacionCreate(BaseModel):
     latitud: Optional[float] = None
     longitud: Optional[float] = None
     movilidad_propia: bool = False
+    telefono: Optional[str] = None
+    telefono_tipo: Optional[str] = "Celular"
+    telefono_observacion: Optional[str] = None
 
 class CaptacionUpdate(BaseModel):
     parentesco: Optional[str] = None
@@ -475,6 +497,9 @@ class CaptacionUpdate(BaseModel):
     latitud: Optional[float] = None
     longitud: Optional[float] = None
     movilidad_propia: Optional[bool] = None
+    telefono: Optional[str] = None
+    telefono_tipo: Optional[str] = "Celular"
+    telefono_observacion: Optional[str] = None
 
 class PosibleVotanteResponse(BaseModel):
     id: int
@@ -489,6 +514,8 @@ class PosibleVotanteResponse(BaseModel):
     fecha_captacion: Optional[datetime] = None
     validacion_candidato: Optional[bool] = False
     movilidad_propia: Optional[bool] = False
+    telefono: Optional[str] = None
+    total_telefonos: Optional[int] = 0
 
     class Config:
         from_attributes = True
