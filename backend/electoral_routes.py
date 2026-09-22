@@ -1144,6 +1144,35 @@ async def get_padron_reporte(
 
 # ===== GESTIÓN HISTÓRICA DE TELÉFONOS DE PERSONAS / SIMPATIZANTES =====
 
+_PERSONA_TELEFONOS_TABLE_ENSURED = False
+
+async def ensure_persona_telefonos_table(session: AsyncSession):
+    """Garantiza que la tabla electoral.persona_telefonos e índices existan en la BD"""
+    global _PERSONA_TELEFONOS_TABLE_ENSURED
+    if _PERSONA_TELEFONOS_TABLE_ENSURED:
+        return
+    try:
+        await session.execute(text("""
+            CREATE TABLE IF NOT EXISTS electoral.persona_telefonos (
+                id SERIAL PRIMARY KEY,
+                cedula VARCHAR(20) NOT NULL REFERENCES electoral.personas(cedula) ON DELETE CASCADE,
+                telefono VARCHAR(50) NOT NULL,
+                tipo VARCHAR(50) DEFAULT 'Celular',
+                observacion VARCHAR(255),
+                id_usuario_registro INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL,
+                fecha_registro TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+                es_actual BOOLEAN DEFAULT TRUE
+            );
+            CREATE INDEX IF NOT EXISTS idx_persona_telefonos_cedula ON electoral.persona_telefonos(cedula);
+            CREATE INDEX IF NOT EXISTS idx_persona_telefonos_fecha ON electoral.persona_telefonos(fecha_registro DESC);
+            CREATE INDEX IF NOT EXISTS idx_persona_telefonos_actual ON electoral.persona_telefonos(cedula, es_actual);
+        """))
+        await session.commit()
+        _PERSONA_TELEFONOS_TABLE_ENSURED = True
+    except Exception as e:
+        await session.rollback()
+        print(f"Aviso al auto-crear tabla persona_telefonos: {e}")
+
 @router.get("/personas/{cedula}/telefonos", response_model=List[PersonaTelefonoResponse])
 async def get_persona_telefonos(
     cedula: str,
@@ -1151,6 +1180,7 @@ async def get_persona_telefonos(
     current_user: dict = Depends(get_current_user)
 ):
     """Obtiene el historial cronológico de números de teléfono registrados para una persona"""
+    await ensure_persona_telefonos_table(session)
     stmt = (
         select(
             PersonaTelefono.id,
@@ -1185,7 +1215,7 @@ async def get_persona_telefonos(
         return items
     except Exception as e:
         await session.rollback()
-        print(f"Aviso en get_persona_telefonos: {e}")
+        print(f"Aviso en get_persona_telefonos para cédula {cedula}: {e}")
         return []
 
 @router.post("/personas/{cedula}/telefonos", response_model=PersonaTelefonoResponse)
@@ -1196,54 +1226,89 @@ async def add_persona_telefono(
     current_user: dict = Depends(get_current_user)
 ):
     """Agrega un nuevo número de teléfono para la persona y lo establece como el actual"""
-    tel_limpio = data.telefono.strip()
-    if not tel_limpio:
-        raise HTTPException(status_code=400, detail="El número de teléfono no puede estar vacío")
+    try:
+        tel_limpio = data.telefono.strip()
+        if not tel_limpio:
+            raise HTTPException(status_code=400, detail="El número de teléfono no puede estar vacío")
 
-    # 1. Desmarcar teléfonos anteriores como actuales
-    await session.execute(
-        update(PersonaTelefono)
-        .where(PersonaTelefono.cedula == cedula)
-        .values(es_actual=False)
-    )
+        # 0. Asegurar que la tabla persona_telefonos existe en BD
+        await ensure_persona_telefonos_table(session)
 
-    # 2. Insertar nuevo teléfono
-    nuevo_tel = PersonaTelefono(
-        cedula=cedula,
-        telefono=tel_limpio,
-        tipo=data.tipo or "Celular",
-        observacion=data.observacion,
-        id_usuario_registro=current_user.get("user_id"),
-        fecha_registro=func.now(),
-        es_actual=True
-    )
-    session.add(nuevo_tel)
-    await session.flush()
+        # 1. Asegurar que la persona existe en electoral.personas para no violar la Foreign Key
+        stmt_p = select(Persona).where(Persona.cedula == cedula)
+        persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
+        if not persona_obj:
+            persona_obj = Persona(
+                cedula=cedula,
+                nombres="",
+                apellidos="",
+                telefono=tel_limpio[:20],
+                fecha_registro=datetime.utcnow()
+            )
+            session.add(persona_obj)
+            await session.flush()
+        else:
+            persona_obj.telefono = tel_limpio[:20]
 
-    # 3. Sincronizar en Persona.telefono
-    stmt_p = select(Persona).where(Persona.cedula == cedula)
-    persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
-    if persona_obj:
-        persona_obj.telefono = tel_limpio
+        # 2. Desmarcar teléfonos anteriores como actuales
+        await session.execute(
+            update(PersonaTelefono)
+            .where(PersonaTelefono.cedula == cedula)
+            .values(es_actual=False)
+        )
 
-    await session.commit()
-    await session.refresh(nuevo_tel)
+        # 3. Validar id_usuario_registro para evitar violar la Foreign Key de sistema.usuarios
+        user_id = current_user.get("user_id")
+        valid_user_id = None
+        if user_id:
+            try:
+                stmt_u_chk = select(Usuario.id).where(Usuario.id == int(user_id))
+                valid_user_id = (await session.execute(stmt_u_chk)).scalar()
+            except Exception:
+                valid_user_id = None
 
-    # Obtener nombre del usuario que registra
-    stmt_u = select(Usuario.nombre_completo).where(Usuario.id == current_user.get("user_id"))
-    nombre_user = (await session.execute(stmt_u)).scalar() or current_user.get("nombre_completo") or "Referente"
+        # 4. Insertar nuevo teléfono
+        ahora = datetime.utcnow()
+        nuevo_tel = PersonaTelefono(
+            cedula=cedula,
+            telefono=tel_limpio[:50],
+            tipo=data.tipo or "Celular",
+            observacion=data.observacion,
+            id_usuario_registro=valid_user_id,
+            fecha_registro=ahora,
+            es_actual=True
+        )
+        session.add(nuevo_tel)
+        await session.commit()
+        await session.refresh(nuevo_tel)
 
-    return {
-        "id": nuevo_tel.id,
-        "cedula": nuevo_tel.cedula,
-        "telefono": nuevo_tel.telefono,
-        "tipo": nuevo_tel.tipo,
-        "observacion": nuevo_tel.observacion,
-        "id_usuario_registro": nuevo_tel.id_usuario_registro,
-        "nombre_usuario_registro": nombre_user,
-        "fecha_registro": nuevo_tel.fecha_registro,
-        "es_actual": nuevo_tel.es_actual
-    }
+        # 5. Obtener nombre legible del usuario que registra
+        nombre_user = current_user.get("nombre_completo") or "Referente"
+        if valid_user_id:
+            stmt_u = select(Usuario.nombre_completo).where(Usuario.id == valid_user_id)
+            db_nombre = (await session.execute(stmt_u)).scalar()
+            if db_nombre:
+                nombre_user = db_nombre
+
+        return {
+            "id": nuevo_tel.id,
+            "cedula": nuevo_tel.cedula,
+            "telefono": nuevo_tel.telefono,
+            "tipo": nuevo_tel.tipo or "Celular",
+            "observacion": nuevo_tel.observacion,
+            "id_usuario_registro": nuevo_tel.id_usuario_registro,
+            "nombre_usuario_registro": nombre_user,
+            "fecha_registro": nuevo_tel.fecha_registro or ahora,
+            "es_actual": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        import traceback
+        traceback.print_exc()
+        print(f"Error al agregar teléfono para cédula {cedula}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al agregar teléfono: {str(e)}")
 
 @router.delete("/personas/{cedula}/telefonos/{telefono_id}")
 async def delete_persona_telefono(
@@ -1253,38 +1318,47 @@ async def delete_persona_telefono(
     current_user: dict = Depends(get_current_user)
 ):
     """Elimina un teléfono del historial de una persona"""
-    stmt = select(PersonaTelefono).where(
-        and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == cedula)
-    )
-    tel = (await session.execute(stmt)).scalar_one_or_none()
-    if not tel:
-        raise HTTPException(status_code=404, detail="Teléfono no encontrado")
-
-    estaba_actual = tel.es_actual
-    await session.delete(tel)
-    await session.flush()
-
-    if estaba_actual:
-        # Reasignar el más nuevo restante como actual
-        stmt_next = (
-            select(PersonaTelefono)
-            .where(PersonaTelefono.cedula == cedula)
-            .order_by(PersonaTelefono.fecha_registro.desc())
-            .limit(1)
+    try:
+        await ensure_persona_telefonos_table(session)
+        stmt = select(PersonaTelefono).where(
+            and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == cedula)
         )
-        sig = (await session.execute(stmt_next)).scalar_one_or_none()
-        nuevo_tel_val = None
-        if sig:
-            sig.es_actual = True
-            nuevo_tel_val = sig.telefono
-        
-        stmt_p = select(Persona).where(Persona.cedula == cedula)
-        persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
-        if persona_obj:
-            persona_obj.telefono = nuevo_tel_val
+        tel = (await session.execute(stmt)).scalar_one_or_none()
+        if not tel:
+            raise HTTPException(status_code=404, detail="Teléfono no encontrado")
 
-    await session.commit()
-    return {"message": "Teléfono eliminado correctamente"}
+        estaba_actual = tel.es_actual
+        await session.delete(tel)
+        await session.flush()
+
+        if estaba_actual:
+            # Reasignar el más nuevo restante como actual
+            stmt_next = (
+                select(PersonaTelefono)
+                .where(PersonaTelefono.cedula == cedula)
+                .order_by(PersonaTelefono.fecha_registro.desc())
+                .limit(1)
+            )
+            sig = (await session.execute(stmt_next)).scalar_one_or_none()
+            nuevo_tel_val = None
+            if sig:
+                sig.es_actual = True
+                nuevo_tel_val = sig.telefono
+            
+            stmt_p = select(Persona).where(Persona.cedula == cedula)
+            persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
+            if persona_obj:
+                persona_obj.telefono = nuevo_tel_val[:20] if nuevo_tel_val else None
+
+        await session.commit()
+        return {"message": "Teléfono eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar teléfono: {str(e)}")
 
 @router.put("/personas/{cedula}/telefonos/{telefono_id}/marcar-actual")
 async def set_persona_telefono_actual(
@@ -1294,25 +1368,35 @@ async def set_persona_telefono_actual(
     current_user: dict = Depends(get_current_user)
 ):
     """Establece un teléfono existente como el actual"""
-    stmt = select(PersonaTelefono).where(
-        and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == cedula)
-    )
-    target = (await session.execute(stmt)).scalar_one_or_none()
-    if not target:
-        raise HTTPException(status_code=404, detail="Teléfono no encontrado")
+    try:
+        await ensure_persona_telefonos_table(session)
+        stmt = select(PersonaTelefono).where(
+            and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == cedula)
+        )
+        target = (await session.execute(stmt)).scalar_one_or_none()
+        if not target:
+            raise HTTPException(status_code=404, detail="Teléfono no encontrado")
 
-    # Desmarcar todos los teléfonos de esta cédula
-    await session.execute(
-        update(PersonaTelefono).where(PersonaTelefono.cedula == cedula).values(es_actual=False)
-    )
-    target.es_actual = True
+        # Desmarcar todos los teléfonos de esta cédula
+        await session.execute(
+            update(PersonaTelefono).where(PersonaTelefono.cedula == cedula).values(es_actual=False)
+        )
+        target.es_actual = True
 
-    # Sincronizar en Persona.telefono
-    stmt_p = select(Persona).where(Persona.cedula == cedula)
-    persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
-    if persona_obj:
-        persona_obj.telefono = target.telefono
+        # Sincronizar en Persona.telefono
+        stmt_p = select(Persona).where(Persona.cedula == cedula)
+        persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
+        if persona_obj:
+            persona_obj.telefono = target.telefono[:20] if target.telefono else None
 
-    await session.commit()
-    return {"message": "Teléfono marcado como actual exitosamente"}
+        await session.commit()
+        return {"message": "Teléfono marcado como actual exitosamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error al marcar teléfono como actual: {str(e)}")
+
 

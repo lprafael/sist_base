@@ -470,7 +470,7 @@ class PersonaTelefonoResponse(BaseModel):
     observacion: Optional[str] = None
     id_usuario_registro: Optional[int] = None
     nombre_usuario_registro: Optional[str] = None
-    fecha_registro: datetime
+    fecha_registro: Optional[datetime] = None
     es_actual: bool = True
 
     class Config:
