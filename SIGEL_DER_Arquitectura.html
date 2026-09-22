@@ -7,6 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Mermaid.js para renderizado dinámico del DER -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <!-- SVG Pan Zoom para interactividad táctil y ratón en el DER -->
+  <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+
   <style>
     :root {
       --bg-main: #060913;
@@ -27,11 +32,7 @@
       --text-dim: #64748b;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -40,13 +41,12 @@
       line-height: 1.6;
       min-height: 100vh;
       background-image: 
-        radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.14) 0%, transparent 40%),
         radial-gradient(circle at 85% 60%, rgba(6, 182, 212, 0.1) 0%, transparent 45%),
         radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
       background-attachment: fixed;
     }
 
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: var(--bg-main); }
     ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
@@ -55,14 +55,14 @@
     header {
       border-bottom: 1px solid var(--border-color);
       backdrop-filter: blur(16px);
-      background: rgba(6, 9, 19, 0.8);
+      background: rgba(6, 9, 19, 0.85);
       position: sticky;
       top: 0;
       z-index: 100;
     }
 
     .header-container {
-      max-width: 1500px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 1.25rem 2rem;
       display: flex;
@@ -161,7 +161,7 @@
     }
 
     .container {
-      max-width: 1500px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 2rem;
     }
@@ -223,7 +223,6 @@
       margin-top: 0.25rem;
     }
 
-    /* Tab Contents */
     .tab-pane {
       display: none;
       animation: fadeIn 0.3s ease;
@@ -238,7 +237,141 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Schema Filter Pills */
+    /* CONTROLES DE DIAGRAMA DER */
+    .diagram-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 0.85rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .diagram-pills {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .der-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 0.4rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .der-pill:hover, .der-pill.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary-light);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    .zoom-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .zoom-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .zoom-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--primary);
+    }
+
+    /* VISOR GRÁFICO DER */
+    .der-canvas-container {
+      background: #080d1a;
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      position: relative;
+      height: 720px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      margin-bottom: 2.5rem;
+    }
+
+    .der-canvas-container::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+    }
+
+    .der-viewport {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .der-viewport:active {
+      cursor: grabbing;
+    }
+
+    .der-canvas-container svg {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100%;
+    }
+
+    .der-legend {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(12, 18, 34, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .legend-line {
+      width: 20px;
+      height: 2px;
+      background: #38bdf8;
+    }
+
+    /* DICCIONARIO DE DATOS */
     .filter-bar {
       display: flex;
       gap: 0.75rem;
@@ -248,11 +381,7 @@
       justify-content: space-between;
     }
 
-    .pills {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
+    .pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
     .pill {
       background: var(--bg-surface);
@@ -272,10 +401,7 @@
       background: rgba(99, 102, 241, 0.15);
     }
 
-    .search-box {
-      position: relative;
-      min-width: 280px;
-    }
+    .search-box { position: relative; min-width: 280px; }
 
     .search-input {
       width: 100%;
@@ -303,20 +429,9 @@
       font-size: 0.9rem;
     }
 
-    /* ER Diagram Interactive Area */
-    .diagram-wrapper {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
-      padding: 2rem;
-      overflow-x: auto;
-      margin-bottom: 2rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    }
-
     .schema-cluster {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
       gap: 1.5rem;
       margin-bottom: 2.5rem;
     }
@@ -334,7 +449,6 @@
       margin-top: 1rem;
     }
 
-    /* Entity Table Card */
     .entity-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
@@ -382,11 +496,6 @@
     .tag-ops { background: rgba(16, 185, 129, 0.2); color: #34d399; }
     .tag-sec { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
 
-    .entity-rows {
-      font-size: 0.75rem;
-      color: var(--text-dim);
-    }
-
     .field-list {
       list-style: none;
       padding: 0.5rem 0;
@@ -402,15 +511,9 @@
       transition: background 0.15s;
     }
 
-    .field-item:hover {
-      background: rgba(255, 255, 255, 0.04);
-    }
+    .field-item:hover { background: rgba(255, 255, 255, 0.04); }
 
-    .field-left {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
+    .field-left { display: flex; align-items: center; gap: 0.5rem; }
 
     .field-badge {
       font-size: 0.65rem;
@@ -423,19 +526,13 @@
     .badge-fk { background: #06b6d4; color: #000; }
     .badge-geo { background: #10b981; color: #000; }
 
-    .field-name {
-      color: #e2e8f0;
-    }
+    .field-name { color: #e2e8f0; }
+    .field-type { color: #64748b; font-size: 0.75rem; }
 
-    .field-type {
-      color: #64748b;
-      font-size: 0.75rem;
-    }
-
-    /* Functional Logic Cards */
+    /* LÓGICA DE FUNCIONAMIENTO */
     .logic-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
@@ -448,9 +545,7 @@
       position: relative;
     }
 
-    .logic-card:hover {
-      border-color: var(--border-glow);
-    }
+    .logic-card:hover { border-color: var(--border-glow); }
 
     .logic-header {
       display: flex;
@@ -473,13 +568,8 @@
     .icon-geo { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
     .icon-diad { background: rgba(16, 185, 129, 0.15); color: #34d399; }
     .icon-sec { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
-    .icon-comm { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
-    .icon-fin { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 
-    .logic-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-    }
+    .logic-title { font-size: 1.15rem; font-weight: 700; }
 
     .logic-step {
       display: flex;
@@ -526,7 +616,6 @@
       color: #38bdf8;
     }
 
-    /* Architecture Flow Box */
     .flow-box {
       background: #090d1a;
       border: 1px solid rgba(99, 102, 241, 0.2);
@@ -558,14 +647,18 @@
         <div class="logo-badge">SIGEL</div>
         <div class="brand-title">
           <h1>Arquitectura de Datos y DER <span class="badge-status">Producción Activa</span></h1>
-          <div class="brand-subtitle">Sistema Integrado de Gestión Electoral y Logística Gubernamental</div>
+          <div class="brand-subtitle">Diagrama Entidad-Relación Gráfico y Lógica Operativa</div>
         </div>
       </div>
 
       <nav>
         <button class="nav-btn active" onclick="switchTab('der')">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 3 3.5 3h9c2 0 3.5-1 3.5-3V7c0-2-1.5-3-3.5-3h-9C5.5 4 4 5 4 7zM9 4v16M15 4v16"/></svg>
-          Diagrama DER
+          Diagrama Gráfico DER
+        </button>
+        <button class="nav-btn" onclick="switchTab('tablas')">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Diccionario de Tablas
         </button>
         <button class="nav-btn" onclick="switchTab('logica')">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -605,9 +698,70 @@
       </div>
     </div>
 
-    <!-- TAB 1: DIAGRAMA ENTIDAD RELACIÓN (DER) -->
+    <!-- TAB 1: DIAGRAMA GRÁFICO DER (INTERACTIVO CON ZOOM & PAN) -->
     <div id="tab-der" class="tab-pane active">
       
+      <div class="diagram-controls">
+        <div class="diagram-pills">
+          <button class="der-pill active" onclick="loadDerModel('global')">🌐 Modelo Completo</button>
+          <button class="der-pill" onclick="loadDerModel('electoral')">🗳️ Padrón & Territorio</button>
+          <button class="der-pill" onclick="loadDerModel('diad')">🚗 Logística & Día D</button>
+          <button class="der-pill" onclick="loadDerModel('seguridad')">🛡️ Seguridad & Finanzas</button>
+        </div>
+
+        <div class="zoom-toolbar">
+          <span style="font-size: 0.775rem; color: var(--text-dim); margin-right: 0.5rem;">Arrastra para mover | Rueda para zoom</span>
+          <button class="zoom-btn" onclick="zoomIn()" title="Acercar">+</button>
+          <button class="zoom-btn" onclick="zoomOut()" title="Alejar">-</button>
+          <button class="zoom-btn" onclick="resetZoom()" title="Restablecer">⟲ Reset</button>
+          <button class="zoom-btn" onclick="toggleFullscreen()" title="Pantalla Completa">⛶ Pantalla Completa</button>
+        </div>
+      </div>
+
+      <!-- VISOR DEL DIAGRAMA -->
+      <div id="derCanvasContainer" class="der-canvas-container">
+        <div id="derViewport" class="der-viewport">
+          <div id="mermaidTarget" class="mermaid">
+            <!-- Diagrama Mermaid inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <div class="der-legend">
+          <div style="font-weight: 700; color: var(--text-main); margin-bottom: 0.2rem;">Relaciones Crow's Foot:</div>
+          <div class="legend-item"><div class="legend-line"></div> <span><b>||--o{</b> : Uno a Muchos (1 : N)</span></div>
+          <div class="legend-item"><div class="legend-line" style="background: var(--amber);"></div> <span><b>||--||</b> : Uno a Uno (1 : 1)</span></div>
+          <div class="legend-item"><div class="legend-line" style="background: var(--emerald);"></div> <span><b>}|--|{</b> : Muchos a Muchos (N : M)</span></div>
+        </div>
+      </div>
+
+      <!-- RESUMEN DE NAVEGACIÓN RÁPIDA DE RELACIONES -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
+          <h4 style="font-size: 0.85rem; color: var(--primary-light); margin-bottom: 0.5rem;">🔑 Llave Territorial Compuesta (4 Niveles)</h4>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">
+            Para vincular un votante a su local oficial, el sistema cruza exactamente 4 atributos:
+            <code class="code-pill">departamento_id</code> + <code class="code-pill">distrito_id</code> + <code class="code-pill">seccional_id (ZONA)</code> + <code class="code-pill">local_id</code>.
+          </p>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
+          <h4 style="font-size: 0.85rem; color: var(--emerald); margin-bottom: 0.5rem;">📍 Integración PostGIS Nativa</h4>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">
+            <code class="code-pill">ref_locales.geom_ubicacion</code> (Point, SRID 4326) se relaciona espacialmente con <code class="code-pill">cartografia.distritos.geometry</code> mediante operadores topológicos <code class="code-pill">ST_Contains</code> y <code class="code-pill">ST_DWithin</code>.
+          </p>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
+          <h4 style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 0.5rem;">👥 Trazabilidad de Voto Día D</h4>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">
+            <code class="code-pill">posibles_votantes</code> conecta a la persona con el referente político, el chofer asignado y el veedor de mesa que valida el sufragio en tiempo real.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: DICCIONARIO DE TABLAS -->
+    <div id="tab-tablas" class="tab-pane">
+
       <div class="filter-bar">
         <div class="pills">
           <button class="pill active" onclick="filterSchema('all')">Todos los Módulos</button>
@@ -622,415 +776,210 @@
         </div>
       </div>
 
-      <div class="diagram-wrapper">
-        
-        <!-- CLUSTER 1: NÚCLEO ELECTORAL -->
-        <div class="schema-cluster" data-cluster="electoral">
-          <div class="schema-cluster-title">
-            <span style="color: var(--primary);">🗳️</span> MÓDULO ELECTORAL Y PADRÓN NACIONAL (electoral)
-          </div>
-
-          <!-- electoral.padrones -->
-          <div class="entity-card" data-table="padrones">
-            <div class="entity-header">
-              <div class="entity-name">electoral.padrones</div>
-              <span class="entity-tag tag-core">10.2M filas</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">bigint</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">eleccion_id</span></div>
-                <span class="field-type">integer -> elecciones.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">cedula</span></div>
-                <span class="field-type">varchar -> personas.cedula</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">departamento_id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">distrito_id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">seccional_id</span></div>
-                <span class="field-type">integer (ZONA TSJE)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">local_id</span></div>
-                <span class="field-type">integer -> ref_locales</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">zona_id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">seccional_anr</span></div>
-                <span class="field-type">integer (Afiliación)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">mesa / orden</span></div>
-                <span class="field-type">integer, integer</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- electoral.personas -->
-          <div class="entity-card" data-table="personas">
-            <div class="entity-header">
-              <div class="entity-name">electoral.personas</div>
-              <span class="entity-tag tag-core">Maestro CI</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">cedula</span></div>
-                <span class="field-type">varchar(20)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">nombres / apellidos</span></div>
-                <span class="field-type">varchar(255)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">fecha_nacimiento</span></div>
-                <span class="field-type">date</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">genero</span></div>
-                <span class="field-type">varchar(1)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">telefono / email</span></div>
-                <span class="field-type">varchar</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">direccion_residencia</span></div>
-                <span class="field-type">text</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- electoral.ref_locales -->
-          <div class="entity-card" data-table="ref_locales">
-            <div class="entity-header">
-              <div class="entity-name">electoral.ref_locales</div>
-              <span class="entity-tag tag-geo">1,658 Locales</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">departamento_id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">distrito_id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">seccional_id</span></div>
-                <span class="field-type">integer (Zona/Secc)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">local_id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">descripcion</span></div>
-                <span class="field-type">varchar (Nombre Escuela)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-geo">GEO</span><span class="field-name">ubicacion</span></div>
-                <span class="field-type">jsonb (lat, lng, dir)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-geo">GIS</span><span class="field-name">geom_ubicacion</span></div>
-                <span class="field-type">geometry(Point, 4326)</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- electoral.elecciones -->
-          <div class="entity-card" data-table="elecciones">
-            <div class="entity-header">
-              <div class="entity-name">electoral.elecciones</div>
-              <span class="entity-tag tag-core">Catálogo</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer (1=ANR, 3=TSJE)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">nombre</span></div>
-                <span class="field-type">varchar(255)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">tipo</span></div>
-                <span class="field-type">Internas / Generales</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">fecha / activo</span></div>
-                <span class="field-type">date, boolean</span>
-              </li>
-            </ul>
-          </div>
-
+      <!-- CLUSTER 1: NÚCLEO ELECTORAL -->
+      <div class="schema-cluster" data-cluster="electoral">
+        <div class="schema-cluster-title">
+          <span style="color: var(--primary);">🗳️</span> MÓDULO ELECTORAL Y PADRÓN NACIONAL (electoral)
         </div>
 
-        <!-- CLUSTER 2: RED POLÍTICA Y DÍA D -->
-        <div class="schema-cluster" data-cluster="diad">
-          <div class="schema-cluster-title">
-            <span style="color: var(--emerald);">🚀</span> RED DE REFERENTES Y LOGÍSTICA DÍA D (electoral)
+        <!-- electoral.padrones -->
+        <div class="entity-card" data-table="padrones">
+          <div class="entity-header">
+            <div class="entity-name">electoral.padrones</div>
+            <span class="entity-tag tag-core">10.2M filas</span>
           </div>
-
-          <!-- electoral.referentes -->
-          <div class="entity-card" data-table="referentes">
-            <div class="entity-header">
-              <div class="entity-name">electoral.referentes</div>
-              <span class="entity-tag tag-ops">Líderes Base</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_usuario_sistema</span></div>
-                <span class="field-type">integer -> usuarios.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_candidato</span></div>
-                <span class="field-type">integer -> candidatos.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_superior</span></div>
-                <span class="field-type">integer (Jerarquía)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">nombre_referente</span></div>
-                <span class="field-type">varchar(155)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">telefono / zona_influencia</span></div>
-                <span class="field-type">varchar, text</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- electoral.posibles_votantes -->
-          <div class="entity-card" data-table="posibles_votantes">
-            <div class="entity-header">
-              <div class="entity-name">electoral.posibles_votantes</div>
-              <span class="entity-tag tag-ops">Fidelizados & Día D</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_referente</span></div>
-                <span class="field-type">integer -> referentes.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">cedula_votante</span></div>
-                <span class="field-type">varchar -> personas.cedula</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">grado_seguridad</span></div>
-                <span class="field-type">integer (1 a 5)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-geo">GEO</span><span class="field-name">latitud / longitud</span></div>
-                <span class="field-type">double precision</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">logistica_estado</span></div>
-                <span class="field-type">pendiente/en_camino/voto</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">chofer_id</span></div>
-                <span class="field-type">integer -> choferes.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">veedor_id</span></div>
-                <span class="field-type">integer -> usuarios.id</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- electoral.choferes -->
-          <div class="entity-card" data-table="choferes">
-            <div class="entity-header">
-              <div class="entity-name">electoral.choferes</div>
-              <span class="entity-tag tag-ops">Logística Móvil</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">nombre / telefono</span></div>
-                <span class="field-type">varchar(100)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">vehiculo_info</span></div>
-                <span class="field-type">varchar(255)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">token_seguimiento</span></div>
-                <span class="field-type">varchar(100) UNIQUE</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-geo">GEO</span><span class="field-name">latitud / longitud</span></div>
-                <span class="field-type">GPS Tiempo Real</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- electoral.resultados_mesas -->
-          <div class="entity-card" data-table="resultados_mesas">
-            <div class="entity-header">
-              <div class="entity-name">electoral.resultados_mesas</div>
-              <span class="entity-tag tag-ops">Escrutinio Rápido</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">local_id / nro_mesa</span></div>
-                <span class="field-type">integer, integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_candidato</span></div>
-                <span class="field-type">integer -> candidatos.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">votos_obtenidos</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">votos_blancos / nulos</span></div>
-                <span class="field-type">integer, integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">foto_acta_url</span></div>
-                <span class="field-type">varchar(500)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">auditado</span></div>
-                <span class="field-type">boolean</span>
-              </li>
-            </ul>
-          </div>
-
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">bigint</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">eleccion_id</span></div><span class="field-type">integer -> elecciones.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">cedula</span></div><span class="field-type">varchar -> personas.cedula</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">departamento_id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">distrito_id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">seccional_id</span></div><span class="field-type">integer (ZONA TSJE)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">local_id</span></div><span class="field-type">integer -> ref_locales</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">zona_id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">seccional_anr</span></div><span class="field-type">integer (Afiliación)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">mesa / orden</span></div><span class="field-type">integer, integer</span></li>
+          </ul>
         </div>
 
-        <!-- CLUSTER 3: CARTOGRAFÍA Y SISTEMA -->
-        <div class="schema-cluster" data-cluster="carto">
-          <div class="schema-cluster-title">
-            <span style="color: var(--cyan);">🗺️</span> CAPAS ESPACIALES POSTGIS Y AUDITORÍA (cartografia / sistema)
+        <!-- electoral.personas -->
+        <div class="entity-card" data-table="personas">
+          <div class="entity-header">
+            <div class="entity-name">electoral.personas</div>
+            <span class="entity-tag tag-core">Maestro CI</span>
           </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">cedula</span></div><span class="field-type">varchar(20)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">nombres / apellidos</span></div><span class="field-type">varchar(255)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">fecha_nacimiento</span></div><span class="field-type">date</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">genero</span></div><span class="field-type">varchar(1)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">telefono / email</span></div><span class="field-type">varchar</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">direccion_residencia</span></div><span class="field-type">text</span></li>
+          </ul>
+        </div>
 
-          <!-- cartografia.distritos -->
-          <div class="entity-card" data-table="cartografia_distritos">
-            <div class="entity-header">
-              <div class="entity-name">cartografia.distritos</div>
-              <span class="entity-tag tag-geo">263 Distritos</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">ref_distrito_id</span></div>
-                <span class="field-type">bigint -> ref_distritos.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">dpto_id_ref</span></div>
-                <span class="field-type">bigint -> ref_departamentos.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">dist_desc_ / dpto_nombre</span></div>
-                <span class="field-type">text</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-geo">GIS</span><span class="field-name">geometry</span></div>
-                <span class="field-type">MultiPolygon (SRID 4326)</span>
-              </li>
-            </ul>
+        <!-- electoral.ref_locales -->
+        <div class="entity-card" data-table="ref_locales">
+          <div class="entity-header">
+            <div class="entity-name">electoral.ref_locales</div>
+            <span class="entity-tag tag-geo">1,658 Locales</span>
           </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">departamento_id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">distrito_id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">seccional_id</span></div><span class="field-type">integer (Zona/Secc)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">local_id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">descripcion</span></div><span class="field-type">varchar (Colegio/Escuela)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-geo">GEO</span><span class="field-name">ubicacion</span></div><span class="field-type">jsonb (lat, lng, dir)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-geo">GIS</span><span class="field-name">geom_ubicacion</span></div><span class="field-type">geometry(Point, 4326)</span></li>
+          </ul>
+        </div>
 
-          <!-- sistema.usuarios -->
-          <div class="entity-card" data-table="usuarios">
-            <div class="entity-header">
-              <div class="entity-name">sistema.usuarios</div>
-              <span class="entity-tag tag-sec">Control Acceso</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">username / email</span></div>
-                <span class="field-type">varchar UNIQUE</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">hashed_password</span></div>
-                <span class="field-type">varchar(255)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">rol</span></div>
-                <span class="field-type">admin / candidato / referente</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">restriccion_equipo</span></div>
-                <span class="field-type">boolean (Device Lock)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">veedor_mesas</span></div>
-                <span class="field-type">jsonb [1, 2, 5]</span>
-              </li>
-            </ul>
+        <!-- electoral.elecciones -->
+        <div class="entity-card" data-table="elecciones">
+          <div class="entity-header">
+            <div class="entity-name">electoral.elecciones</div>
+            <span class="entity-tag tag-core">Catálogo</span>
           </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer (1=ANR, 3=TSJE)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">nombre</span></div><span class="field-type">varchar(255)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">tipo</span></div><span class="field-type">Internas / Generales</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">fecha / activo</span></div><span class="field-type">date, boolean</span></li>
+          </ul>
+        </div>
 
-          <!-- sistema.equipos_autorizados -->
-          <div class="entity-card" data-table="equipos_autorizados">
-            <div class="entity-header">
-              <div class="entity-name">sistema.equipos_autorizados</div>
-              <span class="entity-tag tag-sec">Hardware Whitelist</span>
-            </div>
-            <ul class="field-list">
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div>
-                <span class="field-type">integer</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">usuario_id</span></div>
-                <span class="field-type">integer -> usuarios.id</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">device_id</span></div>
-                <span class="field-type">varchar (Browser Fingerprint)</span>
-              </li>
-              <li class="field-item">
-                <div class="field-left"><span class="field-name">ip_solicitud / activo</span></div>
-                <span class="field-type">varchar, boolean</span>
-              </li>
-            </ul>
+      </div>
+
+      <!-- CLUSTER 2: RED POLÍTICA Y DÍA D -->
+      <div class="schema-cluster" data-cluster="diad">
+        <div class="schema-cluster-title">
+          <span style="color: var(--emerald);">🚀</span> RED DE REFERENTES Y LOGÍSTICA DÍA D (electoral)
+        </div>
+
+        <!-- electoral.referentes -->
+        <div class="entity-card" data-table="referentes">
+          <div class="entity-header">
+            <div class="entity-name">electoral.referentes</div>
+            <span class="entity-tag tag-ops">Líderes Base</span>
           </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_usuario_sistema</span></div><span class="field-type">integer -> usuarios.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_candidato</span></div><span class="field-type">integer -> candidatos.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_superior</span></div><span class="field-type">integer (Jerarquía)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">nombre_referente</span></div><span class="field-type">varchar(155)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">telefono / zona_influencia</span></div><span class="field-type">varchar, text</span></li>
+          </ul>
+        </div>
 
+        <!-- electoral.posibles_votantes -->
+        <div class="entity-card" data-table="posibles_votantes">
+          <div class="entity-header">
+            <div class="entity-name">electoral.posibles_votantes</div>
+            <span class="entity-tag tag-ops">Fidelizados & Día D</span>
+          </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_referente</span></div><span class="field-type">integer -> referentes.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">cedula_votante</span></div><span class="field-type">varchar -> personas.cedula</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">grado_seguridad</span></div><span class="field-type">integer (1 a 5)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-geo">GEO</span><span class="field-name">latitud / longitud</span></div><span class="field-type">double precision</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">logistica_estado</span></div><span class="field-type">pendiente/en_camino/voto</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">chofer_id</span></div><span class="field-type">integer -> choferes.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">veedor_id</span></div><span class="field-type">integer -> usuarios.id</span></li>
+          </ul>
+        </div>
+
+        <!-- electoral.choferes -->
+        <div class="entity-card" data-table="choferes">
+          <div class="entity-header">
+            <div class="entity-name">electoral.choferes</div>
+            <span class="entity-tag tag-ops">Logística Móvil</span>
+          </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">nombre / telefono</span></div><span class="field-type">varchar(100)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">vehiculo_info</span></div><span class="field-type">varchar(255)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">token_seguimiento</span></div><span class="field-type">varchar(100) UNIQUE</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-geo">GEO</span><span class="field-name">latitud / longitud</span></div><span class="field-type">GPS Tiempo Real</span></li>
+          </ul>
+        </div>
+
+        <!-- electoral.resultados_mesas -->
+        <div class="entity-card" data-table="resultados_mesas">
+          <div class="entity-header">
+            <div class="entity-name">electoral.resultados_mesas</div>
+            <span class="entity-tag tag-ops">Escrutinio Rápido</span>
+          </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">local_id / nro_mesa</span></div><span class="field-type">integer, integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">id_candidato</span></div><span class="field-type">integer -> candidatos.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">votos_obtenidos</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">votos_blancos / nulos</span></div><span class="field-type">integer, integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">foto_acta_url</span></div><span class="field-type">varchar(500)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">auditado</span></div><span class="field-type">boolean</span></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- CLUSTER 3: CARTOGRAFÍA Y SISTEMA -->
+      <div class="schema-cluster" data-cluster="carto">
+        <div class="schema-cluster-title">
+          <span style="color: var(--cyan);">🗺️</span> CAPAS ESPACIALES POSTGIS Y AUDITORÍA (cartografia / sistema)
+        </div>
+
+        <!-- cartografia.distritos -->
+        <div class="entity-card" data-table="cartografia_distritos">
+          <div class="entity-header">
+            <div class="entity-name">cartografia.distritos</div>
+            <span class="entity-tag tag-geo">263 Distritos</span>
+          </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">ref_distrito_id</span></div><span class="field-type">bigint -> ref_distritos.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">dpto_id_ref</span></div><span class="field-type">bigint -> ref_departamentos.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">dist_desc_ / dpto_nombre</span></div><span class="field-type">text</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-geo">GIS</span><span class="field-name">geometry</span></div><span class="field-type">MultiPolygon (SRID 4326)</span></li>
+          </ul>
+        </div>
+
+        <!-- sistema.usuarios -->
+        <div class="entity-card" data-table="usuarios">
+          <div class="entity-header">
+            <div class="entity-name">sistema.usuarios</div>
+            <span class="entity-tag tag-sec">Control Acceso</span>
+          </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">username / email</span></div><span class="field-type">varchar UNIQUE</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">hashed_password</span></div><span class="field-type">varchar(255)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">rol</span></div><span class="field-type">admin / candidato / referente</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">restriccion_equipo</span></div><span class="field-type">boolean (Device Lock)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">veedor_mesas</span></div><span class="field-type">jsonb [1, 2, 5]</span></li>
+          </ul>
+        </div>
+
+        <!-- sistema.equipos_autorizados -->
+        <div class="entity-card" data-table="equipos_autorizados">
+          <div class="entity-header">
+            <div class="entity-name">sistema.equipos_autorizados</div>
+            <span class="entity-tag tag-sec">Hardware Whitelist</span>
+          </div>
+          <ul class="field-list">
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-pk">PK</span><span class="field-name">id</span></div><span class="field-type">integer</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-badge badge-fk">FK</span><span class="field-name">usuario_id</span></div><span class="field-type">integer -> usuarios.id</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">device_id</span></div><span class="field-type">varchar (Browser Fingerprint)</span></li>
+            <li class="field-item"><div class="field-left"><span class="field-name">ip_solicitud / activo</span></div><span class="field-type">varchar, boolean</span></li>
+          </ul>
         </div>
 
       </div>
 
     </div>
 
-    <!-- TAB 2: LÓGICA DE FUNCIONAMIENTO -->
+    <!-- TAB 3: LÓGICA DE FUNCIONAMIENTO -->
     <div id="tab-logica" class="tab-pane">
 
       <div class="logic-grid">
@@ -1197,7 +1146,7 @@ ST_DWithin(
 
     </div>
 
-    <!-- TAB 3: GEO & TERRITORIO -->
+    <!-- TAB 4: GEO & TERRITORIO -->
     <div id="tab-territorio" class="tab-pane">
 
       <div class="logic-grid">
@@ -1294,7 +1243,7 @@ ST_DWithin(
 
   <!-- FOOTER -->
   <footer>
-    <div style="max-width: 1500px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div style="max-width: 1600px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
       <div>
         <strong>SIGEL — Sistema Integrado de Gestión Electoral</strong> &copy; 2026. Todos los derechos reservados.
       </div>
@@ -1304,13 +1253,473 @@ ST_DWithin(
     </div>
   </footer>
 
+  <!-- MODELOS MERMAID DEL DIAGRAMA ENTIDAD-RELACIÓN -->
   <script>
+    const ER_MODELS = {
+      global: `erDiagram
+    REF_DEPARTAMENTOS ||--o{ REF_DISTRITOS : "contiene"
+    REF_DISTRITOS ||--o{ REF_SECCIONALES : "divide_en_zonas"
+    REF_SECCIONALES ||--o{ REF_LOCALES : "agrupa_locales"
+    REF_DISTRITOS ||--o{ CARTOGRAFIA_DISTRITOS : "poligono_postgis"
+
+    PERSONAS ||--o{ PADRONES : "identifica"
+    ELECCIONES ||--o{ PADRONES : "pertenece"
+    REF_LOCALES ||--o{ PADRONES : "asigna_local"
+
+    USUARIOS ||--o{ REFERENTES : "asigna_usuario"
+    CANDIDATOS ||--o{ REFERENTES : "lidera"
+    REFERENTES ||--o{ REFERENTES : "jerarquia_superior"
+    REFERENTES ||--o{ POSIBLES_VOTANTES : "capta_fideliza"
+    PERSONAS ||--o{ POSIBLES_VOTANTES : "es_persona"
+    ELECCIONES ||--o{ POSIBLES_VOTANTES : "eleccion_activa"
+
+    CHOFERES ||--o{ POSIBLES_VOTANTES : "traslada_dia_d"
+    USUARIOS ||--o{ POSIBLES_VOTANTES : "veedor_audita"
+    
+    CANDIDATOS ||--o{ RESULTADOS_MESAS : "obtiene_votos"
+    REF_LOCALES ||--o{ RESULTADOS_MESAS : "escrutinio_local"
+    USUARIOS ||--o{ RESULTADOS_MESAS : "transmite_acta"
+
+    USUARIOS ||--o{ SESIONES_USUARIOS : "inicia_sesion"
+    USUARIOS ||--o{ EQUIPOS_AUTORIZADOS : "registra_device"
+    USUARIOS ||--o{ LOGS_AUDITORIA : "audita_cambios"
+    ROLES ||--o{ USUARIO_ROL : "asigna_rol"
+    USUARIOS ||--o{ USUARIO_ROL : "posee"
+
+    CANDIDATOS ||--o{ FINANCIAMIENTO_INGRESOS : "percibe_aportes"
+    CANDIDATOS ||--o{ FINANCIAMIENTO_EGRESOS : "declara_gastos"
+
+    PERSONAS {
+        varchar cedula PK
+        varchar nombres
+        varchar apellidos
+        date fecha_nacimiento
+        varchar genero
+        varchar telefono
+    }
+    PADRONES {
+        bigint id PK
+        int eleccion_id FK
+        varchar cedula FK
+        int departamento_id FK
+        int distrito_id FK
+        int seccional_id FK
+        int local_id FK
+        int zona_id
+        int seccional_anr
+        int mesa
+        int orden
+    }
+    REF_LOCALES {
+        int departamento_id PK
+        int distrito_id PK
+        int seccional_id PK
+        int local_id PK
+        varchar descripcion
+        jsonb ubicacion
+        geometry geom_ubicacion
+    }
+    REF_SECCIONALES {
+        int departamento_id PK
+        int distrito_id PK
+        int seccional_id PK
+        varchar descripcion
+    }
+    REF_DISTRITOS {
+        int departamento_id PK
+        int id PK
+        varchar descripcion
+    }
+    REF_DEPARTAMENTOS {
+        int id PK
+        varchar descripcion
+    }
+    ELECCIONES {
+        int id PK
+        varchar nombre
+        varchar tipo
+        date fecha
+    }
+    POSIBLES_VOTANTES {
+        int id PK
+        int id_referente FK
+        varchar cedula_votante FK
+        int grado_seguridad
+        varchar logistica_estado
+        int chofer_id FK
+        int veedor_id FK
+    }
+    CHOFERES {
+        int id PK
+        varchar nombre
+        varchar telefono
+        varchar vehiculo_info
+        varchar token_seguimiento
+        float latitud
+        float longitud
+    }
+    REFERENTES {
+        int id PK
+        int id_usuario_sistema FK
+        int id_candidato FK
+        int id_superior FK
+        varchar nombre_referente
+        varchar zona_influencia
+    }
+    RESULTADOS_MESAS {
+        int id PK
+        int local_id FK
+        int nro_mesa
+        int id_candidato FK
+        int votos_obtenidos
+        varchar foto_acta_url
+    }
+    USUARIOS {
+        int id PK
+        varchar username
+        varchar email
+        varchar rol
+        boolean restriccion_equipo
+        jsonb veedor_mesas
+    }
+    EQUIPOS_AUTORIZADOS {
+        int id PK
+        int usuario_id FK
+        varchar device_id
+        boolean activo
+    }
+    CARTOGRAFIA_DISTRITOS {
+        bigint ref_distrito_id FK
+        bigint dpto_id_ref FK
+        text dist_desc_
+        geometry geometry
+    }
+    FINANCIAMIENTO_INGRESOS {
+        int id PK
+        int id_candidato FK
+        float monto
+        date fecha
+        varchar origen
+        varchar timbrado
+    }
+    FINANCIAMIENTO_EGRESOS {
+        int id PK
+        int id_candidato FK
+        float monto
+        date fecha
+        varchar proveedor_ruc
+        varchar timbrado
+    }
+`,
+
+      electoral: `erDiagram
+    REF_DEPARTAMENTOS ||--o{ REF_DISTRITOS : "contiene"
+    REF_DISTRITOS ||--o{ REF_SECCIONALES : "divide_en_zonas"
+    REF_SECCIONALES ||--o{ REF_LOCALES : "agrupa_locales"
+    REF_DISTRITOS ||--o{ CARTOGRAFIA_DISTRITOS : "poligono_postgis"
+
+    PERSONAS ||--o{ PADRONES : "identifica"
+    ELECCIONES ||--o{ PADRONES : "pertenece"
+    REF_LOCALES ||--o{ PADRONES : "asigna_colegio_electoral"
+
+    PERSONAS {
+        varchar cedula PK
+        varchar nombres
+        varchar apellidos
+        date fecha_nacimiento
+        varchar genero
+        varchar telefono
+    }
+    PADRONES {
+        bigint id PK
+        int eleccion_id FK
+        varchar cedula FK
+        int departamento_id FK
+        int distrito_id FK
+        int seccional_id FK
+        int local_id FK
+        int zona_id
+        int seccional_anr
+        int mesa
+        int orden
+    }
+    REF_LOCALES {
+        int departamento_id PK
+        int distrito_id PK
+        int seccional_id PK
+        int local_id PK
+        varchar descripcion
+        jsonb ubicacion
+        geometry geom_ubicacion
+    }
+    REF_SECCIONALES {
+        int departamento_id PK
+        int distrito_id PK
+        int seccional_id PK
+        varchar descripcion
+    }
+    REF_DISTRITOS {
+        int departamento_id PK
+        int id PK
+        varchar descripcion
+    }
+    REF_DEPARTAMENTOS {
+        int id PK
+        varchar descripcion
+    }
+    ELECCIONES {
+        int id PK
+        varchar nombre
+        varchar tipo
+        date fecha
+    }
+    CARTOGRAFIA_DISTRITOS {
+        bigint ref_distrito_id FK
+        bigint dpto_id_ref FK
+        text dist_desc_
+        geometry geometry
+    }
+`,
+
+      diad: `erDiagram
+    CANDIDATOS ||--o{ REFERENTES : "lidera"
+    REFERENTES ||--o{ REFERENTES : "superior_jerarquico"
+    USUARIOS ||--o{ REFERENTES : "cuenta_sistema"
+    REFERENTES ||--o{ POSIBLES_VOTANTES : "fideliza_captacion"
+    PERSONAS ||--o{ POSIBLES_VOTANTES : "voto_asignado"
+
+    CHOFERES ||--o{ POSIBLES_VOTANTES : "moviliza_dia_d"
+    USUARIOS ||--o{ POSIBLES_VOTANTES : "valida_voto_mesa"
+
+    CANDIDATOS ||--o{ RESULTADOS_MESAS : "recibe_votos"
+    REF_LOCALES ||--o{ RESULTADOS_MESAS : "mesa_escrutada"
+    USUARIOS ||--o{ RESULTADOS_MESAS : "transmite_acta"
+
+    POSIBLES_VOTANTES {
+        int id PK
+        int id_referente FK
+        varchar cedula_votante FK
+        int grado_seguridad
+        varchar logistica_estado
+        int chofer_id FK
+        int veedor_id FK
+        float latitud
+        float longitud
+    }
+    CHOFERES {
+        int id PK
+        varchar nombre
+        varchar telefono
+        varchar vehiculo_info
+        varchar token_seguimiento
+        float latitud
+        float longitud
+    }
+    REFERENTES {
+        int id PK
+        int id_usuario_sistema FK
+        int id_candidato FK
+        int id_superior FK
+        varchar nombre_referente
+        varchar telefono
+        varchar zona_influencia
+    }
+    CANDIDATOS {
+        int id PK
+        varchar nombre_candidato
+        varchar partido_movimiento
+        varchar municipio
+        int eleccion_id FK
+    }
+    RESULTADOS_MESAS {
+        int id PK
+        int local_id FK
+        int nro_mesa
+        int id_candidato FK
+        int votos_obtenidos
+        int votos_blancos
+        int votos_nulos
+        varchar foto_acta_url
+        boolean auditado
+    }
+    USUARIOS {
+        int id PK
+        varchar username
+        varchar email
+        varchar rol
+        jsonb veedor_mesas
+    }
+`,
+
+      seguridad: `erDiagram
+    USUARIOS ||--o{ SESIONES_USUARIOS : "genera_sesion"
+    USUARIOS ||--o{ EQUIPOS_AUTORIZADOS : "valida_hardware"
+    USUARIOS ||--o{ LOGS_ACCESO : "registra_acceso"
+    USUARIOS ||--o{ LOGS_AUDITORIA : "registra_operacion"
+    ROLES ||--o{ USUARIO_ROL : "asignado"
+    USUARIOS ||--o{ USUARIO_ROL : "pertenece"
+    ROLES ||--o{ ROL_PERMISO : "incluye"
+    PERMISOS ||--o{ ROL_PERMISO : "concede"
+
+    CANDIDATOS ||--o{ FINANCIAMIENTO_INGRESOS : "recibe"
+    CANDIDATOS ||--o{ FINANCIAMIENTO_EGRESOS : "rinde_cuentas"
+    CANDIDATOS ||--o{ FINANCIAMIENTO_CUMPLIMIENTO : "requisitos_tsje"
+
+    USUARIOS {
+        int id PK
+        varchar username
+        varchar email
+        varchar hashed_password
+        varchar rol
+        boolean activo
+        boolean restriccion_equipo
+    }
+    EQUIPOS_AUTORIZADOS {
+        int id PK
+        int usuario_id FK
+        varchar device_id
+        varchar user_agent
+        varchar ip_solicitud
+        boolean activo
+    }
+    SESIONES_USUARIOS {
+        int id PK
+        int usuario_id FK
+        varchar token
+        datetime fecha_inicio
+        datetime fecha_expiracion
+        boolean activa
+    }
+    ROLES {
+        int id PK
+        varchar nombre
+        varchar descripcion
+    }
+    PERMISOS {
+        int id PK
+        varchar nombre
+        varchar modulo
+        varchar accion
+    }
+    LOGS_AUDITORIA {
+        int id PK
+        int usuario_id FK
+        varchar accion
+        varchar tabla
+        json datos_anteriores
+        json datos_nuevos
+        datetime fecha
+    }
+    FINANCIAMIENTO_INGRESOS {
+        int id PK
+        int id_candidato FK
+        float monto
+        date fecha
+        varchar origen
+        varchar timbrado
+    }
+    FINANCIAMIENTO_EGRESOS {
+        int id PK
+        int id_candidato FK
+        float monto
+        date fecha
+        varchar proveedor_ruc
+        varchar factura_nro
+        varchar timbrado
+    }
+`
+    };
+
+    let panZoomInstance = null;
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      securityLevel: 'loose',
+      er: {
+        useMaxWidth: false,
+        fontSize: 13
+      },
+      themeVariables: {
+        darkMode: true,
+        background: '#080d1a',
+        primaryColor: '#6366f1',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#818cf8',
+        lineColor: '#38bdf8',
+        secondaryColor: '#10b981',
+        tertiaryColor: '#1e293b',
+        attributeBackgroundColorOdd: '#0f172a',
+        attributeBackgroundColorEven: '#1e293b'
+      }
+    });
+
+    async function loadDerModel(modelKey) {
+      document.querySelectorAll('.der-pill').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.der-pill')).find(b => b.getAttribute('onclick').includes(modelKey));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const target = document.getElementById('mermaidTarget');
+      target.removeAttribute('data-processed');
+      target.innerHTML = '';
+
+      if (panZoomInstance) {
+        panZoomInstance.destroy();
+        panZoomInstance = null;
+      }
+
+      const code = ER_MODELS[modelKey] || ER_MODELS.global;
+      try {
+        const { svg } = await mermaid.render('mermaidSvgGraph', code);
+        target.innerHTML = svg;
+
+        // Inicializar Pan-Zoom sobre el SVG renderizado
+        setTimeout(() => {
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.width = '100%';
+            svgEl.style.height = '100%';
+            panZoomInstance = svgPanZoom(svgEl, {
+              zoomEnabled: true,
+              controlIconsEnabled: false,
+              fit: true,
+              center: true,
+              minZoom: 0.3,
+              maxZoom: 5.0,
+              zoomScaleSensitivity: 0.25
+            });
+          }
+        }, 80);
+      } catch (err) {
+        console.error("Error al renderizar Mermaid DER:", err);
+        target.innerHTML = '<div style="color: #f87171; padding: 2rem;">Error al renderizar el modelo DER.</div>';
+      }
+    }
+
+    function zoomIn() { if (panZoomInstance) panZoomInstance.zoomIn(); }
+    function zoomOut() { if (panZoomInstance) panZoomInstance.zoomOut(); }
+    function resetZoom() { if (panZoomInstance) { panZoomInstance.reset(); panZoomInstance.center(); } }
+
+    function toggleFullscreen() {
+      const el = document.getElementById('derCanvasContainer');
+      if (!document.fullscreenElement) {
+        el.requestFullscreen().catch(err => alert("Error pantalla completa: " + err.message));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
 
       document.getElementById('tab-' + tabId).classList.add('active');
-      event.currentTarget.classList.add('active');
+      const activeNav = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (activeNav) activeNav.classList.add('active');
+
+      if (tabId === 'der' && !panZoomInstance) {
+        loadDerModel('global');
+      }
     }
 
     function filterSchema(schema) {
@@ -1340,6 +1749,11 @@ ST_DWithin(
         }
       });
     }
+
+    // Cargar DER Global al iniciar
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDerModel('global');
+    });
   </script>
 </body>
 </html>
