@@ -64,6 +64,7 @@ check_*.py
 check_*.sql
 verify_*.py
 sync_*.py
+!backend/sync_padron_chunks.py
 dev_output.txt
 *.txt
 scratch/
