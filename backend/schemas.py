@@ -524,6 +524,7 @@ class ResumenReferente(BaseModel):
     id_referente: int
     nombre_referente: str
     cantidad_votantes: int
+    cantidad_solapados: Optional[int] = 0
 
 class ResumenLocal(BaseModel):
     nombre_local: str
@@ -542,6 +543,31 @@ class DashboardCandidatoResponse(BaseModel):
     resumen_mesas: List[ResumenMesa] = []
     puntos_calor: List[Dict[str, Any]] = [] # [{lat: X, lng: Y, weight: Z}]
     map_center: Optional[Dict[str, float]] = None
+
+class SimpatizanteReferenteItem(BaseModel):
+    id: int
+    cedula: str
+    nombre_completo: str
+    telefono: Optional[str] = None
+    domicilio: Optional[str] = None
+    parentesco: Optional[str] = None
+    grado_seguridad: Optional[int] = 3
+    observaciones: Optional[str] = None
+    fecha_captacion: Optional[datetime] = None
+    movilidad_propia: Optional[bool] = False
+    nombre_local: Optional[str] = None
+    mesa: Optional[int] = None
+    orden: Optional[int] = None
+    solapado: bool = False
+    otros_referentes: List[str] = []
+    duplicado_mismo_referente: bool = False
+
+class SimpatizantesReferenteResponse(BaseModel):
+    id_referente: int
+    nombre_referente: str
+    total_simpatizantes: int
+    total_solapados: int
+    simpatizantes: List[SimpatizanteReferenteItem]
 
 class AnrPadronResponse(BaseModel):
     cedula: str

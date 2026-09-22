@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from database import get_session
 from models import Referente, PosibleVotante, Candidato, Usuario, RefDepartamento, RefDistrito, RefSeccional, RefLocal, Persona, Eleccion, PadronElectoral, PlraPadron, PersonaTelefono
-from schemas import PadronResponse, CaptacionCreate, CaptacionUpdate, PosibleVotanteResponse, DashboardCandidatoResponse, ResumenReferente, AnrPadronResponse, PlraPadronResponse, EleccionResponse, EleccionCreate, EleccionUpdate, PersonaTelefonoCreate, PersonaTelefonoResponse
+from schemas import PadronResponse, CaptacionCreate, CaptacionUpdate, PosibleVotanteResponse, DashboardCandidatoResponse, ResumenReferente, AnrPadronResponse, PlraPadronResponse, EleccionResponse, EleccionCreate, EleccionUpdate, PersonaTelefonoCreate, PersonaTelefonoResponse, SimpatizantesReferenteResponse, SimpatizanteReferenteItem
 from security import get_current_user
 
 router = APIRouter(prefix="/api/electoral", tags=["Gestión Electoral"])
@@ -647,15 +647,44 @@ async def get_dashboard_stats(
         res_unicos = await session.execute(stmt_unicos)
         total_unicos = res_unicos.scalar() or 0
 
+        # Identificar cédulas solapadas dentro de los referentes visibles
+        stmt_solapadas = (
+            select(PosibleVotante.cedula_votante)
+            .where(PosibleVotante.id_referente.in_(referente_ids))
+            .group_by(PosibleVotante.cedula_votante)
+            .having(func.count(PosibleVotante.id) > 1)
+        )
+        res_solapadas = await session.execute(stmt_solapadas)
+        cedulas_solapadas = set(res_solapadas.scalars().all())
+
+        solapados_por_referente = {}
+        if cedulas_solapadas:
+            stmt_solapados_ref = (
+                select(
+                    PosibleVotante.id_referente,
+                    func.count(PosibleVotante.id)
+                )
+                .where(
+                    PosibleVotante.id_referente.in_(referente_ids),
+                    PosibleVotante.cedula_votante.in_(cedulas_solapadas)
+                )
+                .group_by(PosibleVotante.id_referente)
+            )
+            res_sr = await session.execute(stmt_solapados_ref)
+            for ref_id, c_solapados in res_sr.all():
+                solapados_por_referente[ref_id] = c_solapados
+
         resumen_referentes = []
         total_bruto = 0
         for r in referentes:
             stmt_count = select(func.count(PosibleVotante.id)).where(PosibleVotante.id_referente == r.id)
             count = (await session.execute(stmt_count)).scalar() or 0
+            c_solap = solapados_por_referente.get(r.id, 0)
             resumen_referentes.append({
                 "id_referente": r.id,
                 "nombre_referente": r.nombre_referente,
-                "cantidad_votantes": count
+                "cantidad_votantes": count,
+                "cantidad_solapados": c_solap
             })
             total_bruto += count
         
@@ -779,6 +808,152 @@ async def get_dashboard_stats(
         }
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/dashboard/candidato/referente/{id_referente}/simpatizantes", response_model=SimpatizantesReferenteResponse)
+async def get_referente_simpatizantes(
+    id_referente: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Obtiene el listado detallado de simpatizantes cargados por un referente específico,
+    con indicación clara de si están solapados con otros referentes del candidato/campaña.
+    """
+    from hierarchy_utils import get_visible_referente_ids
+
+    user_id = current_user["user_id"]
+    user_role = current_user.get("role", "referente")
+
+    referente_ids = await get_visible_referente_ids(user_id, user_role, session)
+
+    if id_referente not in referente_ids:
+        raise HTTPException(
+            status_code=403, 
+            detail="No tienes autorización para acceder a los simpatizantes de este referente"
+        )
+
+    stmt_ref = select(Referente).where(Referente.id == id_referente)
+    referente_obj = (await session.execute(stmt_ref)).scalar_one_or_none()
+    if not referente_obj:
+        raise HTTPException(status_code=404, detail="Referente no encontrado")
+
+    stmt_votantes = (
+        select(
+            PosibleVotante.id,
+            PosibleVotante.cedula_votante,
+            Persona.nombres,
+            Persona.apellidos,
+            Persona.telefono,
+            PosibleVotante.domicilio,
+            Persona.direccion_residencia.label("direccion_padron"),
+            PosibleVotante.parentesco,
+            PosibleVotante.grado_seguridad,
+            PosibleVotante.observaciones,
+            PosibleVotante.fecha_captacion,
+            PosibleVotante.movilidad_propia,
+            PadronElectoral.mesa,
+            PadronElectoral.orden,
+            RefLocal.descripcion.label("nombre_local")
+        )
+        .outerjoin(Persona, PosibleVotante.cedula_votante == Persona.cedula)
+        .outerjoin(PadronElectoral, and_(
+            PosibleVotante.cedula_votante == PadronElectoral.cedula,
+            PadronElectoral.eleccion_id == 1
+        ))
+        .outerjoin(RefLocal, and_(
+            PadronElectoral.departamento_id == RefLocal.departamento_id,
+            PadronElectoral.distrito_id == RefLocal.distrito_id,
+            PadronElectoral.seccional_id == RefLocal.seccional_id,
+            PadronElectoral.local_id == RefLocal.local_id
+        ))
+        .where(PosibleVotante.id_referente == id_referente)
+        .order_by(PosibleVotante.fecha_captacion.desc().nullslast())
+    )
+    res_votantes = await session.execute(stmt_votantes)
+    raw_votantes = res_votantes.all()
+
+    if not raw_votantes:
+        return {
+            "id_referente": id_referente,
+            "nombre_referente": referente_obj.nombre_referente,
+            "total_simpatizantes": 0,
+            "total_solapados": 0,
+            "simpatizantes": []
+        }
+
+    cedulas = [v.cedula_votante for v in raw_votantes if v.cedula_votante]
+
+    # Detectar solapamiento con otros referentes de la campaña visible
+    stmt_overlap = (
+        select(
+            PosibleVotante.cedula_votante,
+            PosibleVotante.id_referente,
+            Referente.nombre_referente
+        )
+        .join(Referente, PosibleVotante.id_referente == Referente.id)
+        .where(
+            PosibleVotante.cedula_votante.in_(cedulas),
+            PosibleVotante.id_referente.in_(referente_ids)
+        )
+    )
+    res_overlap = await session.execute(stmt_overlap)
+    
+    overlap_map = {}
+    cargas_propias = {}
+    for r in res_overlap.all():
+        ced = r.cedula_votante
+        r_id = r.id_referente
+        r_nombre = r.nombre_referente
+        if ced not in overlap_map:
+            overlap_map[ced] = []
+        if r_id != id_referente:
+            if r_nombre not in overlap_map[ced]:
+                overlap_map[ced].append(r_nombre)
+        else:
+            cargas_propias[ced] = cargas_propias.get(ced, 0) + 1
+
+    simpatizantes = []
+    total_solapados = 0
+
+    for v in raw_votantes:
+        ced = v.cedula_votante
+        otros = overlap_map.get(ced, [])
+        mismo_duplicado = cargas_propias.get(ced, 0) > 1
+        
+        es_solapado = len(otros) > 0 or mismo_duplicado
+        if es_solapado:
+            total_solapados += 1
+
+        nombres_comp = f"{v.nombres or ''} {v.apellidos or ''}".strip()
+        if not nombres_comp:
+            nombres_comp = "Sin nombre registrado"
+
+        simpatizantes.append({
+            "id": v.id,
+            "cedula": ced,
+            "nombre_completo": nombres_comp,
+            "telefono": v.telefono,
+            "domicilio": v.domicilio or v.direccion_padron or "",
+            "parentesco": v.parentesco,
+            "grado_seguridad": v.grado_seguridad if v.grado_seguridad is not None else 3,
+            "observaciones": v.observaciones,
+            "fecha_captacion": v.fecha_captacion,
+            "movilidad_propia": bool(v.movilidad_propia),
+            "nombre_local": v.nombre_local or "Local no identificado",
+            "mesa": v.mesa,
+            "orden": v.orden,
+            "solapado": es_solapado,
+            "otros_referentes": otros,
+            "duplicado_mismo_referente": mismo_duplicado
+        })
+
+    return {
+        "id_referente": id_referente,
+        "nombre_referente": referente_obj.nombre_referente,
+        "total_simpatizantes": len(simpatizantes),
+        "total_solapados": total_solapados,
+        "simpatizantes": simpatizantes
+    }
 
 @router.get("/catalogos/departamentos")
 async def get_catalog_departamentos(session: AsyncSession = Depends(get_session)):

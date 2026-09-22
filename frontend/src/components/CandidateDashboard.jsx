@@ -8,6 +8,61 @@ const CandidateDashboard = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Estados para desplegar y consultar simpatizantes por referente
+    const [expandedRefs, setExpandedRefs] = useState({});
+    const [referenteDetails, setReferenteDetails] = useState({});
+    const [searchTerms, setSearchTerms] = useState({});
+    const [filterTabs, setFilterTabs] = useState({}); // 'todos' | 'solapados' | 'unicos'
+
+    const toggleReferente = async (refId) => {
+        const isCurrentlyExpanded = !!expandedRefs[refId];
+        setExpandedRefs(prev => ({ ...prev, [refId]: !isCurrentlyExpanded }));
+
+        // Cargar datos si se abre y no existen aún o si hubo error previo
+        if (!isCurrentlyExpanded && (!referenteDetails[refId] || referenteDetails[refId].error)) {
+            setReferenteDetails(prev => ({
+                ...prev,
+                [refId]: { loading: true, data: null, error: null }
+            }));
+            try {
+                const response = await authFetch(`/electoral/dashboard/candidato/referente/${refId}/simpatizantes`);
+                const data = await response.json();
+                setReferenteDetails(prev => ({
+                    ...prev,
+                    [refId]: { loading: false, data: data, error: null }
+                }));
+            } catch (error) {
+                console.error("Error al cargar simpatizantes del referente:", error);
+                setReferenteDetails(prev => ({
+                    ...prev,
+                    [refId]: { loading: false, data: null, error: "No se pudieron cargar los simpatizantes." }
+                }));
+            }
+        }
+    };
+
+    const handleSearchChange = (refId, value) => {
+        setSearchTerms(prev => ({ ...prev, [refId]: value }));
+    };
+
+    const handleFilterTabChange = (refId, tab) => {
+        setFilterTabs(prev => ({ ...prev, [refId]: tab }));
+    };
+
+    const cleanPhone = (phone) => {
+        if (!phone) return '';
+        let p = phone.replace(/[^0-9]/g, '');
+        if (p.startsWith('0')) p = '595' + p.substring(1);
+        if (!p.startsWith('595') && p.length <= 10) p = '595' + p;
+        return p;
+    };
+
+    const formatCedula = (cedula) => {
+        if (!cedula) return '';
+        const num = cedula.toString().replace(/\D/g, '');
+        return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
+
     useEffect(() => {
         const fetchStats = async () => {
             try {
@@ -101,25 +156,291 @@ const CandidateDashboard = () => {
                     </div>
                 </div>
                 <div className="referentes-section card">
-                    <h3>👥 Rendimiento por Referente</h3>
+                    <div className="referentes-section-header">
+                        <div>
+                            <h3>👥 Rendimiento y Simpatizantes por Referente</h3>
+                            <p className="referentes-subtitle">Haga clic en un referente para ver su listado detallado y detectar votantes solapados</p>
+                        </div>
+                    </div>
                     <div className="referentes-container">
                         {stats.referentes.map(referente => {
+                            const refId = referente.id_referente;
+                            const isExpanded = !!expandedRefs[refId];
+                            const details = referenteDetails[refId] || {};
+                            const searchTerm = (searchTerms[refId] || '').toLowerCase();
+                            const currentTab = filterTabs[refId] || 'todos';
+
                             const participation = stats.total_votantes_bruto > 0
                                 ? (referente.cantidad_votantes / stats.total_votantes_bruto * 100).toFixed(1)
                                 : 0;
 
+                            // Filtrado de simpatizantes según búsqueda y pestaña de solapamiento
+                            let filteredSimpatizantes = [];
+                            if (details.data && details.data.simpatizantes) {
+                                filteredSimpatizantes = details.data.simpatizantes.filter(s => {
+                                    if (currentTab === 'solapados' && !s.solapado) return false;
+                                    if (currentTab === 'unicos' && s.solapado) return false;
+                                    
+                                    if (searchTerm) {
+                                        const matchCedula = (s.cedula || '').toLowerCase().includes(searchTerm);
+                                        const matchNombre = (s.nombre_completo || '').toLowerCase().includes(searchTerm);
+                                        const matchLocal = (s.nombre_local || '').toLowerCase().includes(searchTerm);
+                                        const matchTel = (s.telefono || '').toLowerCase().includes(searchTerm);
+                                        if (!matchCedula && !matchNombre && !matchLocal && !matchTel) return false;
+                                    }
+                                    return true;
+                                });
+                            }
+
                             return (
-                                <div key={referente.id_referente} className="referente-row">
-                                    <div className="referente-meta">
-                                        <span className="c-name">{referente.nombre_referente}</span>
-                                        <span className="c-count"><strong>{referente.cantidad_votantes}</strong> simpatizantes ({participation}%)</span>
+                                <div key={refId} className={`referente-card-item ${isExpanded ? 'is-expanded' : ''}`}>
+                                    <div 
+                                        className="referente-header"
+                                        onClick={() => toggleReferente(refId)}
+                                        title="Haga clic para desplegar u ocultar los simpatizantes de este referente"
+                                    >
+                                        <div className="referente-meta">
+                                            <div className="ref-title-group">
+                                                <span className={`ref-chevron ${isExpanded ? 'open' : ''}`}>▶</span>
+                                                <span className="c-name">{referente.nombre_referente}</span>
+                                                {referente.cantidad_solapados > 0 ? (
+                                                    <span className="badge-overlap-pill" title="Simpatizantes que también fueron registrados por otro referente">
+                                                        ⚠️ {referente.cantidad_solapados} solapado{referente.cantidad_solapados > 1 ? 's' : ''}
+                                                    </span>
+                                                ) : (
+                                                    referente.cantidad_votantes > 0 && (
+                                                        <span className="badge-unique-pill" title="Todos sus simpatizantes son únicos para su lista">
+                                                            ✓ 100% únicos
+                                                        </span>
+                                                    )
+                                                )}
+                                            </div>
+                                            <div className="ref-stats-group">
+                                                <span className="c-count">
+                                                    <strong>{referente.cantidad_votantes}</strong> simpatizantes ({participation}%)
+                                                </span>
+                                                <button 
+                                                    type="button" 
+                                                    className="btn-toggle-simpatizantes"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleReferente(refId);
+                                                    }}
+                                                >
+                                                    {isExpanded ? 'Ocultar listado ▲' : 'Ver simpatizantes ▼'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="bar-wrapper">
+                                            <div
+                                                className="bar-fill"
+                                                style={{ width: `${participation}%` }}
+                                            ></div>
+                                        </div>
                                     </div>
-                                    <div className="bar-wrapper">
-                                        <div
-                                            className="bar-fill"
-                                            style={{ width: `${participation}%` }}
-                                        ></div>
-                                    </div>
+
+                                    {/* Panel Desplegable de Simpatizantes */}
+                                    {isExpanded && (
+                                        <div className="referente-accordion-body">
+                                            {details.loading && (
+                                                <div className="ref-body-loading">
+                                                    <span className="ref-spinner"></span>
+                                                    <span>Cargando simpatizantes de <strong>{referente.nombre_referente}</strong>...</span>
+                                                </div>
+                                            )}
+
+                                            {details.error && (
+                                                <div className="ref-body-error">
+                                                    <span>⚠️ {details.error}</span>
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn-retry"
+                                                        onClick={() => toggleReferente(refId)}
+                                                    >
+                                                        Reintentar
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {!details.loading && !details.error && details.data && (
+                                                <div className="ref-simpatizantes-content">
+                                                    {/* Toolbar de Filtros y Búsqueda */}
+                                                    <div className="ref-simpatizantes-toolbar">
+                                                        <div className="ref-filter-chips">
+                                                            <button
+                                                                type="button"
+                                                                className={`filter-chip ${currentTab === 'todos' ? 'active' : ''}`}
+                                                                onClick={() => handleFilterTabChange(refId, 'todos')}
+                                                            >
+                                                                Todos ({details.data.total_simpatizantes})
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className={`filter-chip warning ${currentTab === 'solapados' ? 'active' : ''}`}
+                                                                onClick={() => handleFilterTabChange(refId, 'solapados')}
+                                                            >
+                                                                ⚠️ Solapados ({details.data.total_solapados})
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className={`filter-chip success ${currentTab === 'unicos' ? 'active' : ''}`}
+                                                                onClick={() => handleFilterTabChange(refId, 'unicos')}
+                                                            >
+                                                                ✓ Únicos ({details.data.total_simpatizantes - details.data.total_solapados})
+                                                            </button>
+                                                        </div>
+                                                        <div className="ref-search-box">
+                                                            <span className="search-icon">🔍</span>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Buscar por cédula, nombre o local..."
+                                                                value={searchTerms[refId] || ''}
+                                                                onChange={(e) => handleSearchChange(refId, e.target.value)}
+                                                                className="ref-search-input"
+                                                            />
+                                                            {searchTerms[refId] && (
+                                                                <button 
+                                                                    type="button" 
+                                                                    className="btn-clear-search"
+                                                                    onClick={() => handleSearchChange(refId, '')}
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Listado / Tabla de Simpatizantes */}
+                                                    {filteredSimpatizantes.length > 0 ? (
+                                                        <div className="ref-table-responsive">
+                                                            <table className="simpatizantes-detail-table">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Cédula & Nombre</th>
+                                                                        <th>Contacto</th>
+                                                                        <th>Local & Mesa</th>
+                                                                        <th>Seguridad</th>
+                                                                        <th>Estado de Solapamiento</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {filteredSimpatizantes.map((voter) => {
+                                                                        const telClean = cleanPhone(voter.telefono);
+                                                                        return (
+                                                                            <tr 
+                                                                                key={voter.id} 
+                                                                                className={`simpatizante-row ${voter.solapado ? 'row-solapado' : 'row-unico'}`}
+                                                                            >
+                                                                                <td className="col-persona">
+                                                                                    <div className="voter-fullname">
+                                                                                        {voter.nombre_completo}
+                                                                                    </div>
+                                                                                    <div className="voter-ci">
+                                                                                        CI: <strong>{formatCedula(voter.cedula)}</strong>
+                                                                                        {voter.parentesco && (
+                                                                                            <span className="badge-parentesco"> • {voter.parentesco}</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    {voter.domicilio && (
+                                                                                        <div className="voter-address" title={voter.domicilio}>
+                                                                                            🏠 {voter.domicilio}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="col-telefono">
+                                                                                    {voter.telefono ? (
+                                                                                        <div className="tel-actions-container">
+                                                                                            <span className="tel-number">{voter.telefono}</span>
+                                                                                            <div className="tel-buttons">
+                                                                                                <a
+                                                                                                    href={`https://wa.me/${telClean}`}
+                                                                                                    target="_blank"
+                                                                                                    rel="noopener noreferrer"
+                                                                                                    className="btn-tel-action whatsapp"
+                                                                                                    title="Enviar WhatsApp"
+                                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                                >
+                                                                                                    💬 WA
+                                                                                                </a>
+                                                                                                <a
+                                                                                                    href={`tel:${voter.telefono}`}
+                                                                                                    className="btn-tel-action call"
+                                                                                                    title="Llamar"
+                                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                                >
+                                                                                                    📞
+                                                                                                </a>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="no-tel">Sin teléfono</span>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="col-local">
+                                                                                    <div className="local-name" title={voter.nombre_local}>
+                                                                                        📍 {voter.nombre_local}
+                                                                                    </div>
+                                                                                    <div className="local-mesa-orden">
+                                                                                        <span>Mesa: <strong>{voter.mesa ?? 'S/M'}</strong></span>
+                                                                                        <span>Orden: <strong>{voter.orden ?? 'S/O'}</strong></span>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td className="col-seguridad">
+                                                                                    <div className="seguridad-badge" title={`Nivel de seguridad: ${voter.grado_seguridad}/5`}>
+                                                                                        <span className="seguridad-stars">
+                                                                                            {"★".repeat(Math.min(5, Math.max(1, voter.grado_seguridad || 3)))}
+                                                                                            <span className="empty-stars">
+                                                                                                {"☆".repeat(5 - Math.min(5, Math.max(1, voter.grado_seguridad || 3)))}
+                                                                                            </span>
+                                                                                        </span>
+                                                                                        <span className="seguridad-score">({voter.grado_seguridad || 3}/5)</span>
+                                                                                    </div>
+                                                                                    {voter.movilidad_propia && (
+                                                                                        <span className="badge-movilidad" title="Tiene movilidad propia">🚗 Móvil propio</span>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="col-solapamiento">
+                                                                                    {voter.solapado ? (
+                                                                                        <div className="solapado-alert-box">
+                                                                                            <div className="solapado-title">
+                                                                                                <span className="solapado-icon">⚠️</span>
+                                                                                                <strong>Solapado con:</strong>
+                                                                                            </div>
+                                                                                            <div className="solapado-referentes-list">
+                                                                                                {voter.otros_referentes && voter.otros_referentes.length > 0 ? (
+                                                                                                    voter.otros_referentes.map((otherName, idx) => (
+                                                                                                        <span key={idx} className="other-referente-pill">
+                                                                                                            👤 {otherName}
+                                                                                                        </span>
+                                                                                                    ))
+                                                                                                ) : (
+                                                                                                    <span className="other-referente-pill duplicate">
+                                                                                                        🔄 Cargado duplicado
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="badge-unico-status">
+                                                                                            ✓ Simpatizante Único
+                                                                                        </span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="ref-empty-sublist">
+                                                            <p>🔍 No se encontraron simpatizantes que coincidan con la búsqueda o filtro aplicado.</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
