@@ -384,62 +384,100 @@ async def get_mis_votantes(
     current_user: dict = Depends(get_current_user)
 ):
     """Obtiene la lista de votantes según la jerarquía del usuario"""
-    from hierarchy_utils import get_visible_referente_ids
-    
-    user_id = current_user["user_id"]
-    user_role = current_user.get("role", "referente")
-    
-    referente_ids = await get_visible_referente_ids(user_id, user_role, session)
-    
-    if not referente_ids:
-        return []
+    try:
+        from hierarchy_utils import get_visible_referente_ids
+        
+        user_id = current_user["user_id"]
+        user_role = current_user.get("role", "referente")
+        
+        referente_ids = await get_visible_referente_ids(user_id, user_role, session)
+        
+        if not referente_ids:
+            return []
 
-    total_tels_subq = (
-        select(func.count(PersonaTelefono.id))
-        .where(PersonaTelefono.cedula == PosibleVotante.cedula_votante)
-        .scalar_subquery()
-    )
+        rows = []
+        has_subq = False
 
-    stmt = select(
-        PosibleVotante.id,
-        PosibleVotante.id_referente,
-        PosibleVotante.cedula_votante,
-        Persona.nombres.label("nombre_votante"),
-        Persona.apellidos.label("apellido_votante"),
-        PosibleVotante.parentesco,
-        PosibleVotante.domicilio,
-        PosibleVotante.observaciones,
-        Persona.direccion_residencia.label("direccion_padron"),
-        Persona.telefono.label("telefono"),
-        PosibleVotante.grado_seguridad,
-        PosibleVotante.fecha_captacion,
-        PosibleVotante.validacion_candidato,
-        PosibleVotante.movilidad_propia,
-        total_tels_subq.label("total_telefonos")
-    ).outerjoin(Persona, PosibleVotante.cedula_votante == Persona.cedula).where(
-        PosibleVotante.id_referente.in_(referente_ids)
-    ).order_by(PosibleVotante.fecha_captacion.desc().nullslast())
-    
-    result = await session.execute(stmt)
-    items = []
-    for row in result.all():
-        items.append({
-            "id": row.id,
-            "id_referente": row.id_referente,
-            "cedula_votante": row.cedula_votante,
-            "nombre_votante": row.nombre_votante or "Sin Nombre",
-            "apellido_votante": row.apellido_votante or "",
-            "parentesco": row.parentesco,
-            "domicilio": row.domicilio or row.direccion_padron,
-            "observaciones": row.observaciones,
-            "grado_seguridad": row.grado_seguridad if row.grado_seguridad is not None else 3,
-            "fecha_captacion": row.fecha_captacion,
-            "validacion_candidato": bool(row.validacion_candidato) if row.validacion_candidato is not None else False,
-            "movilidad_propia": bool(row.movilidad_propia) if row.movilidad_propia is not None else False,
-            "telefono": row.telefono,
-            "total_telefonos": row.total_telefonos or 0
-        })
-    return items
+        try:
+            total_tels_subq = (
+                select(func.count(PersonaTelefono.id))
+                .where(PersonaTelefono.cedula == PosibleVotante.cedula_votante)
+                .scalar_subquery()
+            )
+
+            stmt = select(
+                PosibleVotante.id,
+                PosibleVotante.id_referente,
+                PosibleVotante.cedula_votante,
+                Persona.nombres.label("nombre_votante"),
+                Persona.apellidos.label("apellido_votante"),
+                PosibleVotante.parentesco,
+                PosibleVotante.domicilio,
+                PosibleVotante.observaciones,
+                Persona.direccion_residencia.label("direccion_padron"),
+                Persona.telefono.label("telefono"),
+                PosibleVotante.grado_seguridad,
+                PosibleVotante.fecha_captacion,
+                PosibleVotante.validacion_candidato,
+                PosibleVotante.movilidad_propia,
+                total_tels_subq.label("total_telefonos")
+            ).outerjoin(Persona, PosibleVotante.cedula_votante == Persona.cedula).where(
+                PosibleVotante.id_referente.in_(referente_ids)
+            ).order_by(PosibleVotante.fecha_captacion.desc().nullslast())
+            
+            result = await session.execute(stmt)
+            rows = result.all()
+            has_subq = True
+        except Exception as query_err:
+            await session.rollback()
+            print(f"Aviso en subquery de teléfonos mis-votantes, usando fallback: {query_err}")
+            stmt_fallback = select(
+                PosibleVotante.id,
+                PosibleVotante.id_referente,
+                PosibleVotante.cedula_votante,
+                Persona.nombres.label("nombre_votante"),
+                Persona.apellidos.label("apellido_votante"),
+                PosibleVotante.parentesco,
+                PosibleVotante.domicilio,
+                PosibleVotante.observaciones,
+                Persona.direccion_residencia.label("direccion_padron"),
+                Persona.telefono.label("telefono"),
+                PosibleVotante.grado_seguridad,
+                PosibleVotante.fecha_captacion,
+                PosibleVotante.validacion_candidato,
+                PosibleVotante.movilidad_propia
+            ).outerjoin(Persona, PosibleVotante.cedula_votante == Persona.cedula).where(
+                PosibleVotante.id_referente.in_(referente_ids)
+            ).order_by(PosibleVotante.fecha_captacion.desc().nullslast())
+            
+            result = await session.execute(stmt_fallback)
+            rows = result.all()
+            has_subq = False
+
+        items = []
+        for row in rows:
+            t_tel = getattr(row, "total_telefonos", 0) if has_subq else (1 if row.telefono else 0)
+            items.append({
+                "id": row.id,
+                "id_referente": row.id_referente,
+                "cedula_votante": str(row.cedula_votante or ""),
+                "nombre_votante": str(row.nombre_votante or "Sin Nombre"),
+                "apellido_votante": str(row.apellido_votante or ""),
+                "parentesco": row.parentesco,
+                "domicilio": row.domicilio or row.direccion_padron or "",
+                "observaciones": row.observaciones,
+                "grado_seguridad": row.grado_seguridad if row.grado_seguridad is not None else 3,
+                "fecha_captacion": row.fecha_captacion,
+                "validacion_candidato": bool(row.validacion_candidato) if row.validacion_candidato is not None else False,
+                "movilidad_propia": bool(row.movilidad_propia) if row.movilidad_propia is not None else False,
+                "telefono": row.telefono,
+                "total_telefonos": t_tel or (1 if row.telefono else 0)
+            })
+        return items
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error al obtener votantes: {str(e)}")
 
 @router.put("/votante/{id}")
 async def update_votante(
@@ -1129,21 +1167,26 @@ async def get_persona_telefonos(
         .where(PersonaTelefono.cedula == cedula)
         .order_by(PersonaTelefono.fecha_registro.desc())
     )
-    result = await session.execute(stmt)
-    items = []
-    for r in result.all():
-        items.append({
-            "id": r.id,
-            "cedula": r.cedula,
-            "telefono": r.telefono,
-            "tipo": r.tipo,
-            "observacion": r.observacion,
-            "id_usuario_registro": r.id_usuario_registro,
-            "nombre_usuario_registro": r.nombre_usuario_registro or "Referente / Sistema",
-            "fecha_registro": r.fecha_registro,
-            "es_actual": r.es_actual
-        })
-    return items
+    try:
+        result = await session.execute(stmt)
+        items = []
+        for r in result.all():
+            items.append({
+                "id": r.id,
+                "cedula": r.cedula,
+                "telefono": r.telefono,
+                "tipo": r.tipo,
+                "observacion": r.observacion,
+                "id_usuario_registro": r.id_usuario_registro,
+                "nombre_usuario_registro": r.nombre_usuario_registro or "Referente / Sistema",
+                "fecha_registro": r.fecha_registro,
+                "es_actual": r.es_actual
+            })
+        return items
+    except Exception as e:
+        await session.rollback()
+        print(f"Aviso en get_persona_telefonos: {e}")
+        return []
 
 @router.post("/personas/{cedula}/telefonos", response_model=PersonaTelefonoResponse)
 async def add_persona_telefono(

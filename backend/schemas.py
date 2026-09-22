@@ -504,9 +504,9 @@ class CaptacionUpdate(BaseModel):
 class PosibleVotanteResponse(BaseModel):
     id: int
     id_referente: int
-    cedula_votante: str
-    nombre_votante: str
-    apellido_votante: str
+    cedula_votante: Optional[str] = ""
+    nombre_votante: Optional[str] = ""
+    apellido_votante: Optional[str] = ""
     parentesco: Optional[str] = None
     domicilio: Optional[str] = None
     observaciones: Optional[str] = None
