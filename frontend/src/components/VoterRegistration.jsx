@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { authFetch } from '../utils/authFetch';
 import './VoterRegistration.css';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -826,9 +827,9 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                 </div>
             </div>
 
-            {showCercaniasModal && (
-                <div className="cerca-modal-overlay">
-                    <div className="cerca-modal">
+            {showCercaniasModal && createPortal(
+                <div className="cerca-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowCercaniasModal(false); }}>
+                    <div className="cerca-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="cerca-header">
                             <h3>🔍 Cercanías: {selectedForCercania?.nombre_votante}</h3>
                             <button className="close-modal" onClick={() => setShowCercaniasModal(false)}>×</button>
@@ -864,20 +865,21 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                             })()}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {showPhonesModal && (
-                <div className="phone-modal-overlay">
-                    <div className="phone-modal card">
+            {showPhonesModal && createPortal(
+                <div className="phone-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowPhonesModal(false); }}>
+                    <div className="phone-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="phone-modal-header">
-                            <div>
+                            <div className="phone-modal-header-info">
                                 <h3>📱 Teléfonos de {selectedPersonForPhones?.nombre}</h3>
                                 <p className="phone-modal-subtitle">
                                     C.I.: <strong>{selectedPersonForPhones?.cedula}</strong> • El número más nuevo se considera automáticamente el actual
                                 </p>
                             </div>
-                            <button className="close-modal" onClick={() => setShowPhonesModal(false)}>×</button>
+                            <button className="close-modal" onClick={() => setShowPhonesModal(false)} title="Cerrar modal">×</button>
                         </div>
 
                         <div className="phone-modal-body">
@@ -951,7 +953,7 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                                                     <div className="phone-item-date">
                                                         <span>📅 {new Date(item.fecha_registro).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                                         {item.nombre_usuario_registro && (
-                                                            <span> • Agregado por: <strong>{item.nombre_usuario_registro}</strong></span>
+                                                            <span> • Registró: <strong>{item.nombre_usuario_registro}</strong></span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1001,7 +1003,8 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
