@@ -1146,31 +1146,35 @@ async def get_padron_reporte(
 
 _PERSONA_TELEFONOS_TABLE_ENSURED = False
 
-async def ensure_persona_telefonos_table(session: AsyncSession):
-    """Garantiza que la tabla electoral.persona_telefonos e índices existan en la BD"""
+DDL_STATEMENTS = [
+    """CREATE TABLE IF NOT EXISTS electoral.persona_telefonos (
+        id SERIAL PRIMARY KEY,
+        cedula VARCHAR(20) NOT NULL REFERENCES electoral.personas(cedula) ON DELETE CASCADE,
+        telefono VARCHAR(50) NOT NULL,
+        tipo VARCHAR(50) DEFAULT 'Celular',
+        observacion VARCHAR(255),
+        id_usuario_registro INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL,
+        fecha_registro TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+        es_actual BOOLEAN DEFAULT TRUE
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_persona_telefonos_cedula ON electoral.persona_telefonos(cedula)",
+    "CREATE INDEX IF NOT EXISTS idx_persona_telefonos_fecha ON electoral.persona_telefonos(fecha_registro DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_persona_telefonos_actual ON electoral.persona_telefonos(cedula, es_actual)"
+]
+
+async def ensure_persona_telefonos_table(session: AsyncSession = None):
+    """Garantiza que la tabla electoral.persona_telefonos e índices existan en la BD de forma aislada"""
     global _PERSONA_TELEFONOS_TABLE_ENSURED
     if _PERSONA_TELEFONOS_TABLE_ENSURED:
         return
     try:
-        await session.execute(text("""
-            CREATE TABLE IF NOT EXISTS electoral.persona_telefonos (
-                id SERIAL PRIMARY KEY,
-                cedula VARCHAR(20) NOT NULL REFERENCES electoral.personas(cedula) ON DELETE CASCADE,
-                telefono VARCHAR(50) NOT NULL,
-                tipo VARCHAR(50) DEFAULT 'Celular',
-                observacion VARCHAR(255),
-                id_usuario_registro INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL,
-                fecha_registro TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
-                es_actual BOOLEAN DEFAULT TRUE
-            );
-            CREATE INDEX IF NOT EXISTS idx_persona_telefonos_cedula ON electoral.persona_telefonos(cedula);
-            CREATE INDEX IF NOT EXISTS idx_persona_telefonos_fecha ON electoral.persona_telefonos(fecha_registro DESC);
-            CREATE INDEX IF NOT EXISTS idx_persona_telefonos_actual ON electoral.persona_telefonos(cedula, es_actual);
-        """))
-        await session.commit()
+        from database import engine
+        async with engine.begin() as conn:
+            for sql in DDL_STATEMENTS:
+                await conn.execute(text(sql))
         _PERSONA_TELEFONOS_TABLE_ENSURED = True
+        print("[OK] Tabla electoral.persona_telefonos asegurada.")
     except Exception as e:
-        await session.rollback()
         print(f"Aviso al auto-crear tabla persona_telefonos: {e}")
 
 @router.get("/personas/{cedula}/telefonos", response_model=List[PersonaTelefonoResponse])
@@ -1180,7 +1184,7 @@ async def get_persona_telefonos(
     current_user: dict = Depends(get_current_user)
 ):
     """Obtiene el historial cronológico de números de teléfono registrados para una persona"""
-    await ensure_persona_telefonos_table(session)
+    await ensure_persona_telefonos_table()
     stmt = (
         select(
             PersonaTelefono.id,
@@ -1194,7 +1198,7 @@ async def get_persona_telefonos(
             PersonaTelefono.es_actual
         )
         .outerjoin(Usuario, PersonaTelefono.id_usuario_registro == Usuario.id)
-        .where(PersonaTelefono.cedula == cedula)
+        .where(PersonaTelefono.cedula == str(cedula).strip())
         .order_by(PersonaTelefono.fecha_registro.desc())
     )
     try:
@@ -1227,38 +1231,57 @@ async def add_persona_telefono(
 ):
     """Agrega un nuevo número de teléfono para la persona y lo establece como el actual"""
     try:
+        cedula_limpia = str(cedula).strip()
         tel_limpio = data.telefono.strip()
         if not tel_limpio:
             raise HTTPException(status_code=400, detail="El número de teléfono no puede estar vacío")
 
         # 0. Asegurar que la tabla persona_telefonos existe en BD
-        await ensure_persona_telefonos_table(session)
+        await ensure_persona_telefonos_table()
 
         # 1. Asegurar que la persona existe en electoral.personas para no violar la Foreign Key
-        stmt_p = select(Persona).where(Persona.cedula == cedula)
+        stmt_p = select(Persona).where(Persona.cedula == cedula_limpia)
         persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
         if not persona_obj:
+            nombres = ""
+            apellidos = ""
+            try:
+                stmt_pv = select(PosibleVotante).where(PosibleVotante.cedula_votante == cedula_limpia).limit(1)
+                pv_item = (await session.execute(stmt_pv)).scalar_one_or_none()
+                if pv_item and hasattr(pv_item, 'persona') and pv_item.persona:
+                    nombres = pv_item.persona.nombres or ""
+                    apellidos = pv_item.persona.apellidos or ""
+            except Exception:
+                pass
+
             persona_obj = Persona(
-                cedula=cedula,
-                nombres="",
-                apellidos="",
+                cedula=cedula_limpia,
+                nombres=nombres,
+                apellidos=apellidos,
                 telefono=tel_limpio[:20],
                 fecha_registro=datetime.utcnow()
             )
-            session.add(persona_obj)
-            await session.flush()
+            try:
+                session.add(persona_obj)
+                await session.flush()
+            except Exception:
+                await session.rollback()
+                stmt_p2 = select(Persona).where(Persona.cedula == cedula_limpia)
+                persona_obj = (await session.execute(stmt_p2)).scalar_one_or_none()
+                if persona_obj:
+                    persona_obj.telefono = tel_limpio[:20]
         else:
             persona_obj.telefono = tel_limpio[:20]
 
         # 2. Desmarcar teléfonos anteriores como actuales
         await session.execute(
             update(PersonaTelefono)
-            .where(PersonaTelefono.cedula == cedula)
+            .where(PersonaTelefono.cedula == cedula_limpia)
             .values(es_actual=False)
         )
 
         # 3. Validar id_usuario_registro para evitar violar la Foreign Key de sistema.usuarios
-        user_id = current_user.get("user_id")
+        user_id = current_user.get("user_id") or current_user.get("id")
         valid_user_id = None
         if user_id:
             try:
@@ -1270,7 +1293,7 @@ async def add_persona_telefono(
         # 4. Insertar nuevo teléfono
         ahora = datetime.utcnow()
         nuevo_tel = PersonaTelefono(
-            cedula=cedula,
+            cedula=cedula_limpia,
             telefono=tel_limpio[:50],
             tipo=data.tipo or "Celular",
             observacion=data.observacion,
@@ -1319,9 +1342,9 @@ async def delete_persona_telefono(
 ):
     """Elimina un teléfono del historial de una persona"""
     try:
-        await ensure_persona_telefonos_table(session)
+        await ensure_persona_telefonos_table()
         stmt = select(PersonaTelefono).where(
-            and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == cedula)
+            and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == str(cedula).strip())
         )
         tel = (await session.execute(stmt)).scalar_one_or_none()
         if not tel:
@@ -1335,7 +1358,7 @@ async def delete_persona_telefono(
             # Reasignar el más nuevo restante como actual
             stmt_next = (
                 select(PersonaTelefono)
-                .where(PersonaTelefono.cedula == cedula)
+                .where(PersonaTelefono.cedula == str(cedula).strip())
                 .order_by(PersonaTelefono.fecha_registro.desc())
                 .limit(1)
             )
@@ -1345,7 +1368,7 @@ async def delete_persona_telefono(
                 sig.es_actual = True
                 nuevo_tel_val = sig.telefono
             
-            stmt_p = select(Persona).where(Persona.cedula == cedula)
+            stmt_p = select(Persona).where(Persona.cedula == str(cedula).strip())
             persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
             if persona_obj:
                 persona_obj.telefono = nuevo_tel_val[:20] if nuevo_tel_val else None
@@ -1369,9 +1392,9 @@ async def set_persona_telefono_actual(
 ):
     """Establece un teléfono existente como el actual"""
     try:
-        await ensure_persona_telefonos_table(session)
+        await ensure_persona_telefonos_table()
         stmt = select(PersonaTelefono).where(
-            and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == cedula)
+            and_(PersonaTelefono.id == telefono_id, PersonaTelefono.cedula == str(cedula).strip())
         )
         target = (await session.execute(stmt)).scalar_one_or_none()
         if not target:
@@ -1379,12 +1402,12 @@ async def set_persona_telefono_actual(
 
         # Desmarcar todos los teléfonos de esta cédula
         await session.execute(
-            update(PersonaTelefono).where(PersonaTelefono.cedula == cedula).values(es_actual=False)
+            update(PersonaTelefono).where(PersonaTelefono.cedula == str(cedula).strip()).values(es_actual=False)
         )
         target.es_actual = True
 
         # Sincronizar en Persona.telefono
-        stmt_p = select(Persona).where(Persona.cedula == cedula)
+        stmt_p = select(Persona).where(Persona.cedula == str(cedula).strip())
         persona_obj = (await session.execute(stmt_p)).scalar_one_or_none()
         if persona_obj:
             persona_obj.telefono = target.telefono[:20] if target.telefono else None

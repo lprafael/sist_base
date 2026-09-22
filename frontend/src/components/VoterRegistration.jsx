@@ -271,7 +271,16 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
             }
         } catch (err) {
             console.error('Error al agregar teléfono:', err);
-            alert('Error de conexión al guardar el teléfono');
+            let detail = 'Error al guardar el teléfono';
+            if (err && err.response) {
+                try {
+                    const data = await err.response.json();
+                    if (data && data.detail) detail = data.detail;
+                } catch (_) {}
+            } else if (err && err.message) {
+                detail = err.message;
+            }
+            alert(detail);
         } finally {
             setPhoneActionLoading(false);
         }
@@ -293,6 +302,16 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
             }
         } catch (err) {
             console.error('Error al eliminar teléfono:', err);
+            let detail = 'Error al eliminar el teléfono';
+            if (err && err.response) {
+                try {
+                    const data = await err.response.json();
+                    if (data && data.detail) detail = data.detail;
+                } catch (_) {}
+            } else if (err && err.message) {
+                detail = err.message;
+            }
+            alert(detail);
         } finally {
             setPhoneActionLoading(false);
         }
@@ -313,6 +332,16 @@ const VoterRegistration = ({ user, currentEleccionId }) => {
             }
         } catch (err) {
             console.error('Error al marcar teléfono como actual:', err);
+            let detail = 'Error al marcar teléfono como actual';
+            if (err && err.response) {
+                try {
+                    const data = await err.response.json();
+                    if (data && data.detail) detail = data.detail;
+                } catch (_) {}
+            } else if (err && err.message) {
+                detail = err.message;
+            }
+            alert(detail);
         } finally {
             setPhoneActionLoading(false);
         }

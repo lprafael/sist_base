@@ -86,8 +86,8 @@ async def app_lifespan(app: FastAPI):
     # Asegurar existencia y estructura de tabla de historial de teléfonos
     try:
         async with engine.begin() as conn:
-            await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS electoral.persona_telefonos (
+            ddl_statements = [
+                """CREATE TABLE IF NOT EXISTS electoral.persona_telefonos (
                     id SERIAL PRIMARY KEY,
                     cedula VARCHAR(20) NOT NULL REFERENCES electoral.personas(cedula) ON DELETE CASCADE,
                     telefono VARCHAR(50) NOT NULL,
@@ -96,12 +96,11 @@ async def app_lifespan(app: FastAPI):
                     id_usuario_registro INTEGER REFERENCES sistema.usuarios(id) ON DELETE SET NULL,
                     fecha_registro TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
                     es_actual BOOLEAN DEFAULT TRUE
-                );
-                CREATE INDEX IF NOT EXISTS idx_persona_telefonos_cedula ON electoral.persona_telefonos(cedula);
-                CREATE INDEX IF NOT EXISTS idx_persona_telefonos_fecha ON electoral.persona_telefonos(fecha_registro DESC);
-                CREATE INDEX IF NOT EXISTS idx_persona_telefonos_actual ON electoral.persona_telefonos(cedula, es_actual);
-
-                INSERT INTO electoral.persona_telefonos (cedula, telefono, tipo, fecha_registro, es_actual)
+                )""",
+                "CREATE INDEX IF NOT EXISTS idx_persona_telefonos_cedula ON electoral.persona_telefonos(cedula)",
+                "CREATE INDEX IF NOT EXISTS idx_persona_telefonos_fecha ON electoral.persona_telefonos(fecha_registro DESC)",
+                "CREATE INDEX IF NOT EXISTS idx_persona_telefonos_actual ON electoral.persona_telefonos(cedula, es_actual)",
+                """INSERT INTO electoral.persona_telefonos (cedula, telefono, tipo, fecha_registro, es_actual)
                 SELECT 
                     p.cedula,
                     TRIM(p.telefono),
@@ -113,8 +112,10 @@ async def app_lifespan(app: FastAPI):
                   AND TRIM(p.telefono) != ''
                   AND NOT EXISTS (
                       SELECT 1 FROM electoral.persona_telefonos pt WHERE pt.cedula = p.cedula
-                  );
-            """))
+                  )"""
+            ]
+            for stmt in ddl_statements:
+                await conn.execute(text(stmt))
             print("Auto-verificación: tabla electoral.persona_telefonos lista y sincronizada.")
     except Exception as e:
         print(f"Aviso durante auto-verificación de electoral.persona_telefonos: {e}")
