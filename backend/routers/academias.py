@@ -2386,8 +2386,9 @@ async def listar_cuotas(
     estado: Optional[str] = None,
 ):
     """Lista las cuotas de la academia. Filtros: periodo (YYYY-MM), estado."""
-    conditions = ["q.academia_id = :aid"]
-    params = {"aid": current_user["academia_id"]}
+    aid = str(current_user["academia_id"])
+    conditions = ["q.academia_id = CAST(:aid AS UUID)"]
+    params: dict = {"aid": aid}
     if periodo:
         conditions.append("q.periodo = :periodo")
         params["periodo"] = periodo
@@ -2413,12 +2414,15 @@ async def listar_cuotas(
         {
             "id": str(r[0]), "alumno": r[1].strip(), "alumno_id": str(r[2]),
             "periodo": r[3],
-            "monto_original": float(r[4]), "descuento": float(r[5]),
-            "monto_final": float(r[6]), "estado": r[7],
+            "monto_original": float(r[4]) if r[4] is not None else 0.0,
+            "descuento": float(r[5]) if r[5] is not None else 0.0,
+            "monto_final": float(r[6]) if r[6] is not None else 0.0,
+            "estado": r[7],
             "fecha_vencimiento": r[8].isoformat() if r[8] else None,
             "fecha_pago": r[9].isoformat() if r[9] else None,
             "metodo_pago": r[10], "notas": r[11],
-            "monto_pagado": float(r[12]), "tipo_cuota": r[13],
+            "monto_pagado": float(r[12]) if r[12] is not None else 0.0,
+            "tipo_cuota": r[13],
             "documento_electronico_id": str(r[14]) if r[14] else None,
         }
         for r in res.fetchall()
@@ -3067,7 +3071,7 @@ async def listar_matriculas(
     """), params)
     return [
         {
-            "id": str(r[0]), "anio": r[1], "monto": float(r[2]), "estado": r[3],
+            "id": str(r[0]), "anio": r[1], "monto": float(r[2]) if r[2] is not None else 0.0, "estado": r[3],
             "fecha_vencimiento": r[4].isoformat() if r[4] else None,
             "notas": r[5], "alumno": r[6].strip(), "alumno_id": str(r[7]),
             "documento_electronico_id": str(r[8]) if r[8] else None,

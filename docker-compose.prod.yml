@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=MiCanchaSegura_2026_Postgres
       - POSTGRES_DB=BBDD_micancha
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -32,7 +32,7 @@ services:
       - "8008:8001"
     environment:
       - PORT=8001
-      - DATABASE_URL=postgresql+asyncpg://postgres:admin@db:5432/BBDD_micancha
+      - DATABASE_URL=postgresql+asyncpg://postgres:MiCanchaSegura_2026_Postgres@db:5432/BBDD_micancha
     env_file:
       - ./backend/.env
     volumes:

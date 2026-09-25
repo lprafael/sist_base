@@ -85,10 +85,10 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
+      POSTGRES_PASSWORD: MiCanchaSegura_2026_Postgres
       POSTGRES_DB: BBDD_micancha
     ports:
-      - "5436:5432"
+      - "127.0.0.1:5436:5432"
     volumes:
       - postgres_data_local:/var/lib/postgresql/data
     networks:
