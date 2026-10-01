@@ -7,6 +7,7 @@ const API_URL = "https://api.micancha.com.py";
 interface AcademiaCard {
   id: string;
   nombre: string;
+  descripcion?: string;
   enlace_sitio: string;
   logo_url: string;
   ciudad: string;
@@ -54,7 +55,8 @@ export default function AcademiasPage() {
       res = res.filter(a =>
         a.nombre.toLowerCase().includes(q) ||
         a.ciudad?.toLowerCase().includes(q) ||
-        a.departamento?.toLowerCase().includes(q)
+        a.departamento?.toLowerCase().includes(q) ||
+        a.descripcion?.toLowerCase().includes(q)
       );
     }
     if (deporteFiltro) {
@@ -188,14 +190,14 @@ export default function AcademiasPage() {
                       </div>
 
                       {/* Descripción */}
-                      {ac.acerca_de && (
+                      {(ac.descripcion || ac.acerca_de) && (
                         <p style={{
                           color: '#94a3b8', fontSize: 13, lineHeight: 1.5,
                           margin: '0 0 14px', flex: 1,
                           display: '-webkit-box', WebkitLineClamp: 3,
                           WebkitBoxOrient: 'vertical', overflow: 'hidden',
                         }}>
-                          {ac.acerca_de}
+                          {ac.descripcion || ac.acerca_de}
                         </p>
                       )}
 

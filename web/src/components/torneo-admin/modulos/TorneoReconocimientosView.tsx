@@ -10,7 +10,9 @@ import CertificateCard, {
   getTemplatePreviewStyle,
   getTextColor,
   getPlantillaLabel,
-  isPortraitTemplate
+  isPortraitTemplate,
+  CustomLayoutConfig,
+  parsePlantilla
 } from '@/components/certificados/CertificateCard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
@@ -32,18 +34,20 @@ export interface Reconocimiento {
   nombre_firmante?: string | null;
   created_at?: string;
   updated_at?: string;
+  configuracion?: CustomLayoutConfig;
 }
 
 const TEMPLATES_LIST = [
-  { id: "pergamino_marcial", name: "1. Pergamino de Honor", desc: "Rollo de madera, papiro milenario y sello de lacre rojo", badge: "Vertical A4", image: "/images/certificados/pergamino_raw.jpg" },
-  { id: "azul_imperial_oro", name: "2. Azul Marino y Oro 24K", desc: "Lienzo azul noche imperial, filigrana dorada y sellos", badge: "Vertical A4", image: "/images/certificados/azul_oro_raw.jpg" },
-  { id: "diploma_marcial_laurel", name: "3. Diploma Clásico Laurel", desc: "Orla renacentista de laurel, sello Hanko y lacre", badge: "Vertical A4", image: "/images/certificados/clasico_laurel_raw.jpg" },
-  { id: "placa_madera", name: "4. Placa Nogal y Bronce", desc: "Madera oscura, chapa de latón y tornillos de bronce", badge: "Horizontal" },
-  { id: "placa_cristal", name: "5. Placa Cristal y Acero", desc: "Cristal templado flotante y pernos cromados", badge: "Horizontal" },
-  { id: "placa_caoba_plata", name: "6. Placa Caoba y Plata", desc: "Madera rojiza, acero cepillado y grabado láser", badge: "Horizontal" },
-  { id: "gala_oscura", name: "7. Gala Dark & Gold 24K", desc: "Negro obsidiana y marcos en oro fundido de 24K", badge: "Horizontal" },
-  { id: "diploma_clasico", name: "8. Diploma Real de Honor", desc: "Fondo pergamino con orlas florales doradas", badge: "Horizontal" },
-  { id: "moderno_esmeralda", name: "9. Certificado Deportivo", desc: "Estética deportiva dinámica azul y esmeralda", badge: "Horizontal" }
+  { id: "pergamino_seigokan", name: "1. Pergamino de Honor con Pluma (Pergamino 2)", desc: "Lienzo ceremonial sobre escritorio de nogal, pluma estilográfica, sello Seigokan y lacre", badge: "Vertical A4", image: "/images/certificados/Pergamino2.png" },
+  { id: "pergamino_marcial", name: "2. Pergamino de Honor Enrollado", desc: "Rollo de madera, papiro milenario y sello de lacre rojo", badge: "Vertical A4", image: "/images/certificados/pergamino_raw.jpg" },
+  { id: "azul_imperial_oro", name: "3. Azul Marino y Oro 24K", desc: "Lienzo azul noche imperial, filigrana dorada y sellos", badge: "Vertical A4", image: "/images/certificados/azul_oro_raw.jpg" },
+  { id: "diploma_marcial_laurel", name: "4. Diploma Clásico Laurel", desc: "Orla renacentista de laurel, sello Hanko y lacre", badge: "Vertical A4", image: "/images/certificados/clasico_laurel_raw.jpg" },
+  { id: "placa_madera", name: "5. Placa Nogal y Bronce", desc: "Madera oscura, chapa de latón y tornillos de bronce", badge: "Horizontal" },
+  { id: "placa_cristal", name: "6. Placa Cristal y Acero", desc: "Cristal templado flotante y pernos cromados", badge: "Horizontal" },
+  { id: "placa_caoba_plata", name: "7. Placa Caoba y Plata", desc: "Madera rojiza, acero cepillado y grabado láser", badge: "Horizontal" },
+  { id: "gala_oscura", name: "8. Gala Dark & Gold 24K", desc: "Negro obsidiana y marcos en oro fundido de 24K", badge: "Horizontal" },
+  { id: "diploma_clasico", name: "9. Diploma Real de Honor", desc: "Fondo pergamino con orlas florales doradas", badge: "Horizontal" },
+  { id: "moderno_esmeralda", name: "10. Certificado Deportivo", desc: "Estética deportiva dinámica azul y esmeralda", badge: "Horizontal" }
 ];
 
 interface TorneoReconocimientosViewProps {
@@ -78,17 +82,28 @@ export default function TorneoReconocimientosView({
   // Form State pre-populated with Tournament data
   const defaultFormData: Reconocimiento = {
     torneo_id: torneoId,
-    titulo: "PLACA CONMEMORATIVA Y DE AGRADECIMIENTO",
-    subtitulo: torneo?.nombre ? `Torneo ${torneo.nombre}` : "Por su inquebrantable apoyo al deporte",
+    titulo: "Reconocimiento y Honor a",
+    subtitulo: torneo?.nombre ? `Torneo ${torneo.nombre}` : "KARATE DO GO JU RYU",
     destinatario: "",
-    texto_agradecimiento: "Los integrantes del Comité Directivo y la Comisión Organizadora le extienden su sincero agradecimiento por su inquebrantable apoyo, su visión inspiradora y la oportunidad brindada para el desarrollo del campeonato.",
-    otorgado_por: "EL COMITÉ ORGANIZADOR",
-    ciudad_fecha: `${torneo?.ciudad || 'Asunción, Paraguay'}, ${new Date().getFullYear()}`,
-    plantilla: "pergamino_marcial",
+    texto_agradecimiento: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO.\n\nEste pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial.",
+    otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
+    ciudad_fecha: `${torneo?.ciudad || 'Ciudad del Este, Paraguay'}, ${new Date().getFullYear()}`,
+    plantilla: "pergamino_seigokan",
     logo_url: torneo?.imagen_portada || "",
     firma_url: "",
-    cargo_firmante: "Presidente del Torneo",
-    nombre_firmante: ""
+    cargo_firmante: "Representación Seigokan Paraguay",
+    nombre_firmante: "Sensei Jorge Salgado Castillo",
+    configuracion: {
+      pos_firma: 'linea',
+      tipo_firma: 'caligrafica',
+      align_texto: 'center',
+      pos_vertical_texto: 0,
+      pos_firma_x: 0,
+      pos_firma_y: 0,
+      tamano_texto: 'md',
+      color_tinta: '#241e19',
+      mostrar_linea_firma: false
+    }
   };
 
   const [formData, setFormData] = useState<Reconocimiento>(defaultFormData);
@@ -135,13 +150,23 @@ export default function TorneoReconocimientosView({
             titulo: "Reconocimiento y Honor a",
             subtitulo: "KARATE DO GO JU RYU",
             destinatario: "Sensei ROBERTO TAKESHI FUKOCHI",
-            texto_agradecimiento: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO. Este pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial. Su legado de rectitud y maestría perdurará.",
+            texto_agradecimiento: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO.\n\nEste pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial. Su legado de rectitud y maestría perdurará.",
             otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
             ciudad_fecha: "Dada en Ciudad del Este, Paraguay. Noviembre 2026.",
-            plantilla: "pergamino_marcial",
+            plantilla: "pergamino_seigokan",
             logo_url: torneo?.imagen_portada || "",
             nombre_firmante: "Sensei Jorge Salgado Castillo",
-            cargo_firmante: "Representación Seigokan Paraguay"
+            cargo_firmante: "Representación Seigokan Paraguay",
+            configuracion: {
+              pos_firma: 'linea',
+              tipo_firma: 'caligrafica',
+              align_texto: 'center',
+              pos_vertical_texto: 0,
+              pos_firma_x: 0,
+              pos_firma_y: 0,
+              tamano_texto: 'md',
+              color_tinta: '#241e19'
+            }
           },
           {
             id: 2,
@@ -217,6 +242,71 @@ export default function TorneoReconocimientosView({
     }
   };
 
+  // Subir imagen de firma escaneada / transparente
+  const handleUploadFirma = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const res = await fetch(`${API_URL}/organizador/perfil/logo`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: form
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(prev => ({
+          ...prev,
+          firma_url: data.url,
+          configuracion: { ...prev.configuracion, tipo_firma: 'imagen' }
+        }));
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData(prev => ({
+            ...prev,
+            firma_url: reader.result as string,
+            configuracion: { ...prev.configuracion, tipo_firma: 'imagen' }
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          firma_url: reader.result as string,
+          configuracion: { ...prev.configuracion, tipo_firma: 'imagen' }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleApplyPreset = (preset: typeof PRESETS_TEXTO[0]) => {
+    const { plantillaId, config } = parsePlantilla(preset.plantilla);
+    setFormData(prev => ({
+      ...prev,
+      titulo: preset.titulo,
+      subtitulo: preset.subtitulo,
+      destinatario: preset.destinatario || prev.destinatario,
+      texto_agradecimiento: preset.texto,
+      otorgado_por: preset.otorgado_por,
+      ciudad_fecha: preset.ciudad_fecha,
+      nombre_firmante: preset.nombre_firmante || prev.nombre_firmante,
+      cargo_firmante: preset.cargo_firmante || prev.cargo_firmante,
+      plantilla: plantillaId,
+      configuracion: {
+        ...(prev.configuracion || {}),
+        ...config
+      }
+    }));
+  };
+
   const handleOpenCreate = () => {
     setModalMode("create");
     setEditingId(null);
@@ -232,7 +322,23 @@ export default function TorneoReconocimientosView({
   const handleOpenEdit = (rec: Reconocimiento) => {
     setModalMode("edit");
     setEditingId(rec.id || null);
-    setFormData({ ...rec });
+    const { plantillaId, config } = parsePlantilla(rec.plantilla);
+    setFormData({
+      ...rec,
+      plantilla: plantillaId,
+      configuracion: {
+        pos_firma: 'linea',
+        tipo_firma: 'caligrafica',
+        align_texto: 'center',
+        pos_vertical_texto: 0,
+        pos_firma_x: 0,
+        pos_firma_y: 0,
+        tamano_texto: 'md',
+        color_tinta: '#241e19',
+        ...config,
+        ...(rec.configuracion || {})
+      }
+    });
     setActiveTab("form");
     setModalOpen(true);
   };
@@ -240,10 +346,16 @@ export default function TorneoReconocimientosView({
   const handleDuplicate = (rec: Reconocimiento) => {
     setModalMode("create");
     setEditingId(null);
+    const { plantillaId, config } = parsePlantilla(rec.plantilla);
     setFormData({
       ...rec,
       id: undefined,
-      destinatario: `${rec.destinatario} (Copia)`
+      plantilla: plantillaId,
+      destinatario: `${rec.destinatario} (Copia)`,
+      configuracion: {
+        ...config,
+        ...(rec.configuracion || {})
+      }
     });
     setActiveTab("form");
     setModalOpen(true);
@@ -268,8 +380,15 @@ export default function TorneoReconocimientosView({
         ? `${API_URL}/api/reconocimientos/${editingId}`
         : `${API_URL}/api/reconocimientos`;
 
+      // Serializamos la configuración de conveniencia dentro del campo plantilla
+      const basePlantilla = formData.plantilla?.split('|')[0] || 'pergamino_seigokan';
+      const fullPlantilla = formData.configuracion && Object.keys(formData.configuracion).length > 0
+        ? `${basePlantilla}|${JSON.stringify(formData.configuracion)}`
+        : basePlantilla;
+
       const payload = {
         ...formData,
+        plantilla: fullPlantilla,
         torneo_id: String(torneoId)
       };
 
@@ -289,13 +408,23 @@ export default function TorneoReconocimientosView({
         throw new Error();
       }
     } catch {
+      const basePlantilla = formData.plantilla?.split('|')[0] || 'pergamino_seigokan';
+      const fullPlantilla = formData.configuracion && Object.keys(formData.configuracion).length > 0
+        ? `${basePlantilla}|${JSON.stringify(formData.configuracion)}`
+        : basePlantilla;
+
+      const itemToSave = {
+        ...formData,
+        plantilla: fullPlantilla
+      };
+
       if (modalMode === "edit" && editingId) {
-        const updated = reconocimientos.map(r => r.id === editingId ? { ...formData, id: editingId } : r);
+        const updated = reconocimientos.map(r => r.id === editingId ? { ...itemToSave, id: editingId } : r);
         setReconocimientos(updated);
         localStorage.setItem(`reconocimientos_torneo_${torneoId}`, JSON.stringify(updated));
       } else {
         const newRec: Reconocimiento = {
-          ...formData,
+          ...itemToSave,
           id: Date.now()
         };
         const updated = [newRec, ...reconocimientos];
@@ -330,20 +459,6 @@ export default function TorneoReconocimientosView({
     }
   };
 
-  const handleApplyPreset = (preset: typeof PRESETS_TEXTO[0]) => {
-    setFormData(prev => ({
-      ...prev,
-      titulo: preset.titulo,
-      subtitulo: preset.subtitulo,
-      texto_agradecimiento: preset.texto,
-      otorgado_por: preset.otorgado_por,
-      ciudad_fecha: preset.ciudad_fecha || prev.ciudad_fecha,
-      nombre_firmante: preset.nombre_firmante || prev.nombre_firmante,
-      cargo_firmante: preset.cargo_firmante,
-      plantilla: preset.plantilla
-    }));
-  };
-
   const handlePrint = (rec: Reconocimiento) => {
     setPrintItem(rec);
     setPrintModalOpen(true);
@@ -354,7 +469,8 @@ export default function TorneoReconocimientosView({
   };
 
   const filteredReconocimientos = reconocimientos.filter(item => {
-    if (filterPlantilla !== "all" && item.plantilla !== filterPlantilla) return false;
+    const itemPlantilla = item.plantilla?.split('|')[0];
+    if (filterPlantilla !== "all" && itemPlantilla !== filterPlantilla) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchDest = item.destinatario?.toLowerCase().includes(q);
@@ -417,7 +533,8 @@ export default function TorneoReconocimientosView({
           onChange={(e) => setFilterPlantilla(e.target.value)}
           className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/30 cursor-pointer"
         >
-          <option value="all">Todas las Plantillas (9 Disponibles)</option>
+          <option value="all">Todas las Plantillas (10 Disponibles)</option>
+          <option value="pergamino_seigokan">Pergamino de Honor con Pluma - Pergamino 2 (Vertical A4)</option>
           <option value="pergamino_marcial">Pergamino Antiguo de Honor (Vertical A4)</option>
           <option value="azul_imperial_oro">Azul Marino y Oro 24K (Vertical A4)</option>
           <option value="diploma_marcial_laurel">Diploma Clásico Laurel (Vertical A4)</option>
@@ -645,11 +762,11 @@ export default function TorneoReconocimientosView({
                     </div>
                   </div>
 
-                  {/* Selector Visual de Plantilla (9 Opciones) */}
+                  {/* Selector Visual de Plantilla (10 Opciones) */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Estilo de Plantilla Imprimible (9 Opciones Disponibles)
+                        Estilo de Plantilla Imprimible (10 Opciones Disponibles)
                       </label>
                       <span className="text-[11px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                         {getPlantillaLabel(formData.plantilla)}
@@ -821,6 +938,316 @@ export default function TorneoReconocimientosView({
                           </button>
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* ============================================================
+                      PANEL DE PERSONALIZACIÓN: TEXTO Y FIRMA SEGÚN MI CONVENIENCIA
+                      ============================================================ */}
+                  <div className="bg-gradient-to-br from-amber-50/80 via-white to-amber-50/50 p-4 rounded-xl border border-amber-200/90 shadow-2xs space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
+                          <Sparkles size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                            Personalización de Texto y Firma (A tu Conveniencia)
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            Ajusta la posición exacta, alineación, tipo de firma y estilo visual con vista previa en vivo.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* COLUMNA 1: CONVENIENCIA DEL TEXTO */}
+                      <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-2xs space-y-3">
+                        <span className="block text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText size={14} className="text-amber-600" /> Formato y Posición del Texto
+                        </span>
+
+                        {/* Alineación */}
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Alineación del Contenido</label>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {[
+                              { id: 'left', label: 'Izquierda' },
+                              { id: 'center', label: 'Centro' },
+                              { id: 'justify', label: 'Justificado' },
+                              { id: 'right', label: 'Derecha' }
+                            ].map(opt => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setFormData(prev => ({
+                                  ...prev,
+                                  configuracion: { ...(prev.configuracion || {}), align_texto: opt.id as any }
+                                }))}
+                                className={`py-1.5 text-xs font-semibold rounded-lg border transition ${
+                                  (formData.configuracion?.align_texto || 'center') === opt.id
+                                    ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Posición Vertical (Subir / Bajar) */}
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] font-medium text-slate-600 mb-1">
+                            <span>Posición Vertical del Texto</span>
+                            <span className="font-bold text-amber-700">
+                              {(formData.configuracion?.pos_vertical_texto || 0) > 0 ? `+${formData.configuracion?.pos_vertical_texto}%` : `${formData.configuracion?.pos_vertical_texto || 0}%`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({
+                                ...prev,
+                                configuracion: { ...(prev.configuracion || {}), pos_vertical_texto: Math.max(-15, (prev.configuracion?.pos_vertical_texto || 0) - 2) }
+                              }))}
+                              className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-bold border border-slate-200 cursor-pointer"
+                              title="Subir texto"
+                            >
+                              Subir ▲
+                            </button>
+                            <input
+                              type="range"
+                              min="-15"
+                              max="15"
+                              step="1"
+                              value={formData.configuracion?.pos_vertical_texto || 0}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                configuracion: { ...(prev.configuracion || {}), pos_vertical_texto: Number(e.target.value) }
+                              }))}
+                              className="flex-1 accent-amber-600 cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({
+                                ...prev,
+                                configuracion: { ...(prev.configuracion || {}), pos_vertical_texto: Math.min(15, (prev.configuracion?.pos_vertical_texto || 0) + 2) }
+                              }))}
+                              className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-bold border border-slate-200 cursor-pointer"
+                              title="Bajar texto"
+                            >
+                              Bajar ▼
+                            </button>
+                            {(formData.configuracion?.pos_vertical_texto || 0) !== 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({
+                                  ...prev,
+                                  configuracion: { ...(prev.configuracion || {}), pos_vertical_texto: 0 }
+                                }))}
+                                className="text-[10px] text-slate-500 hover:text-red-500 underline cursor-pointer"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tamaño y Color de Tinta */}
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-600 mb-1">Tamaño de Letra</label>
+                            <div className="grid grid-cols-3 gap-1">
+                              {[
+                                { id: 'sm', label: 'Compacto' },
+                                { id: 'md', label: 'Estándar' },
+                                { id: 'lg', label: 'Grande' }
+                              ].map(sz => (
+                                <button
+                                  key={sz.id}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    configuracion: { ...(prev.configuracion || {}), tamano_texto: sz.id as any }
+                                  }))}
+                                  className={`py-1 text-[11px] font-semibold rounded border transition cursor-pointer ${
+                                    (formData.configuracion?.tamano_texto || 'md') === sz.id
+                                      ? 'bg-amber-600 text-white border-amber-600'
+                                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {sz.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-600 mb-1">Color de Tinta</label>
+                            <div className="grid grid-cols-3 gap-1">
+                              {[
+                                { id: '#241e19', label: 'Sepia' },
+                                { id: '#111111', label: 'Negro' },
+                                { id: '#6e4c1f', label: 'Bronce' }
+                              ].map(cl => (
+                                <button
+                                  key={cl.id}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({
+                                    ...prev,
+                                    configuracion: { ...(prev.configuracion || {}), color_tinta: cl.id }
+                                  }))}
+                                  className={`py-1 text-[11px] font-semibold rounded border flex items-center justify-center gap-1 transition cursor-pointer ${
+                                    (formData.configuracion?.color_tinta || '#241e19') === cl.id
+                                      ? 'ring-2 ring-amber-500 bg-amber-50 border-amber-400'
+                                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <span className="w-2.5 h-2.5 rounded-full border border-black/20" style={{ backgroundColor: cl.id }} />
+                                  <span>{cl.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* COLUMNA 2: CONVENIENCIA DE LA FIRMA */}
+                      <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-2xs space-y-3">
+                        <span className="block text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Edit3 size={14} className="text-amber-600" /> Posición y Estilo de la Firma
+                        </span>
+
+                        {/* Ubicación de la Firma */}
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Ubicación de la Firma</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            {[
+                              { id: 'linea', label: 'En línea (Izq.)' },
+                              { id: 'centro', label: 'Centro' },
+                              { id: 'derecha', label: 'Derecha' },
+                              { id: 'custom', label: 'Libre (X/Y)' }
+                            ].map(pos => (
+                              <button
+                                key={pos.id}
+                                type="button"
+                                onClick={() => setFormData(prev => ({
+                                  ...prev,
+                                  configuracion: { ...(prev.configuracion || {}), pos_firma: pos.id as any }
+                                }))}
+                                className={`py-1.5 px-1 text-[11px] font-semibold rounded-lg border text-center transition cursor-pointer ${
+                                  (formData.configuracion?.pos_firma || 'linea') === pos.id
+                                    ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {pos.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Tipo de Firma */}
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">Tipo de Firma</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            {[
+                              { id: 'caligrafica', label: '✍️ Caligráfica' },
+                              { id: 'imagen', label: '📤 Imagen PNG' },
+                              { id: 'manual', label: '✒️ Firmar en vivo' },
+                              { id: 'ninguna', label: '🚫 Sin Firma' }
+                            ].map(tp => (
+                              <button
+                                key={tp.id}
+                                type="button"
+                                onClick={() => setFormData(prev => ({
+                                  ...prev,
+                                  configuracion: { ...(prev.configuracion || {}), tipo_firma: tp.id as any }
+                                }))}
+                                className={`py-1.5 px-1 text-[11px] font-semibold rounded-lg border text-center transition cursor-pointer ${
+                                  (formData.configuracion?.tipo_firma || 'caligrafica') === tp.id
+                                    ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {tp.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Subir firma si es tipo imagen */}
+                        {formData.configuracion?.tipo_firma === 'imagen' && (
+                          <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200 space-y-2">
+                            <label className="block text-[11px] font-bold text-amber-900">
+                              Subir Imagen de Firma Escaneada (Fondo Transparente PNG)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="URL de la firma..."
+                                value={formData.firma_url || ""}
+                                onChange={(e) => setFormData(prev => ({ ...prev, firma_url: e.target.value }))}
+                                className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs"
+                              />
+                              <label className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded cursor-pointer transition flex items-center gap-1">
+                                <Upload size={13} /> Subir PNG
+                                <input type="file" accept="image/*" onChange={handleUploadFirma} className="hidden" />
+                              </label>
+                            </div>
+                            {formData.firma_url && (
+                              <div className="flex items-center gap-2 bg-white p-1.5 rounded border border-slate-200">
+                                <img src={formData.firma_url} alt="Firma" className="h-8 max-w-[120px] object-contain mix-blend-multiply" />
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, firma_url: "" }))}
+                                  className="text-red-500 hover:text-red-700 text-xs ml-auto cursor-pointer"
+                                >
+                                  Quitar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Ajuste fino de desplazamiento X / Y */}
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex items-center justify-between text-[11px] text-slate-600">
+                            <span>Desplazamiento Horizontal (X): <b>{(formData.configuracion?.pos_firma_x || 0)}%</b></span>
+                            <span>Desplazamiento Vertical (Y): <b>{(formData.configuracion?.pos_firma_y || 0)}%</b></span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="range"
+                              min="-20"
+                              max="20"
+                              step="1"
+                              value={formData.configuracion?.pos_firma_x || 0}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                configuracion: { ...(prev.configuracion || {}), pos_firma_x: Number(e.target.value) }
+                              }))}
+                              className="accent-amber-600 cursor-pointer"
+                              title="Mover firma izquierda/derecha"
+                            />
+                            <input
+                              type="range"
+                              min="-15"
+                              max="15"
+                              step="1"
+                              value={formData.configuracion?.pos_firma_y || 0}
+                              onChange={(e) => setFormData(prev => ({
+                                ...prev,
+                                configuracion: { ...(prev.configuracion || {}), pos_firma_y: Number(e.target.value) }
+                              }))}
+                              className="accent-amber-600 cursor-pointer"
+                              title="Mover firma arriba/abajo"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

@@ -2,6 +2,36 @@
 import React from 'react';
 import { Reconocimiento } from '@/app/admin-futbol/reconocimientos/page';
 
+export interface CustomLayoutConfig {
+  fondo_custom_url?: string;
+  // Posicionamiento de texto
+  align_texto?: 'center' | 'left' | 'justify' | 'right';
+  pos_vertical_texto?: number; // slider % offset (-15 a +15)
+  tamano_texto?: 'sm' | 'md' | 'lg';
+  color_tinta?: string;
+  // Posicionamiento de firma
+  pos_firma?: 'linea' | 'centro' | 'derecha' | 'izquierda' | 'custom';
+  tipo_firma?: 'caligrafica' | 'imagen' | 'manual' | 'ninguna';
+  pos_firma_x?: number; // slider % offset (-25 a +25)
+  pos_firma_y?: number; // slider % offset (-20 a +20)
+  mostrar_linea_firma?: boolean;
+}
+
+export function parsePlantilla(plantillaRaw?: string | null): { plantillaId: string; config: CustomLayoutConfig } {
+  if (!plantillaRaw) return { plantillaId: 'pergamino_seigokan', config: {} };
+  const parts = plantillaRaw.split('|');
+  const plantillaId = parts[0] || 'pergamino_seigokan';
+  let config: CustomLayoutConfig = {};
+  if (parts.length > 1) {
+    try {
+      config = JSON.parse(parts.slice(1).join('|'));
+    } catch {
+      config = {};
+    }
+  }
+  return { plantillaId, config };
+}
+
 export interface CertificateCardProps {
   data: Reconocimiento;
   isPrintMode?: boolean;
@@ -9,12 +39,25 @@ export interface CertificateCardProps {
 }
 
 // =========================================================================
-// PRESETS DE TEXTO RÁPIDO (INCLUYE LOS 3 NUEVOS MODELOS EXACTOS DE LAS FOTOS)
+// PRESETS DE TEXTO RÁPIDO (INCLUYE PERGAMINO 2 Y MODELOS SEIGOKAN)
 // =========================================================================
 export const PRESETS_TEXTO = [
+  // --- NUEVO MODELO DE LUJO: PERGAMINO 2 CON PLUMA Y SELLOS ---
+  {
+    nombre: "📜 1. Pergamino de Honor con Pluma (Pergamino 2 - Escritorio Seigokan)",
+    titulo: "Reconocimiento y Honor a",
+    subtitulo: "KARATE DO GO JU RYU",
+    destinatario: "Sensei ROBERTO TAKESHI FUKOCHI",
+    texto: "Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU, como pilar fundamental de la ASOCIACIÓN SEIGOKAN DE KARATE DO.\n\nEste pergamino certifica la gratitud profunda de sus estudiantes y la comunidad marcial. Su legado de rectitud y maestría perdurará.",
+    otorgado_por: "ASOCIACIÓN SEIGOKAN DE KARATE DO",
+    ciudad_fecha: "Dada en Ciudad del Este, Paraguay. Noviembre 2026.",
+    nombre_firmante: "Sensei Jorge Salgado Castillo",
+    cargo_firmante: "Representación Seigokan Paraguay",
+    plantilla: "pergamino_seigokan"
+  },
   // --- LOS 3 NUEVOS MODELOS AUTÉNTICOS SEIGOKAN ---
   {
-    nombre: "🥋 1. Pergamino de Honor Marcial (Sensei / Maestro)",
+    nombre: "🥋 2. Pergamino de Honor Enrollado (Sensei / Maestro)",
     titulo: "Reconocimiento y Honor a",
     subtitulo: "KARATE DO GO JU RYU",
     destinatario: "Sensei ROBERTO TAKESHI FUKOCHI",
@@ -26,7 +69,7 @@ export const PRESETS_TEXTO = [
     plantilla: "pergamino_marcial"
   },
   {
-    nombre: "🥋 2. Certificado de Participación de Torneo (Azul Marino y Oro)",
+    nombre: "🥋 3. Certificado de Participación de Torneo (Azul Marino y Oro)",
     titulo: "CERTIFICADO DE PARTICIPACIÓN",
     subtitulo: "XIII Torneo Seigokan Go Ju Ryu Karate Do",
     destinatario: "Sensei Jorge Salgado Castillo",
@@ -38,7 +81,7 @@ export const PRESETS_TEXTO = [
     plantilla: "azul_imperial_oro"
   },
   {
-    nombre: "🥋 3. Certificado de Agradecimiento Sudamericano (Diploma Clásico)",
+    nombre: "🥋 4. Certificado de Agradecimiento Sudamericano (Diploma Clásico)",
     titulo: "CERTIFICADO DE AGRADECIMIENTO",
     subtitulo: "XIII TORNEO SUDAMERICANO SEIGOKAN",
     destinatario: "Sensei JORGE SALGADO CASTILLO",
@@ -103,21 +146,26 @@ export const PRESETS_TEXTO = [
 ];
 
 export function isPortraitTemplate(plantilla?: string | null): boolean {
+  const p = plantilla?.split('|')[0];
   return (
-    plantilla === "pergamino_marcial" ||
-    plantilla === "azul_imperial_oro" ||
-    plantilla === "diploma_marcial_laurel"
+    p === "pergamino_seigokan" ||
+    p === "pergamino_marcial" ||
+    p === "azul_imperial_oro" ||
+    p === "diploma_marcial_laurel"
   );
 }
 
 export function getPlantillaLabel(plantilla?: string | null): string {
-  switch (plantilla) {
+  const p = plantilla?.split('|')[0];
+  switch (p) {
+    case "pergamino_seigokan":
+      return "Pergamino Ceremonial con Pluma (Vertical A4)";
     case "pergamino_marcial":
-      return "Pergamino Antiguo de Honor (Vertical)";
+      return "Pergamino Antiguo Enrollado (Vertical A4)";
     case "azul_imperial_oro":
-      return "Azul Marino y Oro 24K (Vertical)";
+      return "Azul Marino y Oro 24K (Vertical A4)";
     case "diploma_marcial_laurel":
-      return "Diploma Clásico Laurel (Vertical)";
+      return "Diploma Clásico Laurel (Vertical A4)";
     case "placa_madera":
       return "Placa Nogal y Bronce (Horizontal)";
     case "placa_cristal":
@@ -136,7 +184,10 @@ export function getPlantillaLabel(plantilla?: string | null): string {
 }
 
 export function getTextColor(plantilla?: string | null): string {
-  switch (plantilla) {
+  const p = plantilla?.split('|')[0];
+  switch (p) {
+    case "pergamino_seigokan":
+      return "#241e19";
     case "pergamino_marcial":
       return "#3c2214";
     case "azul_imperial_oro":
@@ -160,7 +211,15 @@ export function getTextColor(plantilla?: string | null): string {
 }
 
 export function getTemplatePreviewStyle(plantilla?: string | null): React.CSSProperties {
-  switch (plantilla) {
+  const p = plantilla?.split('|')[0];
+  switch (p) {
+    case "pergamino_seigokan":
+      return {
+        backgroundImage: "url('/images/certificados/Pergamino2.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        border: "3px solid #5a3d20"
+      };
     case "pergamino_marcial":
       return {
         background: "linear-gradient(135deg, #e9d1a1 0%, #d8ba82 50%, #c49f63 100%)",
@@ -858,11 +917,245 @@ function isDefaultClasicoText(text?: string | null): boolean {
   );
 }
 
-// =========================================================================
-// COMPONENTE PRINCIPAL: RENDERIZADOR DE TODAS LAS 9 PLANTILLAS
-// =========================================================================
 export default function CertificateCard({ data, isPrintMode = false, torneo }: CertificateCardProps) {
-  const plantilla = data.plantilla || "placa_madera";
+  const { plantillaId, config: parsedConfig } = parsePlantilla(data.plantilla);
+  const config: CustomLayoutConfig = {
+    ...parsedConfig,
+    ...((data as any).configuracion || {})
+  };
+  const plantilla = plantillaId || "pergamino_seigokan";
+
+  // =======================================================================
+  // NUEVA PLANTILLA DE HONOR: PERGAMINO 2 CON PLUMA Y SELLOS (FONDO PERGAMINO2.PNG)
+  // =======================================================================
+  if (plantilla === "pergamino_seigokan") {
+    // Configuración de texto según conveniencia
+    const alignClass = config.align_texto === "left" 
+      ? "text-left items-start" 
+      : config.align_texto === "justify" 
+      ? "text-justify items-stretch" 
+      : config.align_texto === "right"
+      ? "text-right items-end"
+      : "text-center items-center";
+
+    const textAlignOnly = config.align_texto === "left" 
+      ? "text-left" 
+      : config.align_texto === "justify" 
+      ? "text-justify" 
+      : config.align_texto === "right"
+      ? "text-right"
+      : "text-center";
+    
+    const inkColor = config.color_tinta || "#241e19";
+    const verticalOffsetPercent = config.pos_vertical_texto || 0; // % offset (-15 a +15)
+    const textSizeMultiplier = config.tamano_texto === "sm" ? 0.9 : config.tamano_texto === "lg" ? 1.15 : 1.0;
+
+    // Configuración de firma según conveniencia
+    const posFirma = config.pos_firma || "linea"; // 'linea' | 'centro' | 'derecha' | 'izquierda' | 'custom'
+    const tipoFirma = config.tipo_firma || "caligrafica"; // 'caligrafica' | 'imagen' | 'manual' | 'ninguna'
+    const offsetX = config.pos_firma_x || 0; // %
+    const offsetY = config.pos_firma_y || 0; // %
+
+    return (
+      <div
+        className="w-full h-full relative select-none overflow-hidden"
+        style={{
+          aspectRatio: "1137/1383",
+          boxShadow: isPrintMode ? "none" : "0 20px 45px rgba(0,0,0,0.5)"
+        }}
+      >
+        {/* Imagen de fondo Pergamino2.png (o fondo personalizado) */}
+        <img
+          src={config.fondo_custom_url || "/images/certificados/Pergamino2.png"}
+          alt="Pergamino Antiguo con Pluma y Sellos"
+          className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+        />
+
+        {/* Logo personalizado opcional */}
+        {data.logo_url && (
+          <div className="absolute top-[8%] left-1/2 -translate-x-1/2 w-28 h-12 flex items-center justify-center pointer-events-none z-10">
+            <img src={data.logo_url} alt="Logo" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+          </div>
+        )}
+
+        {/* =======================================================
+            BLOQUE CENTRAL DE TEXTOS SEGÚN CONVENIENCIA DEL USUARIO
+            ======================================================= */}
+        <div 
+          className={`absolute inset-x-0 flex flex-col ${alignClass} pointer-events-none z-20`}
+          style={{
+            top: `calc(29.2% + ${verticalOffsetPercent}%)`,
+            width: "100%",
+            paddingLeft: "15%",
+            paddingRight: "15%",
+            color: inkColor
+          }}
+        >
+          {/* TÍTULO */}
+          <div
+            className={`w-full ${textAlignOnly} italic font-medium leading-none mb-1.5 sm:mb-2.5`}
+            style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: `clamp(${12 * textSizeMultiplier}px, ${2.25 * textSizeMultiplier}vw, ${25 * textSizeMultiplier}px)`
+            }}
+          >
+            {data.titulo || "Reconocimiento y Honor a"}
+          </div>
+
+          {/* DESTINATARIO */}
+          <div
+            className={`w-full ${textAlignOnly} font-bold uppercase tracking-[0.06em] leading-tight mb-2 sm:mb-3`}
+            style={{
+              fontFamily: "'Cinzel', Georgia, serif",
+              fontSize: `clamp(${14 * textSizeMultiplier}px, ${2.65 * textSizeMultiplier}vw, ${29 * textSizeMultiplier}px)`,
+              textShadow: "0 0 1px rgba(0,0,0,0.15)"
+            }}
+          >
+            {data.destinatario || "Nombre del Destinatario"}
+          </div>
+
+          {/* SUBTÍTULO / DISCIPLINA / MOTIVO (Opcional) */}
+          {data.subtitulo && (
+            <div
+              className={`w-full ${textAlignOnly} font-bold tracking-[0.14em] uppercase mb-1.5 sm:mb-2.5 text-[#15110e]`}
+              style={{
+                fontFamily: "'Cinzel', Georgia, serif",
+                fontSize: `clamp(${10.5 * textSizeMultiplier}px, ${1.95 * textSizeMultiplier}vw, ${21 * textSizeMultiplier}px)`
+              }}
+            >
+              {data.subtitulo}
+            </div>
+          )}
+
+          {/* CUERPO DEL TEXTO / AGRADECIMIENTO */}
+          <div
+            className={`w-full ${textAlignOnly} italic font-medium leading-[1.38] mb-2 sm:mb-3 space-y-1`}
+            style={{
+              fontFamily: "'EB Garamond', Georgia, serif",
+              fontSize: `clamp(${10 * textSizeMultiplier}px, ${1.78 * textSizeMultiplier}vw, ${19 * textSizeMultiplier}px)`
+            }}
+          >
+            {data.texto_agradecimiento?.split('\n').map((line, idx) => (
+              <p key={idx} className={idx > 0 ? "mt-1" : ""}>
+                {line}
+              </p>
+            )) || (
+              <p>Por sus incontables años de dedicación inquebrantable, pasión y sabiduría en la enseñanza y difusión del KARATE DO GO JU RYU.</p>
+            )}
+          </div>
+
+          {/* OTORGADO POR (Opcional) */}
+          {data.otorgado_por && (
+            <div
+              className={`w-full ${textAlignOnly} font-bold tracking-[0.09em] uppercase mt-0.5 mb-1 text-[#15110e]`}
+              style={{
+                fontFamily: "'Cinzel', Georgia, serif",
+                fontSize: `clamp(${9.5 * textSizeMultiplier}px, ${1.65 * textSizeMultiplier}vw, ${18 * textSizeMultiplier}px)`
+              }}
+            >
+              {data.otorgado_por}
+            </div>
+          )}
+
+          {/* CIUDAD Y FECHA */}
+          {data.ciudad_fecha && (
+            <div
+              className={`w-full ${textAlignOnly} italic font-medium leading-normal mt-1 sm:mt-1.5 text-[#3b2d23]`}
+              style={{
+                fontFamily: "'EB Garamond', Georgia, serif",
+                fontSize: `clamp(${9 * textSizeMultiplier}px, ${1.5 * textSizeMultiplier}vw, ${16 * textSizeMultiplier}px)`
+              }}
+            >
+              {data.ciudad_fecha}
+            </div>
+          )}
+        </div>
+
+        {/* =======================================================
+            ZONA DE LA FIRMA SEGÚN CONVENIENCIA DEL USUARIO
+            ======================================================= */}
+        {tipoFirma !== "ninguna" && (
+          <div
+            className="absolute pointer-events-none z-20 flex flex-col items-center text-center"
+            style={{
+              ...(posFirma === "linea" ? {
+                // Exactamente calibrada sobre la línea pre-impresa de Pergamino2.png
+                left: `calc(23.6% + ${offsetX}%)`,
+                width: "38.4%",
+                top: `calc(73.5% + ${offsetY}%)`
+              } : posFirma === "centro" ? {
+                left: `calc(50% + ${offsetX}%)`,
+                transform: "translateX(-50%)",
+                width: "44%",
+                top: `calc(76% + ${offsetY}%)`
+              } : posFirma === "derecha" ? {
+                right: `calc(16% - ${offsetX}%)`,
+                width: "36%",
+                top: `calc(76% + ${offsetY}%)`
+              } : posFirma === "izquierda" ? {
+                left: `calc(16% + ${offsetX}%)`,
+                width: "36%",
+                top: `calc(76% + ${offsetY}%)`
+              } : {
+                left: `calc(30% + ${offsetX}%)`,
+                top: `calc(76% + ${offsetY}%)`,
+                width: "38%"
+              })
+            }}
+          >
+            {/* FIRMA PROPIAMENTE DICHA (Encima de la línea) */}
+            {tipoFirma === "caligrafica" ? (
+              <div className="h-10 sm:h-12 flex items-center justify-center">
+                <CalligraphySignature
+                  nombre={data.nombre_firmante || "Sensei Jorge Salgado Castillo"}
+                  color={inkColor}
+                />
+              </div>
+            ) : tipoFirma === "imagen" && data.firma_url ? (
+              <div className="h-10 sm:h-12 flex items-center justify-center">
+                <img
+                  src={data.firma_url}
+                  alt="Firma"
+                  className="max-h-full max-w-full object-contain mix-blend-multiply"
+                />
+              </div>
+            ) : tipoFirma === "manual" ? (
+              <div className="h-9 sm:h-11 flex items-center justify-center text-black/25 text-[10px] italic">
+                (Firma con pluma)
+              </div>
+            ) : (
+              <div className="h-6 sm:h-8" />
+            )}
+
+            {/* LÍNEA DE FIRMA ADICIONAL: Si no está en la línea pre-impresa o si el usuario la activó explícitamente */}
+            {(posFirma !== "linea" || config.mostrar_linea_firma) && (
+              <div className="w-full h-[1.5px] bg-[#221710] opacity-80 my-0.5" />
+            )}
+
+            {/* NOMBRE DEL FIRMANTE (Debajo de la línea) */}
+            {data.nombre_firmante && (
+              <p
+                className="font-bold text-[#140f0c] uppercase tracking-wider text-[10px] sm:text-[11.5px] leading-tight mt-1"
+                style={{ fontFamily: "'Cinzel', Georgia, serif" }}
+              >
+                {data.nombre_firmante}
+              </p>
+            )}
+
+            {/* CARGO O ENTIDAD DEL FIRMANTE */}
+            {data.cargo_firmante && (
+              <p
+                className="italic text-[#382b22] text-[8.5px] sm:text-[10px] leading-tight mt-0.5"
+                style={{ fontFamily: "'EB Garamond', Georgia, serif" }}
+              >
+                {data.cargo_firmante}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // =======================================================================
   // NUEVA PLANTILLA 1: PERGAMINO MARCIAL / ROLLO DE HONOR (FOTO 1 IDÉNTICA)

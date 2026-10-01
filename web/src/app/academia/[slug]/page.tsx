@@ -194,6 +194,9 @@ export default function AcademiaPublicaPage() {
     const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://micancha.com.py/academia/${slug}`;
     
     let text = `🎓 *${academia.nombre}*\n`;
+    if (academia.descripcion) {
+      text += `_${academia.descripcion}_\n`;
+    }
     if (academia.ciudad || academia.departamento) {
       text += `📍 ${[academia.ciudad, academia.departamento].filter(Boolean).join(', ')}\n`;
     }
@@ -290,6 +293,18 @@ export default function AcademiaPublicaPage() {
             <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, lineHeight: 1.15, textShadow: '0 2px 10px rgba(0,0,0,.7)' }}>
               {academia.nombre}
             </h1>
+            {academia.descripcion && (
+              <p style={{
+                margin: '10px 0 0',
+                color: '#cbd5e1',
+                fontSize: 16,
+                fontWeight: 500,
+                lineHeight: 1.5,
+                maxWidth: 720,
+              }}>
+                {academia.descripcion}
+              </p>
+            )}
             {(academia.ciudad || academia.departamento) && (
               <p style={{ margin: '8px 0 0', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
                 <MapPin size={16} color={primary} />
@@ -666,11 +681,11 @@ export default function AcademiaPublicaPage() {
         </section>
 
         {/* ── ACERCA DE ── */}
-        {academia.acerca_de && (
+        {(academia.acerca_de || academia.descripcion) && (
           <section style={sectionCard}>
             <h2 style={sectionTitle(primary)}><Star size={20} /> Acerca de la Academia</h2>
             <p style={{ color: '#cbd5e1', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-line', fontSize: 15 }}>
-              {academia.acerca_de}
+              {academia.acerca_de || academia.descripcion}
             </p>
           </section>
         )}

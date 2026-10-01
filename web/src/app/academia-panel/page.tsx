@@ -2239,7 +2239,18 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Mi Academia</h1>
           <p style={{ color: C.muted, margin: '4px 0 0', fontSize: 13 }}>
             Configurá tu página pública en{' '}
-            <strong>micancha.com.py/academia/{form?.enlace_sitio || 'TU-ENLACE'}</strong>
+            {form?.enlace_sitio ? (
+              <a
+                href={`/academia/${form.enlace_sitio}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: C.primary, textDecoration: 'underline', fontWeight: 700 }}
+              >
+                micancha.com.py/academia/{form.enlace_sitio} ↗
+              </a>
+            ) : (
+              <strong>micancha.com.py/academia/TU-ENLACE</strong>
+            )}
           </p>
         </div>
         {isDueno && (

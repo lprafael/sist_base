@@ -455,12 +455,13 @@ async def listar_academias_publicas(session: AsyncSession = Depends(get_session)
                a.color_primario, a.acerca_de,
                COUNT(DISTINCT s.id) AS total_sucursales,
                ARRAY_AGG(DISTINCT s.deporte) FILTER (WHERE s.deporte IS NOT NULL) AS deportes,
-               a.plan, a.habilitada, COALESCE(a.email, u.email) as usuario_email
+               a.plan, a.habilitada, COALESCE(a.email, u.email) as usuario_email,
+               a.descripcion
         FROM academias.academias a
         LEFT JOIN sistema.usuarios u ON u.id = a.usuario_id
         LEFT JOIN academias.sucursales s ON s.academia_id = a.id AND s.activa = TRUE
         GROUP BY a.id, a.nombre, a.enlace_sitio, a.logo_url, a.ciudad, a.departamento,
-                 a.color_primario, a.acerca_de, a.plan, a.habilitada, a.email, u.email
+                 a.color_primario, a.acerca_de, a.plan, a.habilitada, a.email, u.email, a.descripcion
         ORDER BY a.nombre
     """))
     rows = res.fetchall()
@@ -478,7 +479,8 @@ async def listar_academias_publicas(session: AsyncSession = Depends(get_session)
             "deportes": r[9] or [],
             "plan": r[10] or 'basico',
             "habilitado": r[11] if r[11] is not None else True,
-            "usuario_email": r[12] or ''
+            "usuario_email": r[12] or '',
+            "descripcion": r[13] or ''
         }
         for r in rows
     ]
