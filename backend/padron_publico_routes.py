@@ -418,7 +418,7 @@ async def get_estadisticas_control_admin(
     - Cantidad de equipos únicos que consultaron el padrón
     - Últimas consultas al padrón registradas
     """
-    rol = (current_user.get("rol") or "").lower()
+    rol = (current_user.get("role") or current_user.get("rol") or "").lower().strip()
     if rol not in ["admin", "candidato_principal", "equipo_electoral"]:
         raise HTTPException(status_code=403, detail="No autorizado para ver estadísticas de control")
 

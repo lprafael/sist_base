@@ -140,6 +140,7 @@ async def login(
         data={
             "sub": user.username, 
             "role": user.rol, 
+            "rol": user.rol,
             "user_id": user.id,
             "departamento_id": user.departamento_id,
             "distrito_id": user.distrito_id,
@@ -311,6 +312,7 @@ async def google_login(
             data={
                 "sub": user.username, 
                 "role": user.rol, 
+                "rol": user.rol,
                 "user_id": user.id,
                 "departamento_id": user.departamento_id,
                 "distrito_id": user.distrito_id,

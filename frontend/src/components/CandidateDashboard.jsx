@@ -80,7 +80,8 @@ const CandidateDashboard = ({ user }) => {
         const fetchTelemetry = async () => {
             try {
                 const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
-                if (['admin', 'candidato_principal', 'equipo_electoral'].includes(currentUser?.rol)) {
+                const userRole = (currentUser?.rol || currentUser?.role || '').toLowerCase();
+                if (['admin', 'candidato_principal', 'equipo_electoral'].includes(userRole)) {
                     const res = await authFetch('/public/padron/estadisticas/admin');
                     if (res.ok) {
                         const telData = await res.json();
