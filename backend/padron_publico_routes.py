@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, func, distinct, desc
+from sqlalchemy import and_, or_, func, distinct, desc, case
+from sqlalchemy.orm import aliased
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 
@@ -13,7 +14,7 @@ from security import get_current_user
 from models import (
     Persona, PadronElectoral, RefLocal, RefDistrito, RefDepartamento, 
     Eleccion, Padron, LogConsultaPadron, LogVisitaWeb, Usuario, 
-    LogAcceso, EquiposAutorizados
+    LogAcceso, EquiposAutorizados, LocalVotacion
 )
 
 router = APIRouter(prefix="/api/public/padron", tags=["Padrón Público"])
@@ -228,25 +229,53 @@ async def consultar_padron_general(
             detail="La fecha de nacimiento no coincide con el registro de la cédula ingresada. Verifique sus datos."
         )
 
-    # 5. Obtener los datos del padrón electoral con sus referencias
+    # 5. Obtener los datos del padrón electoral con sus referencias y máxima prioridad a datos completos
+    RefLocalExacto = aliased(RefLocal)
+    RefLocalDistrito = aliased(RefLocal)
+
     stmt_padron = (
         select(
+            PadronElectoral.eleccion_id,
             PadronElectoral.mesa,
             PadronElectoral.orden,
-            RefLocal.descripcion.label("nombre_local"),
-            RefLocal.domicilio.label("direccion_local"),
+            PadronElectoral.local_id,
+            PadronElectoral.distrito_id,
+            PadronElectoral.departamento_id,
+            func.coalesce(
+                RefLocalExacto.descripcion,
+                RefLocalDistrito.descripcion,
+                LocalVotacion.nombre_local
+            ).label("nombre_local"),
+            func.coalesce(
+                RefLocalExacto.domicilio,
+                RefLocalDistrito.domicilio,
+                LocalVotacion.direccion
+            ).label("direccion_local"),
             RefDistrito.descripcion.label("nombre_distrito"),
             RefDepartamento.descripcion.label("nombre_departamento"),
-            Eleccion.nombre.label("nombre_eleccion")
+            Eleccion.nombre.label("nombre_eleccion"),
+            Eleccion.tipo.label("tipo_eleccion")
         )
         .outerjoin(
-            RefLocal,
+            RefLocalExacto,
             and_(
-                PadronElectoral.departamento_id == RefLocal.departamento_id,
-                PadronElectoral.distrito_id == RefLocal.distrito_id,
-                PadronElectoral.seccional_id == RefLocal.seccional_id,
-                PadronElectoral.local_id == RefLocal.local_id,
+                PadronElectoral.departamento_id == RefLocalExacto.departamento_id,
+                PadronElectoral.distrito_id == RefLocalExacto.distrito_id,
+                PadronElectoral.seccional_id == RefLocalExacto.seccional_id,
+                PadronElectoral.local_id == RefLocalExacto.local_id,
             ),
+        )
+        .outerjoin(
+            RefLocalDistrito,
+            and_(
+                PadronElectoral.departamento_id == RefLocalDistrito.departamento_id,
+                PadronElectoral.distrito_id == RefLocalDistrito.distrito_id,
+                PadronElectoral.local_id == RefLocalDistrito.local_id,
+            ),
+        )
+        .outerjoin(
+            LocalVotacion,
+            PadronElectoral.local_id == LocalVotacion.id
         )
         .outerjoin(
             RefDistrito,
@@ -264,13 +293,77 @@ async def consultar_padron_general(
             PadronElectoral.eleccion_id == Eleccion.id
         )
         .where(PadronElectoral.cedula == ci_limpia)
+        .order_by(
+            # 1. Priorizar registros con número de mesa válido
+            case(
+                (and_(PadronElectoral.mesa.isnot(None), PadronElectoral.mesa > 0), 1),
+                else_=2
+            ),
+            # 2. Priorizar registros con local de votación resuelto
+            case(
+                (func.coalesce(RefLocalExacto.descripcion, RefLocalDistrito.descripcion, LocalVotacion.nombre_local).isnot(None), 1),
+                else_=2
+            ),
+            # 3. Priorizar Elección 3 (Padrón Nacional TSJE / Elecciones Municipales Generales)
+            case(
+                (PadronElectoral.eleccion_id == 3, 1),
+                (Eleccion.tipo == 'Generales', 2),
+                else_=3
+            ),
+            # 4. Elección más reciente
+            PadronElectoral.eleccion_id.desc()
+        )
     )
     res_padron = await session.execute(stmt_padron)
     padron_data = res_padron.first()
 
     nombre_completo = f"{persona.nombres} {persona.apellidos}".strip()
 
-    if not padron_data:
+    # Extraer valores preliminares
+    mesa_val = padron_data.mesa if (padron_data and padron_data.mesa and padron_data.mesa > 0) else None
+    orden_val = padron_data.orden if (padron_data and padron_data.orden and padron_data.orden > 0) else None
+    local_val = padron_data.nombre_local if (padron_data and padron_data.nombre_local) else None
+    direccion_val = padron_data.direccion_local if (padron_data and padron_data.direccion_local) else ""
+    distrito_val = padron_data.nombre_distrito if (padron_data and padron_data.nombre_distrito) else ""
+    departamento_val = padron_data.nombre_departamento if (padron_data and padron_data.nombre_departamento) else ""
+    eleccion_val = (
+        padron_data.nombre_eleccion if (padron_data and padron_data.nombre_eleccion) else "Elecciones Municipales"
+    )
+
+    # Si aún no tenemos mesa o local, consultar fallback electoral.padron
+    if not mesa_val or not local_val:
+        stmt_fb = select(Padron).where(Padron.cedula == ci_limpia)
+        res_fb = await session.execute(stmt_fb)
+        p_fb = res_fb.scalar_one_or_none()
+        if p_fb:
+            if not mesa_val and p_fb.mesa_nro and p_fb.mesa_nro > 0:
+                mesa_val = p_fb.mesa_nro
+            if not orden_val and p_fb.orden_nro and p_fb.orden_nro > 0:
+                orden_val = p_fb.orden_nro
+            if not local_val and p_fb.direccion_padron:
+                local_val = p_fb.direccion_padron
+            if not distrito_val and p_fb.distrito:
+                distrito_val = p_fb.distrito
+            if not departamento_val and p_fb.departamento:
+                departamento_val = p_fb.departamento
+
+    # Si aún falta nombre de local pero tenemos distrito y departamento del elector
+    if not local_val and padron_data and padron_data.departamento_id and padron_data.distrito_id and padron_data.local_id:
+        stmt_loc_d = select(RefLocal.descripcion, RefLocal.domicilio).where(
+            and_(
+                RefLocal.departamento_id == padron_data.departamento_id,
+                RefLocal.distrito_id == padron_data.distrito_id,
+                RefLocal.local_id == padron_data.local_id
+            )
+        ).limit(1)
+        res_loc_d = await session.execute(stmt_loc_d)
+        row_loc_d = res_loc_d.first()
+        if row_loc_d and row_loc_d[0]:
+            local_val = row_loc_d[0]
+            if not direccion_val:
+                direccion_val = row_loc_d[1] or ""
+
+    if not padron_data and not mesa_val and not local_val:
         await guardar_log_consulta(
             session, ci_limpia, fec_val, dev_val, ip_cliente, user_agent, False,
             nombre=nombre_completo
@@ -284,11 +377,11 @@ async def consultar_padron_general(
     await guardar_log_consulta(
         session, ci_limpia, fec_val, dev_val, ip_cliente, user_agent, True,
         nombre=nombre_completo,
-        mesa=padron_data.mesa,
-        orden=padron_data.orden,
-        local=padron_data.nombre_local,
-        distrito=padron_data.nombre_distrito,
-        departamento=padron_data.nombre_departamento
+        mesa=mesa_val,
+        orden=orden_val,
+        local=local_val,
+        distrito=distrito_val,
+        departamento=departamento_val
     )
 
     return {
@@ -297,13 +390,13 @@ async def consultar_padron_general(
         "nombres": persona.nombres,
         "apellidos": persona.apellidos,
         "nombre_completo": nombre_completo,
-        "mesa": padron_data.mesa,
-        "orden": padron_data.orden,
-        "local_votacion": padron_data.nombre_local or "Local no especificado",
-        "direccion_local": padron_data.direccion_local or "",
-        "distrito": padron_data.nombre_distrito or "",
-        "departamento": padron_data.nombre_departamento or "",
-        "eleccion": padron_data.nombre_eleccion or "Elecciones Municipales"
+        "mesa": mesa_val,
+        "orden": orden_val,
+        "local_votacion": local_val or "Local en proceso de asignación",
+        "direccion_local": direccion_val,
+        "distrito": distrito_val,
+        "departamento": departamento_val,
+        "eleccion": eleccion_val
     }
 
 # =========================================================================

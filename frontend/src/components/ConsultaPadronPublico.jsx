@@ -228,11 +228,11 @@ const ConsultaPadronPublico = ({ isModal = false, onClose = null }) => {
           <div className="mesa-orden-highlight">
             <div className="highlight-box">
               <div className="box-label">Mesa de Votación</div>
-              <div className="box-value">{resultado.mesa}</div>
+              <div className="box-value">{resultado.mesa != null && resultado.mesa !== '' ? resultado.mesa : '—'}</div>
             </div>
             <div className="highlight-box">
               <div className="box-label">N° de Orden</div>
-              <div className="box-value">{resultado.orden}</div>
+              <div className="box-value">{resultado.orden != null && resultado.orden !== '' ? resultado.orden : '—'}</div>
             </div>
           </div>
 
@@ -241,7 +241,7 @@ const ConsultaPadronPublico = ({ isModal = false, onClose = null }) => {
             <div className="info-item" style={{ gridColumn: 'span 2' }}>
               <span className="item-title">🏫 Local de Votación</span>
               <span className="item-val" style={{ fontSize: '1.15rem', color: '#1e40af' }}>
-                {resultado.local_votacion}
+                {resultado.local_votacion || 'Local en proceso de asignación'}
               </span>
             </div>
 
