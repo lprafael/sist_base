@@ -435,7 +435,7 @@ async def obtener_estado_cuenta(
                    (q.monto_final - COALESCE(q.monto_pagado, 0)) AS saldo_pendiente,
                    q.estado, q.fecha_vencimiento
             FROM academias.cuotas q
-            JOIN academias.inscripciones i ON i.id = q.inscripcion_id
+            LEFT JOIN academias.inscripciones i ON i.id = q.inscripcion_id
             LEFT JOIN academias.categorias c ON c.id = i.categoria_id
             WHERE q.alumno_id = CAST(:id AS UUID) AND q.academia_id = CAST(:aid AS UUID)
             ORDER BY q.periodo ASC
@@ -445,8 +445,13 @@ async def obtener_estado_cuenta(
     cuotas_list = [
         {
             "id": str(r[0]), "tipo": "cuota", "concepto": f"Cuota {r[1]} ({r[2] or 'General'})",
-            "periodo": r[1], "monto_total": float(r[3]), "monto_pagado": float(r[4]),
-            "saldo": float(r[5]), "estado": r[6], "fecha_vencimiento": r[7].isoformat() if r[7] else None,
+            "periodo": r[1],
+            "monto_total": float(r[3]),
+            "monto_final": float(r[3]),
+            "monto_pagado": float(r[4]),
+            "saldo": float(r[5]),
+            "estado": r[6],
+            "fecha_vencimiento": r[7].isoformat() if r[7] else None,
         }
         for r in res_cuotas.fetchall()
     ]
@@ -465,6 +470,7 @@ async def obtener_estado_cuenta(
         {
             "id": str(r[0]), "tipo": "matricula", "concepto": f"Matrícula Anual {r[1]}",
             "periodo": str(r[1]), "monto_total": float(r[2]),
+            "monto_final": float(r[2]),
             "monto_pagado": float(r[2]) if r[3] == "pagada" else 0.0,
             "saldo": 0.0 if r[3] == "pagada" else float(r[2]),
             "estado": r[3], "fecha_vencimiento": r[4].isoformat() if r[4] else None,
@@ -486,10 +492,15 @@ async def obtener_estado_cuenta(
     prod_list = [
         {
             "id": str(r[0]), "tipo": "producto", "concepto": f"{r[1]} (x{r[3]})",
+            "producto_nombre": str(r[1]), "cantidad": int(r[3] or 1),
+            "precio_total": float(r[4]),
             "periodo": r[6].isoformat() if r[6] else "", "monto_total": float(r[4]),
+            "monto_final": float(r[4]),
             "monto_pagado": float(r[4]) if r[5] == "pagado" else 0.0,
             "saldo": 0.0 if r[5] == "pagado" else float(r[4]),
             "estado": r[5], "fecha_vencimiento": r[6].isoformat() if r[6] else None,
+            "fecha_venta": r[6].isoformat() if r[6] else None,
+            "entregado": True,
         }
         for r in res_prod.fetchall()
     ]
@@ -502,7 +513,7 @@ async def obtener_estado_cuenta(
             SELECT p.id, p.fecha_pago, p.monto, p.metodo_pago, p.notas,
                    c.periodo, p.anulado
             FROM academias.pagos p
-            JOIN academias.cuotas c ON c.id = p.cuota_id
+            LEFT JOIN academias.cuotas c ON c.id = p.cuota_id
             WHERE p.alumno_id = CAST(:id AS UUID) AND p.academia_id = CAST(:aid AS UUID)
             ORDER BY p.fecha_pago DESC
         """),
@@ -521,6 +532,14 @@ async def obtener_estado_cuenta(
     total_cargos = sum(c["monto_total"] for c in todos_cargos if c["estado"] != "anulada")
     total_pagado = sum(c["monto_pagado"] for c in todos_cargos if c["estado"] != "anulada")
     saldo_total = sum(c["saldo"] for c in todos_cargos if c["estado"] not in ("anulada", "becada"))
+
+    resumen_data = {
+        "total_cargos": total_cargos,
+        "total_pagado": total_pagado,
+        "saldo_pendiente": saldo_total,
+        "saldo_deudor": saldo_total,
+        "al_dia": saldo_total <= 0,
+    }
 
     return {
         "alumno": {
@@ -544,13 +563,11 @@ async def obtener_estado_cuenta(
             "ruc": f"{row_df[1]}-{row_df[2]}" if (row_df and row_df[2]) else (row_df[1] if row_df else ""),
             "email": row_df[3] if row_df else "",
         },
-        "totales": {
-            "total_cargos": total_cargos,
-            "total_pagado": total_pagado,
-            "saldo_pendiente": saldo_total,
-            "al_dia": saldo_total <= 0,
-        },
+        "resumen": resumen_data,
+        "totales": resumen_data,
+        "cuotas": cuotas_list,
         "cargos": todos_cargos,
+        "compras_productos": prod_list,
         "pagos": pagos_list,
         "fecha_emision": date.today().isoformat(),
     }
