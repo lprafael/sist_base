@@ -38,13 +38,17 @@
 }
 
 .search-btn,
-.print-btn {
+.print-btn,
+.excel-btn {
     padding: 10px 20px;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .search-btn {
@@ -54,6 +58,15 @@
 
 .search-btn:hover {
     background: #3182ce;
+}
+
+.excel-btn {
+    background: #107c41;
+    color: white;
+}
+
+.excel-btn:hover {
+    background: #0b5a2f;
 }
 
 .print-btn {

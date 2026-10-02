@@ -117,8 +117,45 @@ async def app_lifespan(app: FastAPI):
             for stmt in ddl_statements:
                 await conn.execute(text(stmt))
             print("Auto-verificación: tabla electoral.persona_telefonos lista y sincronizada.")
+
+            # Tablas para auditoría de consultas de padrón y visitas por device_id
+            ddl_telemetry = [
+                """CREATE TABLE IF NOT EXISTS electoral.logs_consulta_padron (
+                    id SERIAL PRIMARY KEY,
+                    cedula_consultada VARCHAR(50) NOT NULL,
+                    fecha_nacimiento_ingresada VARCHAR(20),
+                    device_id VARCHAR(255),
+                    ip_address VARCHAR(50),
+                    user_agent TEXT,
+                    encontrado BOOLEAN DEFAULT FALSE,
+                    nombre_elector VARCHAR(255),
+                    mesa INTEGER,
+                    orden INTEGER,
+                    local_votacion VARCHAR(255),
+                    distrito VARCHAR(100),
+                    departamento VARCHAR(100),
+                    fecha_consulta TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
+                )""",
+                "CREATE INDEX IF NOT EXISTS idx_log_consulta_cedula ON electoral.logs_consulta_padron(cedula_consultada)",
+                "CREATE INDEX IF NOT EXISTS idx_log_consulta_device ON electoral.logs_consulta_padron(device_id)",
+                "CREATE INDEX IF NOT EXISTS idx_log_consulta_fecha ON electoral.logs_consulta_padron(fecha_consulta DESC)",
+                """CREATE TABLE IF NOT EXISTS sistema.logs_visitas_web (
+                    id SERIAL PRIMARY KEY,
+                    device_id VARCHAR(255) NOT NULL,
+                    path VARCHAR(255) DEFAULT '/',
+                    ip_address VARCHAR(50),
+                    user_agent TEXT,
+                    fecha TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
+                )""",
+                "CREATE INDEX IF NOT EXISTS idx_log_visitas_device ON sistema.logs_visitas_web(device_id)",
+                "CREATE INDEX IF NOT EXISTS idx_log_visitas_fecha ON sistema.logs_visitas_web(fecha DESC)"
+            ]
+            for stmt in ddl_telemetry:
+                await conn.execute(text(stmt))
+            print("Auto-verificación: tablas de telemetría y consultas de padrón listas.")
     except Exception as e:
-        print(f"Aviso durante auto-verificación de electoral.persona_telefonos: {e}")
+        print(f"Aviso durante auto-verificación de tablas del sistema: {e}")
+
 
     # Iniciar el planificador de envíos en segundo plano al arrancar la aplicación
     await init_scheduler()
@@ -191,6 +228,7 @@ from electoral_analysis import router as electoral_analysis_router
 from logistica_routes import router as logistica_router
 from actividades_routes import router as actividades_router
 from public_routes import router as public_router
+from padron_publico_routes import router as padron_publico_router
 from inteligencia_routes import router as inteligencia_router
 from financiamiento_routes import router as financiamiento_router
 from dia_d_routes import router as dia_d_router
@@ -208,10 +246,12 @@ app.include_router(electoral_analysis_router)
 app.include_router(logistica_router)
 app.include_router(actividades_router)
 app.include_router(public_router) # Registrar Rutas publicas
+app.include_router(padron_publico_router) # Consulta pública temporal de padrón
 app.include_router(inteligencia_router)  # Inteligencia Territorial
 app.include_router(financiamiento_router) # Financiamiento Político
 app.include_router(dia_d_router) # Escrutinio Día D
 app.include_router(mensajeria_router) # Módulo de Mensajería
+
 
 
 

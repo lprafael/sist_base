@@ -26,6 +26,7 @@ import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
 import ChoferScanner from "./components/ChoferScanner.jsx";
 import EleccionesManagement from "./components/EleccionesManagement.jsx";
 import MensajeriaDashboard from "./components/MensajeriaDashboard.jsx";
+import ConsultaPadronPublico from "./components/ConsultaPadronPublico.jsx";
 import { authFetch } from "./utils/authFetch";
 
 // Helper global para identificar el rol de forma robusta
@@ -647,6 +648,7 @@ export default function App() {
         <Route path="/candidato/:slug" element={<CandidatePublicPage />} />
         <Route path="/chofer/:token" element={<ChoferTracking />} />
         <Route path="/scan-chofer" element={<ChoferScanner />} />
+        <Route path="/consulta-padron" element={<ConsultaPadronPublico />} />
         {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

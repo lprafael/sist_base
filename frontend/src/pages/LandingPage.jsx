@@ -13,12 +13,35 @@ import {
   ClipboardCheck,
   Sparkles,
   Presentation,
-  GraduationCap
+  GraduationCap,
+  Vote
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ConsultaPadronPublico, { isConsultaTemporalActiva } from '../components/ConsultaPadronPublico.jsx';
 
 const LandingPage = ({ user }) => {
   const [modal, setModal] = React.useState({ show: false, title: '', content: '' });
+  const [padronModalOpen, setPadronModalOpen] = React.useState(false);
+  const isPadronActivo = isConsultaTemporalActiva();
+
+  React.useEffect(() => {
+    try {
+      let devId = localStorage.getItem('deviceId');
+      if (!devId) {
+        devId = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('deviceId', devId);
+      }
+      const API_URL = import.meta.env.VITE_REACT_APP_API_URL || '/api';
+      const cleanBase = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+      fetch(`${cleanBase}/public/padron/visita`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: devId, path: '/' })
+      }).catch(() => {});
+    } catch (e) {}
+  }, []);
+
+
 
   const showLegal = (type) => {
     let title = '';
@@ -58,6 +81,7 @@ const LandingPage = ({ user }) => {
           <div style={{ marginTop: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', textAlign: 'left' }}>
             <p>📧 <strong>Email:</strong> soporte@sigel.in</p>
             <p>📱 <strong>WhatsApp:</strong> +595 984 165 807</p>
+            <p>📞 <strong>Celular:</strong> 0981-165851</p>
             <p>⏰ <strong>Horario:</strong> Lunes a Viernes 08:00 - 18:00 (Hora Paraguay)</p>
           </div>
           <p style={{ marginTop: '20px', fontSize: '0.9rem', color: '#64748b' }}>
@@ -84,16 +108,56 @@ const LandingPage = ({ user }) => {
 
   return (
     <div className="landing-page" style={{ overflowX: 'hidden' }}>
+      {/* Banner Superior Temporal: Habilitado hasta el domingo 4 de octubre */}
+      {isPadronActivo && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '42px',
+          background: 'linear-gradient(90deg, #1e3a8a 0%, #2563eb 100%)',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          fontSize: '0.88rem',
+          fontWeight: 600,
+          zIndex: 1001,
+          padding: '0 16px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        }}>
+          <span>🗳️ <strong>Consulta de Padrón Electoral - Elecciones Municipales</strong> (Habilitado hasta el domingo 4 de octubre)</span>
+          <button
+            onClick={() => setPadronModalOpen(true)}
+            style={{
+              background: '#fef08a',
+              color: '#854d0e',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '4px 14px',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}
+          >
+            🔍 Consultar Dónde Voto
+          </button>
+        </div>
+      )}
+
       {/* Navbar Minimalista */}
       <nav className="landing-nav" style={{
         position: 'fixed',
-        top: 0,
+        top: isPadronActivo ? '42px' : 0,
         width: '100%',
-        padding: '20px 50px',
+        padding: '16px 50px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        background: 'rgba(255, 255, 255, 0.8)',
+        background: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(10px)',
         zIndex: 1000,
         boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
@@ -101,23 +165,47 @@ const LandingPage = ({ user }) => {
         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e3a8a', letterSpacing: '-1px' }}>
           SIGEL
         </div>
-        <Link to={user ? "/dashboard" : "/login"} style={{
-          padding: '10px 24px',
-          background: '#2563eb',
-          color: 'white',
-          borderRadius: '50px',
-          fontWeight: 600,
-          textDecoration: 'none',
-          transition: 'all 0.3s ease',
-          boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)'
-        }} className="login-nav-btn">
-          {user ? "Ir al Panel" : "Ingresar al Sistema"}
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isPadronActivo && (
+            <button
+              onClick={() => setPadronModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 18px',
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                borderRadius: '50px',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title="Consultar mesa y local de votación (Temporal)"
+            >
+              <Vote size={18} /> Consultar Padrón
+            </button>
+          )}
+          <Link to={user ? "/dashboard" : "/login"} style={{
+            padding: '10px 24px',
+            background: '#2563eb',
+            color: 'white',
+            borderRadius: '50px',
+            fontWeight: 600,
+            textDecoration: 'none',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)'
+          }} className="login-nav-btn">
+            {user ? "Ir al Panel" : "Ingresar al Sistema"}
+          </Link>
+        </div>
       </nav>
 
       {/* Hero Section */}
       <section className="hero" style={{
-        padding: '160px 20px 100px',
+        padding: isPadronActivo ? '180px 20px 100px' : '160px 20px 100px',
         textAlign: 'center',
         background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
         position: 'relative'
@@ -147,7 +235,29 @@ const LandingPage = ({ user }) => {
             La plataforma definitiva para candidatos y equipos de campaña.
             Optimiza tu logística, detecta redes familiares y visualiza tu territorio en tiempo real.
           </p>
-          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {isPadronActivo && (
+              <button
+                onClick={() => setPadronModalOpen(true)}
+                style={{
+                  padding: '18px 32px',
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: '0 10px 25px rgba(16, 185, 129, 0.35)',
+                  transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+              >
+                <Vote size={22} /> Consultar Padrón Municipal
+              </button>
+            )}
             <Link to={user ? "/dashboard" : "/login"} className="btn-hero-primary" style={{
               padding: '18px 40px',
               fontSize: '1.1rem',
@@ -421,6 +531,20 @@ const LandingPage = ({ user }) => {
             <div style={{ marginTop: '30px', textAlign: 'right' }}>
               <button onClick={() => setModal({ ...modal, show: false })} style={acceptBtnStyle}>Cerrar</button>
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal para Consulta Pública de Padrón Electoral */}
+      {padronModalOpen && (
+        <div style={overlayStyle} onClick={() => setPadronModalOpen(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            style={{ ...modalStyle, maxWidth: '760px', padding: '16px', position: 'relative' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <ConsultaPadronPublico isModal={true} onClose={() => setPadronModalOpen(false)} />
           </motion.div>
         </div>
       )}

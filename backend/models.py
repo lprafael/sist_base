@@ -743,3 +743,38 @@ class MensajeDestinatario(Base):
     campania = relationship("MensajeCampania", back_populates="destinatarios")
     persona = relationship("Persona", foreign_keys=[cedula])
 
+
+# ===== LOGS DE CONTROL Y TELEMETRÍA DE CONSULTAS PÚBLICAS Y VISITAS =====
+
+class LogConsultaPadron(Base):
+    __tablename__ = "logs_consulta_padron"
+    __table_args__ = {"schema": "electoral"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    cedula_consultada = Column(String(50), index=True, nullable=False)
+    fecha_nacimiento_ingresada = Column(String(20), nullable=True)
+    device_id = Column(String(255), index=True, nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    encontrado = Column(Boolean, default=False)
+    nombre_elector = Column(String(255), nullable=True)
+    mesa = Column(Integer, nullable=True)
+    orden = Column(Integer, nullable=True)
+    local_votacion = Column(String(255), nullable=True)
+    distrito = Column(String(100), nullable=True)
+    departamento = Column(String(100), nullable=True)
+    fecha_consulta = Column(DateTime, default=func.now(), index=True)
+
+
+class LogVisitaWeb(Base):
+    __tablename__ = "logs_visitas_web"
+    __table_args__ = {"schema": "sistema"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String(255), index=True, nullable=False)
+    path = Column(String(255), default="/")
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    fecha = Column(DateTime, default=func.now(), index=True)
+
+

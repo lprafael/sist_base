@@ -4,8 +4,9 @@ import './CandidateDashboard.css';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const CandidateDashboard = () => {
+const CandidateDashboard = ({ user }) => {
     const [stats, setStats] = useState(null);
+    const [telemetryStats, setTelemetryStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Estados para desplegar y consultar simpatizantes por referente
@@ -75,8 +76,25 @@ const CandidateDashboard = () => {
                 setLoading(false);
             }
         };
+
+        const fetchTelemetry = async () => {
+            try {
+                const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+                if (['admin', 'candidato_principal', 'equipo_electoral'].includes(currentUser?.rol)) {
+                    const res = await authFetch('/public/padron/estadisticas/admin');
+                    if (res.ok) {
+                        const telData = await res.json();
+                        setTelemetryStats(telData);
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching telemetry stats:", e);
+            }
+        };
+
         fetchStats();
-    }, []);
+        fetchTelemetry();
+    }, [user]);
 
     if (loading) return <div className="loading">Cargando tablero...</div>;
     if (!stats) return <div className="error">No se pudieron cargar las estadísticas.</div>;
@@ -106,6 +124,47 @@ const CandidateDashboard = () => {
                 <h2>📈 Tablero de Control del Candidato</h2>
                 <p>Resumen de captación y rendimiento de referentes</p>
             </header>
+
+            {/* Banner de Monitoreo de Equipos, Tráfico y Padrón para Administrador */}
+            {telemetryStats && (
+                <div style={{
+                    background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)',
+                    color: 'white',
+                    padding: '22px',
+                    borderRadius: '16px',
+                    marginBottom: '24px',
+                    boxShadow: '0 8px 24px rgba(30, 58, 138, 0.25)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '10px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
+                            📊 Control de Tráfico, Equipos y Padrón Municipal <span style={{ fontSize: '0.75rem', background: '#fef08a', color: '#854d0e', padding: '3px 8px', borderRadius: '12px', fontWeight: 700 }}>Monitoreo Admin</span>
+                        </h3>
+                        <span style={{ fontSize: '0.85rem', color: '#93c5fd' }}>Estadísticas en Tiempo Real</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.1)', padding: '14px', borderRadius: '12px' }}>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#bfdbfe', fontWeight: 600 }}>👥 Usuarios Registrados</span>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '4px' }}>{telemetryStats.usuarios?.total || 0}</div>
+                            <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>Cuentas en SIGEL</span>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.1)', padding: '14px', borderRadius: '12px' }}>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#bfdbfe', fontWeight: 600 }}>💻 Equipos Únicos</span>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '4px' }}>{telemetryStats.equipos?.total_unicos || 0}</div>
+                            <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>Dispositivos distintos</span>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.1)', padding: '14px', borderRadius: '12px' }}>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#bfdbfe', fontWeight: 600 }}>🔄 Visitas y Accesos</span>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '4px' }}>{telemetryStats.visitas?.total_accesos || 0}</div>
+                            <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>🌐 Web: {telemetryStats.visitas?.visitas_web || 0} | 🔐 Sesiones: {telemetryStats.visitas?.accesos_usuarios || 0}</span>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', padding: '14px', borderRadius: '12px' }}>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fef08a', fontWeight: 700 }}>🗳️ Consultas Padrón</span>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '4px', color: '#fef08a' }}>{telemetryStats.padron_publico?.total_consultas || 0}</div>
+                            <span style={{ fontSize: '0.75rem', color: '#e2e8f0' }}>🆔 {telemetryStats.padron_publico?.cedulas_unicas || 0} electores únicos</span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="stats-row">
                 <div className="stat-card primary">

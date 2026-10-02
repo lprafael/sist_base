@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { authFetch } from '../utils/authFetch';
 import './PadronImpresion.css';
+
 
 const PadronImpresion = ({ user }) => {
     const [filters, setFilters] = useState({
@@ -149,6 +151,45 @@ const PadronImpresion = ({ user }) => {
         window.print();
     };
 
+    const handleExportExcel = () => {
+        if (!results || results.length === 0) return;
+
+        // Estructurar columnas limpias y legibles
+        const excelData = results.map(r => ({
+            'N° Orden': r.orden ?? '',
+            'Cédula': r.cedula ?? '',
+            'Apellidos': r.apellidos ?? '',
+            'Nombres': r.nombres ?? '',
+            'Mesa': r.mesa ?? '',
+            'Local de Votación': r.nombre_local ?? ''
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+        // Configurar anchos de columna óptimos
+        worksheet['!cols'] = [
+            { wch: 10 }, // Orden
+            { wch: 14 }, // Cédula
+            { wch: 25 }, // Apellidos
+            { wch: 25 }, // Nombres
+            { wch: 10 }, // Mesa
+            { wch: 40 }  // Local de Votación
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Padrón Electoral');
+
+        // Nombre descriptivo para el archivo
+        const distNombre = options.distritos.find(d => String(d.id) === String(filters.distrito_id))?.nombre || 'Distrito';
+        const localNombre = filters.local_id ? `_${options.locales.find(l => String(l.id) === String(filters.local_id))?.nombre || 'Local'}` : '';
+        const mesaNombre = filters.mesa ? `_Mesa_${filters.mesa}` : '';
+        const cleanName = `Padron_${distNombre}${localNombre}${mesaNombre}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const fileName = `${cleanName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+        XLSX.writeFile(workbook, fileName);
+    };
+
+
     return (
         <div className="padron-impresion">
             <header className="section-header no-print">
@@ -230,9 +271,14 @@ const PadronImpresion = ({ user }) => {
                         {loading ? 'Buscando...' : '🔍 Consultar Padrón'}
                     </button>
                     {results.length > 0 && (
-                        <button className="print-btn" onClick={handlePrint}>
-                            🖨️ Imprimir Reporte
-                        </button>
+                        <>
+                            <button className="excel-btn" onClick={handleExportExcel} title="Exportar reporte a Excel (.xlsx)">
+                                📊 Descargar Excel
+                            </button>
+                            <button className="print-btn" onClick={handlePrint}>
+                                🖨️ Imprimir Reporte
+                            </button>
+                        </>
                     )}
                 </div>
 

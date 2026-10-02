@@ -3,8 +3,9 @@ import { authFetch } from '../utils/authFetch';
 import './AuditSystem.css';
 
 const AuditSystem = () => {
-    const [activeTab, setActiveTab] = useState('audit'); // 'audit', 'access', 'sessions'
+    const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'audit', 'access', 'sessions'
     const [data, setData] = useState([]);
+    const [adminStats, setAdminStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
@@ -22,6 +23,18 @@ const AuditSystem = () => {
         setLoading(true);
         setError('');
         try {
+            if (activeTab === 'stats') {
+                const response = await authFetch('/public/padron/estadisticas/admin');
+                if (response.ok) {
+                    const result = await response.json();
+                    setAdminStats(result);
+                    setData(result.ultimas_consultas || []);
+                } else {
+                    setError('Error al obtener estadísticas de control.');
+                }
+                return;
+            }
+
             let endpoint = '';
             if (activeTab === 'audit') endpoint = `/api/auditoria/logs`;
             else if (activeTab === 'access') endpoint = `/api/auditoria/accesos`;
@@ -44,6 +57,7 @@ const AuditSystem = () => {
             setLoading(false);
         }
     };
+
 
     const handleClearLogs = async () => {
         if (!clearPassword) return alert('Debes ingresar tu contraseña');
@@ -190,6 +204,110 @@ const AuditSystem = () => {
         </table>
     );
 
+    const renderStatsTable = () => {
+        if (!adminStats) {
+            return <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>Cargando estadísticas...</div>;
+        }
+
+        return (
+            <div style={{ padding: '16px' }}>
+                {/* Métricas Principales en Tarjetas (KPIs) */}
+                <div className="stats-overview-grid">
+                    <div className="kpi-card blue">
+                        <div className="kpi-header">
+                            <span className="kpi-title">Usuarios Registrados</span>
+                            <span className="kpi-icon">👥</span>
+                        </div>
+                        <div className="kpi-value">{adminStats.usuarios?.total || 0}</div>
+                        <div className="kpi-subtext">Cuentas con acceso a SIGEL</div>
+                        <div className="roles-breakdown-tags">
+                            {Object.entries(adminStats.usuarios?.por_rol || {}).map(([r, count]) => (
+                                <span key={r} className="role-tag">{r}: {count}</span>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="kpi-card purple">
+                        <div className="kpi-header">
+                            <span className="kpi-title">Equipos Únicos</span>
+                            <span className="kpi-icon">💻</span>
+                        </div>
+                        <div className="kpi-value">{adminStats.equipos?.total_unicos || 0}</div>
+                        <div className="kpi-subtext">Celulares y PCs distintos detectados</div>
+                        <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#6366f1', fontWeight: 600 }}>
+                            📱 {adminStats.equipos?.en_padron || 0} consultaron el padrón
+                        </div>
+                    </div>
+
+                    <div className="kpi-card orange">
+                        <div className="kpi-header">
+                            <span className="kpi-title">Visitas y Accesos</span>
+                            <span className="kpi-icon">🔄</span>
+                        </div>
+                        <div className="kpi-value">{adminStats.visitas?.total_accesos || 0}</div>
+                        <div className="kpi-subtext">
+                            🌐 Web: {adminStats.visitas?.visitas_web || 0} | 🔐 Sesiones: {adminStats.visitas?.accesos_usuarios || 0}
+                        </div>
+                    </div>
+
+                    <div className="kpi-card green">
+                        <div className="kpi-header">
+                            <span className="kpi-title">Padrón Municipal</span>
+                            <span className="kpi-icon">🗳️</span>
+                        </div>
+                        <div className="kpi-value">{adminStats.padron_publico?.total_consultas || 0}</div>
+                        <div className="kpi-subtext">
+                            🆔 {adminStats.padron_publico?.cedulas_unicas || 0} electores distintos
+                        </div>
+                        <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#166534', fontWeight: 600 }}>
+                            ✅ {adminStats.padron_publico?.exitosas || 0} encontrados / ❌ {adminStats.padron_publico?.fallidas || 0} sin coincidencia
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tabla de Últimas Consultas al Padrón */}
+                <h3 style={{ fontSize: '1.15rem', color: '#1e293b', margin: '24px 0 12px 0', fontWeight: 700 }}>
+                    🕒 Registro de Consultas al Padrón en Tiempo Real
+                </h3>
+                <table className="audit-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Cédula</th>
+                            <th>Elector</th>
+                            <th>Mesa / Orden</th>
+                            <th>Local de Votación</th>
+                            <th>ID Equipo (Device)</th>
+                            <th>Resultado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(adminStats.ultimas_consultas || []).map((c, idx) => (
+                            <tr key={c.id || idx}>
+                                <td>{formatFecha(c.fecha)}</td>
+                                <td style={{ fontWeight: 700, color: '#1e3a8a' }}>{c.cedula}</td>
+                                <td>{c.nombre_elector || '-'}</td>
+                                <td>{c.mesa ? `Mesa ${c.mesa} (Ord. ${c.orden})` : '-'}</td>
+                                <td>{c.local_votacion || '-'}</td>
+                                <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '0.8rem' }} title={c.device_id}>
+                                    {c.device_id || 'Desconocido'}
+                                </td>
+                                <td>
+                                    <span className={`status-label ${c.encontrado ? 'status-success' : 'status-failed'}`}>
+                                        {c.encontrado ? '✅ Encontrado' : '❌ No coincide'}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                        {(!adminStats.ultimas_consultas || adminStats.ultimas_consultas.length === 0) && (
+                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Aún no se han registrado consultas al padrón público.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
     return (
         <div className="audit-container fade-in">
             <div className="user-management-header">
@@ -197,6 +315,12 @@ const AuditSystem = () => {
             </div>
 
             <div className="audit-tabs">
+                <button
+                    className={`audit-tab-btn ${activeTab === 'stats' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('stats')}
+                >
+                    📊 Control de Equipos y Padrón
+                </button>
                 <button
                     className={`audit-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
                     onClick={() => setActiveTab('audit')}
@@ -218,28 +342,40 @@ const AuditSystem = () => {
             </div>
 
             <div className="audit-filters">
-                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                        name="username"
-                        placeholder="Usuario..."
-                        value={filters.username}
-                        onChange={handleFilterChange}
-                    />
-                    <select name="limit" value={filters.limit} onChange={handleFilterChange}>
-                        <option value="50">50 registros</option>
-                        <option value="100">100 registros</option>
-                        <option value="500">500 registros</option>
-                    </select>
-                    <button type="submit" className="btn btn-secondary">🔍 Buscar</button>
-                    <button type="button" className="btn btn-secondary" onClick={fetchData}>🔄 Refrescar</button>
-                    <button type="button" className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={() => setShowClearModal(true)}>🗑️ Vaciar Logs</button>
-                </form>
+                {activeTab !== 'stats' ? (
+                    <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <input
+                            name="username"
+                            placeholder="Usuario..."
+                            value={filters.username}
+                            onChange={handleFilterChange}
+                        />
+                        <select name="limit" value={filters.limit} onChange={handleFilterChange}>
+                            <option value="50">50 registros</option>
+                            <option value="100">100 registros</option>
+                            <option value="500">500 registros</option>
+                        </select>
+                        <button type="submit" className="btn btn-secondary">🔍 Buscar</button>
+                        <button type="button" className="btn btn-secondary" onClick={fetchData}>🔄 Refrescar</button>
+                        <button type="button" className="btn" style={{ background: '#ef4444', color: 'white' }} onClick={() => setShowClearModal(true)}>🗑️ Vaciar Logs</button>
+                    </form>
+                ) : (
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: '100%' }}>
+                        <span style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+                            📈 Métricas consolidadas de tráfico de equipos, usuarios y consultas del padrón
+                        </span>
+                        <button type="button" className="btn btn-secondary" style={{ marginLeft: 'auto' }} onClick={fetchData}>
+                            🔄 Actualizar Métricas
+                        </button>
+                    </div>
+                )}
                 {loading && <span style={{ marginLeft: 'auto', color: 'var(--primary-color)' }}>Actualizando...</span>}
             </div>
 
             {error && <div className="error-message" style={{ marginBottom: '20px' }}>{error}</div>}
 
             <div className="audit-table-wrapper">
+                {activeTab === 'stats' && renderStatsTable()}
                 {activeTab === 'audit' && renderAuditTable()}
                 {activeTab === 'access' && renderAccessTable()}
                 {activeTab === 'sessions' && renderSessionsTable()}
