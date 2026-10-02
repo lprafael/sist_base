@@ -2669,7 +2669,8 @@ async def registrar_pago(
         })
 
         # Actualizar estado de la cuota
-        await session.execute(text("""
+        fecha_pago_sql = "NOW()" if estado_nuevo == "pagada" else "fecha_pago"
+        await session.execute(text(f"""
             UPDATE academias.cuotas SET
                 descuento      = :descuento,
                 monto_final    = :monto_final,
@@ -2677,7 +2678,7 @@ async def registrar_pago(
                 monto_pagado   = :monto_pagado,
                 metodo_pago    = :metodo,
                 notas          = :notas,
-                fecha_pago     = CASE WHEN :estado = 'pagada' THEN NOW() ELSE fecha_pago END,
+                fecha_pago     = {fecha_pago_sql},
                 registrado_por = :reg_por
             WHERE id = CAST(:cid AS UUID) AND academia_id = CAST(:aid AS UUID)
         """), {
@@ -2690,6 +2691,7 @@ async def registrar_pago(
             "notas": notas_cuota,
             "reg_por": current_user["user_id"],
         })
+
 
         # ── Crear movimiento de INGRESO en caja si se indicó cuenta ──────
         if cuenta_id_db:

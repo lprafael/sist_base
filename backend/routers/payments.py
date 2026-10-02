@@ -473,14 +473,16 @@ async def webhook_mercadopago(
             
             new_status = status_map.get(mp_status, "pending")
             
+            paid_at_sql = "NOW()" if new_status == "approved" else "paid_at"
+
             # Actualizar BD
-            update = text("""
+            update = text(f"""
                 UPDATE cancha.payments
                 SET status = :status,
                     provider_payment_id = :payment_id,
-                    paid_at = CASE WHEN :status = 'approved' THEN NOW() ELSE paid_at END,
+                    paid_at = {paid_at_sql},
                     updated_at = NOW(),
-                    metadata = jsonb_set(metadata, '{mp_status}', to_jsonb(:mp_status::text))
+                    metadata = jsonb_set(metadata, '{{mp_status}}', to_jsonb(:mp_status::text))
                 WHERE provider_preference_id = :pref_id
                 RETURNING tournament_team_id
             """)
