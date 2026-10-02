@@ -26,6 +26,7 @@ import EscrutinioDiaD from "./components/EscrutinioDiaD.jsx";
 import ChoferScanner from "./components/ChoferScanner.jsx";
 import EleccionesManagement from "./components/EleccionesManagement.jsx";
 import MensajeriaDashboard from "./components/MensajeriaDashboard.jsx";
+import PadronImport from "./components/PadronImport.jsx";
 import ConsultaPadronPublico from "./components/ConsultaPadronPublico.jsx";
 import { authFetch } from "./utils/authFetch";
 
