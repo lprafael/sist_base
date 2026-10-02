@@ -386,10 +386,12 @@ async def obtener_estado_cuenta(
         text("""
             SELECT a.id, a.nombre, a.apellido, a.fecha_nacimiento, a.estado,
                    s.nombre AS sucursal_nombre, ac.nombre AS academia_nombre,
-                   ac.telefono AS academia_telefono, ac.email AS academia_email, ac.ruc_con_dv AS academia_ruc
+                   ac.telefono AS academia_telefono, ac.email AS academia_email,
+                   COALESCE(ea.ruc_con_dv, '') AS academia_ruc
             FROM academias.alumnos a
             JOIN academias.academias ac ON ac.id = a.academia_id
             LEFT JOIN academias.sucursales s ON s.id = a.sucursal_id
+            LEFT JOIN facturacion.emisor_academia ea ON ea.academia_id = ac.id
             WHERE a.id = CAST(:id AS UUID) AND a.academia_id = CAST(:aid AS UUID)
         """),
         {"id": alumno_id, "aid": aid}
