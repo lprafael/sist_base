@@ -541,7 +541,15 @@ const LandingPage = ({ user }) => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            style={{ ...modalStyle, maxWidth: '760px', padding: '16px', position: 'relative' }}
+            style={{ 
+              ...modalStyle, 
+              maxWidth: '780px', 
+              padding: '16px', 
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              overflowX: 'hidden'
+            }}
             onClick={e => e.stopPropagation()}
           >
             <ConsultaPadronPublico isModal={true} onClose={() => setPadronModalOpen(false)} />
