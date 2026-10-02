@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, or_, func, distinct, desc, case
+from sqlalchemy import and_, or_, func, distinct, desc, case, union
 from sqlalchemy.orm import aliased
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
@@ -423,67 +423,97 @@ async def get_estadisticas_control_admin(
         raise HTTPException(status_code=403, detail="No autorizado para ver estadísticas de control")
 
     # 1. Total de usuarios registrados y por rol
-    res_users = await session.execute(select(Usuario.rol, func.count(Usuario.id)).group_by(Usuario.rol))
-    usuarios_por_rol = {row[0]: row[1] for row in res_users.all()}
-    total_usuarios = sum(usuarios_por_rol.values())
+    try:
+        res_users = await session.execute(select(Usuario.rol, func.count(Usuario.id)).group_by(Usuario.rol))
+        usuarios_por_rol = {(row[0] or "sin_rol"): row[1] for row in res_users.all()}
+        total_usuarios = sum(usuarios_por_rol.values())
+    except Exception as e:
+        print(f"Aviso al obtener usuarios por rol: {e}")
+        usuarios_por_rol = {}
+        total_usuarios = 0
 
     # 2. Total de visitas web registradas y accesos al sistema
-    res_visitas = await session.execute(select(func.count(LogVisitaWeb.id)))
-    total_visitas_web = res_visitas.scalar() or 0
+    try:
+        res_visitas = await session.execute(select(func.count(LogVisitaWeb.id)))
+        total_visitas_web = res_visitas.scalar() or 0
+    except Exception as e:
+        print(f"Aviso al obtener visitas web: {e}")
+        total_visitas_web = 0
 
-    res_accesos = await session.execute(select(func.count(LogAcceso.id)))
-    total_accesos_sistema = res_accesos.scalar() or 0
+    try:
+        res_accesos = await session.execute(select(func.count(LogAcceso.id)))
+        total_accesos_sistema = res_accesos.scalar() or 0
+    except Exception as e:
+        print(f"Aviso al obtener accesos al sistema: {e}")
+        total_accesos_sistema = 0
+
     total_accesos = total_visitas_web + total_accesos_sistema
 
     # 3. Cantidad de equipos únicos totales (device_id en visitas + consultas + autorizados)
-    stmt_visitas_dev = select(LogVisitaWeb.device_id).where(LogVisitaWeb.device_id != None)
-    stmt_consultas_dev = select(LogConsultaPadron.device_id).where(LogConsultaPadron.device_id != None)
-    stmt_auth_dev = select(EquiposAutorizados.device_id).where(EquiposAutorizados.device_id != None)
-    
-    union_devices = stmt_visitas_dev.union(stmt_consultas_dev).union(stmt_auth_dev).subquery()
-    res_devices = await session.execute(select(func.count(distinct(union_devices.c.device_id))))
-    total_equipos_unicos = res_devices.scalar() or 0
+    try:
+        stmt_visitas_dev = select(LogVisitaWeb.device_id).where(LogVisitaWeb.device_id.isnot(None))
+        stmt_consultas_dev = select(LogConsultaPadron.device_id).where(LogConsultaPadron.device_id.isnot(None))
+        stmt_auth_dev = select(EquiposAutorizados.device_id).where(EquiposAutorizados.device_id.isnot(None))
+        
+        union_devices = union(stmt_visitas_dev, stmt_consultas_dev, stmt_auth_dev).subquery()
+        res_devices = await session.execute(select(func.count(distinct(union_devices.c.device_id))))
+        total_equipos_unicos = res_devices.scalar() or 0
+    except Exception as e:
+        print(f"Aviso al obtener equipos únicos combinados: {e}")
+        total_equipos_unicos = 0
 
     # 4. Métricas de Consulta del Padrón Público
-    res_padron_total = await session.execute(select(func.count(LogConsultaPadron.id)))
-    total_consultas_padron = res_padron_total.scalar() or 0
+    try:
+        res_padron_total = await session.execute(select(func.count(LogConsultaPadron.id)))
+        total_consultas_padron = res_padron_total.scalar() or 0
 
-    res_padron_exitosas = await session.execute(
-        select(func.count(LogConsultaPadron.id)).where(LogConsultaPadron.encontrado == True)
-    )
-    consultas_exitosas = res_padron_exitosas.scalar() or 0
+        res_padron_exitosas = await session.execute(
+            select(func.count(LogConsultaPadron.id)).where(LogConsultaPadron.encontrado == True)
+        )
+        consultas_exitosas = res_padron_exitosas.scalar() or 0
 
-    res_padron_fallidas = await session.execute(
-        select(func.count(LogConsultaPadron.id)).where(LogConsultaPadron.encontrado == False)
-    )
-    consultas_fallidas = res_padron_fallidas.scalar() or 0
+        res_padron_fallidas = await session.execute(
+            select(func.count(LogConsultaPadron.id)).where(LogConsultaPadron.encontrado == False)
+        )
+        consultas_fallidas = res_padron_fallidas.scalar() or 0
 
-    res_cedulas_unicas = await session.execute(select(func.count(distinct(LogConsultaPadron.cedula_consultada))))
-    cedulas_unicas_consultadas = res_cedulas_unicas.scalar() or 0
+        res_cedulas_unicas = await session.execute(select(func.count(distinct(LogConsultaPadron.cedula_consultada))))
+        cedulas_unicas_consultadas = res_cedulas_unicas.scalar() or 0
 
-    res_equipos_padron = await session.execute(select(func.count(distinct(LogConsultaPadron.device_id))))
-    equipos_consultaron_padron = res_equipos_padron.scalar() or 0
+        res_equipos_padron = await session.execute(select(func.count(distinct(LogConsultaPadron.device_id))))
+        equipos_consultaron_padron = res_equipos_padron.scalar() or 0
+    except Exception as e:
+        print(f"Aviso al obtener métricas de padrón: {e}")
+        total_consultas_padron = 0
+        consultas_exitosas = 0
+        consultas_fallidas = 0
+        cedulas_unicas_consultadas = 0
+        equipos_consultaron_padron = 0
 
     # 5. Últimas 50 consultas realizadas al padrón
-    stmt_ultimas = select(LogConsultaPadron).order_by(desc(LogConsultaPadron.fecha_consulta)).limit(50)
-    res_ultimas = await session.execute(stmt_ultimas)
-    ultimas_consultas = [
-        {
-            "id": c.id,
-            "cedula": c.cedula_consultada,
-            "fecha": c.fecha_consulta.isoformat() if c.fecha_consulta else None,
-            "device_id": c.device_id,
-            "ip_address": c.ip_address,
-            "encontrado": c.encontrado,
-            "nombre_elector": c.nombre_elector,
-            "mesa": c.mesa,
-            "orden": c.orden,
-            "local_votacion": c.local_votacion,
-            "distrito": c.distrito,
-            "departamento": c.departamento
-        }
-        for c in res_ultimas.scalars().all()
-    ]
+    try:
+        stmt_ultimas = select(LogConsultaPadron).order_by(desc(LogConsultaPadron.fecha_consulta)).limit(50)
+        res_ultimas = await session.execute(stmt_ultimas)
+        ultimas_consultas = [
+            {
+                "id": c.id,
+                "cedula": c.cedula_consultada,
+                "fecha": c.fecha_consulta.isoformat() if c.fecha_consulta else None,
+                "device_id": c.device_id,
+                "ip_address": c.ip_address,
+                "encontrado": c.encontrado,
+                "nombre_elector": c.nombre_elector,
+                "mesa": c.mesa,
+                "orden": c.orden,
+                "local_votacion": c.local_votacion,
+                "distrito": c.distrito,
+                "departamento": c.departamento
+            }
+            for c in res_ultimas.scalars().all()
+        ]
+    except Exception as e:
+        print(f"Aviso al obtener últimas consultas de padrón: {e}")
+        ultimas_consultas = []
 
     return {
         "usuarios": {
