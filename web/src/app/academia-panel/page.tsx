@@ -12,6 +12,7 @@ import {
   ShoppingBag, Trophy, PauseCircle, PlayCircle, FileSpreadsheet, Layers, Award, Package, Shirt, Filter, CheckCircle2,
   Mail, Copy
 } from 'lucide-react';
+import EvaluacionesTab from '@/components/academia/EvaluacionesTab';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.micancha.com.py';
 
@@ -69,7 +70,7 @@ const badge = (color: string): any => ({
 });
 
 // ─── Tipos ──────────────────────────────────────────────────
-type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'tesoreria' | 'tienda' | 'competencias' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
+type Tab = 'dashboard' | 'perfil' | 'sucursales' | 'categorias' | 'horarios_practica' | 'tarifas_costos' | 'alumnos' | 'tutores' | 'inscripciones' | 'cuotas' | 'tesoreria' | 'tienda' | 'competencias' | 'evaluaciones' | 'reportes' | 'sifen' | 'asistencias' | 'noticias' | 'feedback' | 'staff' | 'config';
 
 interface Stat { label: string; value: string | number; icon: any; color: string; }
 
@@ -685,6 +686,21 @@ export default function AcademiaPanel() {
             <CompetenciasTab
               notify={notify} apiFetch={apiFetch} isAdmin={isAdmin} isTesorero={isTesorero}
               alumnos={alumnos}
+            />
+          )}
+
+          {/* ──────────────── EVALUACIONES Y BOLETINES DEPORTIVOS ──────────────── */}
+          {activeTab === 'evaluaciones' && (
+            <EvaluacionesTab
+              perfil={perfil}
+              alumnos={alumnos}
+              sucursales={sucursales}
+              categorias={categorias}
+              notify={notify}
+              apiFetch={apiFetch}
+              isAdmin={isAdmin}
+              isDueno={isDueno}
+              rolInterno={rolInterno}
             />
           )}
 
@@ -1369,6 +1385,7 @@ function Sidebar({ activeTab, setTab, perfil, rolInterno, session, themeMode, to
     { id: 'tesoreria',         label: 'Tesorería & Gastos',     icon: DollarSign, roles: ['dueño','administrador','tesorero'] },
     { id: 'tienda',            label: 'Uniformes y Accesorios', icon: ShoppingBag, roles: ['dueño','administrador','tesorero'] },
     { id: 'competencias',      label: 'Competencias / Torneos', icon: Trophy, roles: ['dueño','administrador','tesorero','profesor'] },
+    { id: 'evaluaciones',      label: 'Evaluaciones & Boletines', icon: Award, roles: ['dueño','administrador','profesor'] },
     { id: 'reportes',          label: 'Reportes y Carnets',     icon: ClipboardList, roles: ['dueño','administrador','tesorero','profesor'] },
     { id: 'sifen',             label: 'Facturación SIFEN / .P12', icon: ShieldCheck, roles: ['dueño','administrador','tesorero'] },
     { id: 'asistencias',       label: 'Asistencias',            icon: Calendar, roles: ['dueño','administrador','profesor'] },

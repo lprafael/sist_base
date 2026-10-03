@@ -271,6 +271,10 @@ app.include_router(cuentas_caja_router)
 from routers.whatsapp import router as whatsapp_router
 app.include_router(whatsapp_router)
 
+from routers.academias_evaluaciones import router as academias_evaluaciones_router, public_router as public_boletin_router
+app.include_router(academias_evaluaciones_router)
+app.include_router(public_boletin_router)
+
 from routers.patrocinadores import router as patrocinadores_router
 app.include_router(patrocinadores_router)
 
