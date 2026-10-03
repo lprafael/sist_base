@@ -406,11 +406,13 @@ export default function VRStation() {
             {/* Video */}
             <div style={{ background: "#000", aspectRatio: "16/9", position: "relative" }}>
               <video
+                key={clipUrl || "empty"}
                 ref={videoRef}
                 style={{ width: "100%", height: "100%", objectFit: "contain", display: clipUrl ? "block" : "none" }}
                 controls={false}
                 src={clipUrl || undefined}
                 playsInline
+                preload="auto"
                 onLoadedData={() => {
                   console.log("[VR Station] Video cargado con éxito:", clipUrl);
                   if (videoRef.current) {
@@ -418,8 +420,8 @@ export default function VRStation() {
                     videoRef.current.play().catch(e => console.warn("Autoplay bloqueado (presione ▶ para reproducir):", e));
                   }
                 }}
-                onError={() => {
-                  console.warn("[VR Station] Error cargando fuente de video:", clipUrl);
+                onError={(e) => {
+                  console.warn("[VR Station] Error cargando fuente de video:", clipUrl, e);
                 }}
               />
               {!clipUrl && (

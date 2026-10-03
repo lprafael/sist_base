@@ -71,6 +71,7 @@ export default function TatamiCameraStation() {
   // Búfer rodante en memoria
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<VideoChunk[]>([]);
+  const headerBlobRef = useRef<Blob | null>(null);
   const [bufferSeconds, setBufferSeconds] = useState<number>(0);
   const [bufferSizeMB, setBufferSizeMB] = useState<string>("0.0");
   const [isRecordingBuffer, setIsRecordingBuffer] = useState<boolean>(false);
@@ -82,6 +83,43 @@ export default function TatamiCameraStation() {
   const [vrAlerta, setVrAlerta] = useState<{ activo: boolean; color: string; tipo: string } | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+
+  /* ─── 0. Utilidades de Encabezado Multimedia (WebM y MP4) ─────── */
+  const extractInitHeader = useCallback(async (blob: Blob, mime: string): Promise<Blob> => {
+    try {
+      const buffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      if (mime.includes("mp4")) {
+        // En fragmented MP4, buscar primera caja 'moof'
+        for (let i = 4; i < bytes.length - 4; i++) {
+          if (
+            bytes[i] === 0x6d &&
+            bytes[i + 1] === 0x6f &&
+            bytes[i + 2] === 0x6f &&
+            bytes[i + 3] === 0x66
+          ) {
+            return blob.slice(0, i - 4, mime);
+          }
+        }
+      } else {
+        // En WebM, buscar el primer Cluster ID: [0x1F, 0x43, 0xB6, 0x75]
+        for (let i = 0; i < bytes.length - 3; i++) {
+          if (
+            bytes[i] === 0x1f &&
+            bytes[i + 1] === 0x43 &&
+            bytes[i + 2] === 0xb6 &&
+            bytes[i + 3] === 0x75
+          ) {
+            return blob.slice(0, i, mime);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[Cámara] No se pudo extraer encabezado inicial, usando blob completo:", e);
+    }
+    return blob;
+  }, []);
 
   /* ─── 1. Detectar cámaras disponibles ─────────────────────────── */
   const listarDispositivos = useCallback(async () => {
@@ -165,10 +203,18 @@ export default function TatamiCameraStation() {
       });
 
       chunksRef.current = [];
+      headerBlobRef.current = null;
 
-      recorder.ondataavailable = (event: BlobEvent) => {
+      recorder.ondataavailable = async (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
           const now = Date.now();
+
+          // Si es el primer fragmento, capturar y congelar el encabezado maestro del contenedor
+          if (!headerBlobRef.current) {
+            const h = await extractInitHeader(event.data, recorder.mimeType || selectedMime);
+            headerBlobRef.current = h;
+          }
+
           chunksRef.current.push({
             blob: event.data,
             timestamp: now
@@ -205,7 +251,7 @@ export default function TatamiCameraStation() {
         mediaRecorderRef.current.stop();
       }
     };
-  }, [stream, cameraActive]);
+  }, [stream, cameraActive, extractInitHeader]);
 
   /* ─── 4. Generar y Subir Clip de Video ─────────────────────────── */
   const ensamblarYSubirClip = useCallback(
@@ -220,8 +266,59 @@ export default function TatamiCameraStation() {
 
       try {
         const mimeType = mediaRecorderRef.current?.mimeType || "video/webm";
-        const blobs = chunksRef.current.map((c) => c.blob);
-        const replayBlob = new Blob(blobs, { type: mimeType });
+        let replayBlob: Blob;
+
+        // Validar si el primer chunk de la lista ya contiene el encabezado
+        const rawBody = new Blob(chunksRef.current.map((c) => c.blob), { type: mimeType });
+
+        if (headerBlobRef.current) {
+          // Alinear el inicio de los datos al primer límite de Cluster (WebM) o moof (MP4)
+          let cleanBody = rawBody;
+          try {
+            const sampleSlice = rawBody.slice(0, Math.min(2 * 1024 * 1024, rawBody.size));
+            const sampleBuffer = await sampleSlice.arrayBuffer();
+            const bytes = new Uint8Array(sampleBuffer);
+
+            let firstDelimIdx = -1;
+            if (mimeType.includes("mp4")) {
+              for (let i = 4; i < bytes.length - 4; i++) {
+                if (
+                  bytes[i] === 0x6d &&
+                  bytes[i + 1] === 0x6f &&
+                  bytes[i + 2] === 0x6f &&
+                  bytes[i + 3] === 0x66
+                ) {
+                  firstDelimIdx = i - 4;
+                  break;
+                }
+              }
+            } else {
+              for (let i = 0; i < bytes.length - 3; i++) {
+                if (
+                  bytes[i] === 0x1f &&
+                  bytes[i + 1] === 0x43 &&
+                  bytes[i + 2] === 0xb6 &&
+                  bytes[i + 3] === 0x75
+                ) {
+                  firstDelimIdx = i;
+                  break;
+                }
+              }
+            }
+
+            // Si el cuerpo arranca a mitad de paquete (después de 45s de buffer), alinear
+            if (firstDelimIdx > 0) {
+              cleanBody = rawBody.slice(firstDelimIdx, rawBody.size, mimeType);
+            }
+          } catch (e) {
+            console.warn("[Cámara] Error al alinear límites de fragmento:", e);
+          }
+
+          // Unir el encabezado del contenedor con los clusters limpios
+          replayBlob = new Blob([headerBlobRef.current, cleanBody], { type: mimeType });
+        } else {
+          replayBlob = rawBody;
+        }
 
         const ext = mimeType.includes("mp4") ? ".mp4" : ".webm";
         const filename = `clip_tatami_${area}_${matchId}_${Date.now()}${ext}`;
