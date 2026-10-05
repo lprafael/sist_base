@@ -1548,6 +1548,11 @@
         </button>
       </div>
 
+      <!-- Admin Button for Visitors (Visible for Rafael or admin mode) -->
+      <button class="tab-btn" id="btn-admin-visitantes" onclick="openVisitorsAdminModal()" style="display: none; padding: 6px 12px; font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.12); color: #38bdf8; border-radius: 9999px; cursor: pointer; align-items: center; gap: 6px;" title="Ver registro de visitantes con Google">
+        <i class="fa-solid fa-users"></i> <span>Visitantes (<strong id="admin-visitantes-badge">0</strong>)</span>
+      </button>
+
       <!-- Theme Toggle Action -->
       <button class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleTheme()" title="Alternar entre modo claro y oscuro">
         <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
@@ -2699,6 +2704,72 @@
     </div>
   </div>
 
+  <!-- Modal de Administración de Visitantes Google (Exclusivo Administrador) -->
+  <div id="admin-visitantes-modal" class="cand-zoom-backdrop" onclick="if(event.target === this) closeVisitorsAdminModal();">
+    <div class="cand-zoom-card" style="max-width: 880px; width: 95vw; text-align: left; padding: 26px; max-height: 90vh; overflow-y: auto;">
+      <button class="modal-close-btn" onclick="closeVisitorsAdminModal()" title="Cerrar">&times;</button>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: #38bdf8;">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; margin: 0;">Visitantes del Tablero Electoral</h3>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Registro oficial e independiente de usuarios autenticados con Google OAuth2</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-action" onclick="refreshVisitorsAdminModal()" title="Recargar lista" style="font-size: 0.78rem;">
+            <i class="fa-solid fa-rotate"></i> Actualizar
+          </button>
+          <a href="/api/public/visitantes/listado" target="_blank" class="btn-action" style="text-decoration: none; font-size: 0.78rem;" title="Ver API JSON">
+            <i class="fa-solid fa-code"></i> JSON API
+          </a>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px; text-align: center;">
+          <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Visitantes Únicos</span>
+          <div id="admin-kpi-unicos" style="font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 800; color: #38bdf8; margin-top: 4px;">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px; text-align: center;">
+          <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Visitas Acumuladas</span>
+          <div id="admin-kpi-visitas" style="font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 800; color: #10b981; margin-top: 4px;">-</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px; text-align: center;">
+          <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Interacciones Totales</span>
+          <div id="admin-kpi-eventos" style="font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 800; color: #c084fc; margin-top: 4px;">-</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 12px; background: rgba(0,0,0,0.25);">
+        <table class="data-table" style="margin: 0; font-size: 0.8rem; width: 100%;">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Email</th>
+              <th style="text-align: center;">Visitas</th>
+              <th>Primer Acceso</th>
+              <th>Último Acceso</th>
+            </tr>
+          </thead>
+          <tbody id="admin-visitantes-tbody">
+            <tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando visitantes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); flex-wrap: wrap; gap: 8px;">
+        <span><i class="fa-solid fa-database"></i> Base de datos: <code>sistema.visitantes_tablero</code></span>
+        <span>Clic fuera o tecla <kbd style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">Esc</kbd> para cerrar</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2897,7 +2968,10 @@
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') hideCandidateZoomModal();
+      if (e.key === 'Escape') {
+        hideCandidateZoomModal();
+        closeVisitorsAdminModal();
+      }
     });
 
     let googleIdInitialized = false;
@@ -3008,6 +3082,120 @@
         if (loginBtn) loginBtn.style.display = 'inline-flex';
         if (profileChip) profileChip.style.display = 'none';
         if (previewBanner) previewBanner.style.display = 'flex';
+      }
+
+      // Panel de Administrador de Visitantes
+      const adminBtn = document.getElementById('btn-admin-visitantes');
+      const urlParams = new URLSearchParams(window.location.search);
+      const isExplicitAdmin = urlParams.get('admin') === '1';
+      const isOwnerVisitor = currentVisitor && (
+        currentVisitor.email === 'lprafael1710@gmail.com' ||
+        currentVisitor.email.includes('admin') ||
+        Boolean(currentVisitor.is_admin)
+      );
+
+      if (adminBtn) {
+        if (isOwnerVisitor || isExplicitAdmin) {
+          adminBtn.style.display = 'inline-flex';
+          fetch('/api/public/visitantes/estadisticas')
+            .then(r => r.json())
+            .then(stats => {
+              const badge = document.getElementById('admin-visitantes-badge');
+              if (badge && stats && stats.total_visitantes_unicos !== undefined) {
+                badge.textContent = stats.total_visitantes_unicos;
+              }
+            })
+            .catch(() => {});
+        } else {
+          adminBtn.style.display = 'none';
+        }
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+
+    async function openVisitorsAdminModal() {
+      const modal = document.getElementById('admin-visitantes-modal');
+      if (modal) modal.classList.add('active');
+      await refreshVisitorsAdminModal();
+    }
+
+    function closeVisitorsAdminModal() {
+      const modal = document.getElementById('admin-visitantes-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function refreshVisitorsAdminModal() {
+      const tbody = document.getElementById('admin-visitantes-tbody');
+      const kpiUnicos = document.getElementById('admin-kpi-unicos');
+      const kpiVisitas = document.getElementById('admin-kpi-visitas');
+      const kpiEventos = document.getElementById('admin-kpi-eventos');
+      const badge = document.getElementById('admin-visitantes-badge');
+
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Cargando registro de visitantes...</td></tr>';
+      }
+
+      try {
+        const [statsRes, listRes] = await Promise.all([
+          fetch('/api/public/visitantes/estadisticas'),
+          fetch('/api/public/visitantes/listado')
+        ]);
+
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          if (kpiUnicos) kpiUnicos.textContent = stats.total_visitantes_unicos ?? 0;
+          if (kpiVisitas) kpiVisitas.textContent = stats.total_visitas_acumuladas ?? 0;
+          if (kpiEventos) kpiEventos.textContent = stats.total_interacciones ?? 0;
+          if (badge) badge.textContent = stats.total_visitantes_unicos ?? 0;
+        }
+
+        if (listRes.ok) {
+          const list = await listRes.json();
+          if (tbody) {
+            if (!list || list.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">No hay visitantes registrados todavía.</td></tr>';
+              return;
+            }
+
+            tbody.innerHTML = list.map(v => {
+              const avatar = v.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(v.nombre || 'U')}&background=0284c7&color=fff`;
+              const primerAcceso = v.primer_acceso ? new Date(v.primer_acceso).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+              const ultimoAcceso = v.ultimo_acceso ? new Date(v.ultimo_acceso).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+              return `
+                <tr style="border-bottom: 1px solid var(--border-subtle); transition: background 0.15s ease;">
+                  <td style="padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+                    <img src="${avatar}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.2);" onerror="this.src='https://ui-avatars.com/api/?name=U&background=334155&color=fff'">
+                    <span style="font-weight: 600; color: var(--text-color);">${escapeHtml(v.nombre || 'Sin nombre')}</span>
+                  </td>
+                  <td style="padding: 10px 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.76rem;">
+                    ${escapeHtml(v.email || '-')}
+                  </td>
+                  <td style="padding: 10px 12px; text-align: center;">
+                    <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem;">
+                      ${v.total_visitas || 1}
+                    </span>
+                  </td>
+                  <td style="padding: 10px 12px; color: var(--text-muted); font-size: 0.74rem;">
+                    ${primerAcceso}
+                  </td>
+                  <td style="padding: 10px 12px; color: #10b981; font-weight: 600; font-size: 0.74rem;">
+                    ${ultimoAcceso}
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        } else {
+          if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #ef4444;">Error al cargar listado de visitantes.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Error cargando visitantes:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #ef4444;">Error de conexión: ${err.message}</td></tr>`;
       }
     }
 
