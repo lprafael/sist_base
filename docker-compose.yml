@@ -62,6 +62,9 @@ services:
       - SIGEL-network
     volumes:
       - ./frontend/public:/usr/share/nginx/html/public
+      - ./frontend/public/imagenes:/usr/share/nginx/html/imagenes
+      - ./frontend/public/tablero_electoral.html:/usr/share/nginx/html/tablero_electoral.html
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/" ]
       interval: 30s
