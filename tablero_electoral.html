@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,8 +20,33 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
   <style>
-    :root {
+    :root, [data-theme="light"] {
+      --bg-dark: #f8fafc;
+      --bg-header: rgba(255, 255, 255, 0.94);
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #f1f5f9;
+      --bg-surface-glass: rgba(255, 255, 255, 0.9);
+      --border-color: #cbd5e1;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #94a3b8;
+      --table-header-bg: #f8fafc;
+      --table-row-hover: #f1f5f9;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --map-bg: #e2e8f0;
+      
+      --color-anr: #ef4444;
+      --color-plra: #2563eb;
+      --color-yocreo: #059669;
+      --color-alianza: #d97706;
+      --color-otros: #7c3aed;
+      --color-accent: #0284c7;
+    }
+
+    [data-theme="dark"] {
       --bg-dark: #090d16;
+      --bg-header: rgba(15, 23, 42, 0.95);
       --bg-surface: #111827;
       --bg-surface-elevated: #1f2937;
       --bg-surface-glass: rgba(17, 24, 39, 0.85);
@@ -30,6 +55,10 @@
       --text-main: #f9fafb;
       --text-muted: #9ca3af;
       --text-subtle: #6b7280;
+      --table-header-bg: rgba(15, 23, 42, 0.8);
+      --table-row-hover: rgba(255, 255, 255, 0.03);
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --map-bg: #0b0f19;
       
       --color-anr: #ef4444;
       --color-plra: #3b82f6;
@@ -53,14 +82,15 @@
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
+      transition: background-color 0.25s ease, color 0.25s ease;
     }
 
     /* Top Navigation Header */
     header {
-      background: rgba(15, 23, 42, 0.95);
+      background: var(--bg-header);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border-color);
-      padding: 14px 24px;
+      padding: 12px 24px;
       position: sticky;
       top: 0;
       z-index: 1000;
@@ -68,6 +98,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
+      transition: background 0.25s ease, border-color 0.25s ease;
     }
 
     .brand {
@@ -94,7 +125,7 @@
       font-size: 1.15rem;
       font-weight: 800;
       letter-spacing: -0.02em;
-      color: #ffffff;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -103,6 +134,33 @@
     .brand-title p {
       font-size: 0.75rem;
       color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--border-color);
+      transform: translateY(-1px);
     }
 
     .nav-tabs {
@@ -145,7 +203,7 @@
       align-items: center;
       gap: 6px;
       background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
+      color: #10b981;
       border: 1px solid rgba(16, 185, 129, 0.3);
       padding: 4px 10px;
       border-radius: 9999px;
@@ -167,7 +225,7 @@
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 12px;
       padding: 16px 24px;
-      background: rgba(17, 24, 39, 0.6);
+      background: var(--bg-surface-elevated);
       border-bottom: 1px solid var(--border-subtle);
     }
 
@@ -181,6 +239,8 @@
       gap: 4px;
       position: relative;
       overflow: hidden;
+      box-shadow: var(--card-shadow);
+      transition: background-color 0.25s ease, border-color 0.25s ease;
     }
 
     .kpi-card::before {
@@ -207,7 +267,7 @@
     .kpi-value {
       font-size: 1.5rem;
       font-weight: 800;
-      color: #ffffff;
+      color: var(--text-main);
       letter-spacing: -0.03em;
     }
 
@@ -242,7 +302,8 @@
     #map {
       height: 100%;
       width: 100%;
-      background: #0b0f19;
+      background: var(--map-bg);
+      transition: background 0.25s ease;
     }
 
     /* Map Controls & Floating Search */
@@ -256,7 +317,7 @@
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      box-shadow: var(--card-shadow);
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -280,7 +341,7 @@
     .search-box input {
       background: transparent;
       border: none;
-      color: white;
+      color: var(--text-main);
       font-size: 0.85rem;
       width: 100%;
       outline: none;
@@ -321,6 +382,24 @@
       border-radius: 3px;
     }
 
+    /* Map Custom Tooltip */
+    .map-custom-tooltip {
+      background: var(--bg-surface-glass) !important;
+      backdrop-filter: blur(10px) !important;
+      color: var(--text-main) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 8px !important;
+      box-shadow: var(--card-shadow) !important;
+      padding: 8px 12px !important;
+    }
+
+    .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before, .leaflet-tooltip-left:before, .leaflet-tooltip-right:before {
+      border-top-color: var(--border-color) !important;
+      border-bottom-color: var(--border-color) !important;
+      border-left-color: var(--border-color) !important;
+      border-right-color: var(--border-color) !important;
+    }
+
     /* District Inspector Sidebar */
     .district-inspector {
       background: var(--bg-surface);
@@ -334,7 +413,7 @@
     .inspector-header {
       padding: 20px 24px;
       border-bottom: 1px solid var(--border-color);
-      background: rgba(31, 41, 55, 0.4);
+      background: var(--bg-surface-elevated);
     }
 
     .inspector-dept {
@@ -342,7 +421,7 @@
       text-transform: uppercase;
       font-weight: 700;
       letter-spacing: 0.05em;
-      color: #38bdf8;
+      color: #0284c7;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -351,7 +430,7 @@
     .inspector-title {
       font-size: 1.4rem;
       font-weight: 800;
-      color: #ffffff;
+      color: var(--text-main);
       margin-top: 4px;
     }
 
@@ -364,7 +443,7 @@
 
     .stat-badge {
       background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-subtle);
+      border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 8px 10px;
       text-align: center;
@@ -379,7 +458,7 @@
     .stat-badge-value {
       font-size: 0.95rem;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--text-main);
       margin-top: 2px;
     }
 
@@ -408,9 +487,9 @@
     }
 
     .inspector-nav-btn.active {
-      color: #38bdf8;
-      border-bottom-color: #38bdf8;
-      background: rgba(56, 189, 248, 0.08);
+      color: #0284c7;
+      border-bottom-color: #0284c7;
+      background: rgba(2, 132, 199, 0.08);
     }
 
     .inspector-body {
@@ -423,12 +502,13 @@
 
     /* Intendente Winner Card */
     .winner-card {
-      background: linear-gradient(145deg, rgba(31, 41, 55, 0.6), rgba(17, 24, 39, 0.8));
+      background: var(--bg-surface-elevated);
       border: 1px solid var(--border-color);
       border-radius: 14px;
       padding: 18px;
       position: relative;
       overflow: hidden;
+      box-shadow: var(--card-shadow);
     }
 
     .winner-badge {
@@ -437,7 +517,7 @@
       gap: 6px;
       font-size: 0.7rem;
       font-weight: 700;
-      color: #fbbf24;
+      color: #d97706;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 8px;
@@ -446,7 +526,7 @@
     .winner-name {
       font-size: 1.25rem;
       font-weight: 800;
-      color: #ffffff;
+      color: var(--text-main);
     }
 
     .winner-party {
@@ -477,7 +557,7 @@
     .metric-primary {
       font-size: 1.6rem;
       font-weight: 800;
-      color: #34d399;
+      color: #10b981;
     }
 
     .metric-secondary {
@@ -506,7 +586,7 @@
 
     .cand-name {
       font-weight: 600;
-      color: #e5e7eb;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 6px;
@@ -555,7 +635,7 @@
       border: 1px solid var(--border-color);
       border-radius: 12px;
       overflow: hidden;
-      background: var(--bg-surface-elevated);
+      background: var(--bg-surface);
     }
 
     .concejales-table {
@@ -566,7 +646,7 @@
     }
 
     .concejales-table th {
-      background: rgba(15, 23, 42, 0.8);
+      background: var(--table-header-bg);
       padding: 10px 12px;
       font-weight: 700;
       color: var(--text-muted);
@@ -578,7 +658,7 @@
     .concejales-table td {
       padding: 10px 12px;
       border-bottom: 1px solid var(--border-subtle);
-      color: #e5e7eb;
+      color: var(--text-main);
     }
 
     .concejales-table tr:last-child td {
@@ -586,12 +666,12 @@
     }
 
     .concejales-table tr:hover td {
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--table-row-hover);
     }
 
     .banca-number {
       font-weight: 800;
-      color: #38bdf8;
+      color: #0284c7;
       font-family: 'JetBrains Mono', monospace;
     }
 
@@ -603,8 +683,8 @@
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 4px;
-      background: rgba(16, 185, 129, 0.2);
-      color: #34d399;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
     }
 
     .jump-neutral {
@@ -637,12 +717,13 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+      box-shadow: var(--card-shadow);
     }
 
     .panel-title {
       font-size: 1rem;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -661,6 +742,7 @@
       border-radius: 14px;
       padding: 20px;
       overflow-x: auto;
+      box-shadow: var(--card-shadow);
     }
 
     .table-toolbar {
@@ -679,7 +761,7 @@
     }
 
     .data-table th {
-      background: var(--bg-surface-elevated);
+      background: var(--table-header-bg);
       padding: 12px 14px;
       color: var(--text-muted);
       font-size: 0.725rem;
@@ -693,16 +775,17 @@
     .data-table td {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
     }
 
     .data-table tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
+      background: var(--table-row-hover);
     }
 
     .btn-action {
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(2, 132, 199, 0.12);
+      color: #0284c7;
+      border: 1px solid rgba(2, 132, 199, 0.3);
       padding: 5px 10px;
       border-radius: 6px;
       font-size: 0.75rem;
@@ -731,6 +814,22 @@
 
     /* Responsive */
     @media (max-width: 1024px) {
+      header {
+        flex-wrap: wrap;
+        padding: 12px 16px;
+      }
+      .brand {
+        width: auto;
+      }
+      .header-actions {
+        order: 2;
+      }
+      .nav-tabs {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        justify-content: flex-start;
+      }
       .map-wrapper {
         grid-template-columns: 1fr;
         height: auto;
@@ -763,12 +862,15 @@
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <a href="/" class="tab-btn" style="text-decoration: none; color: #94a3b8; border-color: transparent;"><i class="fa-solid fa-arrow-left"></i> Inicio SIGEL</a>
+      <a href="/" class="tab-btn" style="text-decoration: none; color: var(--text-muted); border-color: transparent;"><i class="fa-solid fa-arrow-left"></i> Inicio SIGEL</a>
       <button class="tab-btn active" onclick="switchTab('mapa')">
         <i class="fa-solid fa-map-location-dot"></i> Mapa Territorial
       </button>
       <button class="tab-btn" onclick="switchTab('analisis')">
         <i class="fa-solid fa-chart-pie"></i> Tablero General
+      </button>
+      <button class="tab-btn" onclick="switchTab('numeralia')">
+        <i class="fa-solid fa-chart-line"></i> Numeralia TSJE
       </button>
       <button class="tab-btn" onclick="switchTab('distritos')">
         <i class="fa-solid fa-city"></i> Todos los Distritos
@@ -780,10 +882,27 @@
         <i class="fa-solid fa-file-arrow-down"></i> Exportar Datos
       </button>
     </nav>
+
+    <!-- Theme Toggle Action -->
+    <div class="header-actions">
+      <button class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleTheme()" title="Alternar entre modo claro y oscuro">
+        <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
+        <span id="theme-toggle-label">Modo Oscuro</span>
+      </button>
+    </div>
   </header>
 
   <!-- Live KPI Bar -->
   <section class="kpi-container">
+    <div class="kpi-card" style="--card-accent: #0284c7;">
+      <div class="kpi-label">
+        <span>Padrón Definitivo TSJE</span>
+        <i class="fa-solid fa-id-card"></i>
+      </div>
+      <div class="kpi-value" style="color: #0284c7;" id="kpi-padron-tsje">5,043,154</div>
+      <div class="kpi-sub">1.187 locales &middot; 14.711 mesas (350 c/u)</div>
+    </div>
+
     <div class="kpi-card" style="--card-accent: #38bdf8;">
       <div class="kpi-label">
         <span>Distritos Escrutados</span>
@@ -1076,6 +1195,277 @@
     </div>
   </div>
 
+  <!-- TAB CONTENT: NUMERALIA OFICIAL TSJE -->
+  <div id="tab-numeralia" class="tab-content">
+    <div class="container-boxed">
+
+      <!-- Hero Header Panel -->
+      <div class="chart-panel" style="background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-surface-elevated) 100%); border-left: 4px solid #0284c7;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
+              <span class="status-badge" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.25);">
+                <i class="fa-solid fa-landmark"></i> Resolución TSJE N° 185/2026
+              </span>
+              <span class="status-badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25);">
+                <i class="fa-solid fa-check"></i> Cómputo Definitivo Oficial
+              </span>
+              <span class="status-badge" style="background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25);">
+                <i class="fa-solid fa-shield-halved"></i> 100% Auditado
+              </span>
+            </div>
+            <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">
+              Numeralia Electoral Oficial & Demografía Nacional
+            </h2>
+            <p style="font-size: 0.875rem; color: var(--text-muted); max-width: 920px; line-height: 1.5;">
+              Indicadores oficiales certificados por la Dirección de Tecnología de la Información y Comunicación (TIC) y la Dirección del Registro Electoral del TSJE. Comprende padrón definitivo nacional, estructura demográfica por edad y sexo, logística electoral (locales y mesas de 350 electores c/u), paridad en candidaturas y mecanismos de voto accesible.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <a href="https://elecciones.gov.py/numeros-relevantes" target="_blank" rel="noopener noreferrer" class="btn-action" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.8rem;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Portal Oficial TSJE
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Quick KPIs -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px;">
+        <div class="kpi-card" style="--card-accent: #0284c7;">
+          <div class="kpi-label">
+            <span>Padrón Definitivo TSJE</span>
+            <i class="fa-solid fa-users" style="color: #0284c7;"></i>
+          </div>
+          <div class="kpi-value" style="color: #0284c7;">5,043,154</div>
+          <div class="kpi-sub">
+            <span style="color: #10b981; font-weight: 600;">+8.6%</span> vs Elecciones 2021 (4.644.536)
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #10b981;">
+          <div class="kpi-label">
+            <span>Mesas Receptoras de Voto</span>
+            <i class="fa-solid fa-box-archive" style="color: #10b981;"></i>
+          </div>
+          <div class="kpi-value" style="color: #10b981;">14,711</div>
+          <div class="kpi-sub">
+            Exactamente <strong>350 electores</strong> por mesa
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #f59e0b;">
+          <div class="kpi-label">
+            <span>Locales de Votación</span>
+            <i class="fa-solid fa-school" style="color: #f59e0b;"></i>
+          </div>
+          <div class="kpi-value" style="color: #f59e0b;">1,187</div>
+          <div class="kpi-sub">
+            Distribuidos en los <strong>263 distritos</strong>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #8b5cf6;">
+          <div class="kpi-label">
+            <span>Organizaciones Políticas</span>
+            <i class="fa-solid fa-users-rectangle" style="color: #8b5cf6;"></i>
+          </div>
+          <div class="kpi-value" style="color: #8b5cf6;">268</div>
+          <div class="kpi-sub">
+            32 Partidos &middot; 22 Movimientos &middot; 214 Alianzas
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 1: Demografía por Edad y Sexo -->
+      <div class="analysis-grid">
+        <!-- Age brackets -->
+        <div class="chart-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div class="panel-title">
+              <i class="fa-solid fa-chart-column" style="color: #0284c7;"></i> Padrón por Franjas de Edad (11 Grupos)
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+              Total: 5.043.154 electores
+            </div>
+          </div>
+          <div class="chart-container" style="height: 290px;">
+            <canvas id="chart-edades"></canvas>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--border-subtle); font-size: 0.75rem;">
+            <div>
+              <span style="color: #0284c7; font-weight: 700;">● Jóvenes (18-29):</span>
+              <span style="color: var(--text-main); font-weight: 600;"> 1.363.895 (27.0%)</span>
+            </div>
+            <div>
+              <span style="color: #4f46e5; font-weight: 700;">● Adultos (30-64):</span>
+              <span style="color: var(--text-main); font-weight: 600;"> 2.988.304 (59.3%)</span>
+            </div>
+            <div>
+              <span style="color: #db2777; font-weight: 700;">● Adultos Mayores (65+):</span>
+              <span style="color: var(--text-main); font-weight: 600;"> 690.955 (13.7%)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sex Distribution -->
+        <div class="chart-panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-venus-mars" style="color: #ec4899;"></i> Distribución del Padrón por Sexo
+          </div>
+          <div class="chart-container" style="height: 260px;">
+            <canvas id="chart-sexo"></canvas>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+            <div style="background: var(--bg-surface-elevated); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;">
+              <i class="fa-solid fa-mars" style="font-size: 1.5rem; color: #3b82f6;"></i>
+              <div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Hombres</div>
+                <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-main);">2,550,659 <small style="font-size: 0.8rem; color: #3b82f6;">(50.6%)</small></div>
+              </div>
+            </div>
+            <div style="background: var(--bg-surface-elevated); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;">
+              <i class="fa-solid fa-venus" style="font-size: 1.5rem; color: #ec4899;"></i>
+              <div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Mujeres</div>
+                <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-main);">2,492,495 <small style="font-size: 0.8rem; color: #ec4899;">(49.4%)</small></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 2: Candidaturas & Histórico -->
+      <div class="analysis-grid">
+        <!-- Candidaturas Gender -->
+        <div class="chart-panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-scale-balanced" style="color: #8b5cf6;"></i> Brecha de Género en Candidaturas (TSJE)
+          </div>
+          <div class="chart-container" style="height: 260px;">
+            <canvas id="chart-candidaturas"></canvas>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
+            <i class="fa-solid fa-circle-info" style="color: #8b5cf6;"></i>
+            <strong>Intendencias:</strong> 630 candidatos (530 hombres / 100 mujeres &middot; <strong>15.9%</strong> mujeres).<br>
+            <strong>Concejales Titulares:</strong> 18.343 candidatos (12.437 hombres / 5.906 mujeres &middot; <strong>32.2%</strong> mujeres).
+          </div>
+        </div>
+
+        <!-- Historical Padron Growth -->
+        <div class="chart-panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-arrow-trend-up" style="color: #10b981;"></i> Crecimiento Histórico del Padrón Municipal (1996 - 2026)
+          </div>
+          <div class="chart-container" style="height: 260px;">
+            <canvas id="chart-historico"></canvas>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); padding-top: 10px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 8px;">
+            <span>1996: <strong>1.817.353</strong> electores</span>
+            <span style="color: #10b981; font-weight: 700;">+177.5% de incremento acumulado</span>
+            <span>2026: <strong>5.043.154</strong> electores</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voto Accesible Highlights -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+        <div class="chart-panel" style="border-left: 4px solid #10b981;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="panel-title" style="color: #10b981; margin: 0;">
+              <i class="fa-solid fa-house-chimney-medical"></i> Voto en Casa Oficial (TSJE)
+            </div>
+            <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+              599 Electores
+            </span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 0 0; line-height: 1.4;">
+            Mecanismo para personas con discapacidad física severa o disfuncionalidad motora que les impide trasladarse al local de votación. Habilitado en 14 distritos urbanos del país.
+          </p>
+          <div style="display: flex; gap: 12px; margin-top: 8px;">
+            <div style="flex: 1; background: var(--bg-surface-elevated); padding: 8px 12px; border-radius: 6px; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Hombres:</span> <strong style="color: var(--text-main);">208</strong> (34.7%)
+            </div>
+            <div style="flex: 1; background: var(--bg-surface-elevated); padding: 8px 12px; border-radius: 6px; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Mujeres:</span> <strong style="color: var(--text-main);">391</strong> (65.3%)
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-panel" style="border-left: 4px solid #0284c7;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="panel-title" style="color: #0284c7; margin: 0;">
+              <i class="fa-solid fa-wheelchair"></i> Mesa Accesible N° 1
+            </div>
+            <span class="status-badge" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
+              6,030 Electores
+            </span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 0 0; line-height: 1.4;">
+            Mesa de sufragio ubicada en el acceso principal de cada local electoral para garantizar el ejercicio del voto accesible a electores adultos mayores y con movilidad reducida.
+          </p>
+          <div style="display: flex; gap: 12px; margin-top: 8px;">
+            <div style="flex: 1; background: var(--bg-surface-elevated); padding: 8px 12px; border-radius: 6px; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Hombres:</span> <strong style="color: var(--text-main);">2,623</strong> (43.5%)
+            </div>
+            <div style="flex: 1; background: var(--bg-surface-elevated); padding: 8px 12px; border-radius: 6px; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Mujeres:</span> <strong style="color: var(--text-main);">3,407</strong> (56.5%)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cuadro 1 Oficial TSJE: Desglose Departamental -->
+      <div class="table-container">
+        <div class="table-toolbar">
+          <div>
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-table-list" style="color: #0284c7;"></i> Cuadro 1: Distribución Departamental de Electores, Locales, Mesas y Cargos
+            </h3>
+            <div style="font-size: 0.775rem; color: var(--text-muted); margin-top: 4px;">
+              Fuente: Tribunal Superior de Justicia Electoral (TSJE) &middot; Elecciones Municipales Paraguay 2026
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="numeralia-dept-search" class="map-filter-select" placeholder="Buscar departamento..." style="padding: 6px 12px; font-size: 0.8rem; width: 220px;" onkeyup="filterNumeraliaTable(this.value)">
+          </div>
+        </div>
+
+        <table class="data-table" id="numeralia-dept-table">
+          <thead>
+            <tr>
+              <th onclick="sortNumeraliaTable(0)">Departamento <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(1)" style="text-align: right;">Distritos <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(2)" style="text-align: right;">Electores Habilitados <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(3)" style="text-align: right;">% Padrón <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(4)" style="text-align: right;">Locales <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(5)" style="text-align: right;">Mesas <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(6)" style="text-align: right;">Intendentes <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(7)" style="text-align: right;">Concejales Tit. <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortNumeraliaTable(8)" style="text-align: right;">Concejales Supl. <i class="fa-solid fa-sort"></i></th>
+            </tr>
+          </thead>
+          <tbody id="numeralia-dept-tbody">
+            <!-- Dynamically populated from DEPARTAMENTOS_TSJE -->
+          </tbody>
+          <tfoot id="numeralia-dept-tfoot" style="background: var(--table-header-bg); font-weight: 700; border-top: 2px solid var(--border-color);">
+            <tr>
+              <td>TOTAL REPÚBLICA</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">263</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #0284c7;">5,043,154</td>
+              <td style="text-align: right;">100.0%</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">1,187</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">14,711</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">263</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #a855f7;">2,832</td>
+              <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #a855f7;">2,832</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
   <!-- TAB CONTENT 3: TODOS LOS DISTRITOS TABLE -->
   <div id="tab-distritos" class="tab-content">
     <div class="container-boxed">
@@ -1288,7 +1678,12 @@
   <script>
     let map = null;
     let geojsonLayer = null;
+    let baseTileLayer = null;
     let currentSelectedFeature = null;
+    let currentDeptFilter = 'ALL';
+    let currentPartyFilter = 'ALL';
+    const CARTO_KEY = 'cb1_3skd_1_b01311b843bcb7fb316c4384';
+    let currentTheme = localStorage.getItem('sigel_theme') || 'light';
 
     // Helper: Party Color
     function getPartyColor(party) {
@@ -1318,6 +1713,14 @@
       if (tabId === 'mapa' && map) {
         setTimeout(() => map.invalidateSize(), 100);
       }
+      if (tabId === 'numeralia') {
+        setTimeout(() => {
+          if (chartEdades) chartEdades.resize();
+          if (chartSexo) chartSexo.resize();
+          if (chartCandidaturas) chartCandidaturas.resize();
+          if (chartHistorico) chartHistorico.resize();
+        }, 100);
+      }
     }
 
     // Switch Inspector Subtabs (Intendente vs Concejales)
@@ -1328,9 +1731,75 @@
       document.getElementById('insp-view-jun').style.display = subTab === 'jun' ? 'block' : 'none';
     }
 
+    function setBaseTileLayer(theme) {
+      if (baseTileLayer && map) {
+        map.removeLayer(baseTileLayer);
+      }
+      const isLight = (theme === 'light');
+      const url = isLight
+        ? `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`
+        : `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`;
+
+      if (map) {
+        baseTileLayer = L.tileLayer(url, {
+          maxZoom: 14,
+          subdomains: 'abcd'
+        }).addTo(map);
+        baseTileLayer.bringToBack();
+      }
+    }
+
+    function isDistrictActive(p) {
+      if (currentDeptFilter !== 'ALL' && String(p.dpto_id) !== String(currentDeptFilter)) {
+        return false;
+      }
+      if (currentPartyFilter !== 'ALL') {
+        const wp = (p.ganador_partido || '').toUpperCase();
+        if (!wp.includes(currentPartyFilter)) return false;
+      }
+      return true;
+    }
+
+    function getDistrictStyle(p) {
+      const active = isDistrictActive(p);
+      const winnerParty = p.ganador_partido || '';
+      const fillColor = getPartyColor(winnerParty);
+      const isLight = (currentTheme === 'light');
+
+      if (active) {
+        return {
+          fillColor: fillColor,
+          weight: isLight ? 1.4 : 1,
+          opacity: 1,
+          color: isLight ? '#ffffff' : '#1f2937',
+          fillOpacity: isLight ? 0.78 : 0.72
+        };
+      } else {
+        return {
+          fillColor: fillColor,
+          weight: 0.3,
+          opacity: 0.1,
+          color: isLight ? '#cbd5e1' : '#374151',
+          fillOpacity: 0.03
+        };
+      }
+    }
+
+    function refreshMapStyles() {
+      if (!geojsonLayer) return null;
+      let group = L.featureGroup();
+      geojsonLayer.eachLayer(l => {
+        const p = l.feature.properties;
+        l.setStyle(getDistrictStyle(p));
+        if (isDistrictActive(p)) {
+          group.addLayer(l);
+        }
+      });
+      return group;
+    }
+
     // Initialize Leaflet Map
     function initMap() {
-      // Centered on Paraguay
       map = L.map('map', {
         zoomControl: false,
         attributionControl: false
@@ -1338,72 +1807,69 @@
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // Dark Matter Tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3skd_1_b01311b843bcb7fb316c4384', {
-        maxZoom: 14,
-        subdomains: 'abcd'
-      }).addTo(map);
+      // Load base tiles based on current theme
+      setBaseTileLayer(currentTheme);
 
       if (window.PARAGUAY_GEOJSON) {
         renderGeoJSON(window.PARAGUAY_GEOJSON);
       }
     }
 
-    function styleFeature(feature) {
-      const p = feature.properties;
-      const winnerParty = p.ganador_partido || '';
-      const fillColor = getPartyColor(winnerParty);
-
-      return {
-        fillColor: fillColor,
-        weight: 1,
-        opacity: 0.8,
-        color: '#1f2937',
-        fillOpacity: 0.72
-      };
-    }
-
     function renderGeoJSON(geo) {
       if (geojsonLayer) map.removeLayer(geojsonLayer);
 
       geojsonLayer = L.geoJSON(geo, {
-        style: styleFeature,
+        style: function(feature) {
+          return getDistrictStyle(feature.properties);
+        },
         onEachFeature: function(feature, layer) {
           const p = feature.properties;
 
-          // Tooltip on Hover
-          const tooltipContent = `
-            <div style="font-family: 'Inter', sans-serif; font-size: 12px; padding: 2px;">
-              <strong style="color: #38bdf8; text-transform: uppercase;">${p.dist_name || p.shapeName}</strong><br>
-              <span style="color: #9ca3af; font-size: 11px;">${p.dpto_name || ''}</span><br>
-              <div style="margin-top: 4px; font-weight: 700; color: #fff;">
-                Ganador: ${p.ganador_nombre || 'Sin datos'}
+          // Tooltip on Hover - Only shows for active districts of selected department
+          layer.bindTooltip(function() {
+            if (!isDistrictActive(p)) return false;
+            return `
+              <div style="font-family: 'Inter', sans-serif; font-size: 12px; padding: 2px;">
+                <strong style="color: #0284c7; text-transform: uppercase;">${p.dist_name || p.shapeName}</strong><br>
+                <span style="color: var(--text-muted); font-size: 11px;">${p.dpto_name || ''}</span><br>
+                <div style="margin-top: 4px; font-weight: 700; color: var(--text-main);">
+                  Ganador: ${p.ganador_nombre || 'Sin datos'}
+                </div>
+                <div style="font-size: 11px; color: ${getPartyColor(p.ganador_partido)};">
+                  ${p.ganador_partido || ''} (${p.ganador_pct || 0}%)
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                  Margen: +${(p.margen_votos || 0).toLocaleString()} votos
+                </div>
               </div>
-              <div style="font-size: 11px; color: ${getPartyColor(p.ganador_partido)};">
-                ${p.ganador_partido || ''} (${p.ganador_pct || 0}%)
-              </div>
-              <div style="font-size: 10px; color: #9ca3af; margin-top: 2px;">
-                Margen: +${(p.margen_votos || 0).toLocaleString()} votos
-              </div>
-            </div>
-          `;
-          layer.bindTooltip(tooltipContent, { sticky: true, className: 'map-custom-tooltip' });
+            `;
+          }, { sticky: true, className: 'map-custom-tooltip' });
 
           layer.on({
             mouseover: function(e) {
+              if (!isDistrictActive(p)) {
+                layer.closeTooltip();
+                return; // DO NOT PAINT OR HIGHLIGHT OTHER DEPARTMENTS
+              }
               const l = e.target;
               l.setStyle({
-                weight: 2.5,
-                color: '#ffffff',
-                fillOpacity: 0.9
+                weight: 2.8,
+                color: currentTheme === 'light' ? '#0f172a' : '#ffffff',
+                fillOpacity: 0.95
               });
               l.bringToFront();
             },
             mouseout: function(e) {
-              geojsonLayer.resetStyle(e.target);
+              if (!isDistrictActive(p)) {
+                return; // DO NOT TOUCH INACTIVE DISTRICTS
+              }
+              e.target.setStyle(getDistrictStyle(p));
             },
             click: function(e) {
-              selectDistrict(feature.properties);
+              if (!isDistrictActive(p)) {
+                return; // DO NOT SELECT DISTRICTS OF OTHER DEPARTMENTS
+              }
+              selectDistrict(p);
               map.fitBounds(e.target.getBounds(), { maxZoom: 10, padding: [40, 40] });
             }
           });
@@ -1411,7 +1877,7 @@
       }).addTo(map);
 
       // Select Asunción by default
-      const asuncion = window.INTENDENTES_DATA.find(d => d.dpto_id === "0" && d.dist_id === "0");
+      const asuncion = window.INTENDENTES_DATA.find(d => String(d.dpto_id) === "0" && String(d.dist_id) === "0");
       if (asuncion) selectDistrict(asuncion);
     }
 
@@ -1561,7 +2027,7 @@
     // Filter districts on Map by search input
     function filterDistrictsMap(query) {
       if (!query || query.trim() === '') {
-        geojsonLayer.eachLayer(l => l.setStyle({ fillOpacity: 0.72, opacity: 0.8 }));
+        refreshMapStyles();
         return;
       }
       const q = query.toLowerCase();
@@ -1571,12 +2037,18 @@
         const p = l.feature.properties;
         const name = (p.dist_name || p.shapeName || '').toLowerCase();
         const winner = (p.ganador_nombre || '').toLowerCase();
+        const active = isDistrictActive(p);
 
-        if (name.includes(q) || winner.includes(q)) {
-          l.setStyle({ fillOpacity: 0.95, opacity: 1, weight: 2 });
+        if (active && (name.includes(q) || winner.includes(q))) {
+          l.setStyle({
+            fillOpacity: 0.95,
+            opacity: 1,
+            weight: 2.8,
+            color: currentTheme === 'light' ? '#0f172a' : '#ffffff'
+          });
           if (!firstMatch) firstMatch = l;
         } else {
-          l.setStyle({ fillOpacity: 0.1, opacity: 0.2, weight: 0.5 });
+          l.setStyle({ fillOpacity: 0.03, opacity: 0.1, weight: 0.3 });
         }
       });
 
@@ -1586,38 +2058,25 @@
     }
 
     function applyMapDepartmentFilter(deptId) {
+      currentDeptFilter = deptId;
+      const group = refreshMapStyles();
+
       if (deptId === 'ALL') {
-        geojsonLayer.eachLayer(l => geojsonLayer.resetStyle(l));
         map.setView([-23.4425, -58.4438], 6);
-        return;
-      }
-
-      let group = L.featureGroup();
-      geojsonLayer.eachLayer(l => {
-        const p = l.feature.properties;
-        if (p.dpto_id == deptId) {
-          l.setStyle({ fillOpacity: 0.85, opacity: 1, weight: 1.5 });
-          group.addLayer(l);
-        } else {
-          l.setStyle({ fillOpacity: 0.08, opacity: 0.15, weight: 0.5 });
-        }
-      });
-
-      if (group.getLayers().length > 0) {
+      } else if (group && group.getLayers().length > 0) {
         map.fitBounds(group.getBounds(), { padding: [30, 30] });
+        const firstDistrict = window.INTENDENTES_DATA.find(d => String(d.dpto_id) === String(deptId));
+        if (firstDistrict) selectDistrict(firstDistrict);
       }
     }
 
     function filterByParty(partyKeyword) {
-      geojsonLayer.eachLayer(l => {
-        const p = l.feature.properties;
-        const wp = (p.ganador_partido || '').toUpperCase();
-        if (wp.includes(partyKeyword)) {
-          l.setStyle({ fillOpacity: 0.9, opacity: 1, weight: 1.5 });
-        } else {
-          l.setStyle({ fillOpacity: 0.1, opacity: 0.2, weight: 0.5 });
-        }
-      });
+      if (currentPartyFilter === partyKeyword) {
+        currentPartyFilter = 'ALL';
+      } else {
+        currentPartyFilter = partyKeyword;
+      }
+      refreshMapStyles();
     }
 
     // Populate Districts Table (Tab 3)
@@ -1756,11 +2215,189 @@
       });
     }
 
+    let chartIntendencias = null;
+    let chartConcejales = null;
+    let chartDepartamentos = null;
+    let chartEdades = null;
+    let chartSexo = null;
+    let chartCandidaturas = null;
+    let chartHistorico = null;
+
+    // TSJE Official Numeralia Datasets (Resolución TSJE N° 185/2026)
+    const DEPARTAMENTOS_TSJE = [
+      { dpto: "Capital", dist: 1, electores: 452283, locales: 145, mesas: 1325, int: 1, concTit: 24, concSup: 24 },
+      { dpto: "Concepción", dist: 14, electores: 170461, locales: 46, mesas: 497, int: 14, concTit: 147, concSup: 147 },
+      { dpto: "San Pedro", dist: 22, electores: 300965, locales: 89, mesas: 884, int: 22, concTit: 219, concSup: 219 },
+      { dpto: "Cordillera", dist: 20, electores: 238113, locales: 54, mesas: 693, int: 20, concTit: 210, concSup: 210 },
+      { dpto: "Guairá", dist: 18, electores: 167502, locales: 58, mesas: 489, int: 18, concTit: 168, concSup: 168 },
+      { dpto: "Caaguazú", dist: 22, electores: 388617, locales: 77, mesas: 1135, int: 22, concTit: 222, concSup: 222 },
+      { dpto: "Caazapá", dist: 11, electores: 132442, locales: 38, mesas: 391, int: 11, concTit: 111, concSup: 111 },
+      { dpto: "Itapúa", dist: 30, electores: 420246, locales: 98, mesas: 1224, int: 30, concTit: 348, concSup: 348 },
+      { dpto: "Misiones", dist: 10, electores: 104718, locales: 33, mesas: 306, int: 10, concTit: 117, concSup: 117 },
+      { dpto: "Paraguarí", dist: 18, electores: 196300, locales: 73, mesas: 578, int: 18, concTit: 183, concSup: 183 },
+      { dpto: "Alto Paraná", dist: 22, electores: 576828, locales: 73, mesas: 1670, int: 22, concTit: 246, concSup: 246 },
+      { dpto: "Central", dist: 19, electores: 1384092, locales: 241, mesas: 4024, int: 19, concTit: 228, concSup: 228 },
+      { dpto: "Ñeembucú", dist: 16, electores: 73567, locales: 37, mesas: 221, int: 16, concTit: 168, concSup: 168 },
+      { dpto: "Amambay", dist: 6, electores: 119781, locales: 24, mesas: 346, int: 6, concTit: 63, concSup: 63 },
+      { dpto: "Canindeyú", dist: 16, electores: 159300, locales: 39, mesas: 462, int: 16, concTit: 171, concSup: 171 },
+      { dpto: "Pdte. Hayes", dist: 10, electores: 93555, locales: 32, mesas: 274, int: 10, concTit: 111, concSup: 111 },
+      { dpto: "Alto Paraguay", dist: 4, electores: 16110, locales: 8, mesas: 50, int: 4, concTit: 48, concSup: 48 },
+      { dpto: "Boquerón", dist: 4, electores: 48274, locales: 22, mesas: 142, int: 4, concTit: 48, concSup: 48 }
+    ];
+
+    let numeraliaSortCol = 2;
+    let numeraliaSortAsc = false;
+
+    function populateNumeraliaTable() {
+      const tbody = document.getElementById('numeralia-dept-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      const totalElectores = 5043154;
+
+      DEPARTAMENTOS_TSJE.forEach(row => {
+        const tr = document.createElement('tr');
+        const pct = ((row.electores / totalElectores) * 100).toFixed(1);
+        tr.innerHTML = `
+          <td><strong>${row.dpto}</strong></td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${row.dist}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main);">${row.electores.toLocaleString()}</td>
+          <td style="text-align: right; color: var(--text-muted); font-size: 0.775rem;">${pct}%</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${row.locales}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${row.mesas.toLocaleString()}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${row.int}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #a855f7; font-weight: 600;">${row.concTit}</td>
+          <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #a855f7;">${row.concSup}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterNumeraliaTable(query) {
+      const q = (query || '').toLowerCase().trim();
+      const rows = document.querySelectorAll('#numeralia-dept-tbody tr');
+      rows.forEach(r => {
+        const text = r.children[0].textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    function sortNumeraliaTable(colIdx) {
+      if (numeraliaSortCol === colIdx) {
+        numeraliaSortAsc = !numeraliaSortAsc;
+      } else {
+        numeraliaSortCol = colIdx;
+        numeraliaSortAsc = (colIdx === 0);
+      }
+
+      DEPARTAMENTOS_TSJE.sort((a, b) => {
+        let vA, vB;
+        switch (colIdx) {
+          case 0: vA = a.dpto; vB = b.dpto; break;
+          case 1: vA = a.dist; vB = b.dist; break;
+          case 2: vA = a.electores; vB = b.electores; break;
+          case 3: vA = a.electores; vB = b.electores; break;
+          case 4: vA = a.locales; vB = b.locales; break;
+          case 5: vA = a.mesas; vB = b.mesas; break;
+          case 6: vA = a.int; vB = b.int; break;
+          case 7: vA = a.concTit; vB = b.concTit; break;
+          case 8: vA = a.concSup; vB = b.concSup; break;
+          default: vA = a.electores; vB = b.electores;
+        }
+        if (typeof vA === 'string') {
+          return numeraliaSortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        }
+        return numeraliaSortAsc ? vA - vB : vB - vA;
+      });
+
+      populateNumeraliaTable();
+    }
+
+    function applyTheme(theme) {
+      currentTheme = theme;
+      localStorage.setItem('sigel_theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+
+      const icon = document.getElementById('theme-toggle-icon');
+      const label = document.getElementById('theme-toggle-label');
+      if (theme === 'light') {
+        if (icon) {
+          icon.className = 'fa-solid fa-moon';
+          icon.style.color = '';
+        }
+        if (label) label.textContent = 'Modo Oscuro';
+      } else {
+        if (icon) {
+          icon.className = 'fa-solid fa-sun';
+          icon.style.color = '#fbbf24';
+        }
+        if (label) label.textContent = 'Modo Claro';
+      }
+
+      setBaseTileLayer(theme);
+      refreshMapStyles();
+      updateChartsTheme(theme);
+    }
+
+    function toggleTheme() {
+      const newTheme = (currentTheme === 'light') ? 'dark' : 'light';
+      applyTheme(newTheme);
+    }
+
+    function updateChartsTheme(theme) {
+      const isLight = (theme === 'light');
+      const textColor = isLight ? '#475569' : '#9ca3af';
+      const gridColor = isLight ? '#e2e8f0' : '#1f2937';
+      const legendColor = isLight ? '#0f172a' : '#e5e7eb';
+
+      if (chartIntendencias) {
+        chartIntendencias.options.plugins.legend.labels.color = legendColor;
+        chartIntendencias.data.datasets[0].borderColor = isLight ? '#ffffff' : '#111827';
+        chartIntendencias.update();
+      }
+      if (chartConcejales) {
+        chartConcejales.options.scales.x.ticks.color = textColor;
+        chartConcejales.options.scales.y.ticks.color = textColor;
+        chartConcejales.options.scales.y.grid.color = gridColor;
+        chartConcejales.update();
+      }
+      if (chartDepartamentos) {
+        chartDepartamentos.options.scales.x.ticks.color = textColor;
+        chartDepartamentos.options.scales.y.ticks.color = textColor;
+        chartDepartamentos.options.scales.y.grid.color = gridColor;
+        chartDepartamentos.update();
+      }
+      if (chartEdades) {
+        chartEdades.options.scales.x.ticks.color = textColor;
+        chartEdades.options.scales.y.ticks.color = textColor;
+        chartEdades.options.scales.y.grid.color = gridColor;
+        chartEdades.update();
+      }
+      if (chartSexo) {
+        chartSexo.options.plugins.legend.labels.color = legendColor;
+        chartSexo.data.datasets[0].borderColor = isLight ? '#ffffff' : '#111827';
+        chartSexo.update();
+      }
+      if (chartCandidaturas) {
+        chartCandidaturas.options.plugins.legend.labels.color = legendColor;
+        chartCandidaturas.options.scales.x.ticks.color = textColor;
+        chartCandidaturas.options.scales.y.ticks.color = textColor;
+        chartCandidaturas.options.scales.y.grid.color = gridColor;
+        chartCandidaturas.update();
+      }
+      if (chartHistorico) {
+        chartHistorico.options.scales.x.ticks.color = textColor;
+        chartHistorico.options.scales.y.ticks.color = textColor;
+        chartHistorico.options.scales.y.grid.color = gridColor;
+        chartHistorico.data.datasets[0].pointBorderColor = isLight ? '#ffffff' : '#111827';
+        chartHistorico.update();
+      }
+    }
+
     // Initialize Charts (Tab 2)
     function initCharts() {
       // 1. Doughnut Chart: Intendencias
       const intCtx = document.getElementById('chart-intendencias').getContext('2d');
-      new Chart(intCtx, {
+      chartIntendencias = new Chart(intCtx, {
         type: 'doughnut',
         data: {
           labels: ['ANR (Colorado)', 'PLRA (Liberal)', 'Yo Creo', 'Alianzas y Otros'],
@@ -1768,7 +2405,7 @@
             data: [187, 34, 3, 39],
             backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'],
             borderWidth: 2,
-            borderColor: '#111827'
+            borderColor: currentTheme === 'light' ? '#ffffff' : '#111827'
           }]
         },
         options: {
@@ -1777,7 +2414,7 @@
           plugins: {
             legend: {
               position: 'right',
-              labels: { color: '#e5e7eb', font: { family: 'Inter', size: 12 } }
+              labels: { color: currentTheme === 'light' ? '#0f172a' : '#e5e7eb', font: { family: 'Inter', size: 12 } }
             }
           }
         }
@@ -1785,7 +2422,7 @@
 
       // 2. Bar Chart: Concejales
       const concCtx = document.getElementById('chart-concejales').getContext('2d');
-      new Chart(concCtx, {
+      chartConcejales = new Chart(concCtx, {
         type: 'bar',
         data: {
           labels: ['ANR', 'PLRA', 'Yo Creo', 'UNACE', 'PEN', 'Alianzas'],
@@ -1803,8 +2440,8 @@
             legend: { display: false }
           },
           scales: {
-            x: { ticks: { color: '#9ca3af' }, grid: { display: false } },
-            y: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+            x: { ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af' }, grid: { display: false } },
+            y: { ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af' }, grid: { color: currentTheme === 'light' ? '#e2e8f0' : '#1f2937' } }
           }
         }
       });
@@ -1814,7 +2451,7 @@
       const deptLabels = ['Cordillera', 'Misiones', 'Ñeembucú', 'Guairá', 'Capital', 'Paraguarí', 'Alto Paraguay', 'Central', 'Pte. Hayes', 'Boquerón', 'Alto Paraná', 'Canindeyú', 'Itapúa', 'Caaguazú', 'San Pedro', 'Amambay', 'Concepción', 'Caazapá'];
       const deptVals = [66.8, 65.1, 64.6, 63.0, 61.7, 61.4, 61.4, 59.6, 59.8, 58.1, 57.9, 57.0, 56.8, 54.9, 54.8, 53.3, 53.2, 51.7];
 
-      new Chart(deptCtx, {
+      chartDepartamentos = new Chart(deptCtx, {
         type: 'bar',
         data: {
           labels: deptLabels,
@@ -1830,11 +2467,212 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
-            y: { min: 40, max: 75, ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+            x: { ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+            y: { min: 40, max: 75, ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af' }, grid: { color: currentTheme === 'light' ? '#e2e8f0' : '#1f2937' } }
           }
         }
       });
+
+      // 4. Edades TSJE (11 Franjas)
+      const edadCtx = document.getElementById('chart-edades');
+      if (edadCtx) {
+        const edadLabels = ['18-19', '20-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50-54', '55-59', '60-64', '65+'];
+        const edadVals = [161763, 569324, 632808, 603668, 509457, 498648, 432784, 351280, 312835, 279632, 690955];
+        const edadPcts = [3.2, 11.3, 12.5, 12.0, 10.1, 9.9, 8.6, 7.0, 6.2, 5.5, 13.7];
+        const edadColors = [
+          '#0284c7', '#0284c7', '#0284c7',
+          '#4f46e5', '#4f46e5', '#4f46e5', '#6366f1', '#6366f1', '#6366f1', '#6366f1',
+          '#db2777'
+        ];
+
+        chartEdades = new Chart(edadCtx.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: edadLabels,
+            datasets: [{
+              label: 'Electores',
+              data: edadVals,
+              backgroundColor: edadColors,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const idx = ctx.dataIndex;
+                    return ` ${ctx.parsed.y.toLocaleString()} electores (${edadPcts[idx]}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+              y: {
+                ticks: {
+                  color: currentTheme === 'light' ? '#475569' : '#9ca3af',
+                  callback: val => (val >= 1000 ? (val / 1000) + 'k' : val)
+                },
+                grid: { color: currentTheme === 'light' ? '#e2e8f0' : '#1f2937' }
+              }
+            }
+          }
+        });
+      }
+
+      // 5. Sexo TSJE (Doughnut)
+      const sexoCtx = document.getElementById('chart-sexo');
+      if (sexoCtx) {
+        chartSexo = new Chart(sexoCtx.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Hombres (50.6%)', 'Mujeres (49.4%)'],
+            datasets: [{
+              data: [2550659, 2492495],
+              backgroundColor: ['#3b82f6', '#ec4899'],
+              borderWidth: 2,
+              borderColor: currentTheme === 'light' ? '#ffffff' : '#111827'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  color: currentTheme === 'light' ? '#0f172a' : '#e5e7eb',
+                  font: { family: 'Inter', size: 12, weight: '600' },
+                  padding: 14
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const val = ctx.parsed;
+                    const pct = ((val / 5043154) * 100).toFixed(1);
+                    return ` ${ctx.label}: ${val.toLocaleString()} electores (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 6. Candidaturas Género TSJE
+      const candCtx = document.getElementById('chart-candidaturas');
+      if (candCtx) {
+        chartCandidaturas = new Chart(candCtx.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: ['Intendencias (630)', 'Concejalías Titulares (18,343)'],
+            datasets: [
+              {
+                label: 'Hombres',
+                data: [530, 12437],
+                backgroundColor: '#3b82f6',
+                borderRadius: 6
+              },
+              {
+                label: 'Mujeres',
+                data: [100, 5906],
+                backgroundColor: '#ec4899',
+                borderRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  color: currentTheme === 'light' ? '#0f172a' : '#e5e7eb',
+                  font: { family: 'Inter', size: 12 }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const totals = [630, 18343];
+                    const tot = totals[ctx.dataIndex];
+                    const val = ctx.parsed.y;
+                    const pct = ((val / tot) * 100).toFixed(1);
+                    return ` ${ctx.dataset.label}: ${val.toLocaleString()} candidaturas (${pct}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af' }, grid: { display: false } },
+              y: {
+                ticks: {
+                  color: currentTheme === 'light' ? '#475569' : '#9ca3af',
+                  callback: val => (val >= 1000 ? (val / 1000) + 'k' : val)
+                },
+                grid: { color: currentTheme === 'light' ? '#e2e8f0' : '#1f2937' }
+              }
+            }
+          }
+        });
+      }
+
+      // 7. Crecimiento Histórico del Padrón (1996-2026)
+      const histCtx = document.getElementById('chart-historico');
+      if (histCtx) {
+        chartHistorico = new Chart(histCtx.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: ['1996', '2001', '2006', '2011', '2016', '2021', '2026'],
+            datasets: [{
+              label: 'Electores Habilitados',
+              data: [1817353, 2233800, 2758076, 3031143, 3947574, 4644536, 5043154],
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#10b981',
+              pointBorderColor: currentTheme === 'light' ? '#ffffff' : '#111827',
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 7
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    return ` Padrón: ${ctx.parsed.y.toLocaleString()} electores`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af' }, grid: { display: false } },
+              y: {
+                min: 1500000,
+                max: 5500000,
+                ticks: {
+                  color: currentTheme === 'light' ? '#475569' : '#9ca3af',
+                  callback: val => (val / 1000000).toFixed(1) + 'M'
+                },
+                grid: { color: currentTheme === 'light' ? '#e2e8f0' : '#1f2937' }
+              }
+            }
+          }
+        });
+      }
 
       // Populate Highlights Cards
       // Closest
@@ -1852,10 +2690,10 @@
           <div class="stat-badge" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
             <div>
               <strong>${c.dist}</strong> <small style="color: var(--text-muted);">(${c.dept})</small>
-              <div style="font-size: 0.75rem; color: #34d399;">${c.win}</div>
+              <div style="font-size: 0.75rem; color: #10b981;">${c.win}</div>
             </div>
             <div style="text-align: right;">
-              <span class="jump-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">${c.diff}</span>
+              <span class="jump-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">${c.diff}</span>
               <div style="font-size: 0.7rem; color: var(--text-muted);">${c.pct}</div>
             </div>
           </div>
@@ -1881,7 +2719,7 @@
             </div>
             <div style="text-align: right;">
               <span class="jump-badge">+${c.jump} puestos</span>
-              <div style="font-size: 0.7rem; color: #38bdf8;">${c.votes.toLocaleString()} votos pref.</div>
+              <div style="font-size: 0.7rem; color: #0284c7;">${c.votes.toLocaleString()} votos pref.</div>
             </div>
           </div>
         `;
@@ -1905,7 +2743,7 @@
               <div style="font-size: 0.75rem; color: ${getPartyColor(c.party)};">${c.party}</div>
             </div>
             <div style="text-align: right;">
-              <strong style="color: #38bdf8; font-size: 0.95rem;">${c.votes.toLocaleString()}</strong>
+              <strong style="color: #0284c7; font-size: 0.95rem;">${c.votes.toLocaleString()}</strong>
               <div style="font-size: 0.7rem; color: var(--text-muted);">votos personales</div>
             </div>
           </div>
@@ -1915,9 +2753,11 @@
 
     // Startup
     window.addEventListener('DOMContentLoaded', () => {
+      applyTheme(currentTheme);
       initMap();
       populateDistrictsTable();
       populateConcejalesTable();
+      populateNumeraliaTable();
       initCharts();
     });
   </script>
