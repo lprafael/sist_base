@@ -85,3 +85,8 @@ scratch/
 *.exe
 
 
+
+# Large raw geojson files (optimized 1.4MB version is kept)
+*paraguay_distritos.geojson
+*paraguay_distritos_enriquecido.geojson
+*paraguay_departamentos.geojson

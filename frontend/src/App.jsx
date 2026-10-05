@@ -28,6 +28,7 @@ import EleccionesManagement from "./components/EleccionesManagement.jsx";
 import MensajeriaDashboard from "./components/MensajeriaDashboard.jsx";
 import PadronImport from "./components/PadronImport.jsx";
 import ConsultaPadronPublico from "./components/ConsultaPadronPublico.jsx";
+import ResultadosElecciones from "./pages/ResultadosElecciones.jsx";
 import { authFetch } from "./utils/authFetch";
 
 // Helper global para identificar el rol de forma robusta

@@ -166,6 +166,26 @@ const LandingPage = ({ user }) => {
           SIGEL
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Link
+            to="/elecciones"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              background: '#eff6ff',
+              color: '#2563eb',
+              border: '1px solid #bfdbfe',
+              borderRadius: '50px',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease'
+            }}
+            title="Resultados Electorales TSJE & Mapa D'Hondt"
+          >
+            <BarChart3 size={18} /> Resultados TSJE & Mapa
+          </Link>
           {isPadronActivo && (
             <button
               onClick={() => setPadronModalOpen(true)}
@@ -258,6 +278,26 @@ const LandingPage = ({ user }) => {
                 <Vote size={22} /> Consultar Padrón Municipal
               </button>
             )}
+            <Link
+              to="/elecciones"
+              style={{
+                padding: '18px 32px',
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: '0 10px 25px rgba(2, 132, 199, 0.35)',
+                transition: 'transform 0.2s, box-shadow 0.2s'
+              }}
+            >
+              <BarChart3 size={22} /> Resultados TSJE & Concejales D'Hondt
+            </Link>
             <Link to={user ? "/dashboard" : "/login"} className="btn-hero-primary" style={{
               padding: '18px 40px',
               fontSize: '1.1rem',
@@ -381,6 +421,33 @@ const LandingPage = ({ user }) => {
               <li><CheckCircle2 size={16} color="#10b981" /> Registro de voto en un clic</li>
               <li><CheckCircle2 size={16} color="#10b981" /> Reporte de participación real</li>
             </ul>
+          </motion.div>
+                  {/* Resultados TSJE & D'Hondt */}
+          <motion.div variants={itemVariants} className="feature-card" style={cardStyle}>
+            <div style={iconContainerStyle}><BarChart3 color="#2563eb" size={32} /></div>
+            <h3 style={cardTitleStyle}>Resultados TSJE & D'Hondt</h3>
+            <p style={cardTextStyle}>
+              Explora el tablero nacional con los resultados oficiales de los 263 distritos. Concejales electos
+              y no electos calculados con el sistema D'Hondt y voto preferencial.
+            </p>
+            <ul style={listStyle}>
+              <li><CheckCircle2 size={16} color="#10b981" /> Mapa interactivo de Paraguay</li>
+              <li><CheckCircle2 size={16} color="#10b981" /> Intendentes y Concejales 2026</li>
+              <li><CheckCircle2 size={16} color="#10b981" /> Nómina completa con diferencias de votos</li>
+            </ul>
+            <div style={{ marginTop: '20px' }}>
+              <Link to="/elecciones" style={{
+                color: '#2563eb',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                Explorar Tablero Electoral <ArrowRight size={16} />
+              </Link>
+            </div>
           </motion.div>
         </motion.div>
       </section>

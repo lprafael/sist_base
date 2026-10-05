@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tablero Electoral Paraguay 2026 | Resultados TSJE y Concejales D'Hondt</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-surface: #111827;
+      --bg-surface-elevated: #1f2937;
+      --bg-surface-glass: rgba(17, 24, 39, 0.85);
+      --border-color: #374151;
+      --border-subtle: #1f2937;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --text-subtle: #6b7280;
+      
+      --color-anr: #ef4444;
+      --color-plra: #3b82f6;
+      --color-yocreo: #10b981;
+      --color-alianza: #f59e0b;
+      --color-otros: #8b5cf6;
+      --color-accent: #06b6d4;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #ef4444, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: white;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .brand-title h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-title p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: var(--bg-surface-elevated);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* KPI Header Bar */
+    .kpi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      padding: 16px 24px;
+      background: rgba(17, 24, 39, 0.6);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--card-accent, #3b82f6);
+    }
+
+    .kpi-label {
+      font-size: 0.725rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.03em;
+    }
+
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Main Tab Content Viewports */
+    main {
+      flex: 1;
+      position: relative;
+    }
+
+    .tab-content {
+      display: none;
+      height: 100%;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Map View Layout */
+    .map-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      height: calc(100vh - 175px);
+      position: relative;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+      background: #0b0f19;
+    }
+
+    /* Map Controls & Floating Search */
+    .map-floating-panel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 1000;
+      background: var(--bg-surface-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 320px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      gap: 8px;
+    }
+
+    .search-box i {
+      color: var(--text-muted);
+    }
+
+    .search-box input {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 0.85rem;
+      width: 100%;
+      outline: none;
+    }
+
+    .map-filter-select {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    /* District Inspector Sidebar */
+    .district-inspector {
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-color);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .inspector-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(31, 41, 55, 0.4);
+    }
+
+    .inspector-dept {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .inspector-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-top: 4px;
+    }
+
+    .inspector-stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .stat-badge {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .stat-badge-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .stat-badge-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 2px;
+    }
+
+    /* Inspector Tabs: Intendente vs Concejales */
+    .inspector-nav {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-surface-elevated);
+    }
+
+    .inspector-nav-btn {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .inspector-nav-btn.active {
+      color: #38bdf8;
+      border-bottom-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .inspector-body {
+      padding: 20px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Intendente Winner Card */
+    .winner-card {
+      background: linear-gradient(145deg, rgba(31, 41, 55, 0.6), rgba(17, 24, 39, 0.8));
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .winner-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #fbbf24;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .winner-name {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .winner-party {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .party-pill {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .winner-metrics {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .metric-primary {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #34d399;
+    }
+
+    .metric-secondary {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Candidate List Bar */
+    .candidate-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .cand-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .cand-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+    }
+
+    .cand-name {
+      font-weight: 600;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cand-votes {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .progress-bar-bg {
+      height: 7px;
+      background: var(--bg-surface-elevated);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    /* Concejales D'Hondt Table */
+    .seats-distribution-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .seat-chip {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .concejales-table-wrap {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg-surface-elevated);
+    }
+
+    .concejales-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.775rem;
+      text-align: left;
+    }
+
+    .concejales-table th {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 10px 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.675rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .concejales-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: #e5e7eb;
+    }
+
+    .concejales-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .concejales-table tr:hover td {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .banca-number {
+      font-weight: 800;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .jump-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    .jump-neutral {
+      display: inline-block;
+      font-size: 0.65rem;
+      color: var(--text-subtle);
+    }
+
+    /* Analysis & Table Views */
+    .container-boxed {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .chart-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+
+    /* Filterable Data Table */
+    .table-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      overflow-x: auto;
+    }
+
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.825rem;
+    }
+
+    .data-table th {
+      background: var(--bg-surface-elevated);
+      padding: 12px 14px;
+      color: var(--text-muted);
+      font-size: 0.725rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .btn-action {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      background: #0284c7;
+      color: white;
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      color: var(--border-color);
+      margin-bottom: 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .map-wrapper {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      #map {
+        height: 550px;
+      }
+      .district-inspector {
+        height: auto;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+      }
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">PY</div>
+      <div class="brand-title">
+        <h1>ELECCIONES PARAGUAY 2026 <span class="status-badge"><span class="status-dot"></span> 100% Cómputo Oficial</span></h1>
+        <p>Tribunal Superior de Justicia Electoral (TSJE) &middot; Transmisión de Resultados Electorales Preliminares (TREP)</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <a href="/" class="tab-btn" style="text-decoration: none; color: #94a3b8; border-color: transparent;"><i class="fa-solid fa-arrow-left"></i> Inicio SIGEL</a>
+      <button class="tab-btn active" onclick="switchTab('mapa')">
+        <i class="fa-solid fa-map-location-dot"></i> Mapa Territorial
+      </button>
+      <button class="tab-btn" onclick="switchTab('analisis')">
+        <i class="fa-solid fa-chart-pie"></i> Tablero General
+      </button>
+      <button class="tab-btn" onclick="switchTab('distritos')">
+        <i class="fa-solid fa-city"></i> Todos los Distritos
+      </button>
+      <button class="tab-btn" onclick="switchTab('concejales')">
+        <i class="fa-solid fa-users-viewfinder"></i> Concejales D'Hondt
+      </button>
+      <button class="tab-btn" onclick="switchTab('descargas')">
+        <i class="fa-solid fa-file-arrow-down"></i> Exportar Datos
+      </button>
+    </nav>
+  </header>
+
+  <!-- Live KPI Bar -->
+  <section class="kpi-container">
+    <div class="kpi-card" style="--card-accent: #38bdf8;">
+      <div class="kpi-label">
+        <span>Distritos Escrutados</span>
+        <i class="fa-solid fa-check-double text-blue-400"></i>
+      </div>
+      <div class="kpi-value" id="kpi-distritos">263 / 263</div>
+      <div class="kpi-sub">100% de municipios de la República</div>
+    </div>
+
+    <div class="kpi-card" style="--card-accent: #10b981;">
+      <div class="kpi-label">
+        <span>Total Votos Emitidos</span>
+        <i class="fa-solid fa-check-to-slot"></i>
+      </div>
+      <div class="kpi-value" id="kpi-votos">2,946,539</div>
+      <div class="kpi-sub">Participación: <strong id="kpi-participacion" style="color: #34d399;">58.77%</strong> del padrón</div>
+    </div>
+
+    <div class="kpi-card" style="--card-accent: #ef4444;">
+      <div class="kpi-label">
+        <span>Intendencias ANR (Colorado)</span>
+        <i class="fa-solid fa-flag"></i>
+      </div>
+      <div class="kpi-value" style="color: #f87171;" id="kpi-anr">187</div>
+      <div class="kpi-sub">71.1% de los municipios del país</div>
+    </div>
+
+    <div class="kpi-card" style="--card-accent: #3b82f6;">
+      <div class="kpi-label">
+        <span>Intendencias Oposición & Alianzas</span>
+        <i class="fa-solid fa-handshake"></i>
+      </div>
+      <div class="kpi-value" style="color: #60a5fa;" id="kpi-oposicion">76</div>
+      <div class="kpi-sub">PLRA (34), Yo Creo (3), Alianzas (39)</div>
+    </div>
+
+    <div class="kpi-card" style="--card-accent: #a855f7;">
+      <div class="kpi-label">
+        <span>Bancas Concejales (D'Hondt)</span>
+        <i class="fa-solid fa-landmark"></i>
+      </div>
+      <div class="kpi-value" style="color: #c084fc;" id="kpi-concejales">2,832</div>
+      <div class="kpi-sub">Concejales Titulares Adjudicados</div>
+    </div>
+  </section>
+
+  <!-- TAB CONTENT 1: MAP VIEW -->
+  <div id="tab-mapa" class="tab-content active">
+    <div class="map-wrapper">
+      
+      <!-- Leaflet Map Container -->
+      <div id="map"></div>
+
+      <!-- Floating Map Filter & Search Panel -->
+      <div class="map-floating-panel">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="map-search-input" placeholder="Buscar distrito o intendente..." onkeyup="filterDistrictsMap(this.value)">
+        </div>
+
+        <select class="map-filter-select" id="map-dept-filter" onchange="applyMapDepartmentFilter(this.value)">
+          <option value="ALL">Todos los Departamentos (18)</option>
+          <option value="0">0 - Capital (Asunción)</option>
+          <option value="1">1 - Concepción</option>
+          <option value="2">2 - San Pedro</option>
+          <option value="3">3 - Cordillera</option>
+          <option value="4">4 - Guairá</option>
+          <option value="5">5 - Caaguazú</option>
+          <option value="6">6 - Caazapá</option>
+          <option value="7">7 - Itapúa</option>
+          <option value="8">8 - Misiones</option>
+          <option value="9">9 - Paraguarí</option>
+          <option value="10">10 - Alto Paraná</option>
+          <option value="11">11 - Central</option>
+          <option value="12">12 - Ñeembucú</option>
+          <option value="13">13 - Amambay</option>
+          <option value="14">14 - Canindeyú</option>
+          <option value="15">15 - Presidente Hayes</option>
+          <option value="16">16 - Alto Paraguay</option>
+          <option value="17">17 - Boquerón</option>
+        </select>
+
+        <div class="map-legend">
+          <div class="legend-item" onclick="filterByParty('COLORADO')">
+            <span class="legend-color" style="background: var(--color-anr);"></span> ANR / Colorado (187)
+          </div>
+          <div class="legend-item" onclick="filterByParty('LIBERAL')">
+            <span class="legend-color" style="background: var(--color-plra);"></span> PLRA / Liberal (34)
+          </div>
+          <div class="legend-item" onclick="filterByParty('YO CREO')">
+            <span class="legend-color" style="background: var(--color-yocreo);"></span> Yo Creo (3)
+          </div>
+          <div class="legend-item" onclick="filterByParty('ALIANZA')">
+            <span class="legend-color" style="background: var(--color-alianza);"></span> Alianzas / Otros (39)
+          </div>
+        </div>
+      </div>
+
+      <!-- District Inspector Sidebar -->
+      <aside class="district-inspector" id="inspector">
+        <div class="inspector-header">
+          <div class="inspector-dept" id="insp-dept">
+            <i class="fa-solid fa-location-dot"></i> <span id="insp-dept-name">CAPITAL</span>
+          </div>
+          <h2 class="inspector-title" id="insp-dist-name">ASUNCIÓN</h2>
+          
+          <div class="inspector-stats-grid">
+            <div class="stat-badge">
+              <div class="stat-badge-label">Participación</div>
+              <div class="stat-badge-value" id="insp-part">61.7%</div>
+            </div>
+            <div class="stat-badge">
+              <div class="stat-badge-label">Votos Totales</div>
+              <div class="stat-badge-value" id="insp-votos">278,823</div>
+            </div>
+            <div class="stat-badge">
+              <div class="stat-badge-label">Electores</div>
+              <div class="stat-badge-value" id="insp-electores">451,583</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inspector Sub Tabs -->
+        <div class="inspector-nav">
+          <button class="inspector-nav-btn active" id="insp-tab-btn-int" onclick="switchInspectorTab('int')">
+            <i class="fa-solid fa-user-tie"></i> Intendente
+          </button>
+          <button class="inspector-nav-btn" id="insp-tab-btn-jun" onclick="switchInspectorTab('jun')">
+            <i class="fa-solid fa-users"></i> Concejales D'Hondt (<span id="insp-total-bancas">24</span>)
+          </button>
+        </div>
+
+        <div class="inspector-body">
+          
+          <!-- Intendente View -->
+          <div id="insp-view-int">
+            <div class="winner-card">
+              <div class="winner-badge">
+                <i class="fa-solid fa-trophy"></i> Intendente Electo
+              </div>
+              <h3 class="winner-name" id="insp-winner-name">SOLE NUÑEZ</h3>
+              <div class="winner-party">
+                <span class="party-pill" id="insp-winner-pill" style="background: var(--color-alianza);"></span>
+                <span id="insp-winner-party">ALIANZA JUNTOS POR ASUNCION (Lista 4)</span>
+              </div>
+              <div class="winner-metrics">
+                <div>
+                  <div class="metric-primary" id="insp-winner-pct">47.78%</div>
+                  <div class="metric-secondary" id="insp-winner-votos">133,231 votos</div>
+                </div>
+                <div style="margin-left: auto; text-align: right;">
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Margen victoria</div>
+                  <div style="font-weight: 700; color: #ffffff;" id="insp-winner-margin">+5,465 votos (1.96%)</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+              <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">
+                Resultados por Candidato
+              </h4>
+              <div class="candidate-list" id="insp-candidate-list">
+                <!-- Dynamically rendered -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Concejales D'Hondt View -->
+          <div id="insp-view-jun" style="display: none;">
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="font-size: 0.85rem; font-weight: 700; color: #ffffff;">
+                  Distribución de Bancas (D'Hondt)
+                </h4>
+              </div>
+              <div class="seats-distribution-summary" id="insp-seats-summary">
+                <!-- Chips -->
+              </div>
+            </div>
+
+            <!-- Toggle Filter: Entraron vs Quedaron Fuera -->
+            <div style="display: flex; gap: 6px; margin-bottom: 12px; background: var(--bg-surface-elevated); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);">
+              <button class="tab-btn active" id="btn-insp-filter-electos" onclick="filterInspectorConcejales('ELECTO')" style="flex: 1; padding: 6px; font-size: 0.725rem; justify-content: center;">
+                <i class="fa-solid fa-check" style="color: #34d399;"></i> Entraron (<span id="insp-count-electos">0</span>)
+              </button>
+              <button class="tab-btn" id="btn-insp-filter-no-electos" onclick="filterInspectorConcejales('NO_ELECTO')" style="flex: 1; padding: 6px; font-size: 0.725rem; justify-content: center;">
+                <i class="fa-solid fa-xmark" style="color: #f87171;"></i> Quedaron Fuera (<span id="insp-count-no-electos">0</span>)
+              </button>
+              <button class="tab-btn" id="btn-insp-filter-all" onclick="filterInspectorConcejales('ALL')" style="flex: 1; padding: 6px; font-size: 0.725rem; justify-content: center;">
+                Todos (<span id="insp-count-all">0</span>)
+              </button>
+            </div>
+
+            <div class="concejales-table-wrap">
+              <table class="concejales-table">
+                <thead>
+                  <tr>
+                    <th>Banca / Estado</th>
+                    <th>Partido</th>
+                    <th>Candidato</th>
+                    <th>Votos Pref.</th>
+                    <th>Resultado / Motivo</th>
+                  </tr>
+                </thead>
+                <tbody id="insp-concejales-tbody">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top: 14px; font-size: 0.7rem; color: var(--text-muted); background: var(--bg-surface-elevated); padding: 10px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+              <i class="fa-solid fa-circle-info" style="color: #38bdf8;"></i> <strong>Ley N° 6318/19:</strong> Las bancas se asignan a cada partido según el Sistema D'Hondt de cocientes decrecientes. La adjudicación nominal dentro de cada lista corresponde a los candidatos con mayor cantidad de votos preferenciales individuales.
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- TAB CONTENT 2: TABLERO GENERAL Y ANÁLISIS NACIONAL -->
+  <div id="tab-analisis" class="tab-content">
+    <div class="container-boxed">
+      
+      <div class="analysis-grid">
+        <div class="chart-panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-chart-pie" style="color: #ef4444;"></i> Distribución de Intendencias Municipales (263 Distritos)
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-intendencias"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="panel-title">
+            <i class="fa-solid fa-landmark" style="color: #a855f7;"></i> Distribución Nacional de Concejales (2,832 Bancas D'Hondt)
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-concejales"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <div class="panel-title">
+          <i class="fa-solid fa-chart-column" style="color: #3b82f6;"></i> Participación Ciudadana (%) por Departamento
+        </div>
+        <div class="chart-container" style="height: 320px;">
+          <canvas id="chart-departamentos"></canvas>
+        </div>
+      </div>
+
+      <!-- Highlights Cards Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+        
+        <div class="chart-panel">
+          <div class="panel-title" style="color: #f59e0b;">
+            <i class="fa-solid fa-fire"></i> Elecciones Más Reñidas (Infartantes)
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Municipios definidos por el menor margen de votos:</div>
+          <div class="candidate-list" id="highlights-closest">
+            <!-- Dynamically loaded -->
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="panel-title" style="color: #10b981;">
+            <i class="fa-solid fa-rocket"></i> Los Mayores Saltos por Voto Preferencial
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Candidatos a concejal que treparon posiciones desde el fondo de la lista:</div>
+          <div class="candidate-list" id="highlights-climbers">
+            <!-- Dynamically loaded -->
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="panel-title" style="color: #38bdf8;">
+            <i class="fa-solid fa-star"></i> Los Concejales Más Votados del País
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Líderes comunales con mayor caudal personal de votos preferenciales:</div>
+          <div class="candidate-list" id="highlights-top-concejales">
+            <!-- Dynamically loaded -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB CONTENT 3: TODOS LOS DISTRITOS TABLE -->
+  <div id="tab-distritos" class="tab-content">
+    <div class="container-boxed">
+      <div class="table-container">
+        
+        <div class="table-toolbar">
+          <div style="display: flex; gap: 12px; align-items: center; flex: 1; min-width: 280px;">
+            <div class="search-box" style="flex: 1;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="table-search-input" placeholder="Buscar por distrito, departamento o ganador..." onkeyup="filterDistrictsTable(this.value)">
+            </div>
+            
+            <select class="map-filter-select" id="table-dept-filter" onchange="filterDistrictsTable()">
+              <option value="ALL">Todos los Departamentos</option>
+              <option value="0">0 - Capital</option>
+              <option value="1">1 - Concepción</option>
+              <option value="2">2 - San Pedro</option>
+              <option value="3">3 - Cordillera</option>
+              <option value="4">4 - Guairá</option>
+              <option value="5">5 - Caaguazú</option>
+              <option value="6">6 - Caazapá</option>
+              <option value="7">7 - Itapúa</option>
+              <option value="8">8 - Misiones</option>
+              <option value="9">9 - Paraguarí</option>
+              <option value="10">10 - Alto Paraná</option>
+              <option value="11">11 - Central</option>
+              <option value="12">12 - Ñeembucú</option>
+              <option value="13">13 - Amambay</option>
+              <option value="14">14 - Canindeyú</option>
+              <option value="15">15 - Pte. Hayes</option>
+              <option value="16">16 - Alto Paraguay</option>
+              <option value="17">17 - Boquerón</option>
+            </select>
+          </div>
+
+          <div style="font-size: 0.825rem; color: var(--text-muted);">
+            Mostrando <strong id="table-count" style="color: white;">263</strong> distritos
+          </div>
+        </div>
+
+        <table class="data-table" id="main-districts-table">
+          <thead>
+            <tr>
+              <th onclick="sortTable(0)">Distrito</th>
+              <th onclick="sortTable(1)">Departamento</th>
+              <th onclick="sortTable(2)">Intendente Ganador</th>
+              <th onclick="sortTable(3)">Partido</th>
+              <th onclick="sortTable(4)">Votos</th>
+              <th onclick="sortTable(5)">% Votos</th>
+              <th onclick="sortTable(6)">Participación</th>
+              <th onclick="sortTable(7)">Margen Votos</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="districts-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT 4: CONCEJALES EXPLORER -->
+  <div id="tab-concejales" class="tab-content">
+    <div class="container-boxed">
+      <div class="table-container">
+        
+        <div class="table-toolbar">
+          <div style="display: flex; gap: 12px; align-items: center; flex: 1; min-width: 280px; flex-wrap: wrap;">
+            <div class="search-box" style="flex: 1; min-width: 200px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="concejales-search-input" placeholder="Buscar concejal por nombre, partido o distrito..." onkeyup="filterConcejalesTable()">
+            </div>
+            
+            <select class="map-filter-select" id="concejales-status-filter" onchange="filterConcejalesTable()">
+              <option value="ALL">Todos los Candidatos (9,174)</option>
+              <option value="ELECTO" selected>🟢 Solo los que Entraron (2,832)</option>
+              <option value="NO_ELECTO">🔴 Solo los que Quedaron Fuera (6,342)</option>
+            </select>
+
+            <select class="map-filter-select" id="concejales-party-filter" onchange="filterConcejalesTable()">
+              <option value="ALL">Todos los Partidos</option>
+              <option value="COLORADO">Partido Colorado (ANR)</option>
+              <option value="LIBERAL">Partido Liberal (PLRA)</option>
+              <option value="YO CREO">Yo Creo</option>
+              <option value="OTROS">Otras Alianzas y Partidos</option>
+            </select>
+          </div>
+
+          <div style="font-size: 0.825rem; color: var(--text-muted);">
+            Mostrando: <strong id="concejales-count" style="color: #c084fc;">2,832</strong> candidatos
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Candidato</th>
+              <th>Distrito</th>
+              <th>Departamento</th>
+              <th>Partido / Lista</th>
+              <th>Estado</th>
+              <th>Votos Preferenciales</th>
+              <th>Orden Original</th>
+              <th>Desbloqueo</th>
+              <th>Detalle / Causa</th>
+            </tr>
+          </thead>
+          <tbody id="concejales-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT 5: DESCARGAS Y EXPORTACIÓN -->
+  <div id="tab-descargas" class="tab-content">
+    <div class="container-boxed" style="max-width: 900px;">
+      
+      <div class="chart-panel" style="text-align: center; padding: 40px 20px;">
+        <i class="fa-solid fa-database" style="font-size: 3rem; color: #38bdf8; margin-bottom: 16px;"></i>
+        <h2 style="font-size: 1.6rem; font-weight: 800; color: white;">Descargas Oficiales y Datos Abiertos</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; max-width: 600px; margin-left: auto; margin-right: auto;">
+          Exportaciones completas en formatos CSV y JSON estructurados para investigadores, periodistas de datos y la ciudadanía en general.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 32px; text-align: left;">
+          
+          <a href="tsje_data/consolidado_intendentes.csv" download class="kpi-card" style="text-decoration: none; --card-accent: #38bdf8;">
+            <div class="kpi-label">
+              <span>CSV &middot; 44 KB</span>
+              <i class="fa-solid fa-file-csv" style="color: #38bdf8; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Intendentes Municipales</div>
+            <div class="kpi-sub">Resultados de los 263 distritos, ganadores, votos y márgenes.</div>
+          </a>
+
+          <a href="tsje_data/concejales_todos_con_estado.csv" download class="kpi-card" style="text-decoration: none; --card-accent: #38bdf8;">
+            <div class="kpi-label">
+              <span>CSV &middot; 780 KB</span>
+              <i class="fa-solid fa-users" style="color: #38bdf8; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Todos los 9,174 Candidatos</div>
+            <div class="kpi-sub">Listado nacional con estado: quiénes entraron y quiénes no.</div>
+          </a>
+
+          <a href="tsje_data/concejales_no_electos.csv" download class="kpi-card" style="text-decoration: none; --card-accent: #ef4444;">
+            <div class="kpi-label">
+              <span>CSV &middot; 520 KB</span>
+              <i class="fa-solid fa-user-xmark" style="color: #ef4444; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Los 6,342 que Quedaron Fuera</div>
+            <div class="kpi-sub">Candidatos no electos con sus votos y la causa exacta.</div>
+          </a>
+
+          <a href="tsje_data/concejales_electos_dhondt.csv" download class="kpi-card" style="text-decoration: none; --card-accent: #a855f7;">
+            <div class="kpi-label">
+              <span>CSV &middot; 248 KB</span>
+              <i class="fa-solid fa-file-csv" style="color: #a855f7; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Concejales Electos D'Hondt</div>
+            <div class="kpi-sub">Las 2,832 bancas titulares con votos preferenciales y desbloqueo.</div>
+          </a>
+
+          <a href="tsje_data/consolidado_juntas.csv" download class="kpi-card" style="text-decoration: none; --card-accent: #10b981;">
+            <div class="kpi-label">
+              <span>CSV &middot; 35 KB</span>
+              <i class="fa-solid fa-file-csv" style="color: #10b981; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Juntas Municipales</div>
+            <div class="kpi-sub">Total de votos y bancas por partido en cada municipio.</div>
+          </a>
+
+          <a href="tsje_data/resumen_nacional.json" download class="kpi-card" style="text-decoration: none; --card-accent: #f59e0b;">
+            <div class="kpi-label">
+              <span>JSON &middot; 16 KB</span>
+              <i class="fa-solid fa-file-code" style="color: #f59e0b; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Resumen Nacional JSON</div>
+            <div class="kpi-sub">Metadatos y totales generales calculados por TSJE.</div>
+          </a>
+
+        </div>
+
+        <div style="margin-top: 36px; padding: 20px; background: var(--bg-surface-elevated); border-radius: 12px; border: 1px solid var(--border-color); text-align: left;">
+          <h4 style="font-size: 0.95rem; font-weight: 700; color: white; margin-bottom: 8px;">
+            <i class="fa-solid fa-book" style="color: #38bdf8;"></i> Informe Detallado en Markdown
+          </h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+            También se ha generado el reporte completo en texto estructurado en el archivo local:
+            <code style="color: #38bdf8; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">INFORME_ANALISIS_ELECTORAL_PARAGUAY.md</code>
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Load Embedded Data Bundle -->
+  <script src="tsje_data/bundle_electoral.js"></script>
+
+  <!-- Application Logic -->
+  <script>
+    let map = null;
+    let geojsonLayer = null;
+    let currentSelectedFeature = null;
+
+    // Helper: Party Color
+    function getPartyColor(party) {
+      if (!party) return '#6b7280';
+      const p = party.toUpperCase();
+      if (p.includes('COLORADO') || p.includes('ANR')) return '#ef4444';
+      if (p.includes('LIBERAL') || p.includes('PLRA')) return '#3b82f6';
+      if (p.includes('YO CREO')) return '#10b981';
+      if (p.includes('ALIANZA JUNTOS POR ASUNCION')) return '#f59e0b';
+      if (p.includes('ALIANZA')) return '#eab308';
+      if (p.includes('PATRIA QUERIDA')) return '#06b6d4';
+      if (p.includes('ENCUENTRO NACIONAL')) return '#8b5cf6';
+      return '#8b5cf6';
+    }
+
+    // Switch Top Navigation Tabs
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      const btn = event ? event.currentTarget : document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+      if (btn) btn.classList.add('active');
+
+      const content = document.getElementById(`tab-${tabId}`);
+      if (content) content.classList.add('active');
+
+      if (tabId === 'mapa' && map) {
+        setTimeout(() => map.invalidateSize(), 100);
+      }
+    }
+
+    // Switch Inspector Subtabs (Intendente vs Concejales)
+    function switchInspectorTab(subTab) {
+      document.getElementById('insp-tab-btn-int').classList.toggle('active', subTab === 'int');
+      document.getElementById('insp-tab-btn-jun').classList.toggle('active', subTab === 'jun');
+      document.getElementById('insp-view-int').style.display = subTab === 'int' ? 'block' : 'none';
+      document.getElementById('insp-view-jun').style.display = subTab === 'jun' ? 'block' : 'none';
+    }
+
+    // Initialize Leaflet Map
+    function initMap() {
+      // Centered on Paraguay
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+      }).setView([-23.4425, -58.4438], 6);
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      // Dark Matter Tiles
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 14,
+        subdomains: 'abcd'
+      }).addTo(map);
+
+      if (window.PARAGUAY_GEOJSON) {
+        renderGeoJSON(window.PARAGUAY_GEOJSON);
+      }
+    }
+
+    function styleFeature(feature) {
+      const p = feature.properties;
+      const winnerParty = p.ganador_partido || '';
+      const fillColor = getPartyColor(winnerParty);
+
+      return {
+        fillColor: fillColor,
+        weight: 1,
+        opacity: 0.8,
+        color: '#1f2937',
+        fillOpacity: 0.72
+      };
+    }
+
+    function renderGeoJSON(geo) {
+      if (geojsonLayer) map.removeLayer(geojsonLayer);
+
+      geojsonLayer = L.geoJSON(geo, {
+        style: styleFeature,
+        onEachFeature: function(feature, layer) {
+          const p = feature.properties;
+
+          // Tooltip on Hover
+          const tooltipContent = `
+            <div style="font-family: 'Inter', sans-serif; font-size: 12px; padding: 2px;">
+              <strong style="color: #38bdf8; text-transform: uppercase;">${p.dist_name || p.shapeName}</strong><br>
+              <span style="color: #9ca3af; font-size: 11px;">${p.dpto_name || ''}</span><br>
+              <div style="margin-top: 4px; font-weight: 700; color: #fff;">
+                Ganador: ${p.ganador_nombre || 'Sin datos'}
+              </div>
+              <div style="font-size: 11px; color: ${getPartyColor(p.ganador_partido)};">
+                ${p.ganador_partido || ''} (${p.ganador_pct || 0}%)
+              </div>
+              <div style="font-size: 10px; color: #9ca3af; margin-top: 2px;">
+                Margen: +${(p.margen_votos || 0).toLocaleString()} votos
+              </div>
+            </div>
+          `;
+          layer.bindTooltip(tooltipContent, { sticky: true, className: 'map-custom-tooltip' });
+
+          layer.on({
+            mouseover: function(e) {
+              const l = e.target;
+              l.setStyle({
+                weight: 2.5,
+                color: '#ffffff',
+                fillOpacity: 0.9
+              });
+              l.bringToFront();
+            },
+            mouseout: function(e) {
+              geojsonLayer.resetStyle(e.target);
+            },
+            click: function(e) {
+              selectDistrict(feature.properties);
+              map.fitBounds(e.target.getBounds(), { maxZoom: 10, padding: [40, 40] });
+            }
+          });
+        }
+      }).addTo(map);
+
+      // Select Asunción by default
+      const asuncion = window.INTENDENTES_DATA.find(d => d.dpto_id === "0" && d.dist_id === "0");
+      if (asuncion) selectDistrict(asuncion);
+    }
+
+    // Select District and populate Inspector
+    function selectDistrict(d) {
+      if (!d) return;
+
+      document.getElementById('insp-dept-name').textContent = d.dpto_name || 'PARAGUAY';
+      document.getElementById('insp-dist-name').textContent = d.dist_name || d.shapeName;
+      document.getElementById('insp-part').textContent = (d.participacion_pct || 0) + '%';
+      document.getElementById('insp-votos').textContent = (d.total_votos || 0).toLocaleString();
+      document.getElementById('insp-electores').textContent = (d.electores || 0).toLocaleString();
+
+      // Intendente Winner Info
+      document.getElementById('insp-winner-name').textContent = d.ganador_nombre || 'SIN DATOS';
+      document.getElementById('insp-winner-party').textContent = (d.ganador_partido || '') + (d.ganador_lista ? ` (Lista ${d.ganador_lista})` : '');
+      const partyColor = getPartyColor(d.ganador_partido);
+      document.getElementById('insp-winner-pill').style.background = partyColor;
+      document.getElementById('insp-winner-pct').textContent = (d.ganador_pct || 0) + '%';
+      document.getElementById('insp-winner-votos').textContent = (d.ganador_votos || 0).toLocaleString() + ' votos';
+      document.getElementById('insp-winner-margin').textContent = `+${(d.margen_votos || 0).toLocaleString()} votos (${d.margen_pct || 0}%)`;
+
+      // Candidates List
+      const candListEl = document.getElementById('insp-candidate-list');
+      candListEl.innerHTML = '';
+      if (d.candidatos && d.candidatos.length > 0) {
+        d.candidatos.forEach(c => {
+          const cColor = getPartyColor(c.partido);
+          const row = document.createElement('div');
+          row.className = 'cand-row';
+          row.innerHTML = `
+            <div class="cand-info">
+              <span class="cand-name">
+                <span class="party-pill" style="background: ${cColor};"></span>
+                ${c.nombre} <small style="color: var(--text-muted); font-weight: normal;">(L.${c.lista})</small>
+              </span>
+              <span class="cand-votes">${(c.votos || 0).toLocaleString()} (${c.pct}%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${c.pct}%; background: ${cColor};"></div>
+            </div>
+          `;
+          candListEl.appendChild(row);
+        });
+      }
+
+      // Concejales D'Hondt Info
+      // Find all candidates for this district from CONCEJALES_TODOS
+      currentDistrictAllCandidates = (window.CONCEJALES_TODOS || []).filter(c => 
+        (c.dpto_id == d.dpto_id && c.dist_id == d.dist_id) ||
+        (c.dist_name && d.dist_name && c.dist_name.toUpperCase() === d.dist_name.toUpperCase())
+      );
+
+      const electosList = currentDistrictAllCandidates.filter(c => c.estado === 'ELECTO');
+      const noElectosList = currentDistrictAllCandidates.filter(c => c.estado === 'NO_ELECTO');
+
+      document.getElementById('insp-count-electos').textContent = electosList.length;
+      document.getElementById('insp-count-no-electos').textContent = noElectosList.length;
+      document.getElementById('insp-count-all').textContent = currentDistrictAllCandidates.length;
+      document.getElementById('insp-total-bancas').textContent = electosList.length || d.total_bancas || 12;
+
+      // Seats chips
+      const seatsSummaryEl = document.getElementById('insp-seats-summary');
+      seatsSummaryEl.innerHTML = '';
+      const partyCounts = {};
+      electosList.forEach(c => {
+        partyCounts[c.partido] = (partyCounts[c.partido] || 0) + 1;
+      });
+
+      for (const [partido, count] of Object.entries(partyCounts)) {
+        const chip = document.createElement('div');
+        chip.className = 'seat-chip';
+        chip.innerHTML = `
+          <span class="party-pill" style="background: ${getPartyColor(partido)};"></span>
+          <span>${partido}: <strong>${count} bancas</strong></span>
+        `;
+        seatsSummaryEl.appendChild(chip);
+      }
+
+      currentDistrictFilter = 'ELECTO';
+      document.getElementById('btn-insp-filter-electos').classList.add('active');
+      document.getElementById('btn-insp-filter-no-electos').classList.remove('active');
+      document.getElementById('btn-insp-filter-all').classList.remove('active');
+      renderInspectorConcejalesTable();
+    }
+
+    let currentDistrictAllCandidates = [];
+    let currentDistrictFilter = 'ELECTO';
+
+    function filterInspectorConcejales(mode) {
+      currentDistrictFilter = mode;
+      document.getElementById('btn-insp-filter-electos').classList.toggle('active', mode === 'ELECTO');
+      document.getElementById('btn-insp-filter-no-electos').classList.toggle('active', mode === 'NO_ELECTO');
+      document.getElementById('btn-insp-filter-all').classList.toggle('active', mode === 'ALL');
+      renderInspectorConcejalesTable();
+    }
+
+    function renderInspectorConcejalesTable() {
+      const tbody = document.getElementById('insp-concejales-tbody');
+      tbody.innerHTML = '';
+
+      let list = currentDistrictAllCandidates;
+      if (currentDistrictFilter === 'ELECTO') {
+        list = currentDistrictAllCandidates.filter(c => c.estado === 'ELECTO');
+      } else if (currentDistrictFilter === 'NO_ELECTO') {
+        list = currentDistrictAllCandidates.filter(c => c.estado === 'NO_ELECTO');
+      }
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No hay candidatos con este filtro</td></tr>';
+        return;
+      }
+
+      list.forEach(c => {
+        const tr = document.createElement('tr');
+        let estadoHtml = '';
+        let detalleHtml = '';
+
+        if (c.estado === 'ELECTO') {
+          estadoHtml = `<span class="banca-number">#${c.banca_titular || c.posicion_final_en_lista}</span> <span style="font-size:0.65rem; color:#34d399; font-weight:700;">TITULAR</span>`;
+          if (c.salto_posiciones > 0) {
+            detalleHtml = `<span class="jump-badge"><i class="fa-solid fa-arrow-trend-up"></i> +${c.salto_posiciones} puestos (orig: #${c.orden_original})</span>`;
+          } else {
+            detalleHtml = `<span class="jump-neutral">Mantuvo #${c.orden_original}</span>`;
+          }
+        } else {
+          estadoHtml = `<span style="font-size:0.65rem; color:#f87171; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 6px; border-radius:4px; font-weight:700;">NO ENTRÓ</span>`;
+          detalleHtml = `<span style="font-size:0.7rem; color:var(--text-muted);">${c.motivo}</span>`;
+        }
+
+        tr.innerHTML = `
+          <td>${estadoHtml}</td>
+          <td>
+            <span class="party-pill" style="background: ${getPartyColor(c.partido)};"></span>
+            L.${c.numLista}
+          </td>
+          <td>
+            <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'};">${c.nombre}</strong>
+          </td>
+          <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${(c.votos_preferenciales || 0).toLocaleString()}</td>
+          <td>${detalleHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Filter districts on Map by search input
+    function filterDistrictsMap(query) {
+      if (!query || query.trim() === '') {
+        geojsonLayer.eachLayer(l => l.setStyle({ fillOpacity: 0.72, opacity: 0.8 }));
+        return;
+      }
+      const q = query.toLowerCase();
+      let firstMatch = null;
+
+      geojsonLayer.eachLayer(l => {
+        const p = l.feature.properties;
+        const name = (p.dist_name || p.shapeName || '').toLowerCase();
+        const winner = (p.ganador_nombre || '').toLowerCase();
+
+        if (name.includes(q) || winner.includes(q)) {
+          l.setStyle({ fillOpacity: 0.95, opacity: 1, weight: 2 });
+          if (!firstMatch) firstMatch = l;
+        } else {
+          l.setStyle({ fillOpacity: 0.1, opacity: 0.2, weight: 0.5 });
+        }
+      });
+
+      if (firstMatch) {
+        selectDistrict(firstMatch.feature.properties);
+      }
+    }
+
+    function applyMapDepartmentFilter(deptId) {
+      if (deptId === 'ALL') {
+        geojsonLayer.eachLayer(l => geojsonLayer.resetStyle(l));
+        map.setView([-23.4425, -58.4438], 6);
+        return;
+      }
+
+      let group = L.featureGroup();
+      geojsonLayer.eachLayer(l => {
+        const p = l.feature.properties;
+        if (p.dpto_id == deptId) {
+          l.setStyle({ fillOpacity: 0.85, opacity: 1, weight: 1.5 });
+          group.addLayer(l);
+        } else {
+          l.setStyle({ fillOpacity: 0.08, opacity: 0.15, weight: 0.5 });
+        }
+      });
+
+      if (group.getLayers().length > 0) {
+        map.fitBounds(group.getBounds(), { padding: [30, 30] });
+      }
+    }
+
+    function filterByParty(partyKeyword) {
+      geojsonLayer.eachLayer(l => {
+        const p = l.feature.properties;
+        const wp = (p.ganador_partido || '').toUpperCase();
+        if (wp.includes(partyKeyword)) {
+          l.setStyle({ fillOpacity: 0.9, opacity: 1, weight: 1.5 });
+        } else {
+          l.setStyle({ fillOpacity: 0.1, opacity: 0.2, weight: 0.5 });
+        }
+      });
+    }
+
+    // Populate Districts Table (Tab 3)
+    function populateDistrictsTable() {
+      const tbody = document.getElementById('districts-tbody');
+      tbody.innerHTML = '';
+
+      window.INTENDENTES_DATA.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${d.dist_name}</strong></td>
+          <td style="color: var(--text-muted);">${d.dpto_name}</td>
+          <td><strong>${d.ganador_nombre}</strong></td>
+          <td>
+            <span class="party-pill" style="background: ${getPartyColor(d.ganador_partido)};"></span>
+            ${d.ganador_partido}
+          </td>
+          <td style="font-family: 'JetBrains Mono', monospace;">${(d.ganador_votos || 0).toLocaleString()}</td>
+          <td><strong style="color: #34d399;">${d.ganador_pct}%</strong></td>
+          <td>${d.participacion_pct}%</td>
+          <td style="font-family: 'JetBrains Mono', monospace;">+${(d.margen_votos || 0).toLocaleString()}</td>
+          <td>
+            <button class="btn-action" onclick="viewDistrictFromTable('${d.dpto_id}', '${d.dist_id}')">
+              <i class="fa-solid fa-eye"></i> Ver
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function viewDistrictFromTable(dptoId, distId) {
+      const d = window.INTENDENTES_DATA.find(x => x.dpto_id == dptoId && x.dist_id == distId);
+      if (d) {
+        switchTab('mapa');
+        selectDistrict(d);
+        if (geojsonLayer) {
+          geojsonLayer.eachLayer(l => {
+            const p = l.feature.properties;
+            if (p.dpto_id == dptoId && p.dist_id == distId) {
+              map.fitBounds(l.getBounds(), { maxZoom: 10 });
+            }
+          });
+        }
+      }
+    }
+
+    function filterDistrictsTable() {
+      const search = (document.getElementById('table-search-input').value || '').toLowerCase();
+      const dept = document.getElementById('table-dept-filter').value;
+      const rows = document.querySelectorAll('#districts-tbody tr');
+
+      let visible = 0;
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        const matchesSearch = text.includes(search);
+        let matchesDept = true;
+        if (dept !== 'ALL') {
+          const deptText = r.children[1].textContent.toLowerCase();
+          const deptOptText = document.querySelector(`#table-dept-filter option[value="${dept}"]`).textContent.split('-')[1]?.trim().toLowerCase() || '';
+          matchesDept = deptText.includes(deptOptText);
+        }
+
+        if (matchesSearch && matchesDept) {
+          r.style.display = '';
+          visible++;
+        } else {
+          r.style.display = 'none';
+        }
+      });
+      document.getElementById('table-count').textContent = visible;
+    }
+
+    // Populate Concejales Table (Tab 4)
+    function populateConcejalesTable() {
+      filterConcejalesTable();
+    }
+
+    function filterConcejalesTable() {
+      const search = (document.getElementById('concejales-search-input').value || '').toLowerCase();
+      const party = document.getElementById('concejales-party-filter').value;
+      const statusFilter = document.getElementById('concejales-status-filter').value;
+      const tbody = document.getElementById('concejales-tbody');
+      tbody.innerHTML = '';
+
+      const all = window.CONCEJALES_TODOS || window.CONCEJALES_DATA || [];
+      let matches = all.filter(c => {
+        if (statusFilter !== 'ALL' && c.estado !== statusFilter) return false;
+        const text = `${c.nombre} ${c.dist_name} ${c.dpto_name} ${c.partido}`.toLowerCase();
+        if (search && !text.includes(search)) return false;
+        if (party !== 'ALL') {
+          const p = (c.partido || '').toUpperCase();
+          if (party === 'COLORADO' && !p.includes('COLORADO')) return false;
+          if (party === 'LIBERAL' && !p.includes('LIBERAL')) return false;
+          if (party === 'YO CREO' && !p.includes('YO CREO')) return false;
+          if (party === 'OTROS' && (p.includes('COLORADO') || p.includes('LIBERAL') || p.includes('YO CREO'))) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('concejales-count').textContent = matches.length.toLocaleString();
+
+      matches.slice(0, 350).forEach(c => {
+        const tr = document.createElement('tr');
+        let estadoHtml = '';
+        let jumpHtml = '';
+
+        if (c.estado === 'ELECTO') {
+          estadoHtml = `<span style="font-size:0.7rem; color:#34d399; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:4px; font-weight:700;">ELECTO (#${c.banca_titular || c.banca || 'T'})</span>`;
+          const salto = c.salto_posiciones !== undefined ? c.salto_posiciones : (c.cambio_posicion || 0);
+          if (salto > 0) {
+            jumpHtml = `<span class="jump-badge"><i class="fa-solid fa-arrow-trend-up"></i> +${salto} puestos</span>`;
+          } else {
+            jumpHtml = `<span class="jump-neutral">Mantuvo #${c.orden_original}</span>`;
+          }
+        } else {
+          estadoHtml = `<span style="font-size:0.7rem; color:#f87171; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 8px; border-radius:4px; font-weight:700;">QUEDÓ FUERA</span>`;
+          jumpHtml = `<span style="font-size:0.7rem; color:var(--text-subtle);">${c.posicion_final_en_lista ? 'Pos. #' + c.posicion_final_en_lista : '-'}</span>`;
+        }
+
+        tr.innerHTML = `
+          <td><strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'};">${c.nombre}</strong></td>
+          <td>${c.dist_name}</td>
+          <td style="color: var(--text-muted);">${c.dpto_name}</td>
+          <td>
+            <span class="party-pill" style="background: ${getPartyColor(c.partido)};"></span>
+            ${c.partido} (L.${c.numLista})
+          </td>
+          <td>${estadoHtml}</td>
+          <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700;">${(c.votos_preferenciales || 0).toLocaleString()}</td>
+          <td>Lugar #${c.orden_original}</td>
+          <td>${jumpHtml}</td>
+          <td style="font-size: 0.725rem; color: var(--text-muted); max-width: 250px;">${c.motivo || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Initialize Charts (Tab 2)
+    function initCharts() {
+      // 1. Doughnut Chart: Intendencias
+      const intCtx = document.getElementById('chart-intendencias').getContext('2d');
+      new Chart(intCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['ANR (Colorado)', 'PLRA (Liberal)', 'Yo Creo', 'Alianzas y Otros'],
+          datasets: [{
+            data: [187, 34, 3, 39],
+            backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'],
+            borderWidth: 2,
+            borderColor: '#111827'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#e5e7eb', font: { family: 'Inter', size: 12 } }
+            }
+          }
+        }
+      });
+
+      // 2. Bar Chart: Concejales
+      const concCtx = document.getElementById('chart-concejales').getContext('2d');
+      new Chart(concCtx, {
+        type: 'bar',
+        data: {
+          labels: ['ANR', 'PLRA', 'Yo Creo', 'UNACE', 'PEN', 'Alianzas'],
+          datasets: [{
+            label: 'Bancas Adjudicadas',
+            data: [1849, 483, 43, 9, 7, 441],
+            backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: '#9ca3af' }, grid: { display: false } },
+            y: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+          }
+        }
+      });
+
+      // 3. Department Participation
+      const deptCtx = document.getElementById('chart-departamentos').getContext('2d');
+      const deptLabels = ['Cordillera', 'Misiones', 'Ñeembucú', 'Guairá', 'Capital', 'Paraguarí', 'Alto Paraguay', 'Central', 'Pte. Hayes', 'Boquerón', 'Alto Paraná', 'Canindeyú', 'Itapúa', 'Caaguazú', 'San Pedro', 'Amambay', 'Concepción', 'Caazapá'];
+      const deptVals = [66.8, 65.1, 64.6, 63.0, 61.7, 61.4, 61.4, 59.6, 59.8, 58.1, 57.9, 57.0, 56.8, 54.9, 54.8, 53.3, 53.2, 51.7];
+
+      new Chart(deptCtx, {
+        type: 'bar',
+        data: {
+          labels: deptLabels,
+          datasets: [{
+            label: 'Participación (%)',
+            data: deptVals,
+            backgroundColor: deptVals.map(v => v >= 60 ? '#10b981' : '#3b82f6'),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#9ca3af', font: { size: 10 } }, grid: { display: false } },
+            y: { min: 40, max: 75, ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+          }
+        }
+      });
+
+      // Populate Highlights Cards
+      // Closest
+      const closest = [
+        { dist: "San José Obrero", dept: "Cordillera", win: "Pablo Coronel (PLRA)", diff: "1 voto", pct: "0.04%" },
+        { dist: "Francisco C. Álvarez", dept: "Canindeyú", win: "César Martínez (ANR)", diff: "12 votos", pct: "0.29%" },
+        { dist: "J. Augusto Saldívar", dept: "Central", win: "Marta Ferrari (ANR)", diff: "56 votos", pct: "0.23%" },
+        { dist: "Yataity del Guairá", dept: "Guairá", win: "Francisco Ferreira (Alianza)", diff: "60 votos", pct: "2.39%" },
+        { dist: "Villa Florida", dept: "Misiones", win: "Dra. Verza (ANR)", diff: "62 votos", pct: "3.84%" }
+      ];
+      const clEl = document.getElementById('highlights-closest');
+      clEl.innerHTML = '';
+      closest.forEach(c => {
+        clEl.innerHTML += `
+          <div class="stat-badge" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${c.dist}</strong> <small style="color: var(--text-muted);">(${c.dept})</small>
+              <div style="font-size: 0.75rem; color: #34d399;">${c.win}</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="jump-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">${c.diff}</span>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">${c.pct}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      // Climbers
+      const climbers = [
+        { name: "Axel Mongelós", dist: "Asunción", orig: 19, banca: 12, jump: 11, votes: 6546 },
+        { name: "Ariel Ferreira", dist: "Concepción", orig: 12, banca: 1, jump: 11, votes: 3043 },
+        { name: "Lalo Villalba", dist: "Salto del Guairá", orig: 12, banca: 1, jump: 11, votes: 1070 },
+        { name: "Maxi Seiferheld", dist: "Asunción", orig: 15, banca: 18, jump: 10, votes: 5146 },
+        { name: "Robert Sandyd", dist: "Itakyry", orig: 12, banca: 4, jump: 10, votes: 689 }
+      ];
+      const cmEl = document.getElementById('highlights-climbers');
+      cmEl.innerHTML = '';
+      climbers.forEach(c => {
+        cmEl.innerHTML += `
+          <div class="stat-badge" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${c.name}</strong> <small style="color: var(--text-muted);">(${c.dist})</small>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Original: #${c.orig} &rarr; <strong>Banca #${c.banca}</strong></div>
+            </div>
+            <div style="text-align: right;">
+              <span class="jump-badge">+${c.jump} puestos</span>
+              <div style="font-size: 0.7rem; color: #38bdf8;">${c.votes.toLocaleString()} votos pref.</div>
+            </div>
+          </div>
+        `;
+      });
+
+      // Top Concejales
+      const topConc = [
+        { name: "Miguel Prieto", dist: "Ciudad del Este", party: "Yo Creo", votes: 26330 },
+        { name: "Gerardo 'Gringo' Benítez", dist: "Asunción", party: "ANR", votes: 15699 },
+        { name: "Álvaro Grau PQ", dist: "Asunción", party: "Alianza", votes: 13530 },
+        { name: "Seba Radice", dist: "Asunción", party: "ANR", votes: 12991 },
+        { name: "Miguel Sosa", dist: "Asunción", party: "ANR", votes: 12962 }
+      ];
+      const tcEl = document.getElementById('highlights-top-concejales');
+      tcEl.innerHTML = '';
+      topConc.forEach(c => {
+        tcEl.innerHTML += `
+          <div class="stat-badge" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${c.name}</strong> <small style="color: var(--text-muted);">(${c.dist})</small>
+              <div style="font-size: 0.75rem; color: ${getPartyColor(c.party)};">${c.party}</div>
+            </div>
+            <div style="text-align: right;">
+              <strong style="color: #38bdf8; font-size: 0.95rem;">${c.votes.toLocaleString()}</strong>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">votos personales</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Startup
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      populateDistrictsTable();
+      populateConcejalesTable();
+      initCharts();
+    });
+  </script>
+</body>
+</html>
