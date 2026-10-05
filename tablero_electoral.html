@@ -1199,6 +1199,144 @@
         max-width: 80px;
       }
     }
+
+    /* =======================================================
+       MODAL FLOTANTE CENTRAL DE ZOOM / FOTO DEL CANDIDATO
+       ======================================================= */
+    .cand-zoom-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      background: rgba(3, 7, 18, 0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .cand-zoom-backdrop.active {
+      opacity: 1;
+    }
+
+    .cand-zoom-backdrop.pinned {
+      pointer-events: auto;
+    }
+
+    .cand-zoom-card {
+      background: var(--bg-surface-elevated, #0f172a);
+      border: 2px solid var(--border-color, #334155);
+      border-radius: 22px;
+      padding: 26px;
+      max-width: 380px;
+      width: 90vw;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px rgba(56, 189, 248, 0.25);
+      text-align: center;
+      transform: scale(0.9) translateY(14px);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+      position: relative;
+      overflow: hidden;
+      pointer-events: auto;
+    }
+
+    .cand-zoom-backdrop:not(.pinned) .cand-zoom-card {
+      pointer-events: none;
+    }
+
+    .cand-zoom-backdrop.active .cand-zoom-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .cand-zoom-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.725rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .cand-zoom-img-wrap {
+      width: 210px;
+      height: 210px;
+      margin: 0 auto 16px auto;
+      border-radius: 50%;
+      position: relative;
+      padding: 5px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05));
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .cand-zoom-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      background: #0f172a;
+      border: 3.5px solid #38bdf8;
+    }
+
+    .cand-zoom-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .cand-zoom-party {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted, #94a3b8);
+      margin-bottom: 14px;
+    }
+
+    .cand-zoom-stats {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+    }
+
+    .cand-zoom-stat-item {
+      flex: 1;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+    }
+
+    .cand-zoom-stat-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .cand-zoom-stat-lbl {
+      font-size: 0.65rem;
+      color: var(--text-muted, #94a3b8);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -2180,6 +2318,42 @@
     </div>
   </div>
 
+  <!-- Modal Flotante de Zoom / Detalle del Candidato al pasar el Mouse -->
+  <div id="cand-zoom-modal" class="cand-zoom-backdrop" onclick="if(event.target === this) hideCandidateZoomModal(true);">
+    <div class="cand-zoom-card">
+      <button class="modal-close-btn" onclick="hideCandidateZoomModal(true)" title="Cerrar">&times;</button>
+      
+      <div id="cand-zoom-badge" class="cand-zoom-badge">
+        <i class="fa-solid fa-award"></i> CANDIDATO OFICIAL
+      </div>
+
+      <div class="cand-zoom-img-wrap">
+        <img id="cand-zoom-img" class="cand-zoom-img" src="" alt="Foto Candidato" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2394a3b8\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>'">
+      </div>
+
+      <h3 id="cand-zoom-name" class="cand-zoom-name">NOMBRE DEL CANDIDATO</h3>
+      <div id="cand-zoom-party" class="cand-zoom-party">
+        <span class="party-pill" id="cand-zoom-pill"></span>
+        <span id="cand-zoom-party-text">PARTIDO POLÍTICO</span>
+      </div>
+
+      <div class="cand-zoom-stats">
+        <div class="cand-zoom-stat-item">
+          <div id="cand-zoom-stat1-val" class="cand-zoom-stat-val">0</div>
+          <div id="cand-zoom-stat1-lbl" class="cand-zoom-stat-lbl">VOTOS</div>
+        </div>
+        <div class="cand-zoom-stat-item">
+          <div id="cand-zoom-stat2-val" class="cand-zoom-stat-val">0%</div>
+          <div id="cand-zoom-stat2-lbl" class="cand-zoom-stat-lbl">PORCENTAJE</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 0.65rem; color: var(--text-muted); opacity: 0.8; letter-spacing: 0.02em;">
+        <i class="fa-solid fa-hand-pointer"></i> Clic para fijar &middot; <kbd style="background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; font-family: inherit;">Esc</kbd> para cerrar
+      </div>
+    </div>
+  </div>
+
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2254,6 +2428,127 @@
       }
       pendingActionCallback = null;
     }
+
+    // =======================================================
+    // MODAL FLOTANTE DE ZOOM DE FOTO Y DATOS DEL CANDIDATO
+    // =======================================================
+    let candZoomTimer = null;
+    let candZoomPinned = false;
+
+    function showCandidateZoomModal(data, pinned = false) {
+      if (!data) return;
+      if (candZoomPinned && !pinned) return;
+
+      clearTimeout(candZoomTimer);
+      candZoomTimer = setTimeout(() => {
+        const modal = document.getElementById('cand-zoom-modal');
+        if (!modal) return;
+
+        const imgEl = document.getElementById('cand-zoom-img');
+        const imgWrap = modal.querySelector('.cand-zoom-img-wrap');
+        const badgeEl = document.getElementById('cand-zoom-badge');
+        const nameEl = document.getElementById('cand-zoom-name');
+        const partyPill = document.getElementById('cand-zoom-pill');
+        const partyText = document.getElementById('cand-zoom-party-text');
+        const cardEl = modal.querySelector('.cand-zoom-card');
+        const stat1Val = document.getElementById('cand-zoom-stat1-val');
+        const stat1Lbl = document.getElementById('cand-zoom-stat1-lbl');
+        const stat2Val = document.getElementById('cand-zoom-stat2-val');
+        const stat2Lbl = document.getElementById('cand-zoom-stat2-lbl');
+
+        const partyColor = getPartyColor(data.party);
+
+        // Identificar si la imagen es emblema de lista o foto del candidato
+        const isEmblem = data.foto && (data.foto.includes('/L') || data.foto.includes('lista_logo') || data.isLogo);
+
+        if (data.foto) {
+          imgEl.src = data.foto;
+          imgEl.onerror = function() {
+            this.onerror = null;
+            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 1 0-16 0'/></svg>";
+          };
+        } else {
+          imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 1 0-16 0'/></svg>";
+        }
+
+        if (isEmblem) {
+          if (imgWrap) imgWrap.style.borderRadius = '20px';
+          imgEl.style.borderRadius = '16px';
+          imgEl.style.objectFit = 'contain';
+          imgEl.style.background = '#ffffff';
+          imgEl.style.padding = '8px';
+        } else {
+          if (imgWrap) imgWrap.style.borderRadius = '50%';
+          imgEl.style.borderRadius = '50%';
+          imgEl.style.objectFit = 'cover';
+          imgEl.style.background = '#0f172a';
+          imgEl.style.padding = '0';
+        }
+
+        imgEl.style.borderColor = partyColor;
+        if (cardEl) {
+          cardEl.style.borderColor = partyColor;
+          cardEl.style.boxShadow = `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px ${partyColor}44`;
+        }
+
+        nameEl.textContent = data.name || 'CANDIDATO';
+        badgeEl.innerHTML = `<i class="fa-solid fa-award"></i> ${data.role || 'CANDIDATO OFICIAL'}`;
+        badgeEl.style.color = partyColor;
+        badgeEl.style.borderColor = partyColor + '55';
+        badgeEl.style.background = partyColor + '1a';
+
+        partyPill.style.background = partyColor;
+        partyText.textContent = `${data.party || ''} ${data.lista ? `(Lista ${data.lista})` : ''}`;
+
+        if (data.votos !== undefined && data.votos !== null && data.votos !== '') {
+          stat1Val.textContent = Number(data.votos).toLocaleString();
+          stat1Lbl.textContent = 'VOTOS';
+        } else {
+          stat1Val.textContent = '-';
+          stat1Lbl.textContent = 'VOTOS';
+        }
+
+        if (data.pct) {
+          stat2Val.textContent = `${data.pct}%`;
+          stat2Lbl.textContent = 'PORCENTAJE';
+        } else if (data.banca) {
+          stat2Val.textContent = `#${data.banca}`;
+          stat2Lbl.textContent = 'BANCA D\'HONDT';
+        } else {
+          stat2Val.textContent = data.extra || 'OFICIAL';
+          stat2Lbl.textContent = 'DETALLE';
+        }
+
+        modal.classList.add('active');
+        if (pinned) {
+          candZoomPinned = true;
+          modal.classList.add('pinned');
+        }
+      }, pinned ? 0 : 50);
+    }
+
+    function togglePinCandidateZoom(data) {
+      if (candZoomPinned) {
+        hideCandidateZoomModal(true);
+      } else {
+        showCandidateZoomModal(data, true);
+      }
+    }
+
+    function hideCandidateZoomModal(force = false) {
+      if (candZoomPinned && !force) return;
+      candZoomPinned = false;
+      clearTimeout(candZoomTimer);
+      const modal = document.getElementById('cand-zoom-modal');
+      if (modal) {
+        modal.classList.remove('active');
+        modal.classList.remove('pinned');
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideCandidateZoomModal(true);
+    });
 
     let googleIdInitialized = false;
 
@@ -2752,6 +3047,27 @@
         }
       }
 
+      const winnerCardEl = document.querySelector('.winner-card');
+      if (winnerCardEl) {
+        winnerCardEl.style.cursor = 'pointer';
+        winnerCardEl.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
+        const winnerZoomData = {
+          name: d.ganador_nombre,
+          party: d.ganador_partido,
+          lista: d.ganador_lista,
+          foto: d.ganador_foto,
+          role: 'Intendente Electo',
+          votos: d.ganador_votos,
+          pct: d.ganador_pct
+        };
+        winnerCardEl.onmouseenter = () => showCandidateZoomModal(winnerZoomData);
+        winnerCardEl.onmouseleave = () => hideCandidateZoomModal();
+        winnerCardEl.onclick = (e) => {
+          e.stopPropagation();
+          togglePinCandidateZoom(winnerZoomData);
+        };
+      }
+
       // Candidates List
       const candListEl = document.getElementById('insp-candidate-list');
       candListEl.innerHTML = '';
@@ -2760,6 +3076,24 @@
           const cColor = getPartyColor(c.partido);
           const row = document.createElement('div');
           row.className = 'cand-row';
+          row.style.cursor = 'pointer';
+          row.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
+          const candZoomData = {
+            name: c.nombre,
+            party: c.partido,
+            lista: c.lista,
+            foto: c.foto,
+            role: 'Candidato a Intendente',
+            votos: c.votos,
+            pct: c.pct
+          };
+          row.onmouseenter = () => showCandidateZoomModal(candZoomData);
+          row.onmouseleave = () => hideCandidateZoomModal();
+          row.onclick = (e) => {
+            e.stopPropagation();
+            togglePinCandidateZoom(candZoomData);
+          };
+
           const fotoHtml = c.foto ? 
             `<img src="${c.foto}" alt="${c.nombre}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${cColor}; flex-shrink: 0; background: var(--bg-surface);" onerror="this.style.display='none'">` : 
             `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${cColor}22; border: 1.5px solid ${cColor}; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: ${cColor}; flex-shrink: 0;">L.${c.lista}</div>`;
@@ -2904,6 +3238,25 @@
         const partyColor = getPartyColor(c.partido);
         const logoUrl = c.lista_logo || (c.numLista ? `tsje_data/fotos_candidatos/L${c.numLista}.jpg` : '');
 
+        tr.style.cursor = 'pointer';
+        tr.title = 'Pasa el mouse para ampliar detalles del candidato o clic para fijar';
+        const concejalZoomData = {
+          name: c.nombre,
+          party: c.partido,
+          lista: c.numLista,
+          foto: logoUrl,
+          role: c.estado === 'ELECTO' ? `Concejal Electo (Banca #${posNumber})` : `Candidato a Concejal (Pos. #${posNumber})`,
+          votos: c.votos_preferenciales,
+          banca: c.banca,
+          extra: c.salto_posiciones > 0 ? `+${c.salto_posiciones} puestos` : (c.motivo || 'Titular')
+        };
+        tr.onmouseenter = () => showCandidateZoomModal(concejalZoomData);
+        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.onclick = (e) => {
+          e.stopPropagation();
+          togglePinCandidateZoom(concejalZoomData);
+        };
+
         if (c.estado === 'ELECTO') {
           estadoHtml = `<span class="banca-number" style="font-weight: 800; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 7px; border-radius: 5px;">#${posNumber}</span> <span style="font-size:0.65rem; color:#34d399; font-weight:700; background: rgba(52, 211, 153, 0.12); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.25);">TITULAR</span>`;
           if (c.salto_posiciones > 0) {
@@ -3026,12 +3379,37 @@
 
       window.INTENDENTES_DATA.forEach(d => {
         const tr = document.createElement('tr');
+        const pColor = getPartyColor(d.ganador_partido);
+        const distCandData = {
+          name: d.ganador_nombre,
+          party: d.ganador_partido,
+          lista: d.ganador_lista,
+          foto: d.ganador_foto,
+          role: `Intendente Electo (${d.dist_name})`,
+          votos: d.ganador_votos,
+          pct: d.ganador_pct
+        };
+
+        tr.style.cursor = 'pointer';
+        tr.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
+        tr.onmouseenter = () => showCandidateZoomModal(distCandData);
+        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.onclick = (e) => {
+          if (e.target.closest('button')) return;
+          togglePinCandidateZoom(distCandData);
+        };
+
         tr.innerHTML = `
           <td><strong>${d.dist_name}</strong></td>
           <td style="color: var(--text-muted);">${d.dpto_name}</td>
-          <td><strong>${d.ganador_nombre}</strong></td>
           <td>
-            <span class="party-pill" style="background: ${getPartyColor(d.ganador_partido)};"></span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${d.ganador_foto ? `<img src="${d.ganador_foto}" alt="${d.ganador_nombre}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${pColor}; flex-shrink: 0; background: var(--bg-surface);" onerror="this.style.display='none'">` : ''}
+              <strong>${d.ganador_nombre}</strong>
+            </div>
+          </td>
+          <td>
+            <span class="party-pill" style="background: ${pColor};"></span>
             ${d.ganador_partido}
           </td>
           <td style="font-family: 'JetBrains Mono', monospace;">${(d.ganador_votos || 0).toLocaleString()}</td>
@@ -3128,6 +3506,26 @@
         const tr = document.createElement('tr');
         let estadoHtml = '';
         let jumpHtml = '';
+        const logoUrl = c.lista_logo || (c.numLista ? `tsje_data/fotos_candidatos/L${c.numLista}.jpg` : '');
+        const pColor = getPartyColor(c.partido);
+        const concejalZoomData = {
+          name: c.nombre,
+          party: c.partido,
+          lista: c.numLista,
+          foto: logoUrl,
+          role: c.estado === 'ELECTO' ? `Concejal Electo (#${c.banca_titular || c.banca || 'T'})` : 'Candidato a Concejal (Fuera)',
+          votos: c.votos_preferenciales,
+          banca: c.banca_titular || c.banca,
+          extra: `${c.dist_name} (${c.dpto_name})`
+        };
+
+        tr.style.cursor = 'pointer';
+        tr.title = 'Pasa el mouse para ampliar detalles del candidato o clic para fijar';
+        tr.onmouseenter = () => showCandidateZoomModal(concejalZoomData);
+        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.onclick = (e) => {
+          togglePinCandidateZoom(concejalZoomData);
+        };
 
         if (c.estado === 'ELECTO') {
           estadoHtml = `<span style="font-size:0.7rem; color:#34d399; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:4px; font-weight:700;">ELECTO (#${c.banca_titular || c.banca || 'T'})</span>`;
@@ -3143,11 +3541,16 @@
         }
 
         tr.innerHTML = `
-          <td><strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'};">${c.nombre}</strong></td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${logoUrl ? `<img src="${logoUrl}" alt="L.${c.numLista}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #ffffff; border: 1px solid var(--border-subtle); flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
+              <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'};">${c.nombre}</strong>
+            </div>
+          </td>
           <td>${c.dist_name}</td>
           <td style="color: var(--text-muted);">${c.dpto_name}</td>
           <td>
-            <span class="party-pill" style="background: ${getPartyColor(c.partido)};"></span>
+            <span class="party-pill" style="background: ${pColor};"></span>
             ${c.partido} (L.${c.numLista})
           </td>
           <td>${estadoHtml}</td>
@@ -3527,6 +3930,25 @@
             const tr = document.createElement('tr');
             const el = parseInt(d.electores, 10) || 0;
             const pct = ((el / totalPadronNacional) * 100).toFixed(2);
+            const top10CandData = {
+              name: d.ganador_nombre,
+              party: d.ganador_partido,
+              lista: d.ganador_lista,
+              foto: d.ganador_foto,
+              role: `Intendente Electo (${d.dist_name})`,
+              votos: d.ganador_votos,
+              pct: d.ganador_pct
+            };
+
+            tr.style.cursor = 'pointer';
+            tr.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
+            tr.onmouseenter = () => showCandidateZoomModal(top10CandData);
+            tr.onmouseleave = () => hideCandidateZoomModal();
+            tr.onclick = (e) => {
+              if (e.target.closest('button')) return;
+              togglePinCandidateZoom(top10CandData);
+            };
+
             tr.innerHTML = `
               <td><span style="font-weight: 800; color: #8b5cf6;">#${idx + 1}</span></td>
               <td>
