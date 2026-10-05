@@ -25,6 +25,12 @@
   <meta name="twitter:title" content="Elecciones Paraguay 2026 | Resultados TSJE y Concejales D'Hondt">
   <meta name="twitter:description" content="Tablero Electoral Interactivo: 263 distritos, 2.832 concejales D'Hondt, padrón oficial de 5.043.154 electores y 100% cómputo oficial TSJE.">
   <meta name="twitter:image" content="https://sigel.in/imagenes/og_preview.jpg">
+
+  <!-- Favicon & Brand Icons -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/imagenes/Logo_SIGEL2.png">
+  <link rel="apple-touch-icon" href="/imagenes/Logo_SIGEL2.png">
   
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2249,6 +2255,8 @@
       pendingActionCallback = null;
     }
 
+    let googleIdInitialized = false;
+
     function initGoogleAuth() {
       renderGoogleButton();
     }
@@ -2256,12 +2264,15 @@
     function renderGoogleButton() {
       if (window.google && window.google.accounts && window.google.accounts.id) {
         try {
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleCredentialResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true
-          });
+          if (!googleIdInitialized) {
+            window.google.accounts.id.initialize({
+              client_id: GOOGLE_CLIENT_ID,
+              callback: handleGoogleCredentialResponse,
+              auto_select: false,
+              cancel_on_tap_outside: true
+            });
+            googleIdInitialized = true;
+          }
           const container = document.getElementById('google-signin-btn-container');
           if (container) {
             container.innerHTML = '';
@@ -2370,7 +2381,7 @@
     async function logVisitorInteraction(accion, detalles) {
       if (!currentVisitor || !currentVisitor.email) return;
       try {
-        await fetch('/api/public/visitantes/log-interaccion', {
+        const res = await fetch('/api/public/visitantes/log-interaccion', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2379,7 +2390,13 @@
             detalles: detalles || {}
           })
         });
-      } catch (e) {}
+        // Non-blocking telemetry
+        if (!res.ok && res.status !== 404) {
+          console.debug('Telemetry log response:', res.status);
+        }
+      } catch (e) {
+        // Silently ignore telemetry failure
+      }
     }
 
     function showToast(message) {
