@@ -49,6 +49,10 @@ Thumbs.db
 *.png
 *.jpg
 *.pdf
+!frontend/public/imagenes/*
+!frontend/public/*.jpg
+!frontend/public/*.png
+!frontend/public/*.jpeg
 !backend/initBD_SIGEL.sql
 !backend/check_dist.sql
 !backend/fix_coords.sql
