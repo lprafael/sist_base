@@ -119,9 +119,13 @@ def main():
         "TTE 1RO MANUEL IRALA FERNANDEZ": ("15", "9"), # Pte. Hayes - Tte. Irala Fernandez
         "YABEBYRY": ("8", "17"), # Misiones - Yavevyry
         "YASY KA'Y": ("14", "16"), # Canindeyu - Yasy Cañy
+        "YASY KANY": ("14", "16"), # Canindeyu - Yasy Cañy (normalized)
+        "YASY KAÑY": ("14", "16"),
         "YBYRAROBANA": ("14", "18"), # Canindeyu - Ybyrarovana
         "YRYVU CUA": ("2", "32"), # San Pedro - Yrybucua
         "YVY YA'U": ("1", "9"), # Concepcion - Yby Ya'u
+        "YVY YA U": ("1", "9"), # Concepcion - Yby Ya'u (normalized)
+        "YVY YA´U": ("1", "9"),
         "YVYCUI": ("9", "29"), # Paraguari - Ybycui
         "YVYTIMI": ("9", "31"), # Paraguari - Ybytymi
         "CAPIIBARY": ("2", "5"), # San Pedro - Capiivary

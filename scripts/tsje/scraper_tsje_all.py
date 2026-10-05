@@ -50,9 +50,9 @@ class TSJEScraper:
             self.session.get(url, headers=self.headers)
             print("[TSJE] Clearance obtained successfully.")
 
-    def fetch_district(self, eleccion, candidatura, dpto_id, dist_id, out_dir):
+    def fetch_district(self, eleccion, candidatura, dpto_id, dist_id, out_dir, force=False):
         out_file = os.path.join(out_dir, f"dept_{dpto_id}_dist_{dist_id}.json")
-        if os.path.exists(out_file) and os.path.getsize(out_file) > 10:
+        if not force and os.path.exists(out_file) and os.path.getsize(out_file) > 10:
             try:
                 with open(out_file, "r", encoding="utf-8") as f:
                     return json.load(f)
@@ -87,7 +87,7 @@ class TSJEScraper:
                 time.sleep(0.5 + attempt * 0.5)
         return None
 
-    def scrape_all(self):
+    def scrape_all(self, force=False):
         # Load metadata
         with open("tsje_data/departamentos.js", "r", encoding="utf-8") as f:
             dept_raw = f.read()
@@ -111,13 +111,13 @@ class TSJEScraper:
                     "dist_name": clean_dist_name
                 })
 
-        print(f"[TSJE] Starting scrape of {len(targets)} districts...")
+        print(f"[TSJE] Starting scrape of {len(targets)} districts (force_refresh={force})...")
         
         # Scrape Intendentes (Candidatura 1)
         print("\n--- Scraping Candidatura 1 (Intendentes Municipales) ---")
         count_int = 0
         for i, t in enumerate(targets):
-            data = self.fetch_district(elec, "1", t["dpto_id"], t["dist_id"], self.raw_dir_int)
+            data = self.fetch_district(elec, "1", t["dpto_id"], t["dist_id"], self.raw_dir_int, force=force)
             if data:
                 count_int += 1
             if (i + 1) % 25 == 0 or (i + 1) == len(targets):
@@ -128,7 +128,7 @@ class TSJEScraper:
         print("\n--- Scraping Candidatura 2 (Juntas Municipales & Concejales) ---")
         count_jun = 0
         for i, t in enumerate(targets):
-            data = self.fetch_district(elec, "2", t["dpto_id"], t["dist_id"], self.raw_dir_jun)
+            data = self.fetch_district(elec, "2", t["dpto_id"], t["dist_id"], self.raw_dir_jun, force=force)
             if data:
                 count_jun += 1
             if (i + 1) % 25 == 0 or (i + 1) == len(targets):
@@ -247,8 +247,11 @@ class TSJEScraper:
                 margen_votos = votos_ganador - votos_segundo
                 margen_pct = round((margen_votos / votos_totales * 100), 2) if votos_totales > 0 else 0.0
 
-                partido_ganador = ganador.get("desPartido", "DESCONOCIDO") if ganador else "SIN DATOS"
-                partidos_intendencias_ganadas[partido_ganador] = partidos_intendencias_ganadas.get(partido_ganador, 0) + 1
+                if votos_totales > 0 and ganador and int(ganador.get("votos", 0)) > 0:
+                    partido_ganador = ganador.get("desPartido", "DESCONOCIDO")
+                    partidos_intendencias_ganadas[partido_ganador] = partidos_intendencias_ganadas.get(partido_ganador, 0) + 1
+                else:
+                    partido_ganador = "SIN COMPUTAR"
 
                 for c in candidatos:
                     p = c.get("desPartido", "OTRO")
@@ -413,5 +416,7 @@ class TSJEScraper:
             print(f" - {p}: {count} bancas")
 
 if __name__ == "__main__":
+    import sys
+    force_refresh = "--no-force" not in sys.argv
     scraper = TSJEScraper()
-    scraper.scrape_all()
+    scraper.scrape_all(force=force_refresh)

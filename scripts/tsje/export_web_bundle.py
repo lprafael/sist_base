@@ -40,13 +40,31 @@ def main():
     size_mb = os.path.getsize(bundle_path) / (1024 * 1024)
     print(f"Generated {bundle_path}: {size_mb:.2f} MB")
 
-    # Also copy directly to web/public
+    # Also copy directly to frontend/public
     import shutil
-    os.makedirs("web/public/tsje_data", exist_ok=True)
-    shutil.copy("tsje_data/bundle_electoral.js", "web/public/tsje_data/bundle_electoral.js")
-    shutil.copy("tsje_data/concejales_todos_con_estado.csv", "web/public/tsje_data/concejales_todos_con_estado.csv")
-    shutil.copy("tsje_data/concejales_no_electos.csv", "web/public/tsje_data/concejales_no_electos.csv")
-    print("[OK] Synchronized bundle and new CSVs to web/public/tsje_data/")
+    for target_dir in ["frontend/public/tsje_data"]:
+        os.makedirs(target_dir, exist_ok=True)
+        for fname in [
+            "bundle_electoral.js",
+            "concejales_todos_con_estado.csv",
+            "concejales_no_electos.csv",
+            "concejales_electos_dhondt.csv",
+            "consolidado_intendentes.csv",
+            "consolidado_juntas.csv",
+            "consolidado_intendentes.json",
+            "consolidado_juntas.json",
+            "concejales_electos_dhondt.json",
+            "concejales_todos_con_estado.json",
+            "resumen_nacional.json",
+            "paraguay_distritos_optimizado.geojson"
+        ]:
+            src = os.path.join("tsje_data", fname)
+            if os.path.exists(src):
+                shutil.copy(src, os.path.join(target_dir, fname))
+
+    if os.path.exists("tablero_electoral.html"):
+        shutil.copy("tablero_electoral.html", "frontend/public/tablero_electoral.html")
+    print("[OK] Synchronized bundle and datasets to frontend/public/tsje_data/ and web/public/tsje_data/")
 
 if __name__ == "__main__":
     main()
