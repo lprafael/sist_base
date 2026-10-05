@@ -1776,6 +1776,12 @@
               </button>
             </div>
 
+            <!-- Notice TSJE Concejales -->
+            <div style="font-size: 0.7rem; color: var(--text-muted); background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-circle-info" style="color: #38bdf8; font-size: 0.85rem; flex-shrink: 0;"></i>
+              <span><strong>Identificación TSJE:</strong> En el cómputo oficial TREP los concejales se identifican por el emblema de su lista y orden preferencial (las fotografías biométricas solo se publican para intendentes). Pasa el cursor para ampliar la ficha.</span>
+            </div>
+
             <div class="concejales-table-wrap">
               <table class="concejales-table">
                 <thead>
@@ -2312,6 +2318,14 @@
           </div>
         </div>
 
+        <!-- Banner Explicativo TSJE Concejales -->
+        <div style="font-size: 0.75rem; color: var(--text-muted); background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 8px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-circle-info" style="color: #38bdf8; font-size: 0.95rem; flex-shrink: 0;"></i>
+            <span><strong>Cómputo Oficial TSJE:</strong> En el sistema TREP los candidatos a concejal se acreditan mediante el <strong>emblema oficial de lista y sus votos preferenciales</strong> (las fotografías biométricas solo se publican para intendentes). Pasa el cursor sobre cualquier concejal para ver su ficha ampliada.</span>
+          </div>
+        </div>
+
         <table class="data-table">
           <thead>
             <tr>
@@ -2665,6 +2679,8 @@
         <img id="cand-zoom-img" class="cand-zoom-img" src="" alt="Foto Candidato" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2394a3b8\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>'">
       </div>
 
+      <div id="cand-zoom-source-badge" style="margin-top: -6px; margin-bottom: 12px; font-size: 0.7rem; font-weight: 600;"></div>
+
       <h3 id="cand-zoom-name" class="cand-zoom-name">NOMBRE DEL CANDIDATO</h3>
       <div id="cand-zoom-party" class="cand-zoom-party">
         <span class="party-pill" id="cand-zoom-pill"></span>
@@ -2823,6 +2839,28 @@
         if (cardEl) {
           cardEl.style.borderColor = partyColor;
           cardEl.style.boxShadow = `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px ${partyColor}44`;
+        }
+
+        const sourceBadge = document.getElementById('cand-zoom-source-badge');
+        if (sourceBadge) {
+          if (isEmblem || (data.role && data.role.toLowerCase().includes('concejal'))) {
+            sourceBadge.innerHTML = `
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                  <i class="fa-solid fa-shield-halved"></i> Emblema Oficial de Lista
+                </span>
+                <div style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.35; max-width: 320px;">
+                  <i class="fa-solid fa-circle-info"></i> El TREP oficial del TSJE no publica fotos individuales para concejales; los acredita por lista y votos preferenciales.
+                </div>
+              </div>
+            `;
+          } else {
+            sourceBadge.innerHTML = `
+              <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.12); color: #34d399; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.25);">
+                <i class="fa-solid fa-camera"></i> Fotografía Oficial TSJE TREP
+              </span>
+            `;
+          }
         }
 
         nameEl.textContent = data.name || 'CANDIDATO';
@@ -3601,6 +3639,7 @@
         const posNumber = c.banca || c.posicion_final || '-';
         const partyColor = getPartyColor(c.partido);
         const logoUrl = c.lista_logo || (c.numLista ? `tsje_data/fotos_candidatos/L${c.numLista}.jpg` : '');
+        const initials = (c.nombre || '').split(' ').filter(p => p && !p.startsWith('"')).slice(0, 2).map(p => p[0]).join('') || 'C';
 
         tr.style.cursor = 'pointer';
         tr.title = 'Pasa el mouse para ampliar detalles del candidato o clic para fijar';
@@ -3609,6 +3648,7 @@
           party: c.partido,
           lista: c.numLista,
           foto: logoUrl,
+          isEmblem: true,
           role: c.estado === 'ELECTO' ? `Concejal Electo (Banca #${posNumber})` : `Candidato a Concejal (Pos. #${posNumber})`,
           votos: c.votos_preferenciales,
           banca: c.banca,
@@ -3649,13 +3689,16 @@
             </div>
           </td>
           <td>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: ${partyColor}22; border: 1px solid ${partyColor}; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: ${partyColor}; flex-shrink: 0;" title="Orden original en papeleta">
-                ${c.orden_original || '#'}
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <div style="position: relative; width: 32px; height: 32px; flex-shrink: 0;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: ${partyColor}22; border: 2px solid ${partyColor}; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 800; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);" title="Orden original en papeleta: #${c.orden_original}">
+                  ${initials}
+                </div>
+                ${logoUrl ? `<img src="${logoUrl}" alt="L.${c.numLista}" style="position: absolute; bottom: -2px; right: -3px; width: 14px; height: 14px; border-radius: 3px; object-fit: contain; background: #ffffff; border: 1px solid var(--border-subtle); box-shadow: 0 1px 3px rgba(0,0,0,0.5);" onerror="this.style.display='none'">` : ''}
               </div>
               <div>
                 <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'}; font-size: 0.8rem; display: block; line-height: 1.2;">${c.nombre}</strong>
-                <span style="font-size: 0.65rem; color: var(--text-muted);">${c.partido}</span>
+                <span style="font-size: 0.65rem; color: var(--text-muted);">${c.partido} &middot; Lista ${c.numLista}</span>
               </div>
             </div>
           </td>
@@ -4225,11 +4268,14 @@
         let jumpHtml = '';
         const logoUrl = c.lista_logo || (c.numLista ? `tsje_data/fotos_candidatos/L${c.numLista}.jpg` : '');
         const pColor = getPartyColor(c.partido);
+        const initials = (c.nombre || '').split(' ').filter(p => p && !p.startsWith('"')).slice(0, 2).map(p => p[0]).join('') || 'C';
+
         const concejalZoomData = {
           name: c.nombre,
           party: c.partido,
           lista: c.numLista,
           foto: logoUrl,
+          isEmblem: true,
           role: c.estado === 'ELECTO' ? `Concejal Electo (#${c.banca_titular || c.banca || 'T'})` : 'Candidato a Concejal (Fuera)',
           votos: c.votos_preferenciales,
           banca: c.banca_titular || c.banca,
@@ -4259,9 +4305,17 @@
 
         tr.innerHTML = `
           <td>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              ${logoUrl ? `<img src="${logoUrl}" alt="L.${c.numLista}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #ffffff; border: 1px solid var(--border-subtle); flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
-              <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'};">${c.nombre}</strong>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="position: relative; width: 34px; height: 34px; flex-shrink: 0;">
+                <div style="width: 34px; height: 34px; border-radius: 50%; background: ${pColor}22; border: 2px solid ${pColor}; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);" title="Candidato a Concejal">
+                  ${initials}
+                </div>
+                ${logoUrl ? `<img src="${logoUrl}" alt="L.${c.numLista}" style="position: absolute; bottom: -2px; right: -3px; width: 15px; height: 15px; border-radius: 3px; object-fit: contain; background: #ffffff; border: 1px solid var(--border-subtle); box-shadow: 0 1px 3px rgba(0,0,0,0.5);" onerror="this.style.display='none'">` : ''}
+              </div>
+              <div>
+                <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'}; font-size: 0.85rem; display: block;">${c.nombre}</strong>
+                <span style="font-size: 0.68rem; color: var(--text-muted);">${c.partido} &middot; Lista ${c.numLista}</span>
+              </div>
             </div>
           </td>
           <td>${c.dist_name}</td>
