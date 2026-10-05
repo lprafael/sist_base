@@ -1337,6 +1337,157 @@
       font-weight: 600;
       margin-top: 2px;
     }
+
+    /* =======================================================
+       ESTILOS PARA ANÁLISIS DE CORTE DE BOLETA Y DESACOPLE
+       ======================================================= */
+    .corte-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .corte-badge-decisivo {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+    }
+
+    .corte-badge-alto {
+      background: rgba(245, 158, 11, 0.16);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .corte-badge-traccion {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .corte-badge-alineado {
+      background: rgba(148, 163, 184, 0.12);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .corte-diff-positive {
+      color: #f87171;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .corte-diff-negative {
+      color: #34d399;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .corte-diff-neutral {
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .corte-alert-box {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.04));
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .corte-alert-icon {
+      font-size: 1.3rem;
+      color: #ef4444;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .corte-alert-title {
+      font-size: 0.825rem;
+      font-weight: 800;
+      color: #fca5a5;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .corte-alert-text {
+      font-size: 0.775rem;
+      color: var(--text-main, #e2e8f0);
+      line-height: 1.45;
+    }
+
+    .corte-card {
+      background: var(--bg-surface-elevated, #1e293b);
+      border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .corte-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .corte-dual-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border-subtle, rgba(255,255,255,0.08));
+    }
+
+    .corte-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.72rem;
+    }
+
+    .corte-bar-lbl {
+      width: 78px;
+      color: var(--text-muted, #94a3b8);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .corte-bar-track {
+      flex: 1;
+      height: 7px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .corte-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .corte-bar-val {
+      width: 55px;
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #ffffff;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -1368,6 +1519,9 @@
       </button>
       <button class="tab-btn" onclick="switchTab('concejales')">
         <i class="fa-solid fa-users-viewfinder"></i> Concejales D'Hondt
+      </button>
+      <button class="tab-btn" onclick="switchTab('corte')">
+        <i class="fa-solid fa-scissors"></i> Voto Cruzado (Corte)
       </button>
       <button class="tab-btn" onclick="switchTab('descargas')">
         <i class="fa-solid fa-file-arrow-down"></i> Exportar Datos
@@ -1546,7 +1700,10 @@
             <i class="fa-solid fa-user-tie"></i> Intendente
           </button>
           <button class="inspector-nav-btn" id="insp-tab-btn-jun" onclick="switchInspectorTab('jun')">
-            <i class="fa-solid fa-users"></i> Concejales D'Hondt (<span id="insp-total-bancas">24</span>)
+            <i class="fa-solid fa-users"></i> Concejales (<span id="insp-total-bancas">24</span>)
+          </button>
+          <button class="inspector-nav-btn" id="insp-tab-btn-corte" onclick="switchInspectorTab('corte')">
+            <i class="fa-solid fa-scissors"></i> Corte Boleta
           </button>
         </div>
 
@@ -1644,6 +1801,21 @@
 
             <div style="margin-top: 14px; font-size: 0.7rem; color: var(--text-muted); background: var(--bg-surface-elevated); padding: 10px; border-radius: 8px; border: 1px solid var(--border-subtle);">
               <i class="fa-solid fa-circle-info" style="color: #38bdf8;"></i> <strong>Ley N° 6318/19:</strong> Las bancas se asignan a cada partido según el Sistema D'Hondt de cocientes decrecientes. La adjudicación nominal dentro de cada lista corresponde a los candidatos con mayor cantidad de votos preferenciales individuales.
+            </div>
+          </div>
+
+          <!-- Corte de Boleta View -->
+          <div id="insp-view-corte" style="display: none;">
+            <div id="insp-corte-alert"></div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <span>Diferencial de votos (Concejales vs Intendente):</span>
+              <span style="font-size: 0.65rem; color: #38bdf8;"><i class="fa-solid fa-chart-simple"></i> Análisis Local</span>
+            </div>
+            <div id="insp-corte-list">
+              <!-- Dynamically populated -->
+            </div>
+            <div style="margin-top: 14px; font-size: 0.7rem; color: var(--text-muted); background: var(--bg-surface-elevated); padding: 10px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+              <i class="fa-solid fa-scissors" style="color: #fbbf24;"></i> <strong>Corte de Boleta:</strong> Un diferencial positivo indica que la lista de concejales obtuvo más votos que su candidato a intendente, evidenciando fuga de votos hacia otras candidaturas ejecutivas o voto selectivo independiente.
             </div>
           </div>
 
@@ -2163,6 +2335,159 @@
     </div>
   </div>
 
+  <!-- TAB CONTENT: ANÁLISIS DE CORTE DE BOLETA Y VOTO CRUZADO -->
+  <div id="tab-corte" class="tab-content">
+    <div class="container-boxed">
+      
+      <!-- Top Insight Hero Panel -->
+      <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);">
+        <div style="position: absolute; top: -15px; right: -15px; font-size: 8rem; color: rgba(255,255,255,0.02); pointer-events: none;"><i class="fa-solid fa-scissors"></i></div>
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 12px;">
+          <i class="fa-solid fa-bolt"></i> Análisis Político Exclusivo TSJE
+        </div>
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin-bottom: 8px;">
+          Desacople Electoral &amp; Corte de Boleta: ¿Concejales vs Intendente?
+        </h2>
+        <p style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; max-width: 900px; margin: 0;">
+          En el sistema de voto preferencial desbloqueado (Ley N° 6318/19), el electorado puede votar cruzado, o bien los candidatos a concejal concentran sus esfuerzos exclusivamente en su campaña personal. A continuación se analiza la <strong>brecha matemática exacta</strong> entre los votos obtenidos por cada candidato a intendente y la sumatoria de su lista de concejales en los 263 distritos del país.
+        </p>
+      </div>
+
+      <!-- 4 Executive KPI Cards -->
+      <section class="kpi-container" style="padding: 0; margin-bottom: 24px;">
+        <div class="kpi-card" style="--card-accent: #ef4444;">
+          <div class="kpi-label">
+            <span>Cortes Decisivos (Costó Intendencia)</span>
+            <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>
+          </div>
+          <div class="kpi-value" style="color: #f87171;" id="kpi-corte-decisivos">18</div>
+          <div class="kpi-sub">Municipios donde el intendente perdió por menos votos que el exceso de sus concejales</div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #f59e0b;">
+          <div class="kpi-label">
+            <span>Tasa de Fuga hacia Concejales</span>
+            <i class="fa-solid fa-scissors" style="color: #f59e0b;"></i>
+          </div>
+          <div class="kpi-value" style="color: #fbbf24;" id="kpi-corte-tasa">51.5%</div>
+          <div class="kpi-sub">311 de 604 listas: concejales sacaron más votos que su intendente</div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #38bdf8;">
+          <div class="kpi-label">
+            <span>Mayor Corte hacia Concejales</span>
+            <i class="fa-solid fa-arrow-trend-up" style="color: #38bdf8;"></i>
+          </div>
+          <div class="kpi-value" style="color: #38bdf8; font-size: 1.4rem;">+20,930</div>
+          <div class="kpi-sub">Asunción (L.1 Concejales 149k vs Camilo Pérez 128k &middot; Margen derrota: 5k)</div>
+        </div>
+
+        <div class="kpi-card" style="--card-accent: #10b981;">
+          <div class="kpi-label">
+            <span>Mayor Tracción de Intendente</span>
+            <i class="fa-solid fa-rocket" style="color: #10b981;"></i>
+          </div>
+          <div class="kpi-value" style="color: #34d399; font-size: 1.4rem;">+33,700</div>
+          <div class="kpi-sub">Ciudad del Este (Intendente electo superó a su lista de concejales)</div>
+        </div>
+      </section>
+
+      <!-- Chart Panel: Top 10 Casos de Mayor Corte -->
+      <div class="chart-panel" style="margin-bottom: 24px;">
+        <div class="panel-title" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <i class="fa-solid fa-chart-column" style="color: #f87171;"></i> Top 10 Municipios con Mayor Fuga / Corte hacia Concejales
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px;">
+              Casos donde la lista de concejales superó con mayor amplitud a su propio candidato a intendente
+            </div>
+          </div>
+          <span style="font-size: 0.725rem; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); padding: 3px 8px; border-radius: 6px; font-weight: 700;">
+            Votos Concejales vs Votos Intendente
+          </span>
+        </div>
+        <div class="chart-container" style="height: 320px;">
+          <canvas id="chart-corte-top10"></canvas>
+        </div>
+      </div>
+
+      <!-- Main Data Table Container -->
+      <div class="table-container">
+        <div class="table-toolbar">
+          <div style="display: flex; gap: 12px; align-items: center; flex: 1; min-width: 280px; flex-wrap: wrap;">
+            
+            <div class="search-box" style="flex: 1; min-width: 220px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="corte-search-input" placeholder="Buscar por municipio, candidato o concejal..." onkeyup="filterCorteTable()">
+            </div>
+
+            <select class="map-filter-select" id="corte-tipo-filter" onchange="filterCorteTable()">
+              <option value="ALL">Todos los Casos (604)</option>
+              <option value="CORTE_DECISIVO" selected>🚨 Corte Decisivo (Costó la Intendencia) (18)</option>
+              <option value="CORTE_CONCEJAL">✂️ Concejales > Intendente (311)</option>
+              <option value="TRACCION_INTENDENTE">🚀 Intendente > Concejales (285)</option>
+              <option value="ALINEADO">⚖️ Voto Alineado / Parejo</option>
+            </select>
+
+            <select class="map-filter-select" id="corte-dept-filter" onchange="filterCorteTable()">
+              <option value="ALL">Todos los Departamentos</option>
+              <option value="0">0 - Capital (Asunción)</option>
+              <option value="1">1 - Concepción</option>
+              <option value="2">2 - San Pedro</option>
+              <option value="3">3 - Cordillera</option>
+              <option value="4">4 - Guairá</option>
+              <option value="5">5 - Caaguazú</option>
+              <option value="6">6 - Caazapá</option>
+              <option value="7">7 - Itapúa</option>
+              <option value="8">8 - Misiones</option>
+              <option value="9">9 - Paraguarí</option>
+              <option value="10">10 - Alto Paraná</option>
+              <option value="11">11 - Central</option>
+              <option value="12">12 - Ñeembucú</option>
+              <option value="13">13 - Amambay</option>
+              <option value="14">14 - Canindeyú</option>
+              <option value="15">15 - Presidente Hayes</option>
+              <option value="16">16 - Alto Paraguay</option>
+              <option value="17">17 - Boquerón</option>
+            </select>
+
+            <select class="map-filter-select" id="corte-party-filter" onchange="filterCorteTable()">
+              <option value="ALL">Todos los Partidos</option>
+              <option value="COLORADO">Partido Colorado (ANR)</option>
+              <option value="LIBERAL">Partido Liberal (PLRA)</option>
+              <option value="YO CREO">Yo Creo</option>
+              <option value="OTROS">Otras Alianzas y Partidos</option>
+            </select>
+
+          </div>
+
+          <div style="font-size: 0.825rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+            Mostrando: <strong id="corte-count" style="color: #f87171;">18</strong> registros
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th onclick="sortCorteTable('distrito')" style="cursor: pointer;">Distrito / Depto <i class="fa-solid fa-sort"></i></th>
+              <th>Partido / Lista</th>
+              <th onclick="sortCorteTable('intendente')" style="cursor: pointer;">Candidato a Intendente <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortCorteTable('concejales')" style="cursor: pointer; text-align: right;">Votos Concejales <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortCorteTable('diferencia')" style="cursor: pointer; text-align: right;">Diferencial (Corte) <i class="fa-solid fa-sort"></i></th>
+              <th>Concejal Estrella (Más Votado)</th>
+              <th>Diagnóstico Político</th>
+              <th style="text-align: center;">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="corte-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- TAB CONTENT 5: DESCARGAS Y EXPORTACIÓN -->
   <div id="tab-descargas" class="tab-content">
     <div class="container-boxed" style="max-width: 900px;">
@@ -2228,6 +2553,15 @@
             </div>
             <div class="kpi-value" style="font-size: 1.15rem; color: white;">Resumen Nacional JSON</div>
             <div class="kpi-sub">Metadatos y totales generales calculados por TSJE.</div>
+          </a>
+
+          <a href="tsje_data/analisis_corte_boleta.csv" download class="kpi-card" style="text-decoration: none; --card-accent: #ef4444;">
+            <div class="kpi-label">
+              <span>CSV &middot; 78 KB</span>
+              <i class="fa-solid fa-scissors" style="color: #ef4444; font-size: 1.2rem;"></i>
+            </div>
+            <div class="kpi-value" style="font-size: 1.15rem; color: white;">Voto Cruzado / Corte</div>
+            <div class="kpi-sub">Diferencial completo de 604 candidaturas: concejales vs intendente.</div>
           </a>
 
         </div>
@@ -2358,7 +2692,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- Load Embedded Data Bundle -->
-  <script src="tsje_data/bundle_electoral.js?v=20261005_fotos_orden"></script>
+  <script src="tsje_data/bundle_electoral.js?v=20261005_corte_desacople"></script>
 
   <!-- Application Logic -->
   <script>
@@ -2767,6 +3101,17 @@
           }
         });
       }
+
+      // Interceptar filtros de corte de boleta
+      const corteSearch = document.getElementById('corte-search-input');
+      if (corteSearch) {
+        corteSearch.addEventListener('focus', function(e) {
+          if (!isVisitorAuthenticated()) {
+            this.blur();
+            requireVisitorAuth(() => corteSearch.focus(), 'Para explorar el análisis de corte de boleta y voto cruzado');
+          }
+        });
+      }
     }
 
     let map = null;
@@ -2800,6 +3145,7 @@
           'numeralia': 'Numeralia TSJE',
           'distritos': 'Todos los Distritos',
           'concejales': "Concejales D'Hondt",
+          'corte': 'Voto Cruzado y Desacople',
           'descargas': 'Exportar Datos'
         };
         const title = names[tabId] || tabId;
@@ -2838,25 +3184,39 @@
           if (chartHistorico) chartHistorico.resize();
         }, 100);
       }
+      if (tabId === 'corte') {
+        initCorteTab();
+        setTimeout(() => {
+          if (chartCorteTop10) chartCorteTop10.resize();
+        }, 100);
+      }
       logVisitorInteraction('cambio_tab', { tab: tabId });
     }
 
-    // Switch Inspector Subtabs (Intendente vs Concejales)
+    // Switch Inspector Subtabs (Intendente vs Concejales vs Corte)
+    let currentInspectorSubTab = 'int';
+
     function switchInspectorTab(subTab) {
-      if (subTab === 'jun' && !isVisitorAuthenticated()) {
-        requireVisitorAuth(() => switchInspectorTab('jun'), "Para ver la nómina y votos preferenciales de concejales");
+      if ((subTab === 'jun' || subTab === 'corte') && !isVisitorAuthenticated()) {
+        requireVisitorAuth(() => switchInspectorTab(subTab), `Para ver el análisis de ${subTab === 'corte' ? 'corte de boleta y voto cruzado' : 'concejales'}`);
         return;
       }
       doSwitchInspectorTab(subTab);
     }
 
     function doSwitchInspectorTab(subTab) {
+      currentInspectorSubTab = subTab;
       document.getElementById('insp-tab-btn-int').classList.toggle('active', subTab === 'int');
       document.getElementById('insp-tab-btn-jun').classList.toggle('active', subTab === 'jun');
+      document.getElementById('insp-tab-btn-corte').classList.toggle('active', subTab === 'corte');
       document.getElementById('insp-view-int').style.display = subTab === 'int' ? 'block' : 'none';
       document.getElementById('insp-view-jun').style.display = subTab === 'jun' ? 'block' : 'none';
+      document.getElementById('insp-view-corte').style.display = subTab === 'corte' ? 'block' : 'none';
       if (subTab === 'jun') {
         logVisitorInteraction('ver_concejales_inspector', { dist: document.getElementById('insp-dist-name')?.textContent });
+      } else if (subTab === 'corte') {
+        renderDistrictCorteView();
+        logVisitorInteraction('ver_corte_inspector', { dist: document.getElementById('insp-dist-name')?.textContent });
       }
     }
 
@@ -3019,9 +3379,12 @@
       if (asuncion) selectDistrict(asuncion);
     }
 
+    let currentSelectedDistrict = null;
+
     // Select District and populate Inspector
     function selectDistrict(d) {
       if (!d) return;
+      currentSelectedDistrict = d;
 
       document.getElementById('insp-dept-name').textContent = d.dpto_name || 'PARAGUAY';
       document.getElementById('insp-dist-name').textContent = d.dist_name || d.shapeName;
@@ -3156,6 +3519,7 @@
       document.getElementById('btn-insp-filter-no-electos').classList.remove('active');
       document.getElementById('btn-insp-filter-all').classList.remove('active');
       renderInspectorConcejalesTable();
+      renderDistrictCorteView();
     }
 
     let currentDistrictAllCandidates = [];
@@ -3297,6 +3661,359 @@
           </td>
           <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: right;">${(c.votos_preferenciales || 0).toLocaleString()}</td>
           <td>${detalleHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // =======================================================
+    // ANÁLISIS DE CORTE DE BOLETA Y DESACOPLE ELECTORAL
+    // =======================================================
+    function renderDistrictCorteView() {
+      if (!currentSelectedDistrict) return;
+      const d = currentSelectedDistrict;
+      const dptoId = String(d.dpto_id);
+      const distId = String(d.dist_id);
+
+      const alertEl = document.getElementById('insp-corte-alert');
+      const listEl = document.getElementById('insp-corte-list');
+      if (!alertEl || !listEl) return;
+
+      const records = (window.DESACOPLES_DATA || []).filter(x => 
+        String(x.dpto_id) === dptoId && String(x.dist_id) === distId
+      );
+
+      // Alert if there is any decisive corte in this district
+      const decisiveRecord = records.find(x => x.costo_intendencia);
+      if (decisiveRecord) {
+        alertEl.innerHTML = `
+          <div class="corte-alert-box">
+            <i class="fa-solid fa-triangle-exclamation corte-alert-icon"></i>
+            <div>
+              <div class="corte-alert-title">¡Corte de Boleta Decisivo en este Distrito!</div>
+              <div class="corte-alert-text">
+                La lista de concejales de <strong>${decisiveRecord.partido} (Lista ${decisiveRecord.lista})</strong> obtuvo 
+                <strong style="color: #f87171;">+${Number(decisiveRecord.diferencia).toLocaleString()} votos más</strong> que su candidato a intendente (${decisiveRecord.intendente_nombre}). 
+                Dado que la intendencia se perdió por un margen de apenas <strong>${Number(decisiveRecord.margen_distrito).toLocaleString()} votos</strong>, la fuga de votos de los concejales costó directamente la victoria ejecutiva.
+              </div>
+            </div>
+          </div>
+        `;
+        alertEl.style.display = 'block';
+      } else {
+        alertEl.innerHTML = '';
+        alertEl.style.display = 'none';
+      }
+
+      listEl.innerHTML = '';
+      if (records.length === 0) {
+        listEl.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 0.8rem;">No hay comparativas de corte registradas para este distrito.</div>';
+        return;
+      }
+
+      records.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'corte-card';
+        const pColor = getPartyColor(r.partido);
+        const maxV = Math.max(r.intendente_votos, r.concejales_votos, 1);
+        const intPct = Math.round((r.intendente_votos / maxV) * 100);
+        const concPct = Math.round((r.concejales_votos / maxV) * 100);
+
+        let badgeHtml = '';
+        if (r.costo_intendencia) {
+          badgeHtml = '<span class="corte-badge corte-badge-decisivo"><i class="fa-solid fa-triangle-exclamation"></i> Costó Intendencia</span>';
+        } else if (r.diferencia > 50) {
+          badgeHtml = '<span class="corte-badge corte-badge-alto"><i class="fa-solid fa-scissors"></i> Concejales > Int.</span>';
+        } else if (r.diferencia < -50) {
+          badgeHtml = '<span class="corte-badge corte-badge-traccion"><i class="fa-solid fa-rocket"></i> Tracción Int.</span>';
+        } else {
+          badgeHtml = '<span class="corte-badge corte-badge-alineado"><i class="fa-solid fa-scale-balanced"></i> Alineado</span>';
+        }
+
+        const diffSign = r.diferencia > 0 ? '+' : '';
+        const diffClass = r.diferencia > 0 ? 'corte-diff-positive' : (r.diferencia < 0 ? 'corte-diff-negative' : 'corte-diff-neutral');
+
+        card.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="party-pill" style="background: ${pColor};"></span>
+              <strong style="font-size: 0.825rem;">${r.partido}</strong> <small style="color: var(--text-muted);">(L.${r.lista})</small>
+            </div>
+            ${badgeHtml}
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+            <span style="color: var(--text-muted);">Intendente: <strong style="color: #ffffff;">${r.intendente_nombre}</strong></span>
+            <span class="${diffClass}">${diffSign}${Number(r.diferencia).toLocaleString()} votos (${diffSign}${r.diff_pct}%)</span>
+          </div>
+
+          <div class="corte-dual-bar">
+            <div class="corte-bar-row">
+              <span class="corte-bar-lbl"><i class="fa-solid fa-user-tie"></i> Intendente</span>
+              <div class="corte-bar-track">
+                <div class="corte-bar-fill" style="width: ${intPct}%; background: ${pColor};"></div>
+              </div>
+              <span class="corte-bar-val">${Number(r.intendente_votos).toLocaleString()}</span>
+            </div>
+            <div class="corte-bar-row">
+              <span class="corte-bar-lbl"><i class="fa-solid fa-users"></i> Concejales</span>
+              <div class="corte-bar-track">
+                <div class="corte-bar-fill" style="width: ${concPct}%; background: #c084fc;"></div>
+              </div>
+              <span class="corte-bar-val">${Number(r.concejales_votos).toLocaleString()}</span>
+            </div>
+          </div>
+
+          ${r.top_concejal_nombre ? `
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; font-size: 0.7rem;">
+              <span style="color: var(--text-muted);"><i class="fa-solid fa-award" style="color: #fbbf24;"></i> Concejal Estrella:</span>
+              <span style="color: #ffffff; font-weight: 600;">${r.top_concejal_nombre} <span style="color: #38bdf8; font-family: 'JetBrains Mono', monospace;">(${Number(r.top_concejal_votos).toLocaleString()} votos)</span></span>
+            </div>
+          ` : ''}
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    let chartCorteTop10 = null;
+    let corteSortCol = 'diferencia';
+    let corteSortAsc = false;
+
+    function initCorteTab() {
+      if (!window.DESACOPLES_DATA) return;
+      const data = window.DESACOPLES_DATA;
+
+      const decisivos = data.filter(x => x.costo_intendencia).length;
+      const corteConcejales = data.filter(x => x.diferencia > 0).length;
+      const tasa = ((corteConcejales / data.length) * 100).toFixed(1);
+
+      const kpiDec = document.getElementById('kpi-corte-decisivos');
+      const kpiTasa = document.getElementById('kpi-corte-tasa');
+      if (kpiDec) kpiDec.textContent = decisivos;
+      if (kpiTasa) kpiTasa.textContent = `${tasa}%`;
+
+      renderChartCorteTop10();
+      filterCorteTable();
+    }
+
+    function renderChartCorteTop10() {
+      const ctx = document.getElementById('chart-corte-top10');
+      if (!ctx || !window.DESACOPLES_DATA) return;
+
+      const top10 = [...window.DESACOPLES_DATA]
+        .filter(x => x.diferencia > 0)
+        .sort((a, b) => b.diferencia - a.diferencia)
+        .slice(0, 10);
+
+      const labels = top10.map(x => `${x.dist_name} (L.${x.lista})`);
+      const votosInt = top10.map(x => x.intendente_votos);
+      const votosConc = top10.map(x => x.concejales_votos);
+
+      if (chartCorteTop10) {
+        chartCorteTop10.destroy();
+      }
+
+      chartCorteTop10 = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Votos Lista Concejales',
+              data: votosConc,
+              backgroundColor: '#a855f7',
+              borderRadius: 6
+            },
+            {
+              label: 'Votos Candidato Intendente',
+              data: votosInt,
+              backgroundColor: '#3b82f6',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { color: currentTheme === 'light' ? '#334155' : '#e2e8f0', font: { size: 11, weight: 'bold' } }
+            },
+            tooltip: {
+              callbacks: {
+                afterBody: (items) => {
+                  const idx = items[0].dataIndex;
+                  const item = top10[idx];
+                  return [
+                    `Diferencial (Corte): +${Number(item.diferencia).toLocaleString()} votos (+${item.diff_pct}%)`,
+                    `Intendente: ${item.intendente_nombre}`,
+                    `Concejal más votado: ${item.top_concejal_nombre} (${Number(item.top_concejal_votos).toLocaleString()} votos)`,
+                    item.costo_intendencia ? '🚨 COSTÓ LA INTENDENCIA' : ''
+                  ].filter(Boolean);
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: currentTheme === 'light' ? '#475569' : '#9ca3af', font: { size: 10 } },
+              grid: { display: false }
+            },
+            y: {
+              ticks: {
+                color: currentTheme === 'light' ? '#475569' : '#9ca3af',
+                callback: val => val >= 1000 ? (val / 1000) + 'k' : val
+              },
+              grid: { color: currentTheme === 'light' ? '#e2e8f0' : '#1f2937' }
+            }
+          }
+        }
+      });
+    }
+
+    function sortCorteTable(col) {
+      if (corteSortCol === col) {
+        corteSortAsc = !corteSortAsc;
+      } else {
+        corteSortCol = col;
+        corteSortAsc = (col === 'distrito');
+      }
+      filterCorteTable();
+    }
+
+    function filterCorteTable() {
+      const search = (document.getElementById('corte-search-input')?.value || '').toLowerCase();
+      const tipo = document.getElementById('corte-tipo-filter')?.value || 'ALL';
+      const dept = document.getElementById('corte-dept-filter')?.value || 'ALL';
+      const party = document.getElementById('corte-party-filter')?.value || 'ALL';
+      const tbody = document.getElementById('corte-tbody');
+      if (!tbody || !window.DESACOPLES_DATA) return;
+      tbody.innerHTML = '';
+
+      let list = window.DESACOPLES_DATA.filter(x => {
+        if (tipo === 'CORTE_DECISIVO' && !x.costo_intendencia) return false;
+        if (tipo === 'CORTE_CONCEJAL' && x.diferencia <= 0) return false;
+        if (tipo === 'TRACCION_INTENDENTE' && x.diferencia >= 0) return false;
+        if (tipo === 'ALINEADO' && x.tipo !== 'ALINEADO') return false;
+
+        if (dept !== 'ALL' && String(x.dpto_id) !== String(dept)) return false;
+
+        if (party !== 'ALL') {
+          const p = (x.partido || '').toUpperCase();
+          if (party === 'COLORADO' && !p.includes('COLORADO') && !p.includes('ANR')) return false;
+          if (party === 'LIBERAL' && !p.includes('LIBERAL') && !p.includes('PLRA')) return false;
+          if (party === 'YO CREO' && !p.includes('YO CREO')) return false;
+          if (party === 'OTROS' && (p.includes('COLORADO') || p.includes('LIBERAL') || p.includes('YO CREO'))) return false;
+        }
+
+        if (search) {
+          const text = `${x.dist_name} ${x.dpto_name} ${x.partido} ${x.intendente_nombre} ${x.top_concejal_nombre}`.toLowerCase();
+          if (!text.includes(search)) return false;
+        }
+
+        return true;
+      });
+
+      // Sorting
+      list.sort((a, b) => {
+        let valA, valB;
+        if (corteSortCol === 'distrito') {
+          valA = a.dist_name; valB = b.dist_name;
+          return corteSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else if (corteSortCol === 'intendente') {
+          valA = a.intendente_votos; valB = b.intendente_votos;
+        } else if (corteSortCol === 'concejales') {
+          valA = a.concejales_votos; valB = b.concejales_votos;
+        } else { // diferencia
+          valA = a.diferencia; valB = b.diferencia;
+        }
+        return corteSortAsc ? (valA - valB) : (valB - valA);
+      });
+
+      const countEl = document.getElementById('corte-count');
+      if (countEl) countEl.textContent = list.length.toLocaleString();
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">No se encontraron registros con los filtros seleccionados</td></tr>';
+        return;
+      }
+
+      list.forEach(r => {
+        const tr = document.createElement('tr');
+        const pColor = getPartyColor(r.partido);
+        let badgeHtml = '';
+        if (r.costo_intendencia) {
+          badgeHtml = '<span class="corte-badge corte-badge-decisivo"><i class="fa-solid fa-triangle-exclamation"></i> Costó Intendencia</span>';
+        } else if (r.diferencia > 50) {
+          badgeHtml = '<span class="corte-badge corte-badge-alto"><i class="fa-solid fa-scissors"></i> Concejales > Int.</span>';
+        } else if (r.diferencia < -50) {
+          badgeHtml = '<span class="corte-badge corte-badge-traccion"><i class="fa-solid fa-rocket"></i> Tracción Int.</span>';
+        } else {
+          badgeHtml = '<span class="corte-badge corte-badge-alineado"><i class="fa-solid fa-scale-balanced"></i> Alineado</span>';
+        }
+
+        const diffSign = r.diferencia > 0 ? '+' : '';
+        const diffClass = r.diferencia > 0 ? 'corte-diff-positive' : (r.diferencia < 0 ? 'corte-diff-negative' : 'corte-diff-neutral');
+
+        const intCandZoomData = {
+          name: r.intendente_nombre,
+          party: r.partido,
+          lista: r.lista,
+          foto: r.intendente_foto,
+          role: r.intendente_gano ? 'Intendente Electo' : 'Candidato a Intendente',
+          votos: r.intendente_votos,
+          pct: r.intendente_pct
+        };
+
+        tr.style.cursor = 'pointer';
+        tr.title = 'Pasa el mouse para ampliar detalles del candidato o clic para fijar';
+        tr.onmouseenter = () => showCandidateZoomModal(intCandZoomData);
+        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.onclick = (e) => {
+          if (e.target.closest('button')) return;
+          togglePinCandidateZoom(intCandZoomData);
+        };
+
+        tr.innerHTML = `
+          <td>
+            <strong style="color: var(--text-main); font-size: 0.85rem;">${r.dist_name}</strong>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">${r.dpto_name}</div>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="party-pill" style="background: ${pColor};"></span>
+              <span style="font-size: 0.78rem; font-weight: 700;">L.${r.lista}</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">${r.partido}</span>
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${r.intendente_foto ? `<img src="${r.intendente_foto}" alt="${r.intendente_nombre}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${pColor}; flex-shrink: 0; background: var(--bg-surface);" onerror="this.style.display='none'">` : ''}
+              <div>
+                <strong style="font-size: 0.825rem; color: ${r.intendente_gano ? '#34d399' : 'var(--text-main)'};">${r.intendente_nombre}</strong>
+                <div style="font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">${Number(r.intendente_votos).toLocaleString()} votos (${r.intendente_pct}%)</div>
+              </div>
+            </div>
+          </td>
+          <td style="text-align: right;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #ffffff;">${Number(r.concejales_votos).toLocaleString()}</div>
+            <div style="font-size: 0.7rem; color: #a855f7;">${r.bancas_obtenidas} bancas</div>
+          </td>
+          <td style="text-align: right;">
+            <div class="${diffClass}" style="font-size: 0.875rem;">${diffSign}${Number(r.diferencia).toLocaleString()}</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">${diffSign}${r.diff_pct}%</div>
+          </td>
+          <td>
+            <strong style="font-size: 0.8rem; color: #ffffff;">${r.top_concejal_nombre || '-'}</strong>
+            ${r.top_concejal_votos ? `<div style="font-size: 0.7rem; color: #fbbf24; font-family: 'JetBrains Mono', monospace;">${Number(r.top_concejal_votos).toLocaleString()} votos pref.</div>` : ''}
+          </td>
+          <td>${badgeHtml}</td>
+          <td style="text-align: center;">
+            <button class="btn-action" style="padding: 4px 8px; font-size: 0.725rem;" onclick="viewDistrictFromTable('${r.dpto_id}', '${r.dist_id}')" title="Ver en el Mapa Territorial">
+              <i class="fa-solid fa-map-location-dot"></i> Ver
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
