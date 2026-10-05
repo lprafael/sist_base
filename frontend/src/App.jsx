@@ -651,6 +651,8 @@ export default function App() {
         <Route path="/chofer/:token" element={<ChoferTracking />} />
         <Route path="/scan-chofer" element={<ChoferScanner />} />
         <Route path="/consulta-padron" element={<ConsultaPadronPublico />} />
+        <Route path="/elecciones" element={<ResultadosElecciones />} />
+        <Route path="/resultados-tsje" element={<ResultadosElecciones />} />
         {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
