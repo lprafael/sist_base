@@ -40,6 +40,9 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   
+  <!-- Google Identity Services (OAuth2 Sign-in) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
   <style>
     :root, [data-theme="light"] {
       --bg-dark: #f8fafc;
@@ -867,6 +870,329 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Google Visitor Auth Styles */
+    .visitor-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, rgba(66, 133, 244, 0.15), rgba(52, 168, 83, 0.15));
+      border: 1px solid rgba(66, 133, 244, 0.4);
+      color: var(--text-main);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.825rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .visitor-login-btn:hover {
+      background: linear-gradient(135deg, rgba(66, 133, 244, 0.25), rgba(52, 168, 83, 0.25));
+      border-color: #4285f4;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(66, 133, 244, 0.25);
+    }
+    .visitor-profile-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px 4px 5px;
+      border-radius: 9999px;
+      box-shadow: var(--card-shadow);
+    }
+    .visitor-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid #10b981;
+    }
+    .visitor-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    .visitor-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-main);
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .visitor-badge {
+      font-size: 0.65rem;
+      color: #10b981;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .visitor-logout-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      transition: color 0.2s;
+    }
+    .visitor-logout-btn:hover {
+      color: #ef4444;
+    }
+
+    /* Floating Preview Banner */
+    .preview-floating-banner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1050;
+      background: var(--bg-surface-glass);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      animation: floatIn 0.4s ease-out;
+    }
+    @keyframes floatIn {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    .banner-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .banner-badge {
+      background: rgba(2, 132, 199, 0.15);
+      color: #0284c7;
+      border: 1px solid rgba(2, 132, 199, 0.3);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .banner-content p {
+      font-size: 0.8rem;
+      color: var(--text-main);
+      margin: 0;
+    }
+    .banner-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 9999px;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .banner-btn:hover {
+      background: #1d4ed8;
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    /* Modal Backdrop & Card */
+    .visitor-modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      z-index: 100000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .visitor-modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      position: relative;
+      padding: 28px;
+      animation: modalScaleIn 0.25s ease-out;
+    }
+    @keyframes modalScaleIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-close-btn:hover {
+      color: var(--text-main);
+      background: var(--border-color);
+    }
+    .modal-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .modal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(2, 132, 199, 0.12);
+      color: #0284c7;
+      border: 1px solid rgba(2, 132, 199, 0.25);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .modal-header h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+    .modal-header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .modal-features {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .feature-item i {
+      font-size: 1.1rem;
+      margin-top: 3px;
+    }
+    .feature-item div {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .feature-item strong {
+      font-size: 0.84rem;
+      color: var(--text-main);
+    }
+    .feature-item span {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+    .google-auth-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .auth-privacy-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 380px;
+      line-height: 1.4;
+    }
+    .modal-footer {
+      text-align: center;
+      border-top: 1px solid var(--border-color);
+      padding-top: 14px;
+    }
+    .btn-cancel-auth {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: color 0.2s;
+    }
+    .btn-cancel-auth:hover {
+      color: var(--text-main);
+      text-decoration: underline;
+    }
+    .visitor-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-surface-glass);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: var(--text-main);
+      padding: 12px 18px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+      z-index: 100001;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      animation: toastIn 0.3s ease-out;
+    }
+    .visitor-toast.visible {
+      display: flex;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 768px) {
+      .preview-floating-banner {
+        width: calc(100% - 32px);
+        border-radius: 14px;
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+      }
+      .visitor-name {
+        max-width: 80px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -904,8 +1230,32 @@
       </button>
     </nav>
 
-    <!-- Theme Toggle Action -->
+    <!-- Header Actions (Theme + Visitor Google Auth) -->
     <div class="header-actions">
+      <!-- Unauthenticated Button -->
+      <button class="visitor-login-btn" id="btn-visitor-login" onclick="openAuthModal('Para desbloquear la interactividad completa del tablero')" title="Acceso completo interactivo con Google">
+        <svg class="google-icon-svg" viewBox="0 0 24 24" width="16" height="16">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Acceso Interactivo</span>
+      </button>
+
+      <!-- Authenticated Profile Chip -->
+      <div class="visitor-profile-chip" id="visitor-profile-chip" style="display: none;">
+        <img id="visitor-avatar" src="" alt="Avatar" class="visitor-avatar">
+        <div class="visitor-info">
+          <span id="visitor-name" class="visitor-name"></span>
+          <span class="visitor-badge"><i class="fa-solid fa-circle-check"></i> Interactivo</span>
+        </div>
+        <button class="visitor-logout-btn" onclick="logoutVisitor()" title="Cerrar sesión">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+
+      <!-- Theme Toggle Action -->
       <button class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleTheme()" title="Alternar entre modo claro y oscuro">
         <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
         <span id="theme-toggle-label">Modo Oscuro</span>
@@ -1739,6 +2089,77 @@
     </div>
   </div>
 
+  <!-- Floating Preview Mode Notice -->
+  <div id="preview-floating-banner" class="preview-floating-banner">
+    <div class="banner-content">
+      <span class="banner-badge"><i class="fa-solid fa-eye"></i> Vista Preliminar</span>
+      <p>Estás en la vista inicial pública. Para interactuar con los 263 distritos, concejales y reportes completos, <strong>inicia sesión con Google</strong>.</p>
+    </div>
+    <button class="banner-btn" onclick="openAuthModal('Para interactuar libremente con todo el mapa y los distritos')">
+      <svg viewBox="0 0 24 24" width="14" height="14">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      Conectar Google
+    </button>
+  </div>
+
+  <!-- Modal de Autenticación con Google para Visitantes -->
+  <div id="visitor-auth-modal" class="visitor-modal-backdrop" onclick="if(event.target === this) closeAuthModal();">
+    <div class="visitor-modal-card">
+      <button class="modal-close-btn" onclick="closeAuthModal()" title="Cerrar modal">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-badge">
+          <i class="fa-solid fa-shield-halved"></i> Acceso Interactivo Oficial
+        </div>
+        <h2>Explora el Tablero Electoral</h2>
+        <p id="modal-reason-text">Para interactuar con el mapa, filtrar distritos, consultar bancas de concejales y descargar datos, inicia sesión con tu cuenta de Google.</p>
+      </div>
+
+      <div class="modal-features">
+        <div class="feature-item">
+          <i class="fa-solid fa-map-location-dot" style="color: #38bdf8;"></i>
+          <div>
+            <strong>Mapa y 263 Distritos</strong>
+            <span>Explora candidatos, márgenes y resultados electorales en vivo.</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-users-viewfinder" style="color: #a855f7;"></i>
+          <div>
+            <strong>2.832 Concejales D'Hondt</strong>
+            <span>Consulta el desbloqueo de listas y votos preferenciales.</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <i class="fa-solid fa-file-arrow-down" style="color: #10b981;"></i>
+          <div>
+            <strong>Datos Abiertos y Reportes</strong>
+            <span>Descargas completas en formatos CSV y JSON oficiales.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="google-auth-box">
+        <div id="google-signin-btn-container" style="display: flex; justify-content: center; min-height: 44px; width: 100%;">
+          <!-- Google button renders here -->
+        </div>
+        <div class="auth-privacy-note">
+          <i class="fa-solid fa-lock"></i> Tu cuenta se utiliza exclusivamente para registrar tu visita al tablero. No se comparten datos ni se publicará nada.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel-auth" onclick="closeAuthModal()">
+          Continuar solo mirando (Modo preliminar)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1747,6 +2168,281 @@
 
   <!-- Application Logic -->
   <script>
+    // =======================================================
+    // GESTIÓN DE VISITANTES PÚBLICOS Y AUTENTICACIÓN GOOGLE
+    // =======================================================
+    const GOOGLE_CLIENT_ID = "1052650611016-o42m62srbuc0o76r40tjg26ue1i9e4m9.apps.googleusercontent.com";
+    let currentVisitor = null;
+    let pendingActionCallback = null;
+
+    function loadVisitorSession() {
+      try {
+        const saved = localStorage.getItem('sigel_electoral_visitor');
+        if (saved) {
+          currentVisitor = JSON.parse(saved);
+          updateVisitorUI();
+          logVisitorInteraction('apertura_tablero', { path: window.location.pathname });
+        } else {
+          updateVisitorUI();
+        }
+      } catch (e) {
+        console.warn('Error al cargar sesión de visitante:', e);
+        currentVisitor = null;
+        updateVisitorUI();
+      }
+    }
+
+    function isVisitorAuthenticated() {
+      return !!(currentVisitor && currentVisitor.email);
+    }
+
+    function requireVisitorAuth(callback, reasonText) {
+      if (isVisitorAuthenticated()) {
+        if (typeof callback === 'function') {
+          callback();
+        }
+        return true;
+      }
+      pendingActionCallback = callback || null;
+      openAuthModal(reasonText);
+      return false;
+    }
+
+    function openAuthModal(reasonText) {
+      const modal = document.getElementById('visitor-auth-modal');
+      if (modal) {
+        const reasonEl = document.getElementById('modal-reason-text');
+        if (reasonEl) {
+          reasonEl.textContent = reasonText || "Para interactuar con el mapa, filtrar distritos, consultar bancas de concejales y descargar datos, inicia sesión con tu cuenta de Google.";
+        }
+        modal.classList.add('active');
+        modal.style.display = 'flex';
+        renderGoogleButton();
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+          try {
+            window.google.accounts.id.prompt();
+          } catch (err) {}
+        }
+      }
+    }
+
+    function closeAuthModal() {
+      const modal = document.getElementById('visitor-auth-modal');
+      if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+      }
+      pendingActionCallback = null;
+    }
+
+    function initGoogleAuth() {
+      renderGoogleButton();
+    }
+
+    function renderGoogleButton() {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+          const container = document.getElementById('google-signin-btn-container');
+          if (container) {
+            container.innerHTML = '';
+            window.google.accounts.id.renderButton(container, {
+              theme: currentTheme === 'dark' ? 'filled_black' : 'outline',
+              size: 'large',
+              shape: 'pill',
+              text: 'continue_with',
+              logo_alignment: 'left',
+              width: 290
+            });
+          }
+        } catch (e) {
+          console.warn('Google GSI init err:', e);
+        }
+      } else {
+        setTimeout(renderGoogleButton, 350);
+      }
+    }
+
+    async function handleGoogleCredentialResponse(response) {
+      try {
+        const btnContainer = document.getElementById('google-signin-btn-container');
+        if (btnContainer) {
+          btnContainer.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:0.85rem;"><i class="fa-solid fa-spinner fa-spin"></i> Verificando cuenta de Google...</div>';
+        }
+
+        const res = await fetch('/api/public/visitantes/auth-google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            credential: response.credential,
+            origen: 'tablero_electoral'
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Error en la verificación de Google');
+        }
+
+        const data = await res.json();
+        currentVisitor = data.visitante;
+        localStorage.setItem('sigel_electoral_visitor', JSON.stringify(currentVisitor));
+        if (data.token) {
+          localStorage.setItem('sigel_visitor_token', data.token);
+        }
+
+        updateVisitorUI();
+        closeAuthModal();
+        showToast(`¡Bienvenido/a, ${currentVisitor.nombre || 'Visitante'}! Acceso interactivo activado.`);
+
+        // Ejecutar acción pendiente si existía
+        if (typeof pendingActionCallback === 'function') {
+          const cb = pendingActionCallback;
+          pendingActionCallback = null;
+          setTimeout(cb, 150);
+        }
+      } catch (err) {
+        console.error('Error al autenticar visitante:', err);
+        alert('No se pudo completar el acceso con Google: ' + err.message);
+        renderGoogleButton();
+      }
+    }
+
+    function updateVisitorUI() {
+      const loginBtn = document.getElementById('btn-visitor-login');
+      const profileChip = document.getElementById('visitor-profile-chip');
+      const previewBanner = document.getElementById('preview-floating-banner');
+      const avatarImg = document.getElementById('visitor-avatar');
+      const nameEl = document.getElementById('visitor-name');
+
+      if (isVisitorAuthenticated()) {
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (previewBanner) previewBanner.style.display = 'none';
+        if (profileChip) {
+          profileChip.style.display = 'inline-flex';
+          if (nameEl) nameEl.textContent = currentVisitor.nombre || currentVisitor.email.split('@')[0];
+          if (avatarImg) {
+            if (currentVisitor.picture) {
+              avatarImg.src = currentVisitor.picture;
+            } else {
+              avatarImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentVisitor.nombre || 'V')}&background=0284c7&color=fff`;
+            }
+          }
+        }
+      } else {
+        if (loginBtn) loginBtn.style.display = 'inline-flex';
+        if (profileChip) profileChip.style.display = 'none';
+        if (previewBanner) previewBanner.style.display = 'flex';
+      }
+    }
+
+    function logoutVisitor() {
+      if (currentVisitor && currentVisitor.email) {
+        logVisitorInteraction('logout', { email: currentVisitor.email });
+      }
+      currentVisitor = null;
+      localStorage.removeItem('sigel_electoral_visitor');
+      localStorage.removeItem('sigel_visitor_token');
+      updateVisitorUI();
+      doSwitchTab('mapa');
+      showToast('Has cerrado sesión. Modo preliminar activo.');
+    }
+
+    async function logVisitorInteraction(accion, detalles) {
+      if (!currentVisitor || !currentVisitor.email) return;
+      try {
+        await fetch('/api/public/visitantes/log-interaccion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: currentVisitor.email,
+            accion: accion,
+            detalles: detalles || {}
+          })
+        });
+      } catch (e) {}
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('visitor-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'visitor-toast';
+        toast.className = 'visitor-toast';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> <span>${message}</span>`;
+      toast.classList.add('visible');
+      setTimeout(() => {
+        toast.classList.remove('visible');
+      }, 4000);
+    }
+
+    function setupInteractiveGating() {
+      // Interceptar clics en enlaces de descarga directa
+      document.querySelectorAll('#tab-descargas a[download]').forEach(a => {
+        a.addEventListener('click', function(e) {
+          if (!isVisitorAuthenticated()) {
+            e.preventDefault();
+            const href = this.getAttribute('href');
+            const downloadName = this.getAttribute('download');
+            requireVisitorAuth(() => {
+              logVisitorInteraction('descarga_archivo', { archivo: downloadName || href });
+              const tempLink = document.createElement('a');
+              tempLink.href = href;
+              tempLink.setAttribute('download', downloadName);
+              document.body.appendChild(tempLink);
+              tempLink.click();
+              document.body.removeChild(tempLink);
+            }, 'Para descargar microdatos oficiales y reportes completos');
+          } else {
+            logVisitorInteraction('descarga_archivo', { archivo: this.getAttribute('download') || this.getAttribute('href') });
+          }
+        });
+      });
+
+      // Interceptar input de búsqueda en mapa
+      const searchInput = document.getElementById('search-distrito');
+      if (searchInput) {
+        searchInput.addEventListener('keydown', function(e) {
+          if (!isVisitorAuthenticated()) {
+            e.preventDefault();
+            this.blur();
+            requireVisitorAuth(() => {
+              searchInput.focus();
+            }, 'Para buscar distritos y explorar métricas detalladas');
+          }
+        });
+      }
+
+      // Interceptar filtros en tabla de distritos
+      const tblSearch = document.getElementById('table-search-input');
+      if (tblSearch) {
+        tblSearch.addEventListener('focus', function(e) {
+          if (!isVisitorAuthenticated()) {
+            this.blur();
+            requireVisitorAuth(() => tblSearch.focus(), 'Para filtrar la lista de distritos');
+          }
+        });
+      }
+
+      // Interceptar filtros de concejales
+      const concSearch = document.getElementById('concejales-search-input');
+      if (concSearch) {
+        concSearch.addEventListener('focus', function(e) {
+          if (!isVisitorAuthenticated()) {
+            this.blur();
+            requireVisitorAuth(() => concSearch.focus(), 'Para buscar entre los 2.832 concejales electos');
+          }
+        });
+      }
+    }
+
     let map = null;
     let geojsonLayer = null;
     let baseTileLayer = null;
@@ -1770,12 +2466,28 @@
       return '#8b5cf6';
     }
 
-    // Switch Top Navigation Tabs
+    // Switch Top Navigation Tabs with Visitor Gating
     function switchTab(tabId) {
+      if (tabId !== 'mapa' && !isVisitorAuthenticated()) {
+        const names = {
+          'analisis': 'Tablero General',
+          'numeralia': 'Numeralia TSJE',
+          'distritos': 'Todos los Distritos',
+          'concejales': "Concejales D'Hondt",
+          'descargas': 'Exportar Datos'
+        };
+        const title = names[tabId] || tabId;
+        requireVisitorAuth(() => switchTab(tabId), `Para ingresar a la sección "${title}"`);
+        return;
+      }
+      doSwitchTab(tabId);
+    }
+
+    function doSwitchTab(tabId) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-      const btn = event ? event.currentTarget : document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+      const btn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
       if (btn) btn.classList.add('active');
 
       const content = document.getElementById(`tab-${tabId}`);
@@ -1800,14 +2512,26 @@
           if (chartHistorico) chartHistorico.resize();
         }, 100);
       }
+      logVisitorInteraction('cambio_tab', { tab: tabId });
     }
 
     // Switch Inspector Subtabs (Intendente vs Concejales)
     function switchInspectorTab(subTab) {
+      if (subTab === 'jun' && !isVisitorAuthenticated()) {
+        requireVisitorAuth(() => switchInspectorTab('jun'), "Para ver la nómina y votos preferenciales de concejales");
+        return;
+      }
+      doSwitchInspectorTab(subTab);
+    }
+
+    function doSwitchInspectorTab(subTab) {
       document.getElementById('insp-tab-btn-int').classList.toggle('active', subTab === 'int');
       document.getElementById('insp-tab-btn-jun').classList.toggle('active', subTab === 'jun');
       document.getElementById('insp-view-int').style.display = subTab === 'int' ? 'block' : 'none';
       document.getElementById('insp-view-jun').style.display = subTab === 'jun' ? 'block' : 'none';
+      if (subTab === 'jun') {
+        logVisitorInteraction('ver_concejales_inspector', { dist: document.getElementById('insp-dist-name')?.textContent });
+      }
     }
 
     function setBaseTileLayer(theme) {
@@ -1948,8 +2672,17 @@
               if (!isDistrictActive(p)) {
                 return; // DO NOT SELECT DISTRICTS OF OTHER DEPARTMENTS
               }
+              if (!isVisitorAuthenticated()) {
+                requireVisitorAuth(() => {
+                  selectDistrict(p);
+                  map.fitBounds(e.target.getBounds(), { maxZoom: 10, padding: [40, 40] });
+                  logVisitorInteraction('click_distrito', { dpto: p.dpto_name, dist: p.dist_name });
+                }, `Para consultar el escrutinio detallado de ${p.dist_name || 'este distrito'}`);
+                return;
+              }
               selectDistrict(p);
               map.fitBounds(e.target.getBounds(), { maxZoom: 10, padding: [40, 40] });
+              logVisitorInteraction('click_distrito', { dpto: p.dpto_name, dist: p.dist_name });
             }
           });
         }
@@ -2137,6 +2870,15 @@
     }
 
     function applyMapDepartmentFilter(deptId) {
+      if (deptId !== 'ALL' && !isVisitorAuthenticated()) {
+        const prev = currentDeptFilter;
+        document.getElementById('filter-depto').value = prev;
+        requireVisitorAuth(() => {
+          document.getElementById('filter-depto').value = deptId;
+          applyMapDepartmentFilter(deptId);
+        }, "Para filtrar el mapa por departamento");
+        return;
+      }
       currentDeptFilter = deptId;
       const group = refreshMapStyles();
 
@@ -2147,15 +2889,21 @@
         const firstDistrict = window.INTENDENTES_DATA.find(d => String(d.dpto_id) === String(deptId));
         if (firstDistrict) selectDistrict(firstDistrict);
       }
+      logVisitorInteraction('filtro_departamento', { deptId: deptId });
     }
 
     function filterByParty(partyKeyword) {
+      if (partyKeyword !== 'ALL' && !isVisitorAuthenticated()) {
+        requireVisitorAuth(() => filterByParty(partyKeyword), "Para filtrar municipios por fuerza política");
+        return;
+      }
       if (currentPartyFilter === partyKeyword) {
         currentPartyFilter = 'ALL';
       } else {
         currentPartyFilter = partyKeyword;
       }
       refreshMapStyles();
+      logVisitorInteraction('filtro_partido', { party: partyKeyword });
     }
 
     // Populate Districts Table (Tab 3)
@@ -2188,9 +2936,13 @@
     }
 
     function viewDistrictFromTable(dptoId, distId) {
+      if (!isVisitorAuthenticated()) {
+        requireVisitorAuth(() => viewDistrictFromTable(dptoId, distId), "Para inspeccionar el detalle de este municipio");
+        return;
+      }
       const d = window.INTENDENTES_DATA.find(x => x.dpto_id == dptoId && x.dist_id == distId);
       if (d) {
-        switchTab('mapa');
+        doSwitchTab('mapa');
         selectDistrict(d);
         if (geojsonLayer) {
           geojsonLayer.eachLayer(l => {
@@ -2200,6 +2952,7 @@
             }
           });
         }
+        logVisitorInteraction('ver_distrito_tabla', { dptoId, distId, distName: d.dist_name });
       }
     }
 
@@ -2416,6 +3169,7 @@
       setBaseTileLayer(theme);
       refreshMapStyles();
       updateChartsTheme(theme);
+      renderGoogleButton();
     }
 
     function toggleTheme() {
@@ -2970,11 +3724,14 @@
     // Startup
     window.addEventListener('DOMContentLoaded', () => {
       applyTheme(currentTheme);
+      loadVisitorSession();
+      initGoogleAuth();
       initMap();
       populateDistrictsTable();
       populateConcejalesTable();
       populateNumeraliaTable();
       initCharts();
+      setupInteractiveGating();
     });
   </script>
 </body>

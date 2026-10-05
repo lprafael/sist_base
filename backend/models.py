@@ -778,3 +778,48 @@ class LogVisitaWeb(Base):
     fecha = Column(DateTime, default=func.now(), index=True)
 
 
+# ===== REGISTRO Y SEGUIMIENTO DE VISITANTES PÚBLICOS (TABLERO ELECTORAL) =====
+
+class VisitanteTablero(Base):
+    """
+    Tabla independiente para registrar visitantes del Tablero Electoral
+    y accesos públicos sin mezclar con usuarios o miembros del sistema.
+    """
+    __tablename__ = "visitantes_tablero"
+    __table_args__ = {"schema": "sistema"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    google_id = Column(String(100), unique=True, index=True, nullable=False)
+    email = Column(String(150), unique=True, index=True, nullable=False)
+    nombre = Column(String(150), nullable=True)
+    picture = Column(Text, nullable=True)
+    primer_acceso = Column(DateTime, default=func.now())
+    ultimo_acceso = Column(DateTime, default=func.now())
+    total_visitas = Column(Integer, default=1)
+    ip_ultimo_acceso = Column(String(50), nullable=True)
+    user_agent_ultimo = Column(Text, nullable=True)
+    activo = Column(Boolean, default=True)
+    origen = Column(String(100), default="tablero_electoral")
+    
+    historial = relationship("VisitanteHistorial", back_populates="visitante", cascade="all, delete-orphan")
+
+
+class VisitanteHistorial(Base):
+    """
+    Histórico detallado de accesos e interacciones de visitantes del Tablero
+    """
+    __tablename__ = "visitantes_historial"
+    __table_args__ = {"schema": "sistema"}
+    
+    id = Column(Integer, primary_key=True, index=True)
+    visitante_id = Column(Integer, ForeignKey("sistema.visitantes_tablero.id", ondelete="CASCADE"), index=True, nullable=False)
+    fecha = Column(DateTime, default=func.now(), index=True)
+    accion = Column(String(100), default="interaccion_tablero")
+    detalles = Column(JSON, nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    
+    visitante = relationship("VisitanteTablero", back_populates="historial")
+
+
+

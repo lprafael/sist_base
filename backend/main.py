@@ -150,7 +150,35 @@ async def app_lifespan(app: FastAPI):
             fecha TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
         )""",
         "CREATE INDEX IF NOT EXISTS idx_log_visitas_device ON sistema.logs_visitas_web(device_id)",
-        "CREATE INDEX IF NOT EXISTS idx_log_visitas_fecha ON sistema.logs_visitas_web(fecha DESC)"
+        "CREATE INDEX IF NOT EXISTS idx_log_visitas_fecha ON sistema.logs_visitas_web(fecha DESC)",
+        """CREATE TABLE IF NOT EXISTS sistema.visitantes_tablero (
+            id SERIAL PRIMARY KEY,
+            google_id VARCHAR(100) UNIQUE,
+            email VARCHAR(150) UNIQUE NOT NULL,
+            nombre VARCHAR(150),
+            picture TEXT,
+            primer_acceso TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+            ultimo_acceso TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+            total_visitas INTEGER DEFAULT 1,
+            ip_ultimo_acceso VARCHAR(50),
+            user_agent_ultimo TEXT,
+            activo BOOLEAN DEFAULT TRUE,
+            origen VARCHAR(100) DEFAULT 'tablero_electoral'
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_visitantes_google_id ON sistema.visitantes_tablero(google_id)",
+        "CREATE INDEX IF NOT EXISTS idx_visitantes_email ON sistema.visitantes_tablero(email)",
+        "CREATE INDEX IF NOT EXISTS idx_visitantes_ultimo_acceso ON sistema.visitantes_tablero(ultimo_acceso DESC)",
+        """CREATE TABLE IF NOT EXISTS sistema.visitantes_historial (
+            id SERIAL PRIMARY KEY,
+            visitante_id INTEGER NOT NULL REFERENCES sistema.visitantes_tablero(id) ON DELETE CASCADE,
+            fecha TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+            accion VARCHAR(100) DEFAULT 'interaccion_tablero',
+            detalles JSONB,
+            ip_address VARCHAR(50),
+            user_agent TEXT
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_visitantes_historial_visitante ON sistema.visitantes_historial(visitante_id)",
+        "CREATE INDEX IF NOT EXISTS idx_visitantes_historial_fecha ON sistema.visitantes_historial(fecha DESC)"
     ]
     for stmt in ddl_telemetry:
         try:
@@ -237,6 +265,7 @@ from inteligencia_routes import router as inteligencia_router
 from financiamiento_routes import router as financiamiento_router
 from dia_d_routes import router as dia_d_router
 from mensajeria_routes import router as mensajeria_router
+from visitantes_routes import router as visitantes_router
 
 # Montar los routers en la aplicación (el prefijo ya está definido en cada router)
 app.include_router(auth_router)
@@ -255,6 +284,7 @@ app.include_router(inteligencia_router)  # Inteligencia Territorial
 app.include_router(financiamiento_router) # Financiamiento Político
 app.include_router(dia_d_router) # Escrutinio Día D
 app.include_router(mensajeria_router) # Módulo de Mensajería
+app.include_router(visitantes_router) # Registro y seguimiento independiente de visitantes del tablero
 
 
 
