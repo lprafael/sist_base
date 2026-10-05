@@ -1207,7 +1207,7 @@
       position: fixed;
       inset: 0;
       z-index: 12000;
-      background: rgba(3, 7, 18, 0.72);
+      background: rgba(3, 7, 18, 0.75);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       display: flex;
@@ -1216,13 +1216,11 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
     }
 
     .cand-zoom-backdrop.active {
       opacity: 1;
-    }
-
-    .cand-zoom-backdrop.pinned {
       pointer-events: auto;
     }
 
@@ -1240,10 +1238,7 @@
       position: relative;
       overflow: hidden;
       pointer-events: auto;
-    }
-
-    .cand-zoom-backdrop:not(.pinned) .cand-zoom-card {
-      pointer-events: none;
+      cursor: default;
     }
 
     .cand-zoom-backdrop.active .cand-zoom-card {
@@ -2666,10 +2661,10 @@
     </div>
   </div>
 
-  <!-- Modal Flotante de Zoom / Detalle del Candidato al pasar el Mouse -->
-  <div id="cand-zoom-modal" class="cand-zoom-backdrop" onclick="if(event.target === this) hideCandidateZoomModal(true);">
+  <!-- Modal Flotante de Zoom / Detalle del Candidato al hacer Clic -->
+  <div id="cand-zoom-modal" class="cand-zoom-backdrop" onclick="if(event.target === this) hideCandidateZoomModal();">
     <div class="cand-zoom-card">
-      <button class="modal-close-btn" onclick="hideCandidateZoomModal(true)" title="Cerrar">&times;</button>
+      <button class="modal-close-btn" onclick="hideCandidateZoomModal()" title="Cerrar">&times;</button>
       
       <div id="cand-zoom-badge" class="cand-zoom-badge">
         <i class="fa-solid fa-award"></i> CANDIDATO OFICIAL
@@ -2698,8 +2693,8 @@
         </div>
       </div>
 
-      <div style="margin-top: 12px; font-size: 0.65rem; color: var(--text-muted); opacity: 0.8; letter-spacing: 0.02em;">
-        <i class="fa-solid fa-hand-pointer"></i> Clic para fijar &middot; <kbd style="background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; font-family: inherit;">Esc</kbd> para cerrar
+      <div style="margin-top: 14px; font-size: 0.7rem; color: var(--text-muted); opacity: 0.85; letter-spacing: 0.02em;">
+        <i class="fa-solid fa-circle-xmark"></i> Clic fuera o presiona <kbd style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-family: inherit;">Esc</kbd> para cerrar
       </div>
     </div>
   </div>
@@ -2782,144 +2777,127 @@
     // =======================================================
     // MODAL FLOTANTE DE ZOOM DE FOTO Y DATOS DEL CANDIDATO
     // =======================================================
-    let candZoomTimer = null;
-    let candZoomPinned = false;
-
-    function showCandidateZoomModal(data, pinned = false) {
+    // =======================================================
+    // MODAL FLOTANTE DE ZOOM DE FOTO Y DATOS DEL CANDIDATO (AL HACER CLIC)
+    // =======================================================
+    function showCandidateZoomModal(data) {
       if (!data) return;
-      if (candZoomPinned && !pinned) return;
+      const modal = document.getElementById('cand-zoom-modal');
+      if (!modal) return;
 
-      clearTimeout(candZoomTimer);
-      candZoomTimer = setTimeout(() => {
-        const modal = document.getElementById('cand-zoom-modal');
-        if (!modal) return;
+      const imgEl = document.getElementById('cand-zoom-img');
+      const imgWrap = modal.querySelector('.cand-zoom-img-wrap');
+      const badgeEl = document.getElementById('cand-zoom-badge');
+      const nameEl = document.getElementById('cand-zoom-name');
+      const partyPill = document.getElementById('cand-zoom-pill');
+      const partyText = document.getElementById('cand-zoom-party-text');
+      const cardEl = modal.querySelector('.cand-zoom-card');
+      const stat1Val = document.getElementById('cand-zoom-stat1-val');
+      const stat1Lbl = document.getElementById('cand-zoom-stat1-lbl');
+      const stat2Val = document.getElementById('cand-zoom-stat2-val');
+      const stat2Lbl = document.getElementById('cand-zoom-stat2-lbl');
 
-        const imgEl = document.getElementById('cand-zoom-img');
-        const imgWrap = modal.querySelector('.cand-zoom-img-wrap');
-        const badgeEl = document.getElementById('cand-zoom-badge');
-        const nameEl = document.getElementById('cand-zoom-name');
-        const partyPill = document.getElementById('cand-zoom-pill');
-        const partyText = document.getElementById('cand-zoom-party-text');
-        const cardEl = modal.querySelector('.cand-zoom-card');
-        const stat1Val = document.getElementById('cand-zoom-stat1-val');
-        const stat1Lbl = document.getElementById('cand-zoom-stat1-lbl');
-        const stat2Val = document.getElementById('cand-zoom-stat2-val');
-        const stat2Lbl = document.getElementById('cand-zoom-stat2-lbl');
+      const partyColor = getPartyColor(data.party);
 
-        const partyColor = getPartyColor(data.party);
+      // Identificar si la imagen es emblema de lista o foto del candidato
+      const isEmblem = data.isEmblem || (data.foto && (data.foto.includes('/L') || data.foto.includes('lista_logo') || data.isLogo));
 
-        // Identificar si la imagen es emblema de lista o foto del candidato
-        const isEmblem = data.foto && (data.foto.includes('/L') || data.foto.includes('lista_logo') || data.isLogo);
+      if (data.foto) {
+        imgEl.src = data.foto;
+        imgEl.onerror = function() {
+          this.onerror = null;
+          this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 1 0-16 0'/></svg>";
+        };
+      } else {
+        imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 1 0-16 0'/></svg>";
+      }
 
-        if (data.foto) {
-          imgEl.src = data.foto;
-          imgEl.onerror = function() {
-            this.onerror = null;
-            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 1 0-16 0'/></svg>";
-          };
-        } else {
-          imgEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 1 0-16 0'/></svg>";
-        }
+      if (isEmblem) {
+        if (imgWrap) imgWrap.style.borderRadius = '20px';
+        imgEl.style.borderRadius = '16px';
+        imgEl.style.objectFit = 'contain';
+        imgEl.style.background = '#ffffff';
+        imgEl.style.padding = '8px';
+      } else {
+        if (imgWrap) imgWrap.style.borderRadius = '50%';
+        imgEl.style.borderRadius = '50%';
+        imgEl.style.objectFit = 'cover';
+        imgEl.style.background = '#0f172a';
+        imgEl.style.padding = '0';
+      }
 
-        if (isEmblem) {
-          if (imgWrap) imgWrap.style.borderRadius = '20px';
-          imgEl.style.borderRadius = '16px';
-          imgEl.style.objectFit = 'contain';
-          imgEl.style.background = '#ffffff';
-          imgEl.style.padding = '8px';
-        } else {
-          if (imgWrap) imgWrap.style.borderRadius = '50%';
-          imgEl.style.borderRadius = '50%';
-          imgEl.style.objectFit = 'cover';
-          imgEl.style.background = '#0f172a';
-          imgEl.style.padding = '0';
-        }
+      imgEl.style.borderColor = partyColor;
+      if (cardEl) {
+        cardEl.style.borderColor = partyColor;
+        cardEl.style.boxShadow = `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px ${partyColor}44`;
+      }
 
-        imgEl.style.borderColor = partyColor;
-        if (cardEl) {
-          cardEl.style.borderColor = partyColor;
-          cardEl.style.boxShadow = `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px ${partyColor}44`;
-        }
-
-        const sourceBadge = document.getElementById('cand-zoom-source-badge');
-        if (sourceBadge) {
-          if (isEmblem || (data.role && data.role.toLowerCase().includes('concejal'))) {
-            sourceBadge.innerHTML = `
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                  <i class="fa-solid fa-shield-halved"></i> Emblema Oficial de Lista
-                </span>
-                <div style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.35; max-width: 320px;">
-                  <i class="fa-solid fa-circle-info"></i> El TREP oficial del TSJE no publica fotos individuales para concejales; los acredita por lista y votos preferenciales.
-                </div>
-              </div>
-            `;
-          } else {
-            sourceBadge.innerHTML = `
-              <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.12); color: #34d399; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.25);">
-                <i class="fa-solid fa-camera"></i> Fotografía Oficial TSJE TREP
+      const sourceBadge = document.getElementById('cand-zoom-source-badge');
+      if (sourceBadge) {
+        if (isEmblem || (data.role && data.role.toLowerCase().includes('concejal'))) {
+          sourceBadge.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                <i class="fa-solid fa-shield-halved"></i> Emblema Oficial de Lista
               </span>
-            `;
-          }
-        }
-
-        nameEl.textContent = data.name || 'CANDIDATO';
-        badgeEl.innerHTML = `<i class="fa-solid fa-award"></i> ${data.role || 'CANDIDATO OFICIAL'}`;
-        badgeEl.style.color = partyColor;
-        badgeEl.style.borderColor = partyColor + '55';
-        badgeEl.style.background = partyColor + '1a';
-
-        partyPill.style.background = partyColor;
-        partyText.textContent = `${data.party || ''} ${data.lista ? `(Lista ${data.lista})` : ''}`;
-
-        if (data.votos !== undefined && data.votos !== null && data.votos !== '') {
-          stat1Val.textContent = Number(data.votos).toLocaleString();
-          stat1Lbl.textContent = 'VOTOS';
+              <div style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.35; max-width: 320px;">
+                <i class="fa-solid fa-circle-info"></i> El TREP oficial del TSJE no publica fotos individuales para concejales; los acredita por lista y votos preferenciales.
+              </div>
+            </div>
+          `;
         } else {
-          stat1Val.textContent = '-';
-          stat1Lbl.textContent = 'VOTOS';
+          sourceBadge.innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.12); color: #34d399; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.25);">
+              <i class="fa-solid fa-camera"></i> Fotografía Oficial TSJE TREP
+            </span>
+          `;
         }
+      }
 
-        if (data.pct) {
-          stat2Val.textContent = `${data.pct}%`;
-          stat2Lbl.textContent = 'PORCENTAJE';
-        } else if (data.banca) {
-          stat2Val.textContent = `#${data.banca}`;
-          stat2Lbl.textContent = 'BANCA D\'HONDT';
-        } else {
-          stat2Val.textContent = data.extra || 'OFICIAL';
-          stat2Lbl.textContent = 'DETALLE';
-        }
+      nameEl.textContent = data.name || 'CANDIDATO';
+      badgeEl.innerHTML = `<i class="fa-solid fa-award"></i> ${data.role || 'CANDIDATO OFICIAL'}`;
+      badgeEl.style.color = partyColor;
+      badgeEl.style.borderColor = partyColor + '55';
+      badgeEl.style.background = partyColor + '1a';
 
-        modal.classList.add('active');
-        if (pinned) {
-          candZoomPinned = true;
-          modal.classList.add('pinned');
-        }
-      }, pinned ? 0 : 50);
+      partyPill.style.background = partyColor;
+      partyText.textContent = `${data.party || ''} ${data.lista ? `(Lista ${data.lista})` : ''}`;
+
+      if (data.votos !== undefined && data.votos !== null && data.votos !== '') {
+        stat1Val.textContent = Number(data.votos).toLocaleString();
+        stat1Lbl.textContent = 'VOTOS';
+      } else {
+        stat1Val.textContent = '-';
+        stat1Lbl.textContent = 'VOTOS';
+      }
+
+      if (data.pct) {
+        stat2Val.textContent = `${data.pct}%`;
+        stat2Lbl.textContent = 'PORCENTAJE';
+      } else if (data.banca) {
+        stat2Val.textContent = `#${data.banca}`;
+        stat2Lbl.textContent = 'BANCA D\'HONDT';
+      } else {
+        stat2Val.textContent = data.extra || 'OFICIAL';
+        stat2Lbl.textContent = 'DETALLE';
+      }
+
+      modal.classList.add('active');
     }
 
     function togglePinCandidateZoom(data) {
-      if (candZoomPinned) {
-        hideCandidateZoomModal(true);
-      } else {
-        showCandidateZoomModal(data, true);
-      }
+      showCandidateZoomModal(data);
     }
 
-    function hideCandidateZoomModal(force = false) {
-      if (candZoomPinned && !force) return;
-      candZoomPinned = false;
-      clearTimeout(candZoomTimer);
+    function hideCandidateZoomModal() {
       const modal = document.getElementById('cand-zoom-modal');
       if (modal) {
         modal.classList.remove('active');
-        modal.classList.remove('pinned');
       }
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') hideCandidateZoomModal(true);
+      if (e.key === 'Escape') hideCandidateZoomModal();
     });
 
     let googleIdInitialized = false;
@@ -3461,11 +3439,11 @@
           votos: d.ganador_votos,
           pct: d.ganador_pct
         };
-        winnerCardEl.onmouseenter = () => showCandidateZoomModal(winnerZoomData);
-        winnerCardEl.onmouseleave = () => hideCandidateZoomModal();
+        winnerCardEl.style.cursor = 'pointer';
+        winnerCardEl.title = 'Clic para ver detalles y fotografía';
         winnerCardEl.onclick = (e) => {
           e.stopPropagation();
-          togglePinCandidateZoom(winnerZoomData);
+          showCandidateZoomModal(winnerZoomData);
         };
       }
 
@@ -3478,7 +3456,7 @@
           const row = document.createElement('div');
           row.className = 'cand-row';
           row.style.cursor = 'pointer';
-          row.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
+          row.title = 'Clic para ver detalles y fotografía';
           const candZoomData = {
             name: c.nombre,
             party: c.partido,
@@ -3488,11 +3466,9 @@
             votos: c.votos,
             pct: c.pct
           };
-          row.onmouseenter = () => showCandidateZoomModal(candZoomData);
-          row.onmouseleave = () => hideCandidateZoomModal();
           row.onclick = (e) => {
             e.stopPropagation();
-            togglePinCandidateZoom(candZoomData);
+            showCandidateZoomModal(candZoomData);
           };
 
           const fotoHtml = c.foto ? 
@@ -3654,11 +3630,11 @@
           banca: c.banca,
           extra: c.salto_posiciones > 0 ? `+${c.salto_posiciones} puestos` : (c.motivo || 'Titular')
         };
-        tr.onmouseenter = () => showCandidateZoomModal(concejalZoomData);
-        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.style.cursor = 'pointer';
+        tr.title = 'Clic para ver ficha completa';
         tr.onclick = (e) => {
           e.stopPropagation();
-          togglePinCandidateZoom(concejalZoomData);
+          showCandidateZoomModal(concejalZoomData);
         };
 
         if (c.estado === 'ELECTO') {
@@ -4010,12 +3986,10 @@
         };
 
         tr.style.cursor = 'pointer';
-        tr.title = 'Pasa el mouse para ampliar detalles del candidato o clic para fijar';
-        tr.onmouseenter = () => showCandidateZoomModal(intCandZoomData);
-        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.title = 'Clic para ver detalles y fotografía';
         tr.onclick = (e) => {
           if (e.target.closest('button')) return;
-          togglePinCandidateZoom(intCandZoomData);
+          showCandidateZoomModal(intCandZoomData);
         };
 
         tr.innerHTML = `
@@ -4151,12 +4125,10 @@
         };
 
         tr.style.cursor = 'pointer';
-        tr.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
-        tr.onmouseenter = () => showCandidateZoomModal(distCandData);
-        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.title = 'Clic para ver detalles y fotografía';
         tr.onclick = (e) => {
           if (e.target.closest('button')) return;
-          togglePinCandidateZoom(distCandData);
+          showCandidateZoomModal(distCandData);
         };
 
         tr.innerHTML = `
@@ -4283,11 +4255,9 @@
         };
 
         tr.style.cursor = 'pointer';
-        tr.title = 'Pasa el mouse para ampliar detalles del candidato o clic para fijar';
-        tr.onmouseenter = () => showCandidateZoomModal(concejalZoomData);
-        tr.onmouseleave = () => hideCandidateZoomModal();
+        tr.title = 'Clic para ver ficha completa del candidato';
         tr.onclick = (e) => {
-          togglePinCandidateZoom(concejalZoomData);
+          showCandidateZoomModal(concejalZoomData);
         };
 
         if (c.estado === 'ELECTO') {
@@ -4712,12 +4682,10 @@
             };
 
             tr.style.cursor = 'pointer';
-            tr.title = 'Pasa el mouse para ampliar foto y detalles o clic para fijar';
-            tr.onmouseenter = () => showCandidateZoomModal(top10CandData);
-            tr.onmouseleave = () => hideCandidateZoomModal();
+            tr.title = 'Clic para ver detalles y fotografía';
             tr.onclick = (e) => {
               if (e.target.closest('button')) return;
-              togglePinCandidateZoom(top10CandData);
+              showCandidateZoomModal(top10CandData);
             };
 
             tr.innerHTML = `
