@@ -50,6 +50,8 @@ Thumbs.db
 *.jpg
 *.pdf
 !frontend/public/imagenes/*
+!frontend/public/tsje_data/fotos_candidatos/*
+!tsje_data/fotos_candidatos/*
 !frontend/public/*.jpg
 !frontend/public/*.png
 !frontend/public/*.jpeg

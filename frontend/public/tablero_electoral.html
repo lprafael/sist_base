@@ -1411,15 +1411,23 @@
           <!-- Intendente View -->
           <div id="insp-view-int">
             <div class="winner-card">
-              <div class="winner-badge">
-                <i class="fa-solid fa-trophy"></i> Intendente Electo
+              <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
+                <div style="position: relative; flex-shrink: 0;">
+                  <img id="insp-winner-photo" src="tsje_data/fotos_candidatos/CANDIDATO-676655.jpg" alt="Foto Candidato Electo" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2.5px solid #eab308; background: var(--bg-surface); display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.25);" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2394a3b8\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>'">
+                  <span style="position: absolute; bottom: -2px; right: -2px; background: #eab308; color: #000; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; border: 2px solid var(--bg-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="fa-solid fa-trophy"></i></span>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                  <div class="winner-badge">
+                    <i class="fa-solid fa-check-circle" style="color: #34d399;"></i> Intendente Electo
+                  </div>
+                  <h3 class="winner-name" id="insp-winner-name" style="margin: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; line-height: 1.2;">SOLE NUÑEZ</h3>
+                  <div class="winner-party" style="margin-top: 3px;">
+                    <span class="party-pill" id="insp-winner-pill" style="background: var(--color-alianza);"></span>
+                    <span id="insp-winner-party" style="font-size: 0.75rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">ALIANZA JUNTOS POR ASUNCION (Lista 4)</span>
+                  </div>
+                </div>
               </div>
-              <h3 class="winner-name" id="insp-winner-name">SOLE NUÑEZ</h3>
-              <div class="winner-party">
-                <span class="party-pill" id="insp-winner-pill" style="background: var(--color-alianza);"></span>
-                <span id="insp-winner-party">ALIANZA JUNTOS POR ASUNCION (Lista 4)</span>
-              </div>
-              <div class="winner-metrics">
+              <div class="winner-metrics" style="margin-top: 8px; padding-top: 10px;">
                 <div>
                   <div class="metric-primary" id="insp-winner-pct">47.78%</div>
                   <div class="metric-secondary" id="insp-winner-votos">133,231 votos</div>
@@ -1471,10 +1479,16 @@
               <table class="concejales-table">
                 <thead>
                   <tr>
-                    <th>Banca / Estado</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="toggleConcejalesSort('banca')" title="Ordenar por Banca/Posición">
+                      Banca / Estado <span id="sort-icon-banca" style="font-size: 0.7rem; color: #38bdf8;">▲</span>
+                    </th>
                     <th>Partido</th>
-                    <th>Candidato</th>
-                    <th>Votos Pref.</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="toggleConcejalesSort('nombre')" title="Ordenar por Nombre">
+                      Candidato <span id="sort-icon-nombre" style="font-size: 0.7rem; color: #38bdf8;"></span>
+                    </th>
+                    <th style="cursor: pointer; user-select: none; text-align: right;" onclick="toggleConcejalesSort('votos')" title="Ordenar por Votos Preferenciales">
+                      Votos Pref. <span id="sort-icon-votos" style="font-size: 0.7rem; color: #38bdf8;"></span>
+                    </th>
                     <th>Resultado / Motivo</th>
                   </tr>
                 </thead>
@@ -2164,7 +2178,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- Load Embedded Data Bundle -->
-  <script src="tsje_data/bundle_electoral.js?v=20261005_ybyyau"></script>
+  <script src="tsje_data/bundle_electoral.js?v=20261005_fotos_orden"></script>
 
   <!-- Application Logic -->
   <script>
@@ -2712,6 +2726,15 @@
       document.getElementById('insp-winner-votos').textContent = (d.ganador_votos || 0).toLocaleString() + ' votos';
       document.getElementById('insp-winner-margin').textContent = `+${(d.margen_votos || 0).toLocaleString()} votos (${d.margen_pct || 0}%)`;
 
+      const winnerPhotoEl = document.getElementById('insp-winner-photo');
+      if (winnerPhotoEl) {
+        if (d.ganador_foto) {
+          winnerPhotoEl.src = d.ganador_foto;
+        } else {
+          winnerPhotoEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+        }
+      }
+
       // Candidates List
       const candListEl = document.getElementById('insp-candidate-list');
       candListEl.innerHTML = '';
@@ -2720,15 +2743,20 @@
           const cColor = getPartyColor(c.partido);
           const row = document.createElement('div');
           row.className = 'cand-row';
+          const fotoHtml = c.foto ? 
+            `<img src="${c.foto}" alt="${c.nombre}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${cColor}; flex-shrink: 0; background: var(--bg-surface);" onerror="this.style.display='none'">` : 
+            `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${cColor}22; border: 1.5px solid ${cColor}; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: ${cColor}; flex-shrink: 0;">L.${c.lista}</div>`;
+
           row.innerHTML = `
-            <div class="cand-info">
-              <span class="cand-name">
+            <div class="cand-info" style="display: flex; align-items: center; gap: 8px;">
+              ${fotoHtml}
+              <span class="cand-name" style="flex: 1; min-width: 0;">
                 <span class="party-pill" style="background: ${cColor};"></span>
-                ${c.nombre} <small style="color: var(--text-muted); font-weight: normal;">(L.${c.lista})</small>
+                <strong>${c.nombre}</strong> <small style="color: var(--text-muted); font-weight: normal;">(L.${c.lista})</small>
               </span>
-              <span class="cand-votes">${(c.votos || 0).toLocaleString()} (${c.pct}%)</span>
+              <span class="cand-votes" style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${(c.votos || 0).toLocaleString()} (${c.pct}%)</span>
             </div>
-            <div class="progress-bar-bg">
+            <div class="progress-bar-bg" style="margin-top: 5px;">
               <div class="progress-bar-fill" style="width: ${c.pct}%; background: ${cColor};"></div>
             </div>
           `;
@@ -2770,6 +2798,9 @@
       }
 
       currentDistrictFilter = 'ELECTO';
+      concejalesSortColumn = 'banca';
+      concejalesSortAsc = true;
+      updateConcejalesSortIcons();
       document.getElementById('btn-insp-filter-electos').classList.add('active');
       document.getElementById('btn-insp-filter-no-electos').classList.remove('active');
       document.getElementById('btn-insp-filter-all').classList.remove('active');
@@ -2778,6 +2809,33 @@
 
     let currentDistrictAllCandidates = [];
     let currentDistrictFilter = 'ELECTO';
+    let concejalesSortColumn = 'banca';
+    let concejalesSortAsc = true;
+
+    function toggleConcejalesSort(col) {
+      if (concejalesSortColumn === col) {
+        concejalesSortAsc = !concejalesSortAsc;
+      } else {
+        concejalesSortColumn = col;
+        concejalesSortAsc = (col !== 'votos'); // default asc for banca/nombre, desc for votos
+      }
+      updateConcejalesSortIcons();
+      renderInspectorConcejalesTable();
+    }
+
+    function updateConcejalesSortIcons() {
+      ['banca', 'nombre', 'votos'].forEach(col => {
+        const el = document.getElementById(`sort-icon-${col}`);
+        if (!el) return;
+        if (concejalesSortColumn === col) {
+          el.textContent = concejalesSortAsc ? '▲' : '▼';
+          el.style.opacity = '1';
+        } else {
+          el.textContent = '';
+          el.style.opacity = '0.3';
+        }
+      });
+    }
 
     function filterInspectorConcejales(mode) {
       currentDistrictFilter = mode;
@@ -2798,6 +2856,23 @@
         list = currentDistrictAllCandidates.filter(c => c.estado === 'NO_ELECTO');
       }
 
+      // Ordenar por el número en el que quedó cada concejal (banca/posicion_final)
+      list = [...list].sort((a, b) => {
+        let valA, valB;
+        if (concejalesSortColumn === 'banca') {
+          valA = a.banca !== null && a.banca !== undefined ? a.banca : (a.posicion_final || 9999);
+          valB = b.banca !== null && b.banca !== undefined ? b.banca : (b.posicion_final || 9999);
+        } else if (concejalesSortColumn === 'votos') {
+          valA = a.votos_preferenciales || 0;
+          valB = b.votos_preferenciales || 0;
+        } else if (concejalesSortColumn === 'nombre') {
+          valA = a.nombre || '';
+          valB = b.nombre || '';
+          return concejalesSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return concejalesSortAsc ? (valA - valB) : (valB - valA);
+      });
+
       if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No hay candidatos con este filtro</td></tr>';
         return;
@@ -2808,28 +2883,49 @@
         let estadoHtml = '';
         let detalleHtml = '';
 
+        const posNumber = c.banca || c.posicion_final || '-';
+        const partyColor = getPartyColor(c.partido);
+        const logoUrl = c.lista_logo || (c.numLista ? `tsje_data/fotos_candidatos/L${c.numLista}.jpg` : '');
+
         if (c.estado === 'ELECTO') {
-          estadoHtml = `<span class="banca-number">#${c.banca_titular || c.posicion_final_en_lista}</span> <span style="font-size:0.65rem; color:#34d399; font-weight:700;">TITULAR</span>`;
+          estadoHtml = `<span class="banca-number" style="font-weight: 800; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 7px; border-radius: 5px;">#${posNumber}</span> <span style="font-size:0.65rem; color:#34d399; font-weight:700; background: rgba(52, 211, 153, 0.12); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.25);">TITULAR</span>`;
           if (c.salto_posiciones > 0) {
-            detalleHtml = `<span class="jump-badge"><i class="fa-solid fa-arrow-trend-up"></i> +${c.salto_posiciones} puestos (orig: #${c.orden_original})</span>`;
+            detalleHtml = `<div style="display: flex; flex-direction: column; gap: 2px;">
+              <span class="jump-badge"><i class="fa-solid fa-arrow-trend-up"></i> +${c.salto_posiciones} puestos (orig: #${c.orden_original})</span>
+              ${c.cociente_dhondt ? `<small style="font-size: 0.65rem; color: var(--text-muted);">Cociente: ${Math.round(c.cociente_dhondt).toLocaleString()}</small>` : ''}
+            </div>`;
           } else {
-            detalleHtml = `<span class="jump-neutral">Mantuvo #${c.orden_original}</span>`;
+            detalleHtml = `<div style="display: flex; flex-direction: column; gap: 2px;">
+              <span class="jump-neutral">Mantuvo #${c.orden_original}</span>
+              ${c.cociente_dhondt ? `<small style="font-size: 0.65rem; color: var(--text-muted);">Cociente: ${Math.round(c.cociente_dhondt).toLocaleString()}</small>` : ''}
+            </div>`;
           }
         } else {
-          estadoHtml = `<span style="font-size:0.65rem; color:#f87171; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 6px; border-radius:4px; font-weight:700;">NO ENTRÓ</span>`;
-          detalleHtml = `<span style="font-size:0.7rem; color:var(--text-muted);">${c.motivo}</span>`;
+          estadoHtml = `<span class="banca-number" style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #94a3b8; background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2); padding: 2px 6px; border-radius: 5px;">#${posNumber}</span> <span style="font-size:0.65rem; color:#f87171; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); padding:2px 6px; border-radius:4px; font-weight:700;">FUERA</span>`;
+          detalleHtml = `<span style="font-size:0.7rem; color:var(--text-muted);">${c.motivo || 'No alcanzó bancas'}</span>`;
         }
 
         tr.innerHTML = `
-          <td>${estadoHtml}</td>
+          <td style="white-space: nowrap;">${estadoHtml}</td>
           <td>
-            <span class="party-pill" style="background: ${getPartyColor(c.partido)};"></span>
-            L.${c.numLista}
+            <div style="display: flex; align-items: center; gap: 6px;">
+              ${logoUrl ? `<img src="${logoUrl}" alt="L.${c.numLista}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #ffffff; border: 1px solid var(--border-subtle); flex-shrink: 0;" onerror="this.style.display='none'">` : ''}
+              <span class="party-pill" style="background: ${partyColor};"></span>
+              <span style="font-size: 0.75rem; font-weight: 700;">L.${c.numLista}</span>
+            </div>
           </td>
           <td>
-            <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'};">${c.nombre}</strong>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: ${partyColor}22; border: 1px solid ${partyColor}; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: ${partyColor}; flex-shrink: 0;" title="Orden original en papeleta">
+                ${c.orden_original || '#'}
+              </div>
+              <div>
+                <strong style="color: ${c.estado === 'ELECTO' ? '#ffffff' : '#9ca3af'}; font-size: 0.8rem; display: block; line-height: 1.2;">${c.nombre}</strong>
+                <span style="font-size: 0.65rem; color: var(--text-muted);">${c.partido}</span>
+              </div>
+            </div>
           </td>
-          <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${(c.votos_preferenciales || 0).toLocaleString()}</td>
+          <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: right;">${(c.votos_preferenciales || 0).toLocaleString()}</td>
           <td>${detalleHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -3424,8 +3520,8 @@
               <td><span style="font-size: 0.75rem; background: rgba(59, 130, 246, 0.12); color: #3b82f6; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${pct}%</span></td>
               <td style="font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">${d.total_mesas || 0}</td>
               <td>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span class="party-pill" style="background: ${getPartyColor(d.ganador_partido)}; flex-shrink: 0;"></span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  ${d.ganador_foto ? `<img src="${d.ganador_foto}" alt="${d.ganador_nombre}" style="width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${getPartyColor(d.ganador_partido)}; flex-shrink: 0; background: var(--bg-surface);" onerror="this.style.display='none'">` : `<span class="party-pill" style="background: ${getPartyColor(d.ganador_partido)}; flex-shrink: 0;"></span>`}
                   <div>
                     <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-main); line-height: 1.2;">${d.ganador_nombre || 'N/A'}</div>
                     <div style="font-size: 0.7rem; color: var(--text-muted);">${d.ganador_partido || ''}</div>
