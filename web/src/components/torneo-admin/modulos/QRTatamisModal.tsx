@@ -71,7 +71,7 @@ export default function QRTatamisModal({
       badge: "Anotador / Cronómetro",
       badgeColor: "bg-red-500/10 text-red-400 border-red-500/30",
       icon: <Monitor className="text-red-400" size={20} />,
-      url: `${baseUrl}/torneos/${torneoId}/arbitraje/combate`,
+      url: `${baseUrl}/torneos/${torneoId}/arbitraje/combate?tatami=${tatamiNum}`,
       ubicacion: "Laptop principal de la mesa arbitral",
       instruccion: "Control de tiempo oficial (Hajime/Yame), puntos Yuko/Waza-ari/Ippon y solicitud de apelación VR.",
       accent: "border-red-500"
@@ -82,7 +82,7 @@ export default function QRTatamisModal({
       badge: "Video Review WKF",
       badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/30",
       icon: <Smartphone className="text-amber-400" size={20} />,
-      url: `${baseUrl}/torneos/${torneoId}/vr-station`,
+      url: `${baseUrl}/torneos/${torneoId}/vr-station?tatami=${tatamiNum}`,
       ubicacion: "Tablet táctil al costado de la mesa arbitral",
       instruccion: "Deliberación de 30s reglamentarios, cámara lenta 0.25x, -6s y veredicto Aceptado / Rechazado / Mienai.",
       accent: "border-amber-500"

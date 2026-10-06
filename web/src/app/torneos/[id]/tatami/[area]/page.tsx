@@ -338,15 +338,18 @@ export default function TatamiDisplay() {
   const torneoId = params.id as string;
   const area = params.area as string;
 
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const queryMatchId = searchParams?.get("matchId") || null;
+
   const [reglamento, setReglamento] = useState<Reglamento>("WKF");
-  const [aka, setAka] = useState<Fighter>({ nombre: "AKA", puntos: 0 });
-  const [ao, setAo]   = useState<Fighter>({ nombre: "AO",  puntos: 0 });
+  const [aka, setAka] = useState<Fighter>({ nombre: "AKA (Rojo)", puntos: 0 });
+  const [ao, setAo]   = useState<Fighter>({ nombre: "AO (Azul)",  puntos: 0 });
   const [tiempo, setTiempo] = useState(120);
   const [corriendo, setCorriendo] = useState(false);
   const [vr, setVr] = useState<VRAlert>({
     activo: false, color: null, tipo: "", reviewId: null
   });
-  const [matchId, setMatchId] = useState<string | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(queryMatchId);
   const [connected, setConnected] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -355,76 +358,155 @@ export default function TatamiDisplay() {
   /* ─── Cronómetro local ─────────────────────────────────────────── */
   useEffect(() => {
     if (corriendo && tiempo > 0) {
-      timerRef.current = setInterval(() => setTiempo(t => t - 1), 1000);
+      timerRef.current = setInterval(() => {
+        setTiempo(t => {
+          if (t <= 1) {
+            setCorriendo(false);
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [corriendo, tiempo]);
 
+  /* ─── Parser integral de estadísticas ─────────────────────────── */
+  const loadStats = useCallback((stats: any, defLocal?: string, defVisit?: string) => {
+    if (!stats) return;
+    const localData = stats.local || stats.aka || stats.blanco;
+    const visitData = stats.visitante || stats.ao || stats.rojo;
+
+    if (localData) {
+      setAka(prev => ({
+        ...prev,
+        nombre: localData.nombre || defLocal || prev.nombre,
+        puntos: localData.puntos ?? prev.puntos,
+        yuko: localData.yuko ?? prev.yuko,
+        waza_ari: localData.waza_ari ?? prev.waza_ari,
+        ippon: localData.ippon ?? prev.ippon,
+        senshu: Boolean(localData.senshu),
+        jogai: localData.jogai ?? prev.jogai,
+        penalizaciones: localData.penalizaciones ?? prev.penalizaciones,
+        vr_card: localData.video_review || localData.vr_card || prev.vr_card,
+      }));
+    }
+    if (visitData) {
+      setAo(prev => ({
+        ...prev,
+        nombre: visitData.nombre || defVisit || prev.nombre,
+        puntos: visitData.puntos ?? prev.puntos,
+        yuko: visitData.yuko ?? prev.yuko,
+        waza_ari: visitData.waza_ari ?? prev.waza_ari,
+        ippon: visitData.ippon ?? prev.ippon,
+        senshu: Boolean(visitData.senshu),
+        jogai: visitData.jogai ?? prev.jogai,
+        penalizaciones: visitData.penalizaciones ?? prev.penalizaciones,
+        vr_card: visitData.video_review || visitData.vr_card || prev.vr_card,
+      }));
+    }
+  }, []);
+
   /* ─── Cargar partido activo del área ──────────────────────────── */
   useEffect(() => {
     const fetchPartido = async () => {
       try {
-        const res = await fetch(
-          `${API_URL}/api/torneos/${torneoId}/partidos/activo?area=${area}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.id) {
-            setMatchId(data.id);
-            const stats = data.estadisticas || {};
-            if (stats.reglamento) setReglamento(stats.reglamento);
-            loadStats(stats);
+        let matchData: any = null;
+
+        // 1. Intentar endpoint específico de partido activo
+        try {
+          const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos/activo?area=${area}`);
+          if (res.ok) matchData = await res.json();
+        } catch {}
+
+        if (!matchData) {
+          try {
+            const res2 = await fetch(`${API_URL}/api/torneos/${torneoId}/partidos/activo?area=${area}`);
+            if (res2.ok) matchData = await res2.json();
+          } catch {}
+        }
+
+        // 2. Si no hay endpoint activo, obtener listado completo de partidos
+        if (!matchData || !matchData.id) {
+          const resAll = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos`);
+          if (resAll.ok) {
+            const partidos = await resAll.json();
+            if (Array.isArray(partidos) && partidos.length > 0) {
+              const targetArea = String(area);
+              matchData = partidos.find((p: any) => String(p.area) === targetArea && ['en_juego', 'en_curso', 'pausado'].includes(p.estado))
+                || partidos.find((p: any) => String(p.area) === targetArea && p.estado === 'programado')
+                || partidos.find((p: any) => String(p.area) === targetArea && p.estado === 'finalizado')
+                || partidos.find((p: any) => String(p.area) === targetArea)
+                || partidos[0];
+            }
           }
         }
-      } catch {
-        // Usa datos demo si no hay partido activo
-        setAka({ nombre: "Competidor AKA", puntos: 0 });
-        setAo({ nombre: "Competidor AO",  puntos: 0 });
+
+        if (matchData && matchData.id) {
+          setMatchId(matchData.id);
+          const localNom = matchData.jugador_local_nombre || matchData.local_nombre || matchData.equipo_local_nombre || "AKA (Rojo)";
+          const visitNom = matchData.jugador_visitante_nombre || matchData.visitante_nombre || matchData.equipo_visitante_nombre || "AO (Azul)";
+          
+          const rawStats = matchData.estadisticas || {};
+          const stats = typeof rawStats === 'string' ? JSON.parse(rawStats) : rawStats;
+          if (stats.reglamento) setReglamento(stats.reglamento);
+          
+          loadStats(stats, localNom, visitNom);
+        }
+      } catch (err) {
+        console.error("[Tatami Display] Error fetching match:", err);
       }
     };
-    fetchPartido();
-    const poll = setInterval(fetchPartido, 5000);
-    return () => clearInterval(poll);
-  }, [torneoId, area]);
 
-  const loadStats = (stats: any) => {
-    if (stats.aka) setAka(prev => ({ ...prev, ...stats.aka }));
-    if (stats.ao)  setAo(prev  => ({ ...prev, ...stats.ao  }));
-    if (stats.blanco) setAka(prev => ({ ...prev, ...stats.blanco }));
-    if (stats.rojo)   setAo(prev  => ({ ...prev, ...stats.rojo   }));
-  };
+    fetchPartido();
+    const poll = setInterval(fetchPartido, 4000);
+    return () => clearInterval(poll);
+  }, [torneoId, area, loadStats]);
 
   /* ─── WebSocket al match activo ───────────────────────────────── */
   useEffect(() => {
     if (!matchId) return;
 
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+
     const connectWS = () => {
-      const ws = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}`);
-      wsRef.current = ws;
+      try {
+        ws = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}`);
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        setConnected(true);
-        console.log("[Tatami WS] Conectado a match", matchId);
-      };
+        ws.onopen = () => {
+          setConnected(true);
+          console.log("[Tatami WS] Conectado a match", matchId);
+        };
 
-      ws.onmessage = (evt) => {
-        try {
-          const msg = JSON.parse(evt.data);
-          handleWSEvent(msg);
-        } catch {}
-      };
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            handleWSEvent(msg);
+          } catch {}
+        };
 
-      ws.onclose = () => {
-        setConnected(false);
-        // Reconectar en 3s
-        setTimeout(connectWS, 3000);
-      };
+        ws.onclose = () => {
+          setConnected(false);
+          reconnectTimeout = setTimeout(connectWS, 2500);
+        };
+
+        ws.onerror = () => {
+          ws?.close();
+        };
+      } catch (e) {
+        console.error("WS connect error:", e);
+      }
     };
 
     connectWS();
-    return () => wsRef.current?.close();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) ws.close();
+    };
   }, [matchId]);
 
   const handleWSEvent = useCallback((msg: any) => {
@@ -433,26 +515,52 @@ export default function TatamiDisplay() {
         loadStats(msg.state);
         if (msg.state?.reglamento) setReglamento(msg.state.reglamento);
         break;
+
+      case "TIMER_START":
+      case "TIMER_RESUME":
+        setCorriendo(true);
+        if (typeof msg.tiempo === 'number') {
+          setTiempo(msg.tiempo);
+        }
+        break;
+
+      case "TIMER_PAUSE":
+        setCorriendo(false);
+        if (typeof msg.tiempo === 'number') {
+          setTiempo(msg.tiempo);
+        }
+        break;
+
+      case "TIMER_SYNC":
+        if (typeof msg.tiempo === 'number') {
+          setTiempo(msg.tiempo);
+        }
+        if (typeof msg.corriendo === 'boolean') {
+          setCorriendo(msg.corriendo);
+        }
+        break;
+
+      case "TIMER_RESET":
+        setCorriendo(false);
+        setTiempo(typeof msg.tiempo === 'number' ? msg.tiempo : 120);
+        break;
+
       case "VR_SOLICITADO":
         setVr({
           activo: true,
           color: msg.competidor_color,
-          tipo: msg.tipo_solicitud,
+          tipo: msg.tipo_solicitud || "REVISIÓN",
           reviewId: msg.review_id,
         });
         setCorriendo(false);
         break;
+
       case "VR_RESUELTO":
         setVr({ activo: false, color: null, tipo: "", reviewId: null });
-        break;
-      case "TIMER_PAUSE":
-        setCorriendo(false);
-        break;
-      case "TIMER_RESUME":
-        setCorriendo(true);
+        if (msg.state) loadStats(msg.state);
         break;
     }
-  }, []);
+  }, [loadStats]);
 
   const timerColor =
     tiempo <= 10 ? "#ef4444" :

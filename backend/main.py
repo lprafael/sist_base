@@ -258,6 +258,13 @@ app.include_router(facturacion_acad_router)
 from routers.complejo import router as complejo_router
 app.include_router(complejo_router)
 
+# Alias para marcador de Tatami / Pantallas públicas
+from routers.torneos import get_partido_activo as _get_partido_activo_helper
+@app.get("/api/torneos/{torneo_id}/partidos/activo", tags=["Torneos"])
+async def api_get_partido_activo_alias(torneo_id: str, area: Optional[str] = None, session: AsyncSession = Depends(get_session)):
+    return await _get_partido_activo_helper(torneo_id, area, session)
+
+
 
 from routers.academias_mejoras import router as academias_mejoras_router
 app.include_router(academias_mejoras_router)

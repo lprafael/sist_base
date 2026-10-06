@@ -102,18 +102,42 @@ async def _update_partido_stats(session: AsyncSession, match_id: str, stats: dic
 async def vr_websocket(match_id: str, websocket: WebSocket):
     """
     Punto de conexión WebSocket para un combate.
-    Todos los dispositivos (árbitro, pantalla tatami, juez VR) se conectan aquí.
+    Todos los dispositivos (árbitro, pantalla tatami, juez VR, cámara) se conectan aquí.
     URL: ws://<host>/api/vr/ws/{match_id}
     """
     await vr_manager.connect(match_id, websocket)
     try:
         while True:
-            # Mantenemos la conexión viva; los clientes pueden enviar pings
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text("pong")
+                continue
+            
+            # Reenviar eventos entre clientes conectados (mesa arbitral, marcador público, juez VR)
+            try:
+                import json as _json
+                msg = _json.loads(data)
+                if isinstance(msg, dict):
+                    if "match_id" not in msg:
+                        msg["match_id"] = match_id
+                    await vr_manager.broadcast(match_id, msg)
+            except Exception:
+                pass
     except WebSocketDisconnect:
         vr_manager.disconnect(match_id, websocket)
+
+
+@router.post("/combates/{match_id}/broadcast")
+async def broadcast_evento(match_id: str, payload: dict):
+    """
+    Reenvía un evento JSON a todos los clientes WebSocket conectados a este combate.
+    Permite sincronización inmediata por HTTP.
+    """
+    if "match_id" not in payload:
+        payload["match_id"] = match_id
+    await vr_manager.broadcast(match_id, payload)
+    return {"ok": True, "clients": vr_manager.client_count(match_id)}
+
 
 
 # ─── 2. Solicitar Video Review ────────────────────────────────────────────────

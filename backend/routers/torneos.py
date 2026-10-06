@@ -2831,7 +2831,61 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
             "local_nombre","local_logo","visitante_nombre","visitante_logo","cancha_nombre",
             "jugador_local_id", "jugador_visitante_id", "estadisticas", 
             "jugador_local_nombre", "jugador_visitante_nombre"]
-    return [_row_to_dict(keys, r) for r in rows]
+    
+    res_list = []
+    for idx, r in enumerate(rows):
+        d = _row_to_dict(keys, r)
+        st = d.get("estadisticas")
+        if isinstance(st, str):
+            try:
+                st = json.loads(st)
+            except Exception:
+                st = {}
+        area_val = None
+        if isinstance(st, dict) and st.get("area"):
+            area_val = str(st.get("area"))
+        if not area_val and d.get("cancha_nombre"):
+            c_name = d.get("cancha_nombre", "")
+            import re
+            m_num = re.search(r'\d+', c_name)
+            if m_num:
+                area_val = m_num.group(0)
+        if not area_val:
+            area_val = str((idx % 3) + 1)
+        d["area"] = area_val
+        res_list.append(d)
+    return res_list
+
+@router.get("/{torneo_id}/partidos/activo", summary="Obtener partido activo o prioritario de un área/tatami")
+async def get_partido_activo(torneo_id: str, area: Optional[str] = Query(None), session: AsyncSession = Depends(get_session)):
+    partidos = await get_partidos(torneo_id, session)
+    if not partidos:
+        raise HTTPException(status_code=404, detail="No hay partidos para este torneo")
+    
+    target_area = str(area) if area else "1"
+    match_area = None
+    # 1. En curso / en juego / pausado en esa área
+    for p in partidos:
+        if str(p.get("area")) == target_area and p.get("estado") in ("en_curso", "en_juego", "pausado"):
+            match_area = p
+            break
+    # 2. Programado en esa área
+    if not match_area:
+        for p in partidos:
+            if str(p.get("area")) == target_area and p.get("estado") == "programado":
+                match_area = p
+                break
+    # 3. Cualquiera de esa área
+    if not match_area:
+        for p in partidos:
+            if str(p.get("area")) == target_area:
+                match_area = p
+                break
+    # 4. Fallback al primer partido del torneo
+    if not match_area:
+        match_area = partidos[0]
+
+    return match_area
 
 class PartidoManualCreate(BaseModel):
     equipo_local_id: str
@@ -3241,6 +3295,22 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
                 asyncio.create_task(ws.send_text(msg))
         except Exception as e:
             print("Error broadcasting WebSocket:", e)
+
+        # Broadcast a canales de Tatami / Video Review / Marcador Público
+        try:
+            from workers.vr_broadcaster import vr_manager
+            import asyncio
+            vr_msg = {
+                "event": "SCORE_UPDATE",
+                "match_id": str(partido_id),
+                "state": payload.estadisticas or {
+                    "local": {"puntos": payload.goles_local or 0},
+                    "visitante": {"puntos": payload.goles_visitante or 0}
+                }
+            }
+            asyncio.create_task(vr_manager.broadcast(str(partido_id), vr_msg))
+        except Exception as e_vr:
+            pass
 
         # Recalcular posiciones si el partido quedó finalizado
         if payload.estado in ("finalizado", "wo"):

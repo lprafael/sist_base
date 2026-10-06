@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, Award } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, Award, Wifi, WifiOff } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+const getApiUrl = () => {
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://api.micancha.com.py";
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+};
+const API_URL = getApiUrl();
+const WS_URL  = API_URL.replace(/^http/, 'ws');
 
 export default function KarateWKFController({
   match,
@@ -14,14 +21,16 @@ export default function KarateWKFController({
   onSaved?: () => void;
   onUpdate?: () => void;
 }) {
-  const [estado, setEstado] = useState(match.estado || 'programado');
+  const safeMatch = match || {};
+  const matchId = safeMatch.id || 'demo-match';
+  const [estado, setEstado] = useState(safeMatch.estado || 'programado');
   const [estadisticas, setEstadisticas] = useState<any>(() => {
-    const raw = match.estadisticas || {};
+    const raw = safeMatch.estadisticas || {};
     const statsObj = typeof raw === 'string' ? (JSON.parse(raw) || {}) : raw;
     return {
       tipo_reglamento: 'WKF',
       local: {
-        puntos: typeof statsObj.local === 'object' ? statsObj.local.puntos || 0 : (match.goles_local || 0),
+        puntos: typeof statsObj.local === 'object' ? statsObj.local.puntos || 0 : (safeMatch.goles_local || 0),
         yuko: typeof statsObj.local === 'object' ? statsObj.local.yuko || 0 : 0,
         waza_ari: typeof statsObj.local === 'object' ? statsObj.local.waza_ari || 0 : 0,
         ippon: typeof statsObj.local === 'object' ? statsObj.local.ippon || 0 : 0,
@@ -31,7 +40,7 @@ export default function KarateWKFController({
         video_review: typeof statsObj.local === 'object' ? statsObj.local.video_review || 'ACTIVE' : 'ACTIVE',
       },
       visitante: {
-        puntos: typeof statsObj.visitante === 'object' ? statsObj.visitante.puntos || 0 : (match.goles_visitante || 0),
+        puntos: typeof statsObj.visitante === 'object' ? statsObj.visitante.puntos || 0 : (safeMatch.goles_visitante || 0),
         yuko: typeof statsObj.visitante === 'object' ? statsObj.visitante.yuko || 0 : 0,
         waza_ari: typeof statsObj.visitante === 'object' ? statsObj.visitante.waza_ari || 0 : 0,
         ippon: typeof statsObj.visitante === 'object' ? statsObj.visitante.ippon || 0 : 0,
@@ -52,10 +61,87 @@ export default function KarateWKFController({
   const [hanteiModal, setHanteiModal] = useState<{ visible: boolean; ganador: string | null; motivo: string; status: string } | null>(null);
   const [showKeyboardModal, setShowKeyboardModal] = useState(false);
 
+  // WebSocket en tiempo real
+  const wsRef = useRef<WebSocket | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+
   const ptAka = estadisticas.local.puntos;
   const ptAo = estadisticas.visitante.puntos;
-  const nombreAka = match.jugador_local_nombre || match.local_nombre || 'AKA (Rojo)';
-  const nombreAo = match.jugador_visitante_nombre || match.visitante_nombre || 'AO (Azul)';
+  const nombreAka = safeMatch.jugador_local_nombre || safeMatch.local_nombre || 'AKA (Rojo)';
+  const nombreAo = safeMatch.jugador_visitante_nombre || safeMatch.visitante_nombre || 'AO (Azul)';
+
+  // Broadcast Helper
+  const sendBroadcast = useCallback((payload: any) => {
+    if (!matchId) return;
+    const fullPayload = { match_id: matchId, ...payload };
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(fullPayload));
+    }
+    // Fallback HTTP broadcast para asegurar entrega
+    try {
+      fetch(`${API_URL}/api/vr/combates/${matchId}/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fullPayload)
+      }).catch(() => {});
+    } catch {}
+  }, [matchId]);
+
+  // Conectar WebSocket al canal del combate
+  useEffect(() => {
+    if (!matchId || matchId === 'demo-match') return;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: any = null;
+
+    const connect = () => {
+      try {
+        ws = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}`);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          setWsConnected(true);
+          // Sincronizar estado inicial al conectar
+          sendBroadcast({
+            event: "SCORE_UPDATE",
+            state: estadisticas,
+            tiempo: timer,
+            corriendo: isRunning
+          });
+        };
+
+        ws.onclose = () => {
+          setWsConnected(false);
+          reconnectTimer = setTimeout(connect, 3000);
+        };
+
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.event === 'VR_SOLICITADO') {
+              setIsRunning(false);
+              setAlertaCombate(`🎥 Video Review solicitado por ${msg.competidor_color || 'Coach'}`);
+            } else if (msg.event === 'VR_RESUELTO') {
+              setAlertaCombate(`⚖️ VR Resuelto: ${msg.resultado}`);
+              if (msg.resultado === 'ACEPTADO' && msg.puntos_otorgados > 0) {
+                const col = (msg.competidor_color || '').toLowerCase();
+                const lado = col === 'aka' || col === 'rojo' ? 'local' : 'visitante';
+                addTechnique(lado, msg.puntos_otorgados === 1 ? 'yuko' : msg.puntos_otorgados === 2 ? 'waza_ari' : 'ippon', 1);
+              }
+            }
+          } catch {}
+        };
+      } catch (err) {
+        console.error("[WKF Controller WS] error:", err);
+      }
+    };
+
+    connect();
+
+    return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [matchId]);
 
   // Chronometer
   useEffect(() => {
@@ -65,17 +151,24 @@ export default function KarateWKFController({
         setTimer(prev => {
           if (prev <= 1) {
             setIsRunning(false);
+            sendBroadcast({ event: "TIMER_PAUSE", tiempo: 0, corriendo: false });
+            sendBroadcast({ event: "TIMER_SYNC", tiempo: 0, corriendo: false });
             setAlertaCombate("⏰ ¡Tiempo Reglamentario Finalizado! Aplica la resolución de empate WKF si persiste igualdad.");
             return 0;
           }
-          return prev - 1;
+          const next = prev - 1;
+          // Heartbeat sync cada 5 segundos
+          if (next % 5 === 0) {
+            sendBroadcast({ event: "TIMER_SYNC", tiempo: next, corriendo: true });
+          }
+          return next;
         });
       }, 1000);
     } else if (!isRunning && timer !== 0) {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isRunning, timer]);
+  }, [isRunning, timer, sendBroadcast]);
 
   const formatTime = (totalSeconds: number) => {
     const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -83,11 +176,39 @@ export default function KarateWKFController({
     return `${m}:${s}`;
   };
 
+  const toggleTimer = () => {
+    const nextRunning = !isRunning;
+    setIsRunning(nextRunning);
+    if (nextRunning) {
+      sendBroadcast({ event: "TIMER_START", tiempo: timer, corriendo: true });
+      sendBroadcast({ event: "TIMER_RESUME", tiempo: timer, corriendo: true });
+    } else {
+      sendBroadcast({ event: "TIMER_PAUSE", tiempo: timer, corriendo: false });
+    }
+  };
+
+  const resetTimer = () => {
+    setIsRunning(false);
+    setTimer(duracionCombate);
+    sendBroadcast({ event: "TIMER_RESET", tiempo: duracionCombate, corriendo: false });
+    sendBroadcast({ event: "TIMER_SYNC", tiempo: duracionCombate, corriendo: false });
+    setAlertaCombate("🔄 Cronómetro reiniciado.");
+  };
+
+  const setDuracion = (secs: number) => {
+    setDuracionCombate(secs);
+    setTimer(secs);
+    setIsRunning(false);
+    sendBroadcast({ event: "TIMER_SYNC", tiempo: secs, corriendo: false });
+    setAlertaCombate(`⏱️ Tiempo establecido a ${formatTime(secs)}`);
+  };
+
   // Ajuste fino de tiempo (retrotraer segundos perdidos a la orden de Yame)
   const adjustTimer = (seconds: number) => {
     setTimer(prev => {
       const next = Math.max(0, prev + seconds);
       setAlertaCombate(`⏱️ Tiempo ajustado: ${seconds > 0 ? '+' : ''}${seconds}s (Ahora: ${formatTime(next)})`);
+      sendBroadcast({ event: "TIMER_SYNC", tiempo: next, corriendo: isRunning });
       return next;
     });
   };
@@ -102,10 +223,11 @@ export default function KarateWKFController({
   };
 
   const handleSave = async (nuevoEstado?: string, ganadorId?: string | null, customStats?: any) => {
+    if (!safeMatch.id) return;
     const estadoFinal = nuevoEstado || estado;
     const statsToSave = customStats || estadisticas;
     try {
-      await fetch(`${API_URL}/cancha/torneos/partidos/${match.id}`, {
+      await fetch(`${API_URL}/cancha/torneos/partidos/${safeMatch.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({
@@ -122,7 +244,7 @@ export default function KarateWKFController({
   };
 
   const mapEstadoToSelect = (st: string) => {
-    if (st === 'en_curso') return 'EN VIVO';
+    if (st === 'en_curso' || st === 'en_juego') return 'EN VIVO';
     if (st === 'finalizado') return 'FINALIZADO';
     return 'NO REALIZADO';
   };
@@ -132,12 +254,13 @@ export default function KarateWKFController({
     if (val === 'EN VIVO') newSt = 'en_curso';
     if (val === 'FINALIZADO') newSt = 'finalizado';
     setEstado(newSt);
+    handleSave(newSt, null, estadisticas);
+    sendBroadcast({ event: "SCORE_UPDATE", state: { ...estadisticas, estado: newSt } });
   };
 
   // Motor WKF: Asignación de técnicas y puntos
   const addTechnique = (lado: 'local' | 'visitante', tech: 'yuko' | 'waza_ari' | 'ippon', delta: number = 1) => {
     const ptsValue = tech === 'yuko' ? 1 : tech === 'waza_ari' ? 2 : 3;
-    const techName = tech === 'yuko' ? 'Yuko (+1)' : tech === 'waza_ari' ? 'Waza-Ari (+2)' : 'Ippon (+3)';
     const rivalLado = lado === 'local' ? 'visitante' : 'local';
     const atleta = lado === 'local' ? nombreAka : nombreAo;
     const rivalAtleta = rivalLado === 'local' ? nombreAka : nombreAo;
@@ -166,7 +289,7 @@ export default function KarateWKFController({
         n.metodo_victoria = `Ventaja de 8 Puntos (Superioridad Técnica WKF: ${n[lado].puntos} - ${n[rivalLado].puntos})`;
         setAlertaCombate(`🏆 ¡SUPERIORIDAD TÉCNICA WKF! Diferencia de 8 puntos alcanzada (${n[lado].puntos} - ${n[rivalLado].puntos}). Victoria para ${atleta}.`);
         setEstado('finalizado');
-        const ganadorId = lado === 'local' ? match.equipo_local_id : match.equipo_visitante_id;
+        const ganadorId = lado === 'local' ? safeMatch.equipo_local_id : safeMatch.equipo_visitante_id;
         handleSave('finalizado', ganadorId, n);
       } else if (-diff >= 8) {
         setIsRunning(false);
@@ -174,9 +297,14 @@ export default function KarateWKFController({
         n.metodo_victoria = `Ventaja de 8 Puntos (Superioridad Técnica WKF: ${n[rivalLado].puntos} - ${n[lado].puntos})`;
         setAlertaCombate(`🏆 ¡SUPERIORIDAD TÉCNICA WKF! Diferencia de 8 puntos alcanzada (${n[rivalLado].puntos} - ${n[lado].puntos}). Victoria para ${rivalAtleta}.`);
         setEstado('finalizado');
-        const ganadorId = rivalLado === 'local' ? match.equipo_local_id : match.equipo_visitante_id;
+        const ganadorId = rivalLado === 'local' ? safeMatch.equipo_local_id : safeMatch.equipo_visitante_id;
         handleSave('finalizado', ganadorId, n);
+      } else {
+        handleSave(estado, null, n);
       }
+
+      // Realtime Broadcast a pantallas públicas de Tatami
+      sendBroadcast({ event: "SCORE_UPDATE", state: n });
 
       return n;
     });
@@ -196,6 +324,8 @@ export default function KarateWKFController({
       } else {
         setAlertaCombate(`Senshu retirado de ${atleta}.`);
       }
+      sendBroadcast({ event: "SCORE_UPDATE", state: n });
+      handleSave(estado, null, n);
       return n;
     });
   };
@@ -214,6 +344,8 @@ export default function KarateWKFController({
         else if (n[lado].ippon > 0) n[lado].ippon -= 1;
       }
       setAlertaCombate(`⚠️ Punto invalidado para ${atleta} por Falta de Zanshin (Conciencia continua).`);
+      sendBroadcast({ event: "SCORE_UPDATE", state: n });
+      handleSave(estado, null, n);
       return n;
     });
   };
@@ -231,6 +363,8 @@ export default function KarateWKFController({
         n[lado].senshu = false;
         setAlertaCombate(`⚠️ Senshu anulado para ${atleta} por acumulación de sanciones graves (WKF Art. 1.4).`);
       }
+      sendBroadcast({ event: "SCORE_UPDATE", state: n });
+      handleSave(estado, null, n);
       return n;
     });
   };
@@ -238,6 +372,7 @@ export default function KarateWKFController({
   // Gestión de Video Review Card del Coach
   const toggleVideoReview = (lado: 'local' | 'visitante') => {
     const atleta = lado === 'local' ? nombreAka : nombreAo;
+    const color = lado === 'local' ? 'Aka' : 'Ao';
     setEstadisticas((prev: any) => {
       const n = JSON.parse(JSON.stringify(prev));
       const current = n[lado].video_review || 'ACTIVE';
@@ -248,6 +383,18 @@ export default function KarateWKFController({
           ? `🔒 Tarjeta de Video Review utilizada y BLOQUEADA para el Coach de ${atleta}.`
           : `✅ Tarjeta de Video Review HABILITADA para el Coach de ${atleta}.`
       );
+      if (next === 'USED_AND_LOCKED') {
+        setIsRunning(false);
+        sendBroadcast({
+          event: "VR_SOLICITADO",
+          competidor_color: color,
+          tipo_solicitud: "REVISIÓN_COACH",
+          tiempo_cronometro: formatTime(timer),
+          review_id: Date.now()
+        });
+      }
+      sendBroadcast({ event: "SCORE_UPDATE", state: n });
+      handleSave(estado, null, n);
       return n;
     });
   };
@@ -269,8 +416,10 @@ export default function KarateWKFController({
     setEstadisticas(n);
     setAlertaCombate(`🛑 ¡HANSOKU! Descalificación oficial de ${nombreInfractor}. Victoria otorgada a ${nombreRival}.`);
     setEstado('finalizado');
-    const ganadorId = rival === 'local' ? match.equipo_local_id : match.equipo_visitante_id;
+    const ganadorId = rival === 'local' ? safeMatch.equipo_local_id : safeMatch.equipo_visitante_id;
     handleSave('finalizado', ganadorId, n);
+    sendBroadcast({ event: "SCORE_UPDATE", state: n });
+    sendBroadcast({ event: "TIMER_PAUSE", tiempo: timer, corriendo: false });
   };
 
   // Evaluación de Desempate Oficial WKF: 1. Senshu -> 2. Ippons -> 3. Waza-Aris -> 4. Hantei
@@ -386,15 +535,13 @@ export default function KarateWKFController({
       // 1. Cronómetro & Globales
       if (code === 'Space' || key === ' ' || code === 'Numpad5') {
         e.preventDefault();
-        setIsRunning(prev => !prev);
+        toggleTimer();
         return;
       }
 
       if (key.toLowerCase() === 'r' && e.ctrlKey === false && e.altKey === false) {
         e.preventDefault();
-        setIsRunning(false);
-        setTimer(duracionCombate);
-        setAlertaCombate("🔄 Cronómetro reiniciado.");
+        resetTimer();
         return;
       }
 
@@ -767,9 +914,9 @@ export default function KarateWKFController({
                   Tiempo de Combate
                 </span>
                 <div className="flex gap-1">
-                  <button onClick={() => { setDuracionCombate(90); setTimer(90); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${duracionCombate === 90 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1:30</button>
-                  <button onClick={() => { setDuracionCombate(120); setTimer(120); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${duracionCombate === 120 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>2:00</button>
-                  <button onClick={() => { setDuracionCombate(180); setTimer(180); }} className={`px-2 py-0.5 rounded text-[10px] font-bold ${duracionCombate === 180 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>3:00</button>
+                  <button onClick={() => setDuracion(90)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${duracionCombate === 90 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1:30</button>
+                  <button onClick={() => setDuracion(120)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${duracionCombate === 120 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>2:00</button>
+                  <button onClick={() => setDuracion(180)} className={`px-2 py-0.5 rounded text-[10px] font-bold ${duracionCombate === 180 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}`}>3:00</button>
                 </div>
               </div>
               
@@ -780,7 +927,7 @@ export default function KarateWKFController({
               {/* Botones de Control Principal Play/Pause & Reset */}
               <div className="flex justify-center gap-2 mt-2">
                 <button 
-                  onClick={() => setIsRunning(!isRunning)}
+                  onClick={toggleTimer}
                   className={`px-5 py-2 rounded-xl flex items-center justify-center gap-1.5 shadow transition font-black text-xs uppercase tracking-wider ${
                     isRunning ? 'bg-amber-500 text-slate-950 hover:bg-amber-400' : 'bg-emerald-600 text-white hover:bg-emerald-500'
                   }`}
@@ -789,7 +936,7 @@ export default function KarateWKFController({
                   {isRunning ? <><Pause size={18} /> Yame (Pausa)</> : <><Play size={18} /> Hajime (Iniciar)</>}
                 </button>
                 <button 
-                  onClick={() => { setIsRunning(false); setTimer(duracionCombate); }}
+                  onClick={resetTimer}
                   className="px-3 py-2 rounded-xl flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 transition shadow border border-slate-700"
                   title="Reiniciar Cronómetro (R)"
                 >
