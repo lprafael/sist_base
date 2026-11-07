@@ -14,7 +14,7 @@ services:
       - PORT=8001
       - GOOGLE_CLIENT_ID=439455345371-dkvgmnbcvf4l5vcsukmm8io273mkk4ab.apps.googleusercontent.com
       - EVOLUTION_API_URL=http://evolution-api:8080
-      - EVOLUTION_API_KEY=micancha_whatsapp_secret_2026
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:?Define EVOLUTION_API_KEY en .env}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
@@ -85,7 +85,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: MiCanchaSegura_2026_Postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
       POSTGRES_DB: BBDD_micancha
     ports:
       - "127.0.0.1:5436:5432"
@@ -103,10 +103,10 @@ services:
       - SERVER_PORT=8080
       - SERVER_URL=http://evolution-api:8080
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=micancha_whatsapp_secret_2026
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:?Define EVOLUTION_API_KEY en .env}
       - DATABASE_ENABLED=true
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://postgres:admin@db:5432/BBDD_micancha?schema=evolution
+      - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/BBDD_micancha?schema=evolution
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_v2
       - CACHE_REDIS_ENABLED=false
       - CACHE_REDIS_CACHE_STORE=false

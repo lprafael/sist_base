@@ -12,7 +12,7 @@ import traceback
 from typing import Optional, Dict, Any
 
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "http://evolution-api:8080")
-EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "micancha_whatsapp_secret_2026")
+EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
 INSTANCE_NAME = os.getenv("EVOLUTION_INSTANCE_NAME", "micancha_bot")
 
 

@@ -9,7 +9,15 @@ DATABASE_URL=postgresql+asyncpg://usuario:password@192.168.100.112:5432/nombre_d
 # SQL_PASSWORD=
 
 # Configuración de seguridad
-SECRET_KEY=tu_clave_secreta_muy_segura_aqui_cambiala_en_produccion
+SECRET_KEY=  # obligatoria, min. 32 caracteres: python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# Pagos
+MP_WEBHOOK_SECRET=        # clave secreta de webhooks de MercadoPago (valida x-signature)
+PAGOS_SIMULADOS_HABILITADOS=false  # true solo en desarrollo
+
+# CORS (opcional)
+CORS_EXTRA_ORIGINS=       # lista separada por comas, ej. http://192.168.100.112:3001
+CORS_ORIGIN_REGEX=        # reemplaza el patron por defecto (*.micancha.com.py + localhost)
 
 # Configuración de email (para Gmail)
 EMAIL_HOST=smtp.gmail.com

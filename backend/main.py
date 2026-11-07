@@ -132,8 +132,13 @@ app.add_middleware(
         "https://play.micancha.com.py",
         "https://admin.micancha.com.py",
         "https://api.micancha.com.py"
-    ],
-    allow_origin_regex=r"https?://.*",
+    ] + [o.strip() for o in os.getenv("CORS_EXTRA_ORIGINS", "").split(",") if o.strip()],
+    # Antes: r"https?://.*" permitía a CUALQUIER sitio hacer peticiones con credenciales.
+    # Solo subdominios de micancha.com.py y orígenes locales; ampliable con CORS_ORIGIN_REGEX.
+    allow_origin_regex=os.getenv(
+        "CORS_ORIGIN_REGEX",
+        r"^(https://([a-z0-9-]+\.)*micancha\.com\.py|http://(localhost|127\.0\.0\.1)(:\d+)?)$",
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1257,8 +1262,19 @@ async def generate_payment_link(torneo_equipo_id: str, request: Request, session
 
 from fastapi.responses import HTMLResponse
 
+# El checkout y el webhook "simulados" confirman pagos sin pasar por MercadoPago.
+# Solo se habilitan explícitamente en desarrollo (PAGOS_SIMULADOS_HABILITADOS=true).
+# Los pagos reales se confirman en /api/pagos/webhook/mercadopago (routers/payments.py),
+# que consulta el estado del pago directamente a la API de MercadoPago.
+PAGOS_SIMULADOS_HABILITADOS = os.getenv("PAGOS_SIMULADOS_HABILITADOS", "false").lower() == "true"
+
+def _requiere_pagos_simulados():
+    if not PAGOS_SIMULADOS_HABILITADOS:
+        raise HTTPException(status_code=404, detail="Not Found")
+
 @app.get("/cancha/pagos/checkout-simulado/{torneo_equipo_id}", response_class=HTMLResponse)
 async def checkout_simulado(torneo_equipo_id: str, session: AsyncSession = Depends(get_session)):
+    _requiere_pagos_simulados()
     query = text("""
         SELECT t.nombre, e.nombre, t.costo_inscripcion, t.id
         FROM torneos.equipos e
@@ -1495,8 +1511,9 @@ async def checkout_simulado(torneo_equipo_id: str, session: AsyncSession = Depen
     """
     return html_content
 
-@app.post("/cancha/pagos/webhook/mercadopago", summary="Webhook para MercadoPago (Simulado/Real)")
+@app.post("/cancha/pagos/webhook/mercadopago", summary="Webhook simulado de MercadoPago (solo desarrollo)")
 async def mercadopago_webhook(torneo_equipo_id: str, status: str = "aprobado", session: AsyncSession = Depends(get_session)):
+    _requiere_pagos_simulados()
     try:
         if status == "aprobado":
             update_team = text("""
@@ -1581,7 +1598,12 @@ async def get_payment_status(torneo_equipo_id: str, session: AsyncSession = Depe
     }
 
 @app.post("/cancha/pagos/efectivo/{torneo_equipo_id}", summary="Registrar un pago en efectivo (Manual)")
-async def register_cash_payment(torneo_equipo_id: str, payload: PagoEfectivoRequest, session: AsyncSession = Depends(get_session)):
+async def register_cash_payment(
+    torneo_equipo_id: str,
+    payload: PagoEfectivoRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
     try:
         query = text("""
             SELECT t.costo_inscripcion, e.torneo_id

@@ -1,8 +1,9 @@
+import os
 import subprocess
 
 ssh_target = "root@187.77.247.23"
 remote_cmd = (
-    "docker exec -e PGPASSWORD=MiCanchaSegura_2026_Postgres micancha-db-local psql -U postgres -d BBDD_micancha "
+    f"docker exec -e PGPASSWORD={os.environ['POSTGRES_PASSWORD']} micancha-db-local psql -U postgres -d BBDD_micancha "
     "-c \""
     "SELECT t.nombre || ' ' || t.apellido AS tutor, "
     "       df.receptor_ruc || '-' || df.receptor_dv AS ruc, "

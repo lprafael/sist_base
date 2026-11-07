@@ -430,11 +430,26 @@ async def webhook_mercadopago(
             print("❌ Missing signature header")
             return {"status": "error", "message": "Missing signature"}
         
-        # Validar firma (MercadoPago proporciona esto)
-        # Por ahora, continuamos (implementar validación completa después)
-        
         data = body.get("data", {})
         payment_id = data.get("id")
+
+        # Validar firma HMAC de MercadoPago si hay secreto configurado.
+        # Aun sin secreto, el estado del pago se lee de la API de MercadoPago, no del body.
+        mp_webhook_secret = os.getenv("MP_WEBHOOK_SECRET", "")
+        if mp_webhook_secret:
+            partes = dict(
+                p.strip().split("=", 1) for p in signature.split(",") if "=" in p
+            )
+            ts, v1 = partes.get("ts"), partes.get("v1")
+            data_id = str(request.query_params.get("data.id") or payment_id or "").lower()
+            request_id = request.headers.get("x-request-id", "")
+            manifest = f"id:{data_id};request-id:{request_id};ts:{ts};"
+            esperado = hmac.new(
+                mp_webhook_secret.encode(), manifest.encode(), hashlib.sha256
+            ).hexdigest()
+            if not ts or not v1 or not hmac.compare_digest(esperado, v1):
+                print("❌ Firma de webhook MercadoPago inválida")
+                raise HTTPException(status_code=401, detail="Firma inválida")
         
         if not payment_id:
             print("❌ No payment ID in webhook")
@@ -520,7 +535,12 @@ async def webhook_mercadopago(
         except Exception as e:
             print(f"❌ Error en webhook processing: {e}")
             return {"status": "received"}
-        
+
+    except HTTPException as e:
+        if e.status_code == 401:  # firma inválida
+            raise
+        print(f"Error en webhook: {e.detail}")
+        return {"status": "error", "message": str(e.detail)}
     except Exception as e:
         print(f"❌ Error en webhook: {e}")
         import traceback

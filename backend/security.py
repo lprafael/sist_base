@@ -15,7 +15,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuración de seguridad
-SECRET_KEY = os.getenv("SECRET_KEY", "tu_clave_secreta_muy_segura_aqui")
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+# Sin clave propia, cualquiera podría firmar tokens JWT válidos con la clave por defecto.
+if not SECRET_KEY or SECRET_KEY.startswith("tu_clave_secreta") or len(SECRET_KEY) < 32:
+    raise RuntimeError(
+        "SECRET_KEY no configurada o insegura. Define en backend/.env una clave de al menos "
+        "32 caracteres, p. ej.: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480")) # Default: 8 horas
 

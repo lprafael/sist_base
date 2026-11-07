@@ -50,3 +50,9 @@ backend/static/uploads/logos/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Datos personales e importaciones de clientes (no versionar)
+CLUB SANTA TERESITA ATLETAS Y PADRES.xlsx
+import_santa_teresita.sql
+import_*.sql
+*_files.txt
