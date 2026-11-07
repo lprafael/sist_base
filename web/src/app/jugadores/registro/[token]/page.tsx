@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import {
   CheckCircle, Loader2, AlertCircle, ShieldCheck, Tag,
   User, Scale, Trophy
@@ -30,7 +30,9 @@ type PageData = {
   categorias: { id: string; nombre: string; descripcion: string }[];
 };
 
-export default function JugadorRegistroPage({ params }: { params: { token: string } }) {
+export default function JugadorRegistroPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
+  // Next 15+: params es una Promise en las páginas
+  const params = use(paramsPromise);
   const { token } = params;
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);

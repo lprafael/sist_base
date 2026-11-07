@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { UserPlus, Calendar, Camera, Hash, CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function TokenInvitacionPage({ params }: { params: { id: string, token: string } }) {
+export default function TokenInvitacionPage({ params: paramsPromise }: { params: Promise<{ id: string, token: string }> }) {
+  // Next 15+: params es una Promise en las páginas
+  const params = use(paramsPromise);
   const [equipo, setEquipo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

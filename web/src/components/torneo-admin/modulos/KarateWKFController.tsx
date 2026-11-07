@@ -14,12 +14,15 @@ export default function KarateWKFController({
   match,
   onClose,
   onSaved,
-  onUpdate
+  onUpdate,
+  embedded = false
 }: {
   match: any;
   onClose: () => void;
   onSaved?: () => void;
   onUpdate?: () => void;
+  /** true: se integra en la página (no tapa la barra de tatamis/combates) en lugar de abrirse como modal */
+  embedded?: boolean;
 }) {
   const safeMatch = match || {};
   const matchId = safeMatch.id || 'demo-match';
@@ -728,8 +731,10 @@ export default function KarateWKFController({
   }, [estadisticas, estado]);
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-3 animate-fadeIn">
-      <div className="bg-slate-900 w-full max-w-6xl h-[94vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border-2 border-red-600">
+    <div className={embedded
+      ? "w-full flex items-start justify-center"
+      : "fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-3 animate-fadeIn"}>
+      <div className={`bg-slate-900 w-full max-w-6xl ${embedded ? "h-[calc(100vh-7rem)] min-h-[640px]" : "h-[94vh]"} rounded-3xl shadow-2xl flex flex-col overflow-hidden border-2 border-red-600`}>
         
         {/* Header Oficial WKF */}
         <div className="bg-slate-950 text-white p-3.5 flex justify-between items-center relative border-b-2 border-red-600">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import {
   ShieldCheck, Users, Trophy, Calendar, ChevronRight, ChevronLeft,
   Loader2, CheckCircle, Copy, ExternalLink, Tag, User, Phone, Mail,
@@ -56,7 +56,9 @@ type ResultData = {
   lichess_url?: string;
 };
 
-export default function InscripcionPage({ params }: { params: { id: string } }) {
+export default function InscripcionPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // Next 15+: params es una Promise en las páginas
+  const params = use(paramsPromise);
   const torneoId = params.id;
   const [torneo, setTorneo] = useState<Torneo | null>(null);
   const [canalesPago, setCanalesPago] = useState<CanalCobro[]>([]);

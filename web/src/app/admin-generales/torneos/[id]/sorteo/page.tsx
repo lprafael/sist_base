@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, use } from 'react';
 import { ArrowLeft, GitMerge, UserMinus, UserPlus, Save, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -21,7 +21,9 @@ interface Categoria {
   alertas: string[];
 }
 
-export default function SorteoProfesional({ params }: { params: { id: string } }) {
+export default function SorteoProfesional({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // Next 15+: params es una Promise en las páginas
+  const params = use(paramsPromise);
   const router = useRouter();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(false);

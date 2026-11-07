@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -22,7 +22,9 @@ const getApiUrl = () => {
 };
 const API_URL = getApiUrl();
 
-export default function ArbitrajeCombatePage({ params }: { params: { id: string } }) {
+export default function ArbitrajeCombatePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // Next 15+: params es una Promise en las páginas
+  const params = use(paramsPromise);
   const router = useRouter();
   const searchParams = useSearchParams();
   const torneoId = params.id;
@@ -166,7 +168,7 @@ export default function ArbitrajeCombatePage({ params }: { params: { id: string 
         {/* Derecha: Estaciones Vinculadas del Tatami Activo */}
         <div className="flex items-center gap-2">
           {/* Selector de combate si hay varios en este tatami */}
-          {partidos.filter((p: any) => String(p.area) === String(selectedTatami)).length > 1 && (
+          {partidos.filter((p: any) => String(p.area) === String(selectedTatami)).length > 0 && (
             <div className="relative">
               <select
                 value={selectedMatch?.id || ""}
@@ -238,6 +240,8 @@ export default function ArbitrajeCombatePage({ params }: { params: { id: string 
       <div className="flex-1 flex flex-col justify-center p-2 sm:p-4 max-w-7xl mx-auto w-full">
         {selectedMatch ? (
           <KarateWKFController
+            key={selectedMatch.id}
+            embedded
             match={selectedMatch}
             onClose={() => router.push(`/admin-torneo/${torneoId}`)}
             onSaved={fetchData}

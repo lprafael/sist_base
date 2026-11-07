@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import {
   Users, Plus, Copy, CheckCircle, ExternalLink, ChevronDown,
   ChevronUp, Loader2, Tag, User, Phone, Shield, ShieldCheck,
@@ -60,7 +60,9 @@ type PanelData = {
   enlace_jugadores: string;
 };
 
-export default function DelegadosPage({ params }: { params: { token: string } }) {
+export default function DelegadosPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
+  // Next 15+: params es una Promise en las páginas
+  const params = use(paramsPromise);
   const { token } = params;
   const [data, setData] = useState<PanelData | null>(null);
   const [loading, setLoading] = useState(true);
