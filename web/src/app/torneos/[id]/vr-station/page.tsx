@@ -204,8 +204,8 @@ export default function VRStation() {
   };
 
   /* ─── Enviar veredicto ──────────────────────────────────────── */
-  const enviarVeredicto = async (res: "ACEPTADO" | "RECHAZADO" | "MIENAI", ptsOverride?: number) => {
-    if (!request || !matchId) return;
+  const enviarVeredicto = async (res: "ACEPTADO" | "RECHAZADO" | "MIENAI", ptsOverride?: number, tecnicaOverride?: string) => {
+    if (!matchId) return;
     const pts = ptsOverride !== undefined ? ptsOverride : puntos;
 
     try {
@@ -213,21 +213,25 @@ export default function VRStation() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          review_id: request.reviewId,
+          review_id: request?.reviewId || undefined,
           resultado: res,
           puntos_otorgados: res === "ACEPTADO" ? pts : 0,
+          tecnica: tecnicaOverride || undefined,
           clip_url: clipUrl,
         }),
       });
       const data = await r.json();
-      if (data.ok) {
+      if (r.ok && data.ok) {
         setResultado(res);
         setRequest(null);
         setTimerActive(false);
         setTimerSecs(DELIBERATION_SECS);
+      } else {
+        alert(`Aviso del sistema: ${data.detail || "No se pudo registrar la resolución"}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error al enviar veredicto:", e);
+      alert("Error de conexión al enviar veredicto al servidor central.");
     }
   };
 
@@ -583,16 +587,16 @@ export default function VRStation() {
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {[
-                    { label: "+1 YUKO",     pts: 1, color: "#ef4444" },
-                    { label: "+2 WAZA-ARI", pts: 2, color: "#f59e0b" },
-                    { label: "+3 IPPON",    pts: 3, color: "#10b981" },
-                    { label: "SENSHU",      pts: 0, color: "#fbbf24" },
-                  ].map(({ label, pts, color }) => (
+                    { label: "+1 YUKO",     pts: 1, tech: "YUKO",     color: "#ef4444" },
+                    { label: "+2 WAZA-ARI", pts: 2, tech: "WAZA_ARI", color: "#f59e0b" },
+                    { label: "+3 IPPON",    pts: 3, tech: "IPPON",    color: "#10b981" },
+                    { label: "SENSHU",      pts: 0, tech: "SENSHU",   color: "#fbbf24" },
+                  ].map(({ label, pts, tech, color }) => (
                     <button
                       key={label}
                       onClick={() => {
                         setPuntos(pts);
-                        enviarVeredicto("ACEPTADO", pts);
+                        enviarVeredicto("ACEPTADO", pts, tech);
                       }}
                       disabled={!request}
                       style={{

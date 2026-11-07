@@ -10,8 +10,10 @@ Flujo:
   2. El Juez VR revisa el clip y emite veredicto
      → POST /api/vr/combates/{match_id}/resolver
      → El sistema aplica puntos / descuenta tarjeta / mantiene tarjeta (MIENAI)
-     → Broadcastea VR_RESUELTO y reanuda el crono
+     → Broadcastea VR_RESUELTO + SCORE_UPDATE (la mesa reanuda el crono con "Hajime")
   3. Pantalla de Tatami y árbitro de mesa reciben el update por WebSocket
+  4. (Opcional) La mesa puede cancelar un VR colgado
+     → POST /api/vr/combates/{match_id}/cancelar
 
 Reglas de negocio:
   - ACEPTADO  → Coach conserva VR card + puntos aplicados
@@ -49,51 +51,160 @@ class VRSolicitudRequest(BaseModel):
 
 
 class VRVeredictoRequest(BaseModel):
-    review_id: int
+    review_id: Optional[int] = None  # Si falta o no existe, se usa el último VR pendiente del combate
     resultado: str          # 'ACEPTADO' | 'RECHAZADO' | 'MIENAI'
     puntos_otorgados: int = 0   # 1=Yuko, 2=Waza-Ari, 3=Ippon, 0=sin puntos
+    tecnica: Optional[str] = None   # 'YUKO' | 'WAZA_ARI' | 'IPPON' | 'SENSHU' (elegida por el Juez VR)
     clip_url: Optional[str] = None  # URL del clip guardado (evidencia)
+
+
+# ─── Constantes / normalizadores ──────────────────────────────────────────────
+
+INT32_MAX = 2_147_483_647
+COLORES_VALIDOS = {"aka": "Aka", "ao": "Ao", "blanco": "Blanco", "rojo": "Rojo"}
+TIPOS_VALIDOS = ("YUKO", "WAZA_ARI", "IPPON", "SENSHU", "OTRO")
+TECNICAS_WKF = {"YUKO": ("yuko", 1), "WAZA_ARI": ("waza_ari", 2), "IPPON": ("ippon", 3), "SENSHU": ("senshu", 0)}
+PUNTOS_A_TECNICA = {1: "YUKO", 2: "WAZA_ARI", 3: "IPPON"}
+
+
+def _norm_color(color: Optional[str]) -> Optional[str]:
+    return COLORES_VALIDOS.get((color or "").strip().lower())
+
+
+def _norm_tipo(tipo: Optional[str]) -> str:
+    """Normaliza el tipo de reclamo al CHECK de la tabla (evita errores 500 por valores libres)."""
+    t = (tipo or "").strip().upper().replace("-", "_").replace(" ", "_")
+    return t if t in TIPOS_VALIDOS else "OTRO"
+
+
+def _lado(color: str) -> str:
+    """Mapea el color de esquina a la estructura que usa la mesa (local/visitante)."""
+    return "local" if color in ("Aka", "Blanco") else "visitante"
+
+
+def _valid_review_id(review_id: Optional[int]) -> Optional[int]:
+    """Descarta ids inválidos (p.ej. Date.now() enviado por clientes antiguos)."""
+    if review_id is None:
+        return None
+    try:
+        rid = int(review_id)
+    except (TypeError, ValueError):
+        return None
+    return rid if 0 < rid <= INT32_MAX else None
+
+
+# ─── Auto-reparación de esquema ───────────────────────────────────────────────
+# La migración 049 creó partido_id como INTEGER, pero torneos.partidos.id es UUID.
+# Esto hacía fallar el INSERT de /solicitar con cualquier combate real, por lo que
+# /resolver nunca encontraba el registro (404). Se corrige una vez por proceso.
+
+_schema_ok = False
+
+
+async def _ensure_schema(session: AsyncSession):
+    global _schema_ok
+    if _schema_ok:
+        return
+    try:
+        await session.execute(text("""
+            CREATE TABLE IF NOT EXISTS torneos.video_reviews (
+                id SERIAL PRIMARY KEY,
+                partido_id VARCHAR(64) NOT NULL,
+                competidor_color VARCHAR(10) NOT NULL,
+                tiempo_cronometro VARCHAR(10) NOT NULL,
+                tipo_solicitud VARCHAR(20) NOT NULL,
+                resultado VARCHAR(20),
+                puntos_otorgados INTEGER DEFAULT 0,
+                clip_url VARCHAR(255),
+                reglamento VARCHAR(10) DEFAULT 'WKF',
+                resuelto BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                resuelto_at TIMESTAMP
+            )
+        """))
+        q = await session.execute(text("""
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = 'torneos' AND table_name = 'video_reviews'
+              AND column_name = 'partido_id'
+        """))
+        dtype = q.scalar()
+        if dtype and dtype != "character varying":
+            await session.execute(text(
+                "ALTER TABLE torneos.video_reviews "
+                "ALTER COLUMN partido_id TYPE VARCHAR(64) USING partido_id::text"
+            ))
+        await session.execute(text(
+            "ALTER TABLE torneos.video_reviews ALTER COLUMN clip_url TYPE VARCHAR(512)"
+        ))
+        await session.commit()
+        _schema_ok = True
+    except Exception as e:
+        await session.rollback()
+        print(f"[VR] No se pudo verificar/reparar el esquema de video_reviews: {e}")
 
 
 # ─── Helper: leer estadísticas del partido ────────────────────────────────────
 
+def _stats_default() -> dict:
+    base = {"puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False, "video_review": "ACTIVE"}
+    return {"local": dict(base), "visitante": dict(base)}
+
+
 async def _get_partido_stats(session: AsyncSession, match_id: str) -> dict:
+    import json as _json
+    stats: dict = {}
     try:
-        q = await session.execute(
-            text("SELECT estadisticas FROM torneos.partidos WHERE id::text = :id"),
-            {"id": str(match_id)}
-        )
-        row = q.fetchone()
+        async with session.begin_nested():
+            q = await session.execute(
+                text("SELECT estadisticas FROM torneos.partidos WHERE id::text = :id"),
+                {"id": str(match_id)}
+            )
+            row = q.fetchone()
         if row and row[0]:
-            import json as _json
             stats = row[0]
             if isinstance(stats, str):
                 stats = _json.loads(stats)
-            return stats or {}
     except Exception:
-        pass
-    # Fallback para pruebas rápidas / demo si el partido no está en DB
-    return {
-        "aka": {"puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False},
-        "ao": {"puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False},
-        "blanco": {"puntos": 0},
-        "rojo": {"puntos": 0},
-        "vr_card_aka": "ACTIVE",
-        "vr_card_ao": "ACTIVE",
-        "vr_card_blanco": "ACTIVE",
-        "vr_card_rojo": "ACTIVE",
-    }
+        stats = {}
+    if not isinstance(stats, dict):
+        stats = {}
+    # Garantizar estructura local/visitante (la misma que usa la mesa WKF y el marcador)
+    defaults = _stats_default()
+    for lado in ("local", "visitante"):
+        if not isinstance(stats.get(lado), dict):
+            stats[lado] = defaults[lado]
+    return stats
+
+
+def _vr_card_bloqueada(stats: dict, color: str) -> bool:
+    if stats.get(f"vr_card_{color.lower()}") == "USED_AND_LOCKED":
+        return True
+    lado = stats.get(_lado(color)) or {}
+    return isinstance(lado, dict) and lado.get("video_review") == "USED_AND_LOCKED"
 
 
 async def _update_partido_stats(session: AsyncSession, match_id: str, stats: dict):
+    """Persiste estadísticas + marcador. Usa SAVEPOINT para no abortar la transacción principal."""
     import json as _json
     try:
-        await session.execute(
-            text("UPDATE torneos.partidos SET estadisticas = :s WHERE id::text = :id"),
-            {"s": _json.dumps(stats), "id": str(match_id)}
-        )
-    except Exception:
-        pass
+        async with session.begin_nested():
+            await session.execute(
+                text("""
+                    UPDATE torneos.partidos
+                    SET estadisticas = :s,
+                        goles_local = :gl,
+                        goles_visitante = :gv
+                    WHERE id::text = :id
+                """),
+                {
+                    "s": _json.dumps(stats),
+                    "gl": int(stats.get("local", {}).get("puntos", 0) or 0),
+                    "gv": int(stats.get("visitante", {}).get("puntos", 0) or 0),
+                    "id": str(match_id),
+                }
+            )
+    except Exception as e:
+        print(f"[VR] No se pudieron actualizar estadísticas del partido {match_id}: {e}")
 
 
 # ─── 1. WebSocket — Conexión en tiempo real ───────────────────────────────────
@@ -152,14 +263,17 @@ async def solicitar_video_review(
     El coach de una esquina solicita revisión de video.
     Valida que tenga VR card disponible, crea el registro y broadcastea la pausa.
     """
-    color = body.competidor_color
-    if color not in ("Aka", "Ao", "Blanco", "Rojo"):
-        raise HTTPException(status_code=400, detail="competidor_color inválido")
+    color = _norm_color(body.competidor_color)
+    if not color:
+        raise HTTPException(status_code=400, detail="competidor_color inválido (Aka, Ao, Blanco o Rojo)")
+    tipo = _norm_tipo(body.tipo_solicitud)
+    reglamento = "ASAM" if (body.reglamento or "").upper() == "ASAM" else "WKF"
+
+    await _ensure_schema(session)
 
     # Verificar VR card disponible
     stats = await _get_partido_stats(session, match_id)
-    vr_key = f"vr_card_{color.lower()}"
-    vr_card_estado = stats.get(vr_key, "ACTIVE")
+    vr_card_estado = "USED_AND_LOCKED" if _vr_card_bloqueada(stats, color) else "ACTIVE"
 
     if vr_card_estado == "USED_AND_LOCKED":
         raise HTTPException(
@@ -171,9 +285,9 @@ async def solicitar_video_review(
     existing = await session.execute(
         text("""
             SELECT id FROM torneos.video_reviews
-            WHERE partido_id = :pid AND resuelto = FALSE
+            WHERE partido_id::text = :pid AND resuelto = FALSE
         """),
-        {"pid": match_id}
+        {"pid": str(match_id)}
     )
     if existing.fetchone():
         raise HTTPException(
@@ -191,11 +305,11 @@ async def solicitar_video_review(
             RETURNING id
         """),
         {
-            "pid": match_id,
+            "pid": str(match_id),
             "color": color,
-            "tiempo": body.tiempo_cronometro,
-            "tipo": body.tipo_solicitud,
-            "regl": body.reglamento,
+            "tiempo": (body.tiempo_cronometro or "--:--")[:10],
+            "tipo": tipo,
+            "regl": reglamento,
             "clip": body.clip_url,
         }
     )
@@ -204,16 +318,15 @@ async def solicitar_video_review(
 
     # Broadcast: pausa cronómetro + banner VR en todas las pantallas
     await vr_manager.broadcast(match_id, evt_timer_pause(match_id))
-    await vr_manager.broadcast(
-        match_id,
-        evt_vr_solicitado(
-            match_id=match_id,
-            competidor_color=color,
-            tipo_solicitud=body.tipo_solicitud,
-            tiempo_cronometro=body.tiempo_cronometro,
-            review_id=review_id,
-        )
+    evento = evt_vr_solicitado(
+        match_id=match_id,
+        competidor_color=color,
+        tipo_solicitud=tipo,
+        tiempo_cronometro=body.tiempo_cronometro,
+        review_id=review_id,
     )
+    evento["reglamento"] = reglamento
+    await vr_manager.broadcast(match_id, evento)
 
     return {
         "ok": True,
@@ -234,64 +347,84 @@ async def resolver_video_review(
     """
     El Juez VR emite su veredicto sobre la solicitud de revisión.
     Aplica la regla de tarjeta y suma puntos si es ACEPTADO.
+    Si el review_id no llega o no es válido, se resuelve el último VR pendiente del combate.
     """
-    if body.resultado not in ("ACEPTADO", "RECHAZADO", "MIENAI"):
-        raise HTTPException(status_code=400, detail="resultado inválido")
+    resultado = (body.resultado or "").strip().upper()
+    if resultado not in ("ACEPTADO", "RECHAZADO", "MIENAI"):
+        raise HTTPException(status_code=400, detail="resultado inválido (ACEPTADO, RECHAZADO o MIENAI)")
 
-    # Buscar el VR
-    q = await session.execute(
-        text("""
-            SELECT id, competidor_color, tipo_solicitud, reglamento
-            FROM torneos.video_reviews
-            WHERE id = :rid AND partido_id = :pid AND resuelto = FALSE
-        """),
-        {"rid": body.review_id, "pid": match_id}
-    )
-    vr_row = q.fetchone()
+    await _ensure_schema(session)
+
+    # Buscar el VR: primero por id exacto, luego el último pendiente del combate
+    vr_row = None
+    rid = _valid_review_id(body.review_id)
+    if rid:
+        q = await session.execute(
+            text("""
+                SELECT id, competidor_color, tipo_solicitud, reglamento
+                FROM torneos.video_reviews
+                WHERE id = :rid AND partido_id::text = :pid AND resuelto = FALSE
+            """),
+            {"rid": rid, "pid": str(match_id)}
+        )
+        vr_row = q.fetchone()
     if not vr_row:
-        raise HTTPException(status_code=404, detail="Video Review no encontrado o ya resuelto")
+        q = await session.execute(
+            text("""
+                SELECT id, competidor_color, tipo_solicitud, reglamento
+                FROM torneos.video_reviews
+                WHERE partido_id::text = :pid AND resuelto = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            """),
+            {"pid": str(match_id)}
+        )
+        vr_row = q.fetchone()
+    if not vr_row:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No hay un Video Review pendiente para el combate {match_id}. "
+                "Verifique que la mesa haya solicitado el VR y que el Juez VR esté conectado al mismo combate."
+            ),
+        )
 
     review_id, color, tipo_solicitud, reglamento = vr_row
+    color = _norm_color(color) or color
 
     stats = await _get_partido_stats(session, match_id)
+    lado = _lado(color)
+    rival = "visitante" if lado == "local" else "local"
     vr_key = f"vr_card_{color.lower()}"
     puntos_aplicados = 0
+    tecnica_aplicada: Optional[str] = None
 
-    if body.resultado == "ACEPTADO":
+    if resultado == "ACEPTADO":
         # Conserva tarjeta + aplica puntos
-        puntos_aplicados = body.puntos_otorgados
-        if reglamento == "WKF":
-            # Determinar campo de puntos WKF
-            tipo_map = {
-                "YUKO": ("yuko", 1),
-                "WAZA_ARI": ("waza_ari", 2),
-                "IPPON": ("ippon", 3),
-                "SENSHU": ("senshu", 0),
-            }
-            campo, pts = tipo_map.get(tipo_solicitud, ("yuko", 1))
-            lado = color.lower()  # 'aka' o 'ao'
-            if not isinstance(stats.get(lado), dict):
-                stats[lado] = {}
+        if reglamento == "ASAM":
+            stats[lado]["puntos"] = int(stats[lado].get("puntos", 0) or 0) + 1
+            puntos_aplicados = 1
+            tecnica_aplicada = "PUNTO"
+        else:
+            # La técnica la decide el Juez VR (botón presionado); si no llega se infiere
+            tecnica = (body.tecnica or "").strip().upper().replace("-", "_")
+            if tecnica not in TECNICAS_WKF:
+                tecnica = PUNTOS_A_TECNICA.get(body.puntos_otorgados) or (
+                    tipo_solicitud if tipo_solicitud in TECNICAS_WKF else "YUKO"
+                )
+            campo, pts = TECNICAS_WKF[tecnica]
+            tecnica_aplicada = tecnica
             if campo == "senshu":
                 stats[lado]["senshu"] = True
-                # Quitar Senshu del rival
-                rival = "ao" if lado == "aka" else "aka"
-                if isinstance(stats.get(rival), dict):
-                    stats[rival]["senshu"] = False
+                stats[rival]["senshu"] = False  # Quitar Senshu del rival
             else:
-                stats[lado][campo] = stats[lado].get(campo, 0) + 1
-                stats[lado]["puntos"] = stats[lado].get("puntos", 0) + pts
+                stats[lado][campo] = int(stats[lado].get(campo, 0) or 0) + 1
+                stats[lado]["puntos"] = int(stats[lado].get("puntos", 0) or 0) + pts
                 puntos_aplicados = pts
-        elif reglamento == "ASAM":
-            lado = color.lower()  # 'blanco' o 'rojo'
-            if not isinstance(stats.get(lado), dict):
-                stats[lado] = {}
-            stats[lado]["puntos"] = stats[lado].get("puntos", 0) + 1
-            puntos_aplicados = 1
 
-    elif body.resultado == "RECHAZADO":
+    elif resultado == "RECHAZADO":
         # Pierde la tarjeta
         stats[vr_key] = "USED_AND_LOCKED"
+        stats[lado]["video_review"] = "USED_AND_LOCKED"
 
     # MIENAI → no se toca la tarjeta
 
@@ -310,7 +443,7 @@ async def resolver_video_review(
             WHERE id = :rid
         """),
         {
-            "res": body.resultado,
+            "res": resultado,
             "pts": puntos_aplicados,
             "clip": body.clip_url,
             "rid": review_id,
@@ -318,28 +451,60 @@ async def resolver_video_review(
     )
     await session.commit()
 
-    # Broadcast: resultado + score update + reanuda crono
-    await vr_manager.broadcast(
-        match_id,
-        evt_vr_resuelto(
-            match_id=match_id,
-            review_id=review_id,
-            resultado=body.resultado,
-            competidor_color=color,
-            puntos_otorgados=puntos_aplicados,
-            tipo_solicitud=tipo_solicitud,
-        )
+    # Broadcast: resultado + score update. El crono queda pausado: la mesa lo
+    # reanuda manualmente (Tsuzukete Hajime) para que mesa y marcador no se desincronicen.
+    evento = evt_vr_resuelto(
+        match_id=match_id,
+        review_id=review_id,
+        resultado=resultado,
+        competidor_color=color,
+        puntos_otorgados=puntos_aplicados,
+        tipo_solicitud=tipo_solicitud,
     )
+    evento["tecnica"] = tecnica_aplicada
+    await vr_manager.broadcast(match_id, evento)
     await vr_manager.broadcast(match_id, evt_score_update(match_id, stats))
-    await vr_manager.broadcast(match_id, evt_timer_resume(match_id))
 
     return {
         "ok": True,
-        "resultado": body.resultado,
+        "review_id": review_id,
+        "resultado": resultado,
+        "tecnica": tecnica_aplicada,
         "puntos_aplicados": puntos_aplicados,
         "vr_card": stats.get(vr_key, "ACTIVE"),
-        "mensaje": f"VR resuelto: {body.resultado}. Puntos aplicados: {puntos_aplicados}.",
+        "mensaje": f"VR resuelto: {resultado}. Puntos aplicados: {puntos_aplicados}.",
     }
+
+
+# ─── 3b. Cancelar VR pendiente (VR colgado / solicitado por error) ────────────
+
+@router.post("/combates/{match_id}/cancelar")
+async def cancelar_video_review(
+    match_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Cierra los VR pendientes del combate sin aplicar puntos ni tocar tarjetas."""
+    await _ensure_schema(session)
+    res = await session.execute(
+        text("""
+            UPDATE torneos.video_reviews
+            SET resuelto = TRUE, resuelto_at = NOW()
+            WHERE partido_id::text = :pid AND resuelto = FALSE
+            RETURNING id
+        """),
+        {"pid": str(match_id)}
+    )
+    ids = [r[0] for r in res.fetchall()]
+    await session.commit()
+    for rid in ids:
+        await vr_manager.broadcast(match_id, {
+            "event": "VR_RESUELTO",
+            "match_id": match_id,
+            "review_id": rid,
+            "resultado": "CANCELADO",
+            "puntos_otorgados": 0,
+        })
+    return {"ok": True, "cancelados": ids}
 
 
 # ─── 4. Estado actual del VR del partido ─────────────────────────────────────
@@ -350,15 +515,16 @@ async def estado_video_review(
     session: AsyncSession = Depends(get_session)
 ):
     """Devuelve el estado del VR activo (si existe) para un partido."""
+    await _ensure_schema(session)
     q = await session.execute(
         text("""
             SELECT id, competidor_color, tipo_solicitud, tiempo_cronometro,
                    reglamento, clip_url, created_at
             FROM torneos.video_reviews
-            WHERE partido_id = :pid AND resuelto = FALSE
+            WHERE partido_id::text = :pid AND resuelto = FALSE
             ORDER BY created_at DESC LIMIT 1
         """),
-        {"pid": match_id}
+        {"pid": str(match_id)}
     )
     row = q.fetchone()
     if not row:
@@ -386,16 +552,17 @@ async def historial_video_review(
     session: AsyncSession = Depends(get_session)
 ):
     """Lista todos los Video Reviews registrados en el combate."""
+    await _ensure_schema(session)
     q = await session.execute(
         text("""
             SELECT id, competidor_color, tipo_solicitud, resultado,
                    puntos_otorgados, tiempo_cronometro, reglamento,
                    clip_url, created_at, resuelto_at
             FROM torneos.video_reviews
-            WHERE partido_id = :pid
+            WHERE partido_id::text = :pid
             ORDER BY created_at ASC
         """),
-        {"pid": match_id}
+        {"pid": str(match_id)}
     )
     rows = q.fetchall()
     return {
@@ -432,14 +599,30 @@ async def actualizar_clip_url(
     OBS notifica la ruta del clip guardado.
     El frontend llama a este endpoint tras recibir el evento ReplayBufferSaved de OBS.
     """
-    await session.execute(
-        text("""
-            UPDATE torneos.video_reviews
-            SET clip_url = :url
-            WHERE id = :rid AND partido_id = :pid
-        """),
-        {"url": clip_url, "rid": review_id, "pid": match_id}
-    )
+    await _ensure_schema(session)
+    rid = _valid_review_id(review_id)
+    if rid:
+        await session.execute(
+            text("""
+                UPDATE torneos.video_reviews
+                SET clip_url = :url
+                WHERE id = :rid AND partido_id::text = :pid
+            """),
+            {"url": clip_url, "rid": rid, "pid": str(match_id)}
+        )
+    else:
+        await session.execute(
+            text("""
+                UPDATE torneos.video_reviews
+                SET clip_url = :url
+                WHERE id = (
+                    SELECT id FROM torneos.video_reviews
+                    WHERE partido_id::text = :pid AND resuelto = FALSE
+                    ORDER BY created_at DESC LIMIT 1
+                )
+            """),
+            {"url": clip_url, "pid": str(match_id)}
+        )
     await session.commit()
 
     # Notificar al panel VR que el clip está listo
@@ -470,30 +653,34 @@ async def subir_clip_web(
     import shutil
     from pathlib import Path
 
-    # Si no se provee review_id, buscar el último VR activo/no resuelto para este combate
-    if not review_id:
+    await _ensure_schema(session)
+    clean_rid = _valid_review_id(review_id)
+
+    # Si no se provee review_id válido, buscar el último VR activo/no resuelto para este combate
+    target_rid: Optional[int] = clean_rid
+    if not target_rid:
         q = await session.execute(
             text("""
                 SELECT id FROM torneos.video_reviews
-                WHERE partido_id = :pid AND resuelto = FALSE
+                WHERE partido_id::text = :pid AND resuelto = FALSE
                 ORDER BY created_at DESC LIMIT 1
             """),
-            {"pid": match_id}
+            {"pid": str(match_id)}
         )
         row = q.fetchone()
         if row:
-            review_id = row[0]
+            target_rid = row[0]
         else:
             q2 = await session.execute(
                 text("""
                     SELECT id FROM torneos.video_reviews
-                    WHERE partido_id = :pid
+                    WHERE partido_id::text = :pid
                     ORDER BY created_at DESC LIMIT 1
                 """),
-                {"pid": match_id}
+                {"pid": str(match_id)}
             )
             row2 = q2.fetchone()
-            review_id = row2[0] if row2 else 0
+            target_rid = row2[0] if row2 else None
 
     clips_dir = os.getenv("OBS_CLIPS_DIR", "C:/Users/Public/Videos/OBS_Replays" if os.name == "nt" else "/app/clips")
     os.makedirs(clips_dir, exist_ok=True)
@@ -501,7 +688,8 @@ async def subir_clip_web(
     ext = Path(file.filename).suffix if file.filename else ".webm"
     if not ext:
         ext = ".webm"
-    filename = f"replay_{match_id}_{review_id}_{int(datetime.now().timestamp())}{ext}"
+    rid_label = str(target_rid) if target_rid else "preview"
+    filename = f"replay_{match_id}_{rid_label}_{int(datetime.now().timestamp())}{ext}"
     filepath = os.path.join(clips_dir, filename)
 
     with open(filepath, "wb") as buffer:
@@ -521,14 +709,14 @@ async def subir_clip_web(
         backend_url = "http://localhost:8001"
     clip_url = f"{backend_url}/clips/{filename}"
 
-    if review_id:
+    if target_rid:
         await session.execute(
             text("""
                 UPDATE torneos.video_reviews
                 SET clip_url = :url
                 WHERE id = :rid
             """),
-            {"url": clip_url, "rid": review_id}
+            {"url": clip_url, "rid": target_rid}
         )
         await session.commit()
 
@@ -536,7 +724,7 @@ async def subir_clip_web(
     await vr_manager.broadcast(match_id, {
         "event": "CLIP_DISPONIBLE",
         "match_id": match_id,
-        "review_id": review_id,
+        "review_id": target_rid,
         "clip_url": clip_url,
     })
 
@@ -544,7 +732,7 @@ async def subir_clip_web(
         "ok": True,
         "clip_url": clip_url,
         "filename": filename,
-        "review_id": review_id,
+        "review_id": target_rid,
         "mensaje": "Clip subido y notificado al panel VR exitosamente."
     }
 

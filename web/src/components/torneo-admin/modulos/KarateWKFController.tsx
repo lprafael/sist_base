@@ -122,10 +122,30 @@ export default function KarateWKFController({
               setAlertaCombate(`🎥 Video Review solicitado por ${msg.competidor_color || 'Coach'}`);
             } else if (msg.event === 'VR_RESUELTO') {
               setAlertaCombate(`⚖️ VR Resuelto: ${msg.resultado}`);
-              if (msg.resultado === 'ACEPTADO' && msg.puntos_otorgados > 0) {
+              // Si fue RECHAZADO o MIENAI y el mensaje incluye el nuevo estado de tarjetas, sincronizarlo
+              if (msg.resultado === 'MIENAI') {
                 const col = (msg.competidor_color || '').toLowerCase();
                 const lado = col === 'aka' || col === 'rojo' ? 'local' : 'visitante';
-                addTechnique(lado, msg.puntos_otorgados === 1 ? 'yuko' : msg.puntos_otorgados === 2 ? 'waza_ari' : 'ippon', 1);
+                setEstadisticas((prev: any) => {
+                  const n = JSON.parse(JSON.stringify(prev));
+                  n[lado].video_review = 'ACTIVE';
+                  return n;
+                });
+              } else if (msg.resultado === 'ACEPTADO') {
+                const col = (msg.competidor_color || '').toLowerCase();
+                const lado = col === 'aka' || col === 'rojo' ? 'local' : 'visitante';
+                setEstadisticas((prev: any) => {
+                  const n = JSON.parse(JSON.stringify(prev));
+                  // El coach conserva su VR card
+                  n[lado].video_review = 'ACTIVE';
+                  return n;
+                });
+                if (msg.tecnica === 'SENSHU') {
+                  toggleSenshu(lado);
+                } else if (msg.puntos_otorgados > 0) {
+                  const tecnicaKey = msg.puntos_otorgados === 1 ? 'yuko' : msg.puntos_otorgados === 2 ? 'waza_ari' : 'ippon';
+                  addTechnique(lado, tecnicaKey, 1);
+                }
               }
             }
           } catch {}
@@ -370,33 +390,65 @@ export default function KarateWKFController({
   };
 
   // Gestión de Video Review Card del Coach
-  const toggleVideoReview = (lado: 'local' | 'visitante') => {
+  const toggleVideoReview = async (lado: 'local' | 'visitante') => {
     const atleta = lado === 'local' ? nombreAka : nombreAo;
     const color = lado === 'local' ? 'Aka' : 'Ao';
-    setEstadisticas((prev: any) => {
-      const n = JSON.parse(JSON.stringify(prev));
-      const current = n[lado].video_review || 'ACTIVE';
-      const next = current === 'ACTIVE' ? 'USED_AND_LOCKED' : 'ACTIVE';
-      n[lado].video_review = next;
-      setAlertaCombate(
-        next === 'USED_AND_LOCKED'
-          ? `🔒 Tarjeta de Video Review utilizada y BLOQUEADA para el Coach de ${atleta}.`
-          : `✅ Tarjeta de Video Review HABILITADA para el Coach de ${atleta}.`
-      );
-      if (next === 'USED_AND_LOCKED') {
-        setIsRunning(false);
+    const current = estadisticas[lado]?.video_review || 'ACTIVE';
+
+    if (current === 'ACTIVE') {
+      // 1. Pausar cronómetro inmediatamente
+      setIsRunning(false);
+
+      // 2. Persistir solicitud en el backend a través del endpoint oficial
+      let serverReviewId: number | null = null;
+      try {
+        const resp = await fetch(`${API_URL}/api/vr/combates/${matchId}/solicitar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            competidor_color: color,
+            tipo_solicitud: 'OTRO',
+            tiempo_cronometro: formatTime(timer),
+            reglamento: 'WKF'
+          })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          serverReviewId = data.review_id;
+        } else {
+          const errData = await resp.json().catch(() => ({}));
+          console.warn("[VR Solicitar] Respuesta no exitosa:", errData);
+        }
+      } catch (err) {
+        console.error("[VR Solicitar] Fallo de red:", err);
+      }
+
+      setEstadisticas((prev: any) => {
+        const n = JSON.parse(JSON.stringify(prev));
+        n[lado].video_review = 'USED_AND_LOCKED';
+        setAlertaCombate(`🎥 Video Review solicitado por Coach de ${atleta}. Cronómetro pausado.`);
         sendBroadcast({
           event: "VR_SOLICITADO",
           competidor_color: color,
-          tipo_solicitud: "REVISIÓN_COACH",
+          tipo_solicitud: "OTRO",
           tiempo_cronometro: formatTime(timer),
-          review_id: Date.now()
+          review_id: serverReviewId || undefined
         });
-      }
-      sendBroadcast({ event: "SCORE_UPDATE", state: n });
-      handleSave(estado, null, n);
-      return n;
-    });
+        sendBroadcast({ event: "SCORE_UPDATE", state: n });
+        handleSave(estado, null, n);
+        return n;
+      });
+    } else {
+      // Re-habilitar tarjeta manualmente si el árbitro principal anula el reclamo
+      setEstadisticas((prev: any) => {
+        const n = JSON.parse(JSON.stringify(prev));
+        n[lado].video_review = 'ACTIVE';
+        setAlertaCombate(`✅ Tarjeta de Video Review REHABILITADA para el Coach de ${atleta}.`);
+        sendBroadcast({ event: "SCORE_UPDATE", state: n });
+        handleSave(estado, null, n);
+        return n;
+      });
+    }
   };
 
   // Descalificación Directa por Hansoku (WKF)

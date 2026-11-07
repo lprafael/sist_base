@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indicaciones y Enlaces Directos - Torneo 2ed2f229 - Mi Cancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #050b14;
+      --bg-card: #0c1626;
+      --border: #1e293b;
+      --border-focus: #3b82f6;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      padding: 30px 20px 80px;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .header-box {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 35px;
+      position: relative;
+    }
+
+    .tag-id {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    p.desc { color: var(--muted); font-size: 1rem; }
+
+    .tatami-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    .tatami-btn {
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      text-decoration: none;
+      color: #fff;
+      background: #1e293b;
+      border: 1px solid #334155;
+      transition: all 0.2s;
+    }
+
+    .tatami-btn.active {
+      background: var(--red);
+      border-color: #f87171;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Links Grid */
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .link-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .link-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-focus);
+    }
+
+    .link-icon { font-size: 28px; margin-bottom: 10px; }
+    .link-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+    .link-device { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 12px; }
+    
+    .device-mesa { color: #f87171; }
+    .device-tv { color: #34d399; }
+    .device-cam { color: #38bdf8; }
+    .device-vr { color: #fbbf24; }
+
+    .link-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; flex-grow: 1; }
+
+    .btn-action {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 12px 16px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+    }
+    .btn-action:hover { opacity: 0.9; }
+
+    .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+    .btn-green { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+    .btn-blue { background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; }
+    .btn-amber { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+
+    /* Step by step */
+    .steps-section { margin-top: 40px; }
+    .section-title { font-size: 1.5rem; font-weight: 900; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+
+    .step-row {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 16px;
+    }
+
+    .step-number {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 60px;
+    }
+
+    .step-body h3 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
+    .step-body p { color: var(--muted); font-size: 0.95rem; margin-bottom: 10px; }
+    .step-body ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .step-body ul li { color: #cbd5e1; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+    .step-body ul li::before { content: '➜'; color: #38bdf8; font-weight: bold; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #38bdf8;
+    }
+
+    .btn-top-print {
+      position: absolute;
+      top: 30px;
+      right: 30px;
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .btn-top-print { position: static; margin-top: 15px; display: inline-block; }
+      .step-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="header-box">
+      <span class="tag-id">TORNEO ID: 2ed2f229-6e67-400b-adc4-b6a7371ebcf3</span>
+      <button class="btn-top-print" onclick="window.print()">🖨️ Imprimir Hoja de Puesto</button>
+      <h1>Terminales y Puesta en Marcha de Combate</h1>
+      <p class="desc">Instrucciones y enlaces directos listos para abrir en cada dispositivo del Tatami (Laptop de mesa, TV, Celular de cámara y Tablet del Juez VR).</p>
+    </div>
+
+    <!-- SELECTOR DE TATAMI RÁPIDO -->
+    <div style="margin-bottom: 15px; font-size: 0.9rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Selecciona el Tatami a Operar:</div>
+    <div class="tatami-selector">
+      <a href="#tatami1" class="tatami-btn active">Tatami #1 (Principal)</a>
+      <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/arbitraje/combate?tatami=2" target="_blank" class="tatami-btn">Tatami #2</a>
+      <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/arbitraje/combate?tatami=3" target="_blank" class="tatami-btn">Tatami #3</a>
+      <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/arbitraje/combate?tatami=4" target="_blank" class="tatami-btn">Tatami #4</a>
+      <a href="https://micancha.com.py/admin-torneo/2ed2f229-6e67-400b-adc4-b6a7371ebcf3" target="_blank" class="tatami-btn" style="margin-left: auto; background: #0f172a; border-color: #334155;">⚙️ Panel Admin Torneo</a>
+    </div>
+
+    <!-- ENLACES DIRECTOS TATAMI 1 -->
+    <div id="tatami1" class="links-grid">
+      <!-- 1. MESA ARBITRAL -->
+      <div class="link-card" style="border-top: 4px solid var(--red);">
+        <div>
+          <div class="link-icon">💻</div>
+          <div class="link-title">1. Mesa Arbitral Oficial</div>
+          <div class="link-device device-mesa">Laptop del Cronometrista / Mesa</div>
+          <div class="link-desc">Puntos WKF (+1 Yuko, +2 Waza-Ari, +3 Ippon), Senshu automático, penalizaciones, control de tiempo (Hajime/Yame) y botón de apelación VR.</div>
+        </div>
+        <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/arbitraje/combate?tatami=1" target="_blank" class="btn-action btn-red">
+          Abrir Mesa Arbitral Tatami 1 ➜
+        </a>
+      </div>
+
+      <!-- 2. MARCADOR TV -->
+      <div class="link-card" style="border-top: 4px solid var(--emerald);">
+        <div>
+          <div class="link-icon">📺</div>
+          <div class="link-title">2. Marcador Público TV</div>
+          <div class="link-device device-tv">TV / Pantalla Gigante del Tatami</div>
+          <div class="link-desc">Pantalla pública conectada por HDMI (pantalla completa con F11). Muestra cronómetro en vivo, banderas AKA/AO, tarjetas VR y alerta gigante de Video Review.</div>
+        </div>
+        <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tatami/1" target="_blank" class="btn-action btn-green">
+          Abrir Pantalla TV Tatami 1 ➜
+        </a>
+      </div>
+
+      <!-- 3. CÁMARA TATAMI -->
+      <div class="link-card" style="border-top: 4px solid var(--blue);">
+        <div>
+          <div class="link-icon">📹</div>
+          <div class="link-title">3. Estación de Cámara Web</div>
+          <div class="link-device device-cam">Celular / Webcam al borde del Tatami</div>
+          <div class="link-desc">Graba de forma ininterrumpida manteniendo en memoria RAM los últimos 45 segundos. Al solicitarse un VR, sube el replay al juez automáticamente.</div>
+        </div>
+        <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tatami/1/camara" target="_blank" class="btn-action btn-blue">
+          Abrir Cámara Tatami 1 ➜
+        </a>
+      </div>
+
+      <!-- 4. JUEZ VR -->
+      <div class="link-card" style="border-top: 4px solid var(--amber);">
+        <div>
+          <div class="link-icon">⚖️</div>
+          <div class="link-title">4. Tablet del Juez VR</div>
+          <div class="link-device device-vr">Tablet táctil o monitor secundario</div>
+          <div class="link-desc">Reproductor frame-a-frame (30fps), cámara lenta a 0.25x y botones oficiales de veredicto (Aceptado, Rechazado o Mienai) con timer de deliberación de 30s.</div>
+        </div>
+        <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/vr-station" target="_blank" class="btn-action btn-amber">
+          Abrir Panel Juez VR ➜
+        </a>
+      </div>
+    </div>
+
+    <!-- PASO A PASO DETALLADO -->
+    <div class="steps-section">
+      <div class="section-title"><span>📋</span> Protocolo Paso a Paso para Iniciar y Arbitrar un Combate</div>
+
+      <div class="step-row">
+        <div class="step-number">01</div>
+        <div class="step-body">
+          <h3>Puesta a Punto de Dispositivos (15 minutos antes)</h3>
+          <p>Asegúrate de tener abiertos los 4 enlaces en sus respectivos dispositivos en el Tatami 1:</p>
+          <ul>
+            <li>En la laptop de la mesa, abre <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/arbitraje/combate?tatami=1" target="_blank" style="color: #38bdf8;">Mesa Arbitral Tatami 1</a>.</li>
+            <li>En la TV conectada por HDMI, abre <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tatami/1" target="_blank" style="color: #38bdf8;">Marcador TV</a> y presiona <code>F11</code> para pantalla completa.</li>
+            <li>En el smartphone o laptop con cámara apuntando al centro del tatami, abre <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/tatami/1/camara" target="_blank" style="color: #38bdf8;">Cámara Tatami 1</a> y concede permisos de video.</li>
+            <li>En la tablet táctil del Juez VR, abre <a href="https://micancha.com.py/torneos/2ed2f229-6e67-400b-adc4-b6a7371ebcf3/vr-station" target="_blank" style="color: #38bdf8;">Tablet Juez VR</a>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-number">02</div>
+        <div class="step-body">
+          <h3>Selección del Combate y Llamado de Atletas</h3>
+          <p>En la parte superior de la Mesa Arbitral:</p>
+          <ul>
+            <li>Verifica los nombres de los competidores <strong>AKA (Rojo)</strong> y <strong>AO (Azul)</strong>. Si hay varios combates en el tatami, elígelo desde el menú desplegable.</li>
+            <li>Comprueba que el tiempo del cronómetro esté fijado en <strong>2:00</strong> (o 3:00 en categorías Senior).</li>
+            <li>Verifica que ambas tarjetas VR figuren como <code>VR Card: DISP.</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-number">03</div>
+        <div class="step-body">
+          <h3>Inicio de la Contienda (Hajime)</h3>
+          <p>Cuando el árbitro central da la orden reglamentaria de inicio:</p>
+          <ul>
+            <li>Presiona la tecla <strong>Espacio</strong> o pulsa el botón verde <strong>Iniciar Cronómetro (Play)</strong>.</li>
+            <li>El tiempo comenzará a descontar sincronizadamente tanto en la mesa como en el Marcador de TV del tatami.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-number">04</div>
+        <div class="step-body">
+          <h3>Asignación de Puntos y Penalidades en Combate</h3>
+          <p>Durante el combate, usa el teclado o clics táctiles:</p>
+          <ul>
+            <li><strong>AKA (Rojo):</strong> Tecla <code>1</code> (Yuko +1), <code>2</code> (Waza-Ari +2), <code>3</code> (Ippon +3).</li>
+            <li><strong>AO (Azul):</strong> Tecla <code>7</code> (Yuko +1), <code>8</code> (Waza-Ari +2), <code>9</code> (Ippon +3).</li>
+            <li><strong>Senshu Automático:</strong> El primer atleta que anote sin oposición recibirá la ventaja de Senshu automáticamente.</li>
+            <li><strong>Pausa (Yame):</strong> Presiona <strong>Espacio</strong> cada vez que el árbitro central detenga las acciones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-number">05</div>
+        <div class="step-body">
+          <h3>Activación y Resolución de Video Review (VR)</h3>
+          <p>Si el coach de AKA o AO solicita Video Review:</p>
+          <ul>
+            <li>En la mesa, pulsa el botón <strong>VR Card (AKA)</strong> o <strong>VR Card (AO)</strong>.</li>
+            <li>El cronómetro se pausará de inmediato y la cámara del tatami enviará los últimos 45 segundos a la tablet del Juez VR.</li>
+            <li>El Juez VR revisará la jugada y presionará su veredicto (Aceptado con puntos, Rechazado o Mienai).</li>
+            <li>Al resolver, los puntos y tarjetas se actualizarán solos y la mesa reanudará con la barra espaciadora.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="step-number">06</div>
+        <div class="step-body">
+          <h3>Cierre del Combate</h3>
+          <p>Al llegar a 00:00 o alcanzar la diferencia de 8 puntos (Superioridad WKF):</p>
+          <ul>
+            <li>El sistema anunciará el ganador oficial. Si hay empate, utiliza el botón <strong>Evaluar Desempate WKF</strong> (Senshu &rarr; Ippons &rarr; Waza-Aris &rarr; Hantei).</li>
+            <li>El resultado se guarda de inmediato en la base de datos de Mi Cancha para actualizar llaves y clasificación.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
+

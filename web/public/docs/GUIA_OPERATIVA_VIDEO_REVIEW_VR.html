@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guía Operativa Oficial: Video Review (VR) - Mi Cancha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #060b13;
+      --bg-card: #0c1524;
+      --bg-card-hover: #111d33;
+      --border-subtle: #1e293b;
+      --border-accent: #334155;
+      --red-aka: #ef4444;
+      --red-aka-glow: rgba(239, 68, 68, 0.25);
+      --blue-ao: #3b82f6;
+      --blue-ao-glow: rgba(59, 130, 246, 0.25);
+      --green-ok: #10b981;
+      --amber-warn: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dark: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+
+    header {
+      background: linear-gradient(180deg, #0f172a 0%, #060b13 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 40px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 250px;
+      background: radial-gradient(ellipse at center, rgba(239, 68, 68, 0.15) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 80%);
+      pointer-events: none;
+    }
+
+    .badge-top {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 50px 0 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .section-title span.number {
+      background: var(--border-accent);
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      padding: 2px 10px;
+      border-radius: 6px;
+    }
+
+    /* Grid cards */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: var(--border-accent);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .card-icon {
+      font-size: 28px;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 8px;
+    }
+
+    .card-url {
+      background: #030712;
+      border: 1px solid #1f2937;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #38bdf8;
+      word-break: break-all;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .card-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* Workflow Step */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin: 20px 0;
+    }
+
+    .step-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-left: 4px solid var(--blue-ao);
+      border-radius: 12px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .step-box.red {
+      border-left-color: var(--red-aka);
+    }
+
+    .step-box.green {
+      border-left-color: var(--green-ok);
+    }
+
+    .step-box.amber {
+      border-left-color: var(--amber-warn);
+    }
+
+    .step-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      text-align: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .step-content h3 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    .actions-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .actions-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+    }
+
+    .actions-list li::before {
+      content: '✓';
+      color: var(--green-ok);
+      font-weight: bold;
+    }
+
+    /* Verdicts Table */
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .verdict-card {
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid;
+    }
+
+    .verdict-card.aceptado {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .verdict-card.rechazado {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .verdict-card.mienai {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .verdict-header {
+      font-size: 1.3rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .verdict-card.aceptado .verdict-header { color: #34d399; }
+    .verdict-card.rechazado .verdict-header { color: #f87171; }
+    .verdict-card.mienai .verdict-header { color: #fbbf24; }
+
+    .tag-rule {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    /* Technical QA Table */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 24px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: #0f172a;
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #38bdf8;
+    }
+
+    .alert-banner {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 14px;
+      padding: 20px;
+      margin: 24px 0;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .alert-banner-icon {
+      font-size: 28px;
+    }
+
+    .btn-print {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid var(--border-accent);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      float: right;
+    }
+
+    .btn-print:hover {
+      background: #334155;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+      }
+      .btn-print {
+        display: none;
+      }
+      .card, .step-box, .verdict-card, .table-container {
+        border: 1px solid #ccc;
+        background: #fff;
+        color: #000;
+        break-inside: avoid;
+      }
+      h1, .card-title, .step-content h3 {
+        color: #000 !important;
+        -webkit-text-fill-color: initial;
+      }
+      code {
+        color: #000;
+        border-color: #ddd;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <div class="badge-top">Oficial WKF / ASAM · Plataforma Mi Cancha</div>
+      <h1>Manual & Guía Operativa de Video Review (VR)</h1>
+      <p class="subtitle">Procedimiento oficial de campo, sincronización en tiempo real por WebSockets, gestión de apelaciones del Coach y resolución de fallos técnicos.</p>
+    </div>
+  </header>
+
+  <div class="container">
+    <div style="margin-top: 30px;">
+      <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar en PDF</button>
+      <div style="clear: both;"></div>
+    </div>
+
+    <!-- SECCIÓN 1: ARQUITECTURA -->
+    <h2 class="section-title"><span class="number">01</span> Estaciones de Trabajo y Roles en el Tatami</h2>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Cada área de combate o tatami opera con 4 terminales independientes pero sincronizadas en milisegundos mediante WebSocket:</p>
+
+    <div class="grid-4">
+      <div class="card">
+        <div class="card-icon">💻</div>
+        <div class="card-title">1. Mesa Arbitral Oficial</div>
+        <span class="card-url">/torneos/{id}/arbitraje/combate?tatami={num}</span>
+        <div class="card-desc">Operada por el Árbitro de Mesa / Cronometrista. Controla cronómetro, puntos de técnica (Yuko, Waza-Ari, Ippon), penalizaciones y disparo de solicitud de VR.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">📹</div>
+        <div class="card-title">2. Estación de Cámara Web</div>
+        <span class="card-url">/torneos/{id}/tatami/{num}/camara?matchId={id}</span>
+        <div class="card-desc">Ubicada en smartphone o cámara web apuntando al área de combate. Almacena en memoria RAM un <strong>búfer rodante de 45 segundos</strong> y sube el clip al recibir VR.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">📺</div>
+        <div class="card-title">3. Marcador Público Tatami</div>
+        <span class="card-url">/torneos/{id}/tatami/{num}</span>
+        <div class="card-desc">Proyectado en pantalla de TV / monitor frente a los atletas y público. Muestra tiempo oficial, banderas AKA/AO, estado de tarjetas VR y alerta gigante de revisión.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">⚖️</div>
+        <div class="card-title">4. Panel del Juez VR</div>
+        <span class="card-url">/torneos/{id}/vr-station?matchId={id}</span>
+        <div class="card-desc">Tablet táctil o monitor secundario para el Juez de Video. Reproducción cuadro a cuadro (30fps), cámara lenta (0.25x), salto de -6s y panel de emisión de veredictos.</div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: PROTOCOLO PASO A PASO -->
+    <h2 class="section-title"><span class="number">02</span> Flujo Operativo Paso a Paso (Día del Torneo)</h2>
+
+    <div class="timeline">
+      <div class="step-box red">
+        <div class="step-badge">PASO 1</div>
+        <div class="step-content">
+          <h3>Solicitud de Apelación por el Coach</h3>
+          <p>El Coach de una esquina (ej. AKA o AO) levanta su tarjeta oficial de Video Review solicitando revisión por una acción puntual (ej. Yuko a la cabeza, Ippon no convalidado o salida fuera del área).</p>
+          <ul class="actions-list">
+            <li>El Árbitro Central detiene las acciones de inmediato gritando <strong>"YAME"</strong>.</li>
+            <li>El Árbitro de Mesa presiona el botón <strong>VR Card (AKA o AO)</strong> en su panel.</li>
+            <li>El sistema automáticamente pausa el cronómetro del combate y envía una alerta en tiempo real a todo el tatami.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-box">
+        <div class="step-badge">PASO 2</div>
+        <div class="step-content">
+          <h3>Disparo Automático del Clip de Video</h3>
+          <p>La estación de cámara conectada al tatami detecta el evento vía WebSocket sin intervención humana.</p>
+          <ul class="actions-list">
+            <li>Empaqueta los últimos 45 segundos del búfer rodante en memoria RAM.</li>
+            <li>Realiza la subida inmediata al endpoint de la API central <code>/api/vr/combates/{id}/subir-clip</code>.</li>
+            <li>Notifica al Juez VR para que el video comience a reproducirse automáticamente en su tablet en menos de 1 segundo.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-box amber">
+        <div class="step-badge">PASO 3</div>
+        <div class="step-content">
+          <h3>Deliberación del Juez de Video (Timer 30 Segundos)</h3>
+          <p>En la pantalla del Juez VR se activa un cronómetro regresivo de <strong>30 segundos reglamentarios</strong> para revisar la jugada.</p>
+          <ul class="actions-list">
+            <li><strong>Velocidades:</strong> Usar <code>0.25×</code> o <code>0.5×</code> para comprobar contacto real y distancia.</li>
+            <li><strong>Salto Rápido:</strong> Pulsar <code>⏮ −6s</code> para regresar al instante exacto del impacto.</li>
+            <li><strong>Cuadro a Cuadro:</strong> Usar los botones <code>◀ F</code> y <code>F ▶</code> para inspeccionar cuadro por cuadro exacto.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-box green">
+        <div class="step-badge">PASO 4</div>
+        <div class="step-content">
+          <h3>Emisión del Veredicto y Reanudación</h3>
+          <p>El Juez VR pulsa el veredicto en su pantalla táctil. El resultado se replica instantáneamente en el marcador y la mesa.</p>
+          <ul class="actions-list">
+            <li>Si es <strong>ACEPTADO</strong>: Se aplican los puntos y el coach <strong>conserva</strong> su tarjeta de VR.</li>
+            <li>Si es <strong>RECHAZADO</strong>: Se bloquea la tarjeta del coach para el resto del combate.</li>
+            <li>Si es <strong>MIENAI</strong>: No se aplican puntos y el coach <strong>conserva</strong> su tarjeta.</li>
+            <li>El Árbitro Central ordena <em>"Tsuzukete Hajime"</em> y la mesa reanuda el cronómetro.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 3: REGLAS DE NEGOCIO Y TARJETAS -->
+    <h2 class="section-title"><span class="number">03</span> Reglas de Negocio Oficiales WKF & ASAM</h2>
+
+    <div class="verdict-grid">
+      <div class="verdict-card aceptado">
+        <div class="verdict-header">
+          <span>✓ ACEPTADO</span>
+          <span class="tag-rule" style="color: #34d399; border: 1px solid rgba(16,185,129,0.4);">Conserva Tarjeta</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">Se comprueba que la técnica cumplió los 6 criterios WKF o existió el punto reclamado.</p>
+        <ul class="actions-list">
+          <li><strong>Puntuación:</strong> Se otorgan los puntos seleccionados (+1 Yuko, +2 Waza-Ari, +3 Ippon o Senshu).</li>
+          <li><strong>Tarjeta VR:</strong> El Coach mantiene su tarjeta activa para futuras solicitudes en este combate.</li>
+          <li><strong>Marcador TV:</strong> Se actualiza el score y se quita el banner de revisión.</li>
+        </ul>
+      </div>
+
+      <div class="verdict-card rechazado">
+        <div class="verdict-header">
+          <span>✗ RECHAZADO</span>
+          <span class="tag-rule" style="color: #f87171; border: 1px solid rgba(239,68,68,0.4);">Pierde Tarjeta</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">La evidencia visual demuestra que la técnica no puntuó, no hizo contacto válido o no cumplió con el criterio.</p>
+        <ul class="actions-list">
+          <li><strong>Puntuación:</strong> No se otorgan puntos adicionales al competidor.</li>
+          <li><strong>Tarjeta VR:</strong> Pasa a estado <code>USED_AND_LOCKED</code> (Bloqueada). El coach ya no podrá pedir VR en este encuentro.</li>
+          <li><strong>Mesa Arbitral:</strong> El botón queda deshabilitado mostrando <code>BLOQ.</code></li>
+        </ul>
+      </div>
+
+      <div class="verdict-card mienai">
+        <div class="verdict-header">
+          <span>👁 MIENAI</span>
+          <span class="tag-rule" style="color: #fbbf24; border: 1px solid rgba(245,158,11,0.4);">Conserva Tarjeta</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">Ángulo bloqueado, cuerpo del árbitro tapando la acción o limitación técnica de la toma.</p>
+        <ul class="actions-list">
+          <li><strong>Puntuación:</strong> Se mantiene la decisión que el árbitro central tomó en el tatami.</li>
+          <li><strong>Tarjeta VR:</strong> El Coach <strong>no pierde su derecho</strong> y conserva su tarjeta disponible.</li>
+          <li><strong>Justicia deportiva:</strong> Previene castigar al atleta por problemas de encuadre de cámara.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 4: MATRIZ DE TEST QA -->
+    <h2 class="section-title"><span class="number">04</span> Matriz de Pruebas QA (Verificación Técnica de Torneos)</h2>
+    <p style="color: var(--text-muted);">Tabla de pruebas requerida antes del arranque de cada fecha de torneo:</p>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Caso</th>
+            <th>Módulo / Acción</th>
+            <th>Pasos de Ejecución</th>
+            <th>Comportamiento Esperado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>QA-VR-01</code></td>
+            <td><strong>Solicitud VR desde Mesa</strong></td>
+            <td>Presionar <code>VR Card (AKA)</code> con el cronómetro corriendo.</td>
+            <td>Cronómetro se detiene, banner VR en TV, cámara empaqueta clip y tablet VR abre deliberación de 30s.</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-02</code></td>
+            <td><strong>Veredicto Aceptado</strong></td>
+            <td>Juez VR selecciona <code>+1 YUKO</code> (Aceptado).</td>
+            <td>Llamada <code>/api/vr/combates/{id}/resolver</code> responde 200 OK. AKA suma 1 punto. Tarjeta VR sigue disponible (<code>ACTIVE</code>).</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-03</code></td>
+            <td><strong>Veredicto Rechazado</strong></td>
+            <td>Juez VR selecciona <code>RECHAZADO</code>.</td>
+            <td>Responde 200 OK. La tarjeta del coach queda <code>USED_AND_LOCKED</code>. Un nuevo clic muestra aviso reglamentario y no permite segundo reclamo.</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-04</code></td>
+            <td><strong>Veredicto MIENAI</strong></td>
+            <td>Juez VR selecciona <code>MIENAI</code>.</td>
+            <td>Marcador sin cambios de puntos. Tarjeta VR del coach continúa habilitada (<code>DISP.</code>).</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-05</code></td>
+            <td><strong>Subida de Clip Web</strong></td>
+            <td>Activar cámara en `/tatami/1/camara` y presionar "Generar Replay Manual".</td>
+            <td>Genera fragmento `.webm`/`.mp4` en `/clips/` y notifica evento `CLIP_DISPONIBLE` por WebSocket.</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-06</code></td>
+            <td><strong>Resiliencia de ID Combate</strong></td>
+            <td>Abrir `/vr-station?matchId=123` e interactuar con veredictos.</td>
+            <td>Resuelve el último VR pendiente o informa aviso sin arrojar errores 404 ni excepciones de servidor.</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-07</code></td>
+            <td><strong>Regla Superioridad (8 pts)</strong></td>
+            <td>Sumar puntos hasta diferencia &ge; 8 (ej. 8 - 0).</td>
+            <td>Detiene cronómetro automáticamente y decreta victoria WKF por Superioridad Técnica.</td>
+          </tr>
+          <tr>
+            <td><code>QA-VR-08</code></td>
+            <td><strong>Cancelación de VR</strong></td>
+            <td>Enviar petición a `/api/vr/combates/{id}/cancelar`.</td>
+            <td>Cierra revisiones colgadas o accidentales sin afectar tarjetas ni puntuaciones.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert-banner">
+      <div class="alert-banner-icon">💡</div>
+      <div>
+        <strong style="color: #38bdf8;">Recomendación Técnica para el Día del Torneo:</strong>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+          Configura un router Wi-Fi dedicado exclusivo de 5GHz para las mesas de control, tablets de Jueces VR y cámaras de tatami. Evita compartir esta red con el público general para asegurar latencias inferiores a 50ms en las transmisiones de video.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
+
