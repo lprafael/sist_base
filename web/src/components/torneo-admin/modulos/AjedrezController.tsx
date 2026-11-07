@@ -1021,7 +1021,7 @@ function TabEmparejamiento({ torneoId, ronda, onRefresh, isPublic }: { torneoId:
 }
 
 /* ─── Tab Resultados ─── */
-function TabResultados({ torneoId, ronda, onRefresh }: { torneoId: string; ronda: Ronda; onRefresh: () => void }) {
+function TabResultados({ torneoId, ronda, onRefresh, isPublic = false }: { torneoId: string; ronda: Ronda; onRefresh: () => void; isPublic?: boolean }) {
   const [partidas, setPartidas] = useState<Partida[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -1911,7 +1911,7 @@ export default function AjedrezController({ torneoId, torneo, isPublic = false }
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         {tab === 'rondas'         && <TabRondas torneoId={torneoId} rondas={listaRondas} loading={loadingR} onRefresh={fetchRondas} onSelect={seleccionar} activa={rondaSel} isPublic={isPublic} />}
         {tab === 'emparejamiento' && rondaSel && <TabEmparejamiento torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} isPublic={isPublic} />}
-        {!isPublic && tab === 'resultados' && rondaSel && <TabResultados torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} />}
+        {!isPublic && tab === 'resultados' && rondaSel && <TabResultados torneoId={torneoId} ronda={rondaSel} onRefresh={fetchRondas} isPublic={isPublic} />}
         {tab === 'posiciones'     && <TabPosiciones torneoId={torneoId} rondas={listaRondas} finalizable={finalizable} isPublic={isPublic} />}
         {(tab === 'emparejamiento' || tab === 'resultados') && !rondaSel && (
           <div className="text-center py-16">

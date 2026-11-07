@@ -98,6 +98,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
   const [uploadingImage, setUploadingImage] = useState<'portada' | 'banner' | null>(null);
   const [cropImageState, setCropImageState] = useState<{ src: string, type: 'portada' | 'banner' } | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  // Imagen que se elige desde la galería (faltaba declararlo: el botón "Galería" fallaba)
+  const [targetImageType, setTargetImageType] = useState<'portada' | 'banner' | null>(null);
   const getInitialSportTab = () => {
     const dep = (torneo.deporte || '').toLowerCase();
     if (dep.includes('sala') || dep.includes('futsal')) return 'futbol_sala';
@@ -969,8 +971,8 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
                   defaultLocation={ubicacionCoords || undefined}
                   onLocationSelect={(loc, name) => {
                     setUbicacionCoords(loc);
-                    if (name) {
-                      // Format the long Nominatim string to a shorter version
+                    // Solo completar el nombre si está vacío: no pisar lo que escribió el organizador
+                    if (name && !ubicacionTexto.trim()) {
                       const shortName = name.split(',').slice(0, 3).join(',');
                       setUbicacionTexto(shortName.trim());
                     }

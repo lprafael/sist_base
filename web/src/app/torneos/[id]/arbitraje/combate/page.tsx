@@ -13,6 +13,13 @@ import {
   AlertCircle
 } from "lucide-react";
 import KarateWKFController from "@/components/torneo-admin/modulos/KarateWKFController";
+import KataWKFController from "@/components/torneo-admin/modulos/KataWKFController";
+
+// Combates de Kata (formas) se juzgan con la mesa de Kata (banderas), no con la de Kumite
+const esKata = (m: any) => {
+  const st = typeof m?.estadisticas === 'string' ? (() => { try { return JSON.parse(m.estadisticas); } catch { return {}; } })() : (m?.estadisticas || {});
+  return st.modalidad === 'kata' || /kata|forma/i.test(`${m?.fase || ''} ${m?.ronda || ''} ${m?.division_nombre || ''}`);
+};
 
 const getApiUrl = () => {
   if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
@@ -242,7 +249,15 @@ export default function ArbitrajeCombatePage({ params: paramsPromise }: { params
 
       {/* ─── ARENA PRINCIPAL: KARATE WKF CONTROLLER (DISEÑO OFICIAL) ─── */}
       <div className="flex-1 flex flex-col justify-center p-2 sm:p-4 max-w-7xl mx-auto w-full">
-        {selectedMatch ? (
+        {selectedMatch && esKata(selectedMatch) ? (
+          <KataWKFController
+            key={selectedMatch.id}
+            embedded
+            match={selectedMatch}
+            onClose={() => router.push(`/admin-torneo/${torneoId}`)}
+            onSaved={fetchData}
+          />
+        ) : selectedMatch ? (
           <KarateWKFController
             key={selectedMatch.id}
             embedded

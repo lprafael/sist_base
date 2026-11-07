@@ -5435,7 +5435,7 @@ function AsistenciasTab({ notify, apiFetch, categorias = [], fetchAll }: any) {
     }
   };
 
-  const cargarAlumnosCat = async (catId: str) => {
+  const cargarAlumnosCat = async (catId: string) => {
     if (!catId) return;
     setLoadingAlumnos(true);
     try {

@@ -6,11 +6,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 export default function KataWKFController({
   match,
   onClose,
-  onSaved
+  onSaved,
+  embedded = false
 }: {
   match: any;
   onClose: () => void;
   onSaved: () => void;
+  /** true: se integra en la página de mesa (no tapa la barra de tatamis) */
+  embedded?: boolean;
 }) {
   const [modoEvaluacion, setModoEvaluacion] = useState<'banderas' | 'decimal'>('banderas');
   
@@ -247,7 +250,9 @@ export default function KataWKFController({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+    <div className={embedded
+      ? "w-full flex items-start justify-center"
+      : "fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn"}>
       <div className="bg-slate-900 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col border-2 border-red-600">
         
         {/* Header */}

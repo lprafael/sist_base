@@ -346,6 +346,7 @@ export default function TatamiDisplay() {
   const [ao, setAo]   = useState<Fighter>({ nombre: "AO (Azul)",  puntos: 0 });
   const [tiempo, setTiempo] = useState(120);
   const [corriendo, setCorriendo] = useState(false);
+  const [finalizado, setFinalizado] = useState(false);
   const [vr, setVr] = useState<VRAlert>({
     activo: false, color: null, tipo: "", reviewId: null
   });
@@ -376,6 +377,7 @@ export default function TatamiDisplay() {
   /* ─── Parser integral de estadísticas ─────────────────────────── */
   const loadStats = useCallback((stats: any, defLocal?: string, defVisit?: string) => {
     if (!stats) return;
+    if (typeof stats.estado === 'string') setFinalizado(stats.estado === 'finalizado');
     const localData = stats.local || stats.aka || stats.blanco;
     const visitData = stats.visitante || stats.ao || stats.rojo;
 
@@ -452,6 +454,7 @@ export default function TatamiDisplay() {
           const rawStats = matchData.estadisticas || {};
           const stats = typeof rawStats === 'string' ? JSON.parse(rawStats) : rawStats;
           if (stats.reglamento) setReglamento(stats.reglamento);
+          setFinalizado(matchData.estado === 'finalizado');
           
           loadStats(stats, localNom, visitNom);
         }
@@ -683,10 +686,10 @@ export default function TatamiDisplay() {
             {/* Estado cronómetro */}
             <div style={{
               fontSize: 11, fontWeight: 700, letterSpacing: "0.15em",
-              color: corriendo ? "#34d399" : "#ef4444",
+              color: finalizado ? "#fbbf24" : corriendo ? "#34d399" : "#ef4444",
               textTransform: "uppercase",
             }}>
-              {corriendo ? "▶ EN CURSO" : "■ DETENIDO"}
+              {finalizado ? "🏁 FINALIZADO" : corriendo ? "▶ EN CURSO" : "■ DETENIDO"}
             </div>
 
             {/* Separador */}

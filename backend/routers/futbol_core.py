@@ -25,6 +25,8 @@ router = APIRouter(tags=["Futbol Core"])
 
 def map_formato(nombre: str) -> str:
     n = nombre.lower()
+    # Artes marciales (WKF, Kata/Kumite, combates): llaves de eliminación directa
+    if 'wkf' in n or 'kata' in n or 'kumite' in n or 'combate' in n: return 'eliminacion_simple'
     if 'liga' in n or 'todos contra' in n: return 'liga'
     elif 'grupos' in n or 'mundial' in n: return 'grupos'
     elif 'doble' in n: return 'eliminacion_doble'
@@ -46,6 +48,9 @@ class TorneoFutbolCreate(BaseModel):
     deporte: str # Ej. "Fútbol 5", "Fútbol 7"
     formato: str # Ej. "Eliminación Directa", "Liga"
     categorias: List[CategoriaCreate] = [] # Vacio si es unico
+    fecha_inicio: Optional[str] = None   # YYYY-MM-DD
+    fecha_fin: Optional[str] = None
+    ubicacion_texto: Optional[str] = None  # sede (nombre del lugar / dirección)
 
 @router.post("/futbol/torneos")
 async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
@@ -62,13 +67,18 @@ async def crear_torneo_futbol(data: TorneoFutbolCreate, current_user: dict = Dep
     # Insert Torneo
     await session.execute(text("""
         INSERT INTO torneos.torneos 
-            (id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en, fecha_inicio)
+            (id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en,
+             fecha_inicio, fecha_fin, tipo_ubicacion, configuracion)
         VALUES 
-            (:id, :nombre, :tipo, :oid, :deporte, :formato, 'abierto', NOW(), NOW())
+            (:id, :nombre, :tipo, :oid, :deporte, :formato, 'abierto', NOW(),
+             COALESCE(CAST(:fi AS DATE), CURRENT_DATE), CAST(:ff AS DATE), :tu, CAST(:conf AS JSONB))
     """), {
         "id": torneo_id, "nombre": data.nombre, 
         "tipo": data.tipo_campeonato, "oid": organizador_id,
-        "deporte": data.deporte, "formato": map_formato(data.formato)
+        "deporte": data.deporte, "formato": map_formato(data.formato),
+        "fi": data.fecha_inicio or None, "ff": data.fecha_fin or None,
+        "tu": "persona" if data.ubicacion_texto else None,
+        "conf": json.dumps({"ubicacion_texto": data.ubicacion_texto.strip()} if data.ubicacion_texto else {}),
     })
     
     if data.tipo_campeonato == "categorias" and data.categorias:
@@ -1073,7 +1083,13 @@ async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSessi
         raise HTTPException(status_code=400, detail="Seleccioná dos atletas diferentes.")
     base = {"puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False,
             "penalizaciones": 0, "jogai": 0, "video_review": "ACTIVE"}
-    stats = {"tipo_reglamento": "WKF", "area": payload.area or 1,
+    nombre_div = (await session.execute(text("""
+        SELECT COALESCE(c.nombre, '') || ' ' || COALESCE(d.nombre, '') || ' ' || COALESCE(c.modalidad, '')
+        FROM torneos.divisiones d LEFT JOIN torneos.categorias c ON c.id = d.categoria_id
+        WHERE d.id = CAST(:did AS UUID)
+    """), {"did": payload.division_id})).scalar() or ""
+    es_kata = any(k in nombre_div.lower() for k in ("kata", "formas"))
+    stats = {"tipo_reglamento": "WKF", "area": payload.area or 1, "modalidad": "kata" if es_kata else "kumite",
              "local": {"color": "AKA", **base}, "visitante": {"color": "AO", **base}}
     q = text("""
         INSERT INTO torneos.partidos

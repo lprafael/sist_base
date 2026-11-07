@@ -20,7 +20,8 @@ export default function MatchController({
     (match.fase || '').toLowerCase().includes('karate') || (match.deporte || '').toLowerCase().includes('karate');
 
   if (isKarate) {
-    const isKata = (match.fase || '').toLowerCase().includes('kata') ||
+    const st = typeof match.estadisticas === 'string' ? (() => { try { return JSON.parse(match.estadisticas); } catch { return {}; } })() : (match.estadisticas || {});
+    const isKata = st.modalidad === 'kata' || (match.fase || '').toLowerCase().includes('kata') ||
       (match.fase || '').toLowerCase().includes('forma') ||
       (!match.jugador_visitante_id && !match.equipo_visitante_id);
 

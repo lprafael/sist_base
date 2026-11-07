@@ -402,7 +402,14 @@ export default function KarateWKFController({
   };
 
   // Gestión de Video Review Card del Coach
-  const toggleVideoReview = async (lado: 'local' | 'visitante') => {
+  // Selector de técnica reclamada (abre al pulsar "VR Card" con la tarjeta disponible)
+  const [vrPicker, setVrPicker] = useState<'local' | 'visitante' | null>(null);
+  const onVrCardClick = (lado: 'local' | 'visitante') => {
+    if ((estadisticas[lado]?.video_review || 'ACTIVE') === 'ACTIVE') setVrPicker(lado);
+    else toggleVideoReview(lado);
+  };
+
+  const toggleVideoReview = async (lado: 'local' | 'visitante', tipoSolicitud: string = 'OTRO') => {
     const atleta = lado === 'local' ? nombreAka : nombreAo;
     const color = lado === 'local' ? 'Aka' : 'Ao';
     const current = estadisticas[lado]?.video_review || 'ACTIVE';
@@ -419,7 +426,7 @@ export default function KarateWKFController({
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             competidor_color: color,
-            tipo_solicitud: 'OTRO',
+            tipo_solicitud: tipoSolicitud,
             tiempo_cronometro: formatTime(timer),
             reglamento: 'WKF'
           })
@@ -447,7 +454,7 @@ export default function KarateWKFController({
         sendBroadcast({
           event: "VR_SOLICITADO",
           competidor_color: color,
-          tipo_solicitud: "OTRO",
+          tipo_solicitud: tipoSolicitud,
           tiempo_cronometro: formatTime(timer),
           review_id: serverReviewId || undefined
         });
@@ -748,6 +755,23 @@ export default function KarateWKFController({
     <div className={embedded
       ? "w-full flex items-start justify-center"
       : "fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-3 animate-fadeIn"}>
+      {vrPicker && (
+        <div className="fixed inset-0 z-[200] bg-black/70 flex items-center justify-center p-4" onClick={() => setVrPicker(null)}>
+          <div className="bg-slate-900 border-2 border-amber-500 rounded-2xl p-5 w-full max-w-sm text-white" onClick={e => e.stopPropagation()}>
+            <h4 className="font-black text-sm uppercase tracking-wide mb-1">🎥 Video Review · {vrPicker === 'local' ? `AKA — ${nombreAka}` : `AO — ${nombreAo}`}</h4>
+            <p className="text-xs text-slate-400 mb-4">¿Qué técnica reclama el coach?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[['YUKO', '+1 Yuko'], ['WAZA_ARI', '+2 Waza-ari'], ['IPPON', '+3 Ippon'], ['SENSHU', 'Senshu']].map(([tipo, label]) => (
+                <button key={tipo} onClick={() => { const l = vrPicker; setVrPicker(null); toggleVideoReview(l, tipo); }}
+                  className="py-3 rounded-xl bg-slate-800 hover:bg-amber-600 border border-slate-700 font-black text-sm transition">{label}</button>
+              ))}
+            </div>
+            <button onClick={() => { const l = vrPicker; setVrPicker(null); toggleVideoReview(l, 'OTRO'); }}
+              className="mt-2 w-full py-2 rounded-xl text-xs text-slate-300 hover:bg-slate-800">Otro / no especificado</button>
+            <button onClick={() => setVrPicker(null)} className="mt-1 w-full py-2 rounded-xl text-xs text-slate-500 hover:bg-slate-800">Cancelar</button>
+          </div>
+        </div>
+      )}
       <div className={`bg-slate-900 w-full max-w-6xl ${embedded ? "h-[calc(100vh-7rem)] min-h-[640px]" : "h-[94vh]"} rounded-3xl shadow-2xl flex flex-col overflow-hidden border-2 border-red-600`}>
         
         {/* Header Oficial WKF */}
@@ -938,7 +962,7 @@ export default function KarateWKFController({
               {/* Video Review Card & Hansoku Directo */}
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <button
-                  onClick={() => toggleVideoReview('local')}
+                  onClick={() => onVrCardClick('local')}
                   className={`py-2 px-3 rounded-xl font-bold text-xs transition border flex items-center justify-center gap-1.5 ${
                     estadisticas.local.video_review === 'ACTIVE'
                       ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-950/70'
@@ -1213,7 +1237,7 @@ export default function KarateWKFController({
               {/* Video Review Card & Hansoku Directo */}
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <button
-                  onClick={() => toggleVideoReview('visitante')}
+                  onClick={() => onVrCardClick('visitante')}
                   className={`py-2 px-3 rounded-xl font-bold text-xs transition border flex items-center justify-center gap-1.5 ${
                     estadisticas.visitante.video_review === 'ACTIVE'
                       ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-950/70'

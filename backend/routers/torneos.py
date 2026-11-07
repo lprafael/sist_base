@@ -18,7 +18,7 @@ import shutil
 from database import get_session
 from services.facial_recognition import FacialRecognitionService
 import time
-from security import get_password_hash
+from security import get_password_hash, get_current_user
 from email_service import email_service
 import secrets
 import string
@@ -3198,7 +3198,8 @@ async def iniciar_partido(partido_id: str, session: AsyncSession = Depends(get_s
 
 
 @router.patch("/partidos/{partido_id}", summary="Actualizar resultado de partido")
-async def update_partido(partido_id: str, payload: PartidoUpdate, session: AsyncSession = Depends(get_session)):
+async def update_partido(partido_id: str, payload: PartidoUpdate, session: AsyncSession = Depends(get_session),
+                         current_user: dict = Depends(get_current_user)):
     try:
         # Obtener IDs para determinar ganador
         p_res = await session.execute(

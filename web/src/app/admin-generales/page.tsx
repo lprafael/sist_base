@@ -83,7 +83,8 @@ export default function AdminGeneralesPage() {
         return;
       }
       let session = JSON.parse(sessionStr);
-      if (session.role !== 'super' && session.role !== 'organizador') {
+      // El administrador del sistema (rol "admin") también gestiona torneos generales
+      if (!['super', 'admin', 'organizador'].includes(session.role)) {
         window.location.href = '/login';
         return;
       }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, Plus, MoreVertical, PlayCircle, Edit3, X, Loader2, Trophy,
-  List, Check, Share2, RotateCcw, Image as ImageIcon, FileText, ChevronRight, Zap
+  List, Check, Share2, RotateCcw, Image as ImageIcon, FileText, ChevronRight, Zap, Shield
 } from 'lucide-react';
 import MatchController from './MatchController';
 import MatchAddModal from './MatchAddModal';

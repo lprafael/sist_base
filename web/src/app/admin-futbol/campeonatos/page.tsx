@@ -5,6 +5,16 @@ import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
+// Nombre legible del formato guardado (liga, eliminacion_simple, ...)
+const nombreFormato = (t: any) => {
+  const nombres: Record<string, string> = {
+    liga: 'Liga', eliminacion_simple: 'Eliminación directa', eliminacion_doble: 'Doble eliminación',
+    grupos: 'Fase de grupos', suizo: 'Sistema suizo', mixto: 'Mixto',
+  };
+  const base = nombres[t.formato] || String(t.formato || '').replace(/_/g, ' ');
+  return /karate/i.test(t.deporte || '') ? `WKF · ${base}` : base;
+};
+
 export default function CampeonatosPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -44,6 +54,9 @@ export default function CampeonatosPage() {
     tipo_campeonato: "",
     deporte: "",
     formato: "",
+    fecha_inicio: "",
+    fecha_fin: "",
+    ubicacion_texto: "",
     categorias: [] as { nombre: string, divisiones: {nombre: string}[] }[]
   });
 
@@ -202,7 +215,7 @@ export default function CampeonatosPage() {
                   <h3 className="font-bold text-lg text-gray-900 mb-2 truncate" title={t.nombre}>{t.nombre}</h3>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{t.deporte}</span>
-                    <span className="bg-gray-200 text-gray-800 text-xs font-bold px-2 py-1 rounded capitalize">{t.formato.replace('_', ' ')}</span>
+                    <span className="bg-gray-200 text-gray-800 text-xs font-bold px-2 py-1 rounded">{nombreFormato(t)}</span>
                   </div>
                   <div className="text-sm text-gray-500 flex flex-col gap-1">
                     <span><strong>Tipo:</strong> {t.tipo_campeonato === 'unico' ? 'Único' : 'Con Categorías'}</span>
@@ -324,6 +337,39 @@ export default function CampeonatosPage() {
                 </select>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Fecha de inicio</label>
+                <input
+                  type="date"
+                  value={formData.fecha_inicio}
+                  onChange={e => setFormData({...formData, fecha_inicio: e.target.value, fecha_fin: formData.fecha_fin || e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#1b264f] outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Fecha de fin</label>
+                <input
+                  type="date"
+                  value={formData.fecha_fin}
+                  min={formData.fecha_inicio || undefined}
+                  onChange={e => setFormData({...formData, fecha_fin: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#1b264f] outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Sede / lugar</label>
+                <input
+                  type="text"
+                  value={formData.ubicacion_texto}
+                  onChange={e => setFormData({...formData, ubicacion_texto: e.target.value})}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#1b264f] outline-none transition"
+                  placeholder="Ej. Polideportivo Municipal, Ciudad del Este"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 -mt-3">Podés ubicar la sede en el mapa más tarde, desde Configuración.</p>
 
             {formData.tipo_campeonato === 'categorias' && (
               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
