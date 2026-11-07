@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { authHeaders, getAuthToken } from '@/lib/session';
 import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, Award, Wifi, WifiOff } from 'lucide-react';
 
 const getApiUrl = () => {
@@ -84,7 +85,7 @@ export default function KarateWKFController({
     try {
       fetch(`${API_URL}/api/vr/combates/${matchId}/broadcast`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(fullPayload)
       }).catch(() => {});
     } catch {}
@@ -98,7 +99,7 @@ export default function KarateWKFController({
 
     const connect = () => {
       try {
-        ws = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}`);
+        ws = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}?token=${encodeURIComponent(getAuthToken())}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -126,7 +127,15 @@ export default function KarateWKFController({
             } else if (msg.event === 'VR_RESUELTO') {
               setAlertaCombate(`⚖️ VR Resuelto: ${msg.resultado}`);
               // Si fue RECHAZADO o MIENAI y el mensaje incluye el nuevo estado de tarjetas, sincronizarlo
-              if (msg.resultado === 'MIENAI') {
+              if (msg.resultado === 'RECHAZADO') {
+                const col = (msg.competidor_color || '').toLowerCase();
+                const lado = col === 'aka' || col === 'rojo' ? 'local' : 'visitante';
+                setEstadisticas((prev: any) => {
+                  const n = JSON.parse(JSON.stringify(prev));
+                  n[lado].video_review = 'USED_AND_LOCKED';
+                  return n;
+                });
+              } else if (msg.resultado === 'MIENAI' || msg.resultado === 'CANCELADO') {
                 const col = (msg.competidor_color || '').toLowerCase();
                 const lado = col === 'aka' || col === 'rojo' ? 'local' : 'visitante';
                 setEstadisticas((prev: any) => {
@@ -407,7 +416,7 @@ export default function KarateWKFController({
       try {
         const resp = await fetch(`${API_URL}/api/vr/combates/${matchId}/solicitar`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             competidor_color: color,
             tipo_solicitud: 'OTRO',
@@ -421,6 +430,10 @@ export default function KarateWKFController({
         } else {
           const errData = await resp.json().catch(() => ({}));
           console.warn("[VR Solicitar] Respuesta no exitosa:", errData);
+          alert(resp.status === 401 || resp.status === 403
+            ? "Tu sesión expiró. Iniciá sesión de nuevo para registrar el Video Review."
+            : `No se pudo registrar el Video Review: ${errData.detail || resp.status}`);
+          return;
         }
       } catch (err) {
         console.error("[VR Solicitar] Fallo de red:", err);
@@ -428,7 +441,8 @@ export default function KarateWKFController({
 
       setEstadisticas((prev: any) => {
         const n = JSON.parse(JSON.stringify(prev));
-        n[lado].video_review = 'USED_AND_LOCKED';
+        // En revisión: la tarjeta solo se pierde si el Juez VR rechaza el reclamo
+        n[lado].video_review = 'EN_REVISION';
         setAlertaCombate(`🎥 Video Review solicitado por Coach de ${atleta}. Cronómetro pausado.`);
         sendBroadcast({
           event: "VR_SOLICITADO",
@@ -931,7 +945,7 @@ export default function KarateWKFController({
                       : 'bg-red-950/40 text-red-400 border-red-800/40 line-through opacity-70'
                   }`}
                 >
-                  <Video size={14} /> VR Card: {estadisticas.local.video_review === 'ACTIVE' ? 'DISP.' : 'BLOQ.'}
+                  <Video size={14} /> VR Card: {estadisticas.local.video_review === 'ACTIVE' ? 'DISP.' : estadisticas.local.video_review === 'EN_REVISION' ? 'EN REVISIÓN' : 'BLOQ.'}
                 </button>
 
                 <button
@@ -1206,7 +1220,7 @@ export default function KarateWKFController({
                       : 'bg-red-950/40 text-red-400 border-red-800/40 line-through opacity-70'
                   }`}
                 >
-                  <Video size={14} /> VR Card: {estadisticas.visitante.video_review === 'ACTIVE' ? 'DISP.' : 'BLOQ.'}
+                  <Video size={14} /> VR Card: {estadisticas.visitante.video_review === 'ACTIVE' ? 'DISP.' : estadisticas.visitante.video_review === 'EN_REVISION' ? 'EN REVISIÓN' : 'BLOQ.'}
                 </button>
 
                 <button

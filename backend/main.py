@@ -157,9 +157,10 @@ async def global_exception_handler(request: Request, exc: Exception):
     print(f"[ERROR 500] Excepción no capturada en {request.method} {request.url.path}: {exc}")
     traceback.print_exc()
     origin = request.headers.get("origin", "*")
+    # No exponer SQL ni detalles internos al usuario; el detalle queda en el log del servidor
     response = JSONResponse(
         status_code=500,
-        content={"detail": f"Error interno del servidor: {str(exc)}"}
+        content={"detail": "Error interno del servidor. Si persiste, contactá al soporte."}
     )
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
@@ -328,6 +329,10 @@ app.include_router(video_review_router)
 
 from routers.cantinas import router as cantinas_router
 app.include_router(cantinas_router)
+
+# Karate WKF: agrupación, sorteo de llaves, avance y pesaje sobre las tablas del torneo
+from routers.karate_wkf import router as karate_wkf_router
+app.include_router(karate_wkf_router)
 
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA

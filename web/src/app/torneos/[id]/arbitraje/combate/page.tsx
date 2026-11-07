@@ -56,7 +56,11 @@ export default function ArbitrajeCombatePage({ params: paramsPromise }: { params
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          setPartidos(data);
+          // Los combates de la llave que aún esperan a sus rivales no se disputan todavía
+          setPartidos(data.filter((p: any) => {
+            const st = typeof p.estadisticas === 'string' ? (() => { try { return JSON.parse(p.estadisticas); } catch { return {}; } })() : (p.estadisticas || {});
+            return !(st.bracket && (!p.jugador_local_id || !p.jugador_visitante_id));
+          }));
         }
       }
     } catch (err) {

@@ -17,14 +17,10 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
 
   // Modals
   const [isCreatingEquipo, setIsCreatingEquipo] = useState(false);
-  const [isAddingJugador, setIsAddingJugador] = useState<string | null>(null); // equipo_id
   const [saving, setSaving] = useState(false);
 
   // Formularios
   const [nuevoEquipo, setNuevoEquipo] = useState('');
-  const [nuevoJugador, setNuevoJugador] = useState({
-    nombre: '', dni: '', fecha_nacimiento: '', email: '', telefono: ''
-  });
 
   const equipoInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -84,37 +80,6 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
         setNuevoEquipo('');
         fetchEquipos(false);
         setTimeout(() => equipoInputRef.current?.focus(), 100);
-      }
-    } catch(e) { console.error(e); }
-    setSaving(false);
-  };
-
-  const handleAddJugador = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAddingJugador) return;
-    setSaving(true);
-    try {
-      const payload = {
-        nombre: nuevoJugador.nombre,
-        dni: nuevoJugador.dni,
-        fecha_nacimiento: nuevoJugador.fecha_nacimiento || null,
-        email: nuevoJugador.email || null,
-        telefono: nuevoJugador.telefono || null
-      };
-
-      const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/equipos/${isAddingJugador}/jugadores`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-        body: JSON.stringify(payload)
-      });
-      
-      if(res.ok) {
-        setIsAddingJugador(null);
-        setNuevoJugador({ nombre: '', dni: '', fecha_nacimiento: '', email: '', telefono: '' });
-        fetchJugadores(isAddingJugador);
-      } else {
-        const err = await res.json();
-        alert("Error: " + (err.detail || "No se pudo agregar"));
       }
     } catch(e) { console.error(e); }
     setSaving(false);
@@ -190,16 +155,14 @@ export default function ParticipantesView({ torneoId }: { torneoId: string }) {
                     {eq.inscripcion_confirmada === true && (
                       <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold ml-2">✓ Confirmado</span>
                     )}
-                    {eq.inscripcion_confirmada === null || eq.inscripcion_confirmada === undefined ? (
-                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold ml-2">⏳ Pendiente</span>
-                    ) : null}
-                    {eq.inscripcion_confirmada === false && (
-                      <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold ml-2">✗ Eliminado</span>
+                    {/* false es el valor por defecto de un equipo nuevo: todavía no confirmado */}
+                    {eq.inscripcion_confirmada !== true && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold ml-2">⏳ Pendiente de confirmar</span>
                     )}
                   </div>
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setIsAddingJugador(eq.id); }}
+                <button
+                  onClick={(e) => { e.stopPropagation(); openEditTeam(eq); }}
                   className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition shadow-sm border border-slate-200"
                   title="Añadir Atleta"
                 >

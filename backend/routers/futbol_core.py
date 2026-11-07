@@ -1041,16 +1041,20 @@ async def delete_grupo_participante(grupo_id: str, jugador_id: str, session: Asy
 @router.get("/futbol/torneos/{torneo_id}/llaves")
 async def get_llaves(torneo_id: str, session: AsyncSession = Depends(get_session)):
     q = text("""
-        SELECT p.id, p.ronda, p.division_id, d.nombre as division_nombre,
+        SELECT p.id, p.ronda, p.numero_ronda, p.division_id,
+               COALESCE(c.nombre || ' — ', '') || d.nombre as division_nombre,
                p.jugador_local_id, j1.nombre as jugador_local_nombre,
                p.jugador_visitante_id, j2.nombre as jugador_visitante_nombre,
-               p.ganador_jugador_id, p.estado
+               p.ganador_jugador_id, p.estado, p.goles_local, p.goles_visitante, p.es_wo,
+               p.estadisticas->>'area' AS area,
+               (p.estadisticas->'bracket'->>'pos')::int AS pos
         FROM torneos.partidos p
         LEFT JOIN torneos.divisiones d ON p.division_id = d.id
+        LEFT JOIN torneos.categorias c ON d.categoria_id = c.id
         LEFT JOIN torneos.tournament_players j1 ON p.jugador_local_id = j1.id
         LEFT JOIN torneos.tournament_players j2 ON p.jugador_visitante_id = j2.id
         WHERE p.torneo_id = CAST(:tid AS UUID) AND p.ronda IS NOT NULL
-        ORDER BY d.nombre, p.ronda
+        ORDER BY division_nombre, p.numero_ronda NULLS LAST, pos NULLS LAST, p.creado_en
     """)
     res = await session.execute(q, {"tid": torneo_id})
     return [dict(r._mapping) for r in res.fetchall()]
@@ -1060,12 +1064,26 @@ class LlaveCreate(BaseModel):
     ronda: str
     jugador_local_id: str
     jugador_visitante_id: str
+    area: Optional[int] = None   # tatami donde se disputa
 
 @router.post("/futbol/torneos/{torneo_id}/llaves")
 async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSession = Depends(get_session)):
+    import json as _json
+    if payload.jugador_local_id == payload.jugador_visitante_id:
+        raise HTTPException(status_code=400, detail="Seleccioná dos atletas diferentes.")
+    base = {"puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False,
+            "penalizaciones": 0, "jogai": 0, "video_review": "ACTIVE"}
+    stats = {"tipo_reglamento": "WKF", "area": payload.area or 1,
+             "local": {"color": "AKA", **base}, "visitante": {"color": "AO", **base}}
     q = text("""
-        INSERT INTO torneos.partidos (torneo_id, division_id, ronda, jugador_local_id, jugador_visitante_id, estado)
-        VALUES (CAST(:tid AS UUID), CAST(:did AS UUID), :ronda, CAST(:j1 AS UUID), CAST(:j2 AS UUID), 'programado')
+        INSERT INTO torneos.partidos
+            (torneo_id, division_id, ronda, fase, fase_nombre, jugador_local_id, jugador_visitante_id,
+             equipo_local_id, equipo_visitante_id, estado, goles_local, goles_visitante, estadisticas)
+        VALUES (CAST(:tid AS UUID), CAST(:did AS UUID), :ronda, 'eliminatoria', :ronda,
+                CAST(:j1 AS UUID), CAST(:j2 AS UUID),
+                (SELECT torneo_equipo_id FROM torneos.tournament_players WHERE id = CAST(:j1 AS UUID)),
+                (SELECT torneo_equipo_id FROM torneos.tournament_players WHERE id = CAST(:j2 AS UUID)),
+                'programado', 0, 0, :st)
         RETURNING id
     """)
     res = await session.execute(q, {
@@ -1073,7 +1091,8 @@ async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSessi
         "did": payload.division_id,
         "ronda": payload.ronda,
         "j1": payload.jugador_local_id,
-        "j2": payload.jugador_visitante_id
+        "j2": payload.jugador_visitante_id,
+        "st": _json.dumps(stats),
     })
     await session.commit()
     return {"id": str(res.scalar()), "message": "Llave creada exitosamente"}

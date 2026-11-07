@@ -27,6 +27,7 @@ export default function PesajeOficialWKFModal({
   onUpdated?: () => void;
 }) {
   const [atletas, setAtletas] = useState<any[]>([]);
+  const [divisiones, setDivisiones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedAtleta, setSelectedAtleta] = useState<any | null>(null);
@@ -50,12 +51,13 @@ export default function PesajeOficialWKFModal({
   const fetchAtletas = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/futbol/torneos/${torneoId}/checkin-list`, {
+      const res = await fetch(`${API_URL}/api/karate/torneos/${torneoId}/atletas`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setAtletas(data);
+        setAtletas(data.atletas || []);
+        setDivisiones((data.divisiones || []).filter((d: any) => d.peso_max != null));
       }
     } catch (e) {
       console.error('Error fetching atletas para pesaje:', e);
@@ -73,16 +75,8 @@ export default function PesajeOficialWKFModal({
     setPesoInput(a.peso_verificado ? String(a.peso_verificado) : (a.peso_declarado ? String(a.peso_declarado) : ''));
     setResultadoPesaje(null);
 
-    // Intentar deducir límite de peso de su categoría
-    const catStr = (a.categoria || a.equipo_nombre || '').toLowerCase();
-    if (catStr.includes('60')) setLimiteCategoria(60);
-    else if (catStr.includes('67')) setLimiteCategoria(67);
-    else if (catStr.includes('75')) setLimiteCategoria(75);
-    else if (catStr.includes('84')) setLimiteCategoria(84);
-    else if (catStr.includes('50')) setLimiteCategoria(50);
-    else if (catStr.includes('55')) setLimiteCategoria(55);
-    else if (catStr.includes('61')) setLimiteCategoria(61);
-    else if (catStr.includes('68')) setLimiteCategoria(68);
+    // Límite de la división asignada al atleta (Agrupar por WKF)
+    if (a.peso_max != null) setLimiteCategoria(Number(a.peso_max));
   };
 
   const handleEjecutarPesaje = async (e: React.FormEvent) => {
@@ -93,21 +87,25 @@ export default function PesajeOficialWKFModal({
     setResultadoPesaje(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/marciales/torneos/${torneoId}/pesaje-oficial`, {
+      const res = await fetch(`${API_URL}/api/karate/torneos/${torneoId}/pesaje`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getToken()}`
         },
         body: JSON.stringify({
-          participante_id: String(selectedAtleta.id),
-          peso_registrado: parseFloat(pesoInput),
-          peso_maximo_categoria: limiteCategoria,
+          jugador_id: String(selectedAtleta.id),
+          peso: parseFloat(pesoInput),
+          limite_kg: limiteCategoria,
           tolerancia_kg: toleranciaKg
         })
       });
 
       const data = await res.json();
+      if (!res.ok) {
+        alert(res.status === 401 ? 'Tu sesión expiró. Iniciá sesión de nuevo.' : (data.detail || 'No se pudo registrar el pesaje.'));
+        return;
+      }
       setResultadoPesaje(data);
 
       // Recargar lista
@@ -180,7 +178,7 @@ export default function PesajeOficialWKFModal({
               ) : (
                 filteredAtletas.map(a => {
                   const isSelected = selectedAtleta?.id === a.id;
-                  const isHabilitado = a.estado === 'Habilitado';
+                  const isHabilitado = (a.estado || '').toLowerCase() === 'habilitado';
                   const isDescalificado = a.estado === 'Descalificado_Pesaje' || (a.estado || '').toLowerCase().includes('descalificado');
 
                   return (
@@ -195,7 +193,7 @@ export default function PesajeOficialWKFModal({
                     >
                       <div className="min-w-0 flex-1">
                         <div className="font-bold truncate text-xs text-white">{a.nombre}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{a.equipo_nombre || 'Dojo / Escuela'}</div>
+                        <div className="text-[10px] text-slate-400 truncate">{a.equipo_nombre || 'Dojo / Escuela'}{a.division_nombre ? ` · ${a.division_nombre}` : ' · sin división'}</div>
                       </div>
 
                       <div className="text-right shrink-0">
@@ -231,6 +229,7 @@ export default function PesajeOficialWKFModal({
                   <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">Atleta en Báscula:</span>
                   <h4 className="text-base font-black text-white">{selectedAtleta.nombre}</h4>
                   <p className="text-xs text-slate-400">{selectedAtleta.equipo_nombre || 'Dojo / Escuela'}</p>
+                  <p className="text-xs text-amber-300 mt-1">{selectedAtleta.division_nombre || 'Sin división asignada: usá «Agrupar por WKF» o elegí el límite a mano.'}</p>
                 </div>
 
                 {/* Parámetros de Pesaje WKF */}
@@ -244,15 +243,13 @@ export default function PesajeOficialWKFModal({
                       onChange={e => setLimiteCategoria(parseFloat(e.target.value))}
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-bold outline-none focus:border-amber-500"
                     >
-                      <option value={50}>-50 kg (Femenino)</option>
-                      <option value={55}>-55 kg (Femenino / Junior)</option>
-                      <option value={60}>-60 kg (Masculino)</option>
-                      <option value={61}>-61 kg (Femenino / Cadete)</option>
-                      <option value={67}>-67 kg (Masculino)</option>
-                      <option value={68}>-68 kg (Femenino / Junior)</option>
-                      <option value={75}>-75 kg (Masculino)</option>
-                      <option value={84}>-84 kg (Masculino)</option>
-                      <option value={100}>+84 kg (Open / Pesado)</option>
+                      {/* Límites de las divisiones de este torneo */}
+                      {divisiones.map((d: any) => (
+                        <option key={d.id} value={d.peso_max}>-{d.peso_max} kg · {d.nombre}</option>
+                      ))}
+                      {!divisiones.some((d: any) => Number(d.peso_max) === limiteCategoria) && (
+                        <option value={limiteCategoria}>-{limiteCategoria} kg</option>
+                      )}
                     </select>
                   </div>
 
@@ -343,14 +340,14 @@ export default function PesajeOficialWKFModal({
             {/* Mensaje de Resultado tras Ejecutar */}
             {resultadoPesaje && (
               <div className={`p-3.5 rounded-2xl border text-xs animate-fadeIn ${
-                resultadoPesaje.aprobado
+                resultadoPesaje.apto
                   ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300'
                   : 'bg-red-950/60 border-red-600 text-red-300'
               }`}>
                 <div className="font-bold">{resultadoPesaje.mensaje}</div>
-                {resultadoPesaje.walkovers_aplicados > 0 && (
+                {resultadoPesaje.walkovers_aplicados?.length > 0 && (
                   <div className="text-[10px] mt-1 text-amber-300">
-                    🏆 {resultadoPesaje.walkovers_aplicados} oponente(s) avanzaron automáticamente a la siguiente ronda.
+                    🏆 {resultadoPesaje.walkovers_aplicados.length} oponente(s) avanzaron automáticamente a la siguiente ronda.
                   </div>
                 )}
               </div>

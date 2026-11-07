@@ -2851,7 +2851,12 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
             if m_num:
                 area_val = m_num.group(0)
         if not area_val:
-            area_val = str((idx % 3) + 1)
+            # Estable por combate (antes dependía de la posición en la lista y los
+            # combates "saltaban" de tatami al cambiar el orden)
+            try:
+                area_val = str(uuid.UUID(str(d.get("id"))).int % 3 + 1)
+            except Exception:
+                area_val = "1"
         d["area"] = area_val
         res_list.append(d)
     return res_list
@@ -3250,8 +3255,21 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
                 ev_id = None
 
         if payload.estadisticas is not None:
+            # Las mesas envían sus estadísticas completas: conservar los datos de
+            # organización del combate (posición en la llave y tatami) que no manejan.
+            nuevas = dict(payload.estadisticas)
+            try:
+                prev_raw = (await session.execute(
+                    text("SELECT estadisticas FROM torneos.partidos WHERE id = :pid"), {"pid": partido_id}
+                )).scalar()
+                prev = json.loads(prev_raw) if isinstance(prev_raw, str) else (prev_raw or {})
+                for clave in ("bracket", "area", "modalidad"):
+                    if clave in prev and clave not in nuevas:
+                        nuevas[clave] = prev[clave]
+            except Exception:
+                pass
             updates.append("estadisticas = :estadisticas")
-            params["estadisticas"] = json.dumps(payload.estadisticas)
+            params["estadisticas"] = json.dumps(nuevas)
 
         # Ganador
         if payload.goles_local is not None and payload.goles_visitante is not None:
@@ -3314,6 +3332,12 @@ async def update_partido(partido_id: str, payload: PartidoUpdate, session: Async
 
         # Recalcular posiciones si el partido quedó finalizado
         if payload.estado in ("finalizado", "wo"):
+            # Llaves de Karate WKF: registrar ganador y pasarlo al combate siguiente
+            try:
+                from routers.karate_wkf import avanzar_llave_karate
+                await avanzar_llave_karate(session, partido_id)
+            except Exception as e_k:
+                print("Error avanzando llave de karate:", e_k)
             try:
                 await _recalcular_posiciones(torneo_id, session)
                 await session.commit()

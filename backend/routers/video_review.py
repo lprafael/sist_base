@@ -28,6 +28,7 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 from database import get_session
+from security import get_current_user, verify_token
 from workers.vr_broadcaster import (
     vr_manager,
     evt_vr_solicitado,
@@ -216,6 +217,16 @@ async def vr_websocket(match_id: str, websocket: WebSocket):
     Todos los dispositivos (árbitro, pantalla tatami, juez VR, cámara) se conectan aquí.
     URL: ws://<host>/api/vr/ws/{match_id}
     """
+    # Cualquiera puede escuchar (Marcador TV público); solo una sesión válida
+    # (?token=<JWT>) puede emitir eventos que se retransmiten al resto de pantallas.
+    puede_emitir = False
+    token = websocket.query_params.get("token")
+    if token:
+        try:
+            verify_token(token)
+            puede_emitir = True
+        except Exception:
+            puede_emitir = False
     await vr_manager.connect(match_id, websocket)
     try:
         while True:
@@ -223,7 +234,9 @@ async def vr_websocket(match_id: str, websocket: WebSocket):
             if data == "ping":
                 await websocket.send_text("pong")
                 continue
-            
+            if not puede_emitir:
+                continue
+
             # Reenviar eventos entre clientes conectados (mesa arbitral, marcador público, juez VR)
             try:
                 import json as _json
@@ -239,7 +252,7 @@ async def vr_websocket(match_id: str, websocket: WebSocket):
 
 
 @router.post("/combates/{match_id}/broadcast")
-async def broadcast_evento(match_id: str, payload: dict):
+async def broadcast_evento(match_id: str, payload: dict, current_user: dict = Depends(get_current_user)):
     """
     Reenvía un evento JSON a todos los clientes WebSocket conectados a este combate.
     Permite sincronización inmediata por HTTP.
@@ -257,7 +270,8 @@ async def broadcast_evento(match_id: str, payload: dict):
 async def solicitar_video_review(
     match_id: str,
     body: VRSolicitudRequest,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     El coach de una esquina solicita revisión de video.
@@ -342,7 +356,8 @@ async def solicitar_video_review(
 async def resolver_video_review(
     match_id: str,
     body: VRVeredictoRequest,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     El Juez VR emite su veredicto sobre la solicitud de revisión.
@@ -481,7 +496,8 @@ async def resolver_video_review(
 @router.post("/combates/{match_id}/cancelar")
 async def cancelar_video_review(
     match_id: str,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """Cierra los VR pendientes del combate sin aplicar puntos ni tocar tarjetas."""
     await _ensure_schema(session)
@@ -593,7 +609,8 @@ async def actualizar_clip_url(
     match_id: str,
     review_id: int,
     clip_url: str,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     OBS notifica la ruta del clip guardado.
@@ -643,7 +660,8 @@ async def subir_clip_web(
     request: Request,
     file: UploadFile = File(...),
     review_id: Optional[int] = None,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Recibe el clip de video generado por el navegador (WebM o MP4) desde la pantalla de cámara nativa.

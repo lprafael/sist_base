@@ -232,7 +232,7 @@ function FighterPanel({
             letterSpacing: "0.08em",
           }}
         >
-          VR: {fighter.vr_card === "USED_AND_LOCKED" ? "✗ BLOQUEADO" : "✓ DISPONIBLE"}
+          VR: {fighter.vr_card === "USED_AND_LOCKED" ? "✗ BLOQUEADO" : fighter.vr_card === "EN_REVISION" ? "⏳ EN REVISIÓN" : "✓ DISPONIBLE"}
         </div>
       )}
     </div>

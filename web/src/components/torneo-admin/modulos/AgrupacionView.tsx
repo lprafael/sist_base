@@ -24,6 +24,9 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   // Sorteo WKF state
   const [sorteoLoading, setSorteoLoading] = useState(false);
   const [sorteoSuccess, setSorteoSuccess] = useState<string | null>(null);
+  const [sorteoAvisos, setSorteoAvisos] = useState<string[]>([]);
+  const [numTatamis, setNumTatamis] = useState<number>(3);
+  const [selectedArea, setSelectedArea] = useState<number>(1);
 
   // Pesaje Modal state
   const [showPesajeModal, setShowPesajeModal] = useState(false);
@@ -48,21 +51,23 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   };
 
   const handleGenerarSorteoWKF = async () => {
-    if (!confirm("¿Generar sorteo oficial WKF con emparejamientos y regla de colores (AKA Rojo / AO Azul)?\n\nEsto creará las llaves oficiales de eliminación directa aplicando sembrado reglamentario y Byes.")) return;
+    if (!confirm(`¿Generar el sorteo oficial WKF en ${numTatamis} tatami(s)?\n\nSe arma una llave de eliminación directa por división (AKA arriba / AO abajo), con byes y separando a compañeros de dojo en la primera ronda.\nLas divisiones que ya tienen llave no se modifican.`)) return;
     setSorteoLoading(true);
     setSorteoSuccess(null);
+    setSorteoAvisos([]);
     try {
-      const res = await fetch(`${API_URL}/api/marciales/torneos/${torneoId}/generar-sorteo-llaves-wkf`, {
+      const res = await fetch(`${API_URL}/api/karate/torneos/${torneoId}/sorteo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getToken()}`
         },
-        body: JSON.stringify({ dias_anticipacion: 3, sembrado_aleatorio: true })
+        body: JSON.stringify({ tatamis: numTatamis, aleatorio: true, reemplazar: false })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Error al generar sorteo');
-      setSorteoSuccess(data.mensaje);
+      if (!res.ok) throw new Error(res.status === 401 ? 'Tu sesión expiró. Iniciá sesión de nuevo.' : (data.detail || 'Error al generar sorteo'));
+      setSorteoSuccess(data.mensaje + ' ' + (data.llaves || []).map((l: any) => `${l.division}: tatami ${l.tatami}`).join(' · '));
+      setSorteoAvisos(data.avisos || []);
       fetchLlaves();
     } catch (e: any) {
       alert(e.message || 'Error al generar sorteo');
@@ -72,15 +77,16 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
   };
 
   const handleAgruparWKF = async () => {
-    if (!confirm('¿Ejecutar agrupación automática WKF?\n\nSe crearán divisiones para todos los atletas habilitados según las categorías oficiales de la WKF (Kumite, Kata y Para-Karate).\n\n⚠️ Si ya existen divisiones previas, los atletas podrían quedar duplicados.')) return;
+    if (!confirm('¿Agrupar a los atletas en las categorías del torneo?\n\nSe asigna cada atleta a su división según género, edad a la fecha del torneo, modalidad (Kata/Kumite) y peso del check-in (tolerancia ±1 kg).\nLos atletas que ya tienen división no se modifican.')) return;
     setWkfStatus({ loading: true, done: false });
     try {
-      const res = await fetch(`${API_URL}/api/marciales/torneos/${torneoId}/agrupacion-wkf`, {
+      const res = await fetch(`${API_URL}/api/karate/torneos/${torneoId}/agrupar`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${getToken()}` }
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify({ respetar_asignaciones: true, tolerancia_kg: 1 })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Error al agrupar');
+      if (!res.ok) throw new Error(res.status === 401 ? 'Tu sesión expiró. Iniciá sesión de nuevo.' : (data.detail || 'Error al agrupar'));
       setWkfStatus({
         loading: false,
         done: true,
@@ -116,10 +122,10 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
 
   const fetchJugadores = async () => {
     try {
-      const res = await fetch(`${API_URL}/futbol/torneos/${torneoId}/checkin-list`, {
+      const res = await fetch(`${API_URL}/api/karate/torneos/${torneoId}/atletas`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-      if(res.ok) setJugadoresDisponibles(await res.json());
+      if(res.ok) setJugadoresDisponibles((await res.json()).atletas || []);
     } catch(e) { console.error(e); }
   };
 
@@ -138,10 +144,14 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
           division_id: selectedDivision, 
           ronda: selectedRonda,
           jugador_local_id: jugador1,
-          jugador_visitante_id: jugador2
+          jugador_visitante_id: jugador2,
+          area: selectedArea
         })
       });
-      if(res.ok) {
+      if(!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || 'No se pudo programar el combate');
+      } else {
         setIsCreating(false);
         setJugador1('');
         setJugador2('');
@@ -210,7 +220,7 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
           <div className="mt-4 space-y-3">
             <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
               <CheckCircle2 size={16} />
-              Se crearon {wkfStatus.resumen.length} categorías WKF
+              {wkfStatus.resumen.reduce((n, c) => n + c.atletas, 0)} atletas agrupados en {wkfStatus.resumen.length} divisiones
             </div>
 
             {/* Resumen de categorías */}
@@ -273,8 +283,16 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
             <Scale size={15} /> Pesaje Oficial (±1kg / Walkover)
           </button>
 
+          {/* Cantidad de tatamis para repartir las divisiones */}
+          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5">
+            Tatamis
+            <select value={numTatamis} onChange={e => setNumTatamis(Number(e.target.value))} className="bg-transparent outline-none font-black text-slate-800">
+              {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+
           {/* Botón Sorteo WKF */}
-          <button 
+          <button
             onClick={handleGenerarSorteoWKF}
             disabled={sorteoLoading}
             className="bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white px-3.5 py-2 rounded-xl font-black text-xs transition flex items-center gap-1.5 shadow-sm"
@@ -297,6 +315,11 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
         <div className="bg-emerald-950/40 border border-emerald-500/50 rounded-2xl p-4 text-emerald-300 text-xs flex items-center gap-3 animate-fadeIn">
           <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
           <span>{sorteoSuccess}</span>
+        </div>
+      )}
+      {sorteoAvisos.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 text-amber-800 text-xs space-y-0.5">
+          {sorteoAvisos.map((a, i) => <div key={i}>⚠️ {a}</div>)}
         </div>
       )}
 
@@ -323,19 +346,32 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
                       <Trash2 size={14} />
                     </button>
                     
-                    <div className="text-xs font-bold text-blue-600 mb-3 bg-blue-50 inline-block px-2 py-1 rounded">
-                      {llave.ronda}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-3 pr-6">
+                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{llave.ronda}</span>
+                      {llave.area && <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded">Tatami {llave.area}</span>}
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded ${
+                        llave.estado === 'finalizado' ? 'bg-emerald-50 text-emerald-700'
+                        : (!llave.jugador_local_id || !llave.jugador_visitante_id) ? 'bg-slate-100 text-slate-500'
+                        : 'bg-amber-50 text-amber-700'}`}>
+                        {llave.estado === 'finalizado' ? (llave.es_wo ? 'Walkover' : 'Finalizado') : (!llave.jugador_local_id || !llave.jugador_visitante_id) ? 'Esperando rivales' : 'Programado'}
+                      </span>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-                        <span className="font-medium text-slate-700 text-sm truncate">{llave.jugador_local_nombre}</span>
-                        {llave.ganador_jugador_id === llave.jugador_local_id && <Trophy size={14} className="text-yellow-500" />}
+                      <div className="flex justify-between items-center bg-red-50/60 p-2 rounded border border-red-100">
+                        <span className={`font-medium text-sm truncate ${llave.jugador_local_nombre ? 'text-slate-700' : 'text-slate-400 italic'}`}>{llave.jugador_local_nombre || 'Por definir'}</span>
+                        <span className="flex items-center gap-1">
+                          {llave.estado === 'finalizado' && <span className="text-xs font-black text-slate-600">{llave.goles_local ?? 0}</span>}
+                          {llave.ganador_jugador_id && llave.ganador_jugador_id === llave.jugador_local_id && <Trophy size={14} className="text-yellow-500" />}
+                        </span>
                       </div>
                       <div className="text-center text-xs text-slate-400 font-bold">VS</div>
-                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-                        <span className="font-medium text-slate-700 text-sm truncate">{llave.jugador_visitante_nombre}</span>
-                        {llave.ganador_jugador_id === llave.jugador_visitante_id && <Trophy size={14} className="text-yellow-500" />}
+                      <div className="flex justify-between items-center bg-blue-50/60 p-2 rounded border border-blue-100">
+                        <span className={`font-medium text-sm truncate ${llave.jugador_visitante_nombre ? 'text-slate-700' : 'text-slate-400 italic'}`}>{llave.jugador_visitante_nombre || 'Por definir'}</span>
+                        <span className="flex items-center gap-1">
+                          {llave.estado === 'finalizado' && <span className="text-xs font-black text-slate-600">{llave.goles_visitante ?? 0}</span>}
+                          {llave.ganador_jugador_id && llave.ganador_jugador_id === llave.jugador_visitante_id && <Trophy size={14} className="text-yellow-500" />}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -375,26 +411,47 @@ export default function AgrupacionView({ torneoId }: { torneoId: string }) {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Atleta Rojo</label>
-                  <select required value={jugador1} onChange={e => setJugador1(e.target.value)} className="w-full px-3 py-2 border border-red-300 rounded focus:ring-red-500 focus:border-red-500 text-sm bg-red-50">
-                    <option value="">Seleccionar...</option>
-                    {jugadoresDisponibles.map(j => (
-                      <option key={j.id} value={j.id}>{j.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Atleta Azul</label>
-                  <select required value={jugador2} onChange={e => setJugador2(e.target.value)} className="w-full px-3 py-2 border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm bg-blue-50">
-                    <option value="">Seleccionar...</option>
-                    {jugadoresDisponibles.map(j => (
-                      <option key={j.id} value={j.id}>{j.nombre}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Tatami</label>
+                <select value={selectedArea} onChange={e => setSelectedArea(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm">
+                  {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>Tatami {n}</option>)}
+                </select>
               </div>
+
+              {(() => {
+                // Solo atletas de la división elegida (si ya se agrupó); si no, todos con aviso
+                const deDivision = jugadoresDisponibles.filter(j => j.division_id === selectedDivision && (j.estado || '').toLowerCase() !== 'descalificado');
+                const lista = deDivision.length > 0 ? deDivision : jugadoresDisponibles;
+                return (
+                  <>
+                    {selectedDivision && deDivision.length === 0 && (
+                      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                        Ningún atleta está asignado a esta división todavía: se muestran todos. Usá «Agrupar por WKF» para filtrar por categoría.
+                      </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Atleta Rojo (AKA)</label>
+                        <select required value={jugador1} onChange={e => setJugador1(e.target.value)} className="w-full px-3 py-2 border border-red-300 rounded focus:ring-red-500 focus:border-red-500 text-sm bg-red-50">
+                          <option value="">Seleccionar...</option>
+                          {lista.map(j => (
+                            <option key={j.id} value={j.id}>{j.nombre}{j.equipo_nombre ? ` (${j.equipo_nombre})` : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Atleta Azul (AO)</label>
+                        <select required value={jugador2} onChange={e => setJugador2(e.target.value)} className="w-full px-3 py-2 border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm bg-blue-50">
+                          <option value="">Seleccionar...</option>
+                          {lista.filter(j => j.id !== jugador1).map(j => (
+                            <option key={j.id} value={j.id}>{j.nombre}{j.equipo_nombre ? ` (${j.equipo_nombre})` : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="flex justify-end gap-2 pt-6">
                 <button type="button" onClick={() => setIsCreating(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded text-sm">Cancelar</button>

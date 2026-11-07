@@ -14,6 +14,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { authHeaders } from "@/lib/session";
 import {
   Camera,
   Video,
@@ -333,6 +334,7 @@ export default function TatamiCameraStation() {
         setStatusMessage("📤 Enviando clip al Juez VR por red local...");
         const res = await fetch(urlUpload, {
           method: "POST",
+          headers: authHeaders(),
           body: formData
         });
 

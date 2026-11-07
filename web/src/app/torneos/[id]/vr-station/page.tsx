@@ -12,6 +12,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { authHeaders } from "@/lib/session";
 
 const getApiUrl = () => {
   if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
@@ -211,7 +212,7 @@ export default function VRStation() {
     try {
       const r = await fetch(`${API_URL}/api/vr/combates/${matchId}/resolver`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           review_id: request?.reviewId || undefined,
           resultado: res,
@@ -226,6 +227,8 @@ export default function VRStation() {
         setRequest(null);
         setTimerActive(false);
         setTimerSecs(DELIBERATION_SECS);
+      } else if (r.status === 401 || r.status === 403) {
+        alert("Para emitir veredictos, iniciá sesión en esta tablet con la cuenta del organizador (micancha.com.py/torneos/login) y recargá la página.");
       } else {
         alert(`Aviso del sistema: ${data.detail || "No se pudo registrar la resolución"}`);
       }
