@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía Torneo de Karate</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --text: #1d2330; --muted: #5b6474; --border: #e2e5ea;
+    --accent: #c2410c; --accent-soft: #fff1e8; --ok: #15803d; --ok-soft: #e9f7ee;
+    --warn: #a16207; --warn-soft: #fdf6e3; --bad: #b91c1c; --bad-soft: #fdecec; --code-bg: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b; --surface: #1a1e26; --text: #e6e9ef; --muted: #9aa3b2; --border: #2b313c;
+      --accent: #fb923c; --accent-soft: #2a1d14; --ok: #4ade80; --ok-soft: #13261a;
+      --warn: #facc15; --warn-soft: #29240f; --bad: #f87171; --bad-soft: #2c1517; --code-bg: #232833;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151b; --surface: #1a1e26; --text: #e6e9ef; --muted: #9aa3b2; --border: #2b313c;
+    --accent: #fb923c; --accent-soft: #2a1d14; --ok: #4ade80; --ok-soft: #13261a;
+    --warn: #facc15; --warn-soft: #29240f; --bad: #f87171; --bad-soft: #2c1517; --code-bg: #232833;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 1.35rem; margin: 44px 0 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 22px 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; font-size: .9em; word-break: break-all; }
+  .btn { display: inline-block; border: 1px solid var(--border); background: var(--code-bg); border-radius: 6px; padding: 0 7px; font-weight: 600; font-size: .9em; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc ol { margin: 6px 0; padding-left: 20px; }
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+  .step h3 { margin-top: 0; display: flex; gap: 10px; align-items: center; }
+  .num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: .95rem; }
+  figure { margin: 12px 0 4px; }
+  figure img { width: 100%; max-width: 640px; height: auto; display: block; border: 1px solid var(--border); border-radius: 10px; }
+  figure.tall img { max-width: 360px; }
+  figcaption { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+  .note { border-left: 4px solid var(--warn); background: var(--warn-soft); padding: 9px 13px; border-radius: 0 10px 10px 0; margin: 12px 0; }
+  .bad { border-left: 4px solid var(--bad); background: var(--bad-soft); padding: 9px 13px; border-radius: 0 10px 10px 0; margin: 12px 0; }
+  .good { border-left: 4px solid var(--ok); background: var(--ok-soft); padding: 9px 13px; border-radius: 0 10px 10px 0; margin: 12px 0; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: .93rem; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--code-bg); }
+  .ok { color: var(--ok); font-weight: 700; white-space: nowrap; }
+  .ko { color: var(--bad); font-weight: 700; white-space: nowrap; }
+  .mid { color: var(--warn); font-weight: 700; white-space: nowrap; }
+  footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Torneo de Karate WKF — Guía de uso e informe de prueba</h1>
+<p class="sub">Simulación completa en micancha.com.py con el torneo «XIII Torneo Internacional Seigokan [PRUEBA]» · 7 de noviembre de 2026</p>
+
+<nav class="toc">
+  <b>Contenido</b>
+  <ol>
+    <li><a href="#resumen">Resumen del resultado</a></li>
+    <li><a href="#crear">Crear el campeonato</a></li>
+    <li><a href="#config">Configurar datos, sede e inscripción</a></li>
+    <li><a href="#inscripcion">Inscribir dojos y atletas</a></li>
+    <li><a href="#pesaje">Check-in y pesaje</a></li>
+    <li><a href="#llaves">Emparejamiento (llaves)</a></li>
+    <li><a href="#mesa">Combate en la mesa con Video Review</a></li>
+    <li><a href="#fallos">Fallos encontrados</a></li>
+  </ol>
+</nav>
+
+<h2 id="resumen">1. Resumen del resultado</h2>
+<p>Se armó un torneo de prueba que replica la carta de invitación del XIII Seigokan (28/11/2026, Ciudad del Este, reglamento WKF), con
+<b>4 categorías</b>, <b>5 dojos</b> de Paraguay, Argentina, Brasil y Chile, y <b>20 atletas ficticios</b>. Se recorrió todo el flujo desde la interfaz, con la cuenta del organizador.</p>
+<div class="table-wrap"><table>
+  <tr><th>Etapa</th><th>Estado</th><th>Comentario</th></tr>
+  <tr><td>Crear campeonato con categorías</td><td class="ok">Funciona</td><td>No pide fecha ni sede al crear; se completan después en Configuración.</td></tr>
+  <tr><td>Datos básicos, sede, modalidad, visibilidad</td><td class="mid">Con detalles</td><td>Al buscar la ciudad en el mapa se borra el nombre del lugar.</td></tr>
+  <tr><td>Inscripción de dojos y atletas</td><td class="mid">Con detalles</td><td>El botón «Añadir Atleta» no hace nada; hay que entrar a la ficha del dojo. Los dojos nuevos aparecen como «Eliminado».</td></tr>
+  <tr><td>Check-in (peso y pago)</td><td class="ok">Funciona</td><td>Registra peso, estatura y pago.</td></tr>
+  <tr><td>Báscula oficial WKF / walkover</td><td class="ko">No funciona</td><td>No conoce la categoría del atleta y el registro da error 500 sin avisar.</td></tr>
+  <tr><td>Agrupación automática WKF</td><td class="ko">No funciona</td><td>«Torneo no encontrado».</td></tr>
+  <tr><td>Sorteo de llaves WKF</td><td class="ko">No funciona</td><td>Error de base de datos que además se muestra al usuario.</td></tr>
+  <tr><td>Programar combates manualmente</td><td class="mid">Funciona con límites</td><td>No filtra atletas por categoría, no pide tatami y guarda la fase como «grupos».</td></tr>
+  <tr><td>Mesa de control WKF</td><td class="ok">Funciona</td><td>Corregido hoy: antes tapaba los selectores y no cargaba el torneo.</td></tr>
+  <tr><td>Marcador TV en vivo</td><td class="ok">Funciona</td><td>Nombres, puntos, Senshu, reloj y avisos de VR en tiempo real.</td></tr>
+  <tr><td>Video Review (pedido y veredicto)</td><td class="ok">Funciona</td><td>Ciclo completo sincronizado en mesa, TV y tablet del juez.</td></tr>
+  <tr><td>Cierre del combate</td><td class="mid">Con detalles</td><td>Guarda el resultado, pero no registra al ganador ni lo pasa a la siguiente ronda.</td></tr>
+</table></div>
+<div class="note"><b>Para el torneo real del 28/11:</b> se puede usar desde la inscripción hasta la mesa con VR, pero los combates hay que programarlos a mano y el ganador de cada llave hay que pasarlo a la siguiente ronda a mano, hasta que se corrijan la agrupación y el sorteo.</div>
+
+<h2 id="crear">2. Crear el campeonato</h2>
+<div class="step"><h3><span class="num">1</span> Entrar al panel del organizador</h3>
+  <p>Con la cuenta del organizador se abre <b>Mis campeonatos</b>. El administrador también puede entrar como organizador desde <code>/admin</code> → <b>Organizadores</b> → clic en la fila del organizador.</p>
+  <figure><img src="img/01_mis_campeonatos.jpg" alt="Lista Mis campeonatos con el botón Nuevo Campeonato"><figcaption>Mis campeonatos → «+ Nuevo Campeonato».</figcaption></figure>
+</div>
+<div class="step"><h3><span class="num">2</span> Elegir «Campeonato con categorías»</h3>
+  <figure><img src="img/02_tipo_campeonato.jpg" alt="Elección entre campeonato único y con categorías"></figure>
+</div>
+<div class="step"><h3><span class="num">3</span> Nombre, deporte, formato y categorías</h3>
+  <p>Nombre: <i>XIII Torneo Internacional Seigokan [PRUEBA]</i> · Deporte: <b>Karate</b> · Formato: <b>Sistema Oficial WKF (Kata y Kumite)</b>.
+  Con <span class="btn">Agregar Categoría</span> y <span class="btn">Nueva División</span> se cargaron:</p>
+  <ul>
+    <li>Kumite Cadete Femenino (14-15 años) → −54 kg</li>
+    <li>Kumite Cadete Masculino (14-15 años) → −63 kg</li>
+    <li>Kumite Senior Masculino → −75 kg</li>
+    <li>Kata Senior Femenino → Oficial WKF</li>
+  </ul>
+  <p>Al final, <span class="btn">Crear Campeonato</span>.</p>
+  <figure><img src="img/04_campeonato_creado.jpg" alt="Campeonato creado en la lista"><figcaption>El campeonato aparece en la lista. Nota: la tarjeta dice «Liga» aunque el formato es WKF.</figcaption></figure>
+</div>
+
+<h2 id="config">3. Configurar datos, sede e inscripción</h2>
+<div class="step"><h3><span class="num">4</span> Abrir Configuración</h3>
+  <p>En el campeonato, <span class="btn">Gestionar</span> → menú lateral <b>Configuración</b>. Desde ahí se maneja todo el torneo.</p>
+  <figure><img src="img/06_configuracion.jpg" alt="Pantalla de Configuración del torneo"></figure>
+</div>
+<div class="step"><h3><span class="num">5</span> Datos básicos y sede</h3>
+  <p>Completar subtítulo, descripción y <b>fechas de inicio y fin</b> (28/11/2026). Se guardan solos al salir de cada campo.
+  En <b>Ubicación</b> → «Campeonato jugado en persona» → <span class="btn">Establecer localización</span>: escribir el lugar, buscar la ciudad en el mapa y <span class="btn">Guardar</span>.</p>
+  <figure><img src="img/07_localizacion.jpg" alt="Diálogo de localización con mapa"></figure>
+  <div class="note">Al elegir la ciudad en el buscador del mapa se borra el nombre del lugar. Hay que volver a escribirlo antes de guardar.</div>
+</div>
+<div class="step"><h3><span class="num">6</span> Modalidad «Por atleta» y visibilidad</h3>
+  <p>En <b>Modalidad de Inscripción</b> elegir <b>Por atleta</b>, que permite inscribir a cada atleta de un dojo en una categoría distinta. En <b>Divulgación</b> dejar apagado «Campeonato privado» para que el torneo sea público.</p>
+  <figure><img src="img/08_datos_basicos_listos.jpg" alt="Fechas, sede y modalidad por atleta configuradas"></figure>
+</div>
+
+<h2 id="inscripcion">4. Inscribir dojos y atletas</h2>
+<div class="step"><h3><span class="num">7</span> Crear los dojos</h3>
+  <p>Configuración → <b>Participantes / Equipos</b> → <span class="btn">Editar</span>. Escribir el nombre del dojo y pulsar <span class="btn">Añadir</span>. Se crearon: Seigokan Ciudad del Este (PY), Shito-Ryu Asunción (PY), Goju Kai Posadas (AR), Shotokan Foz do Iguaçu (BR) y Karate Do Santiago (CL).</p>
+  <figure><img src="img/09_dojos_creados.jpg" alt="Lista de dojos creados"><figcaption>Los dojos recién creados aparecen como «✗ Eliminado» aunque solo están pendientes de confirmar.</figcaption></figure>
+</div>
+<div class="step"><h3><span class="num">8</span> Cargar los atletas desde la ficha del dojo</h3>
+  <p><b>Hacer clic sobre el nombre del dojo</b> para abrir su ficha. El ícono redondo «Añadir Atleta» no funciona. En <b>Jugadores</b>, para cada atleta: nombre, género, formato (<i>Combate</i> para Kumite, <i>Formas</i> para Kata), fecha de nacimiento y <span class="btn">Añadir</span>.
+  Completar el entrenador, marcar <b>Inscripción Confirmada</b> y <span class="btn">Guardar</span>.</p>
+  <figure><img src="img/10_ficha_dojo_atletas.jpg" alt="Ficha del dojo con cinco atletas cargados"></figure>
+  <p>Se inscribieron 20 atletas: 5 cadetes mujeres, 6 cadetes varones, 5 senior varones y 4 senior mujeres en Kata. La ficha no pide peso ni categoría.</p>
+</div>
+
+<h2 id="pesaje">5. Check-in y pesaje</h2>
+<div class="step"><h3><span class="num">9</span> Check-in de cada atleta</h3>
+  <p>Configuración → <b>Check-in (Pesaje)</b> → <span class="btn">Editar</span>. En cada atleta, <span class="btn">Hacer Check-in</span>: peso, estatura (opcional), <b>Pago Confirmado</b> y <span class="btn">Confirmar Check-in</span>.</p>
+  <figure><img src="img/11_checkin_pesaje.jpg" alt="Formulario de check-in con peso y pago"></figure>
+</div>
+<div class="step"><h3><span class="num">10</span> Báscula oficial WKF (no usar todavía)</h3>
+  <p>El botón «Báscula Oficial WKF (±1 kg / Walkover)» calcula bien si el atleta excede el peso, pero <b>solo si se elige a mano el límite correcto</b>. Por defecto propone otro (con una cadete femenina sugirió «−75 kg Masculino» y la dio por apta). Además, al registrar la descalificación el servidor da error y no se guarda nada.</p>
+  <figure><img src="img/13_bascula_wkf_sobrepeso.jpg" alt="Báscula WKF marcando peso excedido"><figcaption>Prueba de sobrepeso: Sofía Benítez, 55,8 kg. El cálculo es correcto, pero el walkover no se guarda.</figcaption></figure>
+  <div class="bad">Mientras no se corrija, controlá el sobrepeso con el peso del check-in y la tabla de categorías, y dejá fuera de las llaves al atleta excedido.</div>
+</div>
+
+<h2 id="llaves">6. Emparejamiento (llaves)</h2>
+<div class="step"><h3><span class="num">11</span> Pantalla de llaves</h3>
+  <p>Configuración → <b>Llaves / Combates (Programación)</b> → <span class="btn">Editar</span>.</p>
+  <figure><img src="img/14_agrupacion_llaves.jpg" alt="Pantalla de agrupación y llaves"></figure>
+  <div class="bad"><b>«Agrupar por WKF»</b> responde «Torneo no encontrado» y <b>«Sorteo de Llaves WKF»</b> da un error de base de datos. Hay que programar los combates a mano.</div>
+</div>
+<div class="step"><h3><span class="num">12</span> Programar cada combate</h3>
+  <p><span class="btn">Programar Manual</span> → elegir división, ronda, <b>Atleta Rojo (AKA)</b> y <b>Atleta Azul (AO)</b> → <span class="btn">Programar Combate</span>.</p>
+  <figure><img src="img/15_programar_combate_manual.jpg" alt="Formulario para programar un combate"></figure>
+  <div class="note">La lista muestra a <b>todos</b> los atletas del torneo, sin filtrar por división: hay que fijarse en no cruzar categorías. Tampoco permite elegir el tatami; el sistema lo asigna solo.</div>
+  <figure><img src="img/16_llaves_programadas.jpg" alt="Llaves programadas agrupadas por división"><figcaption>9 combates programados en las 4 divisiones (Sofía quedó fuera por sobrepeso).</figcaption></figure>
+</div>
+
+<h2 id="mesa">7. Combate en la mesa con Video Review</h2>
+<div class="step"><h3><span class="num">13</span> Abrir la mesa de control</h3>
+  <p><code>https://micancha.com.py/torneos/&lt;ID-del-torneo&gt;/arbitraje/combate?tatami=1</code>. Arriba se elige el <b>tatami</b> y el <b>combate</b>. Los botones <span class="btn">Marcador TV</span>, <span class="btn">Cámara</span> y <span class="btn">Juez VR</span> abren cada estación ya conectada a ese combate.</p>
+  <figure><img src="img/17_mesa_control.jpg" alt="Mesa de control WKF con selectores de tatami y combate"></figure>
+</div>
+<div class="step"><h3><span class="num">14</span> Disputar el combate</h3>
+  <p><span class="btn">HAJIME (INICIAR)</span> arranca el reloj. Los botones +1 Yuko, +2 Waza-ari y +3 Ippon suman puntos a cada lado. El Marcador TV se actualiza al instante, con Senshu incluido.</p>
+  <figure class="tall"><img src="img/18_marcador_tv_en_vivo.jpg" alt="Marcador TV en vivo 2 a 1"></figure>
+</div>
+<div class="step"><h3><span class="num">15</span> Video Review</h3>
+  <p>El coach levanta la tarjeta → la mesa pulsa <span class="btn">VR Card: DISP.</span> de su lado. El reloj se pausa, la TV muestra «VIDEO REVIEW» y la tablet del juez recibe el pedido con cuenta regresiva. El juez decide con <span class="btn">+1/+2/+3/SENSHU</span>, <span class="btn">✗ RECHAZADO</span> o <span class="btn">👁 MIENAI</span>.</p>
+  <figure class="tall"><img src="img/19_juez_vr_solicitud.jpg" alt="Tablet del Juez VR recibiendo el pedido"></figure>
+  <p>En la prueba, AO pidió VR y el juez otorgó +2 Waza-ari: el marcador pasó de 2–1 a 2–3 en todas las pantallas y AO conservó la tarjeta.</p>
+</div>
+<div class="step"><h3><span class="num">16</span> Terminar el combate</h3>
+  <p>Reanudar con Hajime, seguir puntuando y, al terminar, poner el estado arriba a la derecha en <b>FINALIZADO</b>. El resultado (5–3) queda guardado y el VR figura en el historial.</p>
+  <figure><img src="img/20_mesa_vr_resuelto_final.jpg" alt="Mesa con el combate finalizado 5 a 3"></figure>
+  <div class="note">El sistema no registra al ganador ni lo pasa a la siguiente ronda: hay que programar el siguiente combate a mano.</div>
+</div>
+
+<h2 id="fallos">8. Fallos encontrados</h2>
+<h3>Corregidos y publicados hoy</h3>
+<ul>
+  <li>Seis páginas (mesa de combate, inscripción, sorteo, invitación, delegados y registro de jugadores) no leían el ID del torneo y pedían <code>/torneos/undefined</code>.</li>
+  <li>La mesa WKF tapaba el selector de tatami y combate y los botones de estaciones.</li>
+  <li>El botón Juez VR abría la tablet en el combate «123».</li>
+</ul>
+<h3>Pendientes, por prioridad</h3>
+<div class="table-wrap"><table>
+  <tr><th>#</th><th>Fallo</th><th>Impacto</th></tr>
+  <tr><td>1</td><td><b>Agrupación y sorteo WKF rotos.</b> Usan otra tabla (<code>torneos_generales</code>) distinta de la del torneo (<code>torneos</code>). El sorteo además emparejaría a todos los atletas entre sí, sin separar categorías.</td><td class="ko">Alto</td></tr>
+  <tr><td>2</td><td><b>Tatami inestable.</b> Si el combate no tiene tatami guardado, se calcula por su posición en la lista y cambia cuando la lista cambia.</td><td class="ko">Alto</td></tr>
+  <tr><td>3</td><td><b>No se registra ganador</b> ni se avanza en la llave al finalizar.</td><td class="ko">Alto</td></tr>
+  <tr><td>4</td><td><b>Báscula WKF</b>: no conoce la categoría, usa una lista de pesos fija y al guardar da error 500 sin avisar.</td><td class="ko">Alto</td></tr>
+  <tr><td>5</td><td><b>Seguridad</b>: los endpoints de Video Review no piden sesión; cualquiera puede cambiar un marcador.</td><td class="ko">Alto</td></tr>
+  <tr><td>6</td><td>«Programar Manual» no filtra por división, no pide tatami y guarda la fase como «grupos».</td><td class="mid">Medio</td></tr>
+  <tr><td>7</td><td>Los errores de base de datos se muestran al usuario con el SQL completo.</td><td class="mid">Medio</td></tr>
+  <tr><td>8</td><td>«Añadir Atleta» (ícono) no hace nada; los dojos nuevos aparecen como «Eliminado».</td><td class="mid">Medio</td></tr>
+  <tr><td>9</td><td>La tarjeta VR se muestra «BLOQ.» mientras el pedido está pendiente; el reclamo siempre figura como «OTRO».</td><td class="mid">Bajo</td></tr>
+  <tr><td>10</td><td>El mapa borra el nombre del lugar; la tarjeta del campeonato dice «Liga»; el panel <code>/admin-generales</code> rechaza el rol <code>admin</code>.</td><td class="mid">Bajo</td></tr>
+</table></div>
+
+<footer>Torneo de prueba: <code>38147f75-13ee-482e-a9d4-657c404a322b</code> (organizador Jorge Salgado, público). Competidores ficticios. Capturas tomadas en micancha.com.py durante la simulación.</footer>
+</main>
+</body>
+</html>
