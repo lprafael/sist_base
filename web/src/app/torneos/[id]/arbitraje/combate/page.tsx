@@ -214,7 +214,7 @@ export default function ArbitrajeCombatePage({ params }: { params: { id: string 
 
           {/* Tablet Juez VR */}
           <a
-            href={`/torneos/${torneoId}/vr-station`}
+            href={`/torneos/${torneoId}/vr-station?matchId=${selectedMatch?.id || ''}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-black transition shadow-sm"

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía Video Review</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --text: #1d2330; --muted: #5b6474; --border: #e2e5ea;
+    --accent: #c2410c; --accent-soft: #fff1e8; --ok: #15803d; --ok-soft: #e9f7ee;
+    --warn: #a16207; --warn-soft: #fdf6e3; --bad: #b91c1c; --bad-soft: #fdecec;
+    --aka: #dc2626; --ao: #2563eb; --code-bg: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b; --surface: #1a1e26; --text: #e6e9ef; --muted: #9aa3b2; --border: #2b313c;
+      --accent: #fb923c; --accent-soft: #2a1d14; --ok: #4ade80; --ok-soft: #13261a;
+      --warn: #facc15; --warn-soft: #29240f; --bad: #f87171; --bad-soft: #2c1517;
+      --aka: #f87171; --ao: #60a5fa; --code-bg: #232833;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151b; --surface: #1a1e26; --text: #e6e9ef; --muted: #9aa3b2; --border: #2b313c;
+    --accent: #fb923c; --accent-soft: #2a1d14; --ok: #4ade80; --ok-soft: #13261a;
+    --warn: #facc15; --warn-soft: #29240f; --bad: #f87171; --bad-soft: #2c1517;
+    --aka: #f87171; --ao: #60a5fa; --code-bg: #232833;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 1.3rem; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 22px 0 6px; }
+  p, li { color: var(--text); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; font-size: .9em; word-break: break-all; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 12px 0; }
+  .status { display: flex; gap: 12px; align-items: flex-start; background: var(--ok-soft); border: 1px solid var(--ok); border-radius: 12px; padding: 14px 16px; }
+  .status b { color: var(--ok); }
+  .note { border-left: 4px solid var(--warn); background: var(--warn-soft); padding: 10px 14px; border-radius: 0 10px 10px 0; margin: 14px 0; }
+  .alert { border-left: 4px solid var(--bad); background: var(--bad-soft); padding: 10px 14px; border-radius: 0 10px 10px 0; margin: 14px 0; }
+  .devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .devices .card { margin: 0; }
+  .devices strong { display: block; color: var(--accent); }
+  ol.steps { counter-reset: s; list-style: none; padding: 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 14px 16px 14px 58px; margin: 10px 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 14px; top: 13px; width: 30px; height: 30px;
+    border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700;
+    display: grid; place-items: center; }
+  ol.steps > li > b:first-child { display: block; margin-bottom: 2px; }
+  .btn { display: inline-block; border: 1px solid var(--border); background: var(--code-bg); border-radius: 6px;
+    padding: 0 7px; font-weight: 600; font-size: .9em; white-space: nowrap; }
+  .aka { color: var(--aka); font-weight: 700; } .ao { color: var(--ao); font-weight: 700; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; font-size: .95rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  .ok { color: var(--ok); font-weight: 700; }
+  footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
+  @media print { body { background: #fff; } .card, ol.steps > li { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Video Review (VR) — Guía paso a paso</h1>
+<p class="sub">Karate WKF y ASAM · Mi Cancha · Probado el 7 de noviembre de 2026</p>
+
+<div class="status">
+  <div>
+    <b>✔ Funciona.</b> Pasaron las 23 pruebas del flujo completo: solicitud, pausa, aviso en todas las pantallas, subida del clip,
+    veredicto, puntos y bloqueo de la tarjeta VR. Las pruebas se hicieron con el código actual y una base de datos temporal, sin tocar el torneo real.
+  </div>
+</div>
+
+<div class="alert">
+  <b>Antes del torneo:</b> hay que publicar la versión nueva del sitio web (<code>docker compose up -d --build web</code> en el servidor).
+  Sin eso, el botón <span class="btn">Juez VR</span> abre la tablet conectada a un combate equivocado y hay que escribir el ID a mano
+  (ver <a href="#problemas">Problemas frecuentes</a>).
+</div>
+
+<h2>1. Qué se necesita</h2>
+<div class="devices">
+  <div class="card"><strong>Mesa de control</strong>Notebook o PC con el panel de arbitraje. Maneja crono, puntos y la tarjeta VR.</div>
+  <div class="card"><strong>Cámara del tatami</strong>Celular o webcam en un navegador. Graba los últimos 45 segundos.</div>
+  <div class="card"><strong>Tablet del Juez VR</strong>Recibe el pedido, reproduce el clip y emite el veredicto.</div>
+  <div class="card"><strong>Marcador TV</strong>Pantalla pública del tatami. Muestra el aviso "VIDEO REVIEW".</div>
+</div>
+<p>Todos los dispositivos necesitan internet estable y estar abiertos en el <b>mismo combate</b>. La cámara debe enfocar el área de combate completa.</p>
+
+<h2>2. Preparación (antes de cada tanda de combates)</h2>
+<ol class="steps">
+  <li><b>Abrir la mesa de control</b>
+    En la notebook de la mesa, abre <code>https://micancha.com.py/torneos/&lt;ID-del-torneo&gt;/arbitraje/combate?tatami=1</code>.
+    Para el 45° Torneo de Karate Do el ID es <code>2ed2f229-6e67-400b-adc4-b6a7371ebcf3</code>.
+    Elige el <b>tatami</b> y el <b>combate</b> en los selectores de arriba.</li>
+  <li><b>Abrir el Marcador TV</b>
+    Pulsa <span class="btn">Marcador TV 1</span>. Se abre en otra pestaña: llévala a la TV o al monitor del tatami y ponla en pantalla completa.</li>
+  <li><b>Abrir la cámara</b>
+    Pulsa <span class="btn">Cámara 1</span> y abre ese enlace en el celular o la PC con webcam (puedes enviarlo por WhatsApp).
+    <b>Permite el acceso a la cámara</b> cuando el navegador lo pida. Espera a que el contador del búfer llegue a unos 45 s.</li>
+  <li><b>Abrir la tablet del Juez VR</b>
+    Pulsa <span class="btn">Juez VR</span> y abre el enlace en la tablet. Arriba debe decir
+    <b>"Conectado · Match &lt;ID&gt;"</b> con el <b>mismo ID</b> que el combate de la mesa.</li>
+  <li><b>Prueba rápida (30 segundos)</b>
+    En la cámara pulsa <span class="btn">⚡ Disparar Replay Ahora (Prueba)</span>. Debe aparecer
+    "✅ Replay enviado al Juez VR" y el clip debe verse en la tablet. Si falla, revisa <a href="#problemas">Problemas frecuentes</a>.</li>
+</ol>
+<div class="note">Cuando cambies de combate en la mesa, vuelve a abrir la <b>cámara</b> y la <b>tablet del Juez VR</b> desde sus botones,
+porque los dos quedan atados al ID del combate con el que se abrieron.</div>
+
+<h2>3. Durante el combate: pedido y veredicto</h2>
+<ol class="steps">
+  <li><b>El coach pide revisión</b>
+    El coach de <span class="aka">AKA</span> o de <span class="ao">AO</span> levanta su tarjeta VR.</li>
+  <li><b>La mesa registra el pedido</b>
+    En el lado del competidor, la mesa pulsa <span class="btn">VR Card: DISP.</span>. Ocurre automáticamente:
+    <ul>
+      <li>el cronómetro se pausa;</li>
+      <li>el Marcador TV muestra el aviso <b>VIDEO REVIEW</b>;</li>
+      <li>la cámara envía sola los últimos segundos a la tablet;</li>
+      <li>la tablet del Juez VR muestra el aviso, quién pidió el VR y en qué segundo, y arranca la cuenta de <b>30 s</b> de deliberación.</li>
+    </ul>
+    Si el botón dice <span class="btn">VR Card: BLOQ.</span>, ese coach ya perdió el derecho a VR en este combate.</li>
+  <li><b>El Juez VR mira el clip</b>
+    En la tablet puede reproducir, pausar y avanzar cuadro a cuadro.</li>
+  <li><b>El Juez VR decide</b> con uno de estos botones:
+    <ul>
+      <li><span class="btn">+1 YUKO</span> <span class="btn">+2 WAZA-ARI</span> <span class="btn">+3 IPPON</span> <span class="btn">SENSHU</span> → <b>aceptado</b>: se suman los puntos y el coach <b>conserva</b> su tarjeta.</li>
+      <li><span class="btn">✗ RECHAZADO</span> → sin puntos y el coach <b>pierde</b> la tarjeta para el resto del combate.</li>
+      <li><span class="btn">👁 MIENAI</span> → no se pudo ver (ángulo tapado o falla técnica): sin puntos y el coach <b>conserva</b> la tarjeta.</li>
+    </ul>
+    El resultado y el marcador nuevo aparecen al instante en la mesa y en el Marcador TV.</li>
+  <li><b>La mesa reanuda el combate</b>
+    El cronómetro <b>no</b> se reanuda solo, para que la mesa y la TV no se desincronicen. Cuando el árbitro lo indique,
+    la mesa pulsa <span class="btn">Hajime (Iniciar)</span>.</li>
+</ol>
+
+<h3>Resumen de reglas</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Veredicto</th><th>Puntos</th><th>Tarjeta VR del coach</th></tr>
+  <tr><td>Aceptado (WKF)</td><td>Yuko +1 · Waza-ari +2 · Ippon +3 · Senshu (se le quita al rival)</td><td>La conserva</td></tr>
+  <tr><td>Aceptado (ASAM)</td><td>+1 punto</td><td>La conserva</td></tr>
+  <tr><td>Rechazado</td><td>Ninguno</td><td>La pierde en este combate</td></tr>
+  <tr><td>Mienai</td><td>Ninguno</td><td>La conserva</td></tr>
+</table>
+</div>
+<p>Solo puede haber <b>un VR abierto a la vez</b> por combate: si alguien pide otro antes del veredicto, el sistema lo rechaza.</p>
+
+<h2>4. Situaciones especiales</h2>
+<h3>Se pidió un VR por error o quedó colgado</h3>
+<p>Ciérralo sin dar puntos ni tocar tarjetas. Desde la mesa (por ahora sin botón propio) se hace con:
+<code>POST https://api.micancha.com.py/api/vr/combates/&lt;ID-combate&gt;/cancelar</code>.
+Después, reanuda con <span class="btn">Hajime (Iniciar)</span>.</p>
+<h3>Devolver la tarjeta a un coach</h3>
+<p>Si el árbitro corrige una decisión, la mesa pulsa <span class="btn">VR Card: BLOQ.</span> en ese lado para rehabilitar la tarjeta.</p>
+<h3>Consultar VR anteriores</h3>
+<p>En <code>/torneos/&lt;ID&gt;/resumen</code>, sección <b>Video Reviews</b>, escribe el ID del combate. Verás cada pedido con su hora, resultado, puntos y clip.</p>
+
+<h2 id="problemas">5. Problemas frecuentes</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Síntoma</th><th>Causa probable</th><th>Solución</th></tr>
+  <tr><td>La tablet no recibe el pedido de VR</td><td>Está conectada a otro combate (p. ej. "Match 123")</td><td>Copia el ID del combate de la mesa en el campo <b>"Ingresar ID del combate"</b> de la tablet y conecta. Con la versión nueva del sitio esto ya no hace falta.</td></tr>
+  <tr><td>La tablet muestra "Sin conexión"</td><td>Wi-Fi o datos caídos</td><td>Revisa internet y recarga la página.</td></tr>
+  <tr><td>Llega el pedido pero no el clip</td><td>La cámara está cerrada, en otro combate o sin permiso de cámara</td><td>Vuelve a abrir la cámara desde el botón de la mesa y haz la prueba del paso 2.5.</td></tr>
+  <tr><td>El clip es muy corto</td><td>La cámara se abrió hace pocos segundos</td><td>Abre la cámara al menos 1 minuto antes del combate.</td></tr>
+  <tr><td>"Ya hay un Video Review activo"</td><td>Quedó un VR sin veredicto</td><td>Que el Juez VR lo resuelva, o cancélalo (sección 4).</td></tr>
+  <tr><td>"El coach ya no tiene derecho a Video Review"</td><td>Perdió un VR antes en ese combate</td><td>Es lo esperado. Si fue un error, rehabilita la tarjeta (sección 4).</td></tr>
+  <tr><td>El crono no arranca después del VR</td><td>Funciona así a propósito</td><td>Pulsa <span class="btn">Hajime (Iniciar)</span> en la mesa.</td></tr>
+</table>
+</div>
+
+<h2>6. Qué se probó</h2>
+<p>Prueba automática del backend actual con tres pantallas conectadas a la vez (mesa, tatami y Juez VR) y una base de datos temporal:</p>
+<div class="table-wrap">
+<table>
+  <tr><th>Caso</th><th>Resultado</th></tr>
+  <tr><td>Conexión en tiempo real (WebSocket)</td><td class="ok">OK</td></tr>
+  <tr><td>Pedido de VR: pausa + aviso en tatami y en la tablet</td><td class="ok">OK</td></tr>
+  <tr><td>Segundo pedido simultáneo bloqueado</td><td class="ok">OK</td></tr>
+  <tr><td>Aceptado Waza-ari: +2 puntos, el coach conserva la tarjeta, el marcador se actualiza</td><td class="ok">OK</td></tr>
+  <tr><td>Rechazado: el coach pierde la tarjeta y no puede volver a pedir</td><td class="ok">OK</td></tr>
+  <tr><td>Mienai: sin puntos, conserva la tarjeta</td><td class="ok">OK</td></tr>
+  <tr><td>Cancelar un VR colgado</td><td class="ok">OK</td></tr>
+  <tr><td>Datos inválidos (color o veredicto desconocido) rechazados con mensaje claro</td><td class="ok">OK</td></tr>
+  <tr><td>Subida del clip desde la cámara → aviso a la tablet → descarga íntegra del video</td><td class="ok">OK</td></tr>
+  <tr><td>Historial con resultado y clip guardados</td><td class="ok">OK</td></tr>
+  <tr><td>Marcador final guardado en el combate (AKA 2 – AO 0)</td><td class="ok">OK</td></tr>
+</table>
+</div>
+<p class="sub">No se probaron las pantallas en un navegador ni con video de cámara real. Antes del torneo conviene hacer el ensayo de la sección 2 con los dispositivos reales.</p>
+
+<h2>7. Pendientes técnicos</h2>
+<ul>
+  <li><b>Publicar el sitio web</b> con la corrección del botón <span class="btn">Juez VR</span> y las mejoras de VR del último commit.</li>
+  <li><b>Seguridad:</b> los endpoints de VR (<code>/api/vr/…</code>) no piden inicio de sesión. Cualquiera que conozca el ID de un combate podría pedir o resolver un VR y cambiar el marcador. Conviene protegerlos antes de usarlos en un torneo oficial.</li>
+  <li>Agregar en la mesa un botón para <b>cancelar un VR colgado</b>.</li>
+</ul>
+
+<footer>Guía generada a partir del código de <code>backend/routers/video_review.py</code> y de las pantallas
+<code>arbitraje/combate</code>, <code>tatami/[area]</code>, <code>tatami/[area]/camara</code> y <code>vr-station</code>.</footer>
+</main>
+</body>
+</html>
