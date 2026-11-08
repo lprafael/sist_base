@@ -242,7 +242,7 @@ export default function NativeChessBoardModal({
   const [clockRunning, setClockRunning] = useState<boolean>(false);
   const [gameOver, setGameOver] = useState<{
     over: boolean;
-    result?: '1-0' | '0-1' | '0.5-0.5';
+    result?: string;   // '1-0' | '0-1' | '0.5-0.5'
     reason?: string;
   }>({ over: false });
 
@@ -325,7 +325,7 @@ export default function NativeChessBoardModal({
       let wTime = initialTimeMinutes * 60;
       let bTime = initialTimeMinutes * 60;
       let isRunning = false;
-      let loadedGameOver = { over: false };
+      let loadedGameOver: { over: boolean; result?: string; reason?: string } = { over: false };
       let lastM = null;
 
       if (partidaId) {
@@ -746,7 +746,7 @@ export default function NativeChessBoardModal({
   if (!isOpen) return null;
 
   const history = game.getHistory();
-  const kingInCheckSq = game.inCheck(turn) ? coordsToSquare(...(turn === 'w' ? [7, 4] : [0, 4])) : null;
+  const kingInCheckSq = game.inCheck(turn) ? (turn === 'w' ? coordsToSquare(7, 4) : coordsToSquare(0, 4)) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">

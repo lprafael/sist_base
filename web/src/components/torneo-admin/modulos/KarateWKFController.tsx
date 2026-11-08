@@ -437,8 +437,10 @@ export default function KarateWKFController({
         } else {
           const errData = await resp.json().catch(() => ({}));
           console.warn("[VR Solicitar] Respuesta no exitosa:", errData);
-          alert(resp.status === 401 || resp.status === 403
+          alert(resp.status === 401
             ? "Tu sesión expiró. Iniciá sesión de nuevo para registrar el Video Review."
+            : resp.status === 403
+            ? "Esta cuenta no puede operar este torneo. Iniciá sesión con la cuenta del organizador."
             : `No se pudo registrar el Video Review: ${errData.detail || resp.status}`);
           return;
         }

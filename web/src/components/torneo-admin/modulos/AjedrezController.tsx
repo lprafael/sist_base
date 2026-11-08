@@ -27,6 +27,8 @@ interface Ronda {
 
 interface Partida {
   id: string;
+  blancas_id?: string;
+  negras_id?: string;
   tablero_numero?: number;
   blancas_nombre?: string;
   blancas_apellido?: string;

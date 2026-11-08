@@ -295,7 +295,7 @@ export default function ComplejoPublicPage() {
                 <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>¡Reserva Confirmada!</h3>
                 <p style={{ color: C.muted, margin: 0, fontSize: 14 }}>{reservaExitosa.mensaje}</p>
 
-                <div style={{ background: C.bg, borderRadius: 10, padding: 16, width: '100%', textAling: 'left', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ background: C.bg, borderRadius: 10, padding: 16, width: '100%', textAlign: 'left', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div><strong>Cancha:</strong> {slotSeleccionado.cancha.nombre}</div>
                   <div><strong>Fecha & Hora:</strong> {fecha} ({slotSeleccionado.hora_inicio} a {slotSeleccionado.hora_fin} hs)</div>
                   <div><strong>Total a Pagar:</strong> <span style={{ color: C.emerald, fontWeight: 800 }}>{reservaExitosa.precio_total?.toLocaleString('es-PY')} Gs</span></div>

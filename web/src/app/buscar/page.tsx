@@ -117,7 +117,7 @@ export default function SearchPage() {
   const [selectedDate, setSelectedDate] = useState(""); // Empty initially to avoid hydration mismatch
   const [busqueda, setBusqueda] = useState("");
   const [showPublic, setShowPublic] = useState(false);
-  const [complejos, setComplejos] = useState(MOCK_COMPLEJOS);
+  const [complejos, setComplejos] = useState<any[]>(MOCK_COMPLEJOS);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
 
   // Sync complexes with database API if running
@@ -185,7 +185,7 @@ export default function SearchPage() {
   const processedVenues = useMemo(() => {
     return complejos.map(venue => {
       // 1. Filter courts inside complex that match the selected sport
-      const matchingCourts = venue.canchas.filter(c => {
+      const matchingCourts = venue.canchas.filter((c: any) => {
         return selectedSport === "Todos" || c.deporte === selectedSport;
       });
 
@@ -195,15 +195,15 @@ export default function SearchPage() {
 
       if (matchingCourts.length > 0) {
         // Find cheapest court among matches
-        const availableCourts = matchingCourts.filter(c => c.disponible);
+        const availableCourts = matchingCourts.filter((c: any) => c.disponible);
         if (availableCourts.length > 0) {
           available = true;
           // Cheapest price
-          price = Math.min(...availableCourts.map(c => c.precio));
+          price = Math.min(...availableCourts.map((c: any) => c.precio));
         } else {
           // If courts exist but none are available, we take the price of the cheapest court but mark as unavailable
           available = false;
-          price = Math.min(...matchingCourts.map(c => c.precio));
+          price = Math.min(...matchingCourts.map((c: any) => c.precio));
         }
       } else {
         // No courts of this sport exist in this complex

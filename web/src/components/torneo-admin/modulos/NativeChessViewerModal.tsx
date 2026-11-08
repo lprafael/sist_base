@@ -375,7 +375,7 @@ export default function NativeChessViewerModal({
   const currentStep = steps[currentStepIndex] || steps[0];
   const isViewingLiveOrLatest = currentStepIndex === steps.length - 1;
   const kingInCheckSq = currentStep.isCheck
-    ? coordsToSquare(...(currentStep.turn === 'w' ? [7, 4] : [0, 4]))
+    ? (currentStep.turn === 'w' ? coordsToSquare(7, 4) : coordsToSquare(0, 4))
     : null;
 
   return (

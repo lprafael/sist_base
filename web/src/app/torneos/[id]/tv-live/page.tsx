@@ -9,6 +9,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface Partido {
   id: string;
+  cancha_nombre?: string;
+  resultado?: any;
   equipo_local?: string;
   equipo_visitante?: string;
   local_nombre?: string;

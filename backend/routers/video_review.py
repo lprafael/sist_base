@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from database import get_session
 from security import get_current_user, verify_token
+from permisos_torneo import verificar_gestor_partido
 from workers.vr_broadcaster import (
     vr_manager,
     evt_vr_solicitado,
@@ -223,7 +224,10 @@ async def vr_websocket(match_id: str, websocket: WebSocket):
     token = websocket.query_params.get("token")
     if token:
         try:
-            verify_token(token)
+            usuario = verify_token(token)
+            from database import SessionLocal
+            async with SessionLocal() as s_ws:
+                await verificar_gestor_partido(s_ws, match_id, usuario)
             puede_emitir = True
         except Exception:
             puede_emitir = False
@@ -252,11 +256,13 @@ async def vr_websocket(match_id: str, websocket: WebSocket):
 
 
 @router.post("/combates/{match_id}/broadcast")
-async def broadcast_evento(match_id: str, payload: dict, current_user: dict = Depends(get_current_user)):
+async def broadcast_evento(match_id: str, payload: dict, current_user: dict = Depends(get_current_user),
+                          session: AsyncSession = Depends(get_session)):
     """
     Reenvía un evento JSON a todos los clientes WebSocket conectados a este combate.
     Permite sincronización inmediata por HTTP.
     """
+    await verificar_gestor_partido(session, match_id, current_user)
     if "match_id" not in payload:
         payload["match_id"] = match_id
     await vr_manager.broadcast(match_id, payload)
@@ -277,6 +283,7 @@ async def solicitar_video_review(
     El coach de una esquina solicita revisión de video.
     Valida que tenga VR card disponible, crea el registro y broadcastea la pausa.
     """
+    await verificar_gestor_partido(session, match_id, current_user)
     color = _norm_color(body.competidor_color)
     if not color:
         raise HTTPException(status_code=400, detail="competidor_color inválido (Aka, Ao, Blanco o Rojo)")
@@ -364,6 +371,7 @@ async def resolver_video_review(
     Aplica la regla de tarjeta y suma puntos si es ACEPTADO.
     Si el review_id no llega o no es válido, se resuelve el último VR pendiente del combate.
     """
+    await verificar_gestor_partido(session, match_id, current_user)
     resultado = (body.resultado or "").strip().upper()
     if resultado not in ("ACEPTADO", "RECHAZADO", "MIENAI"):
         raise HTTPException(status_code=400, detail="resultado inválido (ACEPTADO, RECHAZADO o MIENAI)")
@@ -500,6 +508,7 @@ async def cancelar_video_review(
     current_user: dict = Depends(get_current_user),
 ):
     """Cierra los VR pendientes del combate sin aplicar puntos ni tocar tarjetas."""
+    await verificar_gestor_partido(session, match_id, current_user)
     await _ensure_schema(session)
     res = await session.execute(
         text("""
@@ -616,6 +625,7 @@ async def actualizar_clip_url(
     OBS notifica la ruta del clip guardado.
     El frontend llama a este endpoint tras recibir el evento ReplayBufferSaved de OBS.
     """
+    await verificar_gestor_partido(session, match_id, current_user)
     await _ensure_schema(session)
     rid = _valid_review_id(review_id)
     if rid:
@@ -667,6 +677,7 @@ async def subir_clip_web(
     Recibe el clip de video generado por el navegador (WebM o MP4) desde la pantalla de cámara nativa.
     Guarda el archivo en el directorio de clips, actualiza el registro en DB y notifica al Juez VR.
     """
+    await verificar_gestor_partido(session, match_id, current_user)
     import os
     import shutil
     from pathlib import Path

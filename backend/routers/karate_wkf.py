@@ -33,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_session
 from security import get_current_user
+from permisos_torneo import verificar_gestor_torneo
 
 router = APIRouter(prefix="/api/karate/torneos", tags=["Karate WKF"])
 
@@ -251,6 +252,7 @@ class AgruparRequest(BaseModel):
 async def agrupar(torneo_id: str, payload: AgruparRequest = AgruparRequest(),
                   session: AsyncSession = Depends(get_session),
                   current_user: dict = Depends(get_current_user)):
+    await verificar_gestor_torneo(session, torneo_id, current_user)
     await _ensure_schema(session)
     t, divisiones, atletas = await _cargar_contexto(session, torneo_id)
     if not divisiones:
@@ -360,6 +362,7 @@ def _stats_iniciales(area: int, bracket: dict, kata: bool) -> dict:
 async def sorteo(torneo_id: str, payload: SorteoRequest = SorteoRequest(),
                  session: AsyncSession = Depends(get_session),
                  current_user: dict = Depends(get_current_user)):
+    await verificar_gestor_torneo(session, torneo_id, current_user)
     await _ensure_schema(session)
     t, divisiones, atletas = await _cargar_contexto(session, torneo_id)
     tatamis = max(1, min(int(payload.tatamis or 1), 12))
@@ -562,6 +565,7 @@ class PesajeRequest(BaseModel):
 async def pesaje(torneo_id: str, payload: PesajeRequest,
                  session: AsyncSession = Depends(get_session),
                  current_user: dict = Depends(get_current_user)):
+    await verificar_gestor_torneo(session, torneo_id, current_user)
     await _ensure_schema(session)
     t, divisiones, atletas = await _cargar_contexto(session, torneo_id)
     a = next((x for x in atletas if str(x["id"]) == payload.jugador_id), None)

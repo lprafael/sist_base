@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from database import get_session
 from security import get_current_user
+from permisos_torneo import verificar_gestor_torneo, verificar_gestor_partido
 import uuid
 try:
     import face_recognition
@@ -1080,6 +1081,7 @@ class LlaveCreate(BaseModel):
 async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSession = Depends(get_session),
                        current_user: dict = Depends(get_current_user)):
     import json as _json
+    await verificar_gestor_torneo(session, torneo_id, current_user)
     if payload.jugador_local_id == payload.jugador_visitante_id:
         raise HTTPException(status_code=400, detail="Seleccioná dos atletas diferentes.")
     base = {"puntos": 0, "yuko": 0, "waza_ari": 0, "ippon": 0, "senshu": False,
@@ -1117,6 +1119,7 @@ async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSessi
 @router.delete("/futbol/llaves/{llave_id}")
 async def delete_llave(llave_id: str, session: AsyncSession = Depends(get_session),
                        current_user: dict = Depends(get_current_user)):
+    await verificar_gestor_partido(session, llave_id, current_user)
     q = text("DELETE FROM torneos.partidos WHERE id = CAST(:lid AS UUID) AND ronda IS NOT NULL")
     await session.execute(q, {"lid": llave_id})
     await session.commit()

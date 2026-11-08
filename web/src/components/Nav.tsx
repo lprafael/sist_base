@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-interface NavProps { scrolled: boolean; }
+interface NavProps { scrolled?: boolean; }
 
 export default function Nav({ scrolled }: NavProps) {
   const [session, setSession] = useState<any>(null);

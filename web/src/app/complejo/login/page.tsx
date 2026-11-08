@@ -314,7 +314,6 @@ export default function ComplejoLoginPage() {
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
-                use_fedcm={false}
                 theme="filled_black"
                 shape="pill"
                 size="large"

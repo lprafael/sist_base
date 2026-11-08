@@ -265,7 +265,7 @@ export default function CantinaPanelPage() {
       return;
     }
     const cleanPin = colaboradorForm.pin.trim();
-    if (!cleanPin.isdigit?.() && (!/^\d+$/.test(cleanPin) || cleanPin.length < 4 || cleanPin.length > 6)) {
+    if (!/^\d+$/.test(cleanPin) || cleanPin.length < 4 || cleanPin.length > 6) {
       alert("El PIN debe tener entre 4 y 6 dígitos numéricos (ej: 1234).");
       return;
     }

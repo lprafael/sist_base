@@ -2503,7 +2503,7 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
 
       {/* ── MODAL: QR WhatsApp Gateway ── */}
       {modalWaQr && (
-        <Modal title="Vinculación de Bot WhatsApp (Evolution API)" onClose={() => setModalWaQr(null)}>
+        <Modal title="Vinculación de Bot WhatsApp (Evolution API)" onClose={() => setModalWaQr(false)}>
           <div style={{ textAlign: 'center', padding: 10 }}>
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
               Escaneá este código QR desde tu teléfono WhatsApp (<strong>Dispositivos vinculados ➔ Vincular un dispositivo</strong>) para autorizar los envíos automáticos.
@@ -2538,7 +2538,7 @@ function PerfilTab({ perfil, setPerfil, token, fileLogoRef, fileBannerRef, notif
               <button onClick={verificarEstadoWa} style={btn(C.primary, true)}>
                 Verificar Estado
               </button>
-              <button onClick={() => setModalWaQr(null)} style={btn(C.faint, true)}>
+              <button onClick={() => setModalWaQr(false)} style={btn(C.faint, true)}>
                 Cerrar
               </button>
             </div>
@@ -2838,7 +2838,7 @@ function AlumnosTab({ alumnos, setAlumnos, sucursales, tutores = [], categorias 
             receptor_nombre: form.facturacion_nombre || `${form.nombre} ${form.apellido || ''}`.trim(),
             receptor_email: form.facturacion_email || null,
           }),
-        }).catch(err => console.error('Error al guardar datos de facturación:', err));
+        }).catch((err: any) => console.error('Error al guardar datos de facturación:', err));
       }
 
       await fetchAll();
@@ -4396,7 +4396,7 @@ function CuotasTab({ cuotas, notify, apiFetch, isTesorero, isDueno, fetchAll, cu
 
       {/* ════ MODAL: QR WhatsApp Gateway ════ */}
       {modalWaQr && (
-        <Modal title="Vinculación de Bot WhatsApp (Evolution API)" onClose={() => setModalWaQr(null)}>
+        <Modal title="Vinculación de Bot WhatsApp (Evolution API)" onClose={() => setModalWaQr(false)}>
           <div style={{ textAlign: 'center', padding: 10 }}>
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
               Escaneá este código QR desde tu teléfono WhatsApp (**Dispositivos vinculados → Vincular un dispositivo**) para que tu academia pueda enviar mensajes automáticos.
@@ -5338,7 +5338,9 @@ function Modal({ title, children, onClose, wide }: any) {
   );
 }
 
-function FormField({ label: lbl, value, onChange, placeholder = '', type = 'text' }: any) {
+function FormField({ label: lbl, value, onChange, placeholder = '', type = 'text' }: {
+  label: string; value: any; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={label()}>{lbl}</label>
@@ -6062,7 +6064,7 @@ function NoticiasTab({ notify, apiFetch }: any) {
                   type="button"
                   onClick={() => setForm({ ...form, activa: !form.activa })}
                   style={{
-                    padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+                    padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     background: form.activa ? `${C.green}22` : `${C.yellow}22`,
                     color: form.activa ? C.green : C.yellow,
                     border: `1px solid ${form.activa ? C.green : C.yellow}`
@@ -6183,7 +6185,7 @@ function NoticiasTab({ notify, apiFetch }: any) {
               {previewNoticia.titulo}
             </h2>
 
-            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.6, whitespace: 'pre-line', borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+            <div style={{ fontSize: 14, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-line', borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
               {previewNoticia.contenido}
             </div>
 
