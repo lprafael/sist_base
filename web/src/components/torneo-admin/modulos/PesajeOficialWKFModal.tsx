@@ -75,8 +75,8 @@ export default function PesajeOficialWKFModal({
     setPesoInput(a.peso_verificado ? String(a.peso_verificado) : (a.peso_declarado ? String(a.peso_declarado) : ''));
     setResultadoPesaje(null);
 
-    // Límite de la división asignada al atleta (Agrupar por WKF)
-    if (a.peso_max != null) setLimiteCategoria(Number(a.peso_max));
+    // Límite de la división asignada al atleta (Agrupar por WKF); sin división hay que elegirlo
+    setLimiteCategoria(a.peso_max != null ? Number(a.peso_max) : 0);
   };
 
   const handleEjecutarPesaje = async (e: React.FormEvent) => {
@@ -243,11 +243,12 @@ export default function PesajeOficialWKFModal({
                       onChange={e => setLimiteCategoria(parseFloat(e.target.value))}
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-bold outline-none focus:border-amber-500"
                     >
+                      {limiteCategoria === 0 && <option value={0}>Elegí el límite de su división…</option>}
                       {/* Límites de las divisiones de este torneo */}
                       {divisiones.map((d: any) => (
                         <option key={d.id} value={d.peso_max}>-{d.peso_max} kg · {d.nombre}</option>
                       ))}
-                      {!divisiones.some((d: any) => Number(d.peso_max) === limiteCategoria) && (
+                      {limiteCategoria !== 0 && !divisiones.some((d: any) => Number(d.peso_max) === limiteCategoria) && (
                         <option value={limiteCategoria}>-{limiteCategoria} kg</option>
                       )}
                     </select>
@@ -291,7 +292,7 @@ export default function PesajeOficialWKFModal({
                 </div>
 
                 {/* Visual Gauge / Estado en Vivo */}
-                {pesoNum > 0 && (
+                {pesoNum > 0 && limiteCategoria > 0 && (
                   <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
                     estaDentroDePeso 
                       ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300' 
@@ -312,7 +313,7 @@ export default function PesajeOficialWKFModal({
                 {/* Botón de Acción Principal */}
                 <button
                   type="submit"
-                  disabled={saving || !pesoInput}
+                  disabled={saving || !pesoInput || limiteCategoria === 0}
                   className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2 ${
                     estaExcedido
                       ? 'bg-red-600 hover:bg-red-500 text-white'

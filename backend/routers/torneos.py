@@ -2834,7 +2834,8 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
             "fecha_hora","estado","jornada","fase","es_wo",
             "local_nombre","local_logo","visitante_nombre","visitante_logo","cancha_nombre",
             "jugador_local_id", "jugador_visitante_id", "estadisticas", 
-            "jugador_local_nombre", "jugador_visitante_nombre"]
+            "jugador_local_nombre", "jugador_visitante_nombre",
+            "ronda", "numero_ronda", "division_id", "division_nombre"]
     
     res_list = []
     for idx, r in enumerate(rows):
