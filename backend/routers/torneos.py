@@ -2815,15 +2815,19 @@ async def get_partidos(torneo_id: str, session: AsyncSession = Depends(get_sessi
                ev.nombre AS visitante_nombre, ev.logo_url AS visitante_logo,
                c.nombre AS cancha_nombre,
                p.jugador_local_id, p.jugador_visitante_id, p.estadisticas,
-               jl.nombre AS jugador_local_nombre, jv.nombre AS jugador_visitante_nombre
+               jl.nombre AS jugador_local_nombre, jv.nombre AS jugador_visitante_nombre,
+               p.ronda, p.numero_ronda, p.division_id,
+               COALESCE(cat.nombre || ' — ', '') || dv.nombre AS division_nombre
         FROM torneos.partidos p
         LEFT JOIN torneos.equipos el ON p.equipo_local_id = el.id
         LEFT JOIN torneos.equipos ev ON p.equipo_visitante_id = ev.id
         LEFT JOIN cancha.canchas c ON p.cancha_id = c.id
         LEFT JOIN torneos.tournament_players jl ON p.jugador_local_id = jl.id
         LEFT JOIN torneos.tournament_players jv ON p.jugador_visitante_id = jv.id
+        LEFT JOIN torneos.divisiones dv ON p.division_id = dv.id
+        LEFT JOIN torneos.categorias cat ON dv.categoria_id = cat.id
         WHERE p.torneo_id = :tid
-        ORDER BY p.jornada ASC NULLS LAST, p.fecha_hora ASC
+        ORDER BY p.numero_ronda ASC NULLS LAST, p.jornada ASC NULLS LAST, p.fecha_hora ASC
     """), {"tid": torneo_id})
     rows = result.fetchall()
     keys = ["id","equipo_local_id","equipo_visitante_id","goles_local","goles_visitante",
@@ -2869,6 +2873,24 @@ async def get_partido_activo(torneo_id: str, area: Optional[str] = Query(None), 
     
     target_area = str(area) if area else "1"
     match_area = None
+
+    def _st(p):
+        st = p.get("estadisticas")
+        if isinstance(st, str):
+            try:
+                st = json.loads(st)
+            except Exception:
+                st = {}
+        return st if isinstance(st, dict) else {}
+
+    # Combates de llave que aún esperan rivales no se pueden mostrar ni disputar
+    partidos = [p for p in partidos
+                if not (_st(p).get("bracket") and (not p.get("jugador_local_id") or not p.get("jugador_visitante_id")))]
+    if not partidos:
+        raise HTTPException(status_code=404, detail="No hay combates listos para disputar")
+    # Orden de disputa: ronda (cuartos antes que semis) y número de combate
+    partidos.sort(key=lambda p: (p.get("numero_ronda") or 0, p.get("jornada") or 0))
+
     # 1. En curso / en juego / pausado en esa área
     for p in partidos:
         if str(p.get("area")) == target_area and p.get("estado") in ("en_curso", "en_juego", "pausado"):

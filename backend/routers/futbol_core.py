@@ -1077,7 +1077,8 @@ class LlaveCreate(BaseModel):
     area: Optional[int] = None   # tatami donde se disputa
 
 @router.post("/futbol/torneos/{torneo_id}/llaves")
-async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSession = Depends(get_session)):
+async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSession = Depends(get_session),
+                       current_user: dict = Depends(get_current_user)):
     import json as _json
     if payload.jugador_local_id == payload.jugador_visitante_id:
         raise HTTPException(status_code=400, detail="Seleccioná dos atletas diferentes.")
@@ -1114,7 +1115,8 @@ async def create_llave(torneo_id: str, payload: LlaveCreate, session: AsyncSessi
     return {"id": str(res.scalar()), "message": "Llave creada exitosamente"}
 
 @router.delete("/futbol/llaves/{llave_id}")
-async def delete_llave(llave_id: str, session: AsyncSession = Depends(get_session)):
+async def delete_llave(llave_id: str, session: AsyncSession = Depends(get_session),
+                       current_user: dict = Depends(get_current_user)):
     q = text("DELETE FROM torneos.partidos WHERE id = CAST(:lid AS UUID) AND ronda IS NOT NULL")
     await session.execute(q, {"lid": llave_id})
     await session.commit()

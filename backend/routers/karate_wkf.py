@@ -150,6 +150,10 @@ def _edad(fecha_nac: Optional[date], fecha_ref: Optional[date]) -> Optional[int]
     return ref.year - fecha_nac.year - ((ref.month, ref.day) < (fecha_nac.month, fecha_nac.day))
 
 
+ORDEN_MOTIVOS = {"modalidad distinta": 1, "género distinto": 2, "sin fecha de nacimiento": 3,
+                 "edad fuera de rango": 3, "sin pesaje": 4, "peso excedido": 5, "peso por debajo del mínimo": 5}
+
+
 def evaluar_atleta(at: dict, meta: dict, edad: Optional[int], tolerancia: float) -> tuple[bool, str]:
     """(compatible, motivo_si_no). El peso usa la tolerancia reglamentaria."""
     if meta["modalidad"] and at.get("modalidad") and _norm_modalidad(at["modalidad"]) != meta["modalidad"]:
@@ -261,7 +265,7 @@ async def agrupar(torneo_id: str, payload: AgruparRequest = AgruparRequest(),
             asignados.setdefault(str(a["division_id"]), []).append(a["nombre"])
             continue
         edad = _edad(a["fecha_nacimiento"], t["fecha_inicio"])
-        candidatas, motivos = [], set()
+        candidatas, cercanas = [], []
         for d in divisiones:
             ok, motivo = evaluar_atleta(a, d["meta"], edad, payload.tolerancia_kg)
             if ok:
@@ -269,9 +273,16 @@ async def agrupar(torneo_id: str, payload: AgruparRequest = AgruparRequest(),
                 especificidad = sum(v is not None for v in d["meta"].values())
                 candidatas.append((especificidad, d))
             else:
-                motivos.add(motivo)
+                # evaluar_atleta corta en el primer criterio que falla (modalidad, género, edad, peso):
+                # cuanto más tarde falla, más cerca estuvo el atleta de esa división
+                cercanas.append((ORDEN_MOTIVOS.get(motivo, 0), motivo, d))
         if not candidatas:
-            razon = ", ".join(sorted(m for m in motivos if m)) or "ninguna división compatible"
+            if cercanas:
+                cercanas.sort(key=lambda x: -x[0])
+                _, motivo, dc = cercanas[0]
+                razon = f"{motivo} ({dc['nombre']} — {dc['division_nombre']})"
+            else:
+                razon = "ninguna división compatible"
             sin_categoria.append({"id": str(a["id"]), "nombre": a["nombre"], "razon": razon})
             continue
         candidatas.sort(key=lambda x: -x[0])

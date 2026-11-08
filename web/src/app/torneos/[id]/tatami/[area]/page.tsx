@@ -417,8 +417,19 @@ export default function TatamiDisplay() {
       try {
         let matchData: any = null;
 
+        // 0. Si se abrió para un combate concreto (?matchId=), mostrar ese
+        if (queryMatchId) {
+          try {
+            const resQ = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos`);
+            if (resQ.ok) {
+              const lista = await resQ.json();
+              if (Array.isArray(lista)) matchData = lista.find((p: any) => String(p.id) === String(queryMatchId)) || null;
+            }
+          } catch {}
+        }
+
         // 1. Intentar endpoint específico de partido activo
-        try {
+        if (!matchData) try {
           const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos/activo?area=${area}`);
           if (res.ok) matchData = await res.json();
         } catch {}
@@ -466,7 +477,7 @@ export default function TatamiDisplay() {
     fetchPartido();
     const poll = setInterval(fetchPartido, 4000);
     return () => clearInterval(poll);
-  }, [torneoId, area, loadStats]);
+  }, [torneoId, area, loadStats, queryMatchId]);
 
   /* ─── WebSocket al match activo ───────────────────────────────── */
   useEffect(() => {

@@ -149,9 +149,10 @@ export default function VRStation() {
         });
         break;
       case "SCORE_UPDATE":
+        // La mesa WKF envía la tarjeta en local/visitante.video_review; ASAM en vr_card_*
         setVrCards({
-          aka:    msg.state?.vr_card_aka    || "ACTIVE",
-          ao:     msg.state?.vr_card_ao     || "ACTIVE",
+          aka:    msg.state?.vr_card_aka    || msg.state?.local?.video_review     || "ACTIVE",
+          ao:     msg.state?.vr_card_ao     || msg.state?.visitante?.video_review || "ACTIVE",
           blanco: msg.state?.vr_card_blanco || "ACTIVE",
           rojo:   msg.state?.vr_card_rojo   || "ACTIVE",
         });
@@ -703,7 +704,7 @@ export default function VRStation() {
                       color: estado === "ACTIVE" ? "#34d399" : "#f87171",
                       letterSpacing: "0.06em",
                     }}>
-                      {estado === "ACTIVE" ? "✓ DISP." : "✗ BLOQ."}
+                      {estado === "ACTIVE" ? "✓ DISP." : estado === "EN_REVISION" ? "⏳ EN REVISIÓN" : "✗ BLOQ."}
                     </span>
                   </div>
                 );
