@@ -61,16 +61,18 @@ BEGIN
                 'ci', '2.466.522'
             )
         ),
-        jsonb_build_object(
-            'reglamento', 'World Karate Federation (WKF)',
-            'sistema_arbitraje', 'WKF 2024 + Video Review Oficial',
-            'pesaje_oficial', 'Tolerancia ±1.0 kg (Descalificación y Walkover por sobrepeso)',
-            'criterios_desempate', jsonb_build_array('Senshu', 'Mayor Ippon', 'Mayor Waza-Ari', 'Hantei'),
-            'superioridad_tecnica', '8 puntos de diferencia (Finalización automática)'
+        jsonb_build_array(
+            'Reglamento Oficial World Karate Federation (WKF)',
+            'Pesaje Oficial: Tolerancia ±1.0 kg (Descalificación por sobrepeso)',
+            'Video Review (VR) oficial habilitado con dos tarjetas',
+            'Criterios de desempate: Senshu, Ippon, Waza-Ari, Hantei',
+            'Superioridad técnica: 8 puntos de diferencia (Finalización automática)'
         ),
-        jsonb_build_object(
-            'trofeo_principal', 'Copa Sensei Takeshi Fukochi',
-            'premiacion', '1°, 2° y 3° puestos por división y medallero general por dojo'
+        jsonb_build_array(
+            jsonb_build_object('puesto', 1, 'desc', 'Copa Sensei Takeshi Fukochi + Medalla de Oro'),
+            jsonb_build_object('puesto', 2, 'desc', 'Medalla de Plata'),
+            jsonb_build_object('puesto', 3, 'desc', 'Medallas de Bronce'),
+            jsonb_build_object('puesto', 'otros', 'desc', 'Trofeo a la delegación con mayor puntuación acumulada')
         )
     )
     ON CONFLICT (id) DO UPDATE SET

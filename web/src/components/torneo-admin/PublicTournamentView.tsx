@@ -57,8 +57,8 @@ export default function PublicTournamentView({ tournament }: { tournament: any }
   };
 
   const contacto = tournament?.configuracion?.contacto || {};
-  const reglas = tournament?.reglas || [];
-  const premios = tournament?.premios || [];
+  const reglas = Array.isArray(tournament?.reglas) ? tournament.reglas : [];
+  const premios = Array.isArray(tournament?.premios) ? tournament.premios : [];
 
   const streamingConfig = tournament?.configuracion?.streaming;
   const hasStreaming = streamingConfig?.activo !== false && (

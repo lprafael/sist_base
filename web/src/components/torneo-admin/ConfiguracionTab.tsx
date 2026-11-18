@@ -217,15 +217,16 @@ export default function ConfiguracionTab({ torneo, onUpdate, onSubSectionSelect 
     torneo.configuracion?.ubicacion_lat ? { lat: torneo.configuracion.ubicacion_lat, lng: torneo.configuracion.ubicacion_lng } : null
   );
   const [reglasData, setReglasData] = useState<string>(
-    (torneo.reglas && torneo.reglas.length > 0)
-      ? (torneo.reglas.length === 1 && torneo.reglas[0].includes('<') ? torneo.reglas[0] : torneo.reglas.join('<br>'))
-      : ''
+    (Array.isArray(torneo.reglas) && torneo.reglas.length > 0)
+      ? (torneo.reglas.length === 1 && typeof torneo.reglas[0] === 'string' && torneo.reglas[0].includes('<') ? torneo.reglas[0] : torneo.reglas.join('<br>'))
+      : typeof torneo.reglas === 'string' ? torneo.reglas : ''
   );
+  const safePremios = Array.isArray(torneo.premios) ? torneo.premios : [];
   const [premiosData, setPremiosData] = useState({
-    puesto1: torneo.premios?.find((p: any) => p.puesto === 1)?.desc || '',
-    puesto2: torneo.premios?.find((p: any) => p.puesto === 2)?.desc || '',
-    puesto3: torneo.premios?.find((p: any) => p.puesto === 3)?.desc || '',
-    otros: torneo.premios?.find((p: any) => p.puesto === 'otros')?.desc || '',
+    puesto1: safePremios.find((p: any) => p?.puesto === 1)?.desc || '',
+    puesto2: safePremios.find((p: any) => p?.puesto === 2)?.desc || '',
+    puesto3: safePremios.find((p: any) => p?.puesto === 3)?.desc || '',
+    otros: safePremios.find((p: any) => p?.puesto === 'otros')?.desc || '',
   });
 
   // Keep local state in sync if parent updates it (e.g. after a save)
