@@ -4,53 +4,34 @@
 DO $$
 DECLARE
     v_torneo_id UUID := '2ed2f229-6e67-400b-adc4-b6a7371ebcf3'::UUID;
-    v_user_id INTEGER;
-    v_org_id INTEGER;
+    v_user_id INTEGER := 27;
+    v_org_id INTEGER := 13;
     v_cat_id UUID;
 BEGIN
-    -- 1. Buscar o crear usuario de Jorge Salgado
+    -- 1. Buscar o verificar usuario de Jorge Salgado en sistema.usuarios
     SELECT id INTO v_user_id 
-    FROM auth.usuarios 
-    WHERE email ILIKE '%contacto@seigokanpy.com%' 
-       OR email ILIKE '%jorge%salgado%'
-       OR nombre ILIKE '%Jorge Salgado%'
+    FROM sistema.usuarios 
+    WHERE id = 27 OR email ILIKE '%contacto@seigokanpy.com%' 
     LIMIT 1;
 
-    IF v_user_id IS NULL THEN
-        INSERT INTO auth.usuarios (username, email, password_hash, nombre, rol, activo, creado_en)
-        VALUES ('jorgesalgado', 'contacto@seigokanpy.com', '.5x8a.1b8cOUyQy1n8y4w7b4c6e7f8g9h0i1j2k3l4', 'Jorge Salgado Castillo', 'organizador', TRUE, NOW())
-        RETURNING id INTO v_user_id;
-    END IF;
-
-    -- 2. Buscar o crear Tenant en cancha.organizadores
+    -- 2. Buscar o verificar Tenant en cancha.organizadores
     SELECT id INTO v_org_id 
     FROM cancha.organizadores 
-    WHERE usuario_id = v_user_id 
-       OR nombre ILIKE '%Jorge Salgado%'
-       OR nombre ILIKE '%Seigokan%'
+    WHERE id = 13 OR usuario_id = v_user_id 
     LIMIT 1;
 
-    IF v_org_id IS NULL THEN
-        INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos, telefono, email, activo, creado_en)
-        VALUES (v_user_id, 'Jorge Salgado Castillo (Seigokan Paraguay)', 'pro', 50, '+595 994 849 555', 'contacto@seigokanpy.com', TRUE, NOW())
-        RETURNING id INTO v_org_id;
-    ELSE
-        UPDATE cancha.organizadores 
-        SET usuario_id = COALESCE(usuario_id, v_user_id), activo = TRUE
-        WHERE id = v_org_id;
-    END IF;
-
-    -- 3. Crear o actualizar el Torneo con el organizador_id correcto
+    -- 3. Crear o actualizar el Torneo con el organizador_id y creado_por
     INSERT INTO torneos.torneos (
-        id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en,
+        id, nombre, tipo_campeonato, organizador_id, creado_por, deporte, formato, estado, creado_en,
         fecha_inicio, fecha_fin, tipo_ubicacion, configuracion, reglas, premios
     ) VALUES (
         v_torneo_id,
         'XIII Torneo Internacional de Karate Do Seigokan',
         'categorias',
         v_org_id,
+        v_user_id,
         'Karate',
-        'eliminatoria_directa',
+        'eliminacion_simple',
         'abierto',
         NOW(),
         '2026-11-28'::DATE,
@@ -94,8 +75,10 @@ BEGIN
     )
     ON CONFLICT (id) DO UPDATE SET
         organizador_id = v_org_id,
+        creado_por = v_user_id,
         nombre = EXCLUDED.nombre,
         tipo_campeonato = EXCLUDED.tipo_campeonato,
+        formato = EXCLUDED.formato,
         fecha_inicio = EXCLUDED.fecha_inicio,
         fecha_fin = EXCLUDED.fecha_fin,
         configuracion = EXCLUDED.configuracion,
