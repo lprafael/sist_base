@@ -1,16 +1,46 @@
--- Script SQL Completo para el XIII Torneo Internacional de Karate Do Seigokan
-DO 
+-- SCRIPT OFICIAL: XIII TORNEO INTERNACIONAL DE KARATE DO SEIGOKAN
+-- ASIGNADO DIRECTAMENTE AL TENANT DE JORGE SALGADO
+
+DO $$
 DECLARE
     v_torneo_id UUID := '2ed2f229-6e67-400b-adc4-b6a7371ebcf3'::UUID;
-    v_org_id UUID;
+    v_user_id INTEGER;
+    v_org_id INTEGER;
     v_cat_id UUID;
 BEGIN
-    SELECT id INTO v_org_id FROM cancha.organizadores ORDER BY creado_en DESC LIMIT 1;
-    IF v_org_id IS NULL THEN
-        SELECT id INTO v_org_id FROM torneos.organizadores LIMIT 1;
+    -- 1. Buscar o crear usuario de Jorge Salgado
+    SELECT id INTO v_user_id 
+    FROM auth.usuarios 
+    WHERE email ILIKE '%contacto@seigokanpy.com%' 
+       OR email ILIKE '%jorge%salgado%'
+       OR nombre ILIKE '%Jorge Salgado%'
+    LIMIT 1;
+
+    IF v_user_id IS NULL THEN
+        INSERT INTO auth.usuarios (username, email, password_hash, nombre, rol, activo, creado_en)
+        VALUES ('jorgesalgado', 'contacto@seigokanpy.com', '.5x8a.1b8cOUyQy1n8y4w7b4c6e7f8g9h0i1j2k3l4', 'Jorge Salgado Castillo', 'organizador', TRUE, NOW())
+        RETURNING id INTO v_user_id;
     END IF;
 
-    -- Torneo
+    -- 2. Buscar o crear Tenant en cancha.organizadores
+    SELECT id INTO v_org_id 
+    FROM cancha.organizadores 
+    WHERE usuario_id = v_user_id 
+       OR nombre ILIKE '%Jorge Salgado%'
+       OR nombre ILIKE '%Seigokan%'
+    LIMIT 1;
+
+    IF v_org_id IS NULL THEN
+        INSERT INTO cancha.organizadores (usuario_id, nombre, plan, max_torneos, telefono, email, activo, creado_en)
+        VALUES (v_user_id, 'Jorge Salgado Castillo (Seigokan Paraguay)', 'pro', 50, '+595 994 849 555', 'contacto@seigokanpy.com', TRUE, NOW())
+        RETURNING id INTO v_org_id;
+    ELSE
+        UPDATE cancha.organizadores 
+        SET usuario_id = COALESCE(usuario_id, v_user_id), activo = TRUE
+        WHERE id = v_org_id;
+    END IF;
+
+    -- 3. Crear o actualizar el Torneo con el organizador_id correcto
     INSERT INTO torneos.torneos (
         id, nombre, tipo_campeonato, organizador_id, deporte, formato, estado, creado_en,
         fecha_inicio, fecha_fin, tipo_ubicacion, configuracion, reglas, premios
@@ -63,6 +93,7 @@ BEGIN
         )
     )
     ON CONFLICT (id) DO UPDATE SET
+        organizador_id = v_org_id,
         nombre = EXCLUDED.nombre,
         tipo_campeonato = EXCLUDED.tipo_campeonato,
         fecha_inicio = EXCLUDED.fecha_inicio,
@@ -71,7 +102,7 @@ BEGIN
         reglas = EXCLUDED.reglas,
         premios = EXCLUDED.premios;
 
-    -- Dojos
+    -- 4. Dojos Invitados Oficiales
     INSERT INTO torneos.equipos (id, torneo_id, nombre, nombre_academia, creado_en)
     VALUES
         (gen_random_uuid(), v_torneo_id, 'Seigokan Paraguay (Dojo Central)', 'Seigokan Paraguay', NOW()),
@@ -82,7 +113,6 @@ BEGIN
         (gen_random_uuid(), v_torneo_id, 'Dojo Bushido Ciudad del Este', 'Bushido CDE', NOW())
     ON CONFLICT DO NOTHING;
 
-    -- Categoría: Kata Principiante Hasta 5 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante Hasta 5 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -95,7 +125,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Principiante Hasta 5 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante Hasta 5 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -108,7 +137,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Principiante 8 y 9 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 8 y 9 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -121,7 +149,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 8 y 9 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 8 y 9 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -134,7 +161,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 10 y 11 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 10 y 11 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -147,7 +173,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 10 y 11 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 10 y 11 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -160,7 +185,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 12 y 13 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 12 y 13 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -173,7 +197,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 12 y 13 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 12 y 13 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -186,7 +209,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 14 y 15 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 14 y 15 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -199,7 +221,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 14 y 15 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 14 y 15 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -212,7 +233,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 16 y 17 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 16 y 17 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -225,7 +245,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Principiante 16 y 17 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Principiante 16 y 17 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -238,7 +257,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kata Intermedio 6 y 7 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Intermedio 6 y 7 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -251,7 +269,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Intermedio 6 y 7 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Intermedio 6 y 7 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -264,7 +281,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Intermedio 8 y 9 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Intermedio 8 y 9 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -277,7 +293,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Intermedio 8 y 9 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Intermedio 8 y 9 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -290,7 +305,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Senior Femenino (Menos de marrón)
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Senior Femenino (Menos de marrón)';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -303,7 +317,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Kyus menores');
     END IF;
 
-    -- Categoría: Kata Senior Masculino (Menos de marrón)
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Senior Masculino (Menos de marrón)';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -316,7 +329,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Kyus menores');
     END IF;
 
-    -- Categoría: Kata Oficial WKF 10 y 11 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Oficial WKF 10 y 11 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -329,7 +341,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Oficial WKF 10 y 11 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Oficial WKF 10 y 11 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -342,7 +353,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Oficial WKF 12 y 13 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Oficial WKF 12 y 13 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -355,7 +365,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Oficial WKF 12 y 13 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Oficial WKF 12 y 13 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -368,7 +377,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Cadete Oficial WKF (14-15 años) Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Cadete Oficial WKF (14-15 años) Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -381,7 +389,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Cadete Oficial WKF (14-15 años) Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Cadete Oficial WKF (14-15 años) Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -394,7 +401,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Junior Oficial WKF (16-17 años) Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Junior Oficial WKF (16-17 años) Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -407,7 +413,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Junior Oficial WKF (16-17 años) Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Junior Oficial WKF (16-17 años) Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -420,7 +425,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Under 21 Oficial WKF Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Under 21 Oficial WKF Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -433,7 +437,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Under 21 Oficial WKF Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Under 21 Oficial WKF Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -446,7 +449,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Senior Oficial WKF Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Senior Oficial WKF Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -459,7 +461,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Senior Oficial WKF Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Senior Oficial WKF Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -472,7 +473,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Oficial W.K.F.');
     END IF;
 
-    -- Categoría: Kata Master Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Master Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -485,7 +485,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kata Master Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kata Master Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -498,7 +497,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kumite Promocional Hasta 5 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Promocional Hasta 5 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -511,7 +509,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Promocional Hasta 5 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Promocional Hasta 5 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -524,7 +521,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Promocional 6 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Promocional 6 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -537,7 +533,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Promocional 6 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Promocional 6 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -550,7 +545,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Promocional 7 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Promocional 7 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -563,7 +557,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Promocional 7 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Promocional 7 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -576,7 +569,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite 8 y 9 años Femenino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 8 y 9 años Femenino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -589,7 +581,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 8 y 9 años Masculino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 8 y 9 años Masculino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -602,7 +593,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 8 y 9 años Femenino Libre
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 8 y 9 años Femenino Libre';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -615,7 +605,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kumite 8 y 9 años Masculino Libre
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 8 y 9 años Masculino Libre';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -628,7 +617,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Libre');
     END IF;
 
-    -- Categoría: Kumite 10 y 11 años Femenino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 10 y 11 años Femenino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -641,7 +629,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 10 y 11 años Masculino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 10 y 11 años Masculino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -654,7 +641,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 12 y 13 años Femenino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 12 y 13 años Femenino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -667,7 +653,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 12 y 13 años Masculino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 12 y 13 años Masculino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -680,7 +665,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 14 y 15 años Femenino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 14 y 15 años Femenino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -693,7 +677,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 14 y 15 años Masculino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 14 y 15 años Masculino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -706,7 +689,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 16 y 17 años Femenino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 16 y 17 años Femenino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -719,7 +701,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite 16 y 17 años Masculino Principiante
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite 16 y 17 años Masculino Principiante';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -732,7 +713,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Principiante');
     END IF;
 
-    -- Categoría: Kumite Senior Femenino (Menos de marrón)
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Senior Femenino (Menos de marrón)';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -745,7 +725,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Senior Masculino (Menos de marrón)
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Senior Masculino (Menos de marrón)';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -758,7 +737,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Master +35 años Femenino (Menos de marrón)
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Master +35 años Femenino (Menos de marrón)';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -771,7 +749,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Master +35 años Masculino (Menos de marrón)
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Master +35 años Masculino (Menos de marrón)';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -784,7 +761,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, 'Open');
     END IF;
 
-    -- Categoría: Kumite Infantil 10 y 11 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Infantil 10 y 11 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -802,7 +778,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '-40 kg');
     END IF;
 
-    -- Categoría: Kumite Infantil 10 y 11 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Infantil 10 y 11 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -820,7 +795,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+40 kg');
     END IF;
 
-    -- Categoría: Kumite Infantil 12 y 13 años Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Infantil 12 y 13 años Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -838,7 +812,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '-50 kg');
     END IF;
 
-    -- Categoría: Kumite Infantil 12 y 13 años Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Infantil 12 y 13 años Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -856,7 +829,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+50 kg');
     END IF;
 
-    -- Categoría: Kumite Cadete Oficial WKF (14-15 años) Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Cadete Oficial WKF (14-15 años) Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -874,7 +846,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+54 kg');
     END IF;
 
-    -- Categoría: Kumite Cadete Oficial WKF (14-15 años) Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Cadete Oficial WKF (14-15 años) Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -892,7 +863,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+63 kg');
     END IF;
 
-    -- Categoría: Kumite Junior Oficial WKF (16-17 años) Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Junior Oficial WKF (16-17 años) Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -910,7 +880,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+59 kg');
     END IF;
 
-    -- Categoría: Kumite Junior Oficial WKF (16-17 años) Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Junior Oficial WKF (16-17 años) Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -928,7 +897,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+68 kg');
     END IF;
 
-    -- Categoría: Kumite Under 21 Oficial WKF Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Under 21 Oficial WKF Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -946,7 +914,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+61 kg');
     END IF;
 
-    -- Categoría: Kumite Under 21 Oficial WKF Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Under 21 Oficial WKF Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -964,7 +931,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+75 kg');
     END IF;
 
-    -- Categoría: Kumite Senior Oficial WKF (+18 años) Femenino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Senior Oficial WKF (+18 años) Femenino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -982,7 +948,6 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+61 kg');
     END IF;
 
-    -- Categoría: Kumite Senior Oficial WKF (+18 años) Masculino
     SELECT id INTO v_cat_id FROM torneos.categorias WHERE torneo_id = v_torneo_id AND nombre = 'Kumite Senior Oficial WKF (+18 años) Masculino';
     IF v_cat_id IS NULL THEN
         v_cat_id := gen_random_uuid();
@@ -1000,5 +965,5 @@ BEGIN
         VALUES (gen_random_uuid(), v_cat_id, '+75 kg');
     END IF;
 
-    RAISE NOTICE 'XIII Torneo Seigokan y sus 78 categorías configuradas exitosamente!';
-END ;
+    RAISE NOTICE '¡Torneo creado exitosamente en el Tenant de Jorge Salgado (Org ID: %)!', v_org_id;
+END $$;
