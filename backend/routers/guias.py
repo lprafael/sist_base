@@ -40,8 +40,8 @@ async def _ensure_schema(session: AsyncSession):
     global _schema_ready
     if _schema_ready:
         return
+    await session.execute(text("CREATE SCHEMA IF NOT EXISTS cancha"))
     await session.execute(text("""
-        CREATE SCHEMA IF NOT EXISTS cancha;
         CREATE TABLE IF NOT EXISTS cancha.guias_documentacion (
             id SERIAL PRIMARY KEY,
             titulo VARCHAR(200) NOT NULL,
@@ -53,7 +53,7 @@ async def _ensure_schema(session: AsyncSession):
             activo BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        );
+        )
     """))
     count = (await session.execute(text("SELECT COUNT(*) FROM cancha.guias_documentacion"))).scalar() or 0
     if count == 0:
