@@ -172,12 +172,13 @@ export default function KarateWKFController({
     return () => {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) {
+        const socket = ws;
         try {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.close();
-          } else if (ws.readyState === WebSocket.CONNECTING) {
-            ws.onopen = () => {
-              try { ws.close(); } catch {}
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.close();
+          } else if (socket.readyState === WebSocket.CONNECTING) {
+            socket.onopen = () => {
+              try { socket.close(); } catch {}
             };
           }
         } catch {}
