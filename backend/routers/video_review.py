@@ -669,6 +669,33 @@ async def actualizar_clip_url(
 
 # ─── 7. Subir Clip desde la Cámara Web Nativa (Sin OBS) ───────────────────────
 
+def _limpiar_clips_antiguos(clips_dir: str, dias: Optional[int] = None) -> int:
+    """Elimina archivos de video VR (.webm/.mp4) con más de `dias` días (default 5)."""
+    import os
+    import time
+    retencion = dias if dias is not None else int(os.getenv("VR_CLIPS_RETENTION_DAYS", "5"))
+    if retencion <= 0 or not os.path.isdir(clips_dir):
+        return 0
+    limite = time.time() - (retencion * 86400)
+    eliminados = 0
+    try:
+        for nombre in os.listdir(clips_dir):
+            if not nombre.lower().endswith((".webm", ".mp4")):
+                continue
+            ruta = os.path.join(clips_dir, nombre)
+            try:
+                if os.path.isfile(ruta) and os.path.getmtime(ruta) < limite:
+                    os.remove(ruta)
+                    eliminados += 1
+            except OSError:
+                pass
+    except OSError:
+        pass
+    if eliminados:
+        print(f"[VR] Limpieza automática: {eliminados} clip(s) con más de {retencion} días eliminados.")
+    return eliminados
+
+
 @router.post("/combates/{match_id}/subir-clip")
 async def subir_clip_web(
     match_id: str,
@@ -718,6 +745,7 @@ async def subir_clip_web(
 
     clips_dir = os.getenv("OBS_CLIPS_DIR", "C:/Users/Public/Videos/OBS_Replays" if os.name == "nt" else "/app/clips")
     os.makedirs(clips_dir, exist_ok=True)
+    _limpiar_clips_antiguos(clips_dir)
 
     ext = Path(file.filename).suffix if file.filename else ".webm"
     if not ext:
