@@ -23,9 +23,9 @@ import ActaBaloncestoModal from './ActaBaloncestoModal';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
 export default function PartidosView({
-  torneoId, deporte, torneo, partidosProp, faseOculta, onRefresh, tipoCategoria, criterioDesempate
+  torneoId, deporte, torneo, partidosProp, faseOculta, onRefresh, tipoCategoria, criterioDesempate, isPublic = false
 }: {
-  torneoId: string, deporte?: string, torneo?: any, partidosProp?: any[], faseOculta?: string, onRefresh?: () => void, tipoCategoria?: string, criterioDesempate?: string
+  torneoId: string, deporte?: string, torneo?: any, partidosProp?: any[], faseOculta?: string, onRefresh?: () => void, tipoCategoria?: string, criterioDesempate?: string, isPublic?: boolean
 }) {
   const [partidosState, setPartidosState] = useState<any[]>([]);
   const [loading, setLoading] = useState(!partidosProp);
@@ -182,7 +182,7 @@ export default function PartidosView({
         </div>
       )}
 
-      {!faseOculta && (
+      {!isPublic && !faseOculta && (
         <div className="flex flex-col items-center mb-4 gap-2">
           {/* Botón Mesa Central (Multi-Tatami & Auditoría) */}
           <button
@@ -295,33 +295,37 @@ export default function PartidosView({
                       )}
 
                       {/* Botón Acción Calificar */}
-                      <button
-                        onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
-                          p.estado === 'finalizado'
-                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                            : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
-                        }`}
-                      >
-                        <Trophy size={14} />
-                        {p.estado === 'finalizado' ? 'Editar Notas' : 'Calificar'}
-                      </button>
+                      {!isPublic && (
+                        <>
+                          <button
+                            onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+                              p.estado === 'finalizado'
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                            }`}
+                          >
+                            <Trophy size={14} />
+                            {p.estado === 'finalizado' ? 'Editar Notas' : 'Calificar'}
+                          </button>
 
-                      {/* Context Menu Button */}
-                      <button
-                        onClick={() => {
-                          setMenuOpenId(menuOpenId === p.id ? null : p.id);
-                          setShareSubmenuId(null);
-                        }}
-                        className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition"
-                      >
-                        <MoreVertical size={16} />
-                      </button>
+                          {/* Context Menu Button */}
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(menuOpenId === p.id ? null : p.id);
+                              setShareSubmenuId(null);
+                            }}
+                            className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   {/* Context Menu Dropdown for Formas */}
-                  {menuOpenId === p.id && (
+                  {!isPublic && menuOpenId === p.id && (
                     <div className="absolute top-full right-2 mt-2 w-52 bg-[#0c0c28] rounded-xl shadow-2xl z-30 overflow-hidden text-white font-medium text-xs animate-in fade-in zoom-in-95 border border-indigo-900">
                       <button
                         onClick={() => { setActiveMatch(p); setMenuOpenId(null); }}
@@ -396,15 +400,21 @@ export default function PartidosView({
                     <div className={`text-[10px] font-bold px-2 py-0.5 rounded border mb-1 whitespace-nowrap ${getStatusColor(p.estado)}`}>
                       {getStatusText(p.estado)}
                     </div>
-                    <button
-                      onClick={() => {
-                        setMenuOpenId(menuOpenId === p.id ? null : p.id);
-                        setShareSubmenuId(null);
-                      }}
-                      className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-md transition border border-slate-200 font-bold text-lg w-16"
-                    >
-                      {p.estado === 'programado' ? ':' : `${p.goles_local} - ${p.goles_visitante}`}
-                    </button>
+                    {isPublic ? (
+                      <div className="flex items-center justify-center gap-2 bg-slate-100 px-3 py-1 rounded-md border border-slate-200 font-bold text-lg w-16 select-none">
+                        {p.estado === 'programado' ? ':' : `${p.goles_local} - ${p.goles_visitante}`}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setMenuOpenId(menuOpenId === p.id ? null : p.id);
+                          setShareSubmenuId(null);
+                        }}
+                        className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-md transition border border-slate-200 font-bold text-lg w-16"
+                      >
+                        {p.estado === 'programado' ? ':' : `${p.goles_local} - ${p.goles_visitante}`}
+                      </button>
+                    )}
                   </div>
 
                   {/* Visitante */}
@@ -417,7 +427,7 @@ export default function PartidosView({
                 </div>
 
                 {/* CONTEXT MENU DROPDOWN (Matching Image 1 & User Request) */}
-                {menuOpenId === p.id && (
+                {!isPublic && menuOpenId === p.id && (
                   <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-[#0c0c28] rounded-xl shadow-2xl z-30 overflow-hidden text-white font-medium text-xs animate-in fade-in zoom-in-95 border border-indigo-900">
 
                     {/* Ver partido */}
@@ -630,7 +640,7 @@ export default function PartidosView({
       )}
 
       {/* Match Controllers */}
-      {activeMatch && (() => {
+      {!isPublic && activeMatch && (() => {
         const isKarateSport = deporte === 'Karate' || torneo?.deporte === 'Karate' ||
           (deporte || '').toLowerCase().includes('karate') || (torneo?.deporte || '').toLowerCase().includes('karate') ||
           (activeMatch.fase || '').toLowerCase().includes('karate');

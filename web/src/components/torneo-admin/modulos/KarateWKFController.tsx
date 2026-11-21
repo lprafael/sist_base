@@ -242,6 +242,38 @@ export default function KarateWKFController({
     setAlertaCombate("🔄 Cronómetro reiniciado.");
   };
 
+  const resetAll = async () => {
+    if (!confirm("⚠️ ¿Reiniciar TODO el combate? Se pondrá en cero el marcador, técnicas, Senshu, penalizaciones, tarjetas VR y el cronómetro.")) {
+      return;
+    }
+    setIsRunning(false);
+    setTimer(duracionCombate);
+    setEstado('programado');
+    setHanteiModal(null);
+
+    try {
+      await fetch(`${API_URL}/api/vr/combates/${matchId}/cancelar`, {
+        method: 'POST',
+        headers: authHeaders()
+      }).catch(() => {});
+    } catch {}
+
+    const freshStats = {
+      tipo_reglamento: 'WKF',
+      local: { puntos: 0, yuko: 0, waza_ari: 0, ippon: 0, senshu: false, jogai: 0, penalizaciones: 0, video_review: 'ACTIVE', historial: [] },
+      visitante: { puntos: 0, yuko: 0, waza_ari: 0, ippon: 0, senshu: false, jogai: 0, penalizaciones: 0, video_review: 'ACTIVE', historial: [] },
+      metodo_victoria: null,
+      ganador_lado: null
+    };
+
+    setEstadisticas(freshStats);
+    sendBroadcast({ event: "TIMER_RESET", tiempo: duracionCombate, corriendo: false });
+    sendBroadcast({ event: "TIMER_SYNC", tiempo: duracionCombate, corriendo: false });
+    sendBroadcast({ event: "SCORE_UPDATE", state: { ...freshStats, estado: 'programado' }, tiempo: duracionCombate, corriendo: false });
+    await handleSave('programado', null, freshStats);
+    setAlertaCombate("🔄 Combate reiniciado por completo (marcador y cronómetro en cero).");
+  };
+
   const setDuracion = (secs: number) => {
     setDuracionCombate(secs);
     setTimer(secs);
@@ -1081,6 +1113,13 @@ export default function KarateWKFController({
                   <RotateCcw size={16} />
                 </button>
               </div>
+              <button
+                onClick={resetAll}
+                className="mt-2 w-full py-1.5 px-3 rounded-xl flex items-center justify-center gap-1.5 bg-red-950/50 hover:bg-red-900/60 text-red-300 border border-red-700/50 transition font-bold text-[11px] uppercase tracking-wider"
+                title="Reiniciar marcador, técnicas, penalizaciones, VR y cronómetro"
+              >
+                <RotateCcw size={13} /> Reiniciar Todo
+              </button>
 
               {/* Ajuste fino de segundos (Retrotraer tiempo ordenado por el árbitro central) */}
               <div className="mt-3 pt-2.5 border-t border-slate-800/80">

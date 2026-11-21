@@ -84,7 +84,7 @@ export default function TournamentDetailPage() {
               {tournament?.deporte === 'Ajedrez' || (tournament?.deporte || '').toLowerCase().includes('ajedrez') ? (
                 <AjedrezController torneoId={id as string} torneo={tournament} isPublic={true} />
               ) : (
-                <ClasificacionView torneoId={id as string} torneo={tournament} />
+                <ClasificacionView torneoId={id as string} torneo={tournament} isPublic={true} />
               )}
             </div>
           </main>

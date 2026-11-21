@@ -9,7 +9,7 @@ import ReportesTorneoWKFModal from './ReportesTorneoWKFModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
-export default function ClasificacionView({ torneoId, torneo }: { torneoId: string, torneo?: any }) {
+export default function ClasificacionView({ torneoId, torneo, isPublic = false }: { torneoId: string, torneo?: any, isPublic?: boolean }) {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [partidos, setPartidos] = useState<any[]>([]);
   const [fasesOptions, setFasesOptions] = useState<string[]>([]);
@@ -206,7 +206,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
     if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" /></div>;
 
   if (torneo?.deporte === 'Ajedrez' || (torneo?.deporte || '').toLowerCase().includes('ajedrez')) {
-    return <AjedrezController torneoId={torneoId} torneo={torneo} />;
+    return <AjedrezController torneoId={torneoId} torneo={torneo} isPublic={isPublic} />;
   }
 
   const isMarcialSport = torneo?.deporte === 'Karate' || 
@@ -237,7 +237,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           )}
 
           {/* Configurar Puntos solo para deportes de liga (Fútbol, Futsal, etc.) */}
-          {!isMarcialSport && (
+          {!isPublic && !isMarcialSport && (
             <button 
               onClick={() => setShowConfig(!showConfig)}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
@@ -345,6 +345,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
       )}
 
       {/* Acciones Globales */}
+      {!isPublic && (
       <div className="flex justify-end gap-3 mb-6">
         {torneo?.deporte === 'Artes Marciales Mixtas' && (
           <>
@@ -400,8 +401,9 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
           </>
         )}
       </div>
+      )}
 
-      {showAsignacionModal && (
+      {!isPublic && showAsignacionModal && (
         <AsignacionCategoriasModal
           torneoId={torneoId}
           onClose={() => {
@@ -592,6 +594,7 @@ export default function ClasificacionView({ torneoId, torneo }: { torneoId: stri
                             onRefresh={() => fetchData(true)}
                             tipoCategoria={isFormas ? 'formas' : 'combate'}
                             criterioDesempate={categorias.find(c => c.nombre === categoria)?.criterio_desempate || 'Automático'}
+                            isPublic={isPublic}
                           />
                         </div>
                       </div>
