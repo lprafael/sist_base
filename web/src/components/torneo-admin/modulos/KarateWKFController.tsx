@@ -96,6 +96,7 @@ export default function KarateWKFController({
     if (!matchId || matchId === 'demo-match') return;
     let ws: WebSocket | null = null;
     let reconnectTimer: any = null;
+    let disposed = false;
 
     const connect = () => {
       try {
@@ -115,7 +116,7 @@ export default function KarateWKFController({
 
         ws.onclose = () => {
           setWsConnected(false);
-          reconnectTimer = setTimeout(connect, 3000);
+          if (!disposed) reconnectTimer = setTimeout(connect, 3000);
         };
 
         ws.onmessage = (evt) => {
@@ -170,6 +171,7 @@ export default function KarateWKFController({
     connect();
 
     return () => {
+      disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) {
         const socket = ws;

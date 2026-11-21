@@ -98,11 +98,22 @@ export default function VRStation() {
 
   /* ─── Conectar WebSocket ────────────────────────────────────── */
   const connectWS = useCallback((mid: string) => {
-    if (wsRef.current) wsRef.current.close();
+    // Cierre limpio del socket anterior (sin reconectarlo ni dejar handshakes abortados)
+    const prev = wsRef.current;
+    if (prev) {
+      prev.onclose = null;
+      prev.onmessage = null;
+      if (prev.readyState === WebSocket.CONNECTING) {
+        prev.onopen = () => { try { prev.close(); } catch {} };
+      } else {
+        try { prev.close(); } catch {}
+      }
+    }
     const ws = new WebSocket(`${WS_URL}/api/vr/ws/${mid}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (wsRef.current !== ws) { try { ws.close(); } catch {} return; }
       setConnected(true);
     };
 
@@ -115,7 +126,7 @@ export default function VRStation() {
 
     ws.onclose = () => {
       setConnected(false);
-      setTimeout(() => connectWS(mid), 3000);
+      setTimeout(() => { if (wsRef.current === ws) connectWS(mid); }, 3000);
     };
   }, []);
 
@@ -216,7 +227,16 @@ export default function VRStation() {
     fetchMatches();
     return () => {
       isMounted = false;
-      if (wsRef.current) wsRef.current.close();
+      const w = wsRef.current;
+      wsRef.current = null;
+      if (w) {
+        w.onclose = null;
+        if (w.readyState === WebSocket.CONNECTING) {
+          w.onopen = () => { try { w.close(); } catch {} };
+        } else {
+          try { w.close(); } catch {}
+        }
+      }
     };
   }, [torneoId, connectWS]);
 

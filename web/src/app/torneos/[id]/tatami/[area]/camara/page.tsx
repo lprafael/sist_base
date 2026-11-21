@@ -361,16 +361,21 @@ export default function TatamiCameraStation() {
   useEffect(() => {
     if (!matchId) return;
 
-    let ws: WebSocket;
+    let ws: WebSocket | null = null;
+    let disposed = false;
+    let retryTimer: any = null;
     const connectWS = () => {
-      ws = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}`);
-      wsRef.current = ws;
+      if (disposed) return;
+      const sock = new WebSocket(`${WS_URL}/api/vr/ws/${matchId}`);
+      ws = sock;
+      wsRef.current = sock;
 
-      ws.onopen = () => {
+      sock.onopen = () => {
+        if (disposed) { try { sock.close(); } catch {} return; }
         setWsConnected(true);
       };
 
-      ws.onmessage = (evt) => {
+      sock.onmessage = (evt) => {
         try {
           const msg = JSON.parse(evt.data);
           // ALERTA DE VIDEO REVIEW SOLICITADO POR EL ÁRBITRO
@@ -391,15 +396,24 @@ export default function TatamiCameraStation() {
         } catch {}
       };
 
-      ws.onclose = () => {
+      sock.onclose = () => {
         setWsConnected(false);
-        setTimeout(connectWS, 3000);
+        if (!disposed) retryTimer = setTimeout(connectWS, 3000);
       };
     };
 
     connectWS();
     return () => {
-      if (ws) ws.close();
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      const s = ws;
+      if (s) {
+        if (s.readyState === WebSocket.CONNECTING) {
+          s.onopen = () => { try { s.close(); } catch {} };
+        } else {
+          try { s.close(); } catch {}
+        }
+      }
     };
   }, [matchId, ensamblarYSubirClip]);
 
