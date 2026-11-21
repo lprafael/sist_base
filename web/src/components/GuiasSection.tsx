@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, PlayCircle, FileText, ExternalLink, X, Youtube } from 'lucide-react';
+import { BookOpen, PlayCircle, FileText, ExternalLink, X } from 'lucide-react';
 
 const getApiUrl = () => {
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -227,7 +227,7 @@ export default function GuiasSection() {
                               background: '#dc2626', color: '#ffffff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
                             }}
                           >
-                            <Youtube size={16} /> Ver Video
+                            <PlayCircle size={16} /> Ver Video
                           </button>
                           <a
                             href={g.url}
