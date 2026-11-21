@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import CourtCard from '@/components/CourtCard';
 import BookingModal from '@/components/BookingModal';
 import TournamentsSection from '@/components/TournamentsSection';
+import GuiasSection from '@/components/GuiasSection';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -501,6 +502,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* GUÍAS & DOCUMENTACIONES */}
+      <GuiasSection />
 
       {/* APP DOWNLOAD SECTION (Inspired by Reva.la) */}
       <section className="app-section" id="app-download">

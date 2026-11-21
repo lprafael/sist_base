@@ -12,6 +12,7 @@ import {
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import SuscripcionesTab from '@/components/SuscripcionesTab';
+import GuiasAdminTab from '@/components/GuiasAdminTab';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
 
@@ -454,7 +455,8 @@ export default function AdminConsole() {
   }, [dbRoles, catalogFilters.roles_nombre, catalogFilters.roles_descripcion, catalogSortField, catalogSortAsc]);
 
   // Tabs states
-  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit' | 'suscripciones' | 'cantinas'>('complejos');
+  const [activeSuperTab, setActiveSuperTab] = useState<'complejos' | 'organizadores' | 'academias' | 'sports' | 'requests' | 'audit' | 'suscripciones' | 'cantinas' | 'guias'>('complejos');
+  const [guiasCount, setGuiasCount] = useState<number>(0);
 
   // ── Cantinas & Buffets state ──
   const [cantinasList, setCantinasList] = useState<any[]>([]);
@@ -1951,6 +1953,7 @@ export default function AdminConsole() {
                 { id: 'requests', label: '📥 Solicitudes', count: pendingRequests.filter(r => r.estado === 'pendiente').length + cantinaSolicitudes.length },
                 { id: 'sports', label: '🏆 Deportes y Catálogos', count: dbDeportes.length },
                 { id: 'suscripciones', label: '💳 Suscripciones', count: susStats?.total_activos || 0 },
+                { id: 'guias', label: '📚 Guías y Docs', count: guiasCount },
                 { id: 'audit', label: '📜 Auditoría y Logs', count: accessLogs.length + auditLogs.length }
               ].map(tab => (
                 <button
@@ -3799,6 +3802,11 @@ export default function AdminConsole() {
                 </div>
 
               </div>
+            )}
+
+            {/* TAB: GUÍAS Y DOCUMENTACIONES */}
+            {activeSuperTab === 'guias' && (
+              <GuiasAdminTab onCountChange={setGuiasCount} />
             )}
 
             {/* TAB: SUSCRIPCIONES */}

@@ -334,6 +334,10 @@ app.include_router(cantinas_router)
 from routers.karate_wkf import router as karate_wkf_router
 app.include_router(karate_wkf_router)
 
+# Guías y Documentaciones administrables
+from routers.guias import router as guias_router
+app.include_router(guias_router)
+
 # ============================================
 # 11. ENDPOINTS DE AUDITORÍA
 # ============================================

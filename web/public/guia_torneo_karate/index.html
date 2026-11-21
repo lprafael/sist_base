@@ -1,0 +1,1573 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial — Torneo de Karate WKF · Mi Cancha</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --text: #1d2330;
+    --muted: #5b6474;
+    --border: #e2e5ea;
+    --accent: #c2410c;
+    --accent-soft: #fff1e8;
+    --sidebar: #0f172a;
+    --sidebar-text: #e2e8f0;
+    --sidebar-muted: #94a3b8;
+    --sidebar-active: #fb923c;
+    --ok: #15803d;
+    --ok-soft: #e9f7ee;
+    --warn: #a16207;
+    --warn-soft: #fdf6e3;
+    --bad: #b91c1c;
+    --bad-soft: #fdecec;
+    --aka: #dc2626;
+    --ao: #2563eb;
+    --code-bg: #f0f2f5;
+    --shadow: 0 8px 30px rgba(15, 23, 42, .08);
+    --sidebar-w: 300px;
+    --header-h: 56px;
+    --radius: 12px;
+    --ease: .18s ease;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0e14;
+      --surface: #151a22;
+      --text: #e6e9ef;
+      --muted: #9aa3b2;
+      --border: #2b313c;
+      --accent: #fb923c;
+      --accent-soft: #2a1d14;
+      --ok: #4ade80;
+      --ok-soft: #13261a;
+      --warn: #facc15;
+      --warn-soft: #29240f;
+      --bad: #f87171;
+      --bad-soft: #2c1517;
+      --aka: #f87171;
+      --ao: #60a5fa;
+      --code-bg: #232833;
+      --shadow: 0 8px 30px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: .9em;
+    word-break: break-all;
+  }
+  .btn-label {
+    display: inline-block;
+    border: 1px solid var(--border);
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 0 7px;
+    font-weight: 600;
+    font-size: .9em;
+  }
+  .aka { color: var(--aka); font-weight: 700; }
+  .ao { color: var(--ao); font-weight: 700; }
+
+  /* Layout */
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 100%;
+  }
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    background: var(--sidebar);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255,255,255,.06);
+    z-index: 40;
+  }
+  .sidebar-brand {
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    flex: none;
+  }
+  .sidebar-brand .mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    color: #fff;
+  }
+  .sidebar-brand .mark::before {
+    content: "";
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--sidebar-active);
+    box-shadow: 0 0 0 4px rgba(251,146,60,.2);
+  }
+  .sidebar-brand p {
+    margin: 8px 0 0;
+    color: var(--sidebar-muted);
+    font-size: .82rem;
+    line-height: 1.35;
+  }
+  .sidebar-nav {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 10px 24px;
+    flex: 1;
+  }
+  .nav-group { margin-bottom: 6px; }
+  .nav-group-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: transparent;
+    border: 0;
+    color: var(--sidebar-muted);
+    font: inherit;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 10px 10px 6px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .nav-group-btn svg {
+    width: 14px; height: 14px;
+    transition: transform var(--ease);
+    flex: none;
+  }
+  .nav-group.open .nav-group-btn svg { transform: rotate(180deg); }
+  .nav-group.open .nav-group-btn { color: #fff; }
+  .nav-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 6px;
+    display: none;
+  }
+  .nav-group.open .nav-steps { display: block; }
+  .nav-steps a {
+    display: block;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    padding: 8px 10px 8px 14px;
+    border-radius: 8px;
+    font-size: .92rem;
+    line-height: 1.35;
+    border-left: 3px solid transparent;
+    transition: background var(--ease), color var(--ease), border-color var(--ease);
+  }
+  .nav-steps a:hover { background: rgba(255,255,255,.06); }
+  .nav-steps a.active {
+    background: rgba(251,146,60,.14);
+    color: var(--sidebar-active);
+    border-left-color: var(--sidebar-active);
+    font-weight: 600;
+  }
+  .nav-steps .n {
+    display: inline-block;
+    min-width: 1.4em;
+    color: var(--sidebar-muted);
+    font-size: .8em;
+    font-variant-numeric: tabular-nums;
+  }
+  .nav-steps a.active .n { color: var(--sidebar-active); }
+
+  /* Main */
+  .main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .index-btn {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .crumb {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .crumb .chapter {
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .crumb .step-name {
+    font-weight: 700;
+    font-size: .95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .progress {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: .82rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .panel-wrap {
+    flex: 1;
+    padding: 24px 24px 32px;
+    max-width: 980px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .panel {
+    display: none;
+    animation: fadeIn .18s ease;
+  }
+  .panel.active { display: block; }
+  .panel[hidden] { display: none !important; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panel { animation: none; }
+    * { transition: none !important; }
+  }
+
+  .panel-header {
+    margin-bottom: 18px;
+  }
+  .panel-header h1 {
+    margin: 0 0 6px;
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+    line-height: 1.25;
+    outline: none;
+  }
+  .panel-header .lead {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  .content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .content > *:first-child { margin-top: 0; }
+  .content > *:last-child { margin-bottom: 0; }
+  .content p, .content li { color: var(--text); }
+  .content ul, .content ol { padding-left: 1.25rem; }
+  .content li + li { margin-top: 4px; }
+
+  .note, .good, .alert {
+    padding: 10px 14px;
+    border-radius: 0 10px 10px 0;
+    margin: 14px 0;
+  }
+  .note { border-left: 4px solid var(--warn); background: var(--warn-soft); }
+  .good { border-left: 4px solid var(--ok); background: var(--ok-soft); }
+  .alert { border-left: 4px solid var(--bad); background: var(--bad-soft); }
+
+  details.extra {
+    margin: 14px 0 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--code-bg);
+  }
+  details.extra > summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    font-weight: 600;
+    list-style: none;
+  }
+  details.extra > summary::-webkit-details-marker { display: none; }
+  details.extra > summary::after {
+    content: "▾";
+    float: right;
+    color: var(--muted);
+  }
+  details.extra[open] > summary::after { content: "▴"; }
+  details.extra .extra-body { padding: 0 14px 14px; }
+
+  .devices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .devices .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .devices strong { display: block; color: var(--accent); margin-bottom: 4px; }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 14px 0;
+    font-size: .92rem;
+  }
+  .flow span {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-weight: 600;
+  }
+  .flow i { color: var(--muted); font-style: normal; }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0; -webkit-overflow-scrolling: touch; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .93rem;
+    min-width: 480px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); }
+  .ok { color: var(--ok); font-weight: 700; white-space: nowrap; }
+
+  figure.shot {
+    margin: 16px 0 8px;
+  }
+  figure.shot button.zoom {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    cursor: zoom-in;
+    overflow: hidden;
+  }
+  figure.shot.tall button.zoom { max-width: 380px; }
+  figure.shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+  figcaption {
+    color: var(--muted);
+    font-size: .85rem;
+    margin-top: 6px;
+    max-width: 720px;
+  }
+  figure.shot.tall figcaption { max-width: 380px; }
+
+  .pager {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .pager button {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    box-shadow: var(--shadow);
+    transition: border-color var(--ease), transform var(--ease);
+  }
+  .pager button:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+  .pager button:disabled {
+    opacity: .45;
+    cursor: default;
+  }
+  .pager .next { text-align: right; }
+  .pager .dir {
+    display: block;
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .pager .title {
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.3;
+  }
+  .footer-note {
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: .82rem;
+  }
+
+  /* Mobile drawer */
+  .backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .5);
+    z-index: 45;
+  }
+  body.nav-open .backdrop { display: block; }
+
+  /* Lightbox */
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(8, 10, 16, .92);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: min(96vw, 1200px);
+    max-height: 88vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  .lightbox-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.25);
+    background: rgba(255,255,255,.1);
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .lightbox-caption {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #cbd5e1;
+    font-size: .9rem;
+    max-width: 90vw;
+    text-align: center;
+  }
+  body.lb-open { overflow: hidden; }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0;
+      width: min(88vw, 320px);
+      transform: translateX(-105%);
+      transition: transform var(--ease);
+      box-shadow: 20px 0 40px rgba(0,0,0,.35);
+    }
+    body.nav-open .sidebar { transform: none; }
+    .index-btn { display: inline-flex; }
+    .panel-wrap { padding: 16px 14px 28px; }
+    .content { padding: 16px; }
+    .pager { grid-template-columns: 1fr; }
+    .pager .next { text-align: left; }
+  }
+
+  @media print {
+    .sidebar, .topbar, .pager, .index-btn, .backdrop, .lightbox { display: none !important; }
+    .app { display: block; }
+    .panel, .panel[hidden] { display: block !important; page-break-after: always; animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="backdrop" id="backdrop" hidden></div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Índice de la guía">
+    <div class="sidebar-brand">
+      <div class="mark">Mi Cancha</div>
+      <p>Torneo de Karate WKF · Guía operativa</p>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav" aria-label="Pasos del tutorial">
+      <!-- filled by JS from data-chapters -->
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="index-btn" id="indexBtn" aria-expanded="false" aria-controls="sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        Índice
+      </button>
+      <div class="crumb" aria-live="polite">
+        <span class="chapter" id="crumbChapter">Introducción</span>
+        <span class="step-name" id="crumbStep">Estado del sistema</span>
+      </div>
+      <div class="progress" id="progressLabel">1 / 31</div>
+    </header>
+
+    <div class="panel-wrap" id="panelWrap">
+
+      <!-- ========== INTRODUCCIÓN ========== -->
+      <article class="panel active" data-id="estado" data-chapter="intro" data-title="Estado del sistema" tabindex="-1">
+        <div class="panel-header">
+          <h1>Estado del sistema</h1>
+          <p class="lead">Qué está operativo en Mi Cancha para un torneo de karate WKF.</p>
+        </div>
+        <div class="content">
+          <p>Flujo probado de punta a punta con el torneo «XIII Torneo Internacional Seigokan [PRUEBA]»: 4 categorías de la carta de invitación, 5 dojos (Paraguay, Argentina, Brasil y Chile) y 20 atletas de prueba.</p>
+          <div class="flow">
+            <span>Crear</span><i>→</i>
+            <span>Configurar</span><i>→</i>
+            <span>Inscribir</span><i>→</i>
+            <span>Pesaje</span><i>→</i>
+            <span>Llaves</span><i>→</i>
+            <span>Mesa</span><i>→</i>
+            <span>Video Review</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Etapa</th><th>Estado</th><th>Qué hace</th></tr>
+              <tr><td>Crear campeonato</td><td class="ok">Funciona</td><td>Nombre, formato WKF, fechas, sede y categorías con divisiones.</td></tr>
+              <tr><td>Datos, sede y visibilidad</td><td class="ok">Funciona</td><td>Se guardan solos; el mapa respeta el nombre del lugar.</td></tr>
+              <tr><td>Inscripción de dojos y atletas</td><td class="ok">Funciona</td><td>Dojos «Pendiente de confirmar» / «Confirmado».</td></tr>
+              <tr><td>Check-in y báscula WKF</td><td class="ok">Funciona</td><td>Tolerancia ±1 kg; si excede, descalifica y da walkover.</td></tr>
+              <tr><td>Agrupación WKF</td><td class="ok">Funciona</td><td>Ubica a cada atleta por género, edad, modalidad y peso.</td></tr>
+              <tr><td>Sorteo de llaves</td><td class="ok">Funciona</td><td>Byes, compañeros de dojo separados y tatami fijo.</td></tr>
+              <tr><td>Mesa Kumite y Kata</td><td class="ok">Funciona</td><td>Kumite por puntos; Kata por banderas. El ganador avanza solo.</td></tr>
+              <tr><td>Marcador TV y Video Review</td><td class="ok">Funciona</td><td>Sincronizados en tiempo real; VR exige sesión iniciada.</td></tr>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <!-- ========== PREPARACIÓN: CREAR ========== -->
+      <article class="panel" hidden data-id="crear" data-chapter="prep" data-title="Entrar a Mis campeonatos" tabindex="-1">
+        <div class="panel-header">
+          <h1>Entrar a Mis campeonatos</h1>
+          <p class="lead">Punto de partida del organizador para crear o gestionar un torneo.</p>
+        </div>
+        <div class="content">
+          <p>Con la cuenta del organizador abrí <b>Mis campeonatos</b>. Ahí se listan los torneos existentes y el botón para crear uno nuevo. El administrador puede entrar como organizador desde <code>/admin</code> → <b>Organizadores</b> → clic en la fila.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Pantalla Mis campeonatos">
+              <img src="img/01_mis_campeonatos.jpg" alt="Pantalla Mis campeonatos" loading="eager" width="1280" height="720">
+            </button>
+            <figcaption>Listado de campeonatos del organizador.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="crear-tipo" data-chapter="prep" data-title="Elegir tipo de campeonato" tabindex="-1">
+        <div class="panel-header">
+          <h1>Elegir tipo de campeonato</h1>
+          <p class="lead">Usá Campeonato con categorías para karate WKF.</p>
+        </div>
+        <div class="content">
+          <p>Pulsá <span class="btn-label">+ Nuevo Campeonato</span> → <b>Campeonato con categorías</b> (necesario para karate WKF con divisiones de peso/edad).</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Elección del tipo de campeonato">
+              <img src="img/02_tipo_campeonato.jpg" alt="Elección del tipo de campeonato" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="crear-formulario" data-chapter="prep" data-title="Completar datos y categorías" tabindex="-1">
+        <div class="panel-header">
+          <h1>Completar datos y categorías</h1>
+          <p class="lead">Nombre, formato WKF, fechas, sede y divisiones de la carta de invitación.</p>
+        </div>
+        <div class="content">
+          <p>Nombre, deporte <b>Karate</b>, formato <b>Sistema Oficial WKF</b>, <b>fecha de inicio y fin</b> y <b>sede</b>. Luego, con <span class="btn-label">Agregar Categoría</span> y <span class="btn-label">Nueva División</span>, cargá las categorías de la carta de invitación.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Formulario de creación">
+              <img src="img/03_formulario_creacion.jpg" alt="Formulario de creación con fechas y sede" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+          <details class="extra">
+            <summary>Cómo nombrar las categorías para la agrupación automática</summary>
+            <div class="extra-body">
+              <div class="note" style="margin-top:10px">
+                Incluí la <b>modalidad</b> (Kata / Kumite), el <b>género</b> (Femenino / Masculino) y la <b>edad</b> («14-15 años», «Cadete», «Junior», «Senior», «Sub-21»); el <b>peso</b> va en la división («-54 kg», «+75 kg»).
+                Ejemplos: <i>Kumite Cadete Femenino (14-15 años)</i> → <i>-54 kg</i> · <i>Kata Senior Femenino</i> → <i>Oficial WKF</i>.
+              </div>
+            </div>
+          </details>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="crear-confirmado" data-chapter="prep" data-title="Confirmar que quedó creado" tabindex="-1">
+        <div class="panel-header">
+          <h1>Confirmar que quedó creado</h1>
+          <p class="lead">El campeonato aparece en el listado; entrás con Gestionar.</p>
+        </div>
+        <div class="content">
+          <p>Al guardar, el campeonato aparece en el listado. Desde ahí entrás con <b>Gestionar →</b>.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Campeonato creado">
+              <img src="img/04_campeonato_creado.jpg" alt="Campeonato creado en el listado" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>El torneo de prueba aparece junto a los demás campeonatos.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="crear-panel" data-chapter="prep" data-title="Panel del torneo" tabindex="-1">
+        <div class="panel-header">
+          <h1>Panel del torneo</h1>
+          <p class="lead">Menú lateral del campeonato: el armado se hace desde Configuración.</p>
+        </div>
+        <div class="content">
+          <p>Al gestionar, se abre el panel con menú lateral: Inicio, Partidos, Transmisión, Configuración, etc. Todo el armado del torneo se hace desde <b>Configuración</b>.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Panel del torneo">
+              <img src="img/05_panel_torneo.jpg" alt="Panel de inicio del torneo" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <!-- ========== PREPARACIÓN: CONFIG ========== -->
+      <article class="panel" hidden data-id="config" data-chapter="prep" data-title="Configuración" tabindex="-1">
+        <div class="panel-header">
+          <h1>Configuración</h1>
+          <p class="lead">Centro de ajustes del campeonato; los cambios se guardan solos.</p>
+        </div>
+        <div class="content">
+          <p>Menú <b>Configuración</b>. Los cambios se guardan solos.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Configuración">
+              <img src="img/06_configuracion.jpg" alt="Pantalla de Configuración del torneo" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="config-localizacion" data-chapter="prep" data-title="Ubicar la sede en el mapa" tabindex="-1">
+        <div class="panel-header">
+          <h1>Ubicar la sede en el mapa</h1>
+          <p class="lead">Establecé la localización presencial del campeonato.</p>
+        </div>
+        <div class="content">
+          <p><b>Ubicación</b> → «Campeonato jugado en persona» → <span class="btn-label">Establecer localización</span>: buscá la ciudad o hacé clic en el mapa y <span class="btn-label">Guardar</span>. El nombre del lugar que escribiste se mantiene.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Localización">
+              <img src="img/07_localizacion.jpg" alt="Diálogo de localización con mapa" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="config-modalidad" data-chapter="prep" data-title="Modalidad Por atleta y visibilidad" tabindex="-1">
+        <div class="panel-header">
+          <h1>Modalidad «Por atleta» y visibilidad</h1>
+          <p class="lead">Inscripción por atleta y campeonato público o privado.</p>
+        </div>
+        <div class="content">
+          <p><b>Modalidad de Inscripción</b> → <b>Por atleta</b> (cada atleta de un dojo puede ir a una categoría distinta). En <b>Divulgación</b>, «Campeonato privado» apagado = torneo público.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Datos básicos listos">
+              <img src="img/08_datos_basicos_listos.jpg" alt="Fechas, sede y modalidad configuradas" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <!-- ========== PARTICIPANTES ========== -->
+      <article class="panel" hidden data-id="inscripcion" data-chapter="participantes" data-title="Crear dojos" tabindex="-1">
+        <div class="panel-header">
+          <h1>Crear dojos</h1>
+          <p class="lead">Participantes / Equipos: academias del torneo.</p>
+        </div>
+        <div class="content">
+          <p>Configuración → <b>Participantes / Equipos</b>: escribí el nombre del dojo y <span class="btn-label">Añadir</span>.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Dojos creados">
+              <img src="img/09_dojos_creados.jpg" alt="Lista de dojos creados" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>Dojos / academias cargados en el torneo.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="inscripcion-atletas" data-chapter="participantes" data-title="Cargar atletas en cada dojo" tabindex="-1">
+        <div class="panel-header">
+          <h1>Cargar atletas en cada dojo</h1>
+          <p class="lead">Ficha del dojo: datos del atleta e Inscripción Confirmada.</p>
+        </div>
+        <div class="content">
+          <p>Clic en el dojo (o en su ícono de atletas). En la ficha: nombre, género, formato (<i>Combate</i> = Kumite, <i>Formas</i> = Kata), fecha de nacimiento y <span class="btn-label">Añadir</span>. Completá entrenador, marcá <b>Inscripción Confirmada</b> y <span class="btn-label">Guardar</span>.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Ficha del dojo">
+              <img src="img/10_ficha_dojo_atletas.jpg" alt="Ficha del dojo con atletas" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+          <p>Los dojos sin confirmar se ven como «⏳ Pendiente de confirmar»; al confirmar, «✓ Confirmado».</p>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="pesaje" data-chapter="participantes" data-title="Check-in" tabindex="-1">
+        <div class="panel-header">
+          <h1>Check-in</h1>
+          <p class="lead">Registrar peso, estatura opcional y pago confirmado.</p>
+        </div>
+        <div class="content">
+          <p>Configuración → <b>Check-in (Pesaje)</b> → <span class="btn-label">Hacer Check-in</span>: peso, estatura (opcional) y <b>Pago Confirmado</b>.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Check-in">
+              <img src="img/11_checkin_pesaje.jpg" alt="Formulario de check-in" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="pesaje-bascula" data-chapter="participantes" data-title="Báscula oficial WKF" tabindex="-1">
+        <div class="panel-header">
+          <h1>Báscula oficial WKF (±1 kg)</h1>
+          <p class="lead">Pesaje Oficial con tolerancia reglamentaria y habilitación en la llave.</p>
+        </div>
+        <div class="content">
+          <p>En <b>Llaves / Combates</b> → <span class="btn-label">Pesaje Oficial (±1kg / Walkover)</span>. La báscula toma el <b>límite de la división</b> del atleta (conviene usarla después de <i>Agrupar</i>) y solo ofrece los pesos de este torneo.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Báscula oficial">
+              <img src="img/36_bascula.jpg" alt="Báscula oficial WKF" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Atleta apto">
+              <img src="img/12_bascula_wkf.jpg" alt="Atleta apto en báscula" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>Si el peso está dentro del límite + tolerancia: <b>APTO PARA COMPETIR</b>.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="pesaje-sobrepeso" data-chapter="participantes" data-title="Sobrepeso y walkover" tabindex="-1">
+        <div class="panel-header">
+          <h1>Sobrepeso → descalificación y walkover</h1>
+          <p class="lead">Si excede el límite + 1 kg, el rival avanza por W.O.</p>
+        </div>
+        <div class="content">
+          <p>Si el peso supera el límite + 1 kg, el atleta queda <b>descalificado</b> y su rival <b>avanza por walkover</b>. Si todavía no tiene división, la báscula pide elegir el límite antes de evaluar.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Peso excedido">
+              <img src="img/13_bascula_wkf_sobrepeso.jpg" alt="Peso excedido en báscula" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>Ejemplo: 55,8 kg con límite efectivo 51,0 kg → descalificar y otorgar W.O.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <!-- ========== PROGRAMACIÓN ========== -->
+      <article class="panel" hidden data-id="llaves" data-chapter="programacion" data-title="Pantalla de agrupación" tabindex="-1">
+        <div class="panel-header">
+          <h1>Pantalla de agrupación</h1>
+          <p class="lead">Llaves / Combates (Programación): agrupar, pesar, sortear y programar.</p>
+        </div>
+        <div class="content">
+          <p>Configuración → <b>Llaves / Combates (Programación)</b>. Desde acá se agrupa, se pesa, se sortea y se programa a mano.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Gestionar Agrupación">
+              <img src="img/14_agrupacion_llaves.jpg" alt="Pantalla Gestionar Agrupación" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="llaves-agrupar" data-chapter="programacion" data-title="Agrupar por WKF" tabindex="-1">
+        <div class="panel-header">
+          <h1>Agrupar por WKF</h1>
+          <p class="lead">Clasificación automática por género, edad, modalidad y peso.</p>
+        </div>
+        <div class="content">
+          <p>Pulsá <span class="btn-label">Agrupar por WKF</span>. Cada atleta queda en su división según género, edad a la fecha del torneo, modalidad y peso del check-in. Los que no encajan aparecen con el motivo.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Resultado agrupación WKF">
+              <img src="img/30_agrupacion_wkf.jpg" alt="Resultado de la agrupación WKF" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>19 atletas en 4 divisiones. Sofía Benítez (55,8 kg) queda fuera de −54 kg por peso excedido.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="llaves-sorteo" data-chapter="programacion" data-title="Sorteo de llaves" tabindex="-1">
+        <div class="panel-header">
+          <h1>Sorteo de llaves</h1>
+          <p class="lead">Sorteo de Llaves WKF con byes, separación de dojo y tatami fijo.</p>
+        </div>
+        <div class="content">
+          <p>Elegí la cantidad de <b>Tatamis</b> y pulsá <span class="btn-label">Sorteo de Llaves WKF</span>. Se arma una llave de eliminación directa por división:</p>
+          <ul>
+            <li><b>Byes</b> automáticos cuando la cantidad de atletas no es potencia de 2.</li>
+            <li><b>Compañeros de dojo separados</b> en la primera ronda.</li>
+            <li><b>Tatami fijo</b> por división, repartiendo la carga.</li>
+            <li>AKA (rojo) arriba, AO (azul) abajo.</li>
+          </ul>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Llaves sorteadas">
+              <img src="img/31_llaves_sorteo.jpg" alt="Llaves de Kata y Cadete Femenino" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Llave Senior">
+              <img src="img/32_llave_senior.jpg" alt="Llave Senior Masculino con byes" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>Senior −75 kg (5 atletas): un cuarto de final, tres byes y semifinales listas.</figcaption>
+          </figure>
+          <p>Repetir el sorteo <b>no duplica</b> llaves: las divisiones que ya tienen llave se respetan.</p>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="llaves-manual" data-chapter="programacion" data-title="Programar combate manual" tabindex="-1">
+        <div class="panel-header">
+          <h1>Programar combate manual</h1>
+          <p class="lead">Casos especiales: Programar Manual por división y ronda.</p>
+        </div>
+        <div class="content">
+          <p><span class="btn-label">Programar Manual</span> filtra atletas por división, pide tatami/ronda y permite armar un combate puntual (por ejemplo una semifinal).</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Programar combate">
+              <img src="img/15_programar_combate_manual.jpg" alt="Diálogo Programar Nuevo Combate" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Llaves programadas">
+              <img src="img/16_llaves_programadas.jpg" alt="Llaves programadas por división" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>Combates ya visibles por división (−54 kg, etc.).</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <!-- ========== TATAMI ========== -->
+      <article class="panel" hidden data-id="mesa" data-chapter="tatami" data-title="Mesa de control" tabindex="-1">
+        <div class="panel-header">
+          <h1>Mesa de control</h1>
+          <p class="lead">Panel de arbitraje: tatami, combate, Marcador TV, Cámara y Juez VR.</p>
+        </div>
+        <div class="content">
+          <p>Abrí <code>https://micancha.com.py/torneos/&lt;ID&gt;/arbitraje/combate?tatami=1</code>. Arriba se elige <b>tatami</b> y <b>combate</b>; solo aparecen los combates con ambos rivales definidos, en orden de ronda. Los botones <span class="btn-label">Marcador TV</span>, <span class="btn-label">Cámara</span> y <span class="btn-label">Juez VR</span> abren cada estación conectada a ese combate.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Mesa de control">
+              <img src="img/17_mesa_control.jpg" alt="Mesa de control WKF" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="mesa-kumite" data-chapter="tatami" data-title="Kumite" tabindex="-1">
+        <div class="panel-header">
+          <h1>Kumite</h1>
+          <p class="lead">HAJIME, puntos Yuko / Waza-ari / Ippon, Senshu y avance en la llave.</p>
+        </div>
+        <div class="content">
+          <p><span class="btn-label">HAJIME</span> arranca el reloj; +1 Yuko, +2 Waza-ari y +3 Ippon puntúan; Senshu se asigna solo al primer punto. Al terminar, estado <b>FINALIZADO</b>. El ganador (por puntos o, en empate, por Senshu, Ippon y Waza-ari) <b>pasa solo al combate siguiente</b> de la llave.</p>
+          <figure class="shot tall">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Marcador TV en vivo">
+              <img src="img/18_marcador_tv_en_vivo.jpg" alt="Marcador TV en vivo" loading="lazy" width="720" height="1280">
+            </button>
+            <figcaption>Marcador TV sincronizado durante el combate.</figcaption>
+          </figure>
+          <figure class="shot tall">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Marcador TV final">
+              <img src="img/21_marcador_tv_final.jpg" alt="Marcador TV al finalizar" loading="lazy" width="720" height="1280">
+            </button>
+            <figcaption>Ejemplo final: AKA 5 – AO 3, con Senshu en rojo.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="mesa-kata" data-chapter="tatami" data-title="Kata" tabindex="-1">
+        <div class="panel-header">
+          <h1>Kata</h1>
+          <p class="lead">Mesa de Kata: banderas o calificación decimal.</p>
+        </div>
+        <div class="content">
+          <p>Los combates de divisiones de Kata se abren automáticamente con la <b>mesa de Kata</b>: votación por banderas (3, 5 o 7 jueces) o calificación decimal. <span class="btn-label">Guardar calificación oficial</span> registra el ganador y lo pasa a la ronda siguiente.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Mesa de Kata">
+              <img src="img/35_mesa_kata.jpg" alt="Mesa de jueces de Kata" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="vr" data-chapter="tatami" data-title="Preparar Video Review" tabindex="-1">
+        <div class="panel-header">
+          <h1>Preparar las estaciones de Video Review</h1>
+          <p class="lead">Mesa, Marcador TV, Cámara y Juez VR en el mismo combate.</p>
+        </div>
+        <div class="content">
+          <div class="good"><b>✔ Flujo completo operativo.</b> Pedido, pausa, aviso en todas las pantallas, clip de cámara, veredicto, puntos y bloqueo de tarjeta VR.</div>
+          <p>Dispositivos necesarios (todos en el <b>mismo combate</b>, con internet estable):</p>
+          <div class="devices">
+            <div class="card"><strong>Mesa de control</strong>Notebook o PC con el panel de arbitraje. Maneja crono, puntos y la tarjeta VR.</div>
+            <div class="card"><strong>Cámara del tatami</strong>Celular o webcam. Graba los últimos ~45 segundos.</div>
+            <div class="card"><strong>Tablet del Juez VR</strong>Recibe el pedido, reproduce el clip y emite el veredicto.</div>
+            <div class="card"><strong>Marcador TV</strong>Pantalla pública del tatami. Muestra el aviso «VIDEO REVIEW».</div>
+          </div>
+          <ol>
+            <li>En la mesa: elegí tatami y combate.</li>
+            <li>Abrí <span class="btn-label">Marcador TV</span> en la TV (pantalla completa).</li>
+            <li>Abrí <span class="btn-label">Cámara</span> en el celular/webcam; permití el acceso y esperá ~45 s de búfer.</li>
+            <li>Abrí <span class="btn-label">Juez VR</span> en la tablet. Debe decir <b>«Conectado · Match &lt;ID&gt;»</b> con el mismo ID de la mesa.</li>
+            <li>Prueba rápida: en la cámara, <span class="btn-label">⚡ Disparar Replay Ahora (Prueba)</span> — el clip debe verse en la tablet.</li>
+          </ol>
+          <div class="note">Cuando cambies de combate en la mesa, volvé a abrir <b>cámara</b> y <b>Juez VR</b> desde sus botones: quedan atados al ID con el que se abrieron.</div>
+          <div class="alert"><b>Sesión:</b> la tablet del juez y la cámara deben tener <b>sesión iniciada</b> con la cuenta del organizador (<code>micancha.com.py/torneos/login</code>). El Marcador TV no necesita sesión.</div>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="vr-pedido" data-chapter="tatami" data-title="Pedido del coach" tabindex="-1">
+        <div class="panel-header">
+          <h1>Pedido del coach</h1>
+          <p class="lead">VR Card: DISP. y técnica reclamada; el combate se pausa.</p>
+        </div>
+        <div class="content">
+          <p>El coach de <span class="aka">AKA</span> o <span class="ao">AO</span> levanta su tarjeta VR. La mesa pulsa <span class="btn-label">VR Card: DISP.</span> en ese lado y elige la <b>técnica reclamada</b> (Yuko, Waza-ari, Ippon o Senshu). Automáticamente:</p>
+          <ul>
+            <li>el cronómetro se pausa;</li>
+            <li>el Marcador TV muestra <b>VIDEO REVIEW</b>;</li>
+            <li>la cámara envía los últimos segundos a la tablet;</li>
+            <li>la tablet muestra quién pidió el VR y arranca la cuenta de <b>30 s</b>.</li>
+          </ul>
+          <p>Si el botón dice <span class="btn-label">VR Card: BLOQ.</span>, ese coach ya perdió el derecho a VR en este combate.</p>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Técnica reclamada">
+              <img src="img/33_vr_tecnica.jpg" alt="Selector de técnica reclamada" loading="lazy" width="1280" height="720">
+            </button>
+          </figure>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="vr-veredicto" data-chapter="tatami" data-title="Veredicto del Juez VR" tabindex="-1">
+        <div class="panel-header">
+          <h1>Veredicto del Juez VR</h1>
+          <p class="lead">Aceptado, Rechazado o Mienai; luego Hajime en la mesa.</p>
+        </div>
+        <div class="content">
+          <p>En la tablet se reproduce el clip (pausa y cuadro a cuadro). Botones:</p>
+          <ul>
+            <li><span class="btn-label">+1/+2/+3/SENSHU</span> → <b>aceptado</b>: suma puntos y el coach <b>conserva</b> la tarjeta.</li>
+            <li><span class="btn-label">✗ RECHAZADO</span> → sin puntos; el coach <b>pierde</b> la tarjeta.</li>
+            <li><span class="btn-label">👁 MIENAI</span> → no visible: sin puntos; el coach <b>conserva</b> la tarjeta.</li>
+          </ul>
+          <figure class="shot tall">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Tablet Juez VR">
+              <img src="img/19_juez_vr_solicitud.jpg" alt="Tablet del Juez VR" loading="lazy" width="720" height="1280">
+            </button>
+          </figure>
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: VR resuelto en mesa">
+              <img src="img/20_mesa_vr_resuelto_final.jpg" alt="Mesa con VR resuelto aceptado" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>La mesa muestra «VR Resuelto: ACEPTADO» y el marcador actualizado. El crono <b>no</b> se reanuda solo: pulsá <span class="btn-label">Hajime</span>.</figcaption>
+          </figure>
+          <details class="extra">
+            <summary>Resumen de reglas y tarjeta VR</summary>
+            <div class="extra-body">
+              <div class="table-wrap">
+                <table>
+                  <tr><th>Veredicto</th><th>Puntos</th><th>Tarjeta VR</th></tr>
+                  <tr><td>Aceptado (WKF)</td><td>Yuko +1 · Waza-ari +2 · Ippon +3 · Senshu</td><td>La conserva</td></tr>
+                  <tr><td>Rechazado</td><td>Ninguno</td><td>La pierde en este combate</td></tr>
+                  <tr><td>Mienai</td><td>Ninguno</td><td>La conserva</td></tr>
+                </table>
+              </div>
+              <p>Solo puede haber <b>un VR abierto a la vez</b> por combate. Para rehabilitar una tarjeta bloqueada, la mesa pulsa <span class="btn-label">VR Card: BLOQ.</span> en ese lado.</p>
+            </div>
+          </details>
+        </div>
+      </article>
+
+      <!-- ========== CIERRE ========== -->
+      <article class="panel" hidden data-id="dia" data-chapter="cierre" data-title="Checklist del día del torneo" tabindex="-1">
+        <div class="panel-header">
+          <h1>Checklist del día del torneo</h1>
+          <p class="lead">Lista rápida antes de abrir los tatamis.</p>
+        </div>
+        <div class="content">
+          <ol>
+            <li>Inscripciones cerradas y dojos <b>confirmados</b>.</li>
+            <li>Check-in de todos los atletas (peso y pago).</li>
+            <li><span class="btn-label">Agrupar por WKF</span> y revisar la lista «sin categoría».</li>
+            <li>Báscula oficial para los casos dudosos (walkover automático si excede).</li>
+            <li><span class="btn-label">Sorteo de Llaves WKF</span> con la cantidad de tatamis disponible.</li>
+            <li>En cada tatami: notebook con la mesa, TV con el marcador, tablet del Juez VR y celular con la cámara — <b>todos con sesión iniciada</b> salvo la TV.</li>
+            <li>Prueba rápida de la cámara con «⚡ Disparar Replay Ahora (Prueba)».</li>
+          </ol>
+        </div>
+      </article>
+
+      <!-- ========== GUÍA DE USO DE LA PLATAFORMA DE WKF ========== -->
+      <article class="panel" hidden data-id="wkf-plataforma" data-chapter="wkf" data-title="Ecosistema y Red WKF" tabindex="-1">
+        <div class="panel-header">
+          <h1>Ecosistema Digital y Arquitectura de Red WKF</h1>
+          <p class="lead">Cómo interactúan en tiempo real los cuatro terminales de cada tatami.</p>
+        </div>
+        <div class="content">
+          <p>La plataforma oficial de Karate WKF en <b>Mi Cancha</b> opera con sincronización bidireccional instantánea por <b>WebSockets</b> (puerto seguro <code>wss://</code>). Cada tatami cuenta con cuatro terminales conectados al mismo combate (<code>match_id</code>):</p>
+          
+          <div class="devices">
+            <div class="card">
+              <strong>1. Mesa Arbitral Oficial</strong>
+              <code>/arbitraje/combate?tatami=N</code>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">Cronómetro oficial, puntuación WKF (+1/+2/+3), Senshu, penalizaciones C1/C2 y botón de apelación VR.</p>
+            </div>
+            <div class="card">
+              <strong>2. Marcador TV de Tatami</strong>
+              <code>/tatami/N</code>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">Proyectado en TV/HDMI full screen (F11). Puntaje gigante, tiempo, banderas AKA/AO, estado VR y banner de revisión.</p>
+            </div>
+            <div class="card">
+              <strong>3. Cámara Web Nativa</strong>
+              <code>/tatami/N/camara</code>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">Smartphone en trípode. Búfer rodante en RAM de 45 segundos sin instalar software. Sube el clip en &lt; 1s.</p>
+            </div>
+            <div class="card">
+              <strong>4. Tablet del Juez VR</strong>
+              <code>/vr-station?tatami=N</code>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">Tablet táctil. Timer de deliberación de 30s, cámara lenta 0.25x/0.5x, avance frame a frame y veredictos oficiales.</p>
+            </div>
+          </div>
+
+          <div class="good">
+            <b>Conexión en Red Recomendada:</b> Usar un router Wi-Fi dedicado de 5 GHz para las mesas, tablets y celulares de cámara, con latencia menor a 50 ms.
+          </div>
+
+          <div class="note">
+            <b>Autenticación:</b> La mesa arbitral, la cámara web y la tablet del Juez VR requieren tener iniciada la sesión del organizador en <code>micancha.com.py/torneos/login</code>. La pantalla pública Marcador TV no requiere login.
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="wkf-reglamento-kumite" data-chapter="wkf" data-title="Reglamento WKF Kumite" tabindex="-1">
+        <div class="panel-header">
+          <h1>Reglamento Kumite WKF (Puntuación, Senshu y Desempates)</h1>
+          <p class="lead">Criterios oficiales de puntuación, penalizaciones y resolución de combates.</p>
+        </div>
+        <div class="content">
+          <p>El motor de puntuación de Mi Cancha implementa estrictamente las reglas oficiales de la <b>World Karate Federation (WKF)</b>:</p>
+
+          <div class="table-wrap">
+            <table>
+              <tr><th>Técnica</th><th>Kanji</th><th>Puntos</th><th>Criterio Oficial WKF</th><th>Tecla en Mesa</th></tr>
+              <tr><td><b>Yuko</b></td><td>有効</td><td><b>1 pt</b></td><td>Puñetazo directo (Tsuki) a zona permitida del tronco o cabeza con Zanshin y buena forma.</td><td><code>1</code> (AKA) · <code>7</code> (AO)</td></tr>
+              <tr><td><b>Waza-Ari</b></td><td>技あり</td><td><b>2 pts</b></td><td>Patadas (Geri) al cuerpo (Chudan) o barrido/derribo controlado sin golpe de remate.</td><td><code>2</code> (AKA) · <code>8</code> (AO)</td></tr>
+              <tr><td><b>Ippon</b></td><td>一本</td><td><b>3 pts</b></td><td>Patadas a la cabeza (Jodan) o barrido/derribo con técnica de golpe de remate al suelo.</td><td><code>3</code> (AKA) · <code>9</code> (AO)</td></tr>
+              <tr><td><b>Senshu</b></td><td>先取</td><td><b>Ventaja</b></td><td>Primer punto válido marcado en el combate sin oposición simultánea.</td><td>Automático (o manual)</td></tr>
+            </table>
+          </div>
+
+          <div class="note">
+            <b>Regla de Senshu (Art. 1.4 WKF):</b> Si el combate termina empatado, el competidor con Senshu gana automáticamente. Si el atleta que tiene Senshu acumula 2 o más sanciones graves o Hansoku-Chui, el sistema <b>anula el Senshu automáticamente</b>.
+          </div>
+
+          <div class="alert">
+            <b>Superioridad Técnica de 8 Puntos (Art. 8 WKF):</b> Cuando la diferencia de puntos entre ambos atletas alcanza 8 puntos (ej. 8-0, 9-1), el sistema detiene inmediatamente el cronómetro y declara la victoria anticipada por superioridad técnica.
+          </div>
+
+          <div class="extra-body" style="padding:0; margin-top:14px">
+            <p><b>Resolución de Empates Oficial WKF (Jerarquía al sonar el reloj):</b></p>
+            <ol>
+              <li><b>1. Senshu:</b> Si un competidor tiene la ventaja de Senshu, se le declara ganador.</li>
+              <li><b>2. Mayor cantidad de Ippons:</b> Si no hay Senshu, gana quien haya anotado más Ippons (3 pts).</li>
+              <li><b>3. Mayor cantidad de Waza-Aris:</b> Si persiste igualdad, gana quien tenga más Waza-Aris (2 pts).</li>
+              <li><b>4. Decisión Arbitral (Hantei):</b> Si persiste igualdad absoluta, se abre el modal de Hantei en la mesa para votar por banderas.</li>
+            </ol>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="wkf-reglamento-kata" data-chapter="wkf" data-title="Reglamento WKF Kata" tabindex="-1">
+        <div class="panel-header">
+          <h1>Reglamento Kata WKF (Banderas y Calificación Decimal)</h1>
+          <p class="lead">Mesa de jueces de formas para evaluación tradicional o por paneles.</p>
+        </div>
+        <div class="content">
+          <p>Cuando un combate pertenece a una categoría o división de modalidad <b>Kata</b> (Formas), la mesa arbitral abre automáticamente el panel exclusivo de Kata:</p>
+
+          <figure class="shot">
+            <button type="button" class="zoom" aria-label="Ampliar captura: Mesa de jueces de Kata">
+              <img src="img/35_mesa_kata.jpg" alt="Mesa de jueces de Kata" loading="lazy" width="1280" height="720">
+            </button>
+            <figcaption>Panel de votación de Kata con selección de banderas o calificaciones numéricas.</figcaption>
+          </figure>
+
+          <div class="table-wrap">
+            <table>
+              <tr><th>Modalidad de Evaluación</th><th>Panel de Jueces</th><th>Criterio de Victoria</th><th>Uso Habitual</th></tr>
+              <tr><td><b>Votación por Banderas</b></td><td>3, 5 o 7 jueces</td><td>Mayoría simple de banderas levantadas (<span class="aka">AKA</span> o <span class="ao">AO</span>).</td><td>Torneos de iniciación, cadetes y rondas eliminatorias.</td></tr>
+              <tr><td><b>Calificación Decimal WKF</b></td><td>Panel de 5 o 7 jueces</td><td>Puntajes de 5.0 a 10.0 con descarte automático de notas extremas (mayor y menor).</td><td>Rondas finales oficiales WKF y torneos internacionales.</td></tr>
+            </table>
+          </div>
+
+          <div class="good">
+            <b>Avance Automático:</b> Al pulsar <span class="btn-label">Guardar calificación oficial</span>, el sistema registra el acta oficial, define al vencedor y lo posiciona en la siguiente ronda de la llave.
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="wkf-vr-protocolo" data-chapter="wkf" data-title="Protocolo Oficial de Video Review (VR)" tabindex="-1">
+        <div class="panel-header">
+          <h1>Protocolo de Video Review WKF (Art. 9)</h1>
+          <p class="lead">Gestión de tarjetas de apelación, tiempos de deliberación y veredictos.</p>
+        </div>
+        <div class="content">
+          <p>El sistema digitaliza el <b>Artículo 9 del Reglamento WKF</b> para garantizar transparencia absoluta en reclamos de esquina:</p>
+
+          <div class="flow">
+            <span>Coach levanta tarjeta</span><i>→</i>
+            <span>Mesa pulsa VR Card</span><i>→</i>
+            <span>Pausa automática</span><i>→</i>
+            <span>Subida de clip &lt; 1s</span><i>→</i>
+            <span>30s Deliberación</span><i>→</i>
+            <span>Veredicto y Score</span>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <tr><th>Veredicto Oficial</th><th>Criterio del Juez VR</th><th>Efecto en Puntos</th><th>Estado de Tarjeta VR</th></tr>
+              <tr>
+                <td><b style="color:var(--ok)">✓ ACEPTADO</b></td>
+                <td>Se comprueba la técnica reclamada (contacto válido, Zanshin y distancia).</td>
+                <td>Se otorgan los puntos elegidos (+1 Yuko, +2 Waza-Ari, +3 Ippon o Senshu).</td>
+                <td><span class="btn-label" style="color:var(--ok)">✓ Conserva Tarjeta</span> (Puede apelar de nuevo en el combate).</td>
+              </tr>
+              <tr>
+                <td><b style="color:var(--bad)">✗ RECHAZADO</b></td>
+                <td>La técnica no puntuó, golpe fuera de zona o sin control demostrable.</td>
+                <td>Sin puntos para el competidor.</td>
+                <td><span class="btn-label" style="color:var(--bad)">✗ Pierde Tarjeta</span> (Pasa a <code>USED_AND_LOCKED</code> y queda bloqueada).</td>
+              </tr>
+              <tr>
+                <td><b style="color:var(--warn)">👁 MIENAI</b></td>
+                <td>"No visible". Ángulo ciego, cámara tapada por el árbitro central o duda insalvable.</td>
+                <td>Se mantiene la decisión de campo del árbitro central.</td>
+                <td><span class="btn-label" style="color:var(--warn)">✓ Conserva Tarjeta</span> (No se castiga al coach por limitación de cámara).</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="note">
+            <b>Controles de la Tablet del Juez VR:</b>
+            <ul style="margin:6px 0 0; padding-left:1.2rem">
+              <li><code>Velocidad</code>: Botones <code>0.25×</code> y <code>0.5×</code> para cámara lenta.</li>
+              <li><code>⏮ −6s</code>: Salto directo al instante exacto del ataque.</li>
+              <li><code>◀ F / F ▶</code>: Avance y retroceso cuadro por cuadro exacto a 30 fps.</li>
+              <li><code>Timer 30s</code>: Cuenta regresiva visual (Verde &rarr; Ámbar a los 10s &rarr; Rojo parpadeante a los 5s).</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="wkf-auditoria-actas" data-chapter="wkf" data-title="Auditoría, Actas y Transmisión" tabindex="-1">
+        <div class="panel-header">
+          <h1>Auditoría, Actas Oficiales y Transmisión Multi-Tatami</h1>
+          <p class="lead">Trazabilidad completa de combates, actas imprimibles y monitoreo de torneos.</p>
+        </div>
+        <div class="content">
+          <p>Durante y al finalizar la jornada, la plataforma Mi Cancha centraliza toda la información técnica para autoridades federativas, dojos y público:</p>
+
+          <div class="devices">
+            <div class="card">
+              <strong>Actas de Combate WKF</strong>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">Generación automática del acta oficial de cada combate con desglose de Yuko, Waza-Ari, Ippon, Senshu, faltas, advertencias y firma arbitral.</p>
+            </div>
+            <div class="card">
+              <strong>Auditoría de Video Reviews</strong>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">En <code>/torneos/[id]/resumen</code> (pestaña Video Reviews): historial completo con timestamps, motivos, resultado (Aceptado/Rechazado/Mienai) y enlace al clip.</p>
+            </div>
+            <div class="card">
+              <strong>Transmisión Multi-Tatami TV</strong>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">En <code>/torneos/[id]/tv-live</code>: pantalla central en cuadrícula (2x2, 2x3 o 1x1) que rota automáticamente entre todos los tatamis con marcadores en vivo.</p>
+            </div>
+            <div class="card">
+              <strong>Medallero en Tiempo Real</strong>
+              <p style="margin:4px 0 0; font-size:.85rem; color:var(--muted)">Clasificación acumulada de dojos y países por medallas de Oro, Plata y Bronce conforme culminan las finales de cada división.</p>
+            </div>
+          </div>
+
+          <div class="good">
+            <b>Guías Complementarias Disponibles en la Plataforma:</b>
+            <ul style="margin:6px 0 0; padding-left:1.2rem">
+              <li><a href="GUIA_OPERATIVA_VIDEO_REVIEW_VR.html" target="_blank">Manual de Operación de Video Review (VR) y Matriz QA</a></li>
+              <li><a href="INSTRUCCIONES_TORNEO_2ed2f229.html" target="_blank">Hoja de Puesto con Enlaces Directos del Torneo</a></li>
+              <li><a href="Sistema_Puntuacion_Oficial_WKF_Karate.html" target="_blank">Especificación del Sistema de Puntuación Oficial WKF</a></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" hidden data-id="problemas" data-chapter="cierre" data-title="Problemas frecuentes (VR)" tabindex="-1">
+        <div class="panel-header">
+          <h1>Problemas frecuentes (VR)</h1>
+          <p class="lead">Síntomas habituales y cómo resolverlos en el tatami.</p>
+        </div>
+        <div class="content">
+          <div class="table-wrap">
+            <table>
+              <tr><th>Síntoma</th><th>Causa probable</th><th>Solución</th></tr>
+              <tr><td>La tablet no recibe el pedido</td><td>Conectada a otro combate</td><td>Abrí de nuevo <span class="btn-label">Juez VR</span> desde la mesa, o pegá el ID del combate en la tablet.</td></tr>
+              <tr><td>La tablet muestra «Sin conexión»</td><td>Wi-Fi o datos caídos</td><td>Revisá internet y recargá la página.</td></tr>
+              <tr><td>Llega el pedido pero no el clip</td><td>Cámara cerrada, otro combate o sin permiso</td><td>Reabrí la cámara desde la mesa y hacé la prueba del paso Preparar Video Review.</td></tr>
+              <tr><td>El clip es muy corto</td><td>Cámara recién abierta</td><td>Abrí la cámara al menos 1 minuto antes.</td></tr>
+              <tr><td>«Ya hay un Video Review activo»</td><td>VR sin veredicto</td><td>Que el Juez VR lo resuelva, o cancelalo desde la API de cancelación.</td></tr>
+              <tr><td>«El coach ya no tiene derecho a VR»</td><td>Perdió un VR antes</td><td>Esperado. Si fue error, rehabilitá la tarjeta desde la mesa.</td></tr>
+              <tr><td>El crono no arranca después del VR</td><td>A propósito</td><td>Pulsá <span class="btn-label">Hajime (Iniciar)</span> en la mesa.</td></tr>
+            </table>
+          </div>
+          <p class="footer-note">
+            Capturas en <code>guia_torneo_karate/img/</code>.
+            Torneo de prueba: <code>38147f75-13ee-482e-a9d4-657c404a322b</code> (organizador Jorge Salgado).
+          </p>
+        </div>
+      </article>
+
+      <nav class="pager" aria-label="Navegación entre pasos">
+        <button type="button" id="prevBtn" disabled>
+          <span class="dir">Anterior</span>
+          <span class="title" id="prevTitle">—</span>
+        </button>
+        <button type="button" class="next" id="nextBtn">
+          <span class="dir">Siguiente</span>
+          <span class="title" id="nextTitle">—</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Captura ampliada" hidden>
+  <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Cerrar captura">×</button>
+  <img id="lightboxImg" alt="">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CHAPTERS = [
+    { id: "intro", label: "Introducción" },
+    { id: "prep", label: "Preparación del torneo" },
+    { id: "participantes", label: "Participantes y categorías" },
+    { id: "programacion", label: "Programación de combates" },
+    { id: "tatami", label: "Operación en tatami" },
+    { id: "wkf", label: "Guía de la plataforma WKF" },
+    { id: "cierre", label: "Día del torneo" }
+  ];
+
+  /* Alias: IDs históricos / enlaces antiguos → panel real */
+  var ALIASES = {
+    "crear-mis-campeonatos": "crear",
+    "config-configuracion": "config",
+    "inscripcion-dojos": "inscripcion",
+    "pesaje-checkin": "pesaje",
+    "llaves-pantalla": "llaves",
+    "mesa-control": "mesa",
+    "vr-preparar": "vr",
+    "vr-estaciones": "vr",
+    "arbitraje": "mesa"
+  };
+
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  var byId = {};
+  panels.forEach(function (p) { byId[p.getAttribute("data-id")] = p; });
+
+  var steps = panels.map(function (p, i) {
+    return {
+      id: p.getAttribute("data-id"),
+      chapter: p.getAttribute("data-chapter"),
+      title: p.getAttribute("data-title"),
+      el: p,
+      index: i
+    };
+  });
+
+  var chapterLabel = {};
+  CHAPTERS.forEach(function (c) { chapterLabel[c.id] = c.label; });
+
+  var sidebarNav = document.getElementById("sidebarNav");
+  var crumbChapter = document.getElementById("crumbChapter");
+  var crumbStep = document.getElementById("crumbStep");
+  var progressLabel = document.getElementById("progressLabel");
+  var prevBtn = document.getElementById("prevBtn");
+  var nextBtn = document.getElementById("nextBtn");
+  var prevTitle = document.getElementById("prevTitle");
+  var nextTitle = document.getElementById("nextTitle");
+  var indexBtn = document.getElementById("indexBtn");
+  var backdrop = document.getElementById("backdrop");
+  var sidebar = document.getElementById("sidebar");
+  var lightbox = document.getElementById("lightbox");
+  var lightboxImg = document.getElementById("lightboxImg");
+  var lightboxCaption = document.getElementById("lightboxCaption");
+  var lightboxClose = document.getElementById("lightboxClose");
+  var currentIndex = 0;
+  var lightboxTrigger = null;
+
+  function buildNav() {
+    sidebarNav.innerHTML = "";
+    CHAPTERS.forEach(function (ch) {
+      var groupSteps = steps.filter(function (s) { return s.chapter === ch.id; });
+      if (!groupSteps.length) return;
+
+      var group = document.createElement("div");
+      group.className = "nav-group";
+      group.setAttribute("data-chapter", ch.id);
+
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "nav-group-btn";
+      btn.setAttribute("aria-expanded", "false");
+      btn.innerHTML = "<span>" + ch.label + "</span><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'><path d='M6 9l6 6 6-6'/></svg>";
+      btn.addEventListener("click", function () {
+        var open = group.classList.toggle("open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+
+      var ul = document.createElement("ul");
+      ul.className = "nav-steps";
+      groupSteps.forEach(function (s) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + s.id;
+        a.setAttribute("data-step", s.id);
+        a.innerHTML = "<span class='n'>" + (s.index + 1) + ".</span> " + escapeHtml(s.title);
+        a.addEventListener("click", function (e) {
+          e.preventDefault();
+          goTo(s.id, true);
+          closeNav();
+        });
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+
+      group.appendChild(btn);
+      group.appendChild(ul);
+      sidebarNav.appendChild(group);
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function resolveId(raw) {
+    if (!raw) return "estado";
+    var id = String(raw).replace(/^#/, "").trim();
+    if (!id) return "estado";
+    if (ALIASES[id]) id = ALIASES[id];
+    if (byId[id]) return id;
+    return "estado";
+  }
+
+  function goTo(rawId, push) {
+    var id = resolveId(rawId);
+    var step = steps.find(function (s) { return s.id === id; });
+    if (!step) step = steps[0];
+
+    currentIndex = step.index;
+    panels.forEach(function (p) {
+      var on = p === step.el;
+      p.classList.toggle("active", on);
+      if (on) p.removeAttribute("hidden");
+      else p.setAttribute("hidden", "");
+    });
+
+    crumbChapter.textContent = chapterLabel[step.chapter] || "";
+    crumbStep.textContent = step.title;
+    progressLabel.textContent = (step.index + 1) + " / " + steps.length;
+
+    /* Sidebar active + expand group */
+    document.querySelectorAll(".nav-steps a").forEach(function (a) {
+      a.classList.toggle("active", a.getAttribute("data-step") === step.id);
+    });
+    document.querySelectorAll(".nav-group").forEach(function (g) {
+      var open = g.getAttribute("data-chapter") === step.chapter;
+      g.classList.toggle("open", open);
+      var btn = g.querySelector(".nav-group-btn");
+      if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    /* Pager */
+    var prev = steps[step.index - 1];
+    var next = steps[step.index + 1];
+    prevBtn.disabled = !prev;
+    nextBtn.disabled = !next;
+    prevTitle.textContent = prev ? prev.title : "—";
+    nextTitle.textContent = next ? next.title : "—";
+
+    /* Scroll + focus */
+    window.scrollTo(0, 0);
+    var heading = step.el.querySelector("h1");
+    if (heading) {
+      heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    }
+
+    var hash = "#" + step.id;
+    if (push) {
+      if (location.hash !== hash) {
+        history.pushState({ id: step.id }, "", hash);
+      }
+    } else if (location.hash !== hash) {
+      history.replaceState({ id: step.id }, "", hash);
+    }
+  }
+
+  function openNav() {
+    document.body.classList.add("nav-open");
+    indexBtn.setAttribute("aria-expanded", "true");
+    backdrop.hidden = false;
+  }
+  function closeNav() {
+    document.body.classList.remove("nav-open");
+    indexBtn.setAttribute("aria-expanded", "false");
+    backdrop.hidden = true;
+  }
+  function toggleNav() {
+    if (document.body.classList.contains("nav-open")) closeNav();
+    else openNav();
+  }
+
+  function openLightbox(btn) {
+    var img = btn.querySelector("img");
+    if (!img) return;
+    lightboxTrigger = btn;
+    lightboxImg.src = img.currentSrc || img.src;
+    lightboxImg.alt = img.alt || "";
+    var cap = btn.parentElement.querySelector("figcaption");
+    lightboxCaption.textContent = cap ? cap.textContent : "";
+    lightbox.hidden = false;
+    lightbox.classList.add("open");
+    document.body.classList.add("lb-open");
+    lightboxClose.focus();
+  }
+  function closeLightbox() {
+    lightbox.classList.remove("open");
+    lightbox.hidden = true;
+    document.body.classList.remove("lb-open");
+    lightboxImg.removeAttribute("src");
+    if (lightboxTrigger) {
+      lightboxTrigger.focus();
+      lightboxTrigger = null;
+    }
+  }
+
+  /* Events */
+  prevBtn.addEventListener("click", function () {
+    if (currentIndex > 0) goTo(steps[currentIndex - 1].id, true);
+  });
+  nextBtn.addEventListener("click", function () {
+    if (currentIndex < steps.length - 1) goTo(steps[currentIndex + 1].id, true);
+  });
+  indexBtn.addEventListener("click", toggleNav);
+  backdrop.addEventListener("click", closeNav);
+  backdrop.removeAttribute("hidden");
+  backdrop.hidden = true;
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("button.zoom");
+    if (btn) {
+      e.preventDefault();
+      openLightbox(btn);
+    }
+  });
+  lightboxClose.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", function (e) {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      if (lightbox.classList.contains("open")) {
+        e.preventDefault();
+        closeLightbox();
+        return;
+      }
+      if (document.body.classList.contains("nav-open")) {
+        e.preventDefault();
+        closeNav();
+      }
+    }
+  });
+
+  window.addEventListener("popstate", function () {
+    goTo(location.hash, false);
+  });
+  window.addEventListener("hashchange", function () {
+    /* Compat file:// / browsers that only fire hashchange */
+    goTo(location.hash, false);
+  });
+
+  buildNav();
+  goTo(location.hash || "estado", false);
+})();
+</script>
+</body>
+</html>
