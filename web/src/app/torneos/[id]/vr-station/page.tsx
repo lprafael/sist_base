@@ -63,6 +63,8 @@ export default function VRStation() {
   const [matchId, setMatchId] = useState<string>("123");
   const [matchInput, setMatchInput] = useState<string>("123");
   const [connected, setConnected] = useState(false);
+  const [partidosTorneo, setPartidosTorneo] = useState<any[]>([]);
+  const [selectedTatami, setSelectedTatami] = useState<number>(1);
 
   const [request, setRequest]   = useState<VRRequest | null>(null);
   const [resultado, setResultado] = useState<Resultado>(null);
@@ -167,17 +169,56 @@ export default function VRStation() {
     }
   }, []);
 
-  // Auto-conectar al montar el componente
+  // Auto-conectar y cargar partidos del torneo al montar el componente
   useEffect(() => {
-    const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    const initialId = urlParams?.get("matchId") || "123";
-    setMatchId(initialId);
-    setMatchInput(initialId);
-    connectWS(initialId);
+    let isMounted = true;
+    const fetchMatches = async () => {
+      try {
+        const res = await fetch(`${API_URL}/cancha/torneos/${torneoId}/partidos`);
+        if (res.ok) {
+          const list = await res.json();
+          if (isMounted && Array.isArray(list) && list.length > 0) {
+            setPartidosTorneo(list);
+            const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+            const qMatchId = urlParams?.get("matchId");
+            const qTatami = urlParams?.get("tatami");
+
+            let targetMatch = null;
+            if (qMatchId) {
+              targetMatch = list.find((p: any) => String(p.id) === String(qMatchId));
+            } else if (qTatami) {
+              targetMatch = list.find((p: any) => String(p.area) === String(qTatami) && p.estado === 'en_curso') || list.find((p: any) => String(p.area) === String(qTatami));
+            }
+            if (!targetMatch) {
+              targetMatch = list.find((p: any) => p.estado === 'en_curso') || list[0];
+            }
+            if (targetMatch) {
+              const mid = String(targetMatch.id);
+              setMatchId(mid);
+              setMatchInput(mid);
+              if (targetMatch.area) setSelectedTatami(Number(targetMatch.area));
+              connectWS(mid);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Error loading matches for VR Station:", err);
+      }
+
+      const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const initialId = urlParams?.get("matchId") || "123";
+      setMatchId(initialId);
+      setMatchInput(initialId);
+      connectWS(initialId);
+    };
+
+    fetchMatches();
     return () => {
+      isMounted = false;
       if (wsRef.current) wsRef.current.close();
     };
-  }, [connectWS]);
+  }, [torneoId, connectWS]);
 
   const handleConnect = () => {
     const id = matchInput.trim();
@@ -287,6 +328,49 @@ export default function VRStation() {
             </div>
           </div>
 
+          {/* Selector rápido de Tatami */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {[1, 2, 3].map(tNum => {
+              const activeMatchForTatami = partidosTorneo.find((p: any) => String(p.area) === String(tNum) && p.estado === 'en_curso') || partidosTorneo.find((p: any) => String(p.area) === String(tNum));
+              const isSelected = selectedTatami === tNum || (activeMatchForTatami && String(activeMatchForTatami.id) === matchId);
+              return (
+                <button
+                  key={tNum}
+                  onClick={() => {
+                    setSelectedTatami(tNum);
+                    if (activeMatchForTatami) {
+                      const mid = String(activeMatchForTatami.id);
+                      setMatchId(mid);
+                      setMatchInput(mid);
+                      connectWS(mid);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 10,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: isSelected ? "linear-gradient(135deg, #f59e0b, #d97706)" : "rgba(255,255,255,0.06)",
+                    color: isSelected ? "#000" : "#cbd5e1",
+                    border: isSelected ? "1px solid #fcd34d" : "1px solid rgba(255,255,255,0.12)",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  <span>🥋 Tatami {tNum}</span>
+                  {activeMatchForTatami && (
+                    <span style={{ fontSize: 10, opacity: isSelected ? 0.9 : 0.6, fontWeight: 600 }}>
+                      {activeMatchForTatami.jugador_local_nombre ? `${activeMatchForTatami.jugador_local_nombre.split(' ')[0]} vs ${activeMatchForTatami.jugador_visitante_nombre ? activeMatchForTatami.jugador_visitante_nombre.split(' ')[0] : 'AO'}` : ''}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
@@ -294,7 +378,7 @@ export default function VRStation() {
               boxShadow: connected ? "0 0 8px #34d39966" : "none",
             }} />
             <span style={{ fontSize: 12, color: connected ? "#34d399" : "#6b7280", fontWeight: 700 }}>
-              {connected ? `Conectado · Match ${matchId}` : "Sin conexión"}
+              {connected ? `Conectado · Tatami ${selectedTatami}` : "Sin conexión"}
             </span>
           </div>
         </div>
