@@ -42,6 +42,7 @@ export default function KarateWKFController({
         jogai: typeof statsObj.local === 'object' ? statsObj.local.jogai || 0 : 0,
         penalizaciones: typeof statsObj.local === 'object' ? statsObj.local.penalizaciones || 0 : 0,
         video_review: typeof statsObj.local === 'object' ? statsObj.local.video_review || 'ACTIVE' : 'ACTIVE',
+        historial: typeof statsObj.local === 'object' && Array.isArray(statsObj.local.historial) ? statsObj.local.historial : [],
       },
       visitante: {
         puntos: typeof statsObj.visitante === 'object' ? statsObj.visitante.puntos || 0 : (safeMatch.goles_visitante || 0),
@@ -52,6 +53,7 @@ export default function KarateWKFController({
         jogai: typeof statsObj.visitante === 'object' ? statsObj.visitante.jogai || 0 : 0,
         penalizaciones: typeof statsObj.visitante === 'object' ? statsObj.visitante.penalizaciones || 0 : 0,
         video_review: typeof statsObj.visitante === 'object' ? statsObj.visitante.video_review || 'ACTIVE' : 'ACTIVE',
+        historial: typeof statsObj.visitante === 'object' && Array.isArray(statsObj.visitante.historial) ? statsObj.visitante.historial : [],
       },
       metodo_victoria: statsObj.metodo_victoria || null,
       ganador_lado: statsObj.ganador_lado || null
@@ -316,6 +318,18 @@ export default function KarateWKFController({
       const newTechCount = Math.max(0, currentTechCount + delta);
       n[lado][tech] = newTechCount;
 
+      // Historial de técnicas (para que "Falta Zanshin" invalide exactamente la última)
+      const hist: string[] = Array.isArray(n[lado].historial) ? n[lado].historial : [];
+      if (delta > 0) {
+        for (let i = 0; i < delta; i++) hist.push(tech);
+      } else if (delta < 0) {
+        for (let i = 0; i < -delta; i++) {
+          const idx = hist.lastIndexOf(tech);
+          if (idx >= 0) hist.splice(idx, 1);
+        }
+      }
+      n[lado].historial = hist;
+
       const currentPts = n[lado].puntos || 0;
       const newPts = Math.max(0, currentPts + (ptsValue * delta));
       n[lado].puntos = newPts;
@@ -383,10 +397,18 @@ export default function KarateWKFController({
     setEstadisticas((prev: any) => {
       const n = JSON.parse(JSON.stringify(prev));
       if (n[lado].puntos > 0) {
-        n[lado].puntos = Math.max(0, n[lado].puntos - 1);
-        if (n[lado].yuko > 0) n[lado].yuko -= 1;
-        else if (n[lado].waza_ari > 0) n[lado].waza_ari -= 1;
-        else if (n[lado].ippon > 0) n[lado].ippon -= 1;
+        const valores: Record<string, number> = { yuko: 1, waza_ari: 2, ippon: 3 };
+        const hist: string[] = Array.isArray(n[lado].historial) ? n[lado].historial : [];
+        // Última técnica registrada; si no hay historial (datos antiguos), la de mayor valor presente
+        let tech: string | undefined = hist.pop();
+        if (!tech || !(n[lado][tech] > 0)) {
+          tech = (['ippon', 'waza_ari', 'yuko'] as const).find(t => (n[lado][t] || 0) > 0);
+        }
+        n[lado].historial = hist;
+        if (tech) {
+          n[lado][tech] -= 1;
+          n[lado].puntos = Math.max(0, n[lado].puntos - valores[tech]);
+        }
       }
       setAlertaCombate(`⚠️ Punto invalidado para ${atleta} por Falta de Zanshin (Conciencia continua).`);
       sendBroadcast({ event: "SCORE_UPDATE", state: n });
