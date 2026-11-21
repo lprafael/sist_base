@@ -257,7 +257,8 @@ async def impersonate(
 ):
     """Permite a un admin iniciar sesión como otro usuario"""
     # Verify current user is admin
-    if current_user.get("role") != "admin":
+    user_role = (current_user.get("role") or "").lower()
+    if user_role not in ["admin", "administrador", "super", "superadmin", "dueno", "dueño"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para realizar esta acción"

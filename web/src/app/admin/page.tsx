@@ -2341,6 +2341,12 @@ export default function AdminConsole() {
                                   localStorage.removeItem('admin_session_backup');
                                 }
                                 const currentToken = sessionData.access_token || sessionData.token || '';
+                                if (!currentToken) {
+                                  alert('Tu sesión no contiene un token válido. Por favor vuelve a iniciar sesión.');
+                                  localStorage.removeItem('user_session');
+                                  window.location.href = '/torneos/login';
+                                  return;
+                                }
                                 try {
                                   const res = await fetch(`${API_URL}/auth/impersonate/${o.usuario_id}`, {
                                     method: 'POST',
@@ -2354,25 +2360,31 @@ export default function AdminConsole() {
                                     const newSessionData = {
                                       access_token: data.access_token,
                                       token: data.access_token,
-                                      role: data.user.rol,
-                                      name: data.user.nombre_completo,
-                                      email: data.user.email,
-                                      usuario_id: data.user.id,
-                                      tipo_torneo: data.user.tipo_torneo || null,
+                                      role: data.user.rol || 'organizador',
+                                      name: data.user.nombre_completo || o.nombre,
+                                      email: data.user.email || o.email,
+                                      usuario_id: data.user.id || o.usuario_id,
+                                      organizador_id: o.id,
+                                      tipo_torneo: data.user.tipo_torneo || o.tipo_torneo || null,
                                       authorized: true,
                                       is_impersonating: true,
                                       impersonator_role: sessionData.role || 'admin'
                                     };
                                     localStorage.setItem('user_session', JSON.stringify(newSessionData));
                                     
-                                    if (newSessionData.role === 'organizador') {
+                                    if (newSessionData.role === 'organizador' || newSessionData.tipo_torneo === 'futbol') {
                                       window.location.href = '/admin-futbol/campeonatos';
                                     } else {
                                       window.location.href = '/admin-generales';
                                     }
+                                  } else if (res.status === 401) {
+                                    alert('Tu sesión de administrador ha expirado por inactividad. Por favor, vuelve a iniciar sesión con tus credenciales.');
+                                    localStorage.removeItem('user_session');
+                                    localStorage.removeItem('admin_session_backup');
+                                    window.location.href = '/torneos/login';
                                   } else {
-                                    const err = await res.json();
-                                    alert(`Error: ${err.detail || 'No se pudo ingresar'}`);
+                                    const err = await res.json().catch(() => ({}));
+                                    alert(`Error al ingresar como organizador: ${err.detail || 'No se pudo iniciar sesión'}`);
                                   }
                                 } catch (e) {
                                   alert('Error de red al intentar ingresar como este usuario');

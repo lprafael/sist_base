@@ -23,7 +23,7 @@ if not SECRET_KEY or SECRET_KEY.startswith("tu_clave_secreta") or len(SECRET_KEY
         "32 caracteres, p. ej.: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
     )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480")) # Default: 8 horas
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")) # Default: 7 días (antes 8 horas)
 
 # Configuración de email
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
