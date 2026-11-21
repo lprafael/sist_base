@@ -37,6 +37,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Bearer token para autenticación
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica si la contraseña coincide con el hash. Bcrypt acepta máx 72 bytes."""
@@ -113,6 +114,18 @@ def get_current_user(
             except Exception:
                 pass
     return payload
+
+def get_optional_user(
+    request: Request = None,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
+) -> Optional[dict]:
+    """Obtiene el usuario actual si existe token; devuelve None si es anónimo o inválido."""
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        return get_current_user(request, credentials)
+    except Exception:
+        return None
 
 # Roles y permisos
 ADMIN_PERMISSIONS = [

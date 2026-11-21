@@ -45,10 +45,13 @@ async def torneo_de_partido(session: AsyncSession, partido_id: str) -> Optional[
     )).scalar()
 
 
-async def verificar_gestor_partido(session: AsyncSession, partido_id: str, user: dict) -> None:
+async def verificar_gestor_partido(session: AsyncSession, partido_id: str, user: Optional[dict] = None) -> None:
     p_str = str(partido_id or "")
     # Permitir combates virtuales de tatami o demos sin exigir registro previo en DB
     if p_str.startswith("tatami-") or p_str in {"123", "demo-match"}:
+        return
+    if user is None:
+        # Permitido para streaming/subida de dispositivos periféricos del tatami (cámaras o marcadores)
         return
     if _rol(user) in ROLES_ADMIN or _rol(user) in {"organizador", "veedor", "arbitro", "delegado"}:
         t_id = await torneo_de_partido(session, partido_id)

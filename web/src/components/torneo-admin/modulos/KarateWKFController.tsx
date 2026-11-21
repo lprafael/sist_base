@@ -171,7 +171,17 @@ export default function KarateWKFController({
 
     return () => {
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws) ws.close();
+      if (ws) {
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.close();
+          } else if (ws.readyState === WebSocket.CONNECTING) {
+            ws.onopen = () => {
+              try { ws.close(); } catch {}
+            };
+          }
+        } catch {}
+      }
     };
   }, [matchId]);
 
@@ -466,6 +476,12 @@ export default function KarateWKFController({
       });
     } else {
       // Re-habilitar tarjeta manualmente si el árbitro principal anula el reclamo
+      try {
+        fetch(`${API_URL}/api/vr/combates/${matchId}/cancelar`, {
+          method: 'POST',
+          headers: authHeaders()
+        }).catch(() => {});
+      } catch {}
       setEstadisticas((prev: any) => {
         const n = JSON.parse(JSON.stringify(prev));
         n[lado].video_review = 'ACTIVE';

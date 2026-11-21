@@ -28,7 +28,7 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 from database import get_session
-from security import get_current_user, verify_token
+from security import get_current_user, verify_token, get_optional_user
 from permisos_torneo import verificar_gestor_partido
 from workers.vr_broadcaster import (
     vr_manager,
@@ -138,6 +138,14 @@ async def _ensure_schema(session: AsyncSession):
         await session.execute(text(
             "ALTER TABLE torneos.video_reviews ALTER COLUMN clip_url TYPE VARCHAR(512)"
         ))
+        try:
+            await session.execute(text("""
+                ALTER TABLE torneos.video_reviews DROP CONSTRAINT IF EXISTS video_reviews_resultado_check;
+                ALTER TABLE torneos.video_reviews ADD CONSTRAINT video_reviews_resultado_check
+                    CHECK (resultado IS NULL OR resultado IN ('ACEPTADO', 'RECHAZADO', 'MIENAI', 'CANCELADO', 'REEMPLAZADO'));
+            """))
+        except Exception:
+            pass
         await session.commit()
         _schema_ok = True
     except Exception as e:
@@ -302,19 +310,16 @@ async def solicitar_video_review(
             detail=f"El coach de {color} ya no tiene derecho a Video Review en este combate."
         )
 
-    # Verificar que no haya ya un VR activo para este partido
-    existing = await session.execute(
+    # Si había un VR previo colgado o sin resolver para este combate,
+    # se archiva como REEMPLAZADO para no bloquear la mesa de control ni el flujo del torneo
+    await session.execute(
         text("""
-            SELECT id FROM torneos.video_reviews
+            UPDATE torneos.video_reviews
+            SET resuelto = TRUE, resuelto_at = NOW(), resultado = 'REEMPLAZADO'
             WHERE partido_id::text = :pid AND resuelto = FALSE
         """),
         {"pid": str(match_id)}
     )
-    if existing.fetchone():
-        raise HTTPException(
-            status_code=409,
-            detail="Ya hay un Video Review activo para este combate."
-        )
 
     # Insertar registro
     result = await session.execute(
@@ -513,7 +518,7 @@ async def cancelar_video_review(
     res = await session.execute(
         text("""
             UPDATE torneos.video_reviews
-            SET resuelto = TRUE, resuelto_at = NOW()
+            SET resuelto = TRUE, resuelto_at = NOW(), resultado = 'CANCELADO'
             WHERE partido_id::text = :pid AND resuelto = FALSE
             RETURNING id
         """),
@@ -671,7 +676,7 @@ async def subir_clip_web(
     file: UploadFile = File(...),
     review_id: Optional[int] = None,
     session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: Optional[dict] = Depends(get_optional_user),
 ):
     """
     Recibe el clip de video generado por el navegador (WebM o MP4) desde la pantalla de cámara nativa.

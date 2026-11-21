@@ -37,6 +37,7 @@ export default function ArbitrajeCombatePage({ params: paramsPromise }: { params
   const torneoId = params.id;
 
   const urlTatami = searchParams?.get("tatami") || searchParams?.get("area") || "1";
+  const urlMatchId = searchParams?.get("matchId");
   const [selectedTatami, setSelectedTatami] = useState<number>(Number(urlTatami) || 1);
   const [partidos, setPartidos] = useState<any[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
@@ -83,6 +84,8 @@ export default function ArbitrajeCombatePage({ params: paramsPromise }: { params
 
   // Actualizar el combate seleccionado cuando cambia el tatami o los partidos
   useEffect(() => {
+    if (loading) return;
+
     if (partidos.length === 0) {
       // Si aún no hay partidos creados en DB, proveer combate base para el tatami
       setSelectedMatch({
@@ -107,7 +110,8 @@ export default function ArbitrajeCombatePage({ params: paramsPromise }: { params
 
     // Filtrar partidos asignados a este tatami
     const targetArea = String(selectedTatami);
-    const matchTatami = partidos.find((p: any) => String(p.area) === targetArea && ['en_juego', 'en_curso', 'pausado'].includes(p.estado))
+    const matchTatami = (urlMatchId ? partidos.find((p: any) => p.id === urlMatchId) : null)
+      || partidos.find((p: any) => String(p.area) === targetArea && ['en_juego', 'en_curso', 'pausado'].includes(p.estado))
       || partidos.find((p: any) => String(p.area) === targetArea && p.estado === 'programado')
       || partidos.find((p: any) => String(p.area) === targetArea && p.estado === 'finalizado')
       || partidos.find((p: any) => String(p.area) === targetArea)
@@ -117,7 +121,7 @@ export default function ArbitrajeCombatePage({ params: paramsPromise }: { params
       // Asegurar estructura de área
       setSelectedMatch({ ...matchTatami, area: selectedTatami });
     }
-  }, [partidos, selectedTatami, torneoId]);
+  }, [loading, partidos, selectedTatami, torneoId, urlMatchId]);
 
   if (loading) {
     return (
