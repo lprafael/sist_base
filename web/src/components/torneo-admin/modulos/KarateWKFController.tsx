@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { authHeaders, getAuthToken } from '@/lib/session';
-import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, Award, Wifi, WifiOff } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, Check, Trophy, User, ShieldAlert, AlertTriangle, Zap, Flame, Video, Award, Wifi, WifiOff, Tv, Scale } from 'lucide-react';
 
 const getApiUrl = () => {
   if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
@@ -869,7 +869,47 @@ export default function KarateWKFController({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {!embedded && safeMatch.torneo_id && (() => {
+              const rawSt = typeof safeMatch.estadisticas === 'string'
+                ? (() => { try { return JSON.parse(safeMatch.estadisticas); } catch { return {}; } })()
+                : (safeMatch.estadisticas || {});
+              const tatamiArea = safeMatch.area || rawSt?.area || 1;
+              return (
+                <>
+                  <a
+                    href={`/torneos/${safeMatch.torneo_id}/tatami/${tatamiArea}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-black transition shadow-sm"
+                    title={`Abrir Marcador TV del Tatami ${tatamiArea}`}
+                  >
+                    <Tv size={14} />
+                    <span className="hidden lg:inline">Marcador TV {tatamiArea}</span>
+                  </a>
+                  <a
+                    href={`/torneos/${safeMatch.torneo_id}/tatami/${tatamiArea}/camara?matchId=${matchId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border border-sky-500/40 rounded-xl text-xs font-black transition shadow-sm"
+                    title={`Abrir Cámara del Tatami ${tatamiArea}`}
+                  >
+                    <Video size={14} />
+                    <span className="hidden lg:inline">Cámara {tatamiArea}</span>
+                  </a>
+                  <a
+                    href={`/torneos/${safeMatch.torneo_id}/vr-station?matchId=${matchId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-black transition shadow-sm"
+                    title="Abrir Panel del Juez VR"
+                  >
+                    <Scale size={14} />
+                    <span className="hidden lg:inline">Juez VR</span>
+                  </a>
+                </>
+              );
+            })()}
             <button
               onClick={() => setShowKeyboardModal(true)}
               className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-bold py-1.5 px-3 rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm"
